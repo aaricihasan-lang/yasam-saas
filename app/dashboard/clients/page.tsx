@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -204,7 +205,18 @@ export default function ClientsPage() {
     <main style={pageStyle}>
       <header style={headerStyle}>
         <div>
+          <div style={topBarStyle}>
+            <Link href="/" style={backButtonStyle}>
+              ← Ana Panele Dön
+            </Link>
+
+            <button onClick={loadClients} style={refreshButtonStyle}>
+              Yenile
+            </button>
+          </div>
+
           <h1 style={titleStyle}>Danışanlar</h1>
+
           <p style={subtitleStyle}>
             Danışan kayıtları, doğum bilgileri, görüşme tarihleri, kan grubu ve mizaç bilgileri.
           </p>
@@ -233,10 +245,6 @@ export default function ClientsPage() {
             </strong>
             <span style={statLabelStyle}>Aktif Uyarı</span>
           </div>
-
-          <button onClick={loadClients} style={refreshButtonStyle}>
-            Yenile
-          </button>
         </div>
       </header>
 
@@ -291,7 +299,7 @@ export default function ClientsPage() {
               <div style={greenPillStyle}>Yeni Danışan Kaydı</div>
               <h2 style={panelTitleStyle}>Danışanı Kaydet</h2>
               <p style={panelSubTextStyle}>
-                Tüm kayıt alanları burada açık görünür. Doğum tarihi girilince burç otomatik hesaplanır.
+                Doğum tarihi girilince burç otomatik hesaplanır.
               </p>
             </div>
           </div>
@@ -369,16 +377,18 @@ export default function ClientsPage() {
               <div>
                 <div style={bluePillStyle}>Arama & Filtreleme</div>
                 <h2 style={panelTitleStyle}>Danışanları Bul</h2>
-                <p style={panelSubTextStyle}>Ad, soyad, telefon, burç, kan grubu ve mizaca göre filtrele.</p>
+                <p style={panelSubTextStyle}>
+                  Ad, soyad, telefon, burç, kan grubu ve mizaca göre filtrele.
+                </p>
               </div>
             </div>
 
             <div style={filterGridStyle}>
-              <Field label="Ara (Ad, Soyad, Telefon)">
+              <Field label="Ara">
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Ara..."
+                  placeholder="Ad, soyad veya telefon ara..."
                   style={inputStyle}
                 />
               </Field>
@@ -386,7 +396,20 @@ export default function ClientsPage() {
               <Field label="Burç">
                 <select value={filterBurc} onChange={(e) => setFilterBurc(e.target.value)} style={inputStyle}>
                   <option value="">Seçiniz</option>
-                  {["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"].map((item) => (
+                  {[
+                    "Koç",
+                    "Boğa",
+                    "İkizler",
+                    "Yengeç",
+                    "Aslan",
+                    "Başak",
+                    "Terazi",
+                    "Akrep",
+                    "Yay",
+                    "Oğlak",
+                    "Kova",
+                    "Balık",
+                  ].map((item) => (
                     <option key={item}>{item}</option>
                   ))}
                 </select>
@@ -422,7 +445,7 @@ export default function ClientsPage() {
             <h2 style={sectionTitleStyle}>Danışan Listesi</h2>
 
             {loading ? (
-              <p>Yükleniyor...</p>
+              <p style={loadingStyle}>Yükleniyor...</p>
             ) : filteredClients.length === 0 ? (
               <div style={emptyStyle}>Kriterlere uygun danışan bulunamadı.</div>
             ) : (
@@ -454,7 +477,7 @@ export default function ClientsPage() {
 
                         {hasExpiredHomework && (
                           <span style={expiredPillStyle}>
-                            ⚠️ {expiredCount} ödevin süresi doldu
+                            ⚠️ {expiredCount} ödev
                           </span>
                         )}
                       </div>
@@ -496,42 +519,38 @@ function Field({
   );
 }
 
-const mainTabsShellStyle: React.CSSProperties = {
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: 14,
-  padding: 8,
-  marginBottom: 10,
-  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
+const pageStyle: React.CSSProperties = {
+  padding: 14,
+  background: "linear-gradient(135deg,#f7fbff 0%,#f5f1ff 45%,#f5fff8 100%)",
+  minHeight: "100vh",
+  color: "#0f172a",
 };
 
-const mainTabsBarStyle: React.CSSProperties = {
+const topBarStyle: React.CSSProperties = {
   display: "flex",
   gap: 8,
+  alignItems: "center",
+  marginBottom: 10,
   flexWrap: "wrap",
 };
 
-const mainTabButtonStyle: React.CSSProperties = {
-  border: "1px solid",
-  padding: "7px 10px",
-  borderRadius: 12,
+const backButtonStyle: React.CSSProperties = {
+  textDecoration: "none",
+  background: "white",
+  color: "#0f172a",
+  border: "1px solid #e2e8f0",
+  borderRadius: 999,
+  padding: "7px 11px",
   fontSize: 11,
   fontWeight: 900,
-  cursor: "pointer",
-  transition: "0.18s ease",
-};
-
-const pageStyle: React.CSSProperties = {
-  padding: 12,
-  background: "#f4f7fb",
-  minHeight: "100vh",
+  boxShadow: "0 8px 18px rgba(15,23,42,0.04)",
 };
 
 const headerStyle: React.CSSProperties = {
   marginBottom: 10,
   display: "flex",
   justifyContent: "space-between",
-  gap: 8,
+  gap: 10,
   alignItems: "flex-start",
   flexWrap: "wrap",
 };
@@ -544,18 +563,18 @@ const headerStatsStyle: React.CSSProperties = {
 };
 
 const statCardStyle: React.CSSProperties = {
-  minWidth: 76,
+  minWidth: 78,
   background: "white",
   border: "1px solid #e2e8f0",
   borderRadius: 15,
-  padding: "7px 10px",
+  padding: "8px 10px",
   boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
 };
 
 const statNumberStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 14,
-  fontWeight: 900,
+  fontSize: 15,
+  fontWeight: 950,
   color: "#0f172a",
   lineHeight: 1,
 };
@@ -574,37 +593,64 @@ const refreshButtonStyle: React.CSSProperties = {
   border: "none",
   background: "#0f172a",
   color: "white",
-  padding: "7px 10px",
-  borderRadius: 12,
-  fontWeight: 850,
+  padding: "7px 11px",
+  borderRadius: 999,
+  fontWeight: 900,
   fontSize: 11,
   cursor: "pointer",
 };
 
 const titleStyle: React.CSSProperties = {
-  fontSize: 22,
-  fontWeight: 900,
+  fontSize: 24,
+  fontWeight: 950,
   margin: 0,
+  letterSpacing: "-0.6px",
 };
 
 const subtitleStyle: React.CSSProperties = {
   marginTop: 5,
   color: "#64748b",
+  fontSize: 12,
+};
+
+const mainTabsShellStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.86)",
+  border: "1px solid #e2e8f0",
+  borderRadius: 16,
+  padding: 8,
+  marginBottom: 10,
+  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
+};
+
+const mainTabsBarStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const mainTabButtonStyle: React.CSSProperties = {
+  border: "1px solid",
+  padding: "8px 11px",
+  borderRadius: 13,
   fontSize: 11,
+  fontWeight: 950,
+  cursor: "pointer",
+  transition: "0.18s ease",
 };
 
 const panelStyle: React.CSSProperties = {
-  background: "white",
-  padding: 12,
-  borderRadius: 14,
+  background: "rgba(255,255,255,0.88)",
+  padding: 13,
+  borderRadius: 16,
   marginBottom: 10,
-  boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
 };
 
 const newClientPanelStyle: React.CSSProperties = {
-  background: "linear-gradient(135deg, #ffffff, #f0fdf4)",
-  padding: 12,
-  borderRadius: 14,
+  background: "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,244,0.95))",
+  padding: 13,
+  borderRadius: 16,
   marginBottom: 18,
   border: "1px solid #bbf7d0",
   boxShadow: "0 10px 24px rgba(22,163,74,0.08)",
@@ -625,7 +671,7 @@ const bluePillStyle: React.CSSProperties = {
   padding: "5px 10px",
   borderRadius: 999,
   fontSize: 11,
-  fontWeight: 900,
+  fontWeight: 950,
 };
 
 const greenPillStyle: React.CSSProperties = {
@@ -635,13 +681,13 @@ const greenPillStyle: React.CSSProperties = {
   padding: "5px 10px",
   borderRadius: 999,
   fontSize: 11,
-  fontWeight: 900,
+  fontWeight: 950,
 };
 
 const panelTitleStyle: React.CSSProperties = {
   margin: "6px 0 2px",
-  fontSize: 14,
-  fontWeight: 900,
+  fontSize: 15,
+  fontWeight: 950,
 };
 
 const panelSubTextStyle: React.CSSProperties = {
@@ -651,15 +697,16 @@ const panelSubTextStyle: React.CSSProperties = {
 };
 
 const listPanelStyle: React.CSSProperties = {
-  background: "white",
-  padding: 12,
-  borderRadius: 14,
-  boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+  background: "rgba(255,255,255,0.9)",
+  padding: 13,
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: 15,
-  fontWeight: 850,
+  fontWeight: 900,
   marginTop: 0,
   marginBottom: 12,
 };
@@ -684,7 +731,7 @@ const fieldStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 850,
   color: "#334155",
 };
 
@@ -710,9 +757,9 @@ const buttonStyle: React.CSSProperties = {
   background: "#16a34a",
   color: "white",
   border: "none",
-  padding: "8px 12px",
-  borderRadius: 12,
-  fontWeight: 850,
+  padding: "9px 13px",
+  borderRadius: 13,
+  fontWeight: 900,
   fontSize: 11,
   cursor: "pointer",
   boxShadow: "0 8px 18px rgba(22,163,74,0.18)",
@@ -723,6 +770,13 @@ const emptyStyle: React.CSSProperties = {
   borderRadius: 14,
   background: "#f8fafc",
   color: "#475569",
+  fontSize: 12,
+};
+
+const loadingStyle: React.CSSProperties = {
+  color: "#475569",
+  fontSize: 12,
+  fontWeight: 800,
 };
 
 const cardsStyle: React.CSSProperties = {
@@ -733,7 +787,7 @@ const cardsStyle: React.CSSProperties = {
 
 const cardStyle: React.CSSProperties = {
   padding: 10,
-  borderRadius: 13,
+  borderRadius: 14,
   background: "white",
   border: "1px solid #e2e8f0",
   cursor: "pointer",
@@ -750,15 +804,15 @@ const cardHeaderStyle: React.CSSProperties = {
 
 const cardNameStyle: React.CSSProperties = {
   fontSize: 15,
-  fontWeight: 900,
+  fontWeight: 950,
 };
 
 const expiredPillStyle: React.CSSProperties = {
   background: "#fee2e2",
   color: "#dc2626",
-  padding: "8px 10px",
+  padding: "7px 9px",
   borderRadius: 999,
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 950,
   whiteSpace: "nowrap",
 };
@@ -766,10 +820,10 @@ const expiredPillStyle: React.CSSProperties = {
 const detailBadgeStyle: React.CSSProperties = {
   background: "#e0f2fe",
   color: "#0369a1",
-  padding: "8px 12px",
+  padding: "7px 11px",
   borderRadius: 999,
   fontSize: 11,
-  fontWeight: 900,
+  fontWeight: 950,
   whiteSpace: "nowrap",
 };
 

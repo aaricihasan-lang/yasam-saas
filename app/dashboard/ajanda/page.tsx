@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -13,7 +14,12 @@ type Client = {
 
 type AppointmentStatus = "bekliyor" | "tamamlandi" | "iptal";
 
-type AppointmentFilter = "all" | "today" | "upcoming" | "completed" | "cancelled";
+type AppointmentFilter =
+  | "all"
+  | "today"
+  | "upcoming"
+  | "completed"
+  | "cancelled";
 
 type Appointment = {
   id: string;
@@ -61,22 +67,26 @@ export default function AjandaPage() {
 
   const clientMap = useMemo(() => {
     const map = new Map<string, string>();
+
     clients.forEach((client) => {
       map.set(client.id, `${client.ad || ""} ${client.soyad || ""}`.trim());
     });
+
     return map;
   }, [clients]);
 
   const todayCount = useMemo(() => {
     const today = new Date().toDateString();
+
     return appointments.filter(
       (item) => new Date(item.appointment_date).toDateString() === today
     ).length;
   }, [appointments]);
 
   const waitingCount = useMemo(() => {
-    return appointments.filter((item) => (item.status || "bekliyor") === "bekliyor")
-      .length;
+    return appointments.filter(
+      (item) => (item.status || "bekliyor") === "bekliyor"
+    ).length;
   }, [appointments]);
 
   const completedCount = useMemo(() => {
@@ -102,7 +112,11 @@ export default function AjandaPage() {
       }
 
       if (filter === "upcoming") {
-        return appointmentDate >= new Date() && status !== "tamamlandi" && status !== "iptal";
+        return (
+          appointmentDate >= new Date() &&
+          status !== "tamamlandi" &&
+          status !== "iptal"
+        );
       }
 
       if (filter === "completed") {
@@ -209,117 +223,170 @@ export default function AjandaPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fef3c7,_transparent_32%),linear-gradient(135deg,#f8fafc_0%,#eef2ff_45%,#fdf2f8_100%)] p-2 lg:p-3">
+    <main className="min-h-screen bg-[linear-gradient(135deg,#f7fbff_0%,#f5f1ff_45%,#f5fff8_100%)] p-3 text-slate-950 lg:p-4">
       <div className="mx-auto max-w-[1180px]">
-        <div className="mb-3 overflow-hidden rounded-[14px] border border-white/70 bg-white/75 shadow-lg shadow-slate-200/60 backdrop-blur">
-          <div className="relative p-3 lg:p-3">
-            <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="mb-1.5 inline-flex rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-md shadow-violet-200">
-                  Yaşam Sistemi
-                </div>
-                <h1 className="text-xl font-black tracking-tight text-slate-950 lg:text-xl">
-                  Ajanda & Randevu Yönetimi
-                </h1>
-                <p className="mt-0.5 max-w-2xl text-xs text-slate-600">
-                  Randevuları takip et, durumlarını yönet, günlük akışı net gör.
-                </p>
+        <header className="mb-3 overflow-hidden rounded-[20px] border border-white/80 bg-white/80 shadow-[0_16px_42px_rgba(15,23,42,0.06)] backdrop-blur">
+          <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Link
+                  href="/"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  ← Ana Panele Dön
+                </Link>
+
+                <span className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-[11px] font-black text-white shadow-md shadow-violet-100">
+                  Ajanda
+                </span>
               </div>
 
-              <div className="grid grid-cols-5 gap-1.5">
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-center">
-                  <div className="text-sm font-black text-indigo-700">{appointments.length}</div>
-                  <div className="text-[9px] font-bold text-indigo-500">Toplam</div>
+              <h1 className="text-[24px] font-black tracking-tight text-slate-950">
+                Ajanda & Randevu Yönetimi
+              </h1>
+
+              <p className="mt-1 max-w-2xl text-[12px] font-medium text-slate-500">
+                Randevuları takip et, durumlarını yönet, günlük akışı net gör.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-5 gap-1.5">
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-center">
+                <div className="text-[16px] font-black text-indigo-700">
+                  {appointments.length}
                 </div>
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-center">
-                  <div className="text-sm font-black text-emerald-700">{todayCount}</div>
-                  <div className="text-[9px] font-bold text-emerald-500">Bugün</div>
+                <div className="text-[9px] font-black text-indigo-500">
+                  Toplam
                 </div>
-                <div className="rounded-xl border border-violet-100 bg-violet-50 px-2.5 py-1.5 text-center">
-                  <div className="text-sm font-black text-violet-700">{waitingCount}</div>
-                  <div className="text-[9px] font-bold text-violet-500">Bekliyor</div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center">
+                <div className="text-[16px] font-black text-emerald-700">
+                  {todayCount}
                 </div>
-                <div className="rounded-xl border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-center">
-                  <div className="text-sm font-black text-amber-700">{completedCount}</div>
-                  <div className="text-[9px] font-bold text-amber-500">Biten</div>
+                <div className="text-[9px] font-black text-emerald-500">
+                  Bugün
                 </div>
-                <div className="rounded-xl border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-center">
-                  <div className="text-sm font-black text-rose-700">{cancelledCount}</div>
-                  <div className="text-[9px] font-bold text-rose-500">İptal</div>
+              </div>
+
+              <div className="rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2 text-center">
+                <div className="text-[16px] font-black text-violet-700">
+                  {waitingCount}
+                </div>
+                <div className="text-[9px] font-black text-violet-500">
+                  Bekliyor
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-center">
+                <div className="text-[16px] font-black text-amber-700">
+                  {completedCount}
+                </div>
+                <div className="text-[9px] font-black text-amber-500">
+                  Biten
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2 text-center">
+                <div className="text-[16px] font-black text-rose-700">
+                  {cancelledCount}
+                </div>
+                <div className="text-[9px] font-black text-rose-500">
+                  İptal
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
-        <div className="rounded-[14px] border border-white/80 bg-white/85 p-3 shadow-lg shadow-slate-200/60 backdrop-blur">
-          <div className="mb-3 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+        <section className="rounded-[20px] border border-white/85 bg-white/86 p-4 shadow-[0_16px_42px_rgba(15,23,42,0.055)] backdrop-blur">
+          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-black text-amber-700">
+              <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-700">
                 Randevu Listesi
               </div>
-              <h2 className="mt-1 text-lg font-black text-slate-950 lg:text-xl">
+
+              <h2 className="mt-1 text-[20px] font-black text-slate-950">
                 Yaklaşan Görüşmeler
               </h2>
-              <p className="text-[11px] text-slate-500">
+
+              <p className="text-[11px] font-medium text-slate-500">
                 Randevuya tıklayınca detay penceresi açılır.
               </p>
             </div>
 
-            <div className="rounded-lg bg-slate-950 px-3 py-1.5 text-[11px] font-bold text-white">
-              Gösterilen {filteredAppointments.length} randevu
-            </div>
+            <button
+              type="button"
+              onClick={loadAppointments}
+              className="rounded-full bg-slate-950 px-4 py-2 text-[11px] font-black text-white shadow-md transition hover:bg-slate-800"
+            >
+              Yenile · {filteredAppointments.length} kayıt
+            </button>
           </div>
 
           <div className="mb-3 grid grid-cols-2 gap-1.5 md:grid-cols-5">
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition ${
-                filter === "all" ? "bg-slate-950 text-white shadow-md" : "border border-slate-200 bg-white text-slate-700"
+              className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                filter === "all"
+                  ? "bg-slate-950 text-white shadow-md"
+                  : "border border-slate-200 bg-white text-slate-700"
               }`}
             >
               Tümü
             </button>
+
             <button
               type="button"
               onClick={() => setFilter("today")}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition ${
-                filter === "today" ? "bg-emerald-700 text-white shadow-md" : "border border-emerald-100 bg-emerald-50 text-emerald-700"
+              className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                filter === "today"
+                  ? "bg-emerald-700 text-white shadow-md"
+                  : "border border-emerald-100 bg-emerald-50 text-emerald-700"
               }`}
             >
               Bugün
             </button>
+
             <button
               type="button"
               onClick={() => setFilter("upcoming")}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition ${
-                filter === "upcoming" ? "bg-violet-700 text-white shadow-md" : "border border-violet-100 bg-violet-50 text-violet-700"
+              className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                filter === "upcoming"
+                  ? "bg-violet-700 text-white shadow-md"
+                  : "border border-violet-100 bg-violet-50 text-violet-700"
               }`}
             >
               Yaklaşan
             </button>
+
             <button
               type="button"
               onClick={() => setFilter("completed")}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition ${
-                filter === "completed" ? "bg-amber-700 text-white shadow-md" : "border border-amber-100 bg-amber-50 text-amber-700"
+              className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                filter === "completed"
+                  ? "bg-amber-700 text-white shadow-md"
+                  : "border border-amber-100 bg-amber-50 text-amber-700"
               }`}
             >
               Tamamlanan
             </button>
+
             <button
               type="button"
               onClick={() => setFilter("cancelled")}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition ${
-                filter === "cancelled" ? "bg-rose-700 text-white shadow-md" : "border border-rose-100 bg-rose-50 text-rose-700"
+              className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                filter === "cancelled"
+                  ? "bg-rose-700 text-white shadow-md"
+                  : "border border-rose-100 bg-rose-50 text-rose-700"
               }`}
             >
               İptal
             </button>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {filteredAppointments.map((item, index) => {
               const statusInfo = getStatusInfo(item.status);
 
@@ -327,25 +394,28 @@ export default function AjandaPage() {
                 <button
                   key={item.id}
                   onClick={() => setSelectedAppointment(item)}
-                  className="group w-full overflow-hidden rounded-[14px] border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-100"
+                  className="group w-full overflow-hidden rounded-[16px] border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-100"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_165px]">
-                    <div className="flex gap-2 p-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-xs font-black text-white shadow-md shadow-violet-200">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_175px]">
+                    <div className="flex gap-3 p-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-xs font-black text-white shadow-md shadow-violet-100">
                         {index + 1}
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-700">
                             {formatDay(item.appointment_date)}
                           </span>
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${statusInfo.pill}`}>
+
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[10px] font-black ${statusInfo.pill}`}
+                          >
                             {statusInfo.label}
                           </span>
                         </div>
 
-                        <div className="mt-0.5 text-sm font-black text-slate-950">
+                        <div className="mt-1 text-[15px] font-black text-slate-950">
                           {item.title || "Görüşme"}
                         </div>
 
@@ -356,7 +426,7 @@ export default function AjandaPage() {
                         </div>
 
                         {item.notes && (
-                          <div className="mt-1.5 line-clamp-1 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-700">
+                          <div className="mt-2 line-clamp-1 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
                             {item.notes}
                           </div>
                         )}
@@ -365,9 +435,17 @@ export default function AjandaPage() {
 
                     <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-gradient-to-br from-slate-950 to-slate-800 px-3 py-2 text-white md:border-l md:border-t-0">
                       <div>
-                        <div className="text-[10px] font-bold text-slate-300">Tarih / Saat</div>
-                        <div className="mt-0.5 text-[11px] font-black">{formatDate(item.appointment_date)}</div>
+                        <div className="text-[10px] font-bold text-slate-300">
+                          Tarih / Saat
+                        </div>
+                        <div className="mt-1 text-[11px] font-black">
+                          {formatDate(item.appointment_date)}
+                        </div>
                       </div>
+
+                      <span className="text-lg opacity-70 transition group-hover:translate-x-0.5 group-hover:opacity-100">
+                        →
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -375,28 +453,33 @@ export default function AjandaPage() {
             })}
 
             {filteredAppointments.length === 0 && (
-              <div className="rounded-[16px] border-2 border-dashed border-slate-300 bg-white/70 p-5 text-center">
-                <div className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-2xl bg-violet-100 text-xl">
+              <div className="rounded-[18px] border-2 border-dashed border-slate-300 bg-white/70 p-6 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-xl">
                   ✨
                 </div>
+
                 <div className="text-sm font-black text-slate-800">
                   Bu filtrede randevu yok.
                 </div>
+
                 <div className="mt-1 text-xs text-slate-500">
                   Randevular danışan detayından oluşturulacak.
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {selectedAppointment && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md overflow-hidden rounded-[18px] bg-white shadow-2xl">
+            <div className="w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl">
               <div className="bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 p-4 text-white">
                 <div className="flex justify-between gap-4">
                   <div>
-                    <div className="text-xs font-bold text-violet-200">Randevu Detayı</div>
+                    <div className="text-xs font-bold text-violet-200">
+                      Randevu Detayı
+                    </div>
+
                     <h3 className="mt-1 text-xl font-black">
                       {selectedAppointment.title || "Görüşme"}
                     </h3>
@@ -412,8 +495,11 @@ export default function AjandaPage() {
               </div>
 
               <div className="space-y-2.5 p-4">
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-2.5">
-                  <div className="text-xs font-bold text-emerald-600">Danışan</div>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                  <div className="text-xs font-bold text-emerald-600">
+                    Danışan
+                  </div>
+
                   <div className="text-sm font-black text-emerald-900">
                     {selectedAppointment.client_id
                       ? clientMap.get(selectedAppointment.client_id) || "Danışan"
@@ -421,41 +507,61 @@ export default function AjandaPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2.5">
-                  <div className="text-xs font-bold text-indigo-600">Tarih / Saat</div>
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                  <div className="text-xs font-bold text-indigo-600">
+                    Tarih / Saat
+                  </div>
+
                   <div className="text-sm font-black text-indigo-900">
                     {formatDate(selectedAppointment.appointment_date)}
                   </div>
                 </div>
 
-                <div className={`rounded-xl border p-2.5 ${getStatusInfo(selectedAppointment.status).panel}`}>
+                <div
+                  className={`rounded-xl border p-3 ${
+                    getStatusInfo(selectedAppointment.status).panel
+                  }`}
+                >
                   <div className="text-xs font-bold text-slate-600">Durum</div>
+
                   <div className="flex items-center gap-1.5 text-sm font-black text-slate-950">
-                    <span className={`h-2.5 w-2.5 rounded-full ${getStatusInfo(selectedAppointment.status).dot}`} />
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        getStatusInfo(selectedAppointment.status).dot
+                      }`}
+                    />
                     {getStatusInfo(selectedAppointment.status).label}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-amber-100 bg-amber-50 p-2.5">
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
                   <div className="text-xs font-bold text-amber-700">Notlar</div>
+
                   <div className="whitespace-pre-wrap text-xs font-semibold text-amber-950">
                     {selectedAppointment.notes || "Not girilmemiş."}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   <button
                     type="button"
-                    onClick={() => updateAppointmentStatus(selectedAppointment.id, "tamamlandi")}
-                    className="rounded-lg bg-emerald-600 p-2 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
+                    onClick={() =>
+                      updateAppointmentStatus(
+                        selectedAppointment.id,
+                        "tamamlandi"
+                      )
+                    }
+                    className="rounded-xl bg-emerald-600 p-2.5 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
                   >
                     Tamamlandı
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => updateAppointmentStatus(selectedAppointment.id, "iptal")}
-                    className="rounded-lg bg-rose-600 p-2 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
+                    onClick={() =>
+                      updateAppointmentStatus(selectedAppointment.id, "iptal")
+                    }
+                    className="rounded-xl bg-rose-600 p-2.5 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
                   >
                     İptal Et
                   </button>
@@ -463,7 +569,7 @@ export default function AjandaPage() {
                   <button
                     type="button"
                     onClick={() => deleteAppointment(selectedAppointment.id)}
-                    className="rounded-lg bg-slate-950 p-2 text-xs font-black text-white shadow-md shadow-slate-200 transition hover:bg-black"
+                    className="rounded-xl bg-slate-950 p-2.5 text-xs font-black text-white shadow-md shadow-slate-200 transition hover:bg-black"
                   >
                     Sil
                   </button>
@@ -473,6 +579,6 @@ export default function AjandaPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

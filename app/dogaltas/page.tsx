@@ -1,13 +1,62 @@
 import Link from "next/link";
 
 const modules = [
-  { title: "Doğaltaş Kayıt", subtitle: "Yeni taş kaydı oluştur.", icon: "💎", href: "/dogaltas/dogaltas-kayit", dot: "bg-emerald-500", iconBg: "bg-cyan-50" },
-  { title: "Mineral Bankası", subtitle: "Mineral veri kayıtları.", icon: "🧪", href: "/dogaltas/mineral-bankasi", dot: "bg-violet-500", iconBg: "bg-violet-50" },
-  { title: "Mineral Listesi", subtitle: "Filtrele ve düzenle.", icon: "📋", href: "/dogaltas/mineral-listesi", dot: "bg-sky-500", iconBg: "bg-sky-50" },
-  { title: "Doğaltaş Listesi", subtitle: "Kayıtlı taşlar.", icon: "🗂️", href: "/dogaltas/dogaltas-listesi", dot: "bg-blue-500", iconBg: "bg-blue-50" },
-  { title: "Kombinasyonlar", subtitle: "Taş kombinasyonları.", icon: "🧩", href: "/dogaltas/kombinasyonlar", dot: "bg-orange-500", iconBg: "bg-orange-50" },
-  { title: "Stok Yönetimi", subtitle: "Stok, adet ve fiyat.", icon: "📦", href: "/dogaltas/stok-yonetimi", dot: "bg-indigo-500", iconBg: "bg-indigo-50" },
-  { title: "Taş Bilgi Kütüphanesi", subtitle: "Eğitim ve referans.", icon: "📚", href: "/dogaltas/tas-bilgi-kutuphanesi", dot: "bg-pink-500", iconBg: "bg-pink-50" },
+  {
+    title: "Doğaltaş Kayıt",
+    subtitle: "Yeni taş kaydı oluştur.",
+    icon: "💎",
+    href: "/dogaltas/dogaltas-kayit",
+    dot: "bg-emerald-500",
+    iconBg: "bg-cyan-50",
+  },
+  {
+    title: "Mineral Bankası",
+    subtitle: "Mineral veri kayıtları.",
+    icon: "🧪",
+    href: "/dogaltas/mineral-bankasi",
+    dot: "bg-violet-500",
+    iconBg: "bg-violet-50",
+  },
+  {
+    title: "Mineral Listesi",
+    subtitle: "Filtrele ve düzenle.",
+    icon: "📋",
+    href: "/dogaltas/mineral-listesi",
+    dot: "bg-sky-500",
+    iconBg: "bg-sky-50",
+  },
+  {
+    title: "Doğaltaş Listesi",
+    subtitle: "Kayıtlı taşlar.",
+    icon: "🗂️",
+    href: "/dogaltas/dogaltas-listesi",
+    dot: "bg-blue-500",
+    iconBg: "bg-blue-50",
+  },
+  {
+    title: "Kombinasyonlar",
+    subtitle: "Taş kombinasyonları.",
+    icon: "🧩",
+    href: "/dogaltas/kombinasyonlar",
+    dot: "bg-orange-500",
+    iconBg: "bg-orange-50",
+  },
+  {
+    title: "Stok Yönetimi",
+    subtitle: "Stok, adet ve fiyat.",
+    icon: "📦",
+    href: "/dogaltas/stok-yonetimi",
+    dot: "bg-indigo-500",
+    iconBg: "bg-indigo-50",
+  },
+  {
+    title: "Taş Bilgi Kütüphanesi",
+    subtitle: "Eğitim ve referans.",
+    icon: "📚",
+    href: "/dogaltas/tas-bilgi-kutuphanesi",
+    dot: "bg-pink-500",
+    iconBg: "bg-pink-50",
+  },
 ];
 
 export default function DogaltasPage() {
@@ -43,7 +92,9 @@ export default function DogaltasPage() {
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
 
-                <span className={`flex h-9 w-9 items-center justify-center rounded-2xl ${item.iconBg} text-base shadow-sm ring-1 ring-slate-100`}>
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-2xl ${item.iconBg} text-base shadow-sm ring-1 ring-slate-100`}
+                >
                   {item.icon}
                 </span>
 
@@ -91,13 +142,14 @@ export default function DogaltasPage() {
                   </h1>
 
                   <p className="mt-3 max-w-[560px] text-[15px] font-medium leading-7 text-slate-500">
-                    Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.
+                    Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek
+                    merkezden yönetin.
                   </p>
                 </div>
               </div>
 
               <Link
-                href="/dashboard"
+                href="/"
                 className="rounded-full bg-white/90 px-5 py-3 text-[13px] font-black text-slate-700 shadow-[0_14px_35px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 transition hover:bg-white"
               >
                 ⌂ Ana Sayfaya Dön
@@ -123,7 +175,7 @@ export default function DogaltasPage() {
                 </button>
               </div>
             </div>
-           
+
             <div className="rounded-[30px] bg-white/72 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.042)] ring-1 ring-white">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-violet-100 text-base">
@@ -142,20 +194,35 @@ export default function DogaltasPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-[24px] bg-white/84 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.038)] ring-1 ring-white">
-                  <p className="text-[13px] font-black text-slate-800">Stok Değeri</p>
-                  <p className="mt-1 text-[12px] text-slate-500">Toplam stok değeri</p>
-                  <h3 className="mt-6 text-[25px] font-black text-slate-950">₺ 2.450.780</h3>
-                  <p className="mt-3 text-[12px] font-bold text-emerald-600">↗ %12.5</p>
-                  <p className="mt-1 text-[11px] text-slate-500">Geçen aya göre</p>
+                  <p className="text-[13px] font-black text-slate-800">
+                    Stok Değeri
+                  </p>
+                  <p className="mt-1 text-[12px] text-slate-500">
+                    Toplam stok değeri
+                  </p>
+                  <h3 className="mt-6 text-[25px] font-black text-slate-950">
+                    ₺ 2.450.780
+                  </h3>
+                  <p className="mt-3 text-[12px] font-bold text-emerald-600">
+                    ↗ %12.5
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Geçen aya göre
+                  </p>
                 </div>
 
                 <div className="rounded-[24px] bg-white/84 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.038)] ring-1 ring-white">
-                  <p className="text-[13px] font-black text-slate-800">Aylık Kayıt Trendi</p>
+                  <p className="text-[13px] font-black text-slate-800">
+                    Aylık Kayıt Trendi
+                  </p>
                   <p className="mt-1 text-[12px] text-slate-500">Son 6 ay</p>
 
                   <div className="mt-6 flex h-[105px] items-end gap-4">
                     {[45, 70, 50, 78, 96, 74].map((height, index) => (
-                      <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                      <div
+                        key={index}
+                        className="flex flex-1 flex-col items-center gap-2"
+                      >
                         <div
                           className="w-full rounded-t-2xl bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
                           style={{ height: `${height}%` }}
@@ -175,7 +242,9 @@ export default function DogaltasPage() {
                 </div>
 
                 <div className="rounded-[24px] bg-white/84 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.038)] ring-1 ring-white">
-                  <p className="text-[13px] font-black text-slate-800">En Çok Satılan Taşlar</p>
+                  <p className="text-[13px] font-black text-slate-800">
+                    En Çok Satılan Taşlar
+                  </p>
                   <p className="mt-1 text-[12px] text-slate-500">Bu ay</p>
 
                   <div className="mt-5 space-y-3">
@@ -186,15 +255,22 @@ export default function DogaltasPage() {
                       ["4", "🔴", "Akik", "241 adet"],
                       ["5", "⚫", "Turmalin", "187 adet"],
                     ].map(([rank, icon, name, count]) => (
-                      <div key={rank} className="flex items-center justify-between">
+                      <div
+                        key={rank}
+                        className="flex items-center justify-between"
+                      >
                         <div className="flex items-center gap-3">
                           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-500">
                             {rank}
                           </span>
                           <span className="text-[18px]">{icon}</span>
-                          <span className="text-[13px] font-bold text-slate-700">{name}</span>
+                          <span className="text-[13px] font-bold text-slate-700">
+                            {name}
+                          </span>
                         </div>
-                        <span className="text-[12px] font-bold text-slate-500">{count}</span>
+                        <span className="text-[12px] font-bold text-slate-500">
+                          {count}
+                        </span>
                       </div>
                     ))}
                   </div>

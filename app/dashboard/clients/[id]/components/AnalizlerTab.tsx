@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { supabase } from "@/lib/supabase";
+
+const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type AnalizlerTabProps = {
   clientId: string;
@@ -21,6 +24,16 @@ type ChakraRowValue = {
   mark: string;
   male: string;
   female: string;
+};
+
+type SavedAnalysis = {
+  id: string;
+  tenant_id: string;
+  client_id: string;
+  analysis_type: AnalysisType | string | null;
+  analysis_data: any;
+  note: string | null;
+  created_at: string;
 };
 
 const energyBodies: ChakraRow[] = [
@@ -123,7 +136,22 @@ function valueStyle(value: string): React.CSSProperties {
   return {};
 }
 
-export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
+function formatDateTimeTR(value: string) {
+  return new Date(value).toLocaleString("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getAnalysisLabel(type: string | null | undefined) {
+  if (type === "planet") return "Ç.Gezegen Analizi";
+  return "Çakra Analizi";
+}
+
+export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
   const [chakraValues, setChakraValues] = useState<Record<string, ChakraRowValue>>(
     () => makeChakraInitialValues()
@@ -133,12 +161,96 @@ export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
   );
   const [note, setNote] = useState("");
   const [creatingPdf, setCreatingPdf] = useState(false);
+  const [savingAnalysis, setSavingAnalysis] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
+  const [toast, setToast] = useState("");
 
   const activeTitle = activeAnalysis === "planet" ? "Ç.Gezegen Analizi" : "Çakra Analizi";
 
   const todayText = useMemo(() => {
     return new Date().toLocaleDateString("tr-TR");
   }, []);
+
+  useEffect(() => {
+    loadSavedAnalyses();
+  }, [clientId]);
+
+  function showToast(message: string) {
+    setToast(message);
+
+    window.setTimeout(() => {
+      setToast("");
+    }, 1200);
+  }
+
+  async function loadSavedAnalyses() {
+    if (!clientId) return;
+
+    setLoadingSaved(true);
+
+    const { data, error } = await supabase
+      .from("client_analyses")
+      .select("*")
+      .eq("tenant_id", TENANT_ID)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Analizler yüklenemedi:", error);
+      alert("Analizler yüklenemedi: " + error.message);
+      setLoadingSaved(false);
+      return;
+    }
+
+    setSavedAnalyses((data || []) as SavedAnalysis[]);
+    setLoadingSaved(false);
+  }
+
+  function openNewAnalysis(type: AnalysisType) {
+    setActiveAnalysis(type);
+
+    if (type === "planet") {
+      setPlanetValues(makePlanetInitialValues());
+    } else {
+      setChakraValues(makeChakraInitialValues());
+    }
+
+    setNote("");
+  }
+
+  function openSavedAnalysis(item: SavedAnalysis) {
+    const type = item.analysis_type === "planet" ? "planet" : "chakra";
+
+    setActiveAnalysis(type);
+    setNote(item.note || "");
+
+    if (type === "planet") {
+      setPlanetValues(item.analysis_data?.values || makePlanetInitialValues());
+    } else {
+      setChakraValues(item.analysis_data?.values || makeChakraInitialValues());
+    }
+  }
+
+  async function deleteSavedAnalysis(id: string) {
+    const ok = window.confirm("Bu analiz kaydı silinsin mi?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("client_analyses")
+      .delete()
+      .eq("id", id)
+      .eq("tenant_id", TENANT_ID)
+      .eq("client_id", clientId);
+
+    if (error) {
+      alert("Analiz silinemedi: " + error.message);
+      return;
+    }
+
+    setSavedAnalyses((oldItems) => oldItems.filter((item) => item.id !== id));
+    showToast("Analiz silindi");
+  }
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
     setChakraValues((oldValues) => ({
@@ -233,16 +345,53 @@ export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
     }
   }
 
-  function saveAnalysis() {
-    alert("Kaydetme altyapısını bir sonraki adımda Supabase'e bağlayacağız.");
+  async function saveAnalysis() {
+    if (!activeAnalysis) {
+      alert("Önce analiz seçmelisiniz.");
+      return;
+    }
+
+    setSavingAnalysis(true);
+
+    const analysisData = {
+      title: activeTitle,
+      values: activeAnalysis === "planet" ? planetValues : chakraValues,
+      saved_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("client_analyses").insert({
+      tenant_id: TENANT_ID,
+      client_id: clientId,
+      analysis_type: activeAnalysis,
+      analysis_data: analysisData,
+      note,
+    });
+
+    if (error) {
+      console.error("Analiz kaydedilemedi:", error);
+      alert("Analiz kaydedilemedi: " + error.message);
+      setSavingAnalysis(false);
+      return;
+    }
+
+    await loadSavedAnalyses();
+    showToast("Analiz kaydedildi");
+    setSavingAnalysis(false);
   }
 
   function exportWord() {
-    alert("Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF düzenini kilitliyoruz.");
+    alert("Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.");
   }
 
   return (
     <div style={pageWrap}>
+      {toast && (
+        <div style={toastBox}>
+          <span style={toastIcon}>✓</span>
+          {toast}
+        </div>
+      )}
+
       <div style={sectionHead}>
         <div>
           <div style={purplePill}>Enerji & Analiz Merkezi</div>
@@ -260,7 +409,7 @@ export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
           text="Seans öncesi ve sonrası enerji değişimlerini çakra düzeni üzerinden takip edin."
           gradient="linear-gradient(135deg,#8b5cf6,#6d28d9)"
           buttonColor="#6d28d9"
-          onOpen={() => setActiveAnalysis("chakra")}
+          onOpen={() => openNewAnalysis("chakra")}
         />
 
         <AnalysisCard
@@ -269,9 +418,49 @@ export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
           text="Çakraların gezegensel enerji dengesini seans bazlı değerlendirin."
           gradient="linear-gradient(135deg,#0ea5e9,#2563eb)"
           buttonColor="#2563eb"
-          onOpen={() => setActiveAnalysis("planet")}
+          onOpen={() => openNewAnalysis("planet")}
         />
       </div>
+
+      <section style={savedPanel}>
+        <div style={savedHeader}>
+          <div>
+            <div style={savedPill}>Kayıtlı Analizler</div>
+            <h3 style={savedTitle}>Analiz Geçmişi</h3>
+            <p style={savedDesc}>Kaydedilen analizleri buradan tekrar açabilir veya silebilirsin.</p>
+          </div>
+
+          <button type="button" onClick={loadSavedAnalyses} style={refreshButton}>
+            {loadingSaved ? "Yükleniyor..." : "Yenile"}
+          </button>
+        </div>
+
+        {savedAnalyses.length === 0 ? (
+          <div style={emptySavedBox}>Henüz kayıtlı analiz yok.</div>
+        ) : (
+          <div style={savedList}>
+            {savedAnalyses.map((item) => (
+              <div key={item.id} style={savedItem}>
+                <div>
+                  <div style={savedItemTitle}>{getAnalysisLabel(item.analysis_type)}</div>
+                  <div style={savedItemDate}>{formatDateTimeTR(item.created_at)}</div>
+                  {item.note && <div style={savedItemNote}>{item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}</div>}
+                </div>
+
+                <div style={savedActions}>
+                  <button type="button" onClick={() => openSavedAnalysis(item)} style={openButton}>
+                    Aç
+                  </button>
+
+                  <button type="button" onClick={() => deleteSavedAnalysis(item.id)} style={deleteButton}>
+                    Sil
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {activeAnalysis && (
         <div style={modalOverlay}>
@@ -334,8 +523,8 @@ export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
                 Word Al
               </button>
 
-              <button type="button" onClick={saveAnalysis} style={saveButton}>
-                Kaydet
+              <button type="button" onClick={saveAnalysis} disabled={savingAnalysis} style={saveButton}>
+                {savingAnalysis ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
           </div>
@@ -574,6 +763,37 @@ function AnalysisCard({
 
 const pageWrap: React.CSSProperties = {
   width: "100%",
+  position: "relative",
+};
+
+const toastBox: React.CSSProperties = {
+  position: "fixed",
+  top: 18,
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 12000,
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  background: "rgba(255,255,255,0.96)",
+  border: "1px solid #dcfce7",
+  borderRadius: 18,
+  padding: "10px 14px",
+  boxShadow: "0 18px 45px rgba(15,23,42,0.16)",
+  color: "#166534",
+  fontSize: 13,
+  fontWeight: 900,
+};
+
+const toastIcon: React.CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  background: "#22c55e",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const sectionHead: React.CSSProperties = {
@@ -641,6 +861,135 @@ const cardButton: React.CSSProperties = {
   background: "white",
   padding: "8px 12px",
   borderRadius: 11,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const savedPanel: React.CSSProperties = {
+  marginTop: 14,
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: 18,
+  padding: 14,
+  boxShadow: "0 10px 26px rgba(15,23,42,0.05)",
+};
+
+const savedHeader: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+};
+
+const savedPill: React.CSSProperties = {
+  display: "inline-flex",
+  background: "#e0f2fe",
+  color: "#0369a1",
+  padding: "5px 10px",
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const savedTitle: React.CSSProperties = {
+  margin: "7px 0 0",
+  fontSize: 18,
+  fontWeight: 950,
+};
+
+const savedDesc: React.CSSProperties = {
+  margin: "4px 0 0",
+  color: "#64748b",
+  fontSize: 12,
+};
+
+const refreshButton: React.CSSProperties = {
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#334155",
+  borderRadius: 12,
+  padding: "8px 12px",
+  fontWeight: 900,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const emptySavedBox: React.CSSProperties = {
+  marginTop: 12,
+  border: "1px dashed #cbd5e1",
+  background: "#f8fafc",
+  borderRadius: 14,
+  padding: 14,
+  color: "#64748b",
+  fontSize: 13,
+  fontWeight: 750,
+};
+
+const savedList: React.CSSProperties = {
+  marginTop: 12,
+  display: "grid",
+  gap: 9,
+};
+
+const savedItem: React.CSSProperties = {
+  border: "1px solid #e2e8f0",
+  background: "linear-gradient(135deg,#ffffff,#f8fafc)",
+  borderRadius: 14,
+  padding: 12,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+};
+
+const savedItemTitle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 950,
+  color: "#0f172a",
+};
+
+const savedItemDate: React.CSSProperties = {
+  marginTop: 3,
+  fontSize: 11,
+  fontWeight: 750,
+  color: "#64748b",
+};
+
+const savedItemNote: React.CSSProperties = {
+  marginTop: 6,
+  fontSize: 11,
+  color: "#475569",
+  background: "#f1f5f9",
+  borderRadius: 10,
+  padding: "6px 8px",
+};
+
+const savedActions: React.CSSProperties = {
+  display: "flex",
+  gap: 7,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const openButton: React.CSSProperties = {
+  border: "none",
+  background: "#2563eb",
+  color: "white",
+  borderRadius: 11,
+  padding: "7px 11px",
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const deleteButton: React.CSSProperties = {
+  border: "1px solid #fecaca",
+  background: "#fff1f2",
+  color: "#dc2626",
+  borderRadius: 11,
+  padding: "7px 11px",
+  fontSize: 12,
   fontWeight: 900,
   cursor: "pointer",
 };

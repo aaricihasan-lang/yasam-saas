@@ -120,6 +120,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingClient, setDeletingClient] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const [noteId, setNoteId] = useState<string | null>(null);
   const [saglikNotu, setSaglikNotu] = useState("");
@@ -177,6 +178,14 @@ export default function ClientDetailPage() {
     }
   }, [clientId]);
 
+  function showToast(message: string) {
+    setToastMessage(message);
+
+    window.setTimeout(() => {
+      setToastMessage("");
+    }, 1000);
+  }
+
   async function saveGeneralNotes() {
     setSavingNotes(true);
 
@@ -206,7 +215,7 @@ export default function ClientDetailPage() {
       setNoteId(data.id);
     }
 
-    alert("Genel bilgiler kaydedildi ✅");
+    showToast("Genel bilgiler kaydedildi");
     setSavingNotes(false);
   }
 
@@ -240,7 +249,7 @@ export default function ClientDetailPage() {
       setNoteId(data.id);
     }
 
-    alert("Notlar kaydedildi ✅");
+    showToast("Notlar kaydedildi");
     setSavingClientNotes(false);
   }
 
@@ -289,6 +298,28 @@ export default function ClientDetailPage() {
 
   return (
     <main style={pageStyle}>
+      <style>{`
+        @keyframes toastShrink {
+          from { transform: scaleX(1); transform-origin: left; }
+          to { transform: scaleX(0); transform-origin: left; }
+        }
+      `}</style>
+
+      {toastMessage && (
+        <div style={toastWrap}>
+          <div style={toastCard}>
+            <div style={toastIcon}>✓</div>
+
+            <div>
+              <div style={toastTitle}>Başarılı!</div>
+              <div style={toastText}>{toastMessage}</div>
+            </div>
+
+            <div style={toastProgress} />
+          </div>
+        </div>
+      )}
+
       <div style={topBar}>
         <button onClick={() => router.push("/dashboard/clients")} style={backButton}>
           ← Danışanlara Dön
@@ -308,10 +339,10 @@ export default function ClientDetailPage() {
         </div>
 
         <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
-          <div style={heroPill}>Danışan Detay Paneli</div>
+          <div style={heroPill}>Danışan Detayı</div>
           <h1 style={titleStyle}>{fullName || "İsimsiz Danışan"}</h1>
           <p style={mutedText}>
-            Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular tek merkezde.
+            Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir.
           </p>
 
           <div style={infoGrid}>
@@ -970,11 +1001,75 @@ function Tab({
   );
 }
 
+const toastWrap: React.CSSProperties = {
+  position: "fixed",
+  top: 18,
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 9999,
+  pointerEvents: "none",
+};
+
+const toastCard: React.CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
+  minWidth: 280,
+  maxWidth: 360,
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  background: "rgba(255,255,255,0.96)",
+  border: "1px solid rgba(226,232,240,0.9)",
+  borderRadius: 18,
+  padding: "12px 16px",
+  boxShadow: "0 18px 45px rgba(15,23,42,0.16)",
+  backdropFilter: "blur(14px)",
+};
+
+const toastIcon: React.CSSProperties = {
+  width: 38,
+  height: 38,
+  borderRadius: 999,
+  background: "linear-gradient(135deg, #22c55e, #16a34a)",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 22,
+  fontWeight: 950,
+  boxShadow: "0 10px 24px rgba(34,197,94,0.28)",
+  flexShrink: 0,
+};
+
+const toastTitle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 950,
+  color: "#0f172a",
+  lineHeight: 1.1,
+};
+
+const toastText: React.CSSProperties = {
+  marginTop: 3,
+  fontSize: 12,
+  fontWeight: 750,
+  color: "#475569",
+};
+
+const toastProgress: React.CSSProperties = {
+  position: "absolute",
+  left: 0,
+  bottom: 0,
+  height: 3,
+  width: "100%",
+  background: "linear-gradient(90deg, #22c55e, #86efac)",
+  animation: "toastShrink 1s linear forwards",
+};
+
 const pageStyle: React.CSSProperties = {
   minHeight: "100vh",
   background:
-    "radial-gradient(circle at top left, #fef3c7, transparent 30%), radial-gradient(circle at top right, #fbcfe8, transparent 24%), linear-gradient(135deg, #f8fafc, #eef2ff, #fdf2f8)",
-  padding: 22,
+    "linear-gradient(135deg, #f7fbff 0%, #f5f1ff 45%, #f5fff8 100%)",
+  padding: 14,
   color: "#0f172a",
 };
 
@@ -1116,13 +1211,13 @@ const heroCard: React.CSSProperties = {
   position: "relative",
   overflow: "hidden",
   background: "rgba(255,255,255,0.88)",
-  borderRadius: 24,
-  padding: 18,
+  borderRadius: 22,
+  padding: 14,
   display: "flex",
-  gap: 16,
+  gap: 14,
   alignItems: "center",
-  boxShadow: "0 10px 28px rgba(15, 23, 42, 0.06)",
-  marginBottom: 14,
+  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.055)",
+  marginBottom: 12,
   border: "1px solid rgba(255,255,255,0.8)",
 };
 
@@ -1151,18 +1246,18 @@ const heroGlowTwo: React.CSSProperties = {
 };
 
 const avatarBox: React.CSSProperties = {
-  width: 84,
-  height: 84,
-  borderRadius: 24,
+  width: 68,
+  height: 68,
+  borderRadius: 20,
   background: "linear-gradient(135deg, #2563eb, #7c3aed, #db2777)",
   color: "white",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: 34,
+  fontSize: 28,
   fontWeight: 950,
   flexShrink: 0,
-  boxShadow: "0 10px 22px rgba(124,58,237,0.22)",
+  boxShadow: "0 10px 22px rgba(124,58,237,0.18)",
   position: "relative",
   zIndex: 2,
 };
@@ -1178,30 +1273,30 @@ const heroPill: React.CSSProperties = {
 };
 
 const titleStyle: React.CSSProperties = {
-  fontSize: 28,
-  margin: "6px 0 0",
+  fontSize: 24,
+  margin: "5px 0 0",
   fontWeight: 950,
 };
 
 const mutedText: React.CSSProperties = {
   color: "#64748b",
-  fontSize: 13,
+  fontSize: 12,
   marginTop: 4,
 };
 
 const infoGrid: React.CSSProperties = {
-  marginTop: 12,
+  marginTop: 10,
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
-  gap: 9,
+  gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))",
+  gap: 8,
 };
 
 const infoItem: React.CSSProperties = {
   background: "rgba(255,255,255,0.82)",
   border: "1px solid #e2e8f0",
-  borderRadius: 14,
-  padding: 10,
-  boxShadow: "0 4px 12px rgba(15,23,42,0.03)",
+  borderRadius: 13,
+  padding: 8,
+  boxShadow: "0 4px 12px rgba(15,23,42,0.025)",
 };
 
 const infoLabel: React.CSSProperties = {
@@ -1214,7 +1309,7 @@ const infoLabel: React.CSSProperties = {
 const tabsCard: React.CSSProperties = {
   background: "rgba(255,255,255,0.88)",
   borderRadius: 16,
-  padding: 8,
+  padding: 7,
   boxShadow: "0 6px 16px rgba(15,23,42,0.04)",
   border: "1px solid rgba(255,255,255,0.7)",
 };
@@ -1239,12 +1334,12 @@ const tabButton: React.CSSProperties = {
 };
 
 const contentBox: React.CSSProperties = {
-  minHeight: 220,
+  minHeight: 210,
   background: "linear-gradient(135deg, #ffffff, #f8fafc)",
   border: "1px solid #e2e8f0",
   borderRadius: 14,
   padding: 10,
-  marginTop: 6,
+  marginTop: 5,
 };
 
 const sectionHead: React.CSSProperties = {
@@ -1294,11 +1389,11 @@ const inputStyle: React.CSSProperties = {
 
 const textareaStyle: React.CSSProperties = {
   width: "100%",
-  minHeight: 58,
+  minHeight: 54,
   borderRadius: 12,
   border: "1px solid #dbe2ea",
-  padding: 10,
-  fontSize: 13,
+  padding: 9,
+  fontSize: 12,
   resize: "vertical",
   boxSizing: "border-box",
   outline: "none",
