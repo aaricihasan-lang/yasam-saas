@@ -1,0 +1,929 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+type AnalizlerTabProps = {
+  clientId: string;
+  clientName: string;
+};
+
+type AnalysisType = "chakra" | "planet";
+
+type ChakraRow = {
+  key: string;
+  label: string;
+  color: string;
+};
+
+type ChakraRowValue = {
+  mark: string;
+  male: string;
+  female: string;
+};
+
+const energyBodies: ChakraRow[] = [
+  { key: "ruhsal", label: "RUHSAL ENERJİ BEDENİ", color: "#6d5bd0" },
+  { key: "zihinsel", label: "ZİHİNSEL ENERJİ BEDENİ", color: "#43a047" },
+  { key: "duygusal", label: "DUYGUSAL ENERJİ BEDENİ", color: "#f2b824" },
+  { key: "eterik", label: "ETERİK ENERJİ BEDENİ", color: "#2196c9" },
+  { key: "fiziksel", label: "FİZİKSEL ENERJİ BEDENİ", color: "#4b5563" },
+];
+
+const chakras: ChakraRow[] = [
+  { key: "tac", label: "TEPE / TAÇ ÇAKRASI", color: "#a78bfa" },
+  { key: "goz", label: "3. GÖZ ÇAKRASI", color: "#6366f1" },
+  { key: "bogaz", label: "BOĞAZ ÇAKRASI", color: "#38bdf8" },
+  { key: "kalp", label: "KALP ÇAKRASI", color: "#22c55e" },
+  { key: "mide", label: "MİDE ÇAKRASI", color: "#facc15" },
+  { key: "sakral", label: "SAKRAL (KARIN) ÇAKRASI", color: "#f97316" },
+  { key: "kok", label: "KÖK ÇAKRASI", color: "#ef4444" },
+];
+
+const planetLabels = ["GÜNEŞ", "AY", "MERKÜR", "MARS", "VENÜS"];
+const planetColors = ["#facc15", "#93c5fd", "#86efac", "#fca5a5", "#f9a8d4"];
+
+const planetRows: ChakraRow[] = [
+  { key: "tac", label: "TEPE / TAÇ", color: "#a78bfa" },
+  { key: "goz", label: "3. GÖZ", color: "#6366f1" },
+  { key: "bogaz", label: "BOĞAZ", color: "#38bdf8" },
+  { key: "kalp", label: "KALP", color: "#22c55e" },
+  { key: "mide", label: "MİDE", color: "#facc15" },
+  { key: "sakral", label: "SAKRAL (KARIN)", color: "#f97316" },
+  { key: "kok", label: "KÖK", color: "#ef4444" },
+];
+
+function makeChakraInitialValues() {
+  const values: Record<string, ChakraRowValue> = {};
+
+  ["before_energy", "after_energy"].forEach((scope) => {
+    energyBodies.forEach((row) => {
+      values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" };
+    });
+  });
+
+  ["before_chakra", "after_chakra"].forEach((scope) => {
+    chakras.forEach((row) => {
+      values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" };
+    });
+  });
+
+  return values;
+}
+
+function makePlanetInitialValues() {
+  const values: Record<string, string> = {};
+
+  ["before", "after"].forEach((scope) => {
+    planetRows.forEach((row) => {
+      planetLabels.forEach((planet) => {
+        values[`${scope}_${row.key}_${planet}`] = "";
+      });
+    });
+  });
+
+  return values;
+}
+
+function safeFileName(value: string) {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function valueStyle(value: string): React.CSSProperties {
+  const trimmed = value.trim();
+
+  if (trimmed.startsWith("+")) {
+    return {
+      borderColor: "#22c55e",
+      background: "#f0fdf4",
+      color: "#166534",
+      boxShadow: "0 0 0 2px rgba(34,197,94,0.10)",
+    };
+  }
+
+  if (trimmed.startsWith("-")) {
+    return {
+      borderColor: "#ef4444",
+      background: "#fef2f2",
+      color: "#991b1b",
+      boxShadow: "0 0 0 2px rgba(239,68,68,0.10)",
+    };
+  }
+
+  return {};
+}
+
+export default function AnalizlerTab({ clientName }: AnalizlerTabProps) {
+  const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
+  const [chakraValues, setChakraValues] = useState<Record<string, ChakraRowValue>>(
+    () => makeChakraInitialValues()
+  );
+  const [planetValues, setPlanetValues] = useState<Record<string, string>>(
+    () => makePlanetInitialValues()
+  );
+  const [note, setNote] = useState("");
+  const [creatingPdf, setCreatingPdf] = useState(false);
+
+  const activeTitle = activeAnalysis === "planet" ? "Ç.Gezegen Analizi" : "Çakra Analizi";
+
+  const todayText = useMemo(() => {
+    return new Date().toLocaleDateString("tr-TR");
+  }, []);
+
+  function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
+    setChakraValues((oldValues) => ({
+      ...oldValues,
+      [key]: {
+        ...(oldValues[key] || { mark: "", male: "", female: "" }),
+        [field]: value,
+      },
+    }));
+  }
+
+  function updatePlanetValue(key: string, value: string) {
+    setPlanetValues((oldValues) => ({
+      ...oldValues,
+      [key]: value,
+    }));
+  }
+
+  function clearAll() {
+    const ok = window.confirm("Bu analizdeki tüm alanlar temizlensin mi?");
+    if (!ok) return;
+
+    if (activeAnalysis === "planet") {
+      setPlanetValues(makePlanetInitialValues());
+    } else {
+      setChakraValues(makeChakraInitialValues());
+    }
+
+    setNote("");
+  }
+
+  async function printPdf() {
+    const element = document.getElementById("analysis-print-area");
+
+    if (!element) {
+      alert("PDF alanı bulunamadı.");
+      return;
+    }
+
+    try {
+      setCreatingPdf(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        ignoreElements: (node) => {
+          return node instanceof HTMLElement && node.classList.contains("no-pdf");
+        },
+      });
+
+      const imageData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const margin = 6;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      const imageWidth = usableWidth;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+      let heightLeft = imageHeight;
+      let position = margin;
+
+      pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
+      heightLeft -= usableHeight;
+
+      while (heightLeft > 0) {
+        position = margin + heightLeft - imageHeight;
+        pdf.addPage();
+        pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
+        heightLeft -= usableHeight;
+      }
+
+      const fileName = `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error("PDF oluşturma hatası:", error);
+      alert("PDF oluşturulamadı. Konsolu kontrol edelim.");
+    } finally {
+      setCreatingPdf(false);
+    }
+  }
+
+  function saveAnalysis() {
+    alert("Kaydetme altyapısını bir sonraki adımda Supabase'e bağlayacağız.");
+  }
+
+  function exportWord() {
+    alert("Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF düzenini kilitliyoruz.");
+  }
+
+  return (
+    <div style={pageWrap}>
+      <div style={sectionHead}>
+        <div>
+          <div style={purplePill}>Enerji & Analiz Merkezi</div>
+          <h2 style={sectionTitle}>Danışan Analizleri</h2>
+          <p style={mutedText}>
+            {clientName} için çakra, Ç.Gezegen, numeroloji ve Human Design analizleri burada toplanacak.
+          </p>
+        </div>
+      </div>
+
+      <div style={analysisGrid}>
+        <AnalysisCard
+          badge="Enerji Analizi"
+          title="Çakra Analizi"
+          text="Seans öncesi ve sonrası enerji değişimlerini çakra düzeni üzerinden takip edin."
+          gradient="linear-gradient(135deg,#8b5cf6,#6d28d9)"
+          buttonColor="#6d28d9"
+          onOpen={() => setActiveAnalysis("chakra")}
+        />
+
+        <AnalysisCard
+          badge="Gezegen Analizi"
+          title="Ç.Gezegen Analizi"
+          text="Çakraların gezegensel enerji dengesini seans bazlı değerlendirin."
+          gradient="linear-gradient(135deg,#0ea5e9,#2563eb)"
+          buttonColor="#2563eb"
+          onOpen={() => setActiveAnalysis("planet")}
+        />
+      </div>
+
+      {activeAnalysis && (
+        <div style={modalOverlay}>
+          <div style={modalCard}>
+            <div id="analysis-print-area" style={pdfArea}>
+              <div style={modalHeader}>
+                <div>
+                  <div style={modalPill}>Analiz Formu</div>
+                  <h3 style={modalTitle}>{activeTitle}</h3>
+                  <p style={modalSubtitle}>
+                    Danışan: <strong>{clientName}</strong> · Tarih: <strong>{todayText}</strong>
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveAnalysis(null)}
+                  style={closeButton}
+                  className="no-pdf"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={modalBody}>
+                {activeAnalysis === "chakra" ? (
+                  <ChakraAnalysis
+                    values={chakraValues}
+                    updateValue={updateChakraValue}
+                  />
+                ) : (
+                  <PlanetAnalysis
+                    values={planetValues}
+                    updateValue={updatePlanetValue}
+                  />
+                )}
+
+                <div style={noteCard}>
+                  <label style={noteLabel}>Analiz Notu</label>
+                  <textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="Analiz yorumu, seans gözlemi veya danışana özel not..."
+                    style={noteArea}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={stickyActions} className="no-pdf">
+              <button type="button" onClick={clearAll} style={lightButton}>
+                Tümünü Temizle
+              </button>
+
+              <button type="button" onClick={printPdf} disabled={creatingPdf} style={pdfButton}>
+                {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
+              </button>
+
+              <button type="button" onClick={exportWord} style={wordButton}>
+                Word Al
+              </button>
+
+              <button type="button" onClick={saveAnalysis} style={saveButton}>
+                Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChakraAnalysis({
+  values,
+  updateValue,
+}: {
+  values: Record<string, ChakraRowValue>;
+  updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
+}) {
+  return (
+    <div style={chakraLayout}>
+      <ChakraSection
+        title="Seans Öncesi — Enerji Bedenleri"
+        scope="before_energy"
+        rows={energyBodies}
+        values={values}
+        updateValue={updateValue}
+      />
+
+      <ChakraSection
+        title="Seans Sonrası — Enerji Bedenleri"
+        scope="after_energy"
+        rows={energyBodies}
+        values={values}
+        updateValue={updateValue}
+      />
+
+      <ChakraSection
+        title="Çakralar — Seans Öncesi"
+        scope="before_chakra"
+        rows={chakras}
+        values={values}
+        updateValue={updateValue}
+      />
+
+      <ChakraSection
+        title="Çakralar — Seans Sonrası"
+        scope="after_chakra"
+        rows={chakras}
+        values={values}
+        updateValue={updateValue}
+      />
+    </div>
+  );
+}
+
+function ChakraSection({
+  title,
+  scope,
+  rows,
+  values,
+  updateValue,
+}: {
+  title: string;
+  scope: string;
+  rows: ChakraRow[];
+  values: Record<string, ChakraRowValue>;
+  updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
+}) {
+  return (
+    <section style={schemaCard}>
+      <div style={schemaTitle}>{title}</div>
+
+      <div style={chakraHeader}>
+        <div />
+        <strong>İŞARET +/- · SAYI %</strong>
+        <strong>ERİL ENERJİ</strong>
+        <strong>DİŞİL ENERJİ</strong>
+      </div>
+
+      {rows.map((row) => {
+        const key = `${scope}_${row.key}`;
+        const rowValue = values[key] || { mark: "", male: "", female: "" };
+
+        return (
+          <div key={key} style={chakraRow}>
+            <div
+              style={{
+                ...colorLabel,
+                background: row.color,
+              }}
+            >
+              {row.label}
+            </div>
+
+            <input
+              value={rowValue.mark}
+              onChange={(event) => updateValue(key, "mark", event.target.value)}
+              placeholder="+10 / -20"
+              style={{ ...schemaInput, ...valueStyle(rowValue.mark) }}
+            />
+
+            <input
+              value={rowValue.male}
+              onChange={(event) => updateValue(key, "male", event.target.value)}
+              placeholder="Eril"
+              style={{ ...schemaInput, ...valueStyle(rowValue.male) }}
+            />
+
+            <input
+              value={rowValue.female}
+              onChange={(event) => updateValue(key, "female", event.target.value)}
+              placeholder="Dişil"
+              style={{ ...schemaInput, ...valueStyle(rowValue.female) }}
+            />
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function PlanetAnalysis({
+  values,
+  updateValue,
+}: {
+  values: Record<string, string>;
+  updateValue: (key: string, value: string) => void;
+}) {
+  return (
+    <div style={planetLayout}>
+      <PlanetPanel title="Seans Öncesi" scope="before" values={values} updateValue={updateValue} />
+      <PlanetPanel title="Seans Sonrası" scope="after" values={values} updateValue={updateValue} />
+    </div>
+  );
+}
+
+function PlanetPanel({
+  title,
+  scope,
+  values,
+  updateValue,
+}: {
+  title: string;
+  scope: string;
+  values: Record<string, string>;
+  updateValue: (key: string, value: string) => void;
+}) {
+  return (
+    <section style={planetPanel}>
+      <div style={schemaTitle}>{title}</div>
+
+      <div
+        style={{
+          ...planetGrid,
+          gridTemplateColumns: `132px repeat(${planetLabels.length}, minmax(86px, 1fr))`,
+        }}
+      >
+        <div style={planetEmpty} />
+
+        {planetLabels.map((planet, index) => (
+          <div
+            key={planet}
+            style={{
+              ...planetHeaderCell,
+              background: planetColors[index],
+            }}
+          >
+            {planet}
+          </div>
+        ))}
+
+        {planetRows.map((row) => (
+          <div key={row.key} style={{ display: "contents" }}>
+            <div
+              style={{
+                ...planetRowLabel,
+                background: row.color,
+              }}
+            >
+              {row.label}
+            </div>
+
+            {planetLabels.map((planet) => {
+              const key = `${scope}_${row.key}_${planet}`;
+              const value = values[key] || "";
+
+              return (
+                <input
+                  key={key}
+                  value={value}
+                  onChange={(event) => updateValue(key, event.target.value)}
+                  placeholder="+30 / -20"
+                  style={{ ...planetInput, ...valueStyle(value) }}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AnalysisCard({
+  badge,
+  title,
+  text,
+  gradient,
+  buttonColor,
+  onOpen,
+}: {
+  badge: string;
+  title: string;
+  text: string;
+  gradient: string;
+  buttonColor: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div style={{ ...analysisCard, background: gradient }}>
+      <div style={cardBadge}>{badge}</div>
+      <h3 style={cardTitle}>{title}</h3>
+      <p style={cardText}>{text}</p>
+
+      <button
+        type="button"
+        onClick={onOpen}
+        style={{
+          ...cardButton,
+          color: buttonColor,
+        }}
+      >
+        Analizi Aç
+      </button>
+    </div>
+  );
+}
+
+const pageWrap: React.CSSProperties = {
+  width: "100%",
+};
+
+const sectionHead: React.CSSProperties = {
+  marginBottom: 10,
+};
+
+const purplePill: React.CSSProperties = {
+  display: "inline-flex",
+  background: "#f3e8ff",
+  color: "#7e22ce",
+  padding: "5px 10px",
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const sectionTitle: React.CSSProperties = {
+  margin: "6px 0 0",
+  fontSize: 20,
+  fontWeight: 900,
+};
+
+const mutedText: React.CSSProperties = {
+  marginTop: 6,
+  color: "#64748b",
+  fontSize: 13,
+};
+
+const analysisGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
+  gap: 12,
+  marginTop: 14,
+};
+
+const analysisCard: React.CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  color: "white",
+  boxShadow: "0 14px 30px rgba(15,23,42,0.14)",
+};
+
+const cardBadge: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 800,
+  opacity: 0.85,
+};
+
+const cardTitle: React.CSSProperties = {
+  margin: "8px 0 0",
+  fontSize: 22,
+  fontWeight: 900,
+};
+
+const cardText: React.CSSProperties = {
+  marginTop: 8,
+  lineHeight: 1.45,
+  opacity: 0.9,
+  fontSize: 13,
+};
+
+const cardButton: React.CSSProperties = {
+  marginTop: 12,
+  border: "none",
+  background: "white",
+  padding: "8px 12px",
+  borderRadius: 11,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const modalOverlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 10000,
+  background: "rgba(15,23,42,0.58)",
+  backdropFilter: "blur(7px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 10,
+};
+
+const modalCard: React.CSSProperties = {
+  width: "min(98vw, 1780px)",
+  height: "94vh",
+  overflowY: "auto",
+  background: "linear-gradient(135deg,#ffffff,#f8fafc)",
+  borderRadius: 20,
+  border: "1px solid rgba(255,255,255,0.85)",
+  boxShadow: "0 24px 70px rgba(15,23,42,0.34)",
+  position: "relative",
+};
+
+const pdfArea: React.CSSProperties = {
+  background: "#ffffff",
+};
+
+const modalHeader: React.CSSProperties = {
+  background: "linear-gradient(135deg,#111827,#4c1d95,#be185d)",
+  color: "white",
+  padding: 14,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 10,
+  alignItems: "flex-start",
+};
+
+const modalPill: React.CSSProperties = {
+  display: "inline-flex",
+  background: "rgba(255,255,255,0.16)",
+  color: "white",
+  padding: "3px 8px",
+  borderRadius: 999,
+  fontSize: 10,
+  fontWeight: 900,
+};
+
+const modalTitle: React.CSSProperties = {
+  margin: "6px 0 0",
+  fontSize: 22,
+  fontWeight: 950,
+};
+
+const modalSubtitle: React.CSSProperties = {
+  margin: "5px 0 0",
+  fontSize: 12,
+  opacity: 0.92,
+};
+
+const closeButton: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.22)",
+  background: "rgba(255,255,255,0.14)",
+  color: "white",
+  fontSize: 22,
+  fontWeight: 900,
+  cursor: "pointer",
+  lineHeight: 1,
+};
+
+const modalBody: React.CSSProperties = {
+  padding: 12,
+  display: "grid",
+  gap: 9,
+  paddingBottom: 18,
+};
+
+const chakraLayout: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 9,
+};
+
+const schemaCard: React.CSSProperties = {
+  background: "white",
+  border: "1px solid #bfdbfe",
+  borderRadius: 15,
+  padding: 10,
+  boxShadow: "0 6px 14px rgba(15,23,42,0.04)",
+};
+
+const schemaTitle: React.CSSProperties = {
+  display: "inline-flex",
+  background: "#eff6ff",
+  color: "#2563eb",
+  padding: "5px 10px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 950,
+  marginBottom: 6,
+};
+
+const chakraHeader: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 132px 132px 132px",
+  gap: 7,
+  marginBottom: 7,
+  color: "#2563eb",
+  fontSize: 10,
+};
+
+const chakraRow: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 132px 132px 132px",
+  gap: 7,
+  marginBottom: 7,
+  alignItems: "center",
+};
+
+const colorLabel: React.CSSProperties = {
+  minHeight: 31,
+  borderRadius: 0,
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  padding: "0 11px",
+  fontSize: 11,
+  fontWeight: 950,
+};
+
+const schemaInput: React.CSSProperties = {
+  width: "100%",
+  minHeight: 31,
+  borderRadius: 9,
+  border: "1px solid #bfdbfe",
+  background: "white",
+  padding: "5px 8px",
+  fontSize: 12,
+  fontWeight: 850,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const planetLayout: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 8,
+};
+
+const planetPanel: React.CSSProperties = {
+  background: "white",
+  border: "1px solid #bfdbfe",
+  borderRadius: 13,
+  padding: 8,
+  boxShadow: "0 6px 14px rgba(15,23,42,0.04)",
+  overflowX: "auto",
+};
+
+const planetGrid: React.CSSProperties = {
+  display: "grid",
+  gap: 6,
+  minWidth: 620,
+};
+
+const planetEmpty: React.CSSProperties = {
+  background: "#f8fafc",
+  borderRadius: 10,
+  minHeight: 98,
+};
+
+const planetHeaderCell: React.CSSProperties = {
+  minHeight: 98,
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#075985",
+  fontSize: 11,
+  fontWeight: 950,
+};
+
+const planetRowLabel: React.CSSProperties = {
+  minHeight: 30,
+  borderRadius: 999,
+  display: "flex",
+  alignItems: "center",
+  padding: "0 8px",
+  color: "white",
+  fontSize: 10,
+  fontWeight: 950,
+};
+
+const planetInput: React.CSSProperties = {
+  minHeight: 30,
+  borderRadius: 9,
+  border: "1px solid #bfdbfe",
+  background: "white",
+  padding: "5px 7px",
+  fontSize: 11,
+  fontWeight: 850,
+  outline: "none",
+  boxSizing: "border-box",
+  width: "100%",
+};
+
+const noteCard: React.CSSProperties = {
+  background: "#fffbeb",
+  border: "1px solid #fde68a",
+  borderRadius: 12,
+  padding: 7,
+};
+
+const noteLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 900,
+  color: "#92400e",
+};
+
+const noteArea: React.CSSProperties = {
+  width: "100%",
+  minHeight: 48,
+  marginTop: 4,
+  borderRadius: 9,
+  border: "1px solid #fcd34d",
+  padding: 6,
+  fontSize: 10,
+  outline: "none",
+  resize: "vertical",
+  boxSizing: "border-box",
+  background: "white",
+};
+
+const stickyActions: React.CSSProperties = {
+  position: "sticky",
+  bottom: 0,
+  zIndex: 3,
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 8,
+  flexWrap: "wrap",
+  background: "rgba(248,250,252,0.95)",
+  borderTop: "1px solid #e2e8f0",
+  padding: "9px 12px",
+  backdropFilter: "blur(10px)",
+};
+
+const baseToolbarButton: React.CSSProperties = {
+  border: "none",
+  borderRadius: 11,
+  padding: "8px 13px",
+  fontWeight: 950,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const lightButton: React.CSSProperties = {
+  ...baseToolbarButton,
+  background: "#f1f5f9",
+  color: "#334155",
+  border: "1px solid #cbd5e1",
+};
+
+const pdfButton: React.CSSProperties = {
+  ...baseToolbarButton,
+  background: "#ef4444",
+  color: "white",
+  opacity: 1,
+};
+
+const wordButton: React.CSSProperties = {
+  ...baseToolbarButton,
+  background: "#2563eb",
+  color: "white",
+};
+
+const saveButton: React.CSSProperties = {
+  ...baseToolbarButton,
+  background: "#16a34a",
+  color: "white",
+};
