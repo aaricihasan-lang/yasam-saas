@@ -13,19 +13,27 @@ type User = {
 };
 
 export default function Home() {
-  const [email, setEmail] = useState("admin@yasamsistemi.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("yasam_user");
+
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
   }, []);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      setMessage("Email ve şifre giriniz.");
+      return;
+    }
+
+    setLoading(true);
     setMessage("Giriş yapılıyor...");
 
     const { data, error } = await supabase.rpc("login_user", {
@@ -34,36 +42,67 @@ export default function Home() {
     });
 
     if (error) {
-      setMessage("Sistem hatası oluştu.");
       console.log(error);
+      setMessage("Sistem hatası oluştu.");
+      setLoading(false);
       return;
     }
 
     if (!data || data.length === 0) {
       setMessage("Email veya şifre hatalı.");
+      setLoading(false);
       return;
     }
 
     const loggedUser = data[0];
 
     localStorage.setItem("yasam_user", JSON.stringify(loggedUser));
+
     setUser(loggedUser);
+    setMessage("");
+    setLoading(false);
   };
 
   const logout = () => {
     localStorage.removeItem("yasam_user");
     setUser(null);
+    setEmail("");
+    setPassword("");
     setMessage("");
   };
 
   if (user) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", background: "#f4f7fb" }}>
-        <aside style={{ width: 260, background: "#111827", color: "white", padding: 30 }}>
-          <h2>Yaşam Sistemi</h2>
-          <p style={{ color: "#9ca3af" }}>SaaS Panel</p>
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          background: "#f4f7fb",
+        }}
+      >
+        <aside
+          style={{
+            width: 260,
+            background: "#111827",
+            color: "white",
+            padding: 30,
+          }}
+        >
+          <h2 style={{ fontSize: 24, marginBottom: 4 }}>
+            Yaşam Sistemi
+          </h2>
 
-          <nav style={{ marginTop: 40, display: "grid", gap: 16 }}>
+          <p style={{ color: "#9ca3af" }}>
+            SaaS Yönetim Paneli
+          </p>
+
+          <nav
+            style={{
+              marginTop: 40,
+              display: "grid",
+              gap: 16,
+            }}
+          >
             <div>🏠 Dashboard</div>
             <div>👥 Danışanlar</div>
             <div>📅 Randevular</div>
@@ -75,19 +114,61 @@ export default function Home() {
         </aside>
 
         <section style={{ flex: 1, padding: 40 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <div>
-              <h1>Hoşgeldin, {user.name} 🚀</h1>
-              <p>Rol: {user.role} | Durum: {user.status}</p>
+              <h1
+                style={{
+                  fontSize: 34,
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                }}
+              >
+                Hoşgeldin, {user.name} 🚀
+              </h1>
+
+              <p style={{ color: "#6b7280" }}>
+                Rol: {user.role} | Durum: {user.status}
+              </p>
             </div>
 
-            <button onClick={logout} style={{ padding: "12px 18px", borderRadius: 10 }}>
+            <button
+              onClick={logout}
+              style={{
+                padding: "12px 18px",
+                borderRadius: 12,
+                border: "none",
+                background: "#111827",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
               Çıkış Yap
             </button>
           </div>
 
-          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-            {["Danışanlar", "Randevular", "Numeroloji", "Refleksoloji", "Doğaltaş", "Kullanıcılar"].map((item) => (
+          <div
+            style={{
+              marginTop: 40,
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 20,
+            }}
+          >
+            {[
+              "Danışanlar",
+              "Randevular",
+              "Numeroloji",
+              "Refleksoloji",
+              "Doğaltaş",
+              "Kullanıcılar",
+            ].map((item) => (
               <div
                 key={item}
                 style={{
@@ -96,6 +177,7 @@ export default function Home() {
                   borderRadius: 18,
                   boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
                   fontWeight: "bold",
+                  fontSize: 18,
                 }}
               >
                 {item}
@@ -108,20 +190,107 @@ export default function Home() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#f4f7fb" }}>
-      <div style={{ width: 400, background: "white", padding: 40, borderRadius: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
-        <h1>Yaşam Sistemi</h1>
-        <p style={{ marginBottom: 30, color: "#666" }}>SaaS Yönetim Paneli</p>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background:
+          "linear-gradient(135deg,#edf7ff 0%,#f5f0ff 45%,#f5fff8 100%)",
+      }}
+    >
+      <div
+        style={{
+          width: 420,
+          background: "rgba(255,255,255,0.92)",
+          padding: 40,
+          borderRadius: 28,
+          boxShadow: "0 20px 50px rgba(0,0,0,0.08)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <div style={{ marginBottom: 30 }}>
+          <h1
+            style={{
+              fontSize: 34,
+              fontWeight: "bold",
+              marginBottom: 8,
+            }}
+          >
+            Yaşam Sistemi
+          </h1>
 
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ width: "100%", padding: 14, marginBottom: 15, borderRadius: 10, border: "1px solid #ddd" }} />
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: 15,
+            }}
+          >
+            SaaS Yönetim Paneli
+          </p>
+        </div>
 
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Şifre" style={{ width: "100%", padding: 14, marginBottom: 20, borderRadius: 10, border: "1px solid #ddd" }} />
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          style={{
+            width: "100%",
+            padding: 15,
+            marginBottom: 15,
+            borderRadius: 14,
+            border: "1px solid #dbe3ef",
+            outline: "none",
+            fontSize: 15,
+          }}
+        />
 
-        <button onClick={handleLogin} style={{ width: "100%", padding: 14, borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: "bold" }}>
-          Giriş Yap
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Şifre"
+          style={{
+            width: "100%",
+            padding: 15,
+            marginBottom: 20,
+            borderRadius: 14,
+            border: "1px solid #dbe3ef",
+            outline: "none",
+            fontSize: 15,
+          }}
+        />
+
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          style={{
+            width: "100%",
+            padding: 15,
+            borderRadius: 14,
+            border: "none",
+            background: "#111827",
+            color: "white",
+            fontWeight: "bold",
+            fontSize: 15,
+            cursor: "pointer",
+          }}
+        >
+          {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
         </button>
 
-        <p style={{ marginTop: 20 }}>{message}</p>
+        {message && (
+          <p
+            style={{
+              marginTop: 18,
+              color: "#ef4444",
+              fontWeight: 500,
+            }}
+          >
+            {message}
+          </p>
+        )}
       </div>
     </main>
   );
