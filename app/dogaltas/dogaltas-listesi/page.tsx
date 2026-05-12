@@ -174,6 +174,21 @@ export default function DogaltasListesiPage() {
             <p className="mt-0.5 text-[12px] font-medium text-slate-500">
               Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
             </p>
+
+            <Link
+              href="/dashboard"
+              className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-2xl border border-white/60 bg-white/55 px-3.5 py-2 text-[11px] font-black tracking-tight text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:border-cyan-100/80 hover:bg-white/80 hover:text-slate-900 hover:shadow-[0_12px_32px_rgba(8,145,178,0.12)]"
+            >
+              <svg
+                aria-hidden
+                className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
+              </svg>
+              <span className="truncate">Ana Panele Dön</span>
+            </Link>
           </div>
 
           <div className="grid grid-cols-3 gap-2 lg:w-[430px]">
