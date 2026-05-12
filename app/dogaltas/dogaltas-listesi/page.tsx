@@ -22,7 +22,7 @@ type StoneRecord = {
   application: string | null;
   chakras: string[] | null;
   assignments: Record<string, string[][]> | null;
-  images: { id: string; name: string }[] | null;
+  images: { id: string; name: string; url?: string; file_path?: string }[] | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -306,6 +306,7 @@ export default function DogaltasListesiPage() {
                   const imageCount = (stone.images || []).length;
                   const warningCount = (stone.warning_tags || []).length;
                   const sectionCount = countFilledSections(stone);
+                  const coverImage = (stone.images || []).find((image) => image.url)?.url;
 
                   return (
                     <div
@@ -316,8 +317,18 @@ export default function DogaltasListesiPage() {
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
                         className="flex min-w-0 items-center gap-3"
                       >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-[20px] ring-1 ring-cyan-100">
-                          💎
+                        <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                          {coverImage ? (
+                            <img
+                              src={coverImage}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[20px]">
+                              💎
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0">
@@ -407,6 +418,7 @@ export default function DogaltasListesiPage() {
               {filteredStones.map((stone) => {
                 const imageCount = (stone.images || []).length;
                 const sectionCount = countFilledSections(stone);
+                const coverImage = (stone.images || []).find((image) => image.url)?.url;
 
                 return (
                   <div
@@ -418,8 +430,18 @@ export default function DogaltasListesiPage() {
                       className="group block"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-[22px] ring-1 ring-cyan-100">
-                          💎
+                        <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                          {coverImage ? (
+                            <img
+                              src={coverImage}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[22px]">
+                              💎
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">

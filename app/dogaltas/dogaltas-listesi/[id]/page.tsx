@@ -59,7 +59,7 @@ type StoneRecord = {
   application: string | null;
   chakras: string[] | null;
   assignments: Record<string, string[][]> | null;
-  images: { id: string; name: string; url?: string }[] | null;
+  images: { id: string; name: string; url?: string; file_path?: string }[] | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -270,6 +270,9 @@ export default function StoneDetailPage() {
   const [activeReader, setActiveReader] = useState<ActiveReader | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(
+    null
+  );
 
   async function loadStone() {
     if (!id) return;
@@ -448,6 +451,11 @@ export default function StoneDetailPage() {
 
   const images = stone?.images || [];
 
+  const imagesWithUrl = useMemo(
+    () => images.filter((img) => img.url && String(img.url).trim()),
+    [images]
+  );
+
   const hasAssignments = useMemo(() => {
     if (!stone?.assignments) return false;
     return Object.values(stone.assignments).some((rows) => rows.length > 0);
@@ -572,23 +580,72 @@ export default function StoneDetailPage() {
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_1fr]">
           <aside className="space-y-4">
             <div className="rounded-[26px] border border-white bg-white/86 p-5 text-center shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
-              <div className="flex min-h-[190px] items-center justify-center rounded-[22px] border border-dashed border-cyan-200 bg-cyan-50/60">
-                <div>
-                  <div className="text-[62px]">💎</div>
-                  <h2 className="mt-2 text-[20px] font-black text-slate-950">
-                    {stone.stone_name}
-                  </h2>
-                  <p className="mt-2 px-3 text-[12px] leading-5 text-slate-500">
-                    Gerçek görsel için Supabase Storage bağlantısı gerekli.
-                  </p>
+              {imagesWithUrl.length > 0 ? (
+                <>
+                  <div className="overflow-hidden rounded-[22px] border border-cyan-100 bg-cyan-50/60">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewImage({
+                          url: imagesWithUrl[0].url!,
+                          name: imagesWithUrl[0].name,
+                        })
+                      }
+                      className="flex w-full min-h-[160px] items-center justify-center p-2"
+                    >
+                      <img
+                        src={imagesWithUrl[0].url}
+                        alt={imagesWithUrl[0].name}
+                        className="max-h-[220px] w-full object-contain"
+                      />
+                    </button>
+                    <h2 className="border-t border-cyan-100/80 bg-white/60 px-2 pb-3 pt-3 text-[18px] font-black text-slate-950">
+                      {stone.stone_name}
+                    </h2>
+                  </div>
+
+                  {imagesWithUrl.length > 1 && (
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                      {imagesWithUrl.slice(1).map((img) => (
+                        <button
+                          key={img.id}
+                          type="button"
+                          onClick={() =>
+                            setPreviewImage({ url: img.url!, name: img.name })
+                          }
+                          className="h-14 w-14 overflow-hidden rounded-xl ring-1 ring-slate-100 transition hover:ring-cyan-200"
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex min-h-[190px] items-center justify-center rounded-[22px] border border-dashed border-cyan-200 bg-cyan-50/60">
+                  <div>
+                    <div className="text-[62px]">💎</div>
+                    <h2 className="mt-2 text-[20px] font-black text-slate-950">
+                      {stone.stone_name}
+                    </h2>
+                    <p className="mt-2 px-3 text-[12px] leading-5 text-slate-500">
+                      Gerçek görsel için Supabase Storage bağlantısı gerekli.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-left text-[11px] font-bold leading-5 text-amber-700 ring-1 ring-amber-100">
-                Şu an eski kayıtta yalnızca resim adı saklandı. Fotoğrafın kendisi veritabanına yüklenmediği için burada görüntülenemez.
-              </div>
+              {imagesWithUrl.length === 0 && (
+                <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-left text-[11px] font-bold leading-5 text-amber-700 ring-1 ring-amber-100">
+                  Şu an eski kayıtta yalnızca resim adı saklandı. Fotoğrafın kendisi veritabanına yüklenmediği için burada görüntülenemez.
+                </div>
+              )}
 
-              {images.length > 0 && (
+              {imagesWithUrl.length === 0 && images.length > 0 && (
                 <div className="mt-4 space-y-2 text-left">
                   <p className="text-[12px] font-black text-slate-700">Kayıtlı Resim Adları</p>
                   {images.map((image) => (
@@ -598,6 +655,29 @@ export default function StoneDetailPage() {
                   ))}
                 </div>
               )}
+
+              {imagesWithUrl.length > 0 &&
+                images.some((img) => !img.url?.trim()) && (
+                  <>
+                    <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-left text-[11px] font-bold leading-5 text-amber-700 ring-1 ring-amber-100">
+                      Şu an eski kayıtta yalnızca resim adı saklandı. Fotoğrafın kendisi veritabanına yüklenmediği için burada görüntülenemez.
+                    </div>
+
+                    <div className="mt-4 space-y-2 text-left">
+                      <p className="text-[12px] font-black text-slate-700">Kayıtlı Resim Adları</p>
+                      {images
+                        .filter((img) => !img.url?.trim())
+                        .map((image) => (
+                          <div
+                            key={image.id}
+                            className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
+                          >
+                            {image.name}
+                          </div>
+                        ))}
+                    </div>
+                  </>
+                )}
             </div>
 
             <button
@@ -1027,6 +1107,28 @@ export default function StoneDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black p-6"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute right-6 top-6 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl font-black text-white transition hover:bg-white/20"
+          >
+            ×
+          </button>
+
+          <img
+            src={previewImage.url}
+            alt={previewImage.name}
+            className="max-h-[88vh] max-w-[92vw] rounded-2xl object-contain shadow-[0_35px_90px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
       )}
     </main>
