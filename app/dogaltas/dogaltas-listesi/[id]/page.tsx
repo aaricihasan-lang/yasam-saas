@@ -597,6 +597,8 @@ export default function StoneDetailPage() {
                         src={imagesWithUrl[0].url}
                         alt={imagesWithUrl[0].name}
                         className="max-h-[220px] w-full object-contain"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                     <h2 className="border-t border-cyan-100/80 bg-white/60 px-2 pb-3 pt-3 text-[18px] font-black text-slate-950">
@@ -619,6 +621,8 @@ export default function StoneDetailPage() {
                             src={img.url}
                             alt={img.name}
                             className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                         </button>
                       ))}
@@ -1127,6 +1131,8 @@ export default function StoneDetailPage() {
             src={previewImage.url}
             alt={previewImage.name}
             className="max-h-[88vh] max-w-[92vw] rounded-2xl object-contain shadow-[0_35px_90px_rgba(0,0,0,0.55)]"
+            loading="lazy"
+            decoding="async"
             onClick={(event) => event.stopPropagation()}
           />
         </div>

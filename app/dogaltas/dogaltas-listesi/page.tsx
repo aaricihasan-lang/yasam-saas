@@ -323,6 +323,8 @@ export default function DogaltasListesiPage() {
                               src={coverImage}
                               alt=""
                               className="h-full w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
                             />
                           ) : (
                             <span className="flex h-full w-full items-center justify-center text-[20px]">
@@ -436,6 +438,8 @@ export default function DogaltasListesiPage() {
                               src={coverImage}
                               alt=""
                               className="h-full w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
                             />
                           ) : (
                             <span className="flex h-full w-full items-center justify-center text-[22px]">

@@ -152,6 +152,50 @@ function safeFileName(fileName: string) {
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+const COMPRESS_MAX_W = 1200;
+const COMPRESS_MAX_H = 1200;
+const COMPRESS_WEBP_QUALITY = 0.75;
+
+async function compressImageFileToWebp(file: File): Promise<File> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("decode"));
+      image.src = objectUrl;
+    });
+
+    let w = img.naturalWidth;
+    let h = img.naturalHeight;
+    if (w === 0 || h === 0) return file;
+
+    const scale = Math.min(1, COMPRESS_MAX_W / w, COMPRESS_MAX_H / h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), "image/webp", COMPRESS_WEBP_QUALITY);
+    });
+    if (!blob) return file;
+
+    const base = file.name.replace(/\.[^/.]+$/, "") || "image";
+    const webpName = `${safeFileName(base)}.webp`;
+    return new File([blob], webpName, { type: "image/webp" });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export default function DogaltasKayitPage() {
   const [formData, setFormData] = useState<FormData>(emptyFormData);
   const [selectedChakras, setSelectedChakras] = useState<string[]>([]);
@@ -265,12 +309,13 @@ export default function DogaltasKayitPage() {
     const uploaded: UploadedImage[] = [];
 
     for (const file of files) {
-      const cleanName = safeFileName(file.name);
+      const compressed = await compressImageFileToWebp(file);
+      const cleanName = safeFileName(compressed.name);
       const filePath = `catalog/${TENANT_ID}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STONE_BUCKET)
-        .upload(filePath, file, {
+        .upload(filePath, compressed, {
           cacheControl: "3600",
           upsert: false,
         });
