@@ -5,6 +5,7 @@ import { ChangeEvent, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+const STONE_BUCKET = "stone-photos";
 
 const chakraOptions = [
   "Kök Çakra",
@@ -87,6 +88,7 @@ type UploadedImage = {
   id: string;
   name: string;
   url: string;
+  file_path?: string;
 };
 
 type FormData = {
@@ -132,6 +134,23 @@ const emptyAssignmentInputs: AssignmentInputs = {
   "Astrolojik Atama": [""],
   Elementler: [""],
 };
+
+function safeFileName(fileName: string) {
+  return fileName
+    .replaceAll("ı", "i")
+    .replaceAll("İ", "I")
+    .replaceAll("ğ", "g")
+    .replaceAll("Ğ", "G")
+    .replaceAll("ü", "u")
+    .replaceAll("Ü", "U")
+    .replaceAll("ş", "s")
+    .replaceAll("Ş", "S")
+    .replaceAll("ö", "o")
+    .replaceAll("Ö", "O")
+    .replaceAll("ç", "c")
+    .replaceAll("Ç", "C")
+    .replace(/[^a-zA-Z0-9._-]/g, "-");
+}
 
 export default function DogaltasKayitPage() {
   const [formData, setFormData] = useState<FormData>(emptyFormData);
@@ -236,19 +255,45 @@ export default function DogaltasKayitPage() {
     );
   }
 
-  function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []);
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    event.target.value = "";
     if (files.length === 0) return;
 
-    const newImages = files.map((file) => ({
-      id: `${file.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name: file.name,
-      url: URL.createObjectURL(file),
-    }));
+    const uploaded: UploadedImage[] = [];
 
-    setImages((prev) => [...prev, ...newImages]);
-    showMessage(`${newImages.length} resim eklendi.`);
-    event.target.value = "";
+    for (const file of files) {
+      const cleanName = safeFileName(file.name);
+      const filePath = `catalog/${TENANT_ID}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(STONE_BUCKET)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        showError("Görsel yüklenemedi: " + uploadError.message);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(STONE_BUCKET)
+        .getPublicUrl(filePath);
+
+      uploaded.push({
+        id: `${file.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        url: publicUrlData.publicUrl,
+        file_path: filePath,
+      });
+    }
+
+    setImages((prev) => [...prev, ...uploaded]);
+    showMessage(`${uploaded.length} resim yüklendi.`);
   }
 
   function removeImage(id: string) {
@@ -284,6 +329,8 @@ export default function DogaltasKayitPage() {
       images: images.map((image) => ({
         id: image.id,
         name: image.name,
+        url: image.url,
+        file_path: image.file_path,
       })),
       updated_at: new Date().toISOString(),
     };
