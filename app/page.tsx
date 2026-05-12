@@ -435,8 +435,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-[92vh] overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
-      <div className="relative mx-auto flex min-h-[92vh] max-w-[1540px] flex-col px-5 py-3 lg:px-7 lg:py-4">
+    <main className="min-h-screen overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
+      <div className="relative mx-auto flex min-h-screen max-w-[1540px] flex-col px-5 py-3 lg:px-7 lg:py-4">
         <div className="pointer-events-none absolute left-[-130px] top-[-150px] h-[330px] w-[330px] rounded-full bg-violet-200/38 blur-3xl" />
         <div className="pointer-events-none absolute right-[-110px] top-[70px] h-[360px] w-[360px] rounded-full bg-cyan-200/36 blur-3xl" />
         <div className="pointer-events-none absolute bottom-[-150px] left-[30%] h-[310px] w-[310px] rounded-full bg-fuchsia-200/28 blur-3xl" />
@@ -542,11 +542,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative z-10 mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:-mt-10 xl:-mt-12 xl:grid-cols-6">
+        <section className="relative z-10 mt-8 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
           {landingModules.map((item) => (
             <div
               key={item.title}
-              className="rounded-[16px] border border-white/80 bg-white/72 p-2.5 shadow-[0_12px_30px_rgba(15,23,42,0.045)] backdrop-blur-xl transition hover:-translate-y-1"
+              className="min-h-[118px] rounded-[16px] border border-white/80 bg-white/72 p-3 shadow-[0_12px_30px_rgba(15,23,42,0.045)] backdrop-blur-xl transition hover:-translate-y-1"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-500 text-base text-white shadow-lg shadow-violet-200">
                 {item.icon}
@@ -563,7 +563,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="relative z-10 mt-2 grid grid-cols-2 gap-0 overflow-hidden rounded-[20px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
+        <section className="relative z-10 mt-3 grid grid-cols-2 gap-0 overflow-hidden rounded-[20px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
           {featureItems.map((item, index) => (
             <div
               key={item.title}
@@ -588,7 +588,7 @@ export default function Home() {
           ))}
         </section>
 
-        <footer className="relative z-10 py-2 text-center text-[11px] font-semibold text-slate-500">
+        <footer className="relative z-10 py-3 text-center text-[11px] font-semibold text-slate-500">
           © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
         </footer>
       </div>
