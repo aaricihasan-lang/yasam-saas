@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type User = {
@@ -11,15 +11,6 @@ type User = {
   email: string;
   role: string;
   status: string;
-};
-
-type ModuleCard = {
-  title: string;
-  icon: string;
-  desc: string;
-  count: string;
-  badge: string;
-  href: string;
 };
 
 type LandingModule = {
@@ -100,62 +91,12 @@ const featureItems: FeatureItem[] = [
   },
 ];
 
-const dashboardModules: ModuleCard[] = [
-  {
-    title: "Danışanlar",
-    icon: "👥",
-    desc: "Danışan kayıtları, detaylar ve takip sistemi",
-    count: "Aktif",
-    badge: "Ana Modül",
-    href: "/dashboard/clients",
-  },
-  {
-    title: "Ajanda",
-    icon: "📅",
-    desc: "Randevu, seans planlama ve günlük takip",
-    count: "Aktif",
-    badge: "Takip",
-    href: "/dashboard/ajanda",
-  },
-  {
-    title: "Doğaltaş",
-    icon: "💎",
-    desc: "Taş, mineral ve danışan eşleştirmeleri",
-    count: "Aktif",
-    badge: "Modül",
-    href: "/dogaltas",
-  },
-  {
-    title: "Numeroloji",
-    icon: "🔢",
-    desc: "Analiz, rapor ve kişisel yorum alanı",
-    count: "Yakında",
-    badge: "Plan",
-    href: "#",
-  },
-  {
-    title: "Refleksoloji",
-    icon: "🦶",
-    desc: "Protokoller, atlas ve uygulama notları",
-    count: "Yakında",
-    badge: "Plan",
-    href: "#",
-  },
-  {
-    title: "Aromaterapi",
-    icon: "🌿",
-    desc: "Yağlar, karışımlar ve kullanım rehberi",
-    count: "Planlandı",
-    badge: "Sırada",
-    href: "#",
-  },
-];
-
 export default function Home() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -163,22 +104,9 @@ export default function Home() {
     const savedUser = localStorage.getItem("yasam_user");
 
     if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("yasam_user");
-      }
+      router.replace("/dashboard");
     }
-  }, []);
-
-  const todayText = useMemo(() => {
-    return new Date().toLocaleDateString("tr-TR", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }, []);
+  }, [router]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -207,232 +135,14 @@ export default function Home() {
       return;
     }
 
-    const loggedUser = data[0];
+    const loggedUser: User = data[0];
 
     localStorage.setItem("yasam_user", JSON.stringify(loggedUser));
-    setUser(loggedUser);
-    setLoginModalOpen(false);
     setMessage("");
     setLoading(false);
+    setLoginModalOpen(false);
+    router.push("/dashboard");
   };
-
-  const logout = () => {
-    localStorage.removeItem("yasam_user");
-    setUser(null);
-    setEmail("");
-    setPassword("");
-    setMessage("");
-  };
-
-  if (user) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          background:
-            "linear-gradient(135deg,#f7fbff 0%,#f5f1ff 45%,#f5fff8 100%)",
-          color: "#111827",
-          padding: 14,
-        }}
-      >
-        <section style={{ maxWidth: 1180, margin: "0 auto" }}>
-          <header
-            style={{
-              background: "rgba(255,255,255,0.86)",
-              border: "1px solid rgba(226,232,240,0.9)",
-              borderRadius: 22,
-              padding: 16,
-              boxShadow: "0 14px 34px rgba(15,23,42,0.055)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 14,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "inline-flex",
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  background: "white",
-                  border: "1px solid #e5e7eb",
-                  color: "#64748b",
-                  fontSize: 11,
-                  fontWeight: 850,
-                  marginBottom: 8,
-                }}
-              >
-                {todayText}
-              </div>
-
-              <h1
-                style={{
-                  fontSize: 24,
-                  fontWeight: 950,
-                  margin: 0,
-                  letterSpacing: "-0.8px",
-                }}
-              >
-                Hoş geldin, {user.name} ✨
-              </h1>
-
-              <p style={{ color: "#64748b", marginTop: 6, fontSize: 12 }}>
-                Çalışma alanlarını buradan yönetebilir, modüllere hızlıca geçebilirsin.
-              </p>
-            </div>
-
-            <button
-              onClick={logout}
-              style={{
-                padding: "9px 13px",
-                borderRadius: 13,
-                border: "none",
-                background: "#111827",
-                color: "white",
-                fontWeight: 900,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              Çıkış Yap
-            </button>
-          </header>
-
-          <div
-            style={{
-              marginTop: 14,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 10,
-            }}
-          >
-            {[
-              ["👥", "Danışan", "Aktif", "Kayıt ve takip"],
-              ["📅", "Ajanda", "Aktif", "Randevu sistemi"],
-              ["💎", "Doğaltaş", "Aktif", "Modül hazır"],
-              ["🚀", "Sistem", "Online", "Web bağlantısı"],
-            ].map(([icon, title, value, desc]) => (
-              <div
-                key={title}
-                style={{
-                  background: "rgba(255,255,255,0.84)",
-                  border: "1px solid rgba(226,232,240,0.9)",
-                  borderRadius: 18,
-                  padding: 14,
-                  boxShadow: "0 12px 28px rgba(15,23,42,0.045)",
-                }}
-              >
-                <div style={{ fontSize: 20 }}>{icon}</div>
-                <div style={{ marginTop: 10, fontSize: 18, fontWeight: 950 }}>
-                  {value}
-                </div>
-                <div style={{ fontWeight: 900, marginTop: 2, fontSize: 12 }}>
-                  {title}
-                </div>
-                <div style={{ color: "#64748b", fontSize: 11, marginTop: 4 }}>
-                  {desc}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <section
-            style={{
-              marginTop: 14,
-              background: "rgba(255,255,255,0.84)",
-              border: "1px solid rgba(226,232,240,0.9)",
-              borderRadius: 22,
-              padding: 16,
-              boxShadow: "0 14px 34px rgba(15,23,42,0.055)",
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>
-                Modüller
-              </h2>
-
-              <p style={{ color: "#64748b", marginTop: 5, fontSize: 12 }}>
-                Yaşam Sistemi içindeki ana çalışma alanları.
-              </p>
-            </div>
-
-            <div
-              style={{
-                marginTop: 14,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-                gap: 10,
-              }}
-            >
-              {dashboardModules.map((item) => {
-                const isReady = item.href !== "#";
-
-                const card = (
-                  <div
-                    style={{
-                      background:
-                        "linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 18,
-                      padding: 14,
-                      minHeight: 116,
-                      boxShadow: "0 10px 24px rgba(15,23,42,0.04)",
-                      cursor: isReady ? "pointer" : "default",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ fontSize: 25 }}>{item.icon}</div>
-
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 900,
-                          color: "#475569",
-                          background: "#f1f5f9",
-                          padding: "5px 8px",
-                          borderRadius: 999,
-                        }}
-                      >
-                        {item.badge}
-                      </span>
-                    </div>
-
-                    <h3 style={{ marginTop: 12, marginBottom: 5, fontSize: 16, fontWeight: 950 }}>
-                      {item.title}
-                    </h3>
-
-                    <p style={{ color: "#64748b", margin: 0, fontSize: 12, lineHeight: 1.42 }}>
-                      {item.desc}
-                    </p>
-
-                    <div style={{ marginTop: 10, fontWeight: 900, color: "#111827", fontSize: 11 }}>
-                      {item.count}
-                    </div>
-                  </div>
-                );
-
-                return isReady ? (
-                  <Link key={item.title} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
-                    {card}
-                  </Link>
-                ) : (
-                  <div key={item.title}>{card}</div>
-                );
-              })}
-            </div>
-          </section>
-        </section>
-      </main>
-    );
-  }
 
   return (
     <main className="h-screen overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
@@ -466,11 +176,10 @@ export default function Home() {
             <div className="rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700">
               ☁️ Web & Mobil Destek
             </div>
-
           </div>
         </header>
 
-        <section className="relative z-10 mt-3 grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_560px] lg:items-start">
+        <section className="relative z-10 grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_560px] lg:items-start">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/76 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm backdrop-blur">
               ✨ Profesyonel danışmanlık yönetim sistemi
@@ -542,7 +251,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative z-10 mt-0 grid shrink-0 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <section className="relative z-10 grid shrink-0 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
           {landingModules.map((item) => (
             <div
               key={item.title}
@@ -563,7 +272,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="relative z-10 mt-0 grid shrink-0 grid-cols-2 gap-0 overflow-hidden rounded-[18px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
+        <section className="relative z-10 grid shrink-0 grid-cols-2 gap-0 overflow-hidden rounded-[18px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
           {featureItems.map((item, index) => (
             <div
               key={item.title}
