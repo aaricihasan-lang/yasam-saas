@@ -298,19 +298,6 @@ export default function StoneDetailPage() {
     null
   );
   const [imageBusy, setImageBusy] = useState(false);
-  const [savedAckVisible, setSavedAckVisible] = useState(false);
-  const savedAckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function showSavedAck() {
-    if (savedAckTimerRef.current) {
-      clearTimeout(savedAckTimerRef.current);
-    }
-    setSavedAckVisible(true);
-    savedAckTimerRef.current = setTimeout(() => {
-      setSavedAckVisible(false);
-      savedAckTimerRef.current = null;
-    }, 2200);
-  }
 
   function handleExitEditMode() {
     setEditEnabled(false);
@@ -318,11 +305,6 @@ export default function StoneDetailPage() {
     setActiveReader(null);
     setErrorMessage("");
     setSuccessMessage("");
-    setSavedAckVisible(false);
-    if (savedAckTimerRef.current) {
-      clearTimeout(savedAckTimerRef.current);
-      savedAckTimerRef.current = null;
-    }
   }
 
   async function loadStone() {
@@ -475,7 +457,6 @@ export default function StoneDetailPage() {
 
     setStone(data as StoneRecord);
     setActiveEditor(null);
-    showSavedAck();
   }
 
   async function deleteStone() {
@@ -563,7 +544,6 @@ export default function StoneDetailPage() {
     }
 
     setStone(data as StoneRecord);
-    showSavedAck();
   }
 
   async function handleDeleteImage(image: {
@@ -622,7 +602,6 @@ export default function StoneDetailPage() {
     }
 
     setStone(data as StoneRecord);
-    showSavedAck();
   }
 
   const images = stone?.images || [];
@@ -672,7 +651,7 @@ export default function StoneDetailPage() {
 
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] text-slate-950">
-      <div className={`mx-auto max-w-[1260px] px-6 py-5${editEnabled ? " pb-24" : ""}`}>
+      <div className="mx-auto max-w-[1260px] px-6 py-5">
         <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="mb-1 inline-flex rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-white">
@@ -722,11 +701,11 @@ export default function StoneDetailPage() {
               }}
               className={`rounded-2xl px-6 py-3 text-[13px] font-black shadow-[0_14px_30px_rgba(15,23,42,0.11)] transition ${
                 editEnabled
-                  ? "bg-cyan-600 text-white hover:bg-cyan-700"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
                   : "bg-slate-950 text-white hover:bg-slate-800"
               }`}
             >
-              {editEnabled ? "Düzenlemeyi Kapat" : "Düzenle"}
+              {editEnabled ? "Kaydet" : "Düzenle"}
             </button>
 
             <button
@@ -1373,30 +1352,6 @@ export default function StoneDetailPage() {
                 className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
               >
                 {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editEnabled && (
-        <div className="fixed bottom-0 left-0 right-0 z-[45] border-t border-slate-200/90 bg-white/92 px-5 py-3 shadow-[0_-10px_36px_rgba(15,23,42,0.08)] backdrop-blur-md">
-          <div className="mx-auto flex max-w-[1260px] flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <p className="text-[11px] font-semibold leading-snug text-slate-500">
-              Değişiklikler otomatik kaydedilir.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              {savedAckVisible && (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                  Kaydedildi ✓
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleExitEditMode}
-                className="rounded-xl bg-slate-950 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)] ring-1 ring-slate-900 transition hover:bg-slate-800"
-              >
-                Düzenlemeyi Kapat
               </button>
             </div>
           </div>
