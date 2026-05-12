@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 type StoneRecord = {
@@ -28,6 +29,24 @@ type StoneRecord = {
 };
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+const STONE_BUCKET = "stone-photos";
+
+function safeFileName(fileName: string) {
+  return fileName
+    .replaceAll("ı", "i")
+    .replaceAll("İ", "I")
+    .replaceAll("ğ", "g")
+    .replaceAll("Ğ", "G")
+    .replaceAll("ü", "u")
+    .replaceAll("Ü", "U")
+    .replaceAll("ş", "s")
+    .replaceAll("Ş", "S")
+    .replaceAll("ö", "o")
+    .replaceAll("Ö", "O")
+    .replaceAll("ç", "c")
+    .replaceAll("Ç", "C")
+    .replace(/[^a-zA-Z0-9._-]/g, "-");
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
@@ -61,6 +80,7 @@ function countFilledSections(stone: StoneRecord) {
 }
 
 export default function DogaltasListesiPage() {
+  const { confirm } = useConfirm();
   const [stones, setStones] = useState<StoneRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -68,6 +88,13 @@ export default function DogaltasListesiPage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
+  const [uploadBusyId, setUploadBusyId] = useState<string | null>(null);
+
+  const stonesRef = useRef(stones);
+  stonesRef.current = stones;
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const uploadStoneIdRef = useRef<string | null>(null);
 
   async function loadStones() {
     setLoading(true);
@@ -112,6 +139,123 @@ export default function DogaltasListesiPage() {
       current.filter((stone) => stone.id !== stoneToDelete.id)
     );
     setStoneToDelete(null);
+  }
+
+  async function handleQuickPhotoFile(event: ChangeEvent<HTMLInputElement>) {
+    const stoneId = uploadStoneIdRef.current;
+    uploadStoneIdRef.current = null;
+
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!stoneId || !file || !file.type.startsWith("image/")) return;
+
+    const stone = stonesRef.current.find((s) => s.id === stoneId);
+    if (!stone) return;
+
+    setUploadBusyId(stoneId);
+    setErrorMessage("");
+
+    const cleanName = safeFileName(file.name);
+    const filePath = `catalog/${TENANT_ID}/${stone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(STONE_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      setUploadBusyId(null);
+      setErrorMessage(`Görsel yüklenemedi: ${uploadError.message}`);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(STONE_BUCKET).getPublicUrl(filePath);
+
+    const newImage = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: file.name,
+      url: publicUrlData.publicUrl,
+      file_path: filePath,
+    };
+
+    const nextImages = [...(stone.images || []), newImage];
+
+    const { data, error } = await supabase
+      .from("stones")
+      .update({
+        images: nextImages,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", TENANT_ID)
+      .eq("id", stone.id)
+      .select("*")
+      .single();
+
+    setUploadBusyId(null);
+
+    if (error) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    setStones((prev) =>
+      prev.map((s) => (s.id === stoneId ? (data as StoneRecord) : s))
+    );
+  }
+
+  async function handleDeleteCoverPhoto(stone: StoneRecord) {
+    const current = stonesRef.current.find((s) => s.id === stone.id) || stone;
+    const cover = (current.images || []).find((img) => img.url && String(img.url).trim());
+    if (!cover) return;
+
+    const ok = await confirm({
+      title: "Fotoğrafı sil",
+      message: `${cover.name || "Kapak görseli"} silinsin mi?`,
+      tone: "danger",
+      confirmText: "Evet, sil",
+      cancelText: "Vazgeç",
+    });
+    if (!ok) return;
+
+    setUploadBusyId(stone.id);
+    setErrorMessage("");
+
+    if (cover.file_path) {
+      const { error: removeError } = await supabase.storage
+        .from(STONE_BUCKET)
+        .remove([cover.file_path]);
+      if (removeError) {
+        setUploadBusyId(null);
+        setErrorMessage(`Depolama temizlenemedi: ${removeError.message}`);
+        return;
+      }
+    }
+
+    const nextImages = (current.images || []).filter((img) => img.id !== cover.id);
+
+    const { data, error } = await supabase
+      .from("stones")
+      .update({
+        images: nextImages.length > 0 ? nextImages : [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", TENANT_ID)
+      .eq("id", stone.id)
+      .select("*")
+      .single();
+
+    setUploadBusyId(null);
+
+    if (error) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    setStones((prev) =>
+      prev.map((s) => (s.id === stone.id ? (data as StoneRecord) : s))
+    );
   }
 
   useEffect(() => {
@@ -313,27 +457,48 @@ export default function DogaltasListesiPage() {
                       key={stone.id}
                       className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-4 py-3 transition hover:bg-cyan-50/45"
                     >
-                      <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex min-w-0 items-center gap-3"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
-                          {coverImage ? (
-                            <img
-                              src={coverImage}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[20px]">
-                              💎
-                            </span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="relative shrink-0">
+                          <Link
+                            href={`/dogaltas/dogaltas-listesi/${stone.id}`}
+                            className="block"
+                          >
+                            <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                              {coverImage ? (
+                                <img
+                                  src={coverImage}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-[20px]">
+                                  💎
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                          {coverImage && (
+                            <button
+                              type="button"
+                              disabled={uploadBusyId === stone.id}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleDeleteCoverPhoto(stone);
+                              }}
+                              className="absolute -right-1 -top-1 z-10 rounded-md bg-rose-50 px-1 py-0.5 text-[8px] font-black leading-tight text-rose-700 shadow-sm ring-1 ring-rose-100 transition hover:bg-rose-100 disabled:opacity-50"
+                            >
+                              Foto Sil
+                            </button>
                           )}
                         </div>
 
-                        <div className="min-w-0">
+                        <Link
+                          href={`/dogaltas/dogaltas-listesi/${stone.id}`}
+                          className="min-w-0 flex-1"
+                        >
                           <div className="truncate text-[14px] font-black text-slate-950">
                             {stone.stone_name || "İsimsiz taş"}
                           </div>
@@ -341,8 +506,8 @@ export default function DogaltasListesiPage() {
                           <div className="mt-0.5 text-[10px] font-bold text-slate-400">
                             Detayı aç →
                           </div>
-                        </div>
-                      </Link>
+                        </Link>
+                      </div>
 
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
@@ -401,7 +566,20 @@ export default function DogaltasListesiPage() {
                         {formatDate(stone.created_at)}
                       </Link>
 
-                      <div className="flex items-center justify-end">
+                      <div className="flex flex-col items-end justify-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={uploadBusyId === stone.id}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            uploadStoneIdRef.current = stone.id;
+                            photoInputRef.current?.click();
+                          }}
+                          className="rounded-lg bg-cyan-50 px-2 py-1 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100 transition hover:bg-cyan-100 disabled:opacity-50"
+                        >
+                          {uploadBusyId === stone.id ? "…" : "Foto Ekle"}
+                        </button>
                         <button
                           type="button"
                           onClick={(event) => {
@@ -431,28 +609,46 @@ export default function DogaltasListesiPage() {
                     key={stone.id}
                     className="rounded-[24px] bg-white/86 p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:bg-white hover:ring-cyan-200"
                   >
-                    <Link
-                      href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                      className="group block"
-                    >
+                    <div className="group block">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
-                          {coverImage ? (
-                            <img
-                              src={coverImage}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[22px]">
-                              💎
-                            </span>
+                        <div className="relative shrink-0">
+                          <Link href={`/dogaltas/dogaltas-listesi/${stone.id}`} className="block">
+                            <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                              {coverImage ? (
+                                <img
+                                  src={coverImage}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-[22px]">
+                                  💎
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                          {coverImage && (
+                            <button
+                              type="button"
+                              disabled={uploadBusyId === stone.id}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleDeleteCoverPhoto(stone);
+                              }}
+                              className="absolute -right-1 -top-1 z-10 rounded-md bg-rose-50 px-1 py-0.5 text-[8px] font-black leading-tight text-rose-700 shadow-sm ring-1 ring-rose-100 transition hover:bg-rose-100 disabled:opacity-50"
+                            >
+                              Foto Sil
+                            </button>
                           )}
                         </div>
 
-                        <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/dogaltas/dogaltas-listesi/${stone.id}`}
+                          className="min-w-0 flex-1"
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="truncate text-[16px] font-black text-slate-950">
                               {stone.stone_name || "İsimsiz taş"}
@@ -496,9 +692,9 @@ export default function DogaltasListesiPage() {
                               </span>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </div>
-                    </Link>
+                    </div>
 
                     <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
                       <Link
@@ -508,17 +704,32 @@ export default function DogaltasListesiPage() {
                         Detay sayfasında oku →
                       </Link>
 
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setStoneToDelete(stone);
-                        }}
-                        className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
-                      >
-                        Sil
-                      </button>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={uploadBusyId === stone.id}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            uploadStoneIdRef.current = stone.id;
+                            photoInputRef.current?.click();
+                          }}
+                          className="rounded-lg bg-cyan-50 px-2 py-1.5 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100 transition hover:bg-cyan-100 disabled:opacity-50"
+                        >
+                          {uploadBusyId === stone.id ? "…" : "Foto Ekle"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setStoneToDelete(stone);
+                          }}
+                          className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
+                        >
+                          Sil
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -527,6 +738,14 @@ export default function DogaltasListesiPage() {
           )}
         </section>
       </div>
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleQuickPhotoFile}
+      />
 
       {stoneToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
