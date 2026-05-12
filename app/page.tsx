@@ -435,8 +435,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
-      <div className="relative mx-auto flex min-h-screen max-w-[1540px] flex-col px-5 py-3 lg:px-7 lg:py-4">
+    <main className="min-h-[92vh] overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
+      <div className="relative mx-auto flex min-h-[92vh] max-w-[1540px] flex-col px-5 py-3 lg:px-7 lg:py-4">
         <div className="pointer-events-none absolute left-[-130px] top-[-150px] h-[330px] w-[330px] rounded-full bg-violet-200/38 blur-3xl" />
         <div className="pointer-events-none absolute right-[-110px] top-[70px] h-[360px] w-[360px] rounded-full bg-cyan-200/36 blur-3xl" />
         <div className="pointer-events-none absolute bottom-[-150px] left-[30%] h-[310px] w-[310px] rounded-full bg-fuchsia-200/28 blur-3xl" />
