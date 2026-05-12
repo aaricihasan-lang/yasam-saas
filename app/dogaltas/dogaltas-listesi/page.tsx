@@ -176,7 +176,7 @@ export default function DogaltasListesiPage() {
             </p>
 
             <Link
-              href="/dashboard"
+              href="/"
               className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-2xl border border-white/60 bg-white/55 px-3.5 py-2 text-[11px] font-black tracking-tight text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:border-cyan-100/80 hover:bg-white/80 hover:text-slate-900 hover:shadow-[0_12px_32px_rgba(8,145,178,0.12)]"
             >
               <svg
