@@ -91,7 +91,7 @@ export default function KombinasyonlarPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
   async function loadCombinations() {
@@ -165,7 +165,7 @@ export default function KombinasyonlarPage() {
   }, [rows]);
 
   function resetForm() {
-    setForm(emptyForm);
+    setForm(() => ({ ...emptyForm }));
   }
 
   async function handleSaveNew() {
@@ -219,10 +219,11 @@ export default function KombinasyonlarPage() {
       return;
     }
 
-    setSuccessMessage("Kombinasyon kaydedildi.");
     resetForm();
     setShowForm(false);
+    setSuccessMessage("Kombinasyon kaydedildi.");
     await loadCombinations();
+    resetForm();
   }
 
   return (

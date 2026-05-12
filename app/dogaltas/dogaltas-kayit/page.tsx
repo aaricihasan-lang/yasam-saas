@@ -389,6 +389,13 @@ export default function DogaltasKayitPage() {
       return;
     }
 
+    setFormData(() => ({ ...emptyFormData }));
+    setSelectedChakras([]);
+    setSelectedWarnings([]);
+    setAssignmentRows(emptyAssignmentRows);
+    setAssignmentInputs(emptyAssignmentInputs);
+    setImages([]);
+    setPreviewImage(null);
     showMessage("Doğaltaş kaydı Supabase'e kaydedildi.");
   }
 
