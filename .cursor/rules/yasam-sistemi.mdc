@@ -1,0 +1,139 @@
+---
+description: Yaşam Sistemi proje tanımı, öncelikler ve geliştirme kuralları (SaaS, Supabase, UI)
+alwaysApply: true
+---
+
+# YAŞAM SİSTEMİ — GELİŞTİRME KURALLARI VE PROJE TANIMI
+
+## Project Overview
+
+Yaşam Sistemi is a professional multi-tenant SaaS platform designed for holistic therapy and consultancy experts.
+
+Main modules include:
+
+- Clients Management
+- Appointment & Agenda System
+- Natural Stones
+- Numerology
+- Reflexology
+- Aromatherapy
+- Bioenergy
+- Analysis & Reports
+
+The goal is to create a premium, modern, scalable and mobile-compatible SaaS system.
+
+---
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS
+- Supabase
+- PostgreSQL
+- html2canvas + jsPDF
+
+---
+
+## Current Architecture
+
+- Supabase is the main backend/database system
+- Authentication currently uses Supabase RPC login
+- Session is stored in localStorage
+- Current system behaves like a single-tenant demo
+- Future goal is full multi-tenant SaaS architecture
+- **Existing Supabase architecture must be preserved**
+
+---
+
+## Current Active Modules
+
+Most developed modules:
+
+1. Clients
+2. Appointments
+3. Natural Stones
+
+Partially developed / planned:
+
+- Numerology
+- Reflexology
+- Aromatherapy
+- Bioenergy
+- Analysis Systems
+
+---
+
+## Design Language
+
+The system must keep a:
+
+- Dark premium SaaS design
+- Modern glass/panel feeling
+- Compact professional layout
+- Responsive mobile-friendly structure
+- Elegant spacing and typography
+
+Avoid oversized elements and excessive spacing.
+
+---
+
+## VERY IMPORTANT DEVELOPMENT RULES
+
+- Do not rewrite entire files unless explicitly requested
+- Do not remove existing functionality
+- Do not break current working systems
+- Only modify requested sections
+- Preserve current folder structure
+- Keep responsive layout
+- **Keep Turkish UI texts**
+- Prefer compact UI
+- Avoid unnecessary refactors
+- Prefer incremental improvements
+- **Do not replace Supabase architecture**
+- Do not create unnecessary abstraction layers
+- Existing functionality must continue working after modifications
+
+---
+
+## UI Rules
+
+- Avoid vertical scroll when possible
+- Use compact cards and panels
+- Keep premium dark theme
+- Maintain consistent sidebar structure
+- Use modern rounded cards
+- Keep visual hierarchy clean and readable
+
+---
+
+## Coding Style
+
+- Use clean TypeScript
+- Use reusable React components when useful
+- Keep Tailwind structure readable
+- Avoid overengineering
+- Avoid unnecessary libraries
+
+---
+
+## Current Priorities
+
+1. Premium Dashboard UI
+2. Clients Module
+3. Appointment System
+4. Natural Stones Module
+5. Multi-tenant SaaS Architecture
+6. Mobile Compatibility
+7. Performance Optimization
+
+---
+
+## Important Notes
+
+- This is a real commercial SaaS project
+- Stability is more important than experimental refactors
+- Existing working modules are valuable and must be protected
+- Development should move step-by-step carefully
+- Focus on scalable professional architecture

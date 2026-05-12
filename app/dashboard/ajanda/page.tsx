@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -59,6 +60,7 @@ function getStatusInfo(status: string | null | undefined) {
 }
 
 export default function AjandaPage() {
+  const { confirm } = useConfirm();
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] =
@@ -199,7 +201,13 @@ export default function AjandaPage() {
   }
 
   async function deleteAppointment(id: string) {
-    const confirmDelete = window.confirm("Bu randevu silinsin mi?");
+    const confirmDelete = await confirm({
+      message: "Bu randevu silinsin mi?",
+      tone: "danger",
+      title: "Randevuyu sil",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!confirmDelete) return;
 
     const { error } = await supabase
