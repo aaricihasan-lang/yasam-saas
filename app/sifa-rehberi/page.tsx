@@ -561,7 +561,7 @@ export default function SifaRehberiPage() {
                 </div>
               </nav>
 
-              <div className="min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-slate-100/90 bg-white/92 p-5 shadow-[0_12px_36px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-white bg-white/80 p-5 shadow-md">
                 <h3 className="text-[18px] font-black tracking-tight text-slate-950">
                   {activeFormTab.label}
                 </h3>
@@ -569,39 +569,42 @@ export default function SifaRehberiPage() {
                   {activeFormTab.desc}
                 </p>
 
-                <div className="mt-5 space-y-4">
+                <div className="mt-5 space-y-6">
                   {activeFormTab.keys.map((fieldKey) => {
                     const meta = FORM_SECTIONS.find((s) => s.key === fieldKey);
                     if (!meta) return null;
                     const { key, label, multiline } = meta;
                     return (
-                      <div
-                        key={key}
-                        className="rounded-2xl border border-slate-100/90 bg-slate-50/40 p-4 ring-1 ring-white/70"
-                      >
+                      <div key={key} className="block">
                         <label className="block">
-                          <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
+                          <span className="mb-2 flex items-center gap-2 text-[13px] font-black tracking-tight text-slate-800">
+                            <span
+                              className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-sm ring-4 ring-emerald-100/90"
+                              aria-hidden
+                            />
                             {label}
                           </span>
-                          {multiline ? (
-                            <textarea
-                              readOnly
-                              value={form[key]}
-                              onClick={() => openLargeEditor(key, label)}
-                              onFocus={(e) => {
-                                openLargeEditor(key, label);
-                                e.target.blur();
-                              }}
-                              rows={key === "general_summary" ? 4 : 3}
-                              className="w-full cursor-pointer resize-y rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                            />
-                          ) : (
-                            <input
-                              value={form[key]}
-                              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white px-4 text-[13px] font-semibold outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                            />
-                          )}
+                          <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                            {multiline ? (
+                              <textarea
+                                readOnly
+                                value={form[key]}
+                                onClick={() => openLargeEditor(key, label)}
+                                onFocus={(e) => {
+                                  openLargeEditor(key, label);
+                                  e.target.blur();
+                                }}
+                                rows={key === "general_summary" ? 4 : 3}
+                                className="w-full cursor-pointer resize-y rounded-xl border-0 bg-white p-0 text-[13px] leading-6 text-slate-900 outline-none ring-0 transition focus:ring-2 focus:ring-emerald-100/80"
+                              />
+                            ) : (
+                              <input
+                                value={form[key]}
+                                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                                className="h-11 w-full rounded-xl border-0 bg-white px-0 text-[13px] font-semibold text-slate-900 outline-none ring-0 transition focus:ring-2 focus:ring-emerald-100/80"
+                              />
+                            )}
+                          </div>
                         </label>
                       </div>
                     );
