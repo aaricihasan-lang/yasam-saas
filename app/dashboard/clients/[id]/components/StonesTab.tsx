@@ -1,6 +1,8 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -519,6 +521,8 @@ function PhotoGallery({
 }
 
 export default function StonesTab({ clientId }: StonesTabProps) {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [stones, setStones] = useState<ClientStone[]>([]);
   const [photos, setPhotos] = useState<StonePhoto[]>([]);
 
@@ -592,7 +596,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
 
     if (imageFiles.length !== files.length) {
-      alert("Sadece fotoğraf dosyası seçebilirsin.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Sadece fotoğraf dosyası seçebilirsin.",
+        type: "error",
+      });
     }
 
     selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
@@ -691,7 +699,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
       if (uploadError) {
         console.error("Foto yüklenemedi:", uploadError);
-        alert("Foto yüklenemedi: " + uploadError.message);
+        showToast({
+          title: "İşlem başarısız",
+          message: "Foto yüklenemedi: " + uploadError.message,
+          type: "error",
+        });
         continue;
       }
 
@@ -711,7 +723,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
       if (insertError) {
         console.error("Foto kaydı veritabanına yazılamadı:", insertError);
-        alert("Foto kaydı yazılamadı: " + insertError.message);
+        showToast({
+          title: "İşlem başarısız",
+          message: "Foto kaydı yazılamadı: " + insertError.message,
+          type: "error",
+        });
 
         await supabase.storage.from(STONE_PHOTO_BUCKET).remove([filePath]);
       }
@@ -720,12 +736,20 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   async function addStone() {
     if (!clientId) {
-      alert("Danışan bilgisi bulunamadı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Danışan bilgisi bulunamadı.",
+        type: "error",
+      });
       return;
     }
 
     if (isFormEmpty(form, selectedFiles.length)) {
-      alert("Lütfen en az bir alan doldurun veya fotoğraf seçin.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Lütfen en az bir alan doldurun veya fotoğraf seçin.",
+        type: "error",
+      });
       return;
     }
 
@@ -744,7 +768,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (error || !data?.id) {
       console.error("Taş kaydı eklenemedi:", error);
-      alert("Taş kaydı eklenemedi: " + (error?.message || "Kayıt ID alınamadı."));
+      showToast({
+        title: "İşlem başarısız",
+        message:
+          "Taş kaydı eklenemedi: " + (error?.message || "Kayıt ID alınamadı."),
+        type: "error",
+      });
       setSaving(false);
       return;
     }
@@ -758,6 +787,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     await refreshAll();
 
     setSaving(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Taş kaydı eklendi.",
+      type: "success",
+    });
   }
 
   function startEdit(stone: ClientStone) {
@@ -772,7 +807,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   async function updateStone(id: string) {
     if (isFormEmpty(editForm, 0)) {
-      alert("Boş kayıt güncellenemez.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Boş kayıt güncellenemez.",
+        type: "error",
+      });
       return;
     }
 
@@ -788,7 +827,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (error) {
       console.error("Taş kaydı güncellenemedi:", error);
-      alert("Taş kaydı güncellenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Taş kaydı güncellenemedi: " + error.message,
+        type: "error",
+      });
       setUpdating(false);
       return;
     }
@@ -796,12 +839,23 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     cancelEdit();
     await refreshAll();
     setUpdating(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Taş kaydı güncellendi.",
+      type: "success",
+    });
   }
 
   async function deleteStone(id: string) {
-    const ok = confirm(
-      "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar."
-    );
+    const ok = await confirm({
+      title: "Kaydı sil",
+      message:
+        "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar.",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     setErrorMessage("");
@@ -829,7 +883,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (error) {
       console.error("Taş kaydı silinemedi:", error);
-      alert("Taş kaydı silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Taş kaydı silinemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -838,6 +896,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     await refreshAll();
+
+    showToast({
+      title: "Başarılı",
+      message: "Taş kaydı silindi.",
+      type: "success",
+    });
   }
 
   async function uploadStonePhotos(
@@ -859,7 +923,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   async function deletePhoto(photo: StonePhoto) {
-    const ok = confirm("Bu fotoğraf silinsin mi?");
+    const ok = await confirm({
+      title: "Kaydı sil",
+      message: "Bu fotoğraf silinsin mi?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     setDeletingPhotoId(photo.id);
@@ -882,7 +952,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (error) {
       console.error("Foto kaydı silinemedi:", error);
-      alert("Foto kaydı silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Foto kaydı silinemedi: " + error.message,
+        type: "error",
+      });
       setDeletingPhotoId(null);
       return;
     }
@@ -895,6 +969,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     await loadPhotos();
     setDeletingPhotoId(null);
+
+    showToast({
+      title: "Başarılı",
+      message: "Fotoğraf silindi.",
+      type: "success",
+    });
   }
 
   function openLightbox(photoList: StonePhoto[], photo: StonePhoto) {

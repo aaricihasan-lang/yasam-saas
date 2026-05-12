@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -61,6 +62,7 @@ function getStatusInfo(status: string | null | undefined) {
 
 export default function AjandaPage() {
   const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] =
@@ -141,7 +143,11 @@ export default function AjandaPage() {
       .order("ad", { ascending: true });
 
     if (error) {
-      alert("Danışanlar yüklenemedi: " + error.message);
+      showToast({
+        title: "Danışanlar yüklenemedi",
+        message: error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -156,7 +162,11 @@ export default function AjandaPage() {
       .order("appointment_date", { ascending: true });
 
     if (error) {
-      alert("Randevular yüklenemedi: " + error.message);
+      showToast({
+        title: "Randevular yüklenemedi",
+        message: error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -189,7 +199,11 @@ export default function AjandaPage() {
       .eq("tenant_id", TENANT_ID);
 
     if (error) {
-      alert("Durum güncellenemedi: " + error.message);
+      showToast({
+        title: "Durum güncellenemedi",
+        message: error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -217,12 +231,22 @@ export default function AjandaPage() {
       .eq("tenant_id", TENANT_ID);
 
     if (error) {
-      alert("Silme hatası: " + error.message);
+      showToast({
+        title: "Silme hatası",
+        message: error.message,
+        type: "error",
+      });
       return;
     }
 
     setSelectedAppointment(null);
     await loadAppointments();
+
+    showToast({
+      title: "Randevu silindi",
+      message: "Randevu başarıyla kaldırıldı.",
+      type: "success",
+    });
   }
 
   useEffect(() => {

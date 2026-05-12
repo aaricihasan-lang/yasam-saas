@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import DashboardNotifications from "@/shared/DashboardNotifications";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,10 +31,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ConfirmProvider>
-          <DashboardNotifications />
-          {children}
-        </ConfirmProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <DashboardNotifications />
+            {children}
+          </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -391,6 +393,8 @@ function DetailBlock({
 }
 
 export default function SessionsTab({ clientId }: SessionsTabProps) {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [form, setForm] = useState<SessionFormState>({
     ...emptyForm,
@@ -490,12 +494,20 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
   async function addSession() {
     if (!clientId) {
-      alert("Danışan bilgisi bulunamadı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Danışan bilgisi bulunamadı.",
+        type: "error",
+      });
       return;
     }
 
     if (isFormEmpty(form)) {
-      alert("Lütfen en az bir alan doldurun.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Lütfen en az bir alan doldurun.",
+        type: "error",
+      });
       return;
     }
 
@@ -510,7 +522,11 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     if (error) {
       console.error("Seans kaydı eklenemedi:", error);
-      alert("Seans kaydı eklenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Seans kaydı eklenemedi: " + error.message,
+        type: "error",
+      });
       setSaving(false);
       return;
     }
@@ -518,6 +534,12 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setForm({ ...emptyForm, sessionDate: todayISO() });
     await loadSessions();
     setSaving(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Seans kaydı eklendi.",
+      type: "success",
+    });
   }
 
   function startEdit(session: ClientSession) {
@@ -532,7 +554,11 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
   async function updateSession(id: string) {
     if (isFormEmpty(editForm)) {
-      alert("Boş seans güncellenemez.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Boş seans güncellenemez.",
+        type: "error",
+      });
       return;
     }
 
@@ -548,7 +574,11 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     if (error) {
       console.error("Seans kaydı güncellenemedi:", error);
-      alert("Seans kaydı güncellenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Seans kaydı güncellenemedi: " + error.message,
+        type: "error",
+      });
       setUpdating(false);
       return;
     }
@@ -556,10 +586,22 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     cancelEdit();
     await loadSessions();
     setUpdating(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Seans güncellendi.",
+      type: "success",
+    });
   }
 
   async function deleteSession(id: string) {
-    const ok = confirm("Bu seans kaydı silinsin mi?");
+    const ok = await confirm({
+      title: "Kaydı sil",
+      message: "Bu seans kaydı silinsin mi?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     const { error } = await supabase
@@ -571,7 +613,11 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     if (error) {
       console.error("Seans kaydı silinemedi:", error);
-      alert("Seans kaydı silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Seans kaydı silinemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -580,6 +626,12 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     }
 
     setSessions((prev) => prev.filter((item) => item.id !== id));
+
+    showToast({
+      title: "Başarılı",
+      message: "Seans silindi.",
+      type: "success",
+    });
   }
 
   return (

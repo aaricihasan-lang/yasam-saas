@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 import NotesTab from "./components/NotesTab";
 import StonesTab from "./components/StonesTab";
@@ -111,6 +113,8 @@ function getAppointmentStatusInfo(item: Appointment) {
 }
 
 export default function ClientDetailPage() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const params = useParams();
   const router = useRouter();
   const clientId = params.id as string;
@@ -120,7 +124,6 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingClient, setDeletingClient] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
 
   const [noteId, setNoteId] = useState<string | null>(null);
   const [saglikNotu, setSaglikNotu] = useState("");
@@ -178,14 +181,6 @@ export default function ClientDetailPage() {
     }
   }, [clientId]);
 
-  function showToast(message: string) {
-    setToastMessage(message);
-
-    window.setTimeout(() => {
-      setToastMessage("");
-    }, 1000);
-  }
-
   async function saveGeneralNotes() {
     setSavingNotes(true);
 
@@ -206,7 +201,11 @@ export default function ClientDetailPage() {
 
     if (error) {
       console.error("Genel bilgiler kayıt hatası:", error);
-      alert("Kayıt hatası: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Kayıt hatası: " + error.message,
+        type: "error",
+      });
       setSavingNotes(false);
       return;
     }
@@ -215,7 +214,11 @@ export default function ClientDetailPage() {
       setNoteId(data.id);
     }
 
-    showToast("Genel bilgiler kaydedildi");
+    showToast({
+      title: "Başarılı",
+      message: "Genel bilgiler kaydedildi.",
+      type: "success",
+    });
     setSavingNotes(false);
   }
 
@@ -240,7 +243,11 @@ export default function ClientDetailPage() {
 
     if (error) {
       console.error("Not kayıt hatası:", error);
-      alert("Not kayıt hatası: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Not kayıt hatası: " + error.message,
+        type: "error",
+      });
       setSavingClientNotes(false);
       return;
     }
@@ -249,7 +256,11 @@ export default function ClientDetailPage() {
       setNoteId(data.id);
     }
 
-    showToast("Notlar kaydedildi");
+    showToast({
+      title: "Başarılı",
+      message: "Notlar kaydedildi.",
+      type: "success",
+    });
     setSavingClientNotes(false);
   }
 
@@ -264,7 +275,11 @@ export default function ClientDetailPage() {
 
     if (error) {
       console.error("Danışan silme hatası:", error);
-      alert("Danışan silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Danışan silinemedi: " + error.message,
+        type: "error",
+      });
       setDeletingClient(false);
       return;
     }
@@ -298,28 +313,6 @@ export default function ClientDetailPage() {
 
   return (
     <main style={pageStyle}>
-      <style>{`
-        @keyframes toastShrink {
-          from { transform: scaleX(1); transform-origin: left; }
-          to { transform: scaleX(0); transform-origin: left; }
-        }
-      `}</style>
-
-      {toastMessage && (
-        <div style={toastWrap}>
-          <div style={toastCard}>
-            <div style={toastIcon}>✓</div>
-
-            <div>
-              <div style={toastTitle}>Başarılı!</div>
-              <div style={toastText}>{toastMessage}</div>
-            </div>
-
-            <div style={toastProgress} />
-          </div>
-        </div>
-      )}
-
       <div style={topBar}>
         <button onClick={() => router.push("/dashboard/clients")} style={backButton}>
           ← Danışanlara Dön
@@ -432,7 +425,12 @@ export default function ClientDetailPage() {
           )}
 
           {activeTab === "randevular" && (
-            <AppointmentsTab clientId={client.id} clientName={fullName || "Danışan"} />
+            <AppointmentsTab
+              clientId={client.id}
+              clientName={fullName || "Danışan"}
+              confirm={confirm}
+              showToast={showToast}
+            />
           )}
 
           {activeTab === "taslar" && <StonesTab clientId={client.id} />}
@@ -494,7 +492,17 @@ export default function ClientDetailPage() {
   );
 }
 
-function AppointmentsTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+function AppointmentsTab({
+  clientId,
+  clientName,
+  confirm,
+  showToast,
+}: {
+  clientId: string;
+  clientName: string;
+  confirm: ReturnType<typeof useConfirm>["confirm"];
+  showToast: ReturnType<typeof useToast>["showToast"];
+}) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -523,7 +531,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
       .order("appointment_date", { ascending: true });
 
     if (error) {
-      alert("Randevular yüklenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Randevular yüklenemedi: " + error.message,
+        type: "error",
+      });
       setLoading(false);
       return;
     }
@@ -569,7 +581,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
 
     if (planningMode === "auto") {
       if (!date) {
-        alert("Başlangıç tarihi seçmelisiniz");
+        showToast({
+          title: "Eksik bilgi",
+          message: "Başlangıç tarihi seçmelisiniz",
+          type: "warning",
+        });
         return;
       }
 
@@ -597,7 +613,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
       const emptyIndex = filledDates.findIndex((item) => !item);
 
       if (emptyIndex !== -1) {
-        alert(`${emptyIndex + 1}. randevu tarihini seçmelisiniz`);
+        showToast({
+          title: "Eksik bilgi",
+          message: `${emptyIndex + 1}. randevu tarihini seçmelisiniz`,
+          type: "warning",
+        });
         return;
       }
 
@@ -619,7 +639,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
     const { error } = await supabase.from("appointments").insert(rows);
 
     if (error) {
-      alert("Randevu kayıt hatası: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Randevu kayıt hatası: " + error.message,
+        type: "error",
+      });
       setSaving(false);
       return;
     }
@@ -645,7 +669,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Randevu durumu güncellenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Randevu durumu güncellenemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -657,7 +685,13 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
   }
 
   async function deleteAppointment(id: string) {
-    const confirmDelete = window.confirm("Bu randevu silinsin mi?");
+    const confirmDelete = await confirm({
+      message: "Bu randevu silinsin mi?",
+      tone: "danger",
+      title: "Randevuyu sil",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!confirmDelete) return;
 
     const { error } = await supabase
@@ -668,7 +702,11 @@ function AppointmentsTab({ clientId, clientName }: { clientId: string; clientNam
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Randevu silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Randevu silinemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -1000,70 +1038,6 @@ function Tab({
     </button>
   );
 }
-
-const toastWrap: React.CSSProperties = {
-  position: "fixed",
-  top: 18,
-  left: "50%",
-  transform: "translateX(-50%)",
-  zIndex: 9999,
-  pointerEvents: "none",
-};
-
-const toastCard: React.CSSProperties = {
-  position: "relative",
-  overflow: "hidden",
-  minWidth: 280,
-  maxWidth: 360,
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  background: "rgba(255,255,255,0.96)",
-  border: "1px solid rgba(226,232,240,0.9)",
-  borderRadius: 18,
-  padding: "12px 16px",
-  boxShadow: "0 18px 45px rgba(15,23,42,0.16)",
-  backdropFilter: "blur(14px)",
-};
-
-const toastIcon: React.CSSProperties = {
-  width: 38,
-  height: 38,
-  borderRadius: 999,
-  background: "linear-gradient(135deg, #22c55e, #16a34a)",
-  color: "white",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 22,
-  fontWeight: 950,
-  boxShadow: "0 10px 24px rgba(34,197,94,0.28)",
-  flexShrink: 0,
-};
-
-const toastTitle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 950,
-  color: "#0f172a",
-  lineHeight: 1.1,
-};
-
-const toastText: React.CSSProperties = {
-  marginTop: 3,
-  fontSize: 12,
-  fontWeight: 750,
-  color: "#475569",
-};
-
-const toastProgress: React.CSSProperties = {
-  position: "absolute",
-  left: 0,
-  bottom: 0,
-  height: 3,
-  width: "100%",
-  background: "linear-gradient(90deg, #22c55e, #86efac)",
-  animation: "toastShrink 1s linear forwards",
-};
 
 const pageStyle: React.CSSProperties = {
   minHeight: "100vh",

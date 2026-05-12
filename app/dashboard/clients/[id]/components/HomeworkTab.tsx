@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -403,6 +405,8 @@ function DetailBlock({
 }
 
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
   const [form, setForm] = useState<HomeworkFormState>({
     ...emptyForm,
@@ -523,12 +527,20 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
   async function addHomework() {
     if (!clientId) {
-      alert("Danışan bilgisi bulunamadı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Danışan bilgisi bulunamadı.",
+        type: "error",
+      });
       return;
     }
 
     if (isFormEmpty(form)) {
-      alert("Lütfen en az bir alan doldurun.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Lütfen en az bir alan doldurun.",
+        type: "error",
+      });
       return;
     }
 
@@ -543,7 +555,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (error) {
       console.error("Ödev kaydı eklenemedi:", error);
-      alert("Ödev kaydı eklenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Ödev kaydı eklenemedi: " + error.message,
+        type: "error",
+      });
       setSaving(false);
       return;
     }
@@ -551,6 +567,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setForm({ ...emptyForm, startDate: todayISO() });
     await loadHomeworks();
     setSaving(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Ödev kaydı eklendi.",
+      type: "success",
+    });
   }
 
   function startEdit(item: ClientHomework) {
@@ -565,7 +587,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
   async function updateHomework(id: string) {
     if (isFormEmpty(editForm)) {
-      alert("Boş ödev güncellenemez.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Boş ödev güncellenemez.",
+        type: "error",
+      });
       return;
     }
 
@@ -581,7 +607,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (error) {
       console.error("Ödev kaydı güncellenemedi:", error);
-      alert("Ödev kaydı güncellenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Ödev kaydı güncellenemedi: " + error.message,
+        type: "error",
+      });
       setUpdating(false);
       return;
     }
@@ -589,6 +619,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     cancelEdit();
     await loadHomeworks();
     setUpdating(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Ödev güncellendi.",
+      type: "success",
+    });
   }
 
   async function updateHomeworkStatus(id: string, status: HomeworkStatus) {
@@ -600,13 +636,23 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Durum güncellenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Durum güncellenemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
     setHomeworks((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status } : item))
     );
+
+    showToast({
+      title: "Başarılı",
+      message: "Durum güncellendi.",
+      type: "success",
+    });
   }
 
   async function dismissHomeworkAlert(id: string) {
@@ -618,7 +664,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Uyarı kapatılamadı: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Uyarı kapatılamadı: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -629,10 +679,22 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
           : item
       )
     );
+
+    showToast({
+      title: "Başarılı",
+      message: "Uyarı kapatıldı.",
+      type: "success",
+    });
   }
 
   async function deleteHomework(id: string) {
-    const ok = confirm("Bu ödev kaydı silinsin mi?");
+    const ok = await confirm({
+      title: "Kaydı sil",
+      message: "Bu ödev kaydı silinsin mi?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     const { error } = await supabase
@@ -643,7 +705,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Ödev silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Ödev silinemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
@@ -652,6 +718,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     }
 
     setHomeworks((prev) => prev.filter((item) => item.id !== id));
+
+    showToast({
+      title: "Başarılı",
+      message: "Ödev silindi.",
+      type: "success",
+    });
   }
 
   return (

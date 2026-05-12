@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 type Client = {
@@ -62,6 +63,7 @@ function burcHesapla(date: string) {
 
 export default function ClientsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [clients, setClients] = useState<Client[]>([]);
   const [homeworkAlerts, setHomeworkAlerts] = useState<Record<string, number>>({});
@@ -146,7 +148,11 @@ export default function ClientsPage() {
 
     if (error) {
       console.error("SUPABASE LİSTE HATASI:", error);
-      alert("Listeleme hatası: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Listeleme hatası: " + error.message,
+        type: "error",
+      });
       setLoading(false);
       return;
     }
@@ -159,7 +165,11 @@ export default function ClientsPage() {
 
   async function saveClient() {
     if (!ad.trim() || !soyad.trim()) {
-      alert("Ad ve soyad gerekli");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Ad ve soyad gerekli",
+        type: "error",
+      });
       return;
     }
 
@@ -179,7 +189,11 @@ export default function ClientsPage() {
 
     if (error) {
       console.error("SUPABASE KAYIT HATASI:", error);
-      alert("Kayıt hatası: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Kayıt hatası: " + error.message,
+        type: "error",
+      });
       setSaving(false);
       return;
     }
@@ -195,6 +209,12 @@ export default function ClientsPage() {
     await loadClients();
     setActiveMainTab("list");
     setSaving(false);
+
+    showToast({
+      title: "Başarılı",
+      message: "Danışan kaydedildi.",
+      type: "success",
+    });
   }
 
   function openClientDetail(clientId: string) {

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -152,6 +154,8 @@ function getAnalysisLabel(type: string | null | undefined) {
 }
 
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
   const [chakraValues, setChakraValues] = useState<Record<string, ChakraRowValue>>(
     () => makeChakraInitialValues()
@@ -164,7 +168,6 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   const [savingAnalysis, setSavingAnalysis] = useState(false);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
-  const [toast, setToast] = useState("");
 
   const activeTitle = activeAnalysis === "planet" ? "Ç.Gezegen Analizi" : "Çakra Analizi";
 
@@ -175,14 +178,6 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   useEffect(() => {
     loadSavedAnalyses();
   }, [clientId]);
-
-  function showToast(message: string) {
-    setToast(message);
-
-    window.setTimeout(() => {
-      setToast("");
-    }, 1200);
-  }
 
   async function loadSavedAnalyses() {
     if (!clientId) return;
@@ -198,7 +193,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
     if (error) {
       console.error("Analizler yüklenemedi:", error);
-      alert("Analizler yüklenemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Analizler yüklenemedi: " + error.message,
+        type: "error",
+      });
       setLoadingSaved(false);
       return;
     }
@@ -233,7 +232,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function deleteSavedAnalysis(id: string) {
-    const ok = window.confirm("Bu analiz kaydı silinsin mi?");
+    const ok = await confirm({
+      message: "Bu analiz kaydı silinsin mi?",
+      tone: "danger",
+      title: "Analizi sil",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     const { error } = await supabase
@@ -244,12 +249,20 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       .eq("client_id", clientId);
 
     if (error) {
-      alert("Analiz silinemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Analiz silinemedi: " + error.message,
+        type: "error",
+      });
       return;
     }
 
     setSavedAnalyses((oldItems) => oldItems.filter((item) => item.id !== id));
-    showToast("Analiz silindi");
+    showToast({
+      title: "Başarılı",
+      message: "Analiz silindi.",
+      type: "success",
+    });
   }
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
@@ -269,8 +282,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     }));
   }
 
-  function clearAll() {
-    const ok = window.confirm("Bu analizdeki tüm alanlar temizlensin mi?");
+  async function clearAll() {
+    const ok = await confirm({
+      message: "Bu analizdeki tüm alanlar temizlensin mi?",
+      tone: "warning",
+      title: "Alanları temizle",
+      confirmText: "Temizle",
+      cancelText: "Vazgeç",
+    });
     if (!ok) return;
 
     if (activeAnalysis === "planet") {
@@ -286,7 +305,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const element = document.getElementById("analysis-print-area");
 
     if (!element) {
-      alert("PDF alanı bulunamadı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "PDF alanı bulunamadı.",
+        type: "error",
+      });
       return;
     }
 
@@ -337,9 +360,19 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       const fileName = `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`;
       pdf.save(fileName);
+
+      showToast({
+        title: "Başarılı",
+        message: "PDF dosyası indirildi.",
+        type: "success",
+      });
     } catch (error) {
       console.error("PDF oluşturma hatası:", error);
-      alert("PDF oluşturulamadı. Konsolu kontrol edelim.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "PDF oluşturulamadı. Konsolu kontrol edelim.",
+        type: "error",
+      });
     } finally {
       setCreatingPdf(false);
     }
@@ -347,7 +380,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   async function saveAnalysis() {
     if (!activeAnalysis) {
-      alert("Önce analiz seçmelisiniz.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Önce analiz seçmelisiniz.",
+        type: "error",
+      });
       return;
     }
 
@@ -369,29 +406,35 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
     if (error) {
       console.error("Analiz kaydedilemedi:", error);
-      alert("Analiz kaydedilemedi: " + error.message);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Analiz kaydedilemedi: " + error.message,
+        type: "error",
+      });
       setSavingAnalysis(false);
       return;
     }
 
     await loadSavedAnalyses();
-    showToast("Analiz kaydedildi");
+    showToast({
+      title: "Başarılı",
+      message: "Analiz kaydedildi.",
+      type: "success",
+    });
     setSavingAnalysis(false);
   }
 
   function exportWord() {
-    alert("Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.");
+    showToast({
+      title: "Bilgi",
+      message:
+        "Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.",
+      type: "info",
+    });
   }
 
   return (
     <div style={pageWrap}>
-      {toast && (
-        <div style={toastBox}>
-          <span style={toastIcon}>✓</span>
-          {toast}
-        </div>
-      )}
-
       <div style={sectionHead}>
         <div>
           <div style={purplePill}>Enerji & Analiz Merkezi</div>
@@ -764,36 +807,6 @@ function AnalysisCard({
 const pageWrap: React.CSSProperties = {
   width: "100%",
   position: "relative",
-};
-
-const toastBox: React.CSSProperties = {
-  position: "fixed",
-  top: 18,
-  left: "50%",
-  transform: "translateX(-50%)",
-  zIndex: 12000,
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  background: "rgba(255,255,255,0.96)",
-  border: "1px solid #dcfce7",
-  borderRadius: 18,
-  padding: "10px 14px",
-  boxShadow: "0 18px 45px rgba(15,23,42,0.16)",
-  color: "#166534",
-  fontSize: 13,
-  fontWeight: 900,
-};
-
-const toastIcon: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  background: "#22c55e",
-  color: "white",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
 };
 
 const sectionHead: React.CSSProperties = {
