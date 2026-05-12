@@ -404,7 +404,11 @@ export default function DogaltasListesiPage() {
                       <div className="flex items-center justify-end">
                         <button
                           type="button"
-                          onClick={() => setStoneToDelete(stone)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setStoneToDelete(stone);
+                          }}
                           className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
                         >
                           Sil
@@ -506,7 +510,11 @@ export default function DogaltasListesiPage() {
 
                       <button
                         type="button"
-                        onClick={() => setStoneToDelete(stone)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setStoneToDelete(stone);
+                        }}
                         className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
                       >
                         Sil

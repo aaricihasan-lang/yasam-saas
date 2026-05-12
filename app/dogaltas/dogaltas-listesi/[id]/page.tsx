@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+const STONE_BUCKET = "stone-photos";
 
 const CHAKRA_OPTIONS = [
   "Kök Çakra",
@@ -107,6 +109,23 @@ type ActiveReader = {
   badge: string;
   text: string;
 };
+
+function safeFileName(fileName: string) {
+  return fileName
+    .replaceAll("ı", "i")
+    .replaceAll("İ", "I")
+    .replaceAll("ğ", "g")
+    .replaceAll("Ğ", "G")
+    .replaceAll("ü", "u")
+    .replaceAll("Ü", "U")
+    .replaceAll("ş", "s")
+    .replaceAll("Ş", "S")
+    .replaceAll("ö", "o")
+    .replaceAll("Ö", "O")
+    .replaceAll("ç", "c")
+    .replaceAll("Ç", "C")
+    .replace(/[^a-zA-Z0-9._-]/g, "-");
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
@@ -259,6 +278,8 @@ export default function StoneDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params?.id;
+  const { confirm } = useConfirm();
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [stone, setStone] = useState<StoneRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -273,6 +294,7 @@ export default function StoneDetailPage() {
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(
     null
   );
+  const [imageBusy, setImageBusy] = useState(false);
 
   async function loadStone() {
     if (!id) return;
@@ -449,6 +471,131 @@ export default function StoneDetailPage() {
     router.push("/dogaltas/dogaltas-listesi");
   }
 
+  async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    event.target.value = "";
+    if (!stone || files.length === 0) return;
+
+    setImageBusy(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const additions: { id: string; name: string; url: string; file_path: string }[] = [];
+    const baseImages = [...(stone.images || [])];
+
+    for (const file of files) {
+      const cleanName = safeFileName(file.name);
+      const filePath = `catalog/${TENANT_ID}/${stone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(STONE_BUCKET)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        setImageBusy(false);
+        setErrorMessage(`Görsel yüklenemedi: ${uploadError.message}`);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from(STONE_BUCKET).getPublicUrl(filePath);
+
+      additions.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        url: publicUrlData.publicUrl,
+        file_path: filePath,
+      });
+    }
+
+    const nextImages = [...baseImages, ...additions];
+
+    const { data, error } = await supabase
+      .from("stones")
+      .update({
+        images: nextImages,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", TENANT_ID)
+      .eq("id", stone.id)
+      .select("*")
+      .single();
+
+    setImageBusy(false);
+
+    if (error) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    setStone(data as StoneRecord);
+    setSuccessMessage(
+      files.length > 1 ? `${files.length} fotoğraf eklendi.` : "Fotoğraf eklendi."
+    );
+  }
+
+  async function handleDeleteImage(image: {
+    id: string;
+    name: string;
+    url?: string;
+    file_path?: string;
+  }) {
+    if (!stone) return;
+
+    const confirmed = await confirm({
+      title: "Fotoğrafı sil",
+      message: `${image.name} silinsin mi? Bu işlem geri alınamaz.`,
+      tone: "danger",
+      confirmText: "Evet, sil",
+      cancelText: "Vazgeç",
+    });
+    if (!confirmed) return;
+
+    setImageBusy(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (image.file_path) {
+      const { error: removeError } = await supabase.storage.from(STONE_BUCKET).remove([image.file_path]);
+      if (removeError) {
+        setImageBusy(false);
+        setErrorMessage(`Depolama temizlenemedi: ${removeError.message}`);
+        return;
+      }
+    }
+
+    const nextImages = (stone.images || []).filter((img) => img.id !== image.id);
+
+    const { data, error } = await supabase
+      .from("stones")
+      .update({
+        images: nextImages.length > 0 ? nextImages : [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", TENANT_ID)
+      .eq("id", stone.id)
+      .select("*")
+      .single();
+
+    setImageBusy(false);
+
+    if (error) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (previewImage?.url && image.url && previewImage.url === image.url) {
+      setPreviewImage(null);
+    }
+
+    setStone(data as StoneRecord);
+    setSuccessMessage("Fotoğraf silindi.");
+  }
+
   const images = stone?.images || [];
 
   const imagesWithUrl = useMemo(
@@ -582,7 +729,7 @@ export default function StoneDetailPage() {
             <div className="rounded-[26px] border border-white bg-white/86 p-5 text-center shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
               {imagesWithUrl.length > 0 ? (
                 <>
-                  <div className="overflow-hidden rounded-[22px] border border-cyan-100 bg-cyan-50/60">
+                  <div className="relative overflow-hidden rounded-[22px] border border-cyan-100 bg-cyan-50/60">
                     <button
                       type="button"
                       onClick={() =>
@@ -601,6 +748,20 @@ export default function StoneDetailPage() {
                         decoding="async"
                       />
                     </button>
+                    {editEnabled && (
+                      <button
+                        type="button"
+                        disabled={imageBusy}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleDeleteImage(imagesWithUrl[0]);
+                        }}
+                        className="absolute right-2 top-2 z-10 rounded-lg bg-rose-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                      >
+                        Sil
+                      </button>
+                    )}
                     <h2 className="border-t border-cyan-100/80 bg-white/60 px-2 pb-3 pt-3 text-[18px] font-black text-slate-950">
                       {stone.stone_name}
                     </h2>
@@ -609,22 +770,37 @@ export default function StoneDetailPage() {
                   {imagesWithUrl.length > 1 && (
                     <div className="mt-4 flex flex-wrap justify-center gap-2">
                       {imagesWithUrl.slice(1).map((img) => (
-                        <button
-                          key={img.id}
-                          type="button"
-                          onClick={() =>
-                            setPreviewImage({ url: img.url!, name: img.name })
-                          }
-                          className="h-14 w-14 overflow-hidden rounded-xl ring-1 ring-slate-100 transition hover:ring-cyan-200"
-                        >
-                          <img
-                            src={img.url}
-                            alt={img.name}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </button>
+                        <div key={img.id} className="relative h-14 w-14 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewImage({ url: img.url!, name: img.name })
+                            }
+                            className="flex h-14 w-14 overflow-hidden rounded-xl ring-1 ring-slate-100 transition hover:ring-cyan-200"
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.name}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </button>
+                          {editEnabled && (
+                            <button
+                              type="button"
+                              disabled={imageBusy}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleDeleteImage(img);
+                              }}
+                              className="absolute -right-1 -top-1 z-10 rounded-md bg-rose-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm ring-1 ring-rose-700 hover:bg-rose-700 disabled:opacity-50"
+                            >
+                              Sil
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -653,8 +829,24 @@ export default function StoneDetailPage() {
                 <div className="mt-4 space-y-2 text-left">
                   <p className="text-[12px] font-black text-slate-700">Kayıtlı Resim Adları</p>
                   {images.map((image) => (
-                    <div key={image.id} className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100">
-                      {image.name}
+                    <div
+                      key={image.id}
+                      className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
+                    >
+                      <span className="min-w-0 truncate">{image.name}</span>
+                      {editEnabled && (
+                        <button
+                          type="button"
+                          disabled={imageBusy}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void handleDeleteImage(image);
+                          }}
+                          className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                        >
+                          Sil
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -674,14 +866,48 @@ export default function StoneDetailPage() {
                         .map((image) => (
                           <div
                             key={image.id}
-                            className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
+                            className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
                           >
-                            {image.name}
+                            <span className="min-w-0 truncate">{image.name}</span>
+                            {editEnabled && (
+                              <button
+                                type="button"
+                                disabled={imageBusy}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  void handleDeleteImage(image);
+                                }}
+                                className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                              >
+                                Sil
+                              </button>
+                            )}
                           </div>
                         ))}
                     </div>
                   </>
                 )}
+              {editEnabled && (
+                <div className="mt-4">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                    disabled={imageBusy}
+                  />
+                  <button
+                    type="button"
+                    disabled={imageBusy}
+                    onClick={() => photoInputRef.current?.click()}
+                    className="w-full rounded-xl bg-cyan-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(8,145,178,0.22)] ring-1 ring-cyan-700 transition hover:bg-cyan-700 disabled:opacity-50"
+                  >
+                    {imageBusy ? "İşleniyor..." : "Fotoğraf Ekle"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <button
