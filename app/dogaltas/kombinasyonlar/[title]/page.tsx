@@ -89,6 +89,7 @@ export default function KombinasyonDetayPage() {
   const [savingNew, setSavingNew] = useState(false);
   const [savingEditId, setSavingEditId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -172,7 +173,10 @@ export default function KombinasyonDetayPage() {
     await loadRows();
   }
 
-  async function handleDelete(id: string) {
+  async function handleDeleteConfirmed() {
+    const id = deleteConfirmId;
+    if (!id) return;
+
     setDeletingId(id);
     setErrorMessage("");
     setSuccessMessage("");
@@ -195,10 +199,15 @@ export default function KombinasyonDetayPage() {
       setEditDraft(null);
     }
 
+    setDeleteConfirmId(null);
     setSuccessMessage("Kombinasyon silindi.");
     await loadRows();
   }
 
+  function cancelDeleteConfirm() {
+    setDeleteConfirmId(null);
+    setErrorMessage("");
+  }
   function startEdit(row: CombinationRecord) {
     setEditingId(row.id);
     setEditDraft({
@@ -481,11 +490,17 @@ export default function KombinasyonDetayPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(row.id)}
-                            disabled={deletingId === row.id || !!editingId}
+                            onClick={() => {
+                              setErrorMessage("");
+                              setSuccessMessage("");
+                              setDeleteConfirmId(row.id);
+                            }}
+                            disabled={
+                              !!editingId || !!deletingId || deleteConfirmId !== null
+                            }
                             className="rounded-2xl bg-rose-600 px-4 py-2 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.2)] transition hover:bg-rose-700 disabled:opacity-60"
                           >
-                            {deletingId === row.id ? "Siliniyor..." : "Sil"}
+                            Sil
                           </button>
                         </>
                       )}
@@ -600,6 +615,58 @@ export default function KombinasyonDetayPage() {
           </div>
         )}
       </div>
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
+          <div
+            className="w-full max-w-[430px] rounded-[28px] bg-white p-6 text-center shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-combo-title"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
+              ⚠️
+            </div>
+
+            <h2
+              id="delete-combo-title"
+              className="mt-4 text-[20px] font-black leading-snug text-slate-950"
+            >
+              Bu kombinasyonu silmek istediğinizden emin misiniz?
+            </h2>
+
+            <p className="mt-2 text-[12px] font-bold text-rose-600">
+              Bu işlem geri alınamaz.
+            </p>
+
+            {errorMessage ? (
+              <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={cancelDeleteConfirm}
+                disabled={deletingId !== null}
+                className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteConfirmed}
+                disabled={deletingId !== null}
+                className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                {deletingId ? "Siliniyor..." : "Evet, Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
