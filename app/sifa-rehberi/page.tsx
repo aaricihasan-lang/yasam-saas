@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+
+type GuideImage = {
+  id: string;
+  name: string;
+  url: string;
+  file_path?: string;
+  section?: string;
+};
 
 type HealingGuideRecord = {
   id: string;
@@ -31,6 +39,8 @@ type HealingGuideRecord = {
   daily_routine: string | null;
   sleep_routine: string | null;
   supportive_alternative_methods: string | null;
+  islamic_recommendations: string | null;
+  images: GuideImage[] | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -58,6 +68,7 @@ type GuideForm = {
   daily_routine: string;
   sleep_routine: string;
   supportive_alternative_methods: string;
+  islamic_recommendations: string;
 };
 
 const emptyForm: GuideForm = {
@@ -83,6 +94,7 @@ const emptyForm: GuideForm = {
   daily_routine: "",
   sleep_routine: "",
   supportive_alternative_methods: "",
+  islamic_recommendations: "",
 };
 
 const FORM_SECTIONS: { key: keyof GuideForm; label: string; multiline?: boolean }[] = [
@@ -112,6 +124,11 @@ const FORM_SECTIONS: { key: keyof GuideForm; label: string; multiline?: boolean 
     label: "Destekleyici / Alternatif Uygulamalar",
     multiline: true,
   },
+  {
+    key: "islamic_recommendations",
+    label: "İslami Öneriler",
+    multiline: true,
+  },
 ];
 
 type FormTabId =
@@ -120,7 +137,8 @@ type FormTabId =
   | "uygulamalar"
   | "dogaltas"
   | "aromaterapi"
-  | "destekleyici";
+  | "destekleyici"
+  | "islami_oneriler";
 
 const FORM_TABS: {
   id: FormTabId;
@@ -186,6 +204,13 @@ const FORM_TABS: {
       "supportive_alternative_methods",
     ],
   },
+  {
+    id: "islami_oneriler",
+    label: "İslami Öneriler",
+    icon: "🕌",
+    desc: "Dua, sure, niyet, manevi destek notları.",
+    keys: ["islamic_recommendations"],
+  },
 ];
 
 const SEARCH_KEYS: (keyof HealingGuideRecord)[] = [
@@ -211,6 +236,7 @@ const SEARCH_KEYS: (keyof HealingGuideRecord)[] = [
   "daily_routine",
   "sleep_routine",
   "supportive_alternative_methods",
+  "islamic_recommendations",
 ];
 
 const COUNT_KEYS: (keyof HealingGuideRecord)[] = SEARCH_KEYS.filter((k) => k !== "name" && k !== "category");
@@ -263,6 +289,11 @@ export default function SifaRehberiPage() {
   const [largeEditorLabel, setLargeEditorLabel] = useState("");
   const [largeEditorValue, setLargeEditorValue] = useState("");
   const [formTab, setFormTab] = useState<FormTabId>("rahatsizlik");
+  const [formImages, setFormImages] = useState<GuideImage[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [lightbox, setLightbox] = useState<GuideImage | null>(null);
+  const [uploadTargetSection, setUploadTargetSection] = useState<FormTabId | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadGuides() {
     setLoading(true);
@@ -329,6 +360,69 @@ export default function SifaRehberiPage() {
     [formTab]
   );
 
+  const tabImages = useMemo(
+    () => formImages.filter((img) => img.section === formTab),
+    [formImages, formTab]
+  );
+
+  function triggerImagePick(section: FormTabId) {
+    setUploadTargetSection(section);
+    imageFileInputRef.current?.click();
+  }
+
+  async function handleGuideImageFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const section = uploadTargetSection;
+    e.target.value = "";
+    setUploadTargetSection(null);
+    if (!file || !section) return;
+
+    setUploadingImage(true);
+    setErrorMessage("");
+
+    const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "") || "jpg";
+    const basename = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
+    const file_path = `healing-guides/${TENANT_ID}/${basename}`;
+
+    const { error: upErr } = await supabase.storage.from("stone-photos").upload(file_path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+    setUploadingImage(false);
+
+    if (upErr) {
+      setErrorMessage(`Görsel yüklenemedi: ${upErr.message}`);
+      return;
+    }
+
+    const { data: pub } = supabase.storage.from("stone-photos").getPublicUrl(file_path);
+    const entry: GuideImage = {
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      name: file.name,
+      url: pub.publicUrl,
+      file_path,
+      section,
+    };
+    setFormImages((prev) => [...prev, entry]);
+  }
+
+  async function removeGuideImage(img: GuideImage) {
+    setErrorMessage("");
+    if (img.file_path) {
+      const { error: rmErr } = await supabase.storage.from("stone-photos").remove([img.file_path]);
+      if (rmErr) {
+        setErrorMessage(`Görsel silinemedi: ${rmErr.message}`);
+        return;
+      }
+    }
+    setFormImages((prev) => prev.filter((i) => i.id !== img.id));
+    setLightbox((cur) => (cur?.id === img.id ? null : cur));
+  }
+
   function closeLargeEditor() {
     setLargeEditorKey(null);
     setLargeEditorLabel("");
@@ -350,6 +444,7 @@ export default function SifaRehberiPage() {
   function resetForm() {
     closeLargeEditor();
     setFormTab("rahatsizlik");
+    setFormImages([]);
     setForm(() => ({ ...emptyForm }));
   }
 
@@ -391,6 +486,8 @@ export default function SifaRehberiPage() {
       daily_routine: trimOrNull(form.daily_routine),
       sleep_routine: trimOrNull(form.sleep_routine),
       supportive_alternative_methods: trimOrNull(form.supportive_alternative_methods),
+      islamic_recommendations: trimOrNull(form.islamic_recommendations),
+      images: formImages.length > 0 ? formImages : null,
       updated_at: now,
     });
 
@@ -562,12 +659,64 @@ export default function SifaRehberiPage() {
               </nav>
 
               <div className="min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-white bg-white/80 p-5 shadow-md">
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleGuideImageFileChange}
+                />
                 <h3 className="text-[18px] font-black tracking-tight text-slate-950">
                   {activeFormTab.label}
                 </h3>
                 <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-500">
                   {activeFormTab.desc}
                 </p>
+
+                <div className="mt-4 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    disabled={uploadingImage}
+                    onClick={() => triggerImagePick(formTab)}
+                    className="inline-flex w-fit items-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-2 text-[12px] font-black text-emerald-900 shadow-sm ring-1 ring-emerald-100/80 transition hover:bg-emerald-100/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span aria-hidden>📷</span>
+                    {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
+                  </button>
+                  {tabImages.length > 0 ? (
+                    <div className="flex flex-wrap gap-2.5">
+                      {tabImages.map((img) => (
+                        <div
+                          key={img.id}
+                          className="relative w-[88px] shrink-0 rounded-2xl border border-slate-200/90 bg-white p-1 shadow-sm ring-1 ring-slate-100/80"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setLightbox(img)}
+                            className="block w-full overflow-hidden rounded-xl outline-none ring-emerald-200/0 transition focus-visible:ring-2 focus-visible:ring-emerald-400"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.url}
+                              alt=""
+                              className="aspect-square h-20 w-full object-cover"
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              void removeGuideImage(img);
+                            }}
+                            className="absolute right-1 top-1 rounded-lg bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-md ring-1 ring-rose-500/40 transition hover:bg-rose-700"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="mt-5 space-y-6">
                   {activeFormTab.keys.map((fieldKey) => {
@@ -748,6 +897,39 @@ export default function SifaRehberiPage() {
           )}
         </section>
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
+          role="presentation"
+          onClick={() => setLightbox(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[min(960px,96vw)] rounded-[24px] bg-white p-3 shadow-2xl ring-1 ring-white/90"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Görsel önizleme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightbox.url}
+              alt={lightbox.name}
+              className="max-h-[min(78vh,720px)] w-auto max-w-full rounded-2xl object-contain"
+            />
+            <p className="mt-2 truncate px-1 text-center text-[12px] font-bold text-slate-600">
+              {lightbox.name}
+            </p>
+            <button
+              type="button"
+              onClick={() => setLightbox(null)}
+              className="absolute right-3 top-3 rounded-xl bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow-lg transition hover:bg-slate-800"
+            >
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
 
       {largeEditorKey && showForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
