@@ -282,6 +282,9 @@ export default function StoneDetailPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [stone, setStone] = useState<StoneRecord | null>(null);
+  const stoneRef = useRef<StoneRecord | null>(null);
+  stoneRef.current = stone;
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -476,18 +479,19 @@ export default function StoneDetailPage() {
       file.type.startsWith("image/")
     );
     event.target.value = "";
-    if (!stone || files.length === 0) return;
+    const currentStone = stoneRef.current;
+    if (!currentStone || files.length === 0) return;
 
     setImageBusy(true);
     setErrorMessage("");
     setSuccessMessage("");
 
     const additions: { id: string; name: string; url: string; file_path: string }[] = [];
-    const baseImages = [...(stone.images || [])];
+    const baseImages = [...(currentStone.images || [])];
 
     for (const file of files) {
       const cleanName = safeFileName(file.name);
-      const filePath = `catalog/${TENANT_ID}/${stone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+      const filePath = `catalog/${TENANT_ID}/${currentStone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STONE_BUCKET)
@@ -521,7 +525,7 @@ export default function StoneDetailPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("tenant_id", TENANT_ID)
-      .eq("id", stone.id)
+      .eq("id", currentStone.id)
       .select("*")
       .single();
 
@@ -544,7 +548,8 @@ export default function StoneDetailPage() {
     url?: string;
     file_path?: string;
   }) {
-    if (!stone) return;
+    const currentStone = stoneRef.current;
+    if (!currentStone) return;
 
     const confirmed = await confirm({
       title: "Fotoğrafı sil",
@@ -568,7 +573,7 @@ export default function StoneDetailPage() {
       }
     }
 
-    const nextImages = (stone.images || []).filter((img) => img.id !== image.id);
+    const nextImages = (currentStone.images || []).filter((img) => img.id !== image.id);
 
     const { data, error } = await supabase
       .from("stones")
@@ -577,7 +582,7 @@ export default function StoneDetailPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("tenant_id", TENANT_ID)
-      .eq("id", stone.id)
+      .eq("id", currentStone.id)
       .select("*")
       .single();
 
@@ -840,6 +845,7 @@ export default function StoneDetailPage() {
                           disabled={imageBusy}
                           onClick={(event) => {
                             event.preventDefault();
+                            event.stopPropagation();
                             void handleDeleteImage(image);
                           }}
                           className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
@@ -875,6 +881,7 @@ export default function StoneDetailPage() {
                                 disabled={imageBusy}
                                 onClick={(event) => {
                                   event.preventDefault();
+                                  event.stopPropagation();
                                   void handleDeleteImage(image);
                                 }}
                                 className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
@@ -901,7 +908,11 @@ export default function StoneDetailPage() {
                   <button
                     type="button"
                     disabled={imageBusy}
-                    onClick={() => photoInputRef.current?.click()}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      photoInputRef.current?.click();
+                    }}
                     className="w-full rounded-xl bg-cyan-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(8,145,178,0.22)] ring-1 ring-cyan-700 transition hover:bg-cyan-700 disabled:opacity-50"
                   >
                     {imageBusy ? "İşleniyor..." : "Fotoğraf Ekle"}
