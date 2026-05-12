@@ -126,6 +126,14 @@ const dashboardModules: ModuleCard[] = [
     href: "/dogaltas",
   },
   {
+    title: "Şifa Rehberi",
+    icon: "🌿",
+    desc: "Rahatsızlık bazlı bütünsel destek rehberi",
+    count: "Aktif",
+    badge: "Modül",
+    href: "/sifa-rehberi",
+  },
+  {
     title: "Numeroloji",
     icon: "🔢",
     desc: "Analiz, rapor ve kişisel yorum alanı",
