@@ -134,23 +134,14 @@ export default function KombinasyonDetayPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const { data: maxRows, error: maxError } = await supabase
-      .from("stone_combinations")
-      .select("combination_no")
-      .eq("tenant_id", TENANT_ID)
-      .eq("title", decodedTitle)
-      .order("combination_no", { ascending: false })
-      .limit(1);
-
-    if (maxError) {
-      setSavingNew(false);
-      setErrorMessage(`Sıra numarası alınamadı: ${maxError.message}`);
-      return;
-    }
-
-    const maxNo = maxRows?.[0]?.combination_no;
-    const nextNo =
-      typeof maxNo === "number" && !Number.isNaN(maxNo) ? maxNo + 1 : 1;
+    const maxFromList = rows.reduce((max, row) => {
+      const n =
+        typeof row.combination_no === "number"
+          ? row.combination_no
+          : Number(row.combination_no);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+    const nextNo = maxFromList + 1;
 
     const now = new Date().toISOString();
 
@@ -326,14 +317,11 @@ export default function KombinasyonDetayPage() {
         {showNewForm && (
           <section className="mb-5 rounded-[26px] border border-white bg-white/86 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.04)] ring-1 ring-white/90">
             <h2 className="text-[17px] font-black text-slate-950">Yeni kombinasyon</h2>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">
-              Başlık: <span className="font-black text-slate-700">{decodedTitle}</span>
-            </p>
 
             <div className="mt-4 grid grid-cols-1 gap-4">
               <label className="block">
                 <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Bilgi kaynağı
+                  Bilgi Kaynağı
                 </span>
                 <input
                   value={newForm.source_note}
@@ -344,7 +332,7 @@ export default function KombinasyonDetayPage() {
 
               <label className="block">
                 <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Taş kombinasyonu
+                  Taş Kombinasyonu
                 </span>
                 <textarea
                   value={newForm.stone_combination}
@@ -359,7 +347,7 @@ export default function KombinasyonDetayPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <label className="block md:col-span-1">
                   <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                    Diğer notlar 1
+                    Diğer Notlar 1
                   </span>
                   <textarea
                     value={newForm.note_1}
@@ -370,7 +358,7 @@ export default function KombinasyonDetayPage() {
                 </label>
                 <label className="block md:col-span-1">
                   <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                    Diğer notlar 2
+                    Diğer Notlar 2
                   </span>
                   <textarea
                     value={newForm.note_2}
@@ -381,7 +369,7 @@ export default function KombinasyonDetayPage() {
                 </label>
                 <label className="block md:col-span-1">
                   <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                    Diğer notlar 3
+                    Diğer Notlar 3
                   </span>
                   <textarea
                     value={newForm.note_3}
