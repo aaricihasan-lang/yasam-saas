@@ -50,6 +50,39 @@ function previewText(rows: CombinationRecord[], limit = 140) {
   return "Henüz önizleme metni yok.";
 }
 
+function firstSourceNoteInGroup(rows: CombinationRecord[]) {
+  for (const row of rows) {
+    const note = row.source_note?.trim();
+    if (note) return note;
+  }
+  return null;
+}
+
+function latestDisplayTimestamp(rows: CombinationRecord[]) {
+  let best = 0;
+  let chosen: string | null = null;
+
+  for (const row of rows) {
+    const raw = row.updated_at || row.created_at;
+    if (!raw) continue;
+    const t = new Date(raw).getTime();
+    if (!Number.isNaN(t) && t >= best) {
+      best = t;
+      chosen = raw;
+    }
+  }
+
+  return chosen;
+}
+
+function formatListCardDate(iso: string) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
 export default function KombinasyonlarPage() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -435,29 +468,65 @@ export default function KombinasyonlarPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {groups.map(({ title, rows: groupRows }) => (
+              {groups.map(({ title, rows: groupRows }) => {
+                const sourceLine = firstSourceNoteInGroup(groupRows);
+                const ts = latestDisplayTimestamp(groupRows);
+                const count = groupRows.length;
+
+                return (
                 <article
                   key={title}
-                  className="flex flex-col rounded-[24px] border border-white bg-white/88 p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100/80 transition hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(15,23,42,0.07)]"
+                  className="flex flex-col rounded-[24px] border border-white/90 bg-white/88 p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:ring-violet-200"
                 >
-                  <div className="mb-2 inline-flex w-fit rounded-full bg-violet-50 px-2.5 py-1 text-[9px] font-black text-violet-700 ring-1 ring-violet-100">
-                    {groupRows.length} KOMBİNASYON
+                  <div className="flex gap-3">
+                    <div
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
+                      aria-hidden
+                    >
+                      ✦
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex rounded-full bg-violet-600 px-3 py-1 text-[11px] font-black tracking-tight text-white shadow-[0_6px_16px_rgba(124,58,237,0.35)] ring-1 ring-violet-500/30">
+                          {count} kombinasyon
+                        </span>
+                      </div>
+
+                      <h2 className="text-[18px] font-black leading-snug text-slate-950">{title}</h2>
+
+                      <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-snug text-slate-500">
+                        {sourceLine ? (
+                          <>
+                            <span className="font-black text-slate-600">Kaynak: </span>
+                            {sourceLine}
+                          </>
+                        ) : (
+                          <span className="font-bold text-slate-400">Kaynak belirtilmedi</span>
+                        )}
+                      </p>
+
+                      <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">
+                        {previewText(groupRows)}
+                      </p>
+
+                      <p className="mt-2 text-[11px] font-bold text-slate-400">
+                        {ts
+                          ? `Son güncelleme: ${formatListCardDate(ts)}`
+                          : "Son güncelleme: —"}
+                      </p>
+
+                      <Link
+                        href={`/dogaltas/kombinasyonlar/${encodeURIComponent(title)}`}
+                        className="mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
+                      >
+                        Kombinasyonları Gör →
+                      </Link>
+                    </div>
                   </div>
-
-                  <h2 className="text-[18px] font-black leading-snug text-slate-950">{title}</h2>
-
-                  <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">
-                    {previewText(groupRows)}
-                  </p>
-
-                  <Link
-                    href={`/dogaltas/kombinasyonlar/${encodeURIComponent(title)}`}
-                    className="mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
-                  >
-                    Detayı Aç
-                  </Link>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
