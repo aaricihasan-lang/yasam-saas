@@ -436,7 +436,7 @@ export default function Home() {
 
   return (
     <main className="h-screen overflow-hidden bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_46%,#fdf2f8_100%)] text-slate-950">
-      <div className="relative mx-auto flex h-screen max-w-[1540px] flex-col px-5 py-2 lg:px-7 lg:py-3">
+      <div className="relative mx-auto flex h-screen max-w-[1540px] flex-col justify-between px-5 py-2 lg:px-7 lg:py-3">
         <div className="pointer-events-none absolute left-[-130px] top-[-150px] h-[330px] w-[330px] rounded-full bg-violet-200/38 blur-3xl" />
         <div className="pointer-events-none absolute right-[-110px] top-[70px] h-[360px] w-[360px] rounded-full bg-cyan-200/36 blur-3xl" />
         <div className="pointer-events-none absolute bottom-[-150px] left-[30%] h-[310px] w-[310px] rounded-full bg-fuchsia-200/28 blur-3xl" />
@@ -470,22 +470,22 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="relative z-10 mt-4 grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_560px] lg:items-center">
+        <section className="relative z-10 mt-3 grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_560px] lg:items-start">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/76 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm backdrop-blur">
               ✨ Profesyonel danışmanlık yönetim sistemi
             </div>
 
-            <h2 className="mt-5 max-w-[760px] text-[27px] font-black leading-[1.05] tracking-tight text-slate-950 md:text-[33px] lg:text-[37px]">
+            <h2 className="mt-3 max-w-[760px] text-[27px] font-black leading-[1.05] tracking-tight text-slate-950 md:text-[33px] lg:text-[37px]">
               Profesyonel danışmanlar için geliştirilmiş bütünsel yönetim ve analiz platformu.
             </h2>
 
-            <p className="mt-4 max-w-[690px] text-[13px] leading-6 text-slate-600">
+            <p className="mt-2.5 max-w-[690px] text-[13px] leading-6 text-slate-600">
               Numeroloji, doğaltaş, biyoenerji, refleksoloji, aromaterapi,
               danışan yönetimi, seans takibi ve analiz sistemleri tek merkezde birleşir.
             </p>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <div className="inline-flex items-center rounded-2xl border border-white/75 bg-white/78 px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm backdrop-blur">
                 💻 Offline & Web destekli profesyonel sistem
               </div>
@@ -542,7 +542,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative z-10 mt-3 grid shrink-0 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <section className="relative z-10 mt-0 grid shrink-0 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
           {landingModules.map((item) => (
             <div
               key={item.title}
@@ -563,7 +563,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="relative z-10 mt-2 grid shrink-0 grid-cols-2 gap-0 overflow-hidden rounded-[18px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
+        <section className="relative z-10 mt-0 grid shrink-0 grid-cols-2 gap-0 overflow-hidden rounded-[18px] border border-white/80 bg-white/72 shadow-[0_14px_38px_rgba(15,23,42,0.05)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
           {featureItems.map((item, index) => (
             <div
               key={item.title}
@@ -588,7 +588,7 @@ export default function Home() {
           ))}
         </section>
 
-        <footer className="relative z-10 mt-1 py-1.5 text-center text-[11px] font-semibold text-slate-500">
+        <footer className="relative z-10 py-1.5 text-center text-[11px] font-semibold text-slate-500">
           © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
         </footer>
       </div>
