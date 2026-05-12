@@ -295,6 +295,14 @@ export default function MineralDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  function handleExitEditMode() {
+    setEditEnabled(false);
+    setActiveEditor(null);
+    setActiveReader(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
   async function loadMineral() {
     if (!id) return;
 
@@ -507,19 +515,23 @@ export default function MineralDetailPage() {
             <button
               type="button"
               onClick={() => {
-                setEditEnabled((current) => !current);
-                setActiveEditor(null);
-                setActiveReader(null);
-                setErrorMessage("");
-                setSuccessMessage("");
+                if (editEnabled) {
+                  handleExitEditMode();
+                } else {
+                  setEditEnabled(true);
+                  setActiveEditor(null);
+                  setActiveReader(null);
+                  setErrorMessage("");
+                  setSuccessMessage("");
+                }
               }}
               className={`rounded-2xl px-6 py-3 text-[13px] font-black shadow-[0_14px_30px_rgba(15,23,42,0.11)] transition ${
                 editEnabled
-                  ? "bg-cyan-600 text-white hover:bg-cyan-700"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
                   : "bg-slate-950 text-white hover:bg-slate-800"
               }`}
             >
-              {editEnabled ? "Düzenleme Açık" : "Düzenle"}
+              {editEnabled ? "Kaydet" : "Düzenle"}
             </button>
 
             <button
