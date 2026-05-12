@@ -92,6 +92,7 @@ export default function KombinasyonlarPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
   async function loadCombinations() {
     setLoading(true);
@@ -154,7 +155,7 @@ export default function KombinasyonlarPage() {
         title,
         rows: [...groupRows].sort((a, b) => a.combination_no - b.combination_no),
       }))
-      .sort((a, b) => a.title.localeCompare(b.title, "tr"));
+      .sort((a, b) => a.title.localeCompare(b.title, "tr-TR"));
   }, [filteredRows]);
 
   const uniqueTitles = useMemo(() => {
@@ -311,8 +312,31 @@ export default function KombinasyonlarPage() {
               >
                 + Yeni Kombinasyon
               </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "list"
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Liste
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("card")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "card"
+                    ? "bg-violet-600 text-white ring-violet-500 shadow-[0_8px_20px_rgba(124,58,237,0.25)]"
+                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Kart
+              </button>
             </div>
-          </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
@@ -465,6 +489,60 @@ export default function KombinasyonlarPage() {
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
                 Arama kriterinizi değiştirin veya yeni bir kombinasyon ekleyin.
               </p>
+            </div>
+          ) : viewMode === "list" ? (
+            <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
+              <div className="min-w-[920px]">
+                <div className="grid grid-cols-[1.15fr_0.55fr_0.95fr_1.35fr_0.72fr_0.58fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div>Başlık</div>
+                  <div>Kombinasyon sayısı</div>
+                  <div>Kaynak</div>
+                  <div>Önizleme</div>
+                  <div>Son güncelleme</div>
+                  <div className="text-right">İşlem</div>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {groups.map(({ title, rows: groupRows }) => {
+                    const sourceLine = firstSourceNoteInGroup(groupRows);
+                    const ts = latestDisplayTimestamp(groupRows);
+                    const count = groupRows.length;
+
+                    return (
+                      <div
+                        key={title}
+                        className="grid grid-cols-[1.15fr_0.55fr_0.95fr_1.35fr_0.72fr_0.58fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                      >
+                        <div className="min-w-0 font-black text-slate-950">
+                          <span className="truncate block">{title}</span>
+                        </div>
+                        <div className="font-bold text-slate-600">{count}</div>
+                        <div className="min-w-0 text-slate-600">
+                          <span className="line-clamp-2 block font-medium">
+                            {sourceLine || (
+                              <span className="text-slate-400">Kaynak belirtilmedi</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="min-w-0 text-[12px] leading-5 text-slate-500">
+                          <span className="line-clamp-2 block">{previewText(groupRows, 100)}</span>
+                        </div>
+                        <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
+                          {ts ? formatListCardDate(ts) : "—"}
+                        </div>
+                        <div className="flex justify-end">
+                          <Link
+                            href={`/dogaltas/kombinasyonlar/${encodeURIComponent(title)}`}
+                            className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/10 transition hover:bg-slate-800"
+                          >
+                            Kombinasyonları Gör →
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
