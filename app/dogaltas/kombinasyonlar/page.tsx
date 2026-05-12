@@ -278,7 +278,7 @@ export default function KombinasyonlarPage() {
 
         <section className="mb-4 rounded-[26px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative w-full xl:max-w-[680px]">
+            <div className="relative min-w-0 w-full xl:max-w-[680px]">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
                 ⌕
               </span>
@@ -292,7 +292,31 @@ export default function KombinasyonlarPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "list"
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Liste
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("card")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "card"
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Kart
+              </button>
+
               <button
                 type="button"
                 onClick={loadCombinations}
@@ -312,31 +336,8 @@ export default function KombinasyonlarPage() {
               >
                 + Yeni Kombinasyon
               </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
-                  viewMode === "list"
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
-                }`}
-              >
-                Liste
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("card")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
-                  viewMode === "card"
-                    ? "bg-violet-600 text-white ring-violet-500 shadow-[0_8px_20px_rgba(124,58,237,0.25)]"
-                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
-                }`}
-              >
-                Kart
-              </button>
             </div>
+          </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
@@ -492,12 +493,11 @@ export default function KombinasyonlarPage() {
             </div>
           ) : viewMode === "list" ? (
             <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
-              <div className="min-w-[920px]">
-                <div className="grid grid-cols-[1.15fr_0.55fr_0.95fr_1.35fr_0.72fr_0.58fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="min-w-[720px]">
+                <div className="grid grid-cols-[1.25fr_0.62fr_1.15fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
                   <div>Başlık</div>
                   <div>Kombinasyon sayısı</div>
                   <div>Kaynak</div>
-                  <div>Önizleme</div>
                   <div>Son güncelleme</div>
                   <div className="text-right">İşlem</div>
                 </div>
@@ -511,10 +511,10 @@ export default function KombinasyonlarPage() {
                     return (
                       <div
                         key={title}
-                        className="grid grid-cols-[1.15fr_0.55fr_0.95fr_1.35fr_0.72fr_0.58fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                        className="grid grid-cols-[1.25fr_0.62fr_1.15fr_0.78fr_0.62fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
                       >
                         <div className="min-w-0 font-black text-slate-950">
-                          <span className="truncate block">{title}</span>
+                          <span className="block truncate">{title}</span>
                         </div>
                         <div className="font-bold text-slate-600">{count}</div>
                         <div className="min-w-0 text-slate-600">
@@ -523,9 +523,6 @@ export default function KombinasyonlarPage() {
                               <span className="text-slate-400">Kaynak belirtilmedi</span>
                             )}
                           </span>
-                        </div>
-                        <div className="min-w-0 text-[12px] leading-5 text-slate-500">
-                          <span className="line-clamp-2 block">{previewText(groupRows, 100)}</span>
                         </div>
                         <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
                           {ts ? formatListCardDate(ts) : "—"}
