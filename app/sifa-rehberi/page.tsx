@@ -185,6 +185,9 @@ export default function SifaRehberiPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
+  const [largeEditorKey, setLargeEditorKey] = useState<keyof GuideForm | null>(null);
+  const [largeEditorLabel, setLargeEditorLabel] = useState("");
+  const [largeEditorValue, setLargeEditorValue] = useState("");
 
   async function loadGuides() {
     setLoading(true);
@@ -209,6 +212,14 @@ export default function SifaRehberiPage() {
   useEffect(() => {
     loadGuides();
   }, []);
+
+  useEffect(() => {
+    if (!showForm) {
+      setLargeEditorKey(null);
+      setLargeEditorLabel("");
+      setLargeEditorValue("");
+    }
+  }, [showForm]);
 
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase("tr-TR");
@@ -237,7 +248,26 @@ export default function SifaRehberiPage() {
     return set.size;
   }, [rows]);
 
+  function closeLargeEditor() {
+    setLargeEditorKey(null);
+    setLargeEditorLabel("");
+    setLargeEditorValue("");
+  }
+
+  function openLargeEditor(key: keyof GuideForm, label: string) {
+    setLargeEditorKey(key);
+    setLargeEditorLabel(label);
+    setLargeEditorValue(form[key]);
+  }
+
+  function saveLargeEditor() {
+    if (!largeEditorKey) return;
+    setForm((prev) => ({ ...prev, [largeEditorKey]: largeEditorValue }));
+    closeLargeEditor();
+  }
+
   function resetForm() {
+    closeLargeEditor();
     setForm(() => ({ ...emptyForm }));
   }
 
@@ -450,10 +480,15 @@ export default function SifaRehberiPage() {
                   </span>
                   {multiline ? (
                     <textarea
+                      readOnly
                       value={form[key]}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                      onClick={() => openLargeEditor(key, label)}
+                      onFocus={(e) => {
+                        openLargeEditor(key, label);
+                        e.target.blur();
+                      }}
                       rows={key === "general_summary" ? 4 : 3}
-                      className="w-full resize-y rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                      className="w-full cursor-pointer resize-y rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
                     />
                   ) : (
                     <input
@@ -587,6 +622,50 @@ export default function SifaRehberiPage() {
           )}
         </section>
       </div>
+
+      {largeEditorKey && showForm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
+          <div
+            className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.26)] ring-1 ring-white"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sifa-large-editor-title"
+          >
+            <header className="mb-4 border-b border-slate-100 pb-4">
+              <h3
+                id="sifa-large-editor-title"
+                className="text-[20px] font-black leading-snug text-slate-950"
+              >
+                {largeEditorLabel}
+              </h3>
+            </header>
+
+            <textarea
+              value={largeEditorValue}
+              onChange={(e) => setLargeEditorValue(e.target.value)}
+              className="h-[min(480px,52vh)] w-full resize-y rounded-2xl border border-cyan-100 bg-white p-5 text-[15px] leading-7 text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/70"
+              autoFocus
+            />
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveLargeEditor}
+                className="rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700"
+              >
+                Kaydet
+              </button>
+              <button
+                type="button"
+                onClick={closeLargeEditor}
+                className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
