@@ -1,0 +1,592 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+
+type HealingGuideRecord = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  category: string | null;
+  general_summary: string | null;
+  medical_causes: string | null;
+  subconscious_causes: string | null;
+  temperament_causes: string | null;
+  other_causes: string | null;
+  iridology_match: string | null;
+  hand_analysis_match: string | null;
+  cupping_leech: string | null;
+  reflexology: string | null;
+  diet_recommendations: string | null;
+  herbal_methods: string | null;
+  stone_recommendations: string | null;
+  aromatherapy: string | null;
+  meditation: string | null;
+  breathwork: string | null;
+  bioenergy: string | null;
+  massage: string | null;
+  daily_routine: string | null;
+  sleep_routine: string | null;
+  supportive_alternative_methods: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+type GuideForm = {
+  name: string;
+  category: string;
+  general_summary: string;
+  medical_causes: string;
+  subconscious_causes: string;
+  temperament_causes: string;
+  other_causes: string;
+  iridology_match: string;
+  hand_analysis_match: string;
+  cupping_leech: string;
+  reflexology: string;
+  diet_recommendations: string;
+  herbal_methods: string;
+  stone_recommendations: string;
+  aromatherapy: string;
+  meditation: string;
+  breathwork: string;
+  bioenergy: string;
+  massage: string;
+  daily_routine: string;
+  sleep_routine: string;
+  supportive_alternative_methods: string;
+};
+
+const emptyForm: GuideForm = {
+  name: "",
+  category: "",
+  general_summary: "",
+  medical_causes: "",
+  subconscious_causes: "",
+  temperament_causes: "",
+  other_causes: "",
+  iridology_match: "",
+  hand_analysis_match: "",
+  cupping_leech: "",
+  reflexology: "",
+  diet_recommendations: "",
+  herbal_methods: "",
+  stone_recommendations: "",
+  aromatherapy: "",
+  meditation: "",
+  breathwork: "",
+  bioenergy: "",
+  massage: "",
+  daily_routine: "",
+  sleep_routine: "",
+  supportive_alternative_methods: "",
+};
+
+const FORM_SECTIONS: { key: keyof GuideForm; label: string; multiline?: boolean }[] = [
+  { key: "name", label: "Rahatsızlık adı" },
+  { key: "category", label: "Kategori" },
+  { key: "general_summary", label: "Genel / Özeti", multiline: true },
+  { key: "medical_causes", label: "Tıbbi Nedenler", multiline: true },
+  { key: "subconscious_causes", label: "Bilinçaltı Sebepleri", multiline: true },
+  { key: "temperament_causes", label: "Mizaç Sebepleri", multiline: true },
+  { key: "other_causes", label: "Diğer Sebepler", multiline: true },
+  { key: "iridology_match", label: "İridoloji’de Karşılığı", multiline: true },
+  { key: "hand_analysis_match", label: "El Analizinde Karşılığı", multiline: true },
+  { key: "cupping_leech", label: "Hacamat & Sülük", multiline: true },
+  { key: "reflexology", label: "Refleksoloji", multiline: true },
+  { key: "diet_recommendations", label: "Diyet Önerileri", multiline: true },
+  { key: "herbal_methods", label: "Bitkisel Yöntemler", multiline: true },
+  { key: "stone_recommendations", label: "Doğaltaş Önerileri", multiline: true },
+  { key: "aromatherapy", label: "Aromaterapi", multiline: true },
+  { key: "meditation", label: "Meditasyon", multiline: true },
+  { key: "breathwork", label: "Nefes", multiline: true },
+  { key: "bioenergy", label: "Biyoenerji", multiline: true },
+  { key: "massage", label: "Masaj", multiline: true },
+  { key: "daily_routine", label: "Günlük Rutin", multiline: true },
+  { key: "sleep_routine", label: "Uyku Düzeni", multiline: true },
+  {
+    key: "supportive_alternative_methods",
+    label: "Destekleyici / Alternatif Uygulamalar",
+    multiline: true,
+  },
+];
+
+const SEARCH_KEYS: (keyof HealingGuideRecord)[] = [
+  "name",
+  "category",
+  "general_summary",
+  "medical_causes",
+  "subconscious_causes",
+  "temperament_causes",
+  "other_causes",
+  "iridology_match",
+  "hand_analysis_match",
+  "cupping_leech",
+  "reflexology",
+  "diet_recommendations",
+  "herbal_methods",
+  "stone_recommendations",
+  "aromatherapy",
+  "meditation",
+  "breathwork",
+  "bioenergy",
+  "massage",
+  "daily_routine",
+  "sleep_routine",
+  "supportive_alternative_methods",
+];
+
+const COUNT_KEYS: (keyof HealingGuideRecord)[] = SEARCH_KEYS.filter((k) => k !== "name" && k !== "category");
+
+function trimOrNull(value: string) {
+  const t = value.trim();
+  return t.length > 0 ? t : null;
+}
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
+function countFilledSections(record: HealingGuideRecord) {
+  return COUNT_KEYS.filter((key) => {
+    const v = record[key];
+    return typeof v === "string" && v.trim().length > 0;
+  }).length;
+}
+
+function shortPreview(record: HealingGuideRecord, limit = 140) {
+  const chunk =
+    (record.general_summary && record.general_summary.trim()) ||
+    COUNT_KEYS.map((k) => record[k])
+      .find((v) => typeof v === "string" && v && v.trim().length > 0)
+      ?.toString()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  if (!chunk) return "Henüz özet eklenmedi.";
+  return chunk.length > limit ? `${chunk.slice(0, limit)}…` : chunk;
+}
+
+export default function SifaRehberiPage() {
+  const [rows, setRows] = useState<HealingGuideRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(() => ({ ...emptyForm }));
+  const [viewMode, setViewMode] = useState<"list" | "card">("card");
+
+  async function loadGuides() {
+    setLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const { data, error } = await supabase
+      .from("healing_guides")
+      .select("*")
+      .eq("tenant_id", TENANT_ID);
+
+    setLoading(false);
+
+    if (error) {
+      setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+      return;
+    }
+
+    setRows((data || []) as HealingGuideRecord[]);
+  }
+
+  useEffect(() => {
+    loadGuides();
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const keyword = search.trim().toLocaleLowerCase("tr-TR");
+    let list = rows;
+
+    if (keyword) {
+      list = rows.filter((row) => {
+        const text = SEARCH_KEYS.map((k) => row[k] ?? "")
+          .join(" ")
+          .toLocaleLowerCase("tr-TR");
+        return text.includes(keyword);
+      });
+    }
+
+    return [...list].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", "tr-TR")
+    );
+  }, [rows, search]);
+
+  const categoryCount = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      const c = r.category?.trim();
+      if (c) set.add(c);
+    });
+    return set.size;
+  }, [rows]);
+
+  function resetForm() {
+    setForm(() => ({ ...emptyForm }));
+  }
+
+  async function handleSave() {
+    const nameTrim = form.name.trim();
+    if (!nameTrim) {
+      setErrorMessage("Rahatsızlık adı zorunludur.");
+      setSuccessMessage("");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const now = new Date().toISOString();
+
+    const { error: insertError } = await supabase.from("healing_guides").insert({
+      tenant_id: TENANT_ID,
+      name: nameTrim,
+      category: trimOrNull(form.category),
+      general_summary: trimOrNull(form.general_summary),
+      medical_causes: trimOrNull(form.medical_causes),
+      subconscious_causes: trimOrNull(form.subconscious_causes),
+      temperament_causes: trimOrNull(form.temperament_causes),
+      other_causes: trimOrNull(form.other_causes),
+      iridology_match: trimOrNull(form.iridology_match),
+      hand_analysis_match: trimOrNull(form.hand_analysis_match),
+      cupping_leech: trimOrNull(form.cupping_leech),
+      reflexology: trimOrNull(form.reflexology),
+      diet_recommendations: trimOrNull(form.diet_recommendations),
+      herbal_methods: trimOrNull(form.herbal_methods),
+      stone_recommendations: trimOrNull(form.stone_recommendations),
+      aromatherapy: trimOrNull(form.aromatherapy),
+      meditation: trimOrNull(form.meditation),
+      breathwork: trimOrNull(form.breathwork),
+      bioenergy: trimOrNull(form.bioenergy),
+      massage: trimOrNull(form.massage),
+      daily_routine: trimOrNull(form.daily_routine),
+      sleep_routine: trimOrNull(form.sleep_routine),
+      supportive_alternative_methods: trimOrNull(form.supportive_alternative_methods),
+      updated_at: now,
+    });
+
+    setSaving(false);
+
+    if (insertError) {
+      setErrorMessage(`Kayıt eklenemedi: ${insertError.message}`);
+      return;
+    }
+
+    resetForm();
+    setShowForm(false);
+    setSuccessMessage("Şifa rehberi kaydı oluşturuldu.");
+    await loadGuides();
+    resetForm();
+  }
+
+  return (
+    <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
+      <div className="mx-auto max-w-[1380px] px-5 py-4">
+        <header className="mb-4 flex flex-col gap-3 rounded-[28px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-white/80 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="mb-1 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+              ✶ ŞİFA REHBERİ
+            </div>
+
+            <h1 className="text-[26px] font-black leading-tight tracking-tight">Şifa Rehberi</h1>
+
+            <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+              Rahatsızlık bazlı bütünsel şifa rehberi — listeleyin, arayın ve yeni kayıt ekleyin.
+            </p>
+
+            <Link
+              href="/"
+              className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-2xl border border-white/60 bg-white/55 px-3.5 py-2 text-[11px] font-black tracking-tight text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:border-cyan-100/80 hover:bg-white/80 hover:text-slate-900 hover:shadow-[0_12px_32px_rgba(8,145,178,0.12)]"
+            >
+              <svg
+                aria-hidden
+                className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
+              </svg>
+              <span className="truncate">Ana Panele Dön</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 lg:w-[430px]">
+            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
+              <div className="text-[18px] font-black">{rows.length}</div>
+              <div className="text-[10px] font-bold text-slate-400">Kayıt</div>
+            </div>
+            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
+              <div className="text-[18px] font-black">{categoryCount}</div>
+              <div className="text-[10px] font-bold text-slate-400">Kategori</div>
+            </div>
+            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
+              <div className="text-[18px] font-black">{filteredRows.length}</div>
+              <div className="text-[10px] font-bold text-slate-400">Görünen</div>
+            </div>
+          </div>
+        </header>
+
+        <section className="mb-4 rounded-[26px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="relative min-w-0 w-full xl:max-w-[680px]">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
+                ⌕
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="İsim, kategori veya rehber metinlerinde ara..."
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white/90 pl-11 pr-4 text-[13px] font-semibold outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+              />
+            </div>
+
+            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "list"
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("card")}
+                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                  viewMode === "card"
+                    ? "bg-slate-950 text-white ring-slate-950"
+                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                }`}
+              >
+                Kart
+              </button>
+              <button
+                type="button"
+                onClick={loadGuides}
+                className="rounded-2xl bg-white/85 px-4 py-2 text-[12px] font-black text-slate-700 ring-1 ring-slate-100 transition hover:bg-white"
+              >
+                Yenile
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm((v) => !v);
+                  setErrorMessage("");
+                  setSuccessMessage("");
+                }}
+                className="rounded-2xl bg-emerald-600 px-4 py-2 text-[12px] font-black text-white shadow-[0_12px_25px_rgba(16,185,129,0.18)] transition hover:bg-emerald-700"
+              >
+                + Yeni Rahatsızlık
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+            <p className="text-[11px] font-bold text-slate-400">
+              {search.trim()
+                ? `${filteredRows.length} sonuç`
+                : `${filteredRows.length} kayıt (A–Z)`}
+            </p>
+            {loading && (
+              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                Yükleniyor...
+              </span>
+            )}
+          </div>
+        </section>
+
+        {showForm && (
+          <section className="mb-4 max-h-[85vh] overflow-y-auto rounded-[26px] border border-white/80 bg-white/86 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90">
+            <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-[17px] font-black text-slate-950">Yeni rahatsızlık kaydı</h2>
+                <p className="text-[12px] font-medium text-slate-500">
+                  Alanları doldurun; boş bırakılanlar veritabanında boş kalır.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                  setErrorMessage("");
+                  setSuccessMessage("");
+                }}
+                className="rounded-2xl bg-slate-100 px-4 py-2 text-[12px] font-black text-slate-600 transition hover:bg-slate-200"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {FORM_SECTIONS.map(({ key, label, multiline }) => (
+                <label
+                  key={key}
+                  className={key === "name" || multiline ? "block md:col-span-2" : "block"}
+                >
+                  <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
+                    {label}
+                  </span>
+                  {multiline ? (
+                    <textarea
+                      value={form[key]}
+                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                      rows={key === "general_summary" ? 4 : 3}
+                      className="w-full resize-y rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    />
+                  ) : (
+                    <input
+                      value={form[key]}
+                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                      className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white px-4 text-[13px] font-semibold outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {errorMessage && (
+          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+            {errorMessage}
+          </div>
+        )}
+
+        {successMessage && !errorMessage && (
+          <div className="mb-4 rounded-2xl bg-emerald-50 px-5 py-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
+            {successMessage}
+          </div>
+        )}
+
+        <section className="rounded-[28px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+          {loading ? (
+            <div className="flex h-[280px] items-center justify-center text-[14px] font-bold text-slate-400">
+              Kayıtlar yükleniyor...
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
+              <div className="text-[48px]">✶</div>
+              <h3 className="mt-2 text-[18px] font-black text-slate-900">Kayıt bulunamadı</h3>
+              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
+                Aramayı değiştirin veya yeni bir rahatsızlık rehberi ekleyin.
+              </p>
+            </div>
+          ) : viewMode === "list" ? (
+            <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-[1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div>Rahatsızlık</div>
+                  <div>Kategori</div>
+                  <div>Dolu bölüm</div>
+                  <div>Özet</div>
+                  <div>Son güncelleme</div>
+                  <div className="text-right">İşlem</div>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {filteredRows.map((row) => {
+                    const filled = countFilledSections(row);
+                    return (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                      >
+                        <div className="min-w-0 font-black text-slate-950">
+                          <span className="block truncate">{row.name}</span>
+                        </div>
+                        <div className="min-w-0 truncate text-slate-600">
+                          {row.category?.trim() || "—"}
+                        </div>
+                        <div className="font-bold text-slate-600">{filled}</div>
+                        <div className="min-w-0 text-[12px] leading-5 text-slate-500">
+                          <span className="line-clamp-2 block">{shortPreview(row, 100)}</span>
+                        </div>
+                        <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
+                          {formatDate(row.updated_at || row.created_at)}
+                        </div>
+                        <div className="flex justify-end">
+                          <Link
+                            href={`/sifa-rehberi/${row.id}`}
+                            className="inline-flex shrink-0 rounded-2xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
+                          >
+                            Detayı Aç
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredRows.map((row) => {
+                const filled = countFilledSections(row);
+                return (
+                  <article
+                    key={row.id}
+                    className="flex flex-col rounded-[24px] border border-white/90 bg-white/88 p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:ring-emerald-200/80"
+                  >
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black tracking-tight text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] ring-1 ring-emerald-500/30">
+                        {filled} bölüm dolu
+                      </span>
+                      {row.category?.trim() ? (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
+                          {row.category}
+                        </span>
+                      ) : null}
+                    </div>
+                    <h2 className="text-[18px] font-black leading-snug text-slate-950">{row.name}</h2>
+                    <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">{shortPreview(row)}</p>
+                    <p className="mt-2 text-[11px] font-bold text-slate-400">
+                      Son güncelleme: {formatDate(row.updated_at || row.created_at)}
+                    </p>
+                    <Link
+                      href={`/sifa-rehberi/${row.id}`}
+                      className="mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
+                    >
+                      Detayı Aç
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
