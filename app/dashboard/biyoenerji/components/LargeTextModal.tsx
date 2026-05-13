@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
-/** Tıklanınca büyük düzenleme modalı açan uzun metin önizlemesi + modal */
+/** Sayfa içi sabit küçük textarea; tıklanınca ortada LargeTextModal açılır */
 export function LongTextareaField({
   label,
   value,
@@ -27,6 +27,7 @@ export function LongTextareaField({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const previewRows = Math.min(Math.max(minRows, 3), 4);
 
   return (
     <>
@@ -34,12 +35,19 @@ export function LongTextareaField({
         className={`block ${disabled ? "pointer-events-none opacity-50" : ""}`}
       >
         {label}
-        <LongTextPreview
+        <textarea
+          readOnly
+          rows={previewRows}
           value={value}
-          minRows={minRows}
-          className={className}
-          onOpen={() => !disabled && setOpen(true)}
-          ariaLabel={modalTitle}
+          aria-label={`${modalTitle} — düzenlemek için tıklayın`}
+          onClick={() => !disabled && setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              if (!disabled) setOpen(true);
+            }
+          }}
+          className={`max-h-36 min-h-[5.5rem] w-full cursor-pointer resize-none overflow-y-auto text-slate-900 outline-none select-none ${className}`}
         />
       </label>
       <LargeTextModal
@@ -53,49 +61,6 @@ export function LongTextareaField({
         }}
       />
     </>
-  );
-}
-
-function LongTextPreview({
-  value,
-  minRows,
-  className,
-  onOpen,
-  ariaLabel,
-}: {
-  value: string;
-  minRows: number;
-  className: string;
-  onOpen: () => void;
-  ariaLabel: string;
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const line = 22;
-    const minH = minRows * line + 16;
-    el.style.height = `${Math.max(el.scrollHeight, minH)}px`;
-  }, [value, minRows]);
-
-  return (
-    <textarea
-      ref={ref}
-      readOnly
-      rows={minRows}
-      value={value}
-      aria-label={ariaLabel}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className={`cursor-pointer overflow-hidden text-slate-900 outline-none select-none ${className}`}
-    />
   );
 }
 
@@ -138,7 +103,7 @@ export function LargeTextModal({
     };
   }, [open]);
 
-  const handleKeyDown = useCallback(
+  const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onDismiss();
     },
@@ -147,49 +112,63 @@ export function LargeTextModal({
 
   useEffect(() => {
     if (!open) return;
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, handleKeyDown]);
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [open, handleEscape]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-900/35 p-3 backdrop-blur-md sm:items-center sm:p-5"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-md sm:p-6"
       role="presentation"
       onClick={onDismiss}
     >
       <div
-        className="flex max-h-[min(92vh,720px)] w-full max-w-3xl flex-col rounded-2xl border border-white/85 bg-[linear-gradient(165deg,rgba(255,255,255,0.97)_0%,rgba(248,250,252,0.94)_45%,rgba(241,245,249,0.92)_100%)] p-4 shadow-[0_24px_64px_-16px_rgba(15,23,42,0.14)] ring-1 ring-violet-100/40 sm:p-6"
+        className="flex h-[75vh] max-h-[75vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-[linear-gradient(165deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_40%,rgba(241,245,249,0.94)_100%)] shadow-[0_28px_72px_-20px_rgba(15,23,42,0.18)] ring-1 ring-violet-100/45"
         role="dialog"
         aria-modal="true"
         aria-labelledby="large-text-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <p
-          id="large-text-modal-title"
-          className="mb-3 shrink-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500"
-        >
-          {title}
-        </p>
-        <textarea
-          ref={taRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[min(52vh,420px)] w-full flex-1 resize-y rounded-2xl border border-slate-200/80 bg-white/95 p-4 text-[14px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none ring-1 ring-slate-100/60 transition focus:border-violet-200/80 focus:ring-2 focus:ring-violet-100/50 sm:min-h-[min(48vh,380px)] sm:p-5"
-        />
-        <div className="mt-4 flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-100/90 pt-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/70 px-4 py-3.5 sm:px-6 sm:py-4">
+          <h2
+            id="large-text-modal-title"
+            className="min-w-0 flex-1 pr-2 text-[15px] font-black leading-snug tracking-tight text-slate-900 sm:text-base"
+          >
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onDismiss}
-            className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_4px_18px_-8px_rgba(15,23,42,0.1)] transition hover:-translate-y-0.5 hover:bg-slate-50/95"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 text-lg leading-none text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            aria-label="Kapat"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4">
+          <textarea
+            ref={taRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="min-h-0 flex-1 w-full resize-none rounded-2xl border border-slate-200/80 bg-white/95 p-4 text-[15px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] outline-none ring-1 ring-slate-100/50 transition focus:border-violet-200/85 focus:ring-2 focus:ring-violet-100/45 sm:p-5 sm:text-[15px]"
+          />
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 bg-white/40 px-4 py-3.5 backdrop-blur-sm sm:px-6 sm:py-4">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_4px_18px_-8px_rgba(15,23,42,0.1)] transition hover:bg-slate-50/95"
           >
             Vazgeç
           </button>
           <button
             type="button"
             onClick={() => onSave(draft)}
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)] transition hover:-translate-y-0.5 hover:bg-emerald-700"
+            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700"
           >
             Kaydet ve Kapat
           </button>
