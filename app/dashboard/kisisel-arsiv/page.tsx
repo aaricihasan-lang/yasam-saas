@@ -37,8 +37,6 @@ const CATEGORIES = [
   "Diğer",
 ] as const;
 
-const CATEGORY_FILTER_ALL = "Tümü" as const;
-
 const CATEGORY_BADGE: Record<string, string> = {
   Ses: "border-amber-200/90 bg-amber-50/95 text-amber-950 ring-amber-100/60",
   Video: "border-violet-200/90 bg-violet-50/95 text-violet-950 ring-violet-100/60",
@@ -115,8 +113,48 @@ function notePreview(note: string | null, max = 120) {
   return t.length <= max ? t : `${t.slice(0, max)}…`;
 }
 
-function normTr(s: string) {
-  return s.toLocaleLowerCase("tr-TR");
+/** Arama: Türkçe harfleri ASCII’ye yaklaştır, noktalama/tire/alt çizgiyi boşluğa çevir, boşlukları sadeleştir. */
+function normalizeSearchString(s: string): string {
+  let t = (s ?? "").toLocaleLowerCase("tr-TR");
+  t = t
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c");
+  t = t.replace(/[^\p{L}\p{N}]+/gu, " ");
+  return t.replace(/\s+/g, " ").trim();
+}
+
+function searchQueryTokens(raw: string): string[] {
+  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  return parts.map((p) => normalizeSearchString(p)).filter(Boolean);
+}
+
+function archiveSearchBlob(row: ArchiveRow): string {
+  const names = (row.personal_archive_files ?? []).map((f) => f.file_name ?? "");
+  const raw = [row.title, row.category, row.tags ?? "", row.note ?? "", ...names].join(" ");
+  return normalizeSearchString(raw);
+}
+
+function rowMatchesSearch(row: ArchiveRow, rawQuery: string): boolean {
+  const tokens = searchQueryTokens(rawQuery);
+  if (tokens.length === 0) return true;
+  const blob = archiveSearchBlob(row);
+  return tokens.every((t) => blob.includes(t));
+}
+
+/** Başlıkta vurgulama: uzunluk koruyan Türkçe katlama (indeksler orijinal metinle uyumlu). */
+function foldTrAsciiPreserveLen(s: string): string {
+  let t = s.toLocaleLowerCase("tr-TR");
+  return t
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c");
 }
 
 function categoryBadgeClass(category: string) {
@@ -131,25 +169,27 @@ function getPublicFileUrl(filePath: string) {
     .publicUrl;
 }
 
-/** Türkçe duyarlı arama ile uyumlu: normTr üzerinde indeks, orijinal metinde aynı uzunlukta dilim. */
+/** Başlıkta vurgulama: arama metnindeki en uzun kelimeyi katlamalı eşleştirir (çok kelimede yalnızca bir parça). */
 function highlightText(text: string, query: string): ReactNode {
-  const q = query.trim();
-  if (!q || !text) return text;
-  const qn = normTr(q);
-  const tn = normTr(text);
-  if (!qn.length || !tn.includes(qn)) return text;
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length || !text) return text;
+  const needle = tokens.reduce((a, b) => (a.length >= b.length ? a : b));
+  const fn = foldTrAsciiPreserveLen(needle);
+  if (!fn.length) return text;
+  const fh = foldTrAsciiPreserveLen(text);
+  if (!fh.includes(fn)) return text;
 
   const nodes: ReactNode[] = [];
   let i = 0;
   let key = 0;
   while (i < text.length) {
-    const idx = tn.indexOf(qn, i);
+    const idx = fh.indexOf(fn, i);
     if (idx === -1) {
       nodes.push(text.slice(i));
       break;
     }
     if (idx > i) nodes.push(text.slice(i, idx));
-    const matchText = text.slice(idx, idx + qn.length);
+    const matchText = text.slice(idx, idx + fn.length);
     nodes.push(
       <mark
         key={`h-${key++}`}
@@ -158,7 +198,7 @@ function highlightText(text: string, query: string): ReactNode {
         {matchText}
       </mark>,
     );
-    i = idx + qn.length;
+    i = idx + fn.length;
   }
   return nodes.length === 1 ? nodes[0] : <Fragment>{nodes}</Fragment>;
 }
@@ -480,8 +520,15 @@ export default function KisiselArsivPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>(CATEGORY_FILTER_ALL);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailEditMode, setDetailEditMode] = useState(false);
+  const [detailEditTitle, setDetailEditTitle] = useState("");
+  const [detailEditCategory, setDetailEditCategory] = useState<string>(CATEGORIES[0]);
+  const [detailEditTags, setDetailEditTags] = useState("");
+  const [detailEditNote, setDetailEditNote] = useState("");
+  const [detailExtraFiles, setDetailExtraFiles] = useState<File[]>([]);
+  const [savingDetail, setSavingDetail] = useState(false);
+  const detailFileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmRow, setDeleteConfirmRow] = useState<ArchiveRow | null>(null);
@@ -631,28 +678,19 @@ export default function KisiselArsivPage() {
     void loadRecords();
   }, [loadRecords]);
 
-  const recordsByCategory = useMemo(() => {
-    if (categoryFilter === CATEGORY_FILTER_ALL) return records;
-    return records.filter((row) => row.category === categoryFilter);
-  }, [records, categoryFilter]);
-
   const visibleRows = useMemo(() => {
     const q = search.trim();
-    if (!q) return recordsByCategory;
-    const nq = normTr(q);
-    return recordsByCategory.filter((row) => {
-      const hay = [
-        row.title,
-        row.category,
-        row.tags ?? "",
-        row.note ?? "",
-        ...(row.personal_archive_files ?? []).map((f) => f.file_name ?? ""),
-      ]
-        .join(" ")
-        .trim();
-      return normTr(hay).includes(nq);
-    });
-  }, [recordsByCategory, search]);
+    if (!q) return records;
+    return records.filter((row) => rowMatchesSearch(row, q));
+  }, [records, search]);
+
+  useEffect(() => {
+    if (!detailRow || detailEditMode) return;
+    setDetailEditTitle(detailRow.title);
+    setDetailEditCategory(detailRow.category);
+    setDetailEditTags(detailRow.tags ?? "");
+    setDetailEditNote(detailRow.note ?? "");
+  }, [detailRow, detailEditMode]);
 
   const fileCount = useCallback((row: ArchiveRow) => {
     const f = row.personal_archive_files;
@@ -695,6 +733,95 @@ export default function KisiselArsivPage() {
   function closeDetail() {
     setDetailId(null);
     setLightboxUrl(null);
+    setDetailEditMode(false);
+    setDetailExtraFiles([]);
+    if (detailFileInputRef.current) detailFileInputRef.current.value = "";
+  }
+
+  function cancelDetailEdit() {
+    if (!detailRow) return;
+    setDetailEditTitle(detailRow.title);
+    setDetailEditCategory(detailRow.category);
+    setDetailEditTags(detailRow.tags ?? "");
+    setDetailEditNote(detailRow.note ?? "");
+    setDetailExtraFiles([]);
+    if (detailFileInputRef.current) detailFileInputRef.current.value = "";
+    setDetailEditMode(false);
+  }
+
+  async function saveDetailEdit() {
+    if (!detailRow || savingDetail) return;
+    if (!detailEditTitle.trim()) {
+      showToast("Başlık alanı zorunludur.", "error", 1800);
+      return;
+    }
+
+    setSavingDetail(true);
+    try {
+      const archiveId = detailRow.id;
+      const titleToSave = detailEditTitle.trim();
+      const categoryToSave = detailEditCategory.trim() || "Diğer";
+      const tagsToSave = detailEditTags.trim() || null;
+      const noteToSave = detailEditNote.trim() || null;
+
+      const { error: updErr } = await supabase
+        .from("personal_archives")
+        .update({
+          title: titleToSave,
+          category: categoryToSave,
+          tags: tagsToSave,
+          note: noteToSave,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", archiveId)
+        .eq("tenant_id", TENANT_ID);
+
+      if (updErr) {
+        console.error("[kisisel-arsiv] personal_archives update", updErr);
+        showToast("Kayıt güncellenemedi.", "error", 2000);
+        return;
+      }
+
+      for (let i = 0; i < detailExtraFiles.length; i++) {
+        const file = detailExtraFiles[i]!;
+        const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
+        const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${i}_${safeName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("personal-archive")
+          .upload(path, file, { upsert: false });
+
+        if (upErr) {
+          console.error("[kisisel-arsiv] detail extra upload", upErr);
+          continue;
+        }
+
+        const { error: metaErr } = await supabase.from("personal_archive_files").insert({
+          tenant_id: TENANT_ID,
+          archive_id: archiveId,
+          file_name: file.name,
+          file_path: path,
+          file_type: file.type || null,
+          file_size: file.size,
+        });
+
+        if (metaErr) {
+          console.error("[kisisel-arsiv] detail extra file row", metaErr);
+          void supabase.storage.from("personal-archive").remove([path]);
+        }
+      }
+
+      await loadRecords();
+      setDetailExtraFiles([]);
+      if (detailFileInputRef.current) detailFileInputRef.current.value = "";
+      setDetailEditMode(false);
+      showToast("Kayıt güncellendi.", "success", 1800);
+    } catch (e) {
+      console.error("[kisisel-arsiv] saveDetailEdit", e);
+      showToast("Kayıt güncellenemedi.", "error", 2000);
+    } finally {
+      setSavingDetail(false);
+    }
   }
 
   async function confirmDeleteArchive() {
@@ -845,13 +972,6 @@ export default function KisiselArsivPage() {
   const searchLabelClass =
     "mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-600";
 
-  const chipBase =
-    "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-wide transition sm:text-[12px]";
-  const chipInactive =
-    "border-slate-200/90 bg-white/90 text-slate-600 shadow-sm hover:border-violet-200 hover:text-violet-900";
-  const chipActive =
-    "border-violet-400 bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-400/30";
-
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
       {toast ? (
@@ -979,8 +1099,9 @@ export default function KisiselArsivPage() {
                   Kayıtlar
                 </h2>
                 <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-600">
-                  En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında
-                  çalışır.
+                  En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında çalışır;
+                  birden fazla kelime yazarsanız tüm kelimeler eşleşmelidir. Türkçe harf ve
+                  noktalama farkları tolere edilir.
                 </p>
               </div>
               <label className="block w-full min-w-0 sm:max-w-xs">
@@ -1003,30 +1124,6 @@ export default function KisiselArsivPage() {
               </label>
             </div>
 
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                type="button"
-                onClick={() => setCategoryFilter(CATEGORY_FILTER_ALL)}
-                className={`${chipBase} ${
-                  categoryFilter === CATEGORY_FILTER_ALL ? chipActive : chipInactive
-                }`}
-              >
-                {CATEGORY_FILTER_ALL}
-              </button>
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategoryFilter(c)}
-                  className={`${chipBase} ${
-                    categoryFilter === c ? chipActive : chipInactive
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-
             <div className="mt-5 space-y-3">
               {loadingList ? (
                 <p className="py-12 text-center text-[14px] font-semibold text-slate-500">
@@ -1046,15 +1143,6 @@ export default function KisiselArsivPage() {
                   <p className="mx-auto mt-2 max-w-sm text-[13px] font-semibold leading-relaxed text-slate-600">
                     İlk kaydınızı oluşturarak ses, belge veya fotoğraflarınızı tek
                     yerde toplayın.
-                  </p>
-                </div>
-              ) : recordsByCategory.length === 0 ? (
-                <div className="rounded-3xl border-2 border-dashed border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-white px-5 py-12 text-center shadow-inner ring-1 ring-amber-100/50">
-                  <p className="text-[15px] font-black text-slate-900">
-                    Bu kategoride kayıt yok
-                  </p>
-                  <p className="mx-auto mt-2 max-w-md text-[13px] font-semibold text-slate-600">
-                    Farklı bir kategori seçin veya tümünü görüntüleyin.
                   </p>
                 </div>
               ) : visibleRows.length === 0 ? (
@@ -1083,7 +1171,7 @@ export default function KisiselArsivPage() {
                       </span>
                     </div>
                     <p className="mt-3 text-[13px] font-semibold leading-relaxed text-slate-700">
-                      {highlightText(notePreview(row.note), search)}
+                      {notePreview(row.note)}
                     </p>
                     {row.tags?.trim() ? (
                       <p className="mt-2 text-[11px] font-semibold text-violet-800">
@@ -1101,6 +1189,9 @@ export default function KisiselArsivPage() {
                         type="button"
                         onClick={() => {
                           setLightboxUrl(null);
+                          setDetailEditMode(false);
+                          setDetailExtraFiles([]);
+                          if (detailFileInputRef.current) detailFileInputRef.current.value = "";
                           setDetailId(row.id);
                         }}
                         className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-[12px] font-black uppercase tracking-wide text-white shadow-md shadow-violet-400/30 transition hover:brightness-110"
@@ -1378,8 +1469,11 @@ export default function KisiselArsivPage() {
         >
           <div
             role="presentation"
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => closeDetail()}
+            className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm ${savingDetail ? "cursor-wait" : "cursor-pointer"}`}
+            onClick={() => {
+              if (savingDetail) return;
+              closeDetail();
+            }}
           />
           <div
             role="dialog"
@@ -1395,27 +1489,65 @@ export default function KisiselArsivPage() {
               />
               <button
                 type="button"
-                onClick={() => closeDetail()}
-                className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-3xl border border-white/90 bg-white/95 text-xl font-light text-slate-600 shadow-md transition hover:bg-white hover:text-slate-900 sm:right-4 sm:top-4"
+                disabled={savingDetail}
+                onClick={() => {
+                  if (savingDetail) return;
+                  closeDetail();
+                }}
+                className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-3xl border border-white/90 bg-white/95 text-xl font-light text-slate-600 shadow-md transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 sm:right-4 sm:top-4"
                 aria-label="Kapat"
               >
                 ×
               </button>
-              <h2
-                id="detail-modal-title"
-                className="pr-12 text-lg font-black leading-snug text-slate-900 sm:text-xl"
-              >
-                {highlightText(detailRow.title, search)}
-              </h2>
+              {detailEditMode ? (
+                <label className="block min-w-0 pr-12">
+                  <span className="sr-only">Başlık</span>
+                  <input
+                    id="detail-modal-title"
+                    value={detailEditTitle}
+                    onChange={(e) => setDetailEditTitle(e.target.value)}
+                    className={`${modalFieldClass} font-black`}
+                    placeholder="Başlık"
+                    autoComplete="off"
+                  />
+                </label>
+              ) : (
+                <h2
+                  id="detail-modal-title"
+                  className="pr-12 text-lg font-black leading-snug text-slate-900 sm:text-xl"
+                >
+                  {highlightText(detailRow.title, search)}
+                </h2>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ring-1 ${categoryBadgeClass(detailRow.category)}`}
-                >
-                  {detailRow.category}
-                </span>
+              <div className="flex flex-wrap items-end gap-2">
+                {detailEditMode ? (
+                  <label className="min-w-0 flex-1 sm:max-w-xs">
+                    <span className={searchLabelClass}>Kategori</span>
+                    <select
+                      value={detailEditCategory}
+                      onChange={(e) => setDetailEditCategory(e.target.value)}
+                      className={`${modalFieldClass} mt-1.5 cursor-pointer appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                      }}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ring-1 ${categoryBadgeClass(detailRow.category)}`}
+                  >
+                    {detailRow.category}
+                  </span>
+                )}
                 <time
                   className="text-[12px] font-bold text-slate-500"
                   dateTime={detailRow.created_at}
@@ -1423,22 +1555,43 @@ export default function KisiselArsivPage() {
                   {formatTrDate(detailRow.created_at)}
                 </time>
               </div>
-              {detailRow.tags?.trim() ? (
+
+              {detailEditMode ? (
+                <label className="mt-4 block min-w-0">
+                  <span className={modalLabelClass}>Etiketler</span>
+                  <input
+                    value={detailEditTags}
+                    onChange={(e) => setDetailEditTags(e.target.value)}
+                    className={modalFieldClass}
+                    placeholder="Virgülle ayırın"
+                    autoComplete="off"
+                  />
+                </label>
+              ) : detailRow.tags?.trim() ? (
                 <p className="mt-3 text-[13px] font-semibold text-violet-900">
                   Etiketler: {detailRow.tags}
                 </p>
               ) : (
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Etiket yok</p>
               )}
+
               <div className="mt-4 rounded-3xl border border-slate-200/90 bg-slate-50/60 p-4">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
                   Not
                 </p>
-                <p className="mt-1 whitespace-pre-wrap text-[14px] font-semibold leading-relaxed text-slate-800">
-                  {detailRow.note?.trim()
-                    ? highlightText(detailRow.note, search)
-                    : "—"}
-                </p>
+                {detailEditMode ? (
+                  <textarea
+                    value={detailEditNote}
+                    onChange={(e) => setDetailEditNote(e.target.value)}
+                    rows={4}
+                    className={`${modalFieldClass} mt-2 min-h-[6rem] max-h-48 resize-y`}
+                    placeholder="Kısa açıklama veya bağlam…"
+                  />
+                ) : (
+                  <p className="mt-1 whitespace-pre-wrap text-[14px] font-semibold leading-relaxed text-slate-800">
+                    {detailRow.note?.trim() ? detailRow.note : "—"}
+                  </p>
+                )}
               </div>
 
               <div className="mt-6">
@@ -1463,16 +1616,95 @@ export default function KisiselArsivPage() {
                   )}
                 </ul>
               </div>
+
+              {detailEditMode ? (
+                <div className="mt-6 block min-w-0">
+                  <span className={modalLabelClass}>Yeni dosya ekle</span>
+                  <input
+                    ref={detailFileInputRef}
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      const incoming = e.target.files ? Array.from(e.target.files) : [];
+                      if (incoming.length) {
+                        setDetailExtraFiles((prev) => [...prev, ...incoming]);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className="mt-2 rounded-3xl border-[3px] border-dashed border-violet-300/80 bg-gradient-to-br from-violet-50/90 via-sky-50/70 to-emerald-50/80 p-5 text-center shadow-inner ring-2 ring-white/80 sm:p-6">
+                    <button
+                      type="button"
+                      disabled={savingDetail}
+                      onClick={() => detailFileInputRef.current?.click()}
+                      className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Dosya seç
+                    </button>
+                    <p className="mt-3 text-[12px] font-bold text-slate-600">
+                      {detailExtraFiles.length === 0
+                        ? "Henüz yeni dosya seçilmedi."
+                        : `${detailExtraFiles.length} yeni dosya eklenecek`}
+                    </p>
+                    {detailExtraFiles.length > 0 ? (
+                      <ul className="mx-auto mt-2 max-h-28 max-w-md list-inside list-disc overflow-y-auto text-left text-[12px] font-semibold text-slate-700">
+                        {detailExtraFiles.map((f, i) => (
+                          <li key={`${f.name}-${i}-${f.size}`}>{f.name}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
-            <div className="shrink-0 border-t border-violet-100/80 bg-white/95 px-5 py-4 sm:px-7">
-              <button
-                type="button"
-                onClick={() => closeDetail()}
-                className="w-full rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 sm:w-auto sm:px-8"
-              >
-                Kapat
-              </button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-violet-100/80 bg-white/95 px-5 py-4 sm:px-7">
+              {!detailEditMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDetailEditMode(true)}
+                    className="rounded-3xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95"
+                  >
+                    Düzenle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => closeDetail()}
+                    className="rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg transition hover:brightness-110"
+                  >
+                    Kapat
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={savingDetail}
+                    onClick={() => cancelDetailEdit()}
+                    className="rounded-3xl border-2 border-slate-200 bg-white px-5 py-3 text-[13px] font-bold text-slate-800 shadow-md transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingDetail || !detailEditTitle.trim()}
+                    onClick={() => void saveDetailEdit()}
+                    className="rounded-3xl bg-gradient-to-r from-fuchsia-500 via-violet-600 to-cyan-500 px-7 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_16px_40px_-10px_rgba(124,58,237,0.55)] ring-2 ring-white/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingDetail ? "Kaydediliyor…" : "Kaydet"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingDetail}
+                    onClick={() => closeDetail()}
+                    className="rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    Kapat
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
