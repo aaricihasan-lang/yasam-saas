@@ -150,11 +150,24 @@ export default function NumerolojiTestPage() {
             <div className="sm:col-span-2">
               <ResultBlock
                 title="Harflerin Yankılanışı"
-                value={out.harflerinYankilanisi.display || "—"}
+                value={
+                  Array.isArray(out.harflerinYankilanisi)
+                    ? `${out.harflerinYankilanisi.length} dönem`
+                    : "-"
+                }
                 hint={
                   [
-                    out.harflerinYankilanisi.steps?.length
-                      ? out.harflerinYankilanisi.steps.join("\n")
+                    Array.isArray(out.harflerinYankilanisi)
+                      ? out.harflerinYankilanisi
+                          .slice(0, 5)
+                          .map((seg, idx) => {
+                            const y =
+                              seg.yearStart != null
+                                ? ` (${seg.yearStart}${seg.yearEnd != null ? `–${seg.yearEnd}` : ""})`
+                                : "";
+                            return `${idx + 1}. ${seg.letter} · çakra ${seg.chakra} · yaş ${seg.ageStart}–${seg.ageEnd}${y}`;
+                          })
+                          .join("\n")
                       : "",
                     out.harflerinYankilanisiMetni?.trim() ? out.harflerinYankilanisiMetni : "",
                   ]
