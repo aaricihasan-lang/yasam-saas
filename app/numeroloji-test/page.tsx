@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   hesaplaNumeroloji,
-  type NumerolojiInput,
   type NumerolojiResult,
   type HarfYankilanisiSegment,
   type ElementResult,
@@ -14,11 +13,46 @@ import {
 
 type TabId = "summary" | "plain" | "detailed" | "tas" | "gorsel";
 
-function splitFullName(fullName: string): Pick<NumerolojiInput, "firstName" | "lastName"> {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: "", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
-  return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
+function collapseSpaces(value: string): string {
+  return value.replace(/\s+/g, " ");
+}
+
+function formatFirstNameTurkish(value: string): string {
+  const s = collapseSpaces(value.trimStart());
+  if (!s) return "";
+  return s
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase("tr-TR");
+      return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
+    })
+    .join(" ");
+}
+
+function formatLastNameTurkish(value: string): string {
+  const s = collapseSpaces(value.trimStart());
+  if (!s) return "";
+  return s
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.toLocaleUpperCase("tr-TR"))
+    .join(" ");
+}
+
+function formatBirthDigitsInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  const d = digits.slice(0, 2);
+  const m = digits.slice(2, 4);
+  const y = digits.slice(4, 8);
+  let out = d;
+  if (m.length > 0) out += "/" + m;
+  if (y.length > 0) out += "/" + y;
+  return out;
+}
+
+function birthDateForMotor(display: string): string {
+  return display.trim().replace(/\//g, ".");
 }
 
 function nrDisplay(r: NumerolojiResult): string {
@@ -173,7 +207,8 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export default function NumerolojiTestPage() {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [out, setOut] = useState<ReturnType<typeof hesaplaNumeroloji> | null>(null);
@@ -184,22 +219,38 @@ export default function NumerolojiTestPage() {
     setError(null);
     setOut(null);
 
-    const { firstName, lastName } = splitFullName(fullName);
-    if (!firstName.trim()) {
-      setError("Lütfen ad soyad girin.");
+    const fnRaw = firstName.trim();
+    const lnRaw = lastName.trim();
+    const bd = birthDate.trim();
+
+    if (!fnRaw) {
+      setError("Lütfen adınızı girin.");
       return;
     }
-    if (!birthDate.trim()) {
-      setError("Lütfen doğum tarihini girin (ör. 15.03.1990).");
+    if (!lnRaw) {
+      setError("Lütfen soyadınızı girin.");
       return;
     }
+    if (!bd) {
+      setError("Lütfen doğum tarihini girin.");
+      return;
+    }
+    if (bd.length !== 10) {
+      setError("Doğum tarihini GG/AA/YYYY formatında tamamlayın.");
+      return;
+    }
+
+    const fn = formatFirstNameTurkish(fnRaw);
+    const ln = formatLastNameTurkish(lnRaw);
+    setFirstName(fn);
+    setLastName(ln);
 
     try {
       setOut(
         hesaplaNumeroloji({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          birthDate: birthDate.trim(),
+          firstName: fn,
+          lastName: ln,
+          birthDate: birthDateForMotor(bd),
         }),
       );
       setTab("summary");
@@ -209,7 +260,7 @@ export default function NumerolojiTestPage() {
     }
   }
 
-  const isimGoster = fullName.trim();
+  const isimGoster = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();
   const dogumGoster = birthDate.trim();
 
   return (
@@ -228,18 +279,32 @@ export default function NumerolojiTestPage() {
           className="mb-5 rounded-2xl border border-white/90 bg-white/90 p-4 shadow-md ring-1 ring-violet-100/70 backdrop-blur-sm sm:p-5"
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label htmlFor="nm-adsoyad" className="mb-1 block text-xs font-bold text-slate-700">
-                Ad Soyad
+            <div>
+              <label htmlFor="nm-ad" className="mb-1 block text-xs font-bold text-slate-700">
+                Ad / İsim
               </label>
               <input
-                id="nm-adsoyad"
+                id="nm-ad"
                 type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Örn. Ayşe Yılmaz"
+                value={firstName}
+                onChange={(e) => setFirstName(formatFirstNameTurkish(e.target.value))}
+                placeholder="Örn. Hasan Ali"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none ring-violet-100 focus:ring-2"
-                autoComplete="name"
+                autoComplete="given-name"
+              />
+            </div>
+            <div>
+              <label htmlFor="nm-soyad" className="mb-1 block text-xs font-bold text-slate-700">
+                Soyad
+              </label>
+              <input
+                id="nm-soyad"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(formatLastNameTurkish(e.target.value))}
+                placeholder="Örn. YILMAZ"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none ring-violet-100 focus:ring-2"
+                autoComplete="family-name"
               />
             </div>
             <div className="sm:col-span-2">
@@ -249,9 +314,11 @@ export default function NumerolojiTestPage() {
               <input
                 id="nm-dt"
                 type="text"
+                inputMode="numeric"
+                maxLength={10}
                 value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                placeholder="14.02.1987"
+                onChange={(e) => setBirthDate(formatBirthDigitsInput(e.target.value))}
+                placeholder="GG/AA/YYYY"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none ring-sky-100 focus:ring-2"
                 autoComplete="bday"
               />
