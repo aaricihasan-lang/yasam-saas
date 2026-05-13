@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  AutoTextarea,
   CrudEmptyState,
   ModuleStats,
   badgeFieldWrapClass,
@@ -12,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -491,66 +491,76 @@ export default function SembolDili() {
                 />
               </div>
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                Anlamı
-              </span>
-              <AutoTextarea
-                value={form.meaning}
-                onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
-                minRows={4}
-                className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-cyan-200/90 focus:ring-2 focus:ring-cyan-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
-                Bilinçaltı Mesajı
-              </span>
-              <AutoTextarea
-                value={form.subconscious_message}
-                onChange={(v) => setForm((f) => ({ ...f, subconscious_message: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-lime-500/85" />
-                Pozitif Yön
-              </span>
-              <AutoTextarea
-                value={form.positive_aspect}
-                onChange={(v) => setForm((f) => ({ ...f, positive_aspect: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-lime-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-lime-200/90 focus:ring-2 focus:ring-lime-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
-                Negatif Yön
-              </span>
-              <AutoTextarea
-                value={form.negative_aspect}
-                onChange={(v) => setForm((f) => ({ ...f, negative_aspect: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-orange-200/90 focus:ring-2 focus:ring-orange-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
-                Kullanım Alanı
-              </span>
-              <AutoTextarea
-                value={form.usage_area}
-                onChange={(v) => setForm((f) => ({ ...f, usage_area: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-sky-200/90 focus:ring-2 focus:ring-sky-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+                  Anlamı
+                </span>
+              }
+              modalTitle="Anlamı"
+              value={form.meaning}
+              onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
+              minRows={4}
+              className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
+                  Bilinçaltı Mesajı
+                </span>
+              }
+              modalTitle="Bilinçaltı Mesajı"
+              value={form.subconscious_message}
+              onChange={(v) => setForm((f) => ({ ...f, subconscious_message: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-violet-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-lime-500/85" />
+                  Pozitif Yön
+                </span>
+              }
+              modalTitle="Pozitif Yön"
+              value={form.positive_aspect}
+              onChange={(v) => setForm((f) => ({ ...f, positive_aspect: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-lime-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-lime-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
+                  Negatif Yön
+                </span>
+              }
+              modalTitle="Negatif Yön"
+              value={form.negative_aspect}
+              onChange={(v) => setForm((f) => ({ ...f, negative_aspect: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
+                  Kullanım Alanı
+                </span>
+              }
+              modalTitle="Kullanım Alanı"
+              value={form.usage_area}
+              onChange={(v) => setForm((f) => ({ ...f, usage_area: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-sky-100/50 transition"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
@@ -562,18 +572,20 @@ export default function SembolDili() {
                 className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
-              </span>
-              <AutoTextarea
-                value={form.note}
-                onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-slate-300/90 focus:ring-2 focus:ring-slate-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                  Not
+                </span>
+              }
+              modalTitle="Not"
+              value={form.note}
+              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
+              disabled={saving}
+            />
           </div>
 
           <div className="mt-7 flex flex-wrap gap-2 border-t border-emerald-100/45 pt-5">

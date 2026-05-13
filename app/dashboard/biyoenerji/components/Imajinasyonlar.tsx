@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  AutoTextarea,
   CrudEmptyState,
   ModuleStats,
   badgeFieldWrapClass,
@@ -12,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -491,42 +491,48 @@ export default function Imajinasyonlar() {
                 />
               </div>
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                Amaç
-              </span>
-              <AutoTextarea
-                value={form.purpose}
-                onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-rose-200/90 focus:ring-2 focus:ring-rose-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
-                Hazırlık
-              </span>
-              <AutoTextarea
-                value={form.preparation}
-                onChange={(v) => setForm((f) => ({ ...f, preparation: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-orange-200/90 focus:ring-2 focus:ring-orange-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                İmajinasyon Metni
-              </span>
-              <AutoTextarea
-                value={form.imagination_text}
-                onChange={(v) => setForm((f) => ({ ...f, imagination_text: v }))}
-                minRows={5}
-                className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-cyan-200/90 focus:ring-2 focus:ring-cyan-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
+                  Amaç
+                </span>
+              }
+              modalTitle="Amaç"
+              value={form.purpose}
+              onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
+                  Hazırlık
+                </span>
+              }
+              modalTitle="Hazırlık"
+              value={form.preparation}
+              onChange={(v) => setForm((f) => ({ ...f, preparation: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+                  İmajinasyon Metni
+                </span>
+              }
+              modalTitle="İmajinasyon Metni"
+              value={form.imagination_text}
+              onChange={(v) => setForm((f) => ({ ...f, imagination_text: v }))}
+              minRows={5}
+              className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-500/85" />
@@ -538,18 +544,20 @@ export default function Imajinasyonlar() {
                 className="h-12 w-full rounded-xl border border-teal-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
-                Uyarı
-              </span>
-              <AutoTextarea
-                value={form.warning}
-                onChange={(v) => setForm((f) => ({ ...f, warning: v }))}
-                minRows={2}
-                className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-red-200/90 focus:ring-2 focus:ring-red-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
+                  Uyarı
+                </span>
+              }
+              modalTitle="Uyarı"
+              value={form.warning}
+              onChange={(v) => setForm((f) => ({ ...f, warning: v }))}
+              minRows={2}
+              className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-red-100/50 transition"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-600/80" />
@@ -561,18 +569,20 @@ export default function Imajinasyonlar() {
                 className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
-              </span>
-              <AutoTextarea
-                value={form.note}
-                onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-slate-300/90 focus:ring-2 focus:ring-slate-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                  Not
+                </span>
+              }
+              modalTitle="Not"
+              value={form.note}
+              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
+              disabled={saving}
+            />
           </div>
 
           <div className="mt-7 flex flex-wrap gap-2 border-t border-amber-100/45 pt-5">

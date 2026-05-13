@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  AutoTextarea,
   CrudEmptyState,
   ModuleStats,
   badgeFieldWrapClass,
@@ -12,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -450,54 +450,62 @@ export default function EnerjiBedenleri() {
                 />
               </div>
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                İçerik
-              </span>
-              <AutoTextarea
-                value={form.content}
-                onChange={(v) => setForm((f) => ({ ...f, content: v }))}
-                minRows={5}
-                className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
-                Fiziksel notlar
-              </span>
-              <AutoTextarea
-                value={form.physical_notes}
-                onChange={(v) => setForm((f) => ({ ...f, physical_notes: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-sky-200/90 focus:ring-2 focus:ring-sky-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/80" />
-                Duygusal notlar
-              </span>
-              <AutoTextarea
-                value={form.emotional_notes}
-                onChange={(v) => setForm((f) => ({ ...f, emotional_notes: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-fuchsia-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-fuchsia-200/90 focus:ring-2 focus:ring-fuchsia-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                Ruhsal notlar
-              </span>
-              <AutoTextarea
-                value={form.spiritual_notes}
-                onChange={(v) => setForm((f) => ({ ...f, spiritual_notes: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-indigo-200/90 focus:ring-2 focus:ring-indigo-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
+                  İçerik
+                </span>
+              }
+              modalTitle="İçerik"
+              value={form.content}
+              onChange={(v) => setForm((f) => ({ ...f, content: v }))}
+              minRows={5}
+              className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
+                  Fiziksel notlar
+                </span>
+              }
+              modalTitle="Fiziksel notlar"
+              value={form.physical_notes}
+              onChange={(v) => setForm((f) => ({ ...f, physical_notes: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-sky-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/80" />
+                  Duygusal notlar
+                </span>
+              }
+              modalTitle="Duygusal notlar"
+              value={form.emotional_notes}
+              onChange={(v) => setForm((f) => ({ ...f, emotional_notes: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-fuchsia-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-fuchsia-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
+                  Ruhsal notlar
+                </span>
+              }
+              modalTitle="Ruhsal notlar"
+              value={form.spiritual_notes}
+              onChange={(v) => setForm((f) => ({ ...f, spiritual_notes: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
@@ -509,18 +517,20 @@ export default function EnerjiBedenleri() {
                 className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-500/80" />
-                Not
-              </span>
-              <AutoTextarea
-                value={form.note}
-                onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-teal-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-teal-500/80" />
+                  Not
+                </span>
+              }
+              modalTitle="Not"
+              value={form.note}
+              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-teal-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-teal-100/50 transition"
+              disabled={saving}
+            />
           </div>
 
           <div className="mt-7 flex flex-wrap gap-2 border-t border-cyan-100/45 pt-5">

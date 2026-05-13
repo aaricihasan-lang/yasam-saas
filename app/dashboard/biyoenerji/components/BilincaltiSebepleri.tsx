@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  AutoTextarea,
   CrudEmptyState,
   ModuleStats,
   badgeFieldWrapClass,
@@ -12,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -468,54 +468,62 @@ export default function BilincaltiSebepleri() {
                 />
               </div>
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                Bilinçaltı sebep
-              </span>
-              <AutoTextarea
-                value={form.subconscious_reason}
-                onChange={(v) => setForm((f) => ({ ...f, subconscious_reason: v }))}
-                minRows={4}
-                className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-cyan-200/90 focus:ring-2 focus:ring-cyan-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                Duygusal örüntü
-              </span>
-              <AutoTextarea
-                value={form.emotional_pattern}
-                onChange={(v) => setForm((f) => ({ ...f, emotional_pattern: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-rose-200/90 focus:ring-2 focus:ring-rose-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                Afirmasyon
-              </span>
-              <AutoTextarea
-                value={form.affirmation}
-                onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                İyileşme notu
-              </span>
-              <AutoTextarea
-                value={form.healing_note}
-                onChange={(v) => setForm((f) => ({ ...f, healing_note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-indigo-200/90 focus:ring-2 focus:ring-indigo-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+                  Bilinçaltı sebep
+                </span>
+              }
+              modalTitle="Bilinçaltı sebep"
+              value={form.subconscious_reason}
+              onChange={(v) => setForm((f) => ({ ...f, subconscious_reason: v }))}
+              minRows={4}
+              className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
+                  Duygusal örüntü
+                </span>
+              }
+              modalTitle="Duygusal örüntü"
+              value={form.emotional_pattern}
+              onChange={(v) => setForm((f) => ({ ...f, emotional_pattern: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
+                  Afirmasyon
+                </span>
+              }
+              modalTitle="Afirmasyon"
+              value={form.affirmation}
+              onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
+              disabled={saving}
+            />
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
+                  İyileşme notu
+                </span>
+              }
+              modalTitle="İyileşme notu"
+              value={form.healing_note}
+              onChange={(v) => setForm((f) => ({ ...f, healing_note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
@@ -527,18 +535,20 @@ export default function BilincaltiSebepleri() {
                 className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
-              </span>
-              <AutoTextarea
-                value={form.note}
-                onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-slate-300/90 focus:ring-2 focus:ring-slate-100/55"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                  Not
+                </span>
+              }
+              modalTitle="Not"
+              value={form.note}
+              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
+              disabled={saving}
+            />
           </div>
 
           <div className="mt-7 flex flex-wrap gap-2 border-t border-fuchsia-100/45 pt-5">

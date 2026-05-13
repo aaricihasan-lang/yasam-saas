@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  AutoTextarea,
   CrudEmptyState,
   ModuleStats,
   badgeFieldWrapClass,
@@ -12,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -430,18 +430,20 @@ export default function BiyoenerjiSeanslari() {
                 />
               </div>
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/85" />
-                Seans Metni
-              </span>
-              <AutoTextarea
-                value={form.content}
-                onChange={(v) => setForm((f) => ({ ...f, content: v }))}
-                minRows={5}
-                className="w-full resize-none rounded-xl border border-white/70 bg-white/85 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none ring-1 ring-emerald-100/40 transition duration-200 focus:border-emerald-200/70 focus:ring-2 focus:ring-emerald-100/45"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/85" />
+                  Seans Metni
+                </span>
+              }
+              modalTitle="Seans Metni"
+              value={form.content}
+              onChange={(v) => setForm((f) => ({ ...f, content: v }))}
+              minRows={5}
+              className="w-full resize-none rounded-xl border border-white/70 bg-white/85 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-emerald-100/40 transition duration-200"
+              disabled={saving}
+            />
             <label className="block">
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500/85" />
@@ -453,18 +455,20 @@ export default function BiyoenerjiSeanslari() {
                 className="h-12 w-full rounded-xl border border-white/70 bg-white/85 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none ring-1 ring-amber-100/40 transition duration-200 focus:border-amber-200/70 focus:ring-2 focus:ring-amber-100/45"
               />
             </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/75" />
-                Not
-              </span>
-              <AutoTextarea
-                value={form.note}
-                onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-                minRows={3}
-                className="w-full resize-none rounded-xl border border-white/70 bg-white/85 p-3.5 text-[13px] leading-relaxed text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none ring-1 ring-fuchsia-100/40 transition duration-200 focus:border-fuchsia-200/70 focus:ring-2 focus:ring-fuchsia-100/45"
-              />
-            </label>
+            <LongTextareaField
+              label={
+                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/75" />
+                  Not
+                </span>
+              }
+              modalTitle="Not"
+              value={form.note}
+              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              minRows={3}
+              className="w-full resize-none rounded-xl border border-white/70 bg-white/85 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-fuchsia-100/40 transition duration-200"
+              disabled={saving}
+            />
           </div>
 
           <div className="mt-8 flex flex-wrap gap-2 border-t border-white/50 pt-5">
