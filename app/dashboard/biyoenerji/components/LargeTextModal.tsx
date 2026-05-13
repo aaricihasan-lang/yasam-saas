@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 /** Sayfa içi sabit küçük textarea; tıklanınca ortada LargeTextModal açılır */
 export function LongTextareaField({
@@ -37,10 +38,16 @@ export function LongTextareaField({
         {label}
         <textarea
           readOnly
+          tabIndex={disabled ? -1 : 0}
           rows={previewRows}
           value={value}
           aria-label={`${modalTitle} — düzenlemek için tıklayın`}
           onClick={() => !disabled && setOpen(true)}
+          onPointerDown={(e) => {
+            if (disabled || e.button !== 0) return;
+            e.preventDefault();
+            setOpen(true);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -118,9 +125,11 @@ export function LargeTextModal({
 
   if (!open) return null;
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  const overlay = (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-md sm:p-6"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-md sm:p-6"
       role="presentation"
       onClick={onDismiss}
     >
@@ -176,4 +185,6 @@ export function LargeTextModal({
       </div>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 }
