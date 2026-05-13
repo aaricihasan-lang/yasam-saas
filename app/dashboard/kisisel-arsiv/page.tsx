@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -83,6 +84,7 @@ function normTr(s: string) {
 
 export default function KisiselArsivPage() {
   const [formOpen, setFormOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
@@ -97,6 +99,15 @@ export default function KisiselArsivPage() {
   const [info, setInfo] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!formOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [formOpen]);
 
   const loadRows = useCallback(async () => {
     setLoadingList(true);
@@ -162,6 +173,7 @@ export default function KisiselArsivPage() {
     setTags("");
     setNote("");
     setFiles([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function closeForm() {
@@ -250,10 +262,16 @@ export default function KisiselArsivPage() {
     await loadRows();
   }
 
-  const inputClass =
+  const searchInputClass =
     "w-full rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 text-[14px] text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)] outline-none ring-1 ring-slate-100/60 transition placeholder:text-slate-400 focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/50";
 
-  const labelClass =
+  const modalLabelClass =
+    "mb-2 block text-[13px] font-semibold tracking-tight text-slate-700";
+
+  const modalFieldClass =
+    "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-[14px] text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+
+  const searchLabelClass =
     "mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-500";
 
   return (
@@ -318,11 +336,11 @@ export default function KisiselArsivPage() {
               </p>
             </div>
             <label className="block w-full min-w-0 sm:max-w-xs">
-              <span className={labelClass}>Ara</span>
+              <span className={searchLabelClass}>Ara</span>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={inputClass}
+                className={searchInputClass}
                 placeholder="Kelime yazın…"
                 type="search"
               />
@@ -373,113 +391,191 @@ export default function KisiselArsivPage() {
             )}
           </div>
         </section>
+      </div>
 
-        {formOpen ? (
-          <form
-            onSubmit={(e) => void handleSubmit(e)}
-            className="rounded-3xl border border-white/85 bg-white/90 p-5 shadow-[0_14px_44px_-20px_rgba(15,23,42,0.14)] ring-1 ring-slate-100/50 backdrop-blur-md sm:p-6"
+      {formOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-3 py-6 sm:px-5 sm:py-10"
+          role="presentation"
+        >
+          <div
+            role="presentation"
+            className={`absolute inset-0 bg-slate-900/45 backdrop-blur-sm ${saving ? "cursor-wait" : "cursor-pointer"}`}
+            onClick={() => {
+              if (saving) return;
+              setInfo(null);
+              closeForm();
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="archive-modal-title"
+            aria-describedby="archive-modal-desc"
+            className="relative z-10 flex max-h-[min(90vh,44rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_24px_80px_-24px_rgba(15,23,42,0.35)] ring-1 ring-slate-200/60"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-[15px] font-black text-slate-900">Yeni kayıt</h2>
-                <p className="mt-1 text-[12px] font-medium text-slate-500">
-                  Başlık ve kategori zorunlu; dosyalar isteğe bağlı.
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50/80 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="min-w-0 pr-10 sm:pr-12">
+                <h2
+                  id="archive-modal-title"
+                  className="text-lg font-black tracking-tight text-slate-900 sm:text-xl"
+                >
+                  Yeni Arşiv Kaydı
+                </h2>
+                <p
+                  id="archive-modal-desc"
+                  className="mt-1.5 text-[13px] font-medium leading-relaxed text-slate-600 sm:text-[14px]"
+                >
+                  Ses, belge, resim, video veya kişisel notlarınızı tek kayıt altında
+                  saklayın.
                 </p>
               </div>
               <button
                 type="button"
+                disabled={saving}
                 onClick={() => {
+                  if (saving) return;
                   setInfo(null);
                   closeForm();
                 }}
-                className="shrink-0 rounded-2xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-light leading-none text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4 sm:top-4"
+                aria-label="Kapat"
               >
-                İptal
+                ×
               </button>
             </div>
 
-            <div className="mt-5 space-y-4">
-              <label className="block min-w-0">
-                <span className={labelClass}>Başlık</span>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={inputClass}
-                  placeholder="Örn. Aile toplantısı ses kaydı"
-                  autoComplete="off"
-                />
-              </label>
+            <form
+              onSubmit={(e) => void handleSubmit(e)}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                <div className="space-y-4">
+                  <label className="block min-w-0">
+                    <span className={modalLabelClass}>Başlık</span>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className={modalFieldClass}
+                      placeholder="Örn. Aile toplantısı ses kaydı"
+                      autoComplete="off"
+                    />
+                  </label>
 
-              <label className="block min-w-0">
-                <span className={labelClass}>Kategori</span>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className={`${inputClass} cursor-pointer appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                  <label className="block min-w-0">
+                    <span className={modalLabelClass}>Kategori</span>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className={`${modalFieldClass} cursor-pointer appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                      }}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block min-w-0">
+                    <span className={modalLabelClass}>Etiketler</span>
+                    <input
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      className={modalFieldClass}
+                      placeholder="Virgülle ayırın: tatil, 2026, taslak"
+                      autoComplete="off"
+                    />
+                  </label>
+
+                  <label className="block min-w-0">
+                    <span className={modalLabelClass}>Not</span>
+                    <textarea
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      rows={3}
+                      className={`${modalFieldClass} min-h-[5.25rem] max-h-40 resize-y`}
+                      placeholder="Kısa açıklama veya bağlam…"
+                    />
+                  </label>
+
+                  <div className="block min-w-0">
+                    <span className={modalLabelClass}>Dosyalar</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="sr-only"
+                      onChange={(e) =>
+                        setFiles(e.target.files ? Array.from(e.target.files) : [])
+                      }
+                    />
+                    <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-violet-50/40 via-white to-slate-50/80 p-5 text-center shadow-inner ring-1 ring-violet-100/30 sm:p-6">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-600/25">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-6 w-6"
+                          aria-hidden
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" x2="12" y1="3" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="text-[13px] font-medium text-slate-600">
+                        Birden fazla dosya ekleyebilirsiniz.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-4 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-[13px] font-black uppercase tracking-wide text-white shadow-md transition hover:from-violet-700 hover:to-indigo-700"
+                      >
+                        Dosyaları seç
+                      </button>
+                      <p className="mt-3 text-[12px] font-semibold text-slate-500">
+                        {files.length === 0
+                          ? "Henüz dosya seçilmedi."
+                          : `${files.length} dosya seçildi`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    if (saving) return;
+                    setInfo(null);
+                    closeForm();
                   }}
+                  className="rounded-2xl border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block min-w-0">
-                <span className={labelClass}>Etiketler</span>
-                <input
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  className={inputClass}
-                  placeholder="Virgülle ayırın: tatil, 2026, taslak"
-                  autoComplete="off"
-                />
-              </label>
-
-              <label className="block min-w-0">
-                <span className={labelClass}>Not</span>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={4}
-                  className={`${inputClass} min-h-[6.5rem] resize-y`}
-                  placeholder="Kısa açıklama veya bağlam…"
-                />
-              </label>
-
-              <label className="block min-w-0">
-                <span className={labelClass}>Dosyalar</span>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) =>
-                    setFiles(e.target.files ? Array.from(e.target.files) : [])
-                  }
-                  className="block w-full min-w-0 cursor-pointer rounded-2xl border border-dashed border-slate-200/95 bg-slate-50/80 px-3 py-3 text-[13px] font-medium text-slate-600 file:mr-3 file:cursor-pointer file:rounded-xl file:border-0 file:bg-violet-600 file:px-3 file:py-2 file:text-[12px] file:font-black file:text-white hover:border-violet-200/80 hover:bg-violet-50/30"
-                />
-                {files.length > 0 ? (
-                  <p className="mt-2 text-[12px] font-medium text-slate-500">
-                    {files.length} dosya seçildi
-                  </p>
-                ) : null}
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={!canSave}
-                className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-3.5 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-12px_rgba(109,40,217,0.45)] transition hover:from-violet-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {saving ? "Kaydediliyor…" : "Kaydet"}
-              </button>
-            </div>
-          </form>
-        ) : null}
-      </div>
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSave || saving}
+                  className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-12px_rgba(109,40,217,0.45)] transition hover:from-violet-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? "Kaydediliyor…" : "Kaydet"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
