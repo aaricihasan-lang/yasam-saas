@@ -543,6 +543,9 @@ export default function KisiselArsivPage() {
       return;
     }
 
+    const archiveRecord = insertedRows?.[0];
+    console.log("ARCHIVE INSERT BAŞARILI", archiveRecord);
+
     for (const file of selectedFiles) {
       const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
       const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${safeName}`;
@@ -571,10 +574,16 @@ export default function KisiselArsivPage() {
       }
     }
 
+    console.log("DOSYA YÜKLEME AKIŞI BİTTİ");
+
     await loadRecords();
+    console.log("LOAD RECORDS BİTTİ");
     resetForm();
+    console.log("FORM TEMİZLENDİ");
     setIsCreateModalOpen(false);
+    console.log("MODAL KAPANDI");
     showSuccessToast("Kayıt başarıyla eklendi.");
+    console.log("TOAST ÇAĞRILDI");
     setSaving(false);
     setInfo(null);
   }
