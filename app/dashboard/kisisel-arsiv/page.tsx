@@ -1003,7 +1003,7 @@ export default function KisiselArsivPage() {
       <div className="relative mx-auto flex max-w-5xl flex-col gap-5">
         <div>
           <Link
-            href="/dashboard"
+            href="/"
             className="inline-flex items-center gap-2 rounded-3xl border border-white/90 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-800 shadow-lg shadow-violet-200/30 ring-1 ring-violet-100/50 backdrop-blur-md transition hover:border-violet-200 hover:bg-white hover:text-violet-900"
           >
             ← Ana panele dön
