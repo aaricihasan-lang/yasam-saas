@@ -134,6 +134,14 @@ const dashboardModules: ModuleCard[] = [
     href: "/sifa-rehberi",
   },
   {
+    title: "Biyoenerji",
+    icon: "✨",
+    desc: "Aura, çakra, imajinasyon ve sembol dili çalışma alanı",
+    count: "Aktif",
+    badge: "Yeni",
+    href: "/dashboard/biyoenerji",
+  },
+  {
     title: "Numeroloji",
     icon: "🔢",
     desc: "Analiz, rapor ve kişisel yorum alanı",
