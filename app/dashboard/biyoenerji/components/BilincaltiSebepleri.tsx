@@ -11,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -70,6 +71,12 @@ function formatDate(iso: string) {
   }
 }
 
+function previewText(s: string | null, max = 200) {
+  const t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "Özet için henüz metin yok.";
+  return t.length <= max ? t : `${t.slice(0, max)}…`;
+}
+
 export default function BilincaltiSebepleri() {
   const [rows, setRows] = useState<SubconsciousCauseRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +86,8 @@ export default function BilincaltiSebepleri() {
   const [searchReason, setSearchReason] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SubconsciousCauseForm>({ ...emptyForm });
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -142,6 +151,11 @@ export default function BilincaltiSebepleri() {
     });
   }, [rows, searchIllness, searchCategory, searchReason]);
 
+  const selectedRow = useMemo(
+    () => (selectedId ? rows.find((x) => x.id === selectedId) ?? null : null),
+    [rows, selectedId],
+  );
+
   const moduleStats = useMemo(() => {
     const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
     const last = rows.length ? formatDate(rows[0].created_at) : "—";
@@ -149,7 +163,7 @@ export default function BilincaltiSebepleri() {
   }, [rows]);
 
   const hasSearch = Boolean(
-    searchIllness.trim() || searchCategory.trim() || searchReason.trim()
+    searchIllness.trim() || searchCategory.trim() || searchReason.trim(),
   );
 
   function fillFormFromRow(row: SubconsciousCauseRecord) {
@@ -167,7 +181,7 @@ export default function BilincaltiSebepleri() {
 
   function selectRow(row: SubconsciousCauseRecord) {
     setSelectedId(row.id);
-    fillFormFromRow(row);
+    setFormModalOpen(false);
     setInfoError("");
     setInfoSuccess("");
   }
@@ -177,11 +191,35 @@ export default function BilincaltiSebepleri() {
     setForm({ ...emptyForm });
   }
 
-  function handleTemizle() {
-    resetFormSelection();
+  function closeFormModal() {
+    setFormModalOpen(false);
+  }
+
+  function openCreateModal() {
+    setFormModalMode("create");
+    setForm({ ...emptyForm });
+    setSelectedId(null);
+    setFormModalOpen(true);
     setInfoError("");
-    setInfoSuccess("");
-    setDeleteConfirmOpen(false);
+  }
+
+  function openEditModal() {
+    if (!selectedRow) {
+      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+      return;
+    }
+    setFormModalMode("edit");
+    fillFormFromRow(selectedRow);
+    setFormModalOpen(true);
+    setInfoError("");
+  }
+
+  function modalTemizle() {
+    if (formModalMode === "create") {
+      setForm({ ...emptyForm });
+    } else if (selectedRow) {
+      fillFormFromRow(selectedRow);
+    }
   }
 
   async function handleKaydet() {
@@ -193,21 +231,17 @@ export default function BilincaltiSebepleri() {
 
     setSaving(true);
     setInfoError("");
-    const { data, error } = await supabase
-      .from("subconscious_causes")
-      .insert({
-        tenant_id: TENANT_ID,
-        illness_name: nameTrim,
-        category: trimOrNull(form.category),
-        subconscious_reason: trimOrNull(form.subconscious_reason),
-        emotional_pattern: trimOrNull(form.emotional_pattern),
-        affirmation: trimOrNull(form.affirmation),
-        healing_note: trimOrNull(form.healing_note),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
-      })
-      .select()
-      .single();
+    const { error } = await supabase.from("subconscious_causes").insert({
+      tenant_id: TENANT_ID,
+      illness_name: nameTrim,
+      category: trimOrNull(form.category),
+      subconscious_reason: trimOrNull(form.subconscious_reason),
+      emotional_pattern: trimOrNull(form.emotional_pattern),
+      affirmation: trimOrNull(form.affirmation),
+      healing_note: trimOrNull(form.healing_note),
+      source: trimOrNull(form.source),
+      note: trimOrNull(form.note),
+    });
 
     setSaving(false);
 
@@ -216,9 +250,8 @@ export default function BilincaltiSebepleri() {
       return;
     }
 
-    const inserted = data as SubconsciousCauseRecord;
-    setRows((prev) => [inserted, ...prev]);
-    resetFormSelection();
+    setFormModalOpen(false);
+    await loadRecords();
     showSoft("ok", "Kayıt oluşturuldu.");
   }
 
@@ -257,23 +290,8 @@ export default function BilincaltiSebepleri() {
       return;
     }
 
-    setRows((prev) =>
-      prev.map((x) =>
-        x.id === selectedId
-          ? {
-              ...x,
-              illness_name: nameTrim,
-              category: trimOrNull(form.category),
-              subconscious_reason: trimOrNull(form.subconscious_reason),
-              emotional_pattern: trimOrNull(form.emotional_pattern),
-              affirmation: trimOrNull(form.affirmation),
-              healing_note: trimOrNull(form.healing_note),
-              source: trimOrNull(form.source),
-              note: trimOrNull(form.note),
-            }
-          : x
-      )
-    );
+    setFormModalOpen(false);
+    await loadRecords();
     showSoft("ok", "Kayıt güncellendi.");
   }
 
@@ -305,10 +323,13 @@ export default function BilincaltiSebepleri() {
       return;
     }
 
-    setRows((prev) => prev.filter((x) => x.id !== selectedId));
+    await loadRecords();
     resetFormSelection();
     showSoft("ok", "Kayıt silindi.");
   }
+
+  const newRecordBtnClass =
+    "inline-flex shrink-0 items-center justify-center rounded-xl border border-fuchsia-200/70 bg-gradient-to-r from-fuchsia-50/95 via-white/90 to-violet-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-fuchsia-950 shadow-[0_6px_20px_-8px_rgba(192,38,211,0.2)] ring-1 ring-fuchsia-100/50 transition hover:border-fuchsia-300/80 active:scale-[0.98] sm:px-4";
 
   return (
     <section className={`${sectionShellClass} ring-fuchsia-100/35`}>
@@ -318,7 +339,7 @@ export default function BilincaltiSebepleri() {
             Hastalıkların Bilinçaltı Sebepleri
           </h2>
           <p className="mt-1 text-[12px] font-medium text-slate-500">
-            Kayıtları yönetin; listeden seçin, sağdan düzenleyin veya yeni ekleyin.
+            Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
           </p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
@@ -380,29 +401,34 @@ export default function BilincaltiSebepleri() {
         </div>
       )}
 
-      <div className="flex min-h-[min(70vh,640px)] flex-col gap-4 lg:flex-row lg:gap-6">
+      <div className="flex min-h-[min(68vh,560px)] flex-col gap-4 lg:flex-row lg:gap-6">
         <div
           className={`${listColumnClass} order-1 border-fuchsia-100/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(253,244,255,0.42)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_28px_-14px_rgba(192,38,211,0.06)] lg:order-none`}
         >
-          <div className="mb-2 flex items-center justify-between px-1">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-black uppercase tracking-wide text-fuchsia-700/90">
               Kayıtlar ({filteredRows.length})
             </span>
-            {loading ? (
-              <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {loading ? (
+                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
+              ) : null}
+              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                + Yeni Kayıt
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
             ) : filteredRows.length === 0 ? (
               <CrudEmptyState
-                icon="◇"
+                icon="◐"
                 title="Liste boş"
                 subtitle={
                   hasSearch
-                    ? "Aramayı güncelleyin veya yeni bir kayıt ekleyin."
-                    : "Henüz kayıt yok. Sağdaki formdan ilk kaydınızı oluşturabilirsiniz."
+                    ? "Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin."
+                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 }
                 tone="fuchsia"
               />
@@ -438,159 +464,224 @@ export default function BilincaltiSebepleri() {
           </div>
         </div>
 
-        <div className={`${formGlassPanelClass} order-2 border-fuchsia-100/35 ring-violet-100/30 lg:order-none`}>
-          <p className="mb-4 text-[11px] font-black uppercase tracking-wide text-slate-500">
-            {selectedId ? "Seçili kayıt — güncelleyebilir veya silebilirsiniz" : "Yeni kayıt"}
-          </p>
-          <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
-                Hastalık adı
-              </span>
-              <input
-                value={form.illness_name}
-                onChange={(e) => setForm((f) => ({ ...f, illness_name: e.target.value }))}
-                className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/90" />
-                Kategori
-              </span>
-              <div className={badgeFieldWrapClass("fuchsia")}>
-                <input
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                  placeholder="Örn. duygusal, travma…"
-                />
+        <div
+          className={`${formGlassPanelClass} order-2 min-h-[min(280px,42vh)] min-w-0 flex-1 border-fuchsia-100/35 ring-violet-100/30 lg:order-none`}
+        >
+          {selectedRow ? (
+            <>
+              <div className="mb-1 inline-flex rounded-full bg-fuchsia-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-fuchsia-900 ring-1 ring-fuchsia-200/45">
+                SEÇİLİ KAYIT
               </div>
-            </label>
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                  Bilinçaltı sebep
-                </span>
-              }
-              modalTitle="Bilinçaltı sebep"
-              value={form.subconscious_reason}
-              onChange={(v) => setForm((f) => ({ ...f, subconscious_reason: v }))}
-              minRows={4}
-              className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
-              disabled={saving}
-            />
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                  Duygusal örüntü
-                </span>
-              }
-              modalTitle="Duygusal örüntü"
-              value={form.emotional_pattern}
-              onChange={(v) => setForm((f) => ({ ...f, emotional_pattern: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
-              disabled={saving}
-            />
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                  Afirmasyon
-                </span>
-              }
-              modalTitle="Afirmasyon"
-              value={form.affirmation}
-              onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
-              disabled={saving}
-            />
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                  İyileşme notu
-                </span>
-              }
-              modalTitle="İyileşme notu"
-              value={form.healing_note}
-              onChange={(v) => setForm((f) => ({ ...f, healing_note: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
-              disabled={saving}
-            />
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-                Kaynak
-              </span>
-              <input
-                value={form.source}
-                onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-                className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
-              />
-            </label>
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                  Not
-                </span>
-              }
-              modalTitle="Not"
-              value={form.note}
-              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
-              disabled={saving}
-            />
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-2 border-t border-fuchsia-100/45 pt-5">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void handleKaydet()}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_14px_34px_-10px_rgba(16,185,129,0.4)] disabled:translate-y-0 disabled:opacity-55"
-            >
-              Kaydet
-            </button>
-            <button
-              type="button"
-              disabled={saving || !selectedId}
-              onClick={() => void handleGuncelle()}
-              className="rounded-xl border border-fuchsia-200/70 bg-fuchsia-50/90 px-4 py-2.5 text-[12px] font-black text-fuchsia-950 shadow-[0_6px_18px_-10px_rgba(192,38,211,0.2)] transition hover:-translate-y-0.5 hover:bg-fuchsia-100/90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Güncelle
-            </button>
-            <button
-              type="button"
-              disabled={saving || !selectedId}
-              onClick={openDeleteConfirm}
-              className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 shadow-[0_6px_18px_-10px_rgba(244,63,94,0.18)] transition hover:-translate-y-0.5 hover:bg-rose-100/90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Sil
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleTemizle}
-              className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-50/95 disabled:translate-y-0 disabled:opacity-55"
-            >
-              Temizle
-            </button>
-          </div>
+              <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
+                {selectedRow.illness_name?.trim() || "—"}
+              </h3>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+                <span>{formatDate(selectedRow.created_at)}</span>
+                {selectedRow.category?.trim() ? (
+                  <span className="rounded-full bg-gradient-to-r from-fuchsia-100/90 to-violet-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-fuchsia-950/90 ring-1 ring-fuchsia-200/45">
+                    {selectedRow.category}
+                  </span>
+                ) : null}
+                {selectedRow.source?.trim() ? (
+                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
+                    Kaynak: {selectedRow.source}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
+                {previewText(selectedRow.subconscious_reason)}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  className="rounded-xl border border-fuchsia-200/70 bg-fuchsia-50/90 px-4 py-2.5 text-[12px] font-black text-fuchsia-950 shadow-sm transition hover:bg-fuchsia-100/90"
+                >
+                  Güncelle
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={openDeleteConfirm}
+                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                >
+                  Sil
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 px-2 text-center">
+              <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
+                Soldan bir kayıt seçin veya yeni kayıt oluşturmak için üstteki düğmeyi kullanın.
+              </p>
+              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                + Yeni Kayıt
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      <BiyoenerjiCrudFormModal
+        open={formModalOpen}
+        onClose={closeFormModal}
+        title={formModalMode === "create" ? "Yeni bilinçaltı kaydı" : "Bilinçaltı kaydını düzenle"}
+        subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
+        titleId="subconscious-form-modal-title"
+        accentRingClass="ring-fuchsia-100/50"
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={closeFormModal}
+              className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={modalTemizle}
+              className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Temizle
+            </button>
+            {formModalMode === "create" ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleKaydet()}
+                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
+              >
+                {saving ? "Kaydediliyor…" : "Kaydet"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleGuncelle()}
+                className="rounded-xl border border-fuchsia-200/70 bg-fuchsia-50/90 px-4 py-2.5 text-[12px] font-black text-fuchsia-950 shadow-sm transition hover:bg-fuchsia-100/90 disabled:opacity-55"
+              >
+                {saving ? "Güncelleniyor…" : "Güncelle"}
+              </button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
+              Hastalık adı
+            </span>
+            <input
+              value={form.illness_name}
+              onChange={(e) => setForm((f) => ({ ...f, illness_name: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/90" />
+              Kategori
+            </span>
+            <div className={badgeFieldWrapClass("fuchsia")}>
+              <input
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                placeholder="Örn. duygusal, travma…"
+              />
+            </div>
+          </label>
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+                Bilinçaltı sebep
+              </span>
+            }
+            modalTitle="Bilinçaltı sebep"
+            value={form.subconscious_reason}
+            onChange={(v) => setForm((f) => ({ ...f, subconscious_reason: v }))}
+            minRows={4}
+            className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
+                Duygusal örüntü
+              </span>
+            }
+            modalTitle="Duygusal örüntü"
+            value={form.emotional_pattern}
+            onChange={(v) => setForm((f) => ({ ...f, emotional_pattern: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
+                Afirmasyon
+              </span>
+            }
+            modalTitle="Afirmasyon"
+            value={form.affirmation}
+            onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
+                İyileşme notu
+              </span>
+            }
+            modalTitle="İyileşme notu"
+            value={form.healing_note}
+            onChange={(v) => setForm((f) => ({ ...f, healing_note: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
+            disabled={saving}
+          />
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
+              Kaynak
+            </span>
+            <input
+              value={form.source}
+              onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
+            />
+          </label>
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                Not
+              </span>
+            }
+            modalTitle="Not"
+            value={form.note}
+            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
+            disabled={saving}
+          />
+        </div>
+      </BiyoenerjiCrudFormModal>
+
       {deleteConfirmOpen ? (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
+          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
           role="presentation"
           onClick={() => !saving && setDeleteConfirmOpen(false)}
         >

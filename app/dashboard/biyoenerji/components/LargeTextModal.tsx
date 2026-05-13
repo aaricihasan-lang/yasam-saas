@@ -129,7 +129,7 @@ export function LargeTextModal({
 
   const overlay = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-md sm:p-6"
+      className="fixed inset-0 z-[10150] flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-md sm:p-6"
       role="presentation"
       onClick={onDismiss}
     >

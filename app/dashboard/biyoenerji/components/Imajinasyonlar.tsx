@@ -11,6 +11,7 @@ import {
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
+import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -73,6 +74,12 @@ function formatDate(iso: string) {
   }
 }
 
+function previewText(s: string | null, max = 200) {
+  const t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "Özet için henüz metin yok.";
+  return t.length <= max ? t : `${t.slice(0, max)}…`;
+}
+
 export default function Imajinasyonlar() {
   const [rows, setRows] = useState<BioImaginationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +90,8 @@ export default function Imajinasyonlar() {
   const [searchImagination, setSearchImagination] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<BioImaginationForm>({ ...emptyForm });
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -149,6 +158,11 @@ export default function Imajinasyonlar() {
     });
   }, [rows, searchTitle, searchCategory, searchPurpose, searchImagination]);
 
+  const selectedRow = useMemo(
+    () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
+    [rows, selectedId],
+  );
+
   const moduleStats = useMemo(() => {
     const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
     const last = rows.length ? formatDate(rows[0].created_at) : "—";
@@ -159,7 +173,7 @@ export default function Imajinasyonlar() {
     searchTitle.trim() ||
       searchCategory.trim() ||
       searchPurpose.trim() ||
-      searchImagination.trim()
+      searchImagination.trim(),
   );
 
   function fillFormFromRow(row: BioImaginationRecord) {
@@ -178,7 +192,7 @@ export default function Imajinasyonlar() {
 
   function selectRow(row: BioImaginationRecord) {
     setSelectedId(row.id);
-    fillFormFromRow(row);
+    setFormModalOpen(false);
     setInfoError("");
     setInfoSuccess("");
   }
@@ -188,11 +202,35 @@ export default function Imajinasyonlar() {
     setForm({ ...emptyForm });
   }
 
-  function handleTemizle() {
-    resetFormSelection();
+  function closeFormModal() {
+    setFormModalOpen(false);
+  }
+
+  function openCreateModal() {
+    setFormModalMode("create");
+    setForm({ ...emptyForm });
+    setSelectedId(null);
+    setFormModalOpen(true);
     setInfoError("");
-    setInfoSuccess("");
-    setDeleteConfirmOpen(false);
+  }
+
+  function openEditModal() {
+    if (!selectedRow) {
+      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+      return;
+    }
+    setFormModalMode("edit");
+    fillFormFromRow(selectedRow);
+    setFormModalOpen(true);
+    setInfoError("");
+  }
+
+  function modalTemizle() {
+    if (formModalMode === "create") {
+      setForm({ ...emptyForm });
+    } else if (selectedRow) {
+      fillFormFromRow(selectedRow);
+    }
   }
 
   async function handleKaydet() {
@@ -204,22 +242,18 @@ export default function Imajinasyonlar() {
 
     setSaving(true);
     setInfoError("");
-    const { data, error } = await supabase
-      .from("bio_imaginations")
-      .insert({
-        tenant_id: TENANT_ID,
-        title: titleTrim,
-        category: trimOrNull(form.category),
-        purpose: trimOrNull(form.purpose),
-        preparation: trimOrNull(form.preparation),
-        imagination_text: trimOrNull(form.imagination_text),
-        duration: trimOrNull(form.duration),
-        warning: trimOrNull(form.warning),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
-      })
-      .select()
-      .single();
+    const { error } = await supabase.from("bio_imaginations").insert({
+      tenant_id: TENANT_ID,
+      title: titleTrim,
+      category: trimOrNull(form.category),
+      purpose: trimOrNull(form.purpose),
+      preparation: trimOrNull(form.preparation),
+      imagination_text: trimOrNull(form.imagination_text),
+      duration: trimOrNull(form.duration),
+      warning: trimOrNull(form.warning),
+      source: trimOrNull(form.source),
+      note: trimOrNull(form.note),
+    });
 
     setSaving(false);
 
@@ -228,9 +262,8 @@ export default function Imajinasyonlar() {
       return;
     }
 
-    const inserted = data as BioImaginationRecord;
-    setRows((prev) => [inserted, ...prev]);
-    resetFormSelection();
+    setFormModalOpen(false);
+    await loadRecords();
     showSoft("ok", "İmajinasyon kaydı oluşturuldu.");
   }
 
@@ -270,24 +303,8 @@ export default function Imajinasyonlar() {
       return;
     }
 
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === selectedId
-          ? {
-              ...r,
-              title: titleTrim,
-              category: trimOrNull(form.category),
-              purpose: trimOrNull(form.purpose),
-              preparation: trimOrNull(form.preparation),
-              imagination_text: trimOrNull(form.imagination_text),
-              duration: trimOrNull(form.duration),
-              warning: trimOrNull(form.warning),
-              source: trimOrNull(form.source),
-              note: trimOrNull(form.note),
-            }
-          : r
-      )
-    );
+    setFormModalOpen(false);
+    await loadRecords();
     showSoft("ok", "Kayıt güncellendi.");
   }
 
@@ -319,10 +336,13 @@ export default function Imajinasyonlar() {
       return;
     }
 
-    setRows((prev) => prev.filter((r) => r.id !== selectedId));
+    await loadRecords();
     resetFormSelection();
     showSoft("ok", "Kayıt silindi.");
   }
+
+  const newRecordBtnClass =
+    "inline-flex shrink-0 items-center justify-center rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-50/95 via-white/90 to-orange-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-amber-950 shadow-[0_6px_20px_-8px_rgba(217,119,6,0.2)] ring-1 ring-amber-100/50 transition hover:border-amber-300/80 active:scale-[0.98] sm:px-4";
 
   return (
     <section className={`${sectionShellClass} ring-amber-100/35`}>
@@ -330,7 +350,7 @@ export default function Imajinasyonlar() {
         <div>
           <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">İmajinasyonlar</h2>
           <p className="mt-1 text-[12px] font-medium text-slate-500">
-            Kayıtları yönetin; listeden seçin, sağdan düzenleyin veya yeni ekleyin.
+            Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
           </p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
@@ -403,17 +423,22 @@ export default function Imajinasyonlar() {
         </div>
       )}
 
-      <div className="flex min-h-[min(70vh,640px)] flex-col gap-4 lg:flex-row lg:gap-6">
+      <div className="flex min-h-[min(68vh,560px)] flex-col gap-4 lg:flex-row lg:gap-6">
         <div
           className={`${listColumnClass} order-1 border-amber-100/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(255,251,235,0.45)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_28px_-14px_rgba(217,119,6,0.06)] lg:order-none`}
         >
-          <div className="mb-2 flex items-center justify-between px-1">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-black uppercase tracking-wide text-amber-800/90">
               Kayıtlar ({filteredRows.length})
             </span>
-            {loading ? (
-              <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {loading ? (
+                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
+              ) : null}
+              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                + Yeni Kayıt
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
@@ -424,8 +449,8 @@ export default function Imajinasyonlar() {
                 title="Liste boş"
                 subtitle={
                   hasSearch
-                    ? "Aramayı güncelleyin veya yeni bir imajinasyon kaydı ekleyin."
-                    : "Henüz kayıt yok. Sağdaki formdan ilk kaydınızı oluşturabilirsiniz."
+                    ? "Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin."
+                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 }
                 tone="amber"
               />
@@ -461,170 +486,240 @@ export default function Imajinasyonlar() {
           </div>
         </div>
 
-        <div className={`${formGlassPanelClass} order-2 border-amber-100/35 ring-rose-100/25 lg:order-none`}>
-          <p className="mb-4 text-[11px] font-black uppercase tracking-wide text-slate-500">
-            {selectedId ? "Seçili kayıt — güncelleyebilir veya silebilirsiniz" : "Yeni kayıt"}
-          </p>
-          <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
-                İmajinasyon Başlığı
-              </span>
-              <input
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-                Kategori
-              </span>
-              <div className={badgeFieldWrapClass("amber")}>
-                <input
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                  placeholder="Örn. gevşeme, şifa…"
-                />
+        <div
+          className={`${formGlassPanelClass} order-2 min-h-[min(280px,42vh)] min-w-0 flex-1 border-amber-100/35 ring-rose-100/25 lg:order-none`}
+        >
+          {selectedRow ? (
+            <>
+              <div className="mb-1 inline-flex rounded-full bg-amber-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-amber-950 ring-1 ring-amber-200/45">
+                SEÇİLİ KAYIT
               </div>
-            </label>
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                  Amaç
-                </span>
-              }
-              modalTitle="Amaç"
-              value={form.purpose}
-              onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
-              disabled={saving}
-            />
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
-                  Hazırlık
-                </span>
-              }
-              modalTitle="Hazırlık"
-              value={form.preparation}
-              onChange={(v) => setForm((f) => ({ ...f, preparation: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
-              disabled={saving}
-            />
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                  İmajinasyon Metni
-                </span>
-              }
-              modalTitle="İmajinasyon Metni"
-              value={form.imagination_text}
-              onChange={(v) => setForm((f) => ({ ...f, imagination_text: v }))}
-              minRows={5}
-              className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
-              disabled={saving}
-            />
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-500/85" />
-                Süre
-              </span>
-              <input
-                value={form.duration}
-                onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                className="h-12 w-full rounded-xl border border-teal-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
-              />
-            </label>
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
-                  Uyarı
-                </span>
-              }
-              modalTitle="Uyarı"
-              value={form.warning}
-              onChange={(v) => setForm((f) => ({ ...f, warning: v }))}
-              minRows={2}
-              className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-red-100/50 transition"
-              disabled={saving}
-            />
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600/80" />
-                Kaynak
-              </span>
-              <input
-                value={form.source}
-                onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-                className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
-              />
-            </label>
-            <LongTextareaField
-              label={
-                <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                  Not
-                </span>
-              }
-              modalTitle="Not"
-              value={form.note}
-              onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-              minRows={3}
-              className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
-              disabled={saving}
-            />
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-2 border-t border-amber-100/45 pt-5">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void handleKaydet()}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_14px_34px_-10px_rgba(16,185,129,0.4)] disabled:translate-y-0 disabled:opacity-55"
-            >
-              Kaydet
-            </button>
-            <button
-              type="button"
-              disabled={saving || !selectedId}
-              onClick={() => void handleGuncelle()}
-              className="rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-2.5 text-[12px] font-black text-amber-950 shadow-[0_6px_18px_-10px_rgba(217,119,6,0.2)] transition hover:-translate-y-0.5 hover:bg-amber-100/90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Güncelle
-            </button>
-            <button
-              type="button"
-              disabled={saving || !selectedId}
-              onClick={openDeleteConfirm}
-              className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 shadow-[0_6px_18px_-10px_rgba(244,63,94,0.18)] transition hover:-translate-y-0.5 hover:bg-rose-100/90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              Sil
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleTemizle}
-              className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-50/95 disabled:translate-y-0 disabled:opacity-55"
-            >
-              Temizle
-            </button>
-          </div>
+              <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
+                {selectedRow.title?.trim() || "—"}
+              </h3>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+                <span>{formatDate(selectedRow.created_at)}</span>
+                {selectedRow.category?.trim() ? (
+                  <span className="rounded-full bg-gradient-to-r from-amber-100/90 to-orange-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950/90 ring-1 ring-amber-200/45">
+                    {selectedRow.category}
+                  </span>
+                ) : null}
+                {selectedRow.duration?.trim() ? (
+                  <span className="rounded-full border border-teal-100/80 bg-teal-50/80 px-2 py-0.5 text-[10px] font-black text-teal-950/90">
+                    Süre: {selectedRow.duration}
+                  </span>
+                ) : null}
+                {selectedRow.source?.trim() ? (
+                  <span className="rounded-full border border-emerald-100/80 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-black text-emerald-950/90">
+                    Kaynak: {selectedRow.source}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
+                {previewText(selectedRow.imagination_text ?? selectedRow.purpose)}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  className="rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-2.5 text-[12px] font-black text-amber-950 shadow-sm transition hover:bg-amber-100/90"
+                >
+                  Güncelle
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={openDeleteConfirm}
+                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                >
+                  Sil
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 px-2 text-center">
+              <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
+                Soldan bir kayıt seçin veya yeni imajinasyon eklemek için üstteki düğmeyi kullanın.
+              </p>
+              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                + Yeni Kayıt
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      <BiyoenerjiCrudFormModal
+        open={formModalOpen}
+        onClose={closeFormModal}
+        title={formModalMode === "create" ? "Yeni imajinasyon" : "İmajinasyonu düzenle"}
+        subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
+        titleId="imagination-form-modal-title"
+        accentRingClass="ring-amber-100/50"
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={closeFormModal}
+              className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={modalTemizle}
+              className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Temizle
+            </button>
+            {formModalMode === "create" ? (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleKaydet()}
+                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
+              >
+                {saving ? "Kaydediliyor…" : "Kaydet"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleGuncelle()}
+                className="rounded-xl border border-amber-200/70 bg-amber-50/90 px-4 py-2.5 text-[12px] font-black text-amber-950 shadow-sm transition hover:bg-amber-100/90 disabled:opacity-55"
+              >
+                {saving ? "Güncelleniyor…" : "Güncelle"}
+              </button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
+              İmajinasyon Başlığı
+            </span>
+            <input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
+              Kategori
+            </span>
+            <div className={badgeFieldWrapClass("amber")}>
+              <input
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                placeholder="Örn. gevşeme, şifa…"
+              />
+            </div>
+          </label>
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
+                Amaç
+              </span>
+            }
+            modalTitle="Amaç"
+            value={form.purpose}
+            onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
+                Hazırlık
+              </span>
+            }
+            modalTitle="Hazırlık"
+            value={form.preparation}
+            onChange={(v) => setForm((f) => ({ ...f, preparation: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+                İmajinasyon Metni
+              </span>
+            }
+            modalTitle="İmajinasyon Metni"
+            value={form.imagination_text}
+            onChange={(v) => setForm((f) => ({ ...f, imagination_text: v }))}
+            minRows={5}
+            className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+            disabled={saving}
+          />
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-500/85" />
+              Süre
+            </span>
+            <input
+              value={form.duration}
+              onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-teal-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
+            />
+          </label>
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
+                Uyarı
+              </span>
+            }
+            modalTitle="Uyarı"
+            value={form.warning}
+            onChange={(v) => setForm((f) => ({ ...f, warning: v }))}
+            minRows={2}
+            className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-red-100/50 transition"
+            disabled={saving}
+          />
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600/80" />
+              Kaynak
+            </span>
+            <input
+              value={form.source}
+              onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
+            />
+          </label>
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                Not
+              </span>
+            }
+            modalTitle="Not"
+            value={form.note}
+            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
+            disabled={saving}
+          />
+        </div>
+      </BiyoenerjiCrudFormModal>
+
       {deleteConfirmOpen ? (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
+          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
           role="presentation"
           onClick={() => !saving && setDeleteConfirmOpen(false)}
         >
