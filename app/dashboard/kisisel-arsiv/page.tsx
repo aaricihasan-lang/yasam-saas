@@ -11,12 +11,10 @@ import {
 import { supabase } from "@/lib/supabase";
 
 /**
- * Supabase beklenen yapı:
- * - public.personal_archives: id uuid PK, created_at timestamptz, tenant_id uuid,
- *   title text, category text, tags text null, notes text null
- * - public.personal_archive_files: id uuid PK, created_at timestamptz, archive_id uuid FK → personal_archives,
- *   storage_path text, file_name text, mime_type text null, size_bytes bigint null
- * - storage bucket: personal-archive
+ * Supabase kolonları:
+ * personal_archives: id, tenant_id, title, category, tags, note, created_at, updated_at
+ * personal_archive_files: id, tenant_id, archive_id, file_name, file_path, file_type, file_size, created_at
+ * storage bucket: personal-archive (file_path storage içindeki yol ile uyumlu olmalı)
  */
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -36,15 +34,27 @@ const CATEGORIES = [
   "Diğer",
 ] as const;
 
+type ArchiveFileRow = {
+  id: string;
+  tenant_id: string;
+  archive_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  created_at: string;
+};
+
 type ArchiveRow = {
   id: string;
-  created_at: string;
-  tenant_id?: string;
+  tenant_id: string;
   title: string;
   category: string;
   tags: string | null;
-  notes: string | null;
-  personal_archive_files?: { id: string; file_name: string | null }[] | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+  personal_archive_files?: ArchiveFileRow[] | null;
 };
 
 function formatTrDate(iso: string) {
@@ -61,8 +71,8 @@ function formatTrDate(iso: string) {
   }
 }
 
-function notePreview(notes: string | null, max = 120) {
-  const t = (notes ?? "").replace(/\s+/g, " ").trim();
+function notePreview(note: string | null, max = 120) {
+  const t = (note ?? "").replace(/\s+/g, " ").trim();
   if (!t) return "—";
   return t.length <= max ? t : `${t.slice(0, max)}…`;
 }
@@ -77,7 +87,7 @@ export default function KisiselArsivPage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [tags, setTags] = useState("");
-  const [notes, setNotes] = useState("");
+  const [note, setNote] = useState("");
   const [files, setFiles] = useState<File[]>([]);
 
   const [rows, setRows] = useState<ArchiveRow[]>([]);
@@ -94,7 +104,7 @@ export default function KisiselArsivPage() {
     const { data, error } = await supabase
       .from("personal_archives")
       .select(
-        "id, created_at, tenant_id, title, category, tags, notes, personal_archive_files ( id, file_name )",
+        "id, tenant_id, title, category, tags, note, created_at, updated_at, personal_archive_files ( id, tenant_id, archive_id, file_name, file_path, file_type, file_size, created_at )",
       )
       .eq("tenant_id", TENANT_ID)
       .order("created_at", { ascending: false });
@@ -102,6 +112,7 @@ export default function KisiselArsivPage() {
     setLoadingList(false);
 
     if (error) {
+      console.error("[kisisel-arsiv] personal_archives list", error);
       setInfo({
         kind: "err",
         text: "Kayıtlar yüklenemedi. Lütfen daha sonra tekrar deneyin.",
@@ -126,7 +137,7 @@ export default function KisiselArsivPage() {
         row.title,
         row.category,
         row.tags ?? "",
-        row.notes ?? "",
+        row.note ?? "",
         ...(row.personal_archive_files ?? []).map((f) => f.file_name ?? ""),
       ]
         .join(" ")
@@ -149,7 +160,7 @@ export default function KisiselArsivPage() {
     setTitle("");
     setCategory(CATEGORIES[0]);
     setTags("");
-    setNotes("");
+    setNote("");
     setFiles([]);
   }
 
@@ -175,12 +186,13 @@ export default function KisiselArsivPage() {
         title: title.trim(),
         category,
         tags: tags.trim() || null,
-        notes: notes.trim() || null,
+        note: note.trim() || null,
       })
       .select("id")
       .single();
 
     if (insErr || !inserted?.id) {
+      console.error("[kisisel-arsiv] personal_archives insert", insErr);
       setSaving(false);
       setInfo({
         kind: "err",
@@ -201,19 +213,22 @@ export default function KisiselArsivPage() {
         .upload(path, file, { upsert: false });
 
       if (upErr) {
+        console.error("[kisisel-arsiv] storage upload", { path, error: upErr });
         uploadHadFailure = true;
         continue;
       }
 
       const { error: metaErr } = await supabase.from("personal_archive_files").insert({
+        tenant_id: TENANT_ID,
         archive_id: archiveId,
-        storage_path: path,
         file_name: file.name,
-        mime_type: file.type || null,
-        size_bytes: file.size,
+        file_path: path,
+        file_type: file.type || null,
+        file_size: file.size,
       });
 
       if (metaErr) {
+        console.error("[kisisel-arsiv] personal_archive_files insert", metaErr);
         uploadHadFailure = true;
         void supabase.storage.from("personal-archive").remove([path]);
       }
@@ -346,7 +361,7 @@ export default function KisiselArsivPage() {
                     </span>
                   </div>
                   <p className="mt-3 text-[13px] font-medium leading-relaxed text-slate-600">
-                    {notePreview(row.notes)}
+                    {notePreview(row.note)}
                   </p>
                   {row.tags?.trim() ? (
                     <p className="mt-2 text-[11px] font-semibold text-violet-700/90">
@@ -427,8 +442,8 @@ export default function KisiselArsivPage() {
               <label className="block min-w-0">
                 <span className={labelClass}>Not</span>
                 <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
                   rows={4}
                   className={`${inputClass} min-h-[6.5rem] resize-y`}
                   placeholder="Kısa açıklama veya bağlam…"
