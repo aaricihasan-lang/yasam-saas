@@ -1093,35 +1093,60 @@ export default function KisiselArsivPage() {
             aria-hidden
           />
           <div className="p-5 sm:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-[16px] font-black tracking-tight text-slate-900">
-                  Kayıtlar
+            <div className="flex flex-col gap-4 sm:gap-5">
+              <div className="flex w-full items-center justify-center gap-2.5 px-1 sm:gap-4">
+                <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-indigo-500 shadow-sm ring-1 ring-violet-200/80 sm:h-2.5 sm:w-2.5"
+                    aria-hidden
+                  />
+                  <div
+                    className="h-[3px] min-w-[2.5rem] flex-1 max-w-[6rem] rounded-full bg-gradient-to-r from-violet-600 via-violet-500 to-sky-500 opacity-95 shadow-sm sm:max-w-none"
+                    aria-hidden
+                  />
+                </div>
+                <h2 className="shrink-0 text-center text-3xl font-black tracking-wide">
+                  <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-sky-500 bg-clip-text text-transparent">
+                    KAYITLAR
+                  </span>
                 </h2>
-                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-600">
+                <div className="flex min-w-0 flex-1 items-center justify-start gap-2 sm:gap-2.5">
+                  <div
+                    className="h-[3px] min-w-[2.5rem] flex-1 max-w-[6rem] rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 opacity-95 shadow-sm sm:max-w-none"
+                    aria-hidden
+                  />
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-sky-400 via-teal-400 to-emerald-500 shadow-sm ring-1 ring-emerald-200/80 sm:h-2.5 sm:w-2.5"
+                    aria-hidden
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <p className="text-[12px] font-semibold leading-relaxed text-slate-600 sm:max-w-xl">
                   En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında çalışır;
                   birden fazla kelime yazarsanız tüm kelimeler eşleşmelidir. Türkçe harf ve
                   noktalama farkları tolere edilir.
                 </p>
+                <label className="block w-full min-w-0 sm:max-w-xs">
+                  <span className={searchLabelClass}>Ara</span>
+                  <div className="relative">
+                    <span
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] opacity-80"
+                      aria-hidden
+                    >
+                      🔎
+                    </span>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className={searchInputClass}
+                      placeholder="Kelime yazın…"
+                      type="search"
+                    />
+                  </div>
+                </label>
               </div>
-              <label className="block w-full min-w-0 sm:max-w-xs">
-                <span className={searchLabelClass}>Ara</span>
-                <div className="relative">
-                  <span
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] opacity-80"
-                    aria-hidden
-                  >
-                    🔎
-                  </span>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className={searchInputClass}
-                    placeholder="Kelime yazın…"
-                    type="search"
-                  />
-                </div>
-              </label>
             </div>
 
             <div className="mt-5 space-y-3">
