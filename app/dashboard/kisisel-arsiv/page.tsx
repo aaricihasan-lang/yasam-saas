@@ -77,6 +77,24 @@ type ArchiveRow = {
   personal_archive_files?: ArchiveFileRow[] | null;
 };
 
+type ArchiveRowWithoutFiles = Omit<ArchiveRow, "personal_archive_files">;
+
+function mergeArchivesWithFiles(
+  archives: ArchiveRowWithoutFiles[],
+  files: ArchiveFileRow[],
+): ArchiveRow[] {
+  const map = new Map<string, ArchiveFileRow[]>();
+  for (const f of files) {
+    const list = map.get(f.archive_id);
+    if (list) list.push(f);
+    else map.set(f.archive_id, [f]);
+  }
+  return archives.map((a) => ({
+    ...a,
+    personal_archive_files: map.get(a.id) ?? [],
+  }));
+}
+
 function formatTrDate(iso: string) {
   try {
     return new Intl.DateTimeFormat("tr-TR", {
@@ -243,16 +261,17 @@ function ArchiveFilePreview({
 }
 
 export default function KisiselArsivPage() {
-  const [formOpen, setFormOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [tags, setTags] = useState("");
   const [note, setNote] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const [rows, setRows] = useState<ArchiveRow[]>([]);
+  const [records, setRecords] = useState<ArchiveRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -263,69 +282,107 @@ export default function KisiselArsivPage() {
   const [info, setInfo] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null,
   );
-  const [saveSuccessToast, setSaveSuccessToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const detailRow = useMemo(
-    () => rows.find((r) => r.id === detailId) ?? null,
-    [rows, detailId],
+    () => records.find((r) => r.id === detailId) ?? null,
+    [records, detailId],
   );
 
+  const showSuccessToast = useCallback((message: string) => {
+    if (toastClearTimerRef.current) {
+      clearTimeout(toastClearTimerRef.current);
+      toastClearTimerRef.current = null;
+    }
+    setToastMessage(message);
+    toastClearTimerRef.current = setTimeout(() => {
+      setToastMessage("");
+      toastClearTimerRef.current = null;
+    }, 1000);
+  }, []);
+
   useEffect(() => {
-    const lock = formOpen || detailId !== null || lightboxUrl !== null;
+    return () => {
+      if (toastClearTimerRef.current) {
+        clearTimeout(toastClearTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const lock = isCreateModalOpen || detailId !== null || lightboxUrl !== null;
     if (!lock) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [formOpen, detailId, lightboxUrl]);
+  }, [isCreateModalOpen, detailId, lightboxUrl]);
 
-  useEffect(() => {
-    if (!saveSuccessToast) return;
-    const t = window.setTimeout(() => setSaveSuccessToast(false), 1000);
-    return () => window.clearTimeout(t);
-  }, [saveSuccessToast]);
-
-  const loadRows = useCallback(async () => {
+  const loadRecords = useCallback(async () => {
     setLoadingList(true);
 
-    const { data, error } = await supabase
+    const { data: archivesRaw, error: archErr } = await supabase
       .from("personal_archives")
-      .select(
-        "id, tenant_id, title, category, tags, note, created_at, updated_at, personal_archive_files ( id, tenant_id, archive_id, file_name, file_path, file_type, file_size, created_at )",
-      )
+      .select("*")
       .eq("tenant_id", TENANT_ID)
       .order("created_at", { ascending: false });
 
-    setLoadingList(false);
-
-    if (error) {
-      console.error("[kisisel-arsiv] personal_archives list", error);
+    if (archErr) {
+      console.error("[kisisel-arsiv] personal_archives list", archErr);
+      setLoadingList(false);
       setInfo({
         kind: "err",
         text: "Kayıtlar yüklenemedi. Lütfen daha sonra tekrar deneyin.",
       });
-      setRows([]);
       return;
     }
 
-    setRows((data ?? []) as ArchiveRow[]);
+    const archives = (archivesRaw ?? []) as ArchiveRowWithoutFiles[];
+    const archiveIds = archives.map((a) => a.id);
+    const allFiles: ArchiveFileRow[] = [];
+
+    if (archiveIds.length > 0) {
+      const CHUNK = 100;
+      for (let i = 0; i < archiveIds.length; i += CHUNK) {
+        const slice = archiveIds.slice(i, i + CHUNK);
+        const { data: filesRaw, error: filesErr } = await supabase
+          .from("personal_archive_files")
+          .select("*")
+          .eq("tenant_id", TENANT_ID)
+          .in("archive_id", slice);
+
+        if (filesErr) {
+          console.error("[kisisel-arsiv] personal_archive_files list", filesErr);
+          setLoadingList(false);
+          setInfo({
+            kind: "err",
+            text: "Kayıtlar yüklenemedi. Lütfen daha sonra tekrar deneyin.",
+          });
+          return;
+        }
+        allFiles.push(...((filesRaw ?? []) as ArchiveFileRow[]));
+      }
+    }
+
+    setRecords(mergeArchivesWithFiles(archives, allFiles));
+    setLoadingList(false);
   }, []);
 
   useEffect(() => {
-    void loadRows();
-  }, [loadRows]);
+    void loadRecords();
+  }, [loadRecords]);
 
-  const rowsByCategory = useMemo(() => {
-    if (categoryFilter === CATEGORY_FILTER_ALL) return rows;
-    return rows.filter((row) => row.category === categoryFilter);
-  }, [rows, categoryFilter]);
+  const recordsByCategory = useMemo(() => {
+    if (categoryFilter === CATEGORY_FILTER_ALL) return records;
+    return records.filter((row) => row.category === categoryFilter);
+  }, [records, categoryFilter]);
 
   const visibleRows = useMemo(() => {
     const q = search.trim();
-    if (!q) return rowsByCategory;
+    if (!q) return recordsByCategory;
     const nq = normTr(q);
-    return rowsByCategory.filter((row) => {
+    return recordsByCategory.filter((row) => {
       const hay = [
         row.title,
         row.category,
@@ -337,7 +394,7 @@ export default function KisiselArsivPage() {
         .trim();
       return normTr(hay).includes(nq);
     });
-  }, [rowsByCategory, search]);
+  }, [recordsByCategory, search]);
 
   const fileCount = useCallback((row: ArchiveRow) => {
     const f = row.personal_archive_files;
@@ -347,34 +404,34 @@ export default function KisiselArsivPage() {
   const stats = useMemo(() => {
     let totalFiles = 0;
     const categorySet = new Set<string>();
-    for (const row of rows) {
+    for (const row of records) {
       totalFiles += fileCount(row);
       categorySet.add(row.category);
     }
     return {
-      totalArchives: rows.length,
+      totalArchives: records.length,
       totalFiles,
       categoryKinds: categorySet.size,
     };
-  }, [rows, fileCount]);
+  }, [records, fileCount]);
 
   const canSave = useMemo(
     () => title.trim().length > 0 && !saving,
     [title, saving],
   );
 
-  function resetFormFields() {
+  function resetForm() {
     setTitle("");
-    setCategory(CATEGORIES[0]);
+    setCategory("Diğer");
     setTags("");
     setNote("");
-    setFiles([]);
+    setSelectedFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function closeForm() {
-    setFormOpen(false);
-    resetFormFields();
+  function closeCreateModal() {
+    setIsCreateModalOpen(false);
+    resetForm();
   }
 
   function closeDetail() {
@@ -431,7 +488,7 @@ export default function KisiselArsivPage() {
       }
 
       if (detailId === row.id) closeDetail();
-      await loadRows();
+      await loadRecords();
       setInfo({ kind: "ok", text: "Kayıt silindi." });
     } catch (e) {
       console.error("[kisisel-arsiv] delete archive", e);
@@ -486,7 +543,7 @@ export default function KisiselArsivPage() {
       return;
     }
 
-    for (const file of files) {
+    for (const file of selectedFiles) {
       const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
       const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${safeName}`;
 
@@ -514,11 +571,12 @@ export default function KisiselArsivPage() {
       }
     }
 
+    await loadRecords();
+    resetForm();
+    setIsCreateModalOpen(false);
+    showSuccessToast("Kayıt başarıyla eklendi.");
     setSaving(false);
-    closeForm();
     setInfo(null);
-    await loadRows();
-    setSaveSuccessToast(true);
   }
 
   const searchInputClass =
@@ -542,13 +600,13 @@ export default function KisiselArsivPage() {
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
-      {saveSuccessToast ? (
+      {toastMessage ? (
         <div
           role="status"
           aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-5 z-[200] w-[min(92%,22rem)] -translate-x-1/2 rounded-3xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 px-5 py-3.5 text-center text-[13px] font-black text-emerald-950 shadow-2xl shadow-emerald-300/40 ring-2 ring-white/80"
+          className="pointer-events-none fixed left-1/2 top-5 z-[9999] w-[min(92%,22rem)] -translate-x-1/2 rounded-3xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 px-5 py-3.5 text-center text-[13px] font-black text-emerald-950 shadow-2xl shadow-emerald-300/40 ring-2 ring-white/80"
         >
-          Kayıt başarıyla eklendi.
+          {toastMessage}
         </div>
       ) : null}
       <div
@@ -596,12 +654,12 @@ export default function KisiselArsivPage() {
                   </p>
                 </div>
               </div>
-              {!formOpen ? (
+              {!isCreateModalOpen ? (
                 <button
                   type="button"
                   onClick={() => {
                     setInfo(null);
-                    setFormOpen(true);
+                    setIsCreateModalOpen(true);
                   }}
                   className="shrink-0 self-start rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-5 py-3.5 text-[12px] font-black uppercase tracking-wide text-white shadow-[0_14px_40px_-8px_rgba(109,40,217,0.55)] ring-2 ring-white/50 transition hover:brightness-110 active:scale-[0.98]"
                 >
@@ -716,7 +774,7 @@ export default function KisiselArsivPage() {
                 <p className="py-12 text-center text-[14px] font-semibold text-slate-500">
                   Yükleniyor…
                 </p>
-              ) : rows.length === 0 ? (
+              ) : records.length === 0 ? (
                 <div className="rounded-3xl border-2 border-dashed border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-sky-50/60 px-5 py-14 text-center shadow-inner ring-1 ring-violet-100/50">
                   <div
                     className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-4xl shadow-lg shadow-violet-200/40 ring-2 ring-violet-100/80"
@@ -732,7 +790,7 @@ export default function KisiselArsivPage() {
                     yerde toplayın.
                   </p>
                 </div>
-              ) : rowsByCategory.length === 0 ? (
+              ) : recordsByCategory.length === 0 ? (
                 <div className="rounded-3xl border-2 border-dashed border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-white px-5 py-12 text-center shadow-inner ring-1 ring-amber-100/50">
                   <p className="text-[15px] font-black text-slate-900">
                     Bu kategoride kayıt yok
@@ -808,7 +866,7 @@ export default function KisiselArsivPage() {
         </section>
       </div>
 
-      {formOpen ? (
+      {isCreateModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-3 py-6 sm:px-5 sm:py-10"
           role="presentation"
@@ -819,7 +877,7 @@ export default function KisiselArsivPage() {
             onClick={() => {
               if (saving) return;
               setInfo(null);
-              closeForm();
+              closeCreateModal();
             }}
           />
           <div
@@ -855,7 +913,7 @@ export default function KisiselArsivPage() {
                 onClick={() => {
                   if (saving) return;
                   setInfo(null);
-                  closeForm();
+                  closeCreateModal();
                 }}
                 className="absolute right-3 top-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl border border-white/90 bg-white/90 text-xl font-light leading-none text-slate-600 shadow-lg shadow-violet-200/40 backdrop-blur-sm transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4 sm:top-4"
                 aria-label="Kapat"
@@ -929,7 +987,9 @@ export default function KisiselArsivPage() {
                       multiple
                       className="sr-only"
                       onChange={(e) =>
-                        setFiles(e.target.files ? Array.from(e.target.files) : [])
+                        setSelectedFiles(
+                          e.target.files ? Array.from(e.target.files) : [],
+                        )
                       }
                     />
                     <div className="rounded-3xl border-[3px] border-dashed border-violet-300/80 bg-gradient-to-br from-violet-50/90 via-sky-50/70 to-emerald-50/80 p-5 text-center shadow-inner ring-2 ring-white/80 sm:p-6">
@@ -961,9 +1021,9 @@ export default function KisiselArsivPage() {
                         Dosyaları seç
                       </button>
                       <p className="mt-3 text-[12px] font-bold text-slate-600">
-                        {files.length === 0
+                        {selectedFiles.length === 0
                           ? "Henüz dosya seçilmedi."
-                          : `${files.length} dosya seçildi`}
+                          : `${selectedFiles.length} dosya seçildi`}
                       </p>
                     </div>
                   </div>
@@ -977,7 +1037,7 @@ export default function KisiselArsivPage() {
                   onClick={() => {
                     if (saving) return;
                     setInfo(null);
-                    closeForm();
+                    closeCreateModal();
                   }}
                   className="rounded-3xl border-2 border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-md transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
