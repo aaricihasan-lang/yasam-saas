@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [totalClients, setTotalClients] = useState<number | null>(null);
   const [todayAppointments, setTodayAppointments] = useState<number | null>(
     null,
@@ -81,7 +79,6 @@ export default function DashboardPage() {
     icon: string;
     href?: string;
     badge?: string;
-    premium?: boolean;
   }[] = [
     {
       title: "Danışanlar",
@@ -109,12 +106,11 @@ export default function DashboardPage() {
       badge: "Yeni",
     },
     {
-      title: "Kişisel Arşiv",
+      title: "Kişisel Arşiv (TEST)",
       desc: "Ses, video, belge ve kişisel kayıt sistemi",
       icon: "🗂️",
       href: "/dashboard/kisisel-arsiv",
       badge: "YENİ",
-      premium: true,
     },
     {
       title: "Numeroloji",
@@ -190,7 +186,7 @@ export default function DashboardPage() {
 
       {/* CONTENT */}
 
-      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 md:p-5">
+      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-4 md:p-5">
         {/* TOP */}
 
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
@@ -265,10 +261,10 @@ export default function DashboardPage() {
             Modüller
           </h3>
 
-          <div className="grid w-full shrink-0 grid-cols-2 content-start gap-1.5 auto-rows-min md:grid-cols-3 md:gap-2">
+          <div className="grid w-full min-h-0 shrink-0 grid-cols-2 content-start gap-1.5 auto-rows-fr md:grid-cols-3 md:gap-2">
             {modules.map((module) => {
               const cardClass =
-                "relative flex w-full flex-col justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5 backdrop-blur-sm transition duration-200 md:gap-1.5 md:px-2.5 md:py-2";
+                "relative flex w-full min-h-[5.5rem] flex-col justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5 backdrop-blur-sm transition duration-200 md:min-h-[5.75rem] md:gap-1.5 md:px-2.5 md:py-2";
 
               const linkHoverClass =
                 "hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.08] hover:shadow-[0_10px_28px_rgba(0,0,0,0.32)] active:translate-y-0 active:brightness-[0.98]";
@@ -296,34 +292,11 @@ export default function DashboardPage() {
               );
 
               if (module.href) {
-                const premiumClass =
-                  "relative flex w-full flex-col justify-center gap-1 rounded-3xl border border-violet-400/20 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/12 to-sky-500/15 px-2 py-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-sm transition-all duration-200 md:gap-1.5 md:px-2.5 md:py-2";
-
-                const premiumHoverClass =
-                  "cursor-pointer hover:scale-[1.02] hover:-translate-y-0.5 hover:border-fuchsia-400/35 hover:bg-gradient-to-br hover:from-violet-500/28 hover:via-fuchsia-500/18 hover:to-sky-500/22 hover:shadow-[0_14px_44px_rgba(139,92,246,0.35)] active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]";
-
-                if (module.premium) {
-                  return (
-                    <button
-                      type="button"
-                      key={module.title}
-                      onClick={() => router.push(module.href!)}                      className={`${premiumClass} ${premiumHoverClass} text-left`}
-                    >
-                      {module.badge ? (
-                        <span className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-gradient-to-r from-violet-500/40 via-fuchsia-500/35 to-sky-500/35 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white ring-1 ring-white/25 md:right-2 md:top-2">
-                          {module.badge}
-                        </span>
-                      ) : null}
-                      {inner}
-                    </button>
-                  );
-                }
-
                 return (
                   <Link
                     key={module.title}
                     href={module.href}
-                    className={`${cardClass} ${linkHoverClass} cursor-pointer text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]`}
+                    className={`${cardClass} ${linkHoverClass} cursor-pointer text-inherit no-underline outline-none transition-all focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]`}
                   >
                     {module.badge ? (
                       <span className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-indigo-100 ring-1 ring-indigo-400/35 md:right-2 md:top-2">
