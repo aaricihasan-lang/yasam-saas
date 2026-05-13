@@ -124,6 +124,23 @@ function OzetRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
+
+function OzetSectionCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700/90">{title}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function OzetMetinPre(s: string | undefined | null) {
+  const t = (s || "").trim();
+  if (!t) return <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>;
+  return <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800 sm:text-sm">{s}</pre>;
+}
+
 function TabSonucOzeti({
   out,
   isimGoster,
@@ -135,6 +152,19 @@ function TabSonucOzeti({
 }) {
   const pinMetin = (out.pinKoduMetni || "—").trim() || "—";
   const elementMetinKisa = (out.elementlerMetni || "").trim().split("\n").slice(0, 3).join("\n") || "—";
+
+  const zirveStr = out.zirveYillariMetni?.trim() ?? "";
+  const zirveObj = out.zirveYillari;
+  const zirveHasArray = Boolean(zirveObj?.peaks?.length);
+
+  const mucadeleStr = out.mucadeleYillariMetni?.trim() ?? "";
+  const mucadeleObj = out.mucadeleYillari;
+  const mucadeleHasArray = Boolean(mucadeleObj?.method1?.length);
+
+  const hy = out.harflerinYankilanisi;
+  const harfStr = out.harflerinYankilanisiMetni?.trim() ?? "";
+  const harfIsArray = Array.isArray(hy);
+  const harfHasSegments = harfIsArray && hy.length > 0;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -166,6 +196,65 @@ function TabSonucOzeti({
         <p className="mt-2 text-sm font-semibold text-slate-900">{elementShort(out.elementler)}</p>
         <pre className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{elementMetinKisa}</pre>
       </div>
+
+      <OzetSectionCard title="Çakra Omurgası Özeti">{OzetMetinPre(out.cakraOmurgasiMetni)}</OzetSectionCard>
+
+      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">{OzetMetinPre(out.degisimDonusumMetni)}</OzetSectionCard>
+
+      <OzetSectionCard title="Zirve Yılları Özeti">
+        {zirveStr ? (
+          OzetMetinPre(out.zirveYillariMetni)
+        ) : zirveHasArray && zirveObj ? (
+          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+            {zirveObj.peaks.map((p) => (
+              <li key={p.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
+                {p.index}. zirve — yaş {p.age}, konu {p.topic}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>
+        )}
+      </OzetSectionCard>
+
+      <OzetSectionCard title="Mücadele Yılları Özeti">
+        {mucadeleStr ? (
+          OzetMetinPre(out.mucadeleYillariMetni)
+        ) : mucadeleHasArray && mucadeleObj ? (
+          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+            {mucadeleObj.method1.map((m) => (
+              <li key={m.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
+                {m.index}. mücadele — yaş {m.age}, konu {m.topic}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>
+        )}
+      </OzetSectionCard>
+
+      <OzetSectionCard title="Harflerin Yankılanışı Özeti">
+        {harfHasSegments ? (
+          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+            {hy.map((seg, idx) => {
+              const y =
+                seg.yearStart != null
+                  ? ` · yıl ${seg.yearStart}${seg.yearEnd != null ? `–${seg.yearEnd}` : ""}`
+                  : "";
+              return (
+                <li key={`${seg.letter}-${idx}`} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
+                  {idx + 1}. {seg.letter} — çakra {seg.chakra} — yaş {seg.ageStart}–{seg.ageEnd}
+                  {y}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        {harfStr ? (
+          <div className={harfHasSegments ? "mt-3 border-t border-slate-100 pt-3" : ""}>{OzetMetinPre(out.harflerinYankilanisiMetni)}</div>
+        ) : null}
+        {!harfHasSegments && !harfStr ? <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p> : null}
+      </OzetSectionCard>
     </div>
   );
 }
