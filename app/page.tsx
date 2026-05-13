@@ -142,6 +142,14 @@ const dashboardModules: ModuleCard[] = [
     href: "/dashboard/biyoenerji",
   },
   {
+    title: "Kişisel Arşiv",
+    icon: "🗂️",
+    desc: "Ses, video, belge ve kişisel kayıt sistemi",
+    count: "Aktif",
+    badge: "YENİ",
+    href: "/dashboard/kisisel-arsiv",
+  },
+  {
     title: "Numeroloji",
     icon: "🔢",
     desc: "Analiz, rapor ve kişisel yorum alanı",
