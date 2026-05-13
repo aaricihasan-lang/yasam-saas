@@ -478,13 +478,10 @@ export default function BiyoenerjiSeanslari() {
               </div>
             </>
           ) : (
-            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 px-2 text-center">
+            <div className="flex min-h-[220px] flex-col items-center justify-center px-2 text-center">
               <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
                 Soldan bir kayıt seçerek özetini görün veya yeni kayıt oluşturmak için listedeki üstteki düğmeyi kullanın.
               </p>
-              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
-                + Yeni Kayıt
-              </button>
             </div>
           )}
         </div>
