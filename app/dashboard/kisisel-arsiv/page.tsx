@@ -279,27 +279,38 @@ export default function KisiselArsivPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmRow, setDeleteConfirmRow] = useState<ArchiveRow | null>(null);
   const [info, setInfo] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null,
   );
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(
+    null,
+  );
 
   const detailRow = useMemo(
     () => records.find((r) => r.id === detailId) ?? null,
     [records, detailId],
   );
 
-  const showSuccessToast = useCallback((message: string) => {
-    if (toastClearTimerRef.current) {
-      clearTimeout(toastClearTimerRef.current);
-      toastClearTimerRef.current = null;
-    }
-    setToastMessage(message);
-    toastClearTimerRef.current = setTimeout(() => {
-      setToastMessage("");
-      toastClearTimerRef.current = null;
-    }, 1000);
-  }, []);
+  const showToast = useCallback(
+    (message: string, variant: "success" | "error", durationMs = 1500) => {
+      if (toastClearTimerRef.current) {
+        clearTimeout(toastClearTimerRef.current);
+        toastClearTimerRef.current = null;
+      }
+      setToast({ message, variant });
+      toastClearTimerRef.current = setTimeout(() => {
+        setToast(null);
+        toastClearTimerRef.current = null;
+      }, durationMs);
+    },
+    [],
+  );
+
+  const showSuccessToast = useCallback(
+    (message: string) => showToast(message, "success", 1500),
+    [showToast],
+  );
 
   useEffect(() => {
     return () => {
@@ -310,14 +321,18 @@ export default function KisiselArsivPage() {
   }, []);
 
   useEffect(() => {
-    const lock = isCreateModalOpen || detailId !== null || lightboxUrl !== null;
+    const lock =
+      isCreateModalOpen ||
+      detailId !== null ||
+      lightboxUrl !== null ||
+      deleteConfirmRow !== null;
     if (!lock) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [isCreateModalOpen, detailId, lightboxUrl]);
+  }, [isCreateModalOpen, detailId, lightboxUrl, deleteConfirmRow]);
 
   const loadRecords = useCallback(async () => {
     setLoadingList(true);
@@ -439,14 +454,9 @@ export default function KisiselArsivPage() {
     setLightboxUrl(null);
   }
 
-  async function handleDeleteArchive(row: ArchiveRow) {
-    if (
-      !window.confirm(
-        "Bu arşiv kaydı ve bağlı dosyaları silinecek. Emin misiniz?",
-      )
-    ) {
-      return;
-    }
+  async function confirmDeleteArchive() {
+    const row = deleteConfirmRow;
+    if (!row) return;
 
     setDeletingId(row.id);
     setInfo(null);
@@ -489,13 +499,12 @@ export default function KisiselArsivPage() {
 
       if (detailId === row.id) closeDetail();
       await loadRecords();
-      setInfo({ kind: "ok", text: "Kayıt silindi." });
+      setDeleteConfirmRow(null);
+      showToast("Kayıt silindi.", "success", 1500);
     } catch (e) {
       console.error("[kisisel-arsiv] delete archive", e);
-      setInfo({
-        kind: "err",
-        text: "Kayıt silinemedi. Lütfen daha sonra tekrar deneyin.",
-      });
+      setDeleteConfirmRow(null);
+      showToast("İşlem tamamlanamadı.", "error", 1500);
     } finally {
       setDeletingId(null);
     }
@@ -543,9 +552,6 @@ export default function KisiselArsivPage() {
       return;
     }
 
-    const archiveRecord = insertedRows?.[0];
-    console.log("ARCHIVE INSERT BAŞARILI", archiveRecord);
-
     for (const file of selectedFiles) {
       const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
       const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${safeName}`;
@@ -574,18 +580,14 @@ export default function KisiselArsivPage() {
       }
     }
 
-    console.log("DOSYA YÜKLEME AKIŞI BİTTİ");
-
     await loadRecords();
-    console.log("LOAD RECORDS BİTTİ");
     resetForm();
-    console.log("FORM TEMİZLENDİ");
     setIsCreateModalOpen(false);
-    console.log("MODAL KAPANDI");
-    showSuccessToast("Kayıt başarıyla eklendi.");
-    console.log("TOAST ÇAĞRILDI");
     setSaving(false);
     setInfo(null);
+    queueMicrotask(() => {
+      showSuccessToast("Kayıt başarıyla eklendi.");
+    });
   }
 
   const searchInputClass =
@@ -609,13 +611,17 @@ export default function KisiselArsivPage() {
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
-      {toastMessage ? (
+      {toast ? (
         <div
           role="status"
           aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-5 z-[9999] w-[min(92%,22rem)] -translate-x-1/2 rounded-3xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 px-5 py-3.5 text-center text-[13px] font-black text-emerald-950 shadow-2xl shadow-emerald-300/40 ring-2 ring-white/80"
+          className={`pointer-events-none fixed right-6 top-6 z-[99999] max-w-[min(92vw,22rem)] rounded-3xl border px-5 py-3.5 text-center text-[13px] font-black shadow-2xl ring-2 sm:text-left ${
+            toast.variant === "success"
+              ? "border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 text-emerald-950 shadow-emerald-300/40 ring-white/80"
+              : "border-rose-200/90 bg-gradient-to-r from-rose-50 via-orange-50/80 to-amber-50 text-rose-950 shadow-rose-200/35 ring-white/80"
+          }`}
         >
-          {toastMessage}
+          {toast.message}
         </div>
       ) : null}
       <div
@@ -861,7 +867,7 @@ export default function KisiselArsivPage() {
                       <button
                         type="button"
                         disabled={deletingId === row.id}
-                        onClick={() => void handleDeleteArchive(row)}
+                        onClick={() => setDeleteConfirmRow(row)}
                         className="rounded-2xl border-2 border-rose-200 bg-rose-50/90 px-4 py-2 text-[12px] font-black uppercase tracking-wide text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {deletingId === row.id ? "Siliniyor…" : "Sil"}
@@ -1061,6 +1067,63 @@ export default function KisiselArsivPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteConfirmRow ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-8 sm:px-6"
+          role="presentation"
+        >
+          <div
+            role="presentation"
+            className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm ${deletingId ? "cursor-wait" : "cursor-pointer"}`}
+            onClick={() => {
+              if (deletingId) return;
+              setDeleteConfirmRow(null);
+            }}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-title"
+            aria-describedby="delete-confirm-desc"
+            className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border-2 border-white/90 bg-white shadow-2xl shadow-violet-400/25 ring-1 ring-rose-100/50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-rose-100/80 bg-gradient-to-r from-rose-50/95 via-white to-violet-50/90 px-6 py-5">
+              <h2
+                id="delete-confirm-title"
+                className="text-lg font-black tracking-tight text-slate-900"
+              >
+                Arşiv kaydı silinsin mi?
+              </h2>
+              <p
+                id="delete-confirm-desc"
+                className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-700"
+              >
+                Bu kayıt ve bağlı dosyalar kalıcı olarak silinecek.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 px-6 py-4">
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() => setDeleteConfirmRow(null)}
+                className="rounded-2xl border-2 border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() => void confirmDeleteArchive()}
+                className="rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2.5 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingId ? "Siliniyor…" : "Evet, Sil"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
