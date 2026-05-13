@@ -64,7 +64,7 @@ export default function BiyoenerjiDashboardPage() {
               <span aria-hidden className="text-violet-500">
                 ←
               </span>
-              Panele dön
+              Modüllere dön
             </Link>
           </div>
         </header>
