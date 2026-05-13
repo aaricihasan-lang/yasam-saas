@@ -162,6 +162,20 @@ export default function KisiselArsivPage() {
     return Array.isArray(f) ? f.length : 0;
   }, []);
 
+  const stats = useMemo(() => {
+    let totalFiles = 0;
+    const categorySet = new Set<string>();
+    for (const row of rows) {
+      totalFiles += fileCount(row);
+      categorySet.add(row.category);
+    }
+    return {
+      totalArchives: rows.length,
+      totalFiles,
+      categoryKinds: categorySet.size,
+    };
+  }, [rows, fileCount]);
+
   const canSave = useMemo(
     () => title.trim().length > 0 && !saving,
     [title, saving],
@@ -263,132 +277,219 @@ export default function KisiselArsivPage() {
   }
 
   const searchInputClass =
-    "w-full rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 text-[14px] text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)] outline-none ring-1 ring-slate-100/60 transition placeholder:text-slate-400 focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/50";
+    "w-full rounded-3xl border border-slate-200/95 bg-white py-3 pl-11 pr-4 text-[14px] font-medium text-slate-900 shadow-inner shadow-slate-100/80 outline-none ring-1 ring-violet-100/40 transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 
   const modalLabelClass =
-    "mb-2 block text-[13px] font-semibold tracking-tight text-slate-700";
+    "mb-2 block text-[13px] font-semibold tracking-tight text-slate-800";
 
   const modalFieldClass =
-    "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-[14px] text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+    "w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-[14px] font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
 
   const searchLabelClass =
-    "mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-500";
+    "mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-600";
 
   return (
-    <div className="min-h-0 flex-1 bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_45%,#eef2ff_100%)] px-3 py-6 sm:px-5 sm:py-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-5">
+    <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
+      <div
+        className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-violet-300/35 blur-3xl sm:-left-32 sm:h-80 sm:w-80"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -right-20 top-48 h-72 w-72 rounded-full bg-sky-300/30 blur-3xl sm:right-[-5rem] sm:top-36"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute bottom-10 left-1/3 h-56 w-56 rounded-full bg-emerald-300/25 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-5">
         <div>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/80 px-3.5 py-2 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100/50 transition hover:border-violet-200/60 hover:bg-white hover:text-violet-900"
+            className="inline-flex items-center gap-2 rounded-3xl border border-white/90 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-800 shadow-lg shadow-violet-200/30 ring-1 ring-violet-100/50 backdrop-blur-md transition hover:border-violet-200 hover:bg-white hover:text-violet-900"
           >
             ← Ana panele dön
           </Link>
         </div>
 
-        <header className="rounded-3xl border border-white/80 bg-white/85 px-5 py-6 shadow-[0_12px_40px_-18px_rgba(15,23,42,0.12)] ring-1 ring-violet-100/40 backdrop-blur-md sm:px-8 sm:py-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex rounded-full bg-gradient-to-r from-violet-100/90 via-fuchsia-50/80 to-cyan-50/70 px-3 py-1 text-[10px] font-black tracking-[0.2em] text-violet-900 ring-1 ring-violet-200/50">
-                ARŞİV
+        <header className="overflow-hidden rounded-3xl border border-white/70 bg-white/55 shadow-2xl shadow-violet-300/25 ring-1 ring-white/80 backdrop-blur-xl sm:px-8 sm:py-8">
+          <div className="bg-gradient-to-br from-violet-100/50 via-white/40 to-emerald-100/40 px-5 py-6 sm:px-8 sm:py-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
+                <div
+                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-violet-200/80 bg-gradient-to-br from-violet-100 to-sky-100 text-4xl shadow-lg shadow-violet-300/40 ring-2 ring-white/90 sm:h-20 sm:w-20 sm:text-[2.75rem]"
+                  aria-hidden
+                >
+                  📁
+                </div>
+                <div className="min-w-0">
+                  <div className="inline-flex rounded-full bg-gradient-to-r from-violet-200/90 via-sky-100/90 to-emerald-100/90 px-3 py-1 text-[10px] font-black tracking-[0.2em] text-violet-950 ring-1 ring-violet-300/40">
+                    ARŞİV
+                  </div>
+                  <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                    Kişisel Arşiv
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-[13px] font-semibold leading-relaxed text-slate-700 sm:text-[14px]">
+                    Ses • Video • Belge • Resim • Not • Her türlü kişisel kayıt
+                  </p>
+                </div>
               </div>
-              <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Kişisel Arşiv
-              </h1>
-              <p className="mt-2 max-w-2xl text-[13px] font-medium leading-relaxed text-slate-600 sm:text-[14px]">
-                Ses • Video • Belge • Resim • Not • Her türlü kişisel kayıt
-              </p>
+              {!formOpen ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInfo(null);
+                    setFormOpen(true);
+                  }}
+                  className="shrink-0 self-start rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-5 py-3.5 text-[12px] font-black uppercase tracking-wide text-white shadow-[0_14px_40px_-8px_rgba(109,40,217,0.55)] ring-2 ring-white/50 transition hover:brightness-110 active:scale-[0.98]"
+                >
+                  + Yeni Kayıt
+                </button>
+              ) : null}
             </div>
-            {!formOpen ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setInfo(null);
-                  setFormOpen(true);
-                }}
-                className="shrink-0 self-start rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-wide text-white shadow-[0_10px_28px_-10px_rgba(109,40,217,0.4)] transition hover:from-violet-700 hover:to-indigo-700"
-              >
-                + Yeni Kayıt
-              </button>
-            ) : null}
+
+            <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
+              <div className="rounded-3xl border border-violet-200/60 bg-gradient-to-br from-violet-50/95 to-white/80 px-4 py-3 shadow-lg shadow-violet-200/30 ring-1 ring-violet-100/60">
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-800/80">
+                  Toplam Kayıt
+                </p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-violet-950">
+                  {stats.totalArchives}
+                </p>
+              </div>
+              <div className="rounded-3xl border border-sky-200/60 bg-gradient-to-br from-sky-50/95 to-white/80 px-4 py-3 shadow-lg shadow-sky-200/30 ring-1 ring-sky-100/60">
+                <p className="text-[10px] font-black uppercase tracking-widest text-sky-900/75">
+                  Toplam Dosya
+                </p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-sky-950">
+                  {stats.totalFiles}
+                </p>
+              </div>
+              <div className="rounded-3xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/95 to-white/80 px-4 py-3 shadow-lg shadow-emerald-200/25 ring-1 ring-emerald-100/60">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-900/75">
+                  Kategori
+                </p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-emerald-950">
+                  {stats.categoryKinds}
+                </p>
+              </div>
+            </div>
           </div>
         </header>
 
         {info ? (
           <div
-            className={`rounded-2xl border px-4 py-3 text-[13px] font-semibold shadow-sm ring-1 ${
+            className={`rounded-3xl border px-4 py-3.5 text-[13px] font-semibold shadow-xl ring-1 ${
               info.kind === "ok"
-                ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-900 ring-emerald-100/50"
-                : "border-rose-200/80 bg-rose-50/90 text-rose-900 ring-rose-100/50"
+                ? "border-emerald-200/90 bg-emerald-50/95 text-emerald-950 ring-emerald-100/60"
+                : "border-rose-200/90 bg-rose-50/95 text-rose-950 ring-rose-100/60"
             }`}
           >
             {info.text}
           </div>
         ) : null}
 
-        <section className="min-w-0 rounded-3xl border border-white/85 bg-white/90 p-5 shadow-[0_14px_44px_-20px_rgba(15,23,42,0.12)] ring-1 ring-slate-100/50 backdrop-blur-md sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-[15px] font-black text-slate-900">Kayıtlar</h2>
-              <p className="mt-1 text-[12px] font-medium text-slate-500">
-                En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında
-                çalışır.
-              </p>
-            </div>
-            <label className="block w-full min-w-0 sm:max-w-xs">
-              <span className={searchLabelClass}>Ara</span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={searchInputClass}
-                placeholder="Kelime yazın…"
-                type="search"
-              />
-            </label>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {loadingList ? (
-              <p className="py-10 text-center text-[14px] font-medium text-slate-400">
-                Yükleniyor…
-              </p>
-            ) : visibleRows.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200/90 bg-slate-50/60 px-4 py-12 text-center ring-1 ring-slate-100/50">
-                <p className="text-[14px] font-semibold text-slate-600">
-                  Henüz kayıt yok veya aramanıza uygun sonuç bulunamadı.
+        <section className="min-w-0 overflow-hidden rounded-3xl border-2 border-white/90 bg-white/95 shadow-2xl shadow-slate-300/25 ring-1 ring-violet-100/50 backdrop-blur-md">
+          <div
+            className="h-1.5 w-full bg-gradient-to-r from-violet-300/90 via-sky-300/85 to-emerald-300/90"
+            aria-hidden
+          />
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-[16px] font-black tracking-tight text-slate-900">
+                  Kayıtlar
+                </h2>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-600">
+                  En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında
+                  çalışır.
                 </p>
               </div>
-            ) : (
-              visibleRows.map((row) => (
-                <article
-                  key={row.id}
-                  className="rounded-2xl border border-slate-100/90 bg-gradient-to-br from-white via-white to-slate-50/50 px-4 py-4 shadow-[0_6px_24px_-14px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/40"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="min-w-0 flex-1 text-[15px] font-black leading-snug text-slate-900">
-                      {row.title}
-                    </h3>
-                    <span className="shrink-0 rounded-full border border-violet-100/80 bg-violet-50/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-900">
-                      {row.category}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-400">
-                    <time dateTime={row.created_at}>{formatTrDate(row.created_at)}</time>
-                    <span className="rounded-full bg-slate-100/90 px-2 py-0.5 text-[10px] font-black text-slate-600">
-                      {fileCount(row)} dosya
-                    </span>
-                  </div>
-                  <p className="mt-3 text-[13px] font-medium leading-relaxed text-slate-600">
-                    {notePreview(row.note)}
-                  </p>
-                  {row.tags?.trim() ? (
-                    <p className="mt-2 text-[11px] font-semibold text-violet-700/90">
-                      Etiketler: {row.tags}
+              <label className="block w-full min-w-0 sm:max-w-xs">
+                <span className={searchLabelClass}>Ara</span>
+                <div className="relative">
+                  <span
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] opacity-80"
+                    aria-hidden
+                  >
+                    🔎
+                  </span>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className={searchInputClass}
+                    placeholder="Kelime yazın…"
+                    type="search"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {loadingList ? (
+                <p className="py-12 text-center text-[14px] font-semibold text-slate-500">
+                  Yükleniyor…
+                </p>
+              ) : visibleRows.length === 0 ? (
+                rows.length === 0 ? (
+                  <div className="rounded-3xl border-2 border-dashed border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-sky-50/60 px-5 py-14 text-center shadow-inner ring-1 ring-violet-100/50">
+                    <div
+                      className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-4xl shadow-lg shadow-violet-200/40 ring-2 ring-violet-100/80"
+                      aria-hidden
+                    >
+                      📂
+                    </div>
+                    <p className="text-[16px] font-black text-slate-900">
+                      Henüz arşiv kaydı yok
                     </p>
-                  ) : null}
-                </article>
-              ))
-            )}
+                    <p className="mx-auto mt-2 max-w-sm text-[13px] font-semibold leading-relaxed text-slate-600">
+                      İlk kaydınızı oluşturarak ses, belge veya fotoğraflarınızı tek
+                      yerde toplayın.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border-2 border-dashed border-sky-200/80 bg-gradient-to-br from-sky-50/70 to-white px-5 py-12 text-center shadow-inner ring-1 ring-sky-100/50">
+                    <p className="text-[15px] font-black text-slate-900">
+                      Aramanıza uygun kayıt bulunamadı
+                    </p>
+                    <p className="mx-auto mt-2 max-w-md text-[13px] font-semibold text-slate-600">
+                      Farklı bir kelime deneyin veya aramayı temizleyin.
+                    </p>
+                  </div>
+                )
+              ) : (
+                visibleRows.map((row) => (
+                  <article
+                    key={row.id}
+                    className="rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-violet-50/20 to-sky-50/25 px-4 py-4 shadow-xl shadow-slate-200/40 ring-1 ring-violet-100/35 sm:px-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h3 className="min-w-0 flex-1 text-[15px] font-black leading-snug text-slate-900">
+                        {row.title}
+                      </h3>
+                      <span className="shrink-0 rounded-full border border-violet-200/90 bg-violet-100/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-950">
+                        {row.category}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
+                      <time dateTime={row.created_at}>{formatTrDate(row.created_at)}</time>
+                      <span className="rounded-full bg-slate-100/95 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                        {fileCount(row)} dosya
+                      </span>
+                    </div>
+                    <p className="mt-3 text-[13px] font-semibold leading-relaxed text-slate-700">
+                      {notePreview(row.note)}
+                    </p>
+                    {row.tags?.trim() ? (
+                      <p className="mt-2 text-[11px] font-semibold text-violet-800">
+                        Etiketler: {row.tags}
+                      </p>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -412,10 +513,14 @@ export default function KisiselArsivPage() {
             aria-modal="true"
             aria-labelledby="archive-modal-title"
             aria-describedby="archive-modal-desc"
-            className="relative z-10 flex max-h-[min(90vh,44rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_24px_80px_-24px_rgba(15,23,42,0.35)] ring-1 ring-slate-200/60"
+            className="relative z-10 flex max-h-[min(90vh,44rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border-2 border-white/80 bg-white shadow-2xl shadow-violet-400/25 ring-1 ring-violet-200/50"
           >
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50/80 px-5 py-4 sm:px-6 sm:py-5">
-              <div className="min-w-0 pr-10 sm:pr-12">
+            <div className="relative flex shrink-0 items-start justify-between gap-3 overflow-hidden border-b border-violet-100/80 bg-gradient-to-r from-violet-100/95 via-sky-100/90 to-emerald-100/90 px-5 py-5 sm:px-7 sm:py-6">
+              <div
+                className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/40 blur-2xl"
+                aria-hidden
+              />
+              <div className="relative min-w-0 pr-10 sm:pr-12">
                 <h2
                   id="archive-modal-title"
                   className="text-lg font-black tracking-tight text-slate-900 sm:text-xl"
@@ -424,7 +529,7 @@ export default function KisiselArsivPage() {
                 </h2>
                 <p
                   id="archive-modal-desc"
-                  className="mt-1.5 text-[13px] font-medium leading-relaxed text-slate-600 sm:text-[14px]"
+                  className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-800 sm:text-[14px]"
                 >
                   Ses, belge, resim, video veya kişisel notlarınızı tek kayıt altında
                   saklayın.
@@ -438,7 +543,7 @@ export default function KisiselArsivPage() {
                   setInfo(null);
                   closeForm();
                 }}
-                className="absolute right-3 top-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-light leading-none text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4 sm:top-4"
+                className="absolute right-3 top-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl border border-white/90 bg-white/90 text-xl font-light leading-none text-slate-600 shadow-lg shadow-violet-200/40 backdrop-blur-sm transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4 sm:top-4"
                 aria-label="Kapat"
               >
                 ×
@@ -447,9 +552,9 @@ export default function KisiselArsivPage() {
 
             <form
               onSubmit={(e) => void handleSubmit(e)}
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-white to-slate-50/40"
             >
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
                 <div className="space-y-4">
                   <label className="block min-w-0">
                     <span className={modalLabelClass}>Başlık</span>
@@ -513,8 +618,8 @@ export default function KisiselArsivPage() {
                         setFiles(e.target.files ? Array.from(e.target.files) : [])
                       }
                     />
-                    <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-violet-50/40 via-white to-slate-50/80 p-5 text-center shadow-inner ring-1 ring-violet-100/30 sm:p-6">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-600/25">
+                    <div className="rounded-3xl border-[3px] border-dashed border-violet-300/80 bg-gradient-to-br from-violet-50/90 via-sky-50/70 to-emerald-50/80 p-5 text-center shadow-inner ring-2 ring-white/80 sm:p-6">
+                      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-xl shadow-violet-600/35">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           viewBox="0 0 24 24"
@@ -523,7 +628,7 @@ export default function KisiselArsivPage() {
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          className="h-6 w-6"
+                          className="h-7 w-7"
                           aria-hidden
                         >
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -531,17 +636,17 @@ export default function KisiselArsivPage() {
                           <line x1="12" x2="12" y1="3" y2="15" />
                         </svg>
                       </div>
-                      <p className="text-[13px] font-medium text-slate-600">
+                      <p className="text-[13px] font-semibold text-slate-800">
                         Birden fazla dosya ekleyebilirsiniz.
                       </p>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="mt-4 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-[13px] font-black uppercase tracking-wide text-white shadow-md transition hover:from-violet-700 hover:to-indigo-700"
+                        className="mt-4 inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110"
                       >
                         Dosyaları seç
                       </button>
-                      <p className="mt-3 text-[12px] font-semibold text-slate-500">
+                      <p className="mt-3 text-[12px] font-bold text-slate-600">
                         {files.length === 0
                           ? "Henüz dosya seçilmedi."
                           : `${files.length} dosya seçildi`}
@@ -551,7 +656,7 @@ export default function KisiselArsivPage() {
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-violet-100/70 bg-white/90 px-5 py-4 backdrop-blur-sm sm:px-7">
                 <button
                   type="button"
                   disabled={saving}
@@ -560,14 +665,14 @@ export default function KisiselArsivPage() {
                     setInfo(null);
                     closeForm();
                   }}
-                  className="rounded-2xl border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-3xl border-2 border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-md transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   İptal
                 </button>
                 <button
                   type="submit"
                   disabled={!canSave || saving}
-                  className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-12px_rgba(109,40,217,0.45)] transition hover:from-violet-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-3xl bg-gradient-to-r from-fuchsia-500 via-violet-600 to-cyan-500 px-7 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_16px_40px_-10px_rgba(124,58,237,0.55)] ring-2 ring-white/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? "Kaydediliyor…" : "Kaydet"}
                 </button>
