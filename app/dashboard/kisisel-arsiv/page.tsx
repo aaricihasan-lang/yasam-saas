@@ -218,17 +218,18 @@ function isAmrFile(file: ArchiveFileRow): boolean {
   return t.includes("amr");
 }
 
-/** Tarayıcıda <audio controls> ile anlamlı önizleme: mp3, wav, ogg, m4a, aac (+ MIME yedekleri). */
+/** Tarayıcıda <audio controls> ile önizleme: mp3, wav, ogg, m4a, aac, flac (+ MIME yedekleri). */
 function isBrowserPreviewAudioControls(file: ArchiveFileRow): boolean {
   if (!isAudioFile(file) || isAmrFile(file)) return false;
   const ext = getFileExtensionLower(file);
-  if (["mp3", "wav", "ogg", "m4a", "aac"].includes(ext)) return true;
+  if (["mp3", "wav", "ogg", "m4a", "aac", "flac"].includes(ext)) return true;
   const t = (file.file_type ?? "").toLowerCase();
   if (t.includes("mpeg") || t === "audio/mpeg") return true;
   if (t.includes("wav") || t.includes("wave")) return true;
   if (t.includes("ogg") && t.startsWith("audio/")) return true;
   if (t.includes("aac")) return true;
   if (t.startsWith("audio/mp4")) return true;
+  if (t.includes("flac")) return true;
   return false;
 }
 
@@ -290,9 +291,11 @@ const detailGrowButtonClass =
 function DetailArchiveFileCard({
   file,
   onImageClick,
+  onDownload,
 }: {
   file: ArchiveFileRow;
   onImageClick: (url: string) => void;
+  onDownload: (file: ArchiveFileRow) => void | Promise<void>;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
   const url = getPublicFileUrl(file.file_path);
@@ -301,16 +304,14 @@ function DetailArchiveFileCard({
   const typeLabel = fileDisplayType(file);
   const sizeLabel = formatFileSize(file.file_size);
 
-  const downloadAnchor = (
-    <a
-      href={url}
-      download={file.file_name ?? fileName}
-      target="_blank"
-      rel="noreferrer"
+  const downloadButton = (
+    <button
+      type="button"
+      onClick={() => void onDownload(file)}
       className={detailDownloadLinkClass}
     >
       İndir
-    </a>
+    </button>
   );
 
   const previewNewTabLink = (
@@ -433,25 +434,32 @@ function DetailArchiveFileCard({
               Büyüt
             </button>
             {previewNewTabLink}
-            {downloadAnchor}
+            {downloadButton}
           </>
         ) : null}
 
         {kind === "pdf" ? (
           <>
             {previewNewTabLink}
-            {downloadAnchor}
+            {downloadButton}
           </>
         ) : null}
 
-        {kind === "audio" || kind === "video" ? (
+        {kind === "audio" ? (
+          <>
+            {!isAmrFile(file) && !isBrowserPreviewAudioControls(file) ? browserOpenLink : null}
+            {downloadButton}
+          </>
+        ) : null}
+
+        {kind === "video" ? (
           <>
             {browserOpenLink}
-            {downloadAnchor}
+            {downloadButton}
           </>
         ) : null}
 
-        {kind === "office" || kind === "other" ? downloadAnchor : null}
+        {kind === "office" || kind === "other" ? downloadButton : null}
       </div>
     </div>
   );
@@ -506,6 +514,35 @@ export default function KisiselArsivPage() {
 
   const showSuccessToast = useCallback(
     (message: string) => showToast(message, "success", 1500),
+    [showToast],
+  );
+
+  const handleDownload = useCallback(
+    async (file: ArchiveFileRow) => {
+      const name = file.file_name?.trim() || "dosya";
+      try {
+        const { data: blob, error } = await supabase.storage
+          .from("personal-archive")
+          .download(file.file_path);
+        if (error || !blob) {
+          console.error("Archive file download failed:", error);
+          showToast("Dosya indirilemedi.", "error", 2000);
+          return;
+        }
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = name;
+        a.rel = "noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch (e) {
+        console.error("Archive file download failed:", e);
+        showToast("Dosya indirilemedi.", "error", 2000);
+      }
+    },
     [showToast],
   );
 
@@ -1419,6 +1456,7 @@ export default function KisiselArsivPage() {
                         <DetailArchiveFileCard
                           file={f}
                           onImageClick={(u) => setLightboxUrl(u)}
+                          onDownload={handleDownload}
                         />
                       </li>
                     ))
@@ -1452,7 +1490,7 @@ export default function KisiselArsivPage() {
               e.stopPropagation();
               setLightboxUrl(null);
             }}
-            className="fixed right-4 top-4 z-[100000] flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-slate-200/90 bg-white text-3xl font-light leading-none text-slate-800 shadow-xl shadow-black/35 transition hover:bg-slate-50 sm:right-6 sm:top-6"
+            className="fixed right-4 top-4 z-[100000] flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-red-500 text-3xl font-light leading-none text-white shadow-xl transition hover:bg-red-600 sm:right-6 sm:top-6"
             aria-label="Kapat"
           >
             ×
