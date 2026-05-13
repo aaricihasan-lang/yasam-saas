@@ -263,6 +263,7 @@ export default function KisiselArsivPage() {
   const [info, setInfo] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null,
   );
+  const [saveSuccessToast, setSaveSuccessToast] = useState(false);
 
   const detailRow = useMemo(
     () => rows.find((r) => r.id === detailId) ?? null,
@@ -278,6 +279,12 @@ export default function KisiselArsivPage() {
       document.body.style.overflow = prev;
     };
   }, [formOpen, detailId, lightboxUrl]);
+
+  useEffect(() => {
+    if (!saveSuccessToast) return;
+    const t = window.setTimeout(() => setSaveSuccessToast(false), 1000);
+    return () => window.clearTimeout(t);
+  }, [saveSuccessToast]);
 
   const loadRows = useCallback(async () => {
     setLoadingList(true);
@@ -439,28 +446,38 @@ export default function KisiselArsivPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
     if (!title.trim()) {
-      setInfo({ kind: "err", text: "Başlık zorunludur." });
+      setInfo({ kind: "err", text: "Başlık alanı zorunludur." });
       return;
     }
+
+    const titleToSave = title.trim();
+    const categoryToSave = category.trim() || "Diğer";
+    const tagsToSave = tags.trim() || null;
+    const noteToSave = note.trim() || null;
 
     setSaving(true);
     setInfo(null);
 
-    const { data: inserted, error: insErr } = await supabase
+    const { data: insertedRows, error: insErr } = await supabase
       .from("personal_archives")
       .insert({
         tenant_id: TENANT_ID,
-        title: title.trim(),
-        category,
-        tags: tags.trim() || null,
-        note: note.trim() || null,
+        title: titleToSave,
+        category: categoryToSave,
+        tags: tagsToSave,
+        note: noteToSave,
       })
-      .select("id")
-      .single();
+      .select("id");
 
-    if (insErr || !inserted?.id) {
-      console.error("[kisisel-arsiv] personal_archives insert", insErr);
+    const archiveId = insertedRows?.[0]?.id as string | undefined;
+
+    if (insErr || !archiveId) {
+      console.error(
+        "Kişisel arşiv kayıt hatası:",
+        insErr ?? new Error("Kayıt sonrası id alınamadı"),
+      );
       setSaving(false);
       setInfo({
         kind: "err",
@@ -468,9 +485,6 @@ export default function KisiselArsivPage() {
       });
       return;
     }
-
-    const archiveId = inserted.id as string;
-    let uploadHadFailure = false;
 
     for (const file of files) {
       const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
@@ -481,8 +495,7 @@ export default function KisiselArsivPage() {
         .upload(path, file, { upsert: false });
 
       if (upErr) {
-        console.error("[kisisel-arsiv] storage upload", { path, error: upErr });
-        uploadHadFailure = true;
+        console.error("Dosya yükleme hatası:", upErr);
         continue;
       }
 
@@ -496,26 +509,16 @@ export default function KisiselArsivPage() {
       });
 
       if (metaErr) {
-        console.error("[kisisel-arsiv] personal_archive_files insert", metaErr);
-        uploadHadFailure = true;
+        console.error("Dosya tablo kayıt hatası:", metaErr);
         void supabase.storage.from("personal-archive").remove([path]);
       }
     }
 
-    resetFormFields();
-    setFormOpen(false);
     setSaving(false);
-
-    if (uploadHadFailure) {
-      setInfo({
-        kind: "err",
-        text: "Kayıt oluşturuldu ancak dosyaların tamamı yüklenemedi. Lütfen daha sonra tekrar deneyin.",
-      });
-    } else {
-      setInfo({ kind: "ok", text: "Kayıt kaydedildi." });
-    }
-
+    closeForm();
+    setInfo(null);
     await loadRows();
+    setSaveSuccessToast(true);
   }
 
   const searchInputClass =
@@ -539,6 +542,15 @@ export default function KisiselArsivPage() {
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
+      {saveSuccessToast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 top-5 z-[200] w-[min(92%,22rem)] -translate-x-1/2 rounded-3xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 px-5 py-3.5 text-center text-[13px] font-black text-emerald-950 shadow-2xl shadow-emerald-300/40 ring-2 ring-white/80"
+        >
+          Kayıt başarıyla eklendi.
+        </div>
+      ) : null}
       <div
         className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-violet-300/35 blur-3xl sm:-left-32 sm:h-80 sm:w-80"
         aria-hidden
@@ -976,7 +988,7 @@ export default function KisiselArsivPage() {
                   disabled={!canSave || saving}
                   className="rounded-3xl bg-gradient-to-r from-fuchsia-500 via-violet-600 to-cyan-500 px-7 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_16px_40px_-10px_rgba(124,58,237,0.55)] ring-2 ring-white/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {saving ? "Kaydediliyor…" : "Kaydet"}
+                  {saving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
               </div>
             </form>
