@@ -78,6 +78,7 @@ export default function DashboardPage() {
     desc: string;
     icon: string;
     href?: string;
+    badge?: string;
   }[] = [
     {
       title: "Danışanlar",
@@ -96,6 +97,13 @@ export default function DashboardPage() {
       desc: "Taş ve mineral veri sistemi",
       icon: "💎",
       href: "/dogaltas",
+    },
+    {
+      title: "Biyoenerji",
+      desc: "Aura, çakra, imajinasyon ve sembol dili çalışma alanı",
+      icon: "✨",
+      href: "/dashboard/biyoenerji",
+      badge: "Yeni",
     },
     {
       title: "Numeroloji",
@@ -249,7 +257,7 @@ export default function DashboardPage() {
           <div className="grid w-full shrink-0 grid-cols-2 content-start gap-1.5 auto-rows-min md:grid-cols-3 md:gap-2">
             {modules.map((module) => {
               const cardClass =
-                "flex w-full flex-col justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5 backdrop-blur-sm transition duration-200 md:gap-1.5 md:px-2.5 md:py-2";
+                "relative flex w-full flex-col justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5 backdrop-blur-sm transition duration-200 md:gap-1.5 md:px-2.5 md:py-2";
 
               const linkHoverClass =
                 "hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.08] hover:shadow-[0_10px_28px_rgba(0,0,0,0.32)] active:translate-y-0 active:brightness-[0.98]";
@@ -283,6 +291,11 @@ export default function DashboardPage() {
                     href={module.href}
                     className={`${cardClass} ${linkHoverClass} cursor-pointer text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]`}
                   >
+                    {module.badge ? (
+                      <span className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-indigo-100 ring-1 ring-indigo-400/35 md:right-2 md:top-2">
+                        {module.badge}
+                      </span>
+                    ) : null}
                     {inner}
                   </Link>
                 );
@@ -293,6 +306,11 @@ export default function DashboardPage() {
                   key={module.title}
                   className={`${cardClass} ${staticHoverClass} cursor-default`}
                 >
+                  {module.badge ? (
+                    <span className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-indigo-100 ring-1 ring-indigo-400/35 md:right-2 md:top-2">
+                      {module.badge}
+                    </span>
+                  ) : null}
                   {inner}
                 </div>
               );
