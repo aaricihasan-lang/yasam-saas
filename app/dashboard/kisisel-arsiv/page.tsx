@@ -192,20 +192,71 @@ function fileDisplayType(file: ArchiveFileRow): string {
   return dot >= 0 ? `Dosya (${n.slice(dot)})` : "Bilinmeyen tür";
 }
 
+function getFileExtensionLower(file: ArchiveFileRow): string {
+  const n = file.file_name ?? "";
+  const i = n.lastIndexOf(".");
+  return i >= 0 ? n.slice(i + 1).toLowerCase() : "";
+}
+
+function isImageFile(file: ArchiveFileRow): boolean {
+  const t = (file.file_type ?? "").toLowerCase();
+  if (t.startsWith("image/")) return true;
+  const ext = getFileExtensionLower(file);
+  return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+}
+
+function isAudioFile(file: ArchiveFileRow): boolean {
+  const t = (file.file_type ?? "").toLowerCase();
+  if (t.startsWith("audio/")) return true;
+  const ext = getFileExtensionLower(file);
+  return ["mp3", "wav", "ogg", "m4a", "aac", "flac", "amr"].includes(ext);
+}
+
+function isAmrFile(file: ArchiveFileRow): boolean {
+  if (getFileExtensionLower(file) === "amr") return true;
+  const t = (file.file_type ?? "").toLowerCase();
+  return t.includes("amr");
+}
+
+/** Tarayıcıda <audio controls> ile anlamlı önizleme: mp3, wav, ogg, m4a, aac (+ MIME yedekleri). */
+function isBrowserPreviewAudioControls(file: ArchiveFileRow): boolean {
+  if (!isAudioFile(file) || isAmrFile(file)) return false;
+  const ext = getFileExtensionLower(file);
+  if (["mp3", "wav", "ogg", "m4a", "aac"].includes(ext)) return true;
+  const t = (file.file_type ?? "").toLowerCase();
+  if (t.includes("mpeg") || t === "audio/mpeg") return true;
+  if (t.includes("wav") || t.includes("wave")) return true;
+  if (t.includes("ogg") && t.startsWith("audio/")) return true;
+  if (t.includes("aac")) return true;
+  if (t.startsWith("audio/mp4")) return true;
+  return false;
+}
+
+function isVideoFile(file: ArchiveFileRow): boolean {
+  const t = (file.file_type ?? "").toLowerCase();
+  if (t.startsWith("video/")) return true;
+  const ext = getFileExtensionLower(file);
+  return ["mp4", "webm", "mov", "m4v"].includes(ext);
+}
+
+function isPdfFile(file: ArchiveFileRow): boolean {
+  const t = (file.file_type ?? "").toLowerCase();
+  const ext = getFileExtensionLower(file);
+  return t === "application/pdf" || ext === "pdf" || t.includes("pdf");
+}
+
 function isOfficeFile(file: ArchiveFileRow): boolean {
-  const n = (file.file_name ?? "").toLowerCase();
-  return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(n);
+  const ext = getFileExtensionLower(file);
+  return ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
 }
 
 type DetailFileKind = "image" | "audio" | "video" | "pdf" | "office" | "other";
 
 function detectDetailFileKind(file: ArchiveFileRow): DetailFileKind {
-  const t = (file.file_type ?? "").toLowerCase();
-  const n = (file.file_name ?? "").toLowerCase();
-  if (t.startsWith("image/")) return "image";
-  if (t.startsWith("audio/")) return "audio";
-  if (t.startsWith("video/")) return "video";
-  if (t === "application/pdf" || n.endsWith(".pdf") || t.includes("pdf")) return "pdf";
+  if (isImageFile(file)) return "image";
+  if (isAudioFile(file)) return "audio";
+  if (isVideoFile(file)) return "video";
+  if (isPdfFile(file)) return "pdf";
   if (isOfficeFile(file)) return "office";
   return "other";
 }
@@ -230,11 +281,11 @@ function detailFileIcon(kind: DetailFileKind): string {
 const detailDownloadLinkClass =
   "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-emerald-900 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
 
-const detailOpenTabLinkClass =
+const detailSecondaryLinkClass =
   "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-sky-200/90 bg-gradient-to-r from-sky-50 to-violet-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-sky-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
 
-const detailPdfOpenLinkClass =
-  "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-violet-300/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-white shadow-md transition hover:brightness-110 sm:flex-none sm:text-[12px]";
+const detailGrowButtonClass =
+  "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-violet-200/90 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
 
 function DetailArchiveFileCard({
   file,
@@ -253,7 +304,7 @@ function DetailArchiveFileCard({
   const downloadAnchor = (
     <a
       href={url}
-      download={fileName}
+      download={file.file_name ?? fileName}
       target="_blank"
       rel="noreferrer"
       className={detailDownloadLinkClass}
@@ -262,9 +313,15 @@ function DetailArchiveFileCard({
     </a>
   );
 
-  const openTabAnchor = (
-    <a href={url} target="_blank" rel="noreferrer" className={detailOpenTabLinkClass}>
-      Yeni sekmede aç
+  const previewNewTabLink = (
+    <a href={url} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
+      Önizle / Yeni Sekme
+    </a>
+  );
+
+  const browserOpenLink = (
+    <a href={url} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
+      Tarayıcıda Aç
     </a>
   );
 
@@ -287,17 +344,12 @@ function DetailArchiveFileCard({
 
       {kind === "office" || kind === "other" ? (
         <div className="mt-4 rounded-2xl border border-dashed border-slate-200/90 bg-slate-50/70 px-3 py-3">
-          {kind === "office" ? (
-            <p className="text-[12px] font-medium leading-relaxed text-slate-600">
-              Bu dosya türü tarayıcıda önizlenemeyebilir; açmak veya indirmek için butonları
-              kullanın.
-            </p>
-          ) : (
-            <p className="text-[12px] font-medium leading-relaxed text-slate-600">
-              Bu dosya için tarayıcı önizlemesi yok; indirmek veya yeni sekmede açmak için
-              butonları kullanın.
-            </p>
-          )}
+          <p className="text-[12px] font-medium leading-relaxed text-slate-600">
+            Bu dosya türü tarayıcıda önizlenemeyebilir.
+            {kind === "office"
+              ? " Düzenlemek veya görüntülemek için dosyayı indirip Office uyumlu bir uygulamada açın."
+              : " İndirerek cihazınızda uygun uygulama ile açabilirsiniz."}
+          </p>
         </div>
       ) : (
         <div className="mt-4">
@@ -307,11 +359,7 @@ function DetailArchiveFileCard({
           {kind === "image" ? (
             <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
               {!imgBroken ? (
-                <button
-                  type="button"
-                  onClick={() => onImageClick(url)}
-                  className="block w-full max-w-full"
-                >
+                <div className="block w-full max-w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
@@ -319,7 +367,7 @@ function DetailArchiveFileCard({
                     className="mx-auto max-h-56 w-auto max-w-full object-contain"
                     onError={() => setImgBroken(true)}
                   />
-                </button>
+                </div>
               ) : (
                 <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-500">
                   Görsel yüklenemedi.
@@ -330,12 +378,28 @@ function DetailArchiveFileCard({
 
           {kind === "audio" ? (
             <div className="rounded-2xl border border-slate-200/90 bg-white p-3 shadow-inner">
-              <audio
-                controls
-                className="w-full max-w-full rounded-xl"
-                src={url}
-                preload="metadata"
-              />
+              {isBrowserPreviewAudioControls(file) ? (
+                <audio
+                  controls
+                  className="w-full max-w-full rounded-xl"
+                  src={url}
+                  preload="metadata"
+                />
+              ) : (
+                <p className="text-[12px] font-medium leading-relaxed text-slate-600">
+                  {isAmrFile(file) ? (
+                    <>
+                      Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirip
+                      telefon/bilgisayarınızda açabilirsiniz.
+                    </>
+                  ) : (
+                    <>
+                      Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirip
+                      uygun bir oynatıcıda açabilirsiniz.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -352,36 +416,42 @@ function DetailArchiveFileCard({
 
           {kind === "pdf" ? (
             <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-100 shadow-inner">
-              <iframe
-                title={fileName}
-                src={url}
-                className="h-[420px] w-full bg-white"
-              />
-              <p className="border-t border-slate-200/80 bg-white/90 px-3 py-2 text-center text-[11px] font-medium text-slate-500">
-                Önizleme görünmüyorsa PDF Aç veya Yeni sekmede aç seçeneklerini kullanın.
-              </p>
+              <iframe title={fileName} src={url} className="h-[420px] w-full bg-white" />
             </div>
           ) : null}
         </div>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {downloadAnchor}
-        {kind === "audio" ? (
+        {kind === "image" ? (
           <>
-            <a href={url} target="_blank" rel="noreferrer" className={detailOpenTabLinkClass}>
-              Aç
-            </a>
-            {openTabAnchor}
+            <button
+              type="button"
+              onClick={() => onImageClick(url)}
+              className={detailGrowButtonClass}
+            >
+              Büyüt
+            </button>
+            {previewNewTabLink}
+            {downloadAnchor}
           </>
-        ) : (
-          openTabAnchor
-        )}
-        {kind === "pdf" ? (
-          <a href={url} target="_blank" rel="noreferrer" className={detailPdfOpenLinkClass}>
-            PDF Aç
-          </a>
         ) : null}
+
+        {kind === "pdf" ? (
+          <>
+            {previewNewTabLink}
+            {downloadAnchor}
+          </>
+        ) : null}
+
+        {kind === "audio" || kind === "video" ? (
+          <>
+            {browserOpenLink}
+            {downloadAnchor}
+          </>
+        ) : null}
+
+        {kind === "office" || kind === "other" ? downloadAnchor : null}
       </div>
     </div>
   );
@@ -446,6 +516,15 @@ export default function KisiselArsivPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!lightboxUrl) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxUrl(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lightboxUrl]);
 
   useEffect(() => {
     const lock =
@@ -1363,23 +1442,33 @@ export default function KisiselArsivPage() {
 
       {lightboxUrl ? (
         <div
-          className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/92 px-4 py-8"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/92 px-4 pb-12 pt-20 sm:px-6"
           role="presentation"
+          onClick={() => setLightboxUrl(null)}
         >
           <button
             type="button"
-            onClick={() => setLightboxUrl(null)}
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-3xl border border-white/20 bg-white/10 text-2xl font-light text-white transition hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxUrl(null);
+            }}
+            className="fixed right-4 top-4 z-[100000] flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-slate-200/90 bg-white text-3xl font-light leading-none text-slate-800 shadow-xl shadow-black/35 transition hover:bg-slate-50 sm:right-6 sm:top-6"
             aria-label="Kapat"
           >
             ×
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxUrl}
-            alt="Büyütülmüş görsel"
-            className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
-          />
+          <div
+            role="presentation"
+            className="flex max-h-full max-w-full items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxUrl}
+              alt="Büyütülmüş görsel"
+              className="max-h-[86vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl"
+            />
+          </div>
         </div>
       ) : null}
     </div>
