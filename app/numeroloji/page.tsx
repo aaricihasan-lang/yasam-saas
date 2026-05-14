@@ -380,24 +380,46 @@ const GORSEL_TEMA_LIST: { id: GorselTemaId; label: string }[] = [
   { id: "okyanusDerinligi", label: "Okyanus Derinliği" },
 ];
 
-/** Kozmik Mor — yıldız / nokta dokusu (çoklu radial) */
+/** Kozmik Mor — yıldız / nokta dokusu */
 const KOZMIK_STARFIELD = [
-  "radial-gradient(circle at 6% 11%, rgba(255,255,255,0.5) 0.5px, transparent 0.65px)",
-  "radial-gradient(circle at 18% 8%, rgba(216,180,254,0.55) 0.45px, transparent 0.6px)",
-  "radial-gradient(circle at 92% 14%, rgba(255,255,255,0.4) 0.5px, transparent 0.65px)",
-  "radial-gradient(circle at 78% 22%, rgba(196,181,253,0.45) 0.45px, transparent 0.58px)",
-  "radial-gradient(circle at 44% 6%, rgba(255,255,255,0.35) 0.4px, transparent 0.55px)",
-  "radial-gradient(circle at 12% 38%, rgba(237,233,254,0.4) 0.45px, transparent 0.6px)",
-  "radial-gradient(circle at 88% 42%, rgba(255,255,255,0.38) 0.5px, transparent 0.65px)",
-  "radial-gradient(circle at 30% 52%, rgba(216,180,254,0.35) 0.4px, transparent 0.55px)",
-  "radial-gradient(circle at 65% 58%, rgba(255,255,255,0.42) 0.45px, transparent 0.6px)",
-  "radial-gradient(circle at 8% 68%, rgba(196,181,253,0.4) 0.45px, transparent 0.58px)",
-  "radial-gradient(circle at 95% 72%, rgba(255,255,255,0.35) 0.5px, transparent 0.65px)",
-  "radial-gradient(circle at 52% 78%, rgba(167,139,250,0.45) 0.45px, transparent 0.6px)",
-  "radial-gradient(circle at 22% 88%, rgba(255,255,255,0.38) 0.45px, transparent 0.58px)",
-  "radial-gradient(circle at 72% 92%, rgba(237,233,254,0.4) 0.5px, transparent 0.65px)",
-  "radial-gradient(circle at 40% 34%, rgba(255,255,255,0.28) 0.35px, transparent 0.5px)",
-  "radial-gradient(circle at 58% 18%, rgba(196,181,253,0.32) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 6% 11%, rgba(255,255,255,0.45) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 18% 8%, rgba(216,180,254,0.5) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 92% 14%, rgba(255,255,255,0.38) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 78% 22%, rgba(196,181,253,0.42) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 44% 6%, rgba(255,255,255,0.32) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 12% 38%, rgba(237,233,254,0.36) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 88% 42%, rgba(255,255,255,0.34) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 30% 52%, rgba(216,180,254,0.32) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 65% 58%, rgba(255,255,255,0.38) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 8% 68%, rgba(196,181,253,0.36) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 95% 72%, rgba(255,255,255,0.32) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 52% 78%, rgba(167,139,250,0.4) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 22% 88%, rgba(255,255,255,0.34) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 72% 92%, rgba(237,233,254,0.36) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 40% 34%, rgba(255,255,255,0.24) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 58% 18%, rgba(196,181,253,0.28) 0.35px, transparent 0.5px)",
+].join(", ");
+
+const ALTIN_STARFIELD = [
+  "radial-gradient(circle at 10% 20%, rgba(254,243,199,0.35) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 85% 15%, rgba(252,211,77,0.3) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 50% 45%, rgba(253,230,138,0.22) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 22% 78%, rgba(254,249,195,0.28) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 92% 72%, rgba(251,191,36,0.25) 0.45px, transparent 0.58px)",
+].join(", ");
+
+const KUZEY_STARFIELD = [
+  "radial-gradient(circle at 14% 12%, rgba(240,253,250,0.4) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 88% 18%, rgba(204,251,241,0.35) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 48% 38%, rgba(167,243,208,0.28) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 70% 82%, rgba(236,254,255,0.32) 0.4px, transparent 0.55px)",
+].join(", ");
+
+const OKYANUS_STARFIELD = [
+  "radial-gradient(circle at 12% 22%, rgba(224,242,254,0.35) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 78% 12%, rgba(186,230,253,0.3) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 40% 58%, rgba(103,232,249,0.22) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 90% 68%, rgba(165,243,252,0.28) 0.4px, transparent 0.55px)",
 ].join(", ");
 
 function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
@@ -409,19 +431,24 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           className={wrap}
           style={{
             background:
-              "radial-gradient(ellipse 130% 85% at 50% -5%, rgba(139,92,246,0.55), transparent 58%), radial-gradient(ellipse 95% 65% at 100% 25%, rgba(76,29,149,0.42), transparent 52%), radial-gradient(ellipse 75% 55% at 0% 75%, rgba(88,28,135,0.38), transparent 48%)",
-            opacity: 0.92,
+              "radial-gradient(ellipse 125% 80% at 45% -8%, rgba(167,139,250,0.5), transparent 58%), radial-gradient(ellipse 90% 60% at 100% 20%, rgba(109,40,217,0.42), transparent 52%), radial-gradient(ellipse 70% 55% at 0% 85%, rgba(76,29,149,0.4), transparent 50%), radial-gradient(ellipse 55% 45% at 75% 70%, rgba(139,92,246,0.28), transparent 48%)",
+            opacity: 0.55,
+          }}
+          aria-hidden
+        />
+        <div className={`${wrap} opacity-[0.26]`} style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div
+          className={wrap}
+          style={{
+            opacity: 0.2,
+            backgroundImage:
+              "repeating-linear-gradient(88deg, transparent, transparent 72px, rgba(251,191,36,0.045) 72px, rgba(251,191,36,0.045) 73px, transparent 73px, transparent 144px), repeating-linear-gradient(0deg, transparent, transparent 96px, rgba(253,224,71,0.03) 96px, rgba(253,224,71,0.03) 97px, transparent 97px, transparent 192px)",
           }}
           aria-hidden
         />
         <div
-          className={`${wrap} opacity-[0.32]`}
-          style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "100% 100%" }}
-          aria-hidden
-        />
-        <div
-          className={`${wrap} mix-blend-screen opacity-[0.14]`}
-          style={{ boxShadow: "inset 0 0 140px rgba(167,139,250,0.45)" }}
+          className={`${wrap} mix-blend-screen opacity-[0.1]`}
+          style={{ boxShadow: "inset 0 0 100px rgba(192,132,252,0.35)" }}
           aria-hidden
         />
       </>
@@ -434,23 +461,33 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           className={wrap}
           style={{
             background:
-              "radial-gradient(ellipse 100% 55% at 50% 0%, rgba(245,158,11,0.2), transparent 52%), radial-gradient(ellipse 90% 70% at 85% 100%, rgba(69,26,3,0.55), transparent 55%), radial-gradient(ellipse 70% 50% at 10% 90%, rgba(120,53,15,0.35), transparent 50%)",
-            opacity: 0.95,
+              "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(251,191,36,0.28), transparent 54%), radial-gradient(ellipse 85% 65% at 90% 95%, rgba(180,83,9,0.45), transparent 55%), radial-gradient(ellipse 70% 55% at 8% 88%, rgba(120,53,15,0.38), transparent 50%), radial-gradient(ellipse 50% 40% at 40% 40%, rgba(245,158,11,0.12), transparent 55%)",
+            opacity: 0.75,
           }}
           aria-hidden
         />
         <div
           className={wrap}
           style={{
-            opacity: 0.5,
+            opacity: 0.35,
             backgroundImage:
-              "repeating-linear-gradient(112deg, transparent, transparent 52px, rgba(251,191,36,0.09) 52px, rgba(251,191,36,0.09) 53px, transparent 53px, transparent 104px), repeating-linear-gradient(0deg, rgba(254,243,199,0.03) 0 1px, transparent 1px 32px)",
+              "radial-gradient(ellipse 80% 50% at 25% 35%, rgba(254,249,195,0.08), transparent 60%), radial-gradient(ellipse 70% 45% at 70% 55%, rgba(253,230,138,0.06), transparent 58%)",
+          }}
+          aria-hidden
+        />
+        <div className={`${wrap} opacity-[0.22]`} style={{ backgroundImage: ALTIN_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div
+          className={wrap}
+          style={{
+            opacity: 0.4,
+            backgroundImage:
+              "repeating-linear-gradient(115deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 48px), linear-gradient(180deg, rgba(251,191,36,0.04), transparent 35%)",
           }}
           aria-hidden
         />
         <div
           className={wrap}
-          style={{ opacity: 0.22, boxShadow: "inset 0 0 120px rgba(251,191,36,0.18)" }}
+          style={{ opacity: 0.35, boxShadow: "inset 0 0 0 1px rgba(251,191,36,0.14), inset 0 0 90px rgba(120,53,9,0.2)" }}
           aria-hidden
         />
       </>
@@ -463,23 +500,33 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           className={wrap}
           style={{
             background:
-              "radial-gradient(ellipse 110% 75% at 8% 18%, rgba(34,197,94,0.38), transparent 52%), radial-gradient(ellipse 100% 80% at 92% 8%, rgba(45,212,191,0.28), transparent 54%), radial-gradient(ellipse 85% 65% at 50% 100%, rgba(59,130,246,0.22), transparent 50%), radial-gradient(ellipse 70% 45% at 70% 45%, rgba(167,139,250,0.18), transparent 48%)",
-            opacity: 0.9,
-          }}
-          aria-hidden
-        />
-        <div
-          className={`${wrap} left-[-25%] top-[-15%] h-[130%] w-[130%] blur-3xl`}
-          style={{
-            background:
-              "conic-gradient(from 210deg at 55% 35%, transparent 0deg, rgba(52,211,153,0.2) 60deg, transparent 120deg, rgba(6,182,212,0.18) 200deg, transparent 280deg, rgba(16,185,129,0.15) 320deg, transparent 360deg)",
-            opacity: 0.4,
+              "radial-gradient(ellipse 100% 70% at 50% 0%, rgba(15,23,42,0.85), transparent 45%), radial-gradient(ellipse 95% 55% at 5% 25%, rgba(34,197,94,0.35), transparent 52%), radial-gradient(ellipse 90% 60% at 95% 15%, rgba(45,212,191,0.28), transparent 54%), radial-gradient(ellipse 80% 70% at 50% 100%, rgba(30,58,138,0.35), transparent 52%)",
+            opacity: 0.88,
           }}
           aria-hidden
         />
         <div
           className={wrap}
-          style={{ opacity: 0.12, boxShadow: "inset 0 -80px 100px rgba(45,212,191,0.25)" }}
+          style={{
+            opacity: 0.45,
+            background:
+              "linear-gradient(185deg, rgba(94,234,212,0.12) 0%, transparent 22%), repeating-linear-gradient(8deg, transparent 0 64px, rgba(45,212,191,0.035) 64px, rgba(45,212,191,0.035) 65px, transparent 65px 128px)",
+          }}
+          aria-hidden
+        />
+        <div
+          className={`${wrap} left-[-20%] top-[-12%] h-[125%] w-[125%] blur-3xl`}
+          style={{
+            background:
+              "conic-gradient(from 200deg at 58% 32%, transparent 0deg, rgba(52,211,153,0.18) 55deg, transparent 110deg, rgba(6,182,212,0.15) 190deg, transparent 250deg, rgba(16,185,129,0.12) 310deg, transparent 360deg)",
+            opacity: 0.38,
+          }}
+          aria-hidden
+        />
+        <div className={`${wrap} opacity-[0.2]`} style={{ backgroundImage: KUZEY_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div
+          className={wrap}
+          style={{ opacity: 0.1, boxShadow: "inset 0 0 80px rgba(45,212,191,0.2)" }}
           aria-hidden
         />
       </>
@@ -492,30 +539,40 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
         className={wrap}
         style={{
           background:
-            "radial-gradient(ellipse 115% 55% at 50% 115%, rgba(8,145,178,0.5), transparent 60%), radial-gradient(ellipse 85% 50% at 15% 5%, rgba(30,64,175,0.45), transparent 52%), radial-gradient(ellipse 70% 40% at 90% 20%, rgba(12,74,110,0.4), transparent 48%)",
-          opacity: 0.92,
+            "radial-gradient(ellipse 100% 60% at 50% 110%, rgba(8,47,73,0.75), transparent 58%), radial-gradient(ellipse 70% 45% at 12% 8%, rgba(30,64,175,0.42), transparent 52%), radial-gradient(ellipse 75% 50% at 92% 18%, rgba(12,74,110,0.4), transparent 50%), radial-gradient(ellipse 55% 40% at 48% 48%, rgba(14,116,144,0.18), transparent 55%)",
+          opacity: 0.82,
         }}
         aria-hidden
       />
       <div
         className={wrap}
         style={{
-          opacity: 0.35,
+          opacity: 0.4,
           backgroundImage:
-            "radial-gradient(ellipse 130% 22% at 25% 78%, rgba(103,232,249,0.18), transparent), radial-gradient(ellipse 110% 18% at 75% 85%, rgba(56,189,248,0.14), transparent), radial-gradient(ellipse 90% 16% at 50% 92%, rgba(14,165,233,0.12), transparent)",
+            "radial-gradient(circle at 28% 72%, rgba(103,232,249,0.14) 0%, transparent 28%), radial-gradient(circle at 72% 68%, rgba(56,189,248,0.12) 0%, transparent 26%), radial-gradient(circle at 50% 88%, rgba(14,165,233,0.1) 0%, transparent 32%)",
         }}
         aria-hidden
       />
       <div
         className={wrap}
         style={{
-          opacity: 0.18,
-          background:
-            "repeating-radial-gradient(circle at 50% 125%, transparent 0, transparent 22px, rgba(14,165,233,0.05) 23px, transparent 24px)",
+          opacity: 0.28,
+          backgroundImage:
+            "radial-gradient(ellipse 140% 24% at 30% 80%, rgba(103,232,249,0.14), transparent), radial-gradient(ellipse 120% 20% at 75% 88%, rgba(56,189,248,0.1), transparent), linear-gradient(175deg, transparent 55%, rgba(8,145,178,0.08) 100%)",
         }}
         aria-hidden
       />
-      <div className={wrap} style={{ opacity: 0.14, boxShadow: "inset 0 0 100px rgba(56,189,248,0.2)" }} aria-hidden />
+      <div className={`${wrap} opacity-[0.18]`} style={{ backgroundImage: OKYANUS_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+      <div
+        className={wrap}
+        style={{
+          opacity: 0.12,
+          background:
+            "repeating-linear-gradient(-6deg, transparent 0 40px, rgba(14,165,233,0.025) 40px, rgba(14,165,233,0.025) 41px, transparent 41px 88px)",
+        }}
+        aria-hidden
+      />
+      <div className={wrap} style={{ opacity: 0.1, boxShadow: "inset 0 -60px 80px rgba(56,189,248,0.15)" }} aria-hidden />
     </>
   );
 }
@@ -1429,21 +1486,21 @@ export default function NumerolojiPage() {
                   </div>
                   {gorselPortalHazir && gorselTamEkran
                     ? createPortal(
-                        <div
-                          role="dialog"
-                          aria-modal="true"
-                          aria-labelledby="gorsel-fs-title"
-                          className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black/90"
-                        >
-                          <p id="gorsel-fs-title" className="sr-only">
-                            Numerolojik yaşam haritası tam ekran görünümü
-                          </p>
-                          <div className="pointer-events-none absolute inset-x-0 top-0 z-[10000] flex flex-col pt-3 sm:pt-4">
-                            <div className="pointer-events-auto flex w-full shrink-0 flex-wrap items-center justify-between gap-2 px-3 sm:px-5">
+                        <>
+                          <div
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="gorsel-fs-title"
+                            className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black/90"
+                          >
+                            <p id="gorsel-fs-title" className="sr-only">
+                              Numerolojik yaşam haritası tam ekran görünümü
+                            </p>
+                            <div className="absolute inset-x-0 top-0 z-[10000] flex flex-col pt-3 pl-3 sm:pt-4 sm:pl-5 sm:pr-28">
                               <div
                                 role="group"
                                 aria-label="Tam ekran teması"
-                                className="flex max-w-[min(100%,42rem)] flex-wrap items-center gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.75)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2"
+                                className="pointer-events-auto flex w-full max-w-[min(100%,calc(100vw-7rem))] flex-wrap items-center gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.75)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2"
                               >
                                 {GORSEL_TEMA_LIST.map((t) => (
                                   <button
@@ -1460,27 +1517,27 @@ export default function NumerolojiPage() {
                                   </button>
                                 ))}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setGorselTamEkran(false)}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-amber-400/85 bg-zinc-950 text-2xl font-light leading-none text-amber-50 shadow-[0_0_24px_rgba(251,191,36,0.35)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-white sm:h-12 sm:w-12 sm:text-3xl"
-                                aria-label="Tam ekranı kapat"
-                              >
-                                ×
-                              </button>
+                            </div>
+                            <div className="relative z-[10001] flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-3 pt-14 sm:px-4 sm:pb-4 sm:pt-16">
+                              <div className="relative w-[96vw] max-w-[1280px] max-h-[86vh] origin-top overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-2xl border-2 border-amber-500/35 shadow-[0_0_56px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/30 md:w-[90vw] md:origin-center md:scale-90">
+                                <GorselRaporInfografik
+                                  out={out}
+                                  isimGoster={isimGoster}
+                                  dogumGoster={dogumGoster}
+                                  temaId={gorselTema}
+                                />
+                              </div>
                             </div>
                           </div>
-                          <div className="relative z-[10001] flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-3 pt-14 sm:px-4 sm:pb-4 sm:pt-16">
-                            <div className="h-[92vh] w-[96vw] max-w-[1500px] overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-2xl border-2 border-amber-500/35 shadow-[0_0_56px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/30">
-                              <GorselRaporInfografik
-                                out={out}
-                                isimGoster={isimGoster}
-                                dogumGoster={dogumGoster}
-                                temaId={gorselTema}
-                              />
-                            </div>
-                          </div>
-                        </div>,
+                          <button
+                            type="button"
+                            onClick={() => setGorselTamEkran(false)}
+                            className="fixed right-6 top-6 z-[10050] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
+                            aria-label="Tam ekranı kapat"
+                          >
+                            ×
+                          </button>
+                        </>,
                         document.body,
                       )
                     : null}
