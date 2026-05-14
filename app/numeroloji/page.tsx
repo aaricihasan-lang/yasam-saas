@@ -1191,71 +1191,6 @@ function GorselNumeroSembol({ tip }: { tip: "ana" | "yan" | "ifade" | "hayat" })
   );
 }
 
-/** Tam rapor + A4 tek sayfa için pdf-mode ile birlikte kullanılır (sadece bu dosyada). */
-const GORSEL_PDF_MODE_CSS = `
-.numeroloji-gorsel-root.pdf-mode{
-  overflow:visible!important;
-  max-height:none!important;
-  padding:0.45rem 0.55rem!important;
-}
-@media (min-width:640px){
-  .numeroloji-gorsel-root.pdf-mode{padding:0.55rem 0.65rem!important;}
-}
-.numeroloji-gorsel-root.pdf-mode header{padding-bottom:0.35rem!important;}
-.numeroloji-gorsel-root.pdf-mode header h2{
-  font-size:clamp(0.82rem,2.4vw,1.05rem)!important;
-  letter-spacing:0.1em!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar{
-  margin-top:0.4rem!important;
-  gap:0.35rem!important;
-}
-@media (min-width:1024px){
-  .numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar{gap:0.45rem!important;}
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar > section{
-  min-height:4.35rem!important;
-  padding-top:0.3rem!important;
-  padding-bottom:0.3rem!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar .gorsel-kart-num{
-  margin-top:0.25rem!important;
-  font-size:clamp(0.95rem,2.6vw,1.35rem)!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar svg{max-height:1.05rem!important;width:auto!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-pin-cakra{
-  margin-top:0.45rem!important;
-  gap:0.4rem!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-pin-col{gap:0.35rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-pin-cell{
-  height:1.1rem!important;
-  width:1.1rem!important;
-  font-size:0.55rem!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-el-count{font-size:0.7rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-cakra-rows{gap:0.1rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-cakra-rows > div > div{padding-top:0.1rem!important;padding-bottom:0.1rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-yillar{
-  margin-top:0.45rem!important;
-  gap:0.35rem!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-yillar > section{
-  min-height:0!important;
-  padding:0.35rem!important;
-  overflow:visible!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-pdf-flow{
-  overflow:visible!important;
-  max-height:none!important;
-}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-harf{margin-top:0.45rem!important;padding:0.45rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-harf .mt-2{gap:0.35rem!important;margin-top:0.35rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-tas{margin-top:0.4rem!important;padding:0.45rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-tas-body{gap:0.35rem!important;margin-top:0.35rem!important;}
-.numeroloji-gorsel-root.pdf-mode .gorsel-sec-uzman{margin-top:0.45rem!important;padding-top:0.45rem!important;}
-`;
-
 type GorselRaporInfografikProps = {
   out: NumerolojiMotorOut;
   isimGoster: string;
@@ -1268,11 +1203,12 @@ type GorselRaporInfografikProps = {
   tasBileklik: string;
   tasKolye: string;
   tasKutle: string;
-  /** PDF yakalama öncesi: kompakt layout + overflow düzeltmesi */
-  pdfModu?: boolean;
 };
 
-/** Görsel rapor kökünü yüksek çözünürlükte yakalayıp tek sayfa A4 dikey PDF üretir. */
+/**
+ * Görsel rapor kökünü html2canvas ile yakalar; A4 dikey PDF’de genişlik sayfaya sığar,
+ * yükseklik taşarsa kesintisiz dikey şeritlerle yeni sayfalara devam eder (kırpma yok).
+ */
 async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
   if (!hedef || typeof window === "undefined") return;
 
@@ -1281,7 +1217,7 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
     import("jspdf"),
   ]);
 
-  const scale = 2.25;
+  const scale = 2.5;
   const sw = Math.max(1, Math.ceil(Math.max(hedef.scrollWidth, hedef.offsetWidth, hedef.clientWidth)));
   const shRaw = Math.max(hedef.scrollHeight, hedef.offsetHeight, hedef.clientHeight);
   const sh = Math.max(1, Math.ceil(shRaw + 16));
@@ -1302,7 +1238,6 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
     scrollY: 0,
     onclone: (_doc, cloned) => {
       if (!(cloned instanceof HTMLElement)) return;
-      cloned.classList.add("pdf-mode");
       cloned.style.overflow = "visible";
       cloned.style.maxHeight = "none";
       cloned.style.height = "auto";
@@ -1313,26 +1248,42 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
     },
   });
 
-  const imgData = canvas.toDataURL("image/png", 1);
+  const cw = canvas.width;
+  const ch = canvas.height;
+  if (cw < 1 || ch < 1) return;
+
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const cw = canvas.width;
-  const ch = canvas.height;
-  const imgRatio = cw / ch;
-  const pageRatio = pageW / pageH;
-  let imgW: number;
-  let imgH: number;
-  if (imgRatio > pageRatio) {
-    imgW = pageW;
-    imgH = pageW / imgRatio;
-  } else {
-    imgH = pageH;
-    imgW = pageH * imgRatio;
+  const marginX = 6;
+  const marginY = 6;
+  const contentW = pageW - 2 * marginX;
+  const contentH = pageH - 2 * marginY;
+  const mmPerPxW = contentW / cw;
+  /** Bir A4 sayfasına sığan kaynak görüntü şeridi (px, tam genişlik). */
+  const slicePx = Math.max(1, Math.floor((contentH / contentW) * cw));
+
+  const sliceCanvas = document.createElement("canvas");
+  sliceCanvas.width = cw;
+  const sliceCtx = sliceCanvas.getContext("2d");
+  if (!sliceCtx) return;
+
+  let y = 0;
+  let firstPage = true;
+  while (y < ch) {
+    const hPx = Math.min(slicePx, ch - y);
+    if (hPx < 1) break;
+    sliceCanvas.height = hPx;
+    sliceCtx.clearRect(0, 0, cw, hPx);
+    sliceCtx.drawImage(canvas, 0, y, cw, hPx, 0, 0, cw, hPx);
+    const sliceMmH = hPx * mmPerPxW;
+    const url = sliceCanvas.toDataURL("image/png", 1);
+    if (!firstPage) pdf.addPage();
+    firstPage = false;
+    pdf.addImage(url, "PNG", marginX, marginY, contentW, sliceMmH);
+    y += hPx;
   }
-  const marginX = (pageW - imgW) / 2;
-  const marginY = (pageH - imgH) / 2;
-  pdf.addImage(imgData, "PNG", marginX, marginY, imgW, imgH);
+
   pdf.save("numeroloji-raporu.pdf");
 }
 
@@ -1349,7 +1300,6 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
     tasBileklik,
     tasKolye,
     tasKutle,
-    pdfModu = false,
   },
   ref,
 ) {
@@ -1398,7 +1348,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
       ref={ref}
       data-gorsel-pdf-root
       style={css}
-      className={`numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none ${pdfModu ? "overflow-visible pdf-mode" : "overflow-hidden"}`}
+      className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none"
     >
       <GorselTemaDekoratif temaId={temaId} />
       <GorselRaporKoseDekor />
@@ -1932,7 +1882,6 @@ export default function NumerolojiPage() {
   const [tasKutle, setTasKutle] = useState("");
   const gorselPdfRef = useRef<HTMLDivElement>(null);
   const [pdfOlusturuluyor, setPdfOlusturuluyor] = useState(false);
-  const [gorselPdfModu, setGorselPdfModu] = useState(false);
 
   useEffect(() => {
     setGorselPortalHazir(true);
@@ -1973,7 +1922,6 @@ export default function NumerolojiPage() {
     const prevOverflow = scrollHost?.style.overflow ?? "";
     const prevMinH = scrollHost?.style.minHeight ?? "";
 
-    setGorselPdfModu(true);
     setPdfOlusturuluyor(true);
     if (scrollHost) {
       scrollHost.style.maxHeight = "none";
@@ -1997,7 +1945,6 @@ export default function NumerolojiPage() {
         scrollHost.style.overflow = prevOverflow;
         scrollHost.style.minHeight = prevMinH;
       }
-      setGorselPdfModu(false);
       setPdfOlusturuluyor(false);
     }
   }
@@ -2130,9 +2077,7 @@ export default function NumerolojiPage() {
         ) : null}
 
         {out ? (
-          <>
-            <style dangerouslySetInnerHTML={{ __html: GORSEL_PDF_MODE_CSS }} />
-            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg ring-1 ring-amber-100/40">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg ring-1 ring-amber-100/40">
             <div className="flex flex-wrap gap-0 border-b border-slate-200/80 bg-gradient-to-r from-violet-50/80 via-amber-50/50 to-sky-50/80 px-1 pt-1">
               {TABS.map((t) => (
                 <button
@@ -2290,7 +2235,6 @@ export default function NumerolojiPage() {
                           tasBileklik={tasBileklik}
                           tasKolye={tasKolye}
                           tasKutle={tasKutle}
-                          pdfModu={gorselPdfModu}
                         />
                       </div>
                     </div>
@@ -2324,7 +2268,6 @@ export default function NumerolojiPage() {
                                   tasBileklik={tasBileklik}
                                   tasKolye={tasKolye}
                                   tasKutle={tasKutle}
-                                  pdfModu={gorselPdfModu}
                                 />
                               </div>
                             </div>
@@ -2375,7 +2318,6 @@ export default function NumerolojiPage() {
               ) : null}
             </div>
           </div>
-          </>
         ) : null}
       </div>
     </div>
