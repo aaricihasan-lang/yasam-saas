@@ -1287,6 +1287,67 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
   pdf.save("numeroloji-raporu.pdf");
 }
 
+/** Yüksek çözünürlüklü tam rapor PNG’si (WhatsApp / galeri paylaşımı için). */
+async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
+  if (!hedef || typeof window === "undefined") return;
+
+  const { default: html2canvas } = await import("html2canvas");
+
+  const scale = 3;
+  const sw = Math.max(1, Math.ceil(Math.max(hedef.scrollWidth, hedef.offsetWidth, hedef.clientWidth)));
+  const shRaw = Math.max(hedef.scrollHeight, hedef.offsetHeight, hedef.clientHeight);
+  const sh = Math.max(1, Math.ceil(shRaw + 16));
+
+  const canvas = await html2canvas(hedef, {
+    scale,
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: null,
+    logging: false,
+    width: sw,
+    height: sh,
+    windowWidth: sw,
+    windowHeight: sh,
+    x: 0,
+    y: 0,
+    scrollX: 0,
+    scrollY: 0,
+    onclone: (_doc, cloned) => {
+      if (!(cloned instanceof HTMLElement)) return;
+      cloned.style.overflow = "visible";
+      cloned.style.maxHeight = "none";
+      cloned.style.height = "auto";
+      const cw = Math.max(cloned.scrollWidth, cloned.offsetWidth, sw);
+      const ch = Math.max(cloned.scrollHeight, cloned.offsetHeight, sh);
+      cloned.style.width = `${cw}px`;
+      cloned.style.minHeight = `${ch}px`;
+    },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("PNG oluşturulamadı."));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "numeroloji-raporu.png";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        resolve();
+      },
+      "image/png",
+      1,
+    );
+  });
+}
+
 const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikProps>(function GorselRaporInfografik(
   {
     out,
@@ -1882,6 +1943,8 @@ export default function NumerolojiPage() {
   const [tasKutle, setTasKutle] = useState("");
   const gorselPdfRef = useRef<HTMLDivElement>(null);
   const [pdfOlusturuluyor, setPdfOlusturuluyor] = useState(false);
+  const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
+  const gorselIndirmeKilitli = pdfOlusturuluyor || gorselPngHazirlaniyor;
 
   useEffect(() => {
     setGorselPortalHazir(true);
@@ -1912,8 +1975,45 @@ export default function NumerolojiPage() {
     if (tab !== "gorsel") setGorselTamEkran(false);
   }, [tab]);
 
+  async function handleGorselPngIndir() {
+    if (gorselIndirmeKilitli) return;
+    const el0 = gorselPdfRef.current;
+    if (!el0) return;
+
+    const scrollHost = el0.closest("[data-gorsel-pdf-scroll-host]") as HTMLElement | null;
+    const prevMaxH = scrollHost?.style.maxHeight ?? "";
+    const prevOverflow = scrollHost?.style.overflow ?? "";
+    const prevMinH = scrollHost?.style.minHeight ?? "";
+
+    setGorselPngHazirlaniyor(true);
+    if (scrollHost) {
+      scrollHost.style.maxHeight = "none";
+      scrollHost.style.overflow = "visible";
+      scrollHost.style.minHeight = "0";
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    await new Promise<void>((r) => setTimeout(r, 120));
+
+    const el = gorselPdfRef.current;
+    try {
+      if (el) await gorselRaporuPngYakalaVeIndir(el);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (scrollHost) {
+        scrollHost.style.maxHeight = prevMaxH;
+        scrollHost.style.overflow = prevOverflow;
+        scrollHost.style.minHeight = prevMinH;
+      }
+      setGorselPngHazirlaniyor(false);
+    }
+  }
+
   async function handleGorselPdfIndir() {
-    if (pdfOlusturuluyor) return;
+    if (gorselIndirmeKilitli) return;
     const el0 = gorselPdfRef.current;
     if (!el0) return;
 
@@ -2205,9 +2305,17 @@ export default function NumerolojiPage() {
                         </div>
                         <button
                           type="button"
+                          onClick={handleGorselPngIndir}
+                          disabled={gorselIndirmeKilitli}
+                          className="shrink-0 self-end rounded-full border-2 border-emerald-400/75 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.28)] backdrop-blur-md transition hover:border-emerald-300 hover:bg-zinc-900 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em]"
+                        >
+                          {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
+                        </button>
+                        <button
+                          type="button"
                           onClick={handleGorselPdfIndir}
-                          disabled={pdfOlusturuluyor}
-                          className="shrink-0 self-end rounded-full border-2 border-violet-400/70 bg-zinc-950 px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-violet-100 shadow-[0_0_18px_rgba(167,139,250,0.25)] backdrop-blur-md transition hover:border-violet-300 hover:bg-zinc-900 hover:text-violet-50 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs"
+                          disabled={gorselIndirmeKilitli}
+                          className="shrink-0 self-end rounded-full border border-zinc-600/90 bg-zinc-950/80 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 shadow-sm backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-[11px]"
                         >
                           {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
                         </button>
@@ -2295,9 +2403,17 @@ export default function NumerolojiPage() {
                             </div>
                             <button
                               type="button"
+                              onClick={handleGorselPngIndir}
+                              disabled={gorselIndirmeKilitli}
+                              className="rounded-full border-2 border-emerald-400/75 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-emerald-50 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-emerald-300 hover:bg-zinc-900 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
+                            >
+                              {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
+                            </button>
+                            <button
+                              type="button"
                               onClick={handleGorselPdfIndir}
-                              disabled={pdfOlusturuluyor}
-                              className="rounded-full border-2 border-violet-400/70 bg-zinc-950/95 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.1em] text-violet-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-violet-300 hover:bg-zinc-900 hover:text-violet-50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[11px]"
+                              disabled={gorselIndirmeKilitli}
+                              className="rounded-full border border-zinc-600/90 bg-zinc-950/80 px-2.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-zinc-400 shadow-sm backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-[10px]"
                             >
                               {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
                             </button>
