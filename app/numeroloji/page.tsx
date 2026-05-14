@@ -358,17 +358,6 @@ function TabAnalizOzetli({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
-/** Statik çakra omurgası paneli — sol: boş ○, sağ: dolu ● (örnek sayılar) */
-const GORSEL_CAKRA_OMURGASI_STATIK: { no: number; left: number; right: number; subtitle: string }[] = [
-  { no: 1, left: 3, right: 2, subtitle: "Muladhara · Kök" },
-  { no: 2, left: 3, right: 4, subtitle: "Svadhisthana · Sakral" },
-  { no: 3, left: 2, right: 1, subtitle: "Manipura · Solar pleksus" },
-  { no: 4, left: 3, right: 3, subtitle: "Anahata · Kalp" },
-  { no: 5, left: 4, right: 1, subtitle: "Vishuddha · Boğaz" },
-  { no: 6, left: 3, right: 4, subtitle: "Ajna · Alın" },
-  { no: 7, left: 4, right: 2, subtitle: "Sahasrara · Taç" },
-];
-
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
   { id: "plain", label: "Analiz (Hesap Özetsiz)" },
@@ -551,68 +540,222 @@ export default function NumerolojiPage() {
               ) : null}
 
               {tab === "gorsel" ? (
-                <div className="relative overflow-hidden rounded-3xl border border-violet-500/35 bg-gradient-to-b from-violet-950 via-[#0f0518] to-black p-4 shadow-[0_0_48px_-10px_rgba(139,92,246,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-violet-400/25 sm:p-6">
+                <div className="relative w-full max-w-none overflow-hidden rounded-2xl border border-violet-500/35 bg-gradient-to-b from-violet-950 via-[#0a0414] to-black p-5 text-violet-50 shadow-[0_0_60px_-12px_rgba(139,92,246,0.55)] ring-1 ring-violet-400/20 sm:rounded-3xl sm:p-8 md:p-10">
                   <div
-                    className="pointer-events-none absolute -left-24 -top-24 h-56 w-56 rounded-full bg-violet-600/25 blur-3xl"
+                    className="pointer-events-none absolute -left-32 -top-32 h-72 w-72 rounded-full bg-violet-600/20 blur-3xl"
                     aria-hidden
                   />
                   <div
-                    className="pointer-events-none absolute -bottom-20 -right-16 h-48 w-48 rounded-full bg-fuchsia-600/20 blur-3xl"
+                    className="pointer-events-none absolute -bottom-28 -right-24 h-64 w-64 rounded-full bg-fuchsia-600/15 blur-3xl"
                     aria-hidden
                   />
 
-                  <header className="relative z-[1] mb-5 text-center sm:mb-6">
-                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-violet-300/95 drop-shadow-[0_0_12px_rgba(167,139,250,0.45)]">
-                      Görsel rapor
-                    </p>
-                    <h2 className="mt-2 text-base font-black uppercase tracking-[0.12em] text-white drop-shadow-[0_0_14px_rgba(167,139,250,0.35)] sm:text-lg">
-                      Çakra omurgası
+                  <header className="relative z-[1] border-b border-violet-500/25 pb-6 text-center sm:pb-8 sm:text-left">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-300/90">Görsel rapor</p>
+                    <h2 className="mt-2 text-xl font-black uppercase tracking-[0.14em] text-white drop-shadow-[0_0_20px_rgba(167,139,250,0.35)] sm:text-2xl md:text-3xl">
+                      Numerolojik Yaşam Haritası
                     </h2>
-                    <p className="mt-1 text-[11px] font-medium text-violet-200/65">Örnek görünüm — canlı veri yakında</p>
-                    <div className="mx-auto mt-4 h-px max-w-xs bg-gradient-to-r from-transparent via-violet-400/50 to-transparent shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
                   </header>
 
-                  <div className="relative z-[1] mx-auto flex max-w-3xl flex-col gap-2.5 sm:gap-3">
-                    {GORSEL_CAKRA_OMURGASI_STATIK.map((row) => (
-                      <div
-                        key={row.no}
-                        className="group rounded-2xl border border-violet-500/25 bg-black/45 p-3 shadow-[0_0_24px_-8px_rgba(109,40,217,0.4)] ring-1 ring-white/5 transition hover:border-violet-400/40 hover:shadow-[0_0_32px_-6px_rgba(139,92,246,0.5)] sm:p-4"
-                      >
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
-                          <div
-                            className="flex min-h-[1.5rem] flex-wrap content-center justify-end gap-x-1 gap-y-0.5 text-[15px] leading-none text-white/95 [-webkit-text-stroke:0.35px_rgba(255,255,255,0.12)] sm:text-lg md:text-xl"
-                            aria-hidden
-                          >
-                            {Array.from({ length: row.left }, (_, i) => (
-                              <span key={`l-${row.no}-${i}`} className="tabular-nums">
-                                ○
-                              </span>
-                            ))}
-                          </div>
+                  <section className="relative z-[1] mt-6 grid gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:mt-8 sm:grid-cols-2 sm:p-5 md:grid-cols-[1fr_auto] md:items-end">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400/90">Danışan</p>
+                      <p className="mt-1.5 break-words text-lg font-bold text-white sm:text-xl">
+                        {(isimGoster || "").trim() || "—"}
+                      </p>
+                    </div>
+                    <div className="md:text-right">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400/90">Doğum tarihi</p>
+                      <p className="mt-1.5 font-mono text-base font-semibold text-violet-100 sm:text-lg">
+                        {(dogumGoster || "").trim() || "—"}
+                      </p>
+                    </div>
+                  </section>
 
-                          <div className="min-w-[7.5rem] max-w-[12rem] px-1 text-center sm:min-w-[9rem]">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-100 sm:text-[12px]">
-                              {row.no}. ÇAKRA
-                            </p>
-                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-violet-300/80 sm:text-[10px]">
-                              {row.subtitle}
-                            </p>
-                          </div>
-
-                          <div
-                            className="flex min-h-[1.5rem] flex-wrap content-center justify-start gap-x-1 gap-y-0.5 text-[15px] leading-none text-violet-300 drop-shadow-[0_0_10px_rgba(167,139,250,0.65)] sm:text-lg md:text-xl"
-                            aria-hidden
-                          >
-                            {Array.from({ length: row.right }, (_, i) => (
-                              <span key={`r-${row.no}-${i}`} className="tabular-nums">
-                                ●
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="relative z-[1] mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                    {(
+                      [
+                        ["Ana Kulvar", out.anaKulvar],
+                        ["Yan Kulvar", out.yanKulvar],
+                        ["İfade Sayısı", out.ifadeSayisi],
+                        ["Hayat Yolu / DM", out.hayatYolu],
+                      ] as const
+                    ).map(([label, r]) => {
+                      const k = (r.key || "").trim();
+                      const steps = r.steps ?? [];
+                      return (
+                        <section
+                          key={label}
+                          className="rounded-2xl border border-violet-500/25 bg-black/50 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_28px_-10px_rgba(91,33,182,0.35)] sm:p-5"
+                        >
+                          <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                            {label}
+                          </h3>
+                          <p className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{nrDisplay(r)}</p>
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-violet-200/75">{k || "—"}</p>
+                          <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-black/30 p-3 font-mono text-[11px] leading-relaxed text-violet-100/85 sm:text-xs">
+                            {steps.length ? steps.join("\n") : "—"}
+                          </pre>
+                        </section>
+                      );
+                    })}
                   </div>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      PIN Kodu
+                    </h3>
+                    <p className="mt-3 break-all font-mono text-xs font-bold text-violet-100 sm:text-sm">{pinOneLine(out.pinKodu)}</p>
+                    <pre className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-violet-100/85 sm:text-xs">
+                      {(out.pinKoduMetni || "").trim() || "—"}
+                    </pre>
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Elementler
+                    </h3>
+                    <p className="mt-3 text-lg font-bold text-white sm:text-xl">{elementShort(out.elementler)}</p>
+                    <pre className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-violet-100/90">
+                      {(out.elementlerMetni || "").trim() || "—"}
+                    </pre>
+                    {out.elementler.steps?.length ? (
+                      <pre className="mt-3 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-black/30 p-3 text-xs leading-relaxed text-violet-200/90">
+                        {out.elementler.steps.join("\n")}
+                      </pre>
+                    ) : null}
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/30 bg-gradient-to-b from-black/60 to-violet-950/40 p-4 shadow-[0_0_36px_-8px_rgba(139,92,246,0.45)] sm:p-6">
+                    <h3 className="border-b border-violet-400/25 pb-2 text-[10px] font-black uppercase tracking-[0.22em] text-violet-200/95">
+                      Çakra omurgası
+                    </h3>
+                    <p className="mt-2 text-[11px] font-medium text-violet-300/70">Sayı sütunu · harf sütunu (motor verisi)</p>
+                    <div className="mt-4 space-y-2">
+                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((cNo) => {
+                        const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
+                        const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
+                        const alt =
+                          (
+                            {
+                              1: "Muladhara · Kök",
+                              2: "Svadhisthana · Sakral",
+                              3: "Manipura · Solar pleksus",
+                              4: "Anahata · Kalp",
+                              5: "Vishuddha · Boğaz",
+                              6: "Ajna · Alın",
+                              7: "Sahasrara · Taç",
+                            } as Record<number, string>
+                          )[cNo] ?? `${cNo}. ÇAKRA`;
+                        const emptyRow = left === 0 && right === 0;
+                        return (
+                          <div
+                            key={cNo}
+                            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-violet-500/20 bg-black/40 px-2 py-2.5 sm:gap-3 sm:px-3 sm:py-3"
+                          >
+                            <div
+                              className="flex min-h-[1.25rem] flex-wrap content-center justify-end gap-0.5 text-sm leading-none text-white/95 sm:text-base"
+                              aria-hidden
+                            >
+                              {emptyRow ? (
+                                <span className="text-violet-500/50">—</span>
+                              ) : (
+                                Array.from({ length: left }, (_, i) => (
+                                  <span key={`g-l-${cNo}-${i}`}>○</span>
+                                ))
+                              )}
+                            </div>
+                            <div className="min-w-[6.5rem] px-1 text-center sm:min-w-[8rem]">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-100">{cNo}. ÇAKRA</p>
+                              <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-violet-300/75 sm:text-[10px]">
+                                {alt}
+                              </p>
+                            </div>
+                            <div
+                              className="flex min-h-[1.25rem] flex-wrap content-center justify-start gap-0.5 text-sm leading-none text-violet-300 drop-shadow-[0_0_8px_rgba(167,139,250,0.55)] sm:text-base"
+                              aria-hidden
+                            >
+                              {emptyRow ? (
+                                <span className="text-violet-500/50">—</span>
+                              ) : (
+                                Array.from({ length: right }, (_, i) => (
+                                  <span key={`g-r-${cNo}-${i}`}>●</span>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <pre className="mt-5 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-black/35 p-3 text-[11px] leading-relaxed text-violet-100/88 sm:text-xs">
+                      {(out.cakraOmurgasiMetni || "").trim() || "—"}
+                    </pre>
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Değişim-Dönüşüm Yılları
+                    </h3>
+                    <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-violet-100/90">
+                      {(out.degisimDonusumMetni || "").trim() || "—"}
+                    </pre>
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Zirve Yılları
+                    </h3>
+                    {out.zirveYillariMetni?.trim() ? (
+                      <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-violet-100/90">
+                        {out.zirveYillariMetni}
+                      </pre>
+                    ) : out.zirveYillari?.peaks?.length ? (
+                      <ul className="mt-3 space-y-2 text-sm text-violet-100/90">
+                        {out.zirveYillari.peaks.map((p) => (
+                          <li key={p.index} className="rounded-lg border border-white/5 bg-black/25 px-3 py-2">
+                            {p.index}. zirve — yaş {p.age}, konu {p.topic}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-violet-200/70">—</p>
+                    )}
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Mücadele Yılları
+                    </h3>
+                    {out.mucadeleYillariMetni?.trim() ? (
+                      <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-violet-100/90">
+                        {out.mucadeleYillariMetni}
+                      </pre>
+                    ) : out.mucadeleYillari?.method1?.length ? (
+                      <ul className="mt-3 space-y-2 text-sm text-violet-100/90">
+                        {out.mucadeleYillari.method1.map((m) => (
+                          <li key={m.index} className="rounded-lg border border-white/5 bg-black/25 px-3 py-2">
+                            {m.index}. mücadele — yaş {m.age}, konu {m.topic}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-violet-200/70">—</p>
+                    )}
+                  </section>
+
+                  <section className="relative z-[1] mt-6 rounded-2xl border border-violet-500/25 bg-black/50 p-4 sm:p-5">
+                    <h3 className="border-b border-violet-500/20 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Harflerin Yankılanışı
+                    </h3>
+                    {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
+                      <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-black/30 p-3 font-mono text-[11px] leading-relaxed text-violet-100/88 sm:text-xs">
+                        {harfSegmentsToText(out.harflerinYankilanisi)}
+                      </pre>
+                    ) : null}
+                    <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-violet-100/90">
+                      {(out.harflerinYankilanisiMetni || "").trim() || "—"}
+                    </pre>
+                  </section>
                 </div>
               ) : null}
             </div>
