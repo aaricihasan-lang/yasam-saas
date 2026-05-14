@@ -540,39 +540,30 @@ export default function NumerolojiPage() {
               ) : null}
 
               {tab === "gorsel" ? (
-                <div className="relative w-full max-w-none overflow-hidden rounded-2xl border border-violet-500/35 bg-gradient-to-b from-violet-950 via-[#0a0414] to-black p-3 text-violet-50 shadow-[0_0_48px_-12px_rgba(139,92,246,0.5)] ring-1 ring-violet-400/20 sm:rounded-3xl sm:p-4 md:p-5">
-                  <div
-                    className="pointer-events-none absolute -left-28 -top-28 h-64 w-64 rounded-full bg-violet-600/18 blur-3xl"
-                    aria-hidden
-                  />
-                  <div
-                    className="pointer-events-none absolute -bottom-24 -right-20 h-56 w-56 rounded-full bg-fuchsia-600/12 blur-3xl"
-                    aria-hidden
-                  />
+                <div className="relative w-full max-w-none overflow-hidden rounded-xl border border-violet-500/30 bg-gradient-to-b from-violet-950 via-[#070312] to-black p-2 text-violet-50 shadow-[0_0_32px_-10px_rgba(139,92,246,0.45)] ring-1 ring-violet-500/15 sm:rounded-2xl sm:p-2.5">
+                  <div className="pointer-events-none absolute -left-16 -top-16 h-40 w-40 rounded-full bg-violet-600/15 blur-2xl" aria-hidden />
+                  <div className="pointer-events-none absolute -bottom-12 -right-12 h-36 w-36 rounded-full bg-fuchsia-600/10 blur-2xl" aria-hidden />
 
-                  <header className="relative z-[1] border-b border-violet-500/25 pb-3 text-center sm:pb-4 sm:text-left">
-                    <p className="text-[9px] font-black uppercase tracking-[0.26em] text-violet-300/90 sm:text-[10px]">Görsel rapor</p>
-                    <h2 className="mt-1 text-base font-black uppercase tracking-[0.12em] text-white drop-shadow-[0_0_16px_rgba(167,139,250,0.3)] sm:text-lg md:text-xl">
-                      Numerolojik Yaşam Haritası
-                    </h2>
-                  </header>
-
-                  <section className="relative z-[1] mt-3 grid gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 sm:mt-4 sm:grid-cols-2 md:grid-cols-[1fr_auto] md:items-end md:p-3.5">
+                  <div className="relative z-[1] flex flex-wrap items-end justify-between gap-1 border-b border-violet-500/25 pb-1">
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-400/90">Danışan</p>
-                      <p className="mt-1 break-words text-base font-bold text-white sm:text-lg">
-                        {(isimGoster || "").trim() || "—"}
-                      </p>
+                      <p className="text-[7px] font-black uppercase tracking-[0.22em] text-violet-400/95 sm:text-[8px]">İnfografik özet</p>
+                      <h2 className="text-xs font-black uppercase tracking-[0.1em] text-white sm:text-sm">Numerolojik yaşam haritası</h2>
                     </div>
-                    <div className="md:text-right">
-                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-400/90">Doğum tarihi</p>
-                      <p className="mt-1 font-mono text-sm font-semibold text-violet-100 sm:text-base">
-                        {(dogumGoster || "").trim() || "—"}
-                      </p>
-                    </div>
-                  </section>
+                  </div>
 
-                  <div className="relative z-[1] mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
+                  <div className="relative z-[1] mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] leading-tight text-violet-100/95 sm:text-[10px]">
+                    <span>
+                      <span className="font-black uppercase tracking-wide text-violet-400/90">Danışan </span>
+                      <span className="font-semibold text-white">{(isimGoster || "").trim() || "—"}</span>
+                    </span>
+                    <span className="hidden text-violet-500/40 sm:inline">|</span>
+                    <span>
+                      <span className="font-black uppercase tracking-wide text-violet-400/90">Doğum </span>
+                      <span className="font-mono font-semibold">{(dogumGoster || "").trim() || "—"}</span>
+                    </span>
+                  </div>
+
+                  <div className="relative z-[1] mt-1 grid grid-cols-2 gap-1 sm:grid-cols-4">
                     {(
                       [
                         ["Ana Kulvar", out.anaKulvar],
@@ -582,185 +573,147 @@ export default function NumerolojiPage() {
                       ] as const
                     ).map(([label, r]) => {
                       const k = (r.key || "").trim();
-                      const steps = r.steps ?? [];
-                      const isKulvar = label === "Ana Kulvar" || label === "Yan Kulvar";
                       return (
                         <section
                           key={label}
-                          className="rounded-xl border border-violet-500/25 bg-black/50 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_22px_-10px_rgba(91,33,182,0.32)] sm:p-3.5"
+                          className="flex min-h-[4.25rem] flex-col rounded-md border border-violet-500/25 bg-black/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                         >
-                          <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
+                          <h3 className="text-[7px] font-black uppercase leading-tight tracking-[0.12em] text-violet-300/90 sm:text-[8px]">
                             {label}
                           </h3>
-                          <p className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl">{nrDisplay(r)}</p>
-                          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-200/75">{k || "—"}</p>
-                          <pre
-                            className={`mt-2 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/5 bg-black/30 p-2 font-mono text-[10px] leading-relaxed text-violet-100/85 sm:text-[11px] ${
-                              isKulvar ? "max-h-32 sm:max-h-36" : "max-h-40 sm:max-h-44"
-                            }`}
-                          >
-                            {steps.length ? steps.join("\n") : "—"}
-                          </pre>
+                          <p className="mt-0.5 flex-1 text-lg font-black leading-none tracking-tight text-white sm:text-xl">{nrDisplay(r)}</p>
+                          <p className="truncate text-[8px] font-semibold uppercase tracking-wide text-violet-300/80 sm:text-[9px]" title={k || undefined}>
+                            {k || "—"}
+                          </p>
                         </section>
                       );
                     })}
                   </div>
 
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      PIN Kodu
-                    </h3>
-                    <p className="mt-2 break-all font-mono text-[11px] font-bold text-violet-100 sm:text-xs">{pinOneLine(out.pinKodu)}</p>
-                    <pre className="mt-2 max-h-52 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-violet-100/85 sm:max-h-56 sm:text-[11px]">
-                      {(out.pinKoduMetni || "").trim() || "—"}
-                    </pre>
-                  </section>
-
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      Elementler
-                    </h3>
-                    <p className="mt-2 text-base font-bold text-white sm:text-lg">{elementShort(out.elementler)}</p>
-                    <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-violet-100/90 sm:max-h-52 sm:text-sm">
-                      {(out.elementlerMetni || "").trim() || "—"}
-                    </pre>
-                    {out.elementler.steps?.length ? (
-                      <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/5 bg-black/30 p-2 text-[10px] leading-relaxed text-violet-200/90 sm:text-xs">
-                        {out.elementler.steps.join("\n")}
+                  <div className="relative z-[1] mt-1 grid grid-cols-1 gap-1 sm:grid-cols-3">
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-300/95 sm:text-[8px]">
+                        PIN kodu
+                      </h3>
+                      <p className="mt-0.5 break-all font-mono text-[8px] font-bold leading-tight text-violet-50 sm:text-[9px]">{pinOneLine(out.pinKodu)}</p>
+                      <pre className="mt-0.5 max-h-[4.5rem] overflow-y-auto whitespace-pre-wrap font-mono text-[7px] leading-snug text-violet-200/85 sm:max-h-20 sm:text-[8px]">
+                        {(out.pinKoduMetni || "").trim() || "—"}
                       </pre>
-                    ) : null}
-                  </section>
+                    </section>
 
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/30 bg-gradient-to-b from-black/60 to-violet-950/40 p-3 shadow-[0_0_28px_-8px_rgba(139,92,246,0.4)] sm:p-4">
-                    <h3 className="border-b border-violet-400/25 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-200/95 sm:text-[10px]">
-                      Çakra omurgası
-                    </h3>
-                    <p className="mt-1 text-[10px] font-medium text-violet-300/70">Sayı sütunu · harf sütunu (motor verisi)</p>
-                    <div className="mt-2 space-y-1">
-                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((cNo) => {
-                        const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
-                        const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
-                        const alt =
-                          (
-                            {
-                              1: "Muladhara · Kök",
-                              2: "Svadhisthana · Sakral",
-                              3: "Manipura · Solar pleksus",
-                              4: "Anahata · Kalp",
-                              5: "Vishuddha · Boğaz",
-                              6: "Ajna · Alın",
-                              7: "Sahasrara · Taç",
-                            } as Record<number, string>
-                          )[cNo] ?? `${cNo}. ÇAKRA`;
-                        const emptyRow = left === 0 && right === 0;
-                        return (
-                          <div
-                            key={cNo}
-                            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 rounded-lg border border-violet-500/20 bg-black/40 px-1.5 py-1.5 sm:gap-2 sm:px-2 sm:py-2"
-                          >
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-300/95 sm:text-[8px]">
+                        Elementler
+                      </h3>
+                      <p className="mt-0.5 text-[10px] font-bold leading-tight text-white sm:text-[11px]">{elementShort(out.elementler)}</p>
+                      <p className="mt-0.5 line-clamp-3 text-[7px] leading-snug text-violet-200/88 sm:text-[8px]">
+                        {(out.elementlerMetni || "").trim() || "—"}
+                      </p>
+                    </section>
+
+                    <section className="rounded-md border border-violet-500/30 bg-gradient-to-b from-black/55 to-violet-950/35 p-1.5 sm:col-span-1">
+                      <h3 className="border-b border-violet-400/20 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-200/95 sm:text-[8px]">
+                        Çakra omurgası
+                      </h3>
+                      <div className="mt-0.5 max-h-[5.5rem] space-y-px overflow-y-auto pr-0.5 sm:max-h-24">
+                        {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((cNo) => {
+                          const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
+                          const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
+                          const emptyRow = left === 0 && right === 0;
+                          return (
                             <div
-                              className="flex min-h-[1.1rem] flex-wrap content-center justify-end gap-0.5 text-xs leading-none text-white/95 sm:text-sm"
-                              aria-hidden
+                              key={cNo}
+                              className="grid grid-cols-[minmax(0,1fr)_1.25rem_minmax(0,1fr)] items-center gap-0.5 rounded border border-violet-500/15 bg-black/35 px-1 py-px"
                             >
-                              {emptyRow ? (
-                                <span className="text-violet-500/50">—</span>
-                              ) : (
-                                Array.from({ length: left }, (_, i) => (
-                                  <span key={`g-l-${cNo}-${i}`}>○</span>
-                                ))
-                              )}
+                              <div className="flex flex-wrap justify-end gap-px text-[8px] leading-none text-white/90" aria-hidden>
+                                {emptyRow ? <span className="text-violet-600/50">—</span> : Array.from({ length: left }, (_, i) => <span key={`i-${cNo}-${i}`}>○</span>)}
+                              </div>
+                              <span className="text-center text-[7px] font-black text-violet-200">{cNo}</span>
+                              <div className="flex flex-wrap justify-start gap-px text-[8px] leading-none text-violet-300" aria-hidden>
+                                {emptyRow ? <span className="text-violet-600/50">—</span> : Array.from({ length: right }, (_, i) => <span key={`d-${cNo}-${i}`}>●</span>)}
+                              </div>
                             </div>
-                            <div className="min-w-[5.75rem] px-0.5 text-center sm:min-w-[7rem]">
-                              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-violet-100">{cNo}. ÇAKRA</p>
-                              <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-violet-300/75 sm:text-[9px]">
-                                {alt}
-                              </p>
-                            </div>
-                            <div
-                              className="flex min-h-[1.1rem] flex-wrap content-center justify-start gap-0.5 text-xs leading-none text-violet-300 drop-shadow-[0_0_6px_rgba(167,139,250,0.5)] sm:text-sm"
-                              aria-hidden
-                            >
-                              {emptyRow ? (
-                                <span className="text-violet-500/50">—</span>
-                              ) : (
-                                Array.from({ length: right }, (_, i) => (
-                                  <span key={`g-r-${cNo}-${i}`}>●</span>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <pre className="mt-3 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/5 bg-black/35 p-2 text-[10px] leading-relaxed text-violet-100/88 sm:max-h-60 sm:text-[11px]">
-                      {(out.cakraOmurgasiMetni || "").trim() || "—"}
-                    </pre>
-                  </section>
-
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      Değişim-Dönüşüm Yılları
-                    </h3>
-                    <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-violet-100/90 sm:max-h-60 sm:text-sm">
-                      {(out.degisimDonusumMetni || "").trim() || "—"}
-                    </pre>
-                  </section>
-
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      Zirve Yılları
-                    </h3>
-                    {out.zirveYillariMetni?.trim() ? (
-                      <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-violet-100/90 sm:max-h-60 sm:text-sm">
-                        {out.zirveYillariMetni}
+                          );
+                        })}
+                      </div>
+                      <pre className="mt-0.5 max-h-16 overflow-y-auto whitespace-pre-wrap rounded border border-white/5 bg-black/30 p-1 text-[7px] leading-snug text-violet-200/85 sm:text-[8px]">
+                        {(out.cakraOmurgasiMetni || "").trim() || "—"}
                       </pre>
-                    ) : out.zirveYillari?.peaks?.length ? (
-                      <ul className="mt-2 space-y-1 text-xs text-violet-100/90 sm:text-sm">
-                        {out.zirveYillari.peaks.map((p) => (
-                          <li key={p.index} className="rounded-md border border-white/5 bg-black/25 px-2 py-1.5">
-                            {p.index}. zirve — yaş {p.age}, konu {p.topic}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-2 text-xs text-violet-200/70">—</p>
-                    )}
-                  </section>
+                    </section>
+                  </div>
 
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      Mücadele Yılları
-                    </h3>
-                    {out.mucadeleYillariMetni?.trim() ? (
-                      <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-violet-100/90 sm:max-h-60 sm:text-sm">
-                        {out.mucadeleYillariMetni}
+                  <div className="relative z-[1] mt-1 grid grid-cols-2 gap-1 lg:grid-cols-4">
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                        Değişim-dönüşüm
+                      </h3>
+                      <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
+                        {(out.degisimDonusumMetni || "").trim() || "—"}
                       </pre>
-                    ) : out.mucadeleYillari?.method1?.length ? (
-                      <ul className="mt-2 space-y-1 text-xs text-violet-100/90 sm:text-sm">
-                        {out.mucadeleYillari.method1.map((m) => (
-                          <li key={m.index} className="rounded-md border border-white/5 bg-black/25 px-2 py-1.5">
-                            {m.index}. mücadele — yaş {m.age}, konu {m.topic}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-2 text-xs text-violet-200/70">—</p>
-                    )}
-                  </section>
+                    </section>
 
-                  <section className="relative z-[1] mt-3 rounded-xl border border-violet-500/25 bg-black/50 p-3 sm:p-3.5">
-                    <h3 className="border-b border-violet-500/20 pb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-violet-300/95 sm:text-[10px]">
-                      Harflerin Yankılanışı
-                    </h3>
-                    {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
-                      <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/5 bg-black/30 p-2 font-mono text-[10px] leading-relaxed text-violet-100/88 sm:max-h-52 sm:text-[11px]">
-                        {harfSegmentsToText(out.harflerinYankilanisi)}
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                        Zirve yılları
+                      </h3>
+                      {out.zirveYillariMetni?.trim() ? (
+                        <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
+                          {out.zirveYillariMetni}
+                        </pre>
+                      ) : out.zirveYillari?.peaks?.length ? (
+                        <p className="mt-0.5 line-clamp-4 text-[7px] leading-snug text-violet-200/90 sm:text-[8px]">
+                          {out.zirveYillari.peaks.map((p) => `${p.index}:${p.age}/${p.topic}`).join(" · ")}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[8px] text-violet-500/80">—</p>
+                      )}
+                    </section>
+
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                        Mücadele yılları
+                      </h3>
+                      {out.mucadeleYillariMetni?.trim() ? (
+                        <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
+                          {out.mucadeleYillariMetni}
+                        </pre>
+                      ) : out.mucadeleYillari?.method1?.length ? (
+                        <p className="mt-0.5 line-clamp-4 text-[7px] leading-snug text-violet-200/90 sm:text-[8px]">
+                          {out.mucadeleYillari.method1.map((m) => `${m.index}:${m.age}/${m.topic}`).join(" · ")}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[8px] text-violet-500/80">—</p>
+                      )}
+                    </section>
+
+                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5 lg:col-span-1">
+                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                        Harflerin yankılanışı
+                      </h3>
+                      {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
+                        <p className="mt-0.5 text-[7px] font-semibold text-violet-100/90 sm:text-[8px]">
+                          {out.harflerinYankilanisi.length} dönem ·{" "}
+                          <span className="font-mono text-violet-200/85">
+                            {out.harflerinYankilanisi
+                              .slice(0, 4)
+                              .map((s) => s.letter)
+                              .join(" ")}
+                            {out.harflerinYankilanisi.length > 4 ? "…" : ""}
+                          </span>
+                        </p>
+                      ) : null}
+                      <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/88 sm:max-h-[4.5rem] sm:text-[8px]">
+                        {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0
+                          ? harfSegmentsToText(out.harflerinYankilanisi)
+                          : (out.harflerinYankilanisiMetni || "").trim() || "—"}
                       </pre>
-                    ) : null}
-                    <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-violet-100/90 sm:max-h-60 sm:text-sm">
-                      {(out.harflerinYankilanisiMetni || "").trim() || "—"}
-                    </pre>
-                  </section>
+                      {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
+                        <pre className="mt-0.5 line-clamp-2 max-h-10 overflow-hidden text-[7px] leading-snug text-violet-300/75 sm:text-[8px]">
+                          {(out.harflerinYankilanisiMetni || "").trim() || ""}
+                        </pre>
+                      ) : null}
+                    </section>
+                  </div>
                 </div>
               ) : null}
             </div>
