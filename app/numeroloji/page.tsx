@@ -380,7 +380,147 @@ const GORSEL_TEMA_LIST: { id: GorselTemaId; label: string }[] = [
   { id: "okyanusDerinligi", label: "Okyanus Derinliği" },
 ];
 
-/** Görsel rapor — yalnızca renk paleti (CSS değişkenleri); layout sabit */
+/** Kozmik Mor — yıldız / nokta dokusu (çoklu radial) */
+const KOZMIK_STARFIELD = [
+  "radial-gradient(circle at 6% 11%, rgba(255,255,255,0.5) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 18% 8%, rgba(216,180,254,0.55) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 92% 14%, rgba(255,255,255,0.4) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 78% 22%, rgba(196,181,253,0.45) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 44% 6%, rgba(255,255,255,0.35) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 12% 38%, rgba(237,233,254,0.4) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 88% 42%, rgba(255,255,255,0.38) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 30% 52%, rgba(216,180,254,0.35) 0.4px, transparent 0.55px)",
+  "radial-gradient(circle at 65% 58%, rgba(255,255,255,0.42) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 8% 68%, rgba(196,181,253,0.4) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 95% 72%, rgba(255,255,255,0.35) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 52% 78%, rgba(167,139,250,0.45) 0.45px, transparent 0.6px)",
+  "radial-gradient(circle at 22% 88%, rgba(255,255,255,0.38) 0.45px, transparent 0.58px)",
+  "radial-gradient(circle at 72% 92%, rgba(237,233,254,0.4) 0.5px, transparent 0.65px)",
+  "radial-gradient(circle at 40% 34%, rgba(255,255,255,0.28) 0.35px, transparent 0.5px)",
+  "radial-gradient(circle at 58% 18%, rgba(196,181,253,0.32) 0.35px, transparent 0.5px)",
+].join(", ");
+
+function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
+  const wrap = "pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]";
+  if (temaId === "kozmikMor") {
+    return (
+      <>
+        <div
+          className={wrap}
+          style={{
+            background:
+              "radial-gradient(ellipse 130% 85% at 50% -5%, rgba(139,92,246,0.55), transparent 58%), radial-gradient(ellipse 95% 65% at 100% 25%, rgba(76,29,149,0.42), transparent 52%), radial-gradient(ellipse 75% 55% at 0% 75%, rgba(88,28,135,0.38), transparent 48%)",
+            opacity: 0.92,
+          }}
+          aria-hidden
+        />
+        <div
+          className={`${wrap} opacity-[0.32]`}
+          style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "100% 100%" }}
+          aria-hidden
+        />
+        <div
+          className={`${wrap} mix-blend-screen opacity-[0.14]`}
+          style={{ boxShadow: "inset 0 0 140px rgba(167,139,250,0.45)" }}
+          aria-hidden
+        />
+      </>
+    );
+  }
+  if (temaId === "altinMist") {
+    return (
+      <>
+        <div
+          className={wrap}
+          style={{
+            background:
+              "radial-gradient(ellipse 100% 55% at 50% 0%, rgba(245,158,11,0.2), transparent 52%), radial-gradient(ellipse 90% 70% at 85% 100%, rgba(69,26,3,0.55), transparent 55%), radial-gradient(ellipse 70% 50% at 10% 90%, rgba(120,53,15,0.35), transparent 50%)",
+            opacity: 0.95,
+          }}
+          aria-hidden
+        />
+        <div
+          className={wrap}
+          style={{
+            opacity: 0.5,
+            backgroundImage:
+              "repeating-linear-gradient(112deg, transparent, transparent 52px, rgba(251,191,36,0.09) 52px, rgba(251,191,36,0.09) 53px, transparent 53px, transparent 104px), repeating-linear-gradient(0deg, rgba(254,243,199,0.03) 0 1px, transparent 1px 32px)",
+          }}
+          aria-hidden
+        />
+        <div
+          className={wrap}
+          style={{ opacity: 0.22, boxShadow: "inset 0 0 120px rgba(251,191,36,0.18)" }}
+          aria-hidden
+        />
+      </>
+    );
+  }
+  if (temaId === "kuzeyIsiklari") {
+    return (
+      <>
+        <div
+          className={wrap}
+          style={{
+            background:
+              "radial-gradient(ellipse 110% 75% at 8% 18%, rgba(34,197,94,0.38), transparent 52%), radial-gradient(ellipse 100% 80% at 92% 8%, rgba(45,212,191,0.28), transparent 54%), radial-gradient(ellipse 85% 65% at 50% 100%, rgba(59,130,246,0.22), transparent 50%), radial-gradient(ellipse 70% 45% at 70% 45%, rgba(167,139,250,0.18), transparent 48%)",
+            opacity: 0.9,
+          }}
+          aria-hidden
+        />
+        <div
+          className={`${wrap} left-[-25%] top-[-15%] h-[130%] w-[130%] blur-3xl`}
+          style={{
+            background:
+              "conic-gradient(from 210deg at 55% 35%, transparent 0deg, rgba(52,211,153,0.2) 60deg, transparent 120deg, rgba(6,182,212,0.18) 200deg, transparent 280deg, rgba(16,185,129,0.15) 320deg, transparent 360deg)",
+            opacity: 0.4,
+          }}
+          aria-hidden
+        />
+        <div
+          className={wrap}
+          style={{ opacity: 0.12, boxShadow: "inset 0 -80px 100px rgba(45,212,191,0.25)" }}
+          aria-hidden
+        />
+      </>
+    );
+  }
+  /* okyanusDerinligi */
+  return (
+    <>
+      <div
+        className={wrap}
+        style={{
+          background:
+            "radial-gradient(ellipse 115% 55% at 50% 115%, rgba(8,145,178,0.5), transparent 60%), radial-gradient(ellipse 85% 50% at 15% 5%, rgba(30,64,175,0.45), transparent 52%), radial-gradient(ellipse 70% 40% at 90% 20%, rgba(12,74,110,0.4), transparent 48%)",
+          opacity: 0.92,
+        }}
+        aria-hidden
+      />
+      <div
+        className={wrap}
+        style={{
+          opacity: 0.35,
+          backgroundImage:
+            "radial-gradient(ellipse 130% 22% at 25% 78%, rgba(103,232,249,0.18), transparent), radial-gradient(ellipse 110% 18% at 75% 85%, rgba(56,189,248,0.14), transparent), radial-gradient(ellipse 90% 16% at 50% 92%, rgba(14,165,233,0.12), transparent)",
+        }}
+        aria-hidden
+      />
+      <div
+        className={wrap}
+        style={{
+          opacity: 0.18,
+          background:
+            "repeating-radial-gradient(circle at 50% 125%, transparent 0, transparent 22px, rgba(14,165,233,0.05) 23px, transparent 24px)",
+        }}
+        aria-hidden
+      />
+      <div className={wrap} style={{ opacity: 0.14, boxShadow: "inset 0 0 100px rgba(56,189,248,0.2)" }} aria-hidden />
+    </>
+  );
+}
+
+/** Görsel rapor — renk paleti (CSS değişkenleri) + dekor katmanları ayrı */
 const GORSEL_TEMA_VARS = {
   kozmikMor: {
     "--gr-bg-top": "#1a0a2e",
@@ -597,21 +737,7 @@ function GorselRaporInfografik({
       style={css}
       className="relative w-full max-w-none overflow-hidden rounded-3xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-5 py-8 text-[color:var(--gr-line-text)] shadow-[0_0_60px_-16px_var(--gr-shadow)] ring-1 ring-[color:var(--gr-ring)] sm:px-8 sm:py-10"
     >
-      <div
-        className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full blur-3xl"
-        style={{ backgroundColor: "var(--gr-blob-1)" }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full blur-3xl"
-        style={{ backgroundColor: "var(--gr-blob-2)" }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/3 h-[min(80%,28rem)] w-[min(90%,42rem)] -translate-x-1/2 rounded-full blur-3xl"
-        style={{ background: "radial-gradient(ellipse at center, var(--gr-nebula), transparent 68%)" }}
-        aria-hidden
-      />
+      <GorselTemaDekoratif temaId={temaId} />
 
       <header className="relative z-[1] border-b border-[color:var(--gr-header-border)] pb-8 text-center">
         <p className="text-[11px] font-black uppercase tracking-[0.35em]" style={{ color: "var(--gr-eyebrow)" }}>
@@ -1072,10 +1198,13 @@ export default function NumerolojiPage() {
 
   useEffect(() => {
     if (!gorselTamEkran) return;
-    const prev = document.body.style.overflow;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
     };
   }, [gorselTamEkran]);
 
@@ -1260,21 +1389,21 @@ export default function NumerolojiPage() {
               {tab === "gorsel" ? (
                 <>
                   <div className="relative">
-                    <div className="absolute right-2 top-2 z-10 flex max-w-[min(100%,24rem)] flex-col items-stretch gap-2 sm:right-4 sm:top-4 sm:max-w-none sm:flex-row sm:items-start sm:justify-end">
+                    <div className="absolute right-2 top-2 z-20 flex max-w-[min(100%,28rem)] flex-col items-stretch gap-2 sm:right-4 sm:top-4 sm:max-w-none sm:flex-row sm:items-start sm:justify-end">
                       <div
                         role="group"
                         aria-label="Görsel rapor teması"
-                        className="flex flex-wrap justify-end gap-1 rounded-2xl border border-amber-400/22 bg-black/48 px-2 py-2 shadow-[0_0_28px_rgba(0,0,0,0.4)] backdrop-blur-[5px] sm:gap-1.5"
+                        className="flex flex-wrap justify-end gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2.5 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.65)] backdrop-blur-md sm:gap-2"
                       >
                         {GORSEL_TEMA_LIST.map((t) => (
                           <button
                             key={t.id}
                             type="button"
                             onClick={() => setGorselTema(t.id)}
-                            className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide transition sm:text-[10px] ${
+                            className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
                               gorselTema === t.id
-                                ? "bg-amber-500/26 text-amber-50 ring-1 ring-amber-400/45"
-                                : "text-violet-100/82 hover:bg-white/10"
+                                ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
+                                : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
                             }`}
                           >
                             {t.label}
@@ -1284,7 +1413,7 @@ export default function NumerolojiPage() {
                       <button
                         type="button"
                         onClick={() => setGorselTamEkran(true)}
-                        className="shrink-0 self-end rounded-full border border-amber-400/42 bg-black/52 px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-amber-100 shadow-[0_0_22px_rgba(251,191,36,0.14)] backdrop-blur-[5px] transition hover:border-amber-300/55 hover:bg-black/62 sm:px-4 sm:text-[11px]"
+                        className="shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-amber-50 sm:px-5 sm:text-xs"
                       >
                         Tam Ekran
                       </button>
@@ -1304,55 +1433,45 @@ export default function NumerolojiPage() {
                           role="dialog"
                           aria-modal="true"
                           aria-labelledby="gorsel-fs-title"
-                          className="fixed inset-0 z-[100] flex flex-col bg-black/86 backdrop-blur-[4px]"
+                          className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black/90"
                         >
                           <p id="gorsel-fs-title" className="sr-only">
                             Numerolojik yaşam haritası tam ekran görünümü
                           </p>
-                          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-                            <div
-                              className="absolute left-[-18%] top-[-8%] h-[58vmin] w-[58vmin] rounded-full opacity-45 blur-[80px]"
-                              style={{
-                                background:
-                                  "radial-gradient(circle at 35% 35%, rgba(109,40,217,0.42), transparent 68%)",
-                              }}
-                            />
-                            <div
-                              className="absolute bottom-[-12%] right-[-15%] h-[52vmin] w-[52vmin] rounded-full opacity-38 blur-[72px]"
-                              style={{
-                                background:
-                                  "radial-gradient(circle at 60% 60%, rgba(14,165,233,0.22), transparent 70%)",
-                              }}
-                            />
-                          </div>
-                          <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-400/16 bg-black/42 px-2 py-2 backdrop-blur-[6px] sm:gap-4 sm:px-4 sm:py-3">
-                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:gap-2">
-                              {GORSEL_TEMA_LIST.map((t) => (
-                                <button
-                                  key={`fs-${t.id}`}
-                                  type="button"
-                                  onClick={() => setGorselTema(t.id)}
-                                  className={`rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wide sm:px-2.5 sm:text-[10px] ${
-                                    gorselTema === t.id
-                                      ? "border-amber-400/50 bg-amber-500/15 text-amber-50 ring-1 ring-amber-300/38"
-                                      : "border-white/12 bg-white/6 text-violet-100/88 hover:border-white/22 hover:bg-white/10"
-                                  }`}
-                                >
-                                  {t.label}
-                                </button>
-                              ))}
+                          <div className="pointer-events-none absolute inset-x-0 top-0 z-[10000] flex flex-col pt-3 sm:pt-4">
+                            <div className="pointer-events-auto flex w-full shrink-0 flex-wrap items-center justify-between gap-2 px-3 sm:px-5">
+                              <div
+                                role="group"
+                                aria-label="Tam ekran teması"
+                                className="flex max-w-[min(100%,42rem)] flex-wrap items-center gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.75)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2"
+                              >
+                                {GORSEL_TEMA_LIST.map((t) => (
+                                  <button
+                                    key={`fs-${t.id}`}
+                                    type="button"
+                                    onClick={() => setGorselTema(t.id)}
+                                    className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
+                                      gorselTema === t.id
+                                        ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
+                                        : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
+                                    }`}
+                                  >
+                                    {t.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setGorselTamEkran(false)}
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-amber-400/85 bg-zinc-950 text-2xl font-light leading-none text-amber-50 shadow-[0_0_24px_rgba(251,191,36,0.35)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-white sm:h-12 sm:w-12 sm:text-3xl"
+                                aria-label="Tam ekranı kapat"
+                              >
+                                ×
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setGorselTamEkran(false)}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-400/38 bg-black/55 text-xl font-light leading-none text-amber-50 shadow-[0_0_22px_rgba(139,92,246,0.22)] backdrop-blur-[6px] transition hover:border-amber-300/55 hover:bg-black/68 sm:h-11 sm:w-11 sm:text-2xl"
-                              aria-label="Tam ekranı kapat"
-                            >
-                              ×
-                            </button>
                           </div>
-                          <div className="relative flex min-h-0 flex-1 items-stretch justify-center overflow-hidden p-2 sm:p-4">
-                            <div className="max-h-full w-full max-w-6xl overflow-y-auto overscroll-y-contain">
+                          <div className="relative z-[10001] flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-3 pt-14 sm:px-4 sm:pb-4 sm:pt-16">
+                            <div className="h-[92vh] w-[96vw] max-w-[1500px] overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-2xl border-2 border-amber-500/35 shadow-[0_0_56px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/30">
                               <GorselRaporInfografik
                                 out={out}
                                 isimGoster={isimGoster}
