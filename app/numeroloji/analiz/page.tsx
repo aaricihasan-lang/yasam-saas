@@ -10,7 +10,8 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
+import { NumerolojiNavPill } from "../components/NumerolojiNavPill";
 import {
   hesaplaNumeroloji,
   ELEMENT_ORDER,
@@ -1870,27 +1871,22 @@ export default function NumerolojiAnalizPage() {
   const dogumGoster = birthDate.trim();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-amber-50/30 to-sky-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-6 text-center">
-          <div className="mb-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold text-violet-700">
-            <Link href="/numeroloji" className="rounded-full border border-violet-200 bg-white px-3 py-1 no-underline transition hover:bg-violet-50">
-              ← Modül seçimi
-            </Link>
-            <Link href="/numeroloji/liste" className="rounded-full border border-violet-200 bg-white px-3 py-1 no-underline transition hover:bg-violet-50">
-              Kayıtlı analizler
-            </Link>
+    <NumerolojiPremiumShell maxWidthClass="max-w-5xl">
+        <header className="mb-6 rounded-[26px] border border-white/75 bg-white/60 px-5 py-6 text-center shadow-[0_14px_42px_rgba(15,23,42,0.06)] ring-1 ring-violet-100/55 backdrop-blur-xl sm:px-8 sm:py-7">
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+            <NumerolojiNavPill href="/numeroloji">← Modül seçimi</NumerolojiNavPill>
+            <NumerolojiNavPill href="/numeroloji/liste">Kayıtlı analizler</NumerolojiNavPill>
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/85">Numerolojik analiz detayı</p>
-          <h1 className="mt-1 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Numeroloji Analizi</h1>
-          <p className="mx-auto mt-1 max-w-xl text-xs font-medium text-slate-600">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">Numerolojik analiz detayı</p>
+          <h1 className="mt-2 text-xl font-black tracking-tight text-slate-900 sm:text-[1.65rem]">Numeroloji Analizi</h1>
+          <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-600 sm:text-[13px]">
             Hesaplama tarayıcıda yapılır; giriş yaptıysanız analizi Supabase üzerinden kaydedebilirsiniz.
           </p>
         </header>
 
         <form
           onSubmit={handleSubmit}
-          className="mb-5 rounded-2xl border border-white/90 bg-white/90 p-4 shadow-md ring-1 ring-violet-100/70 backdrop-blur-sm sm:p-5"
+          className="mb-6 rounded-[26px] border border-white/80 bg-white/70 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.055)] ring-1 ring-amber-100/45 backdrop-blur-xl sm:p-6"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -1940,7 +1936,7 @@ export default function NumerolojiAnalizPage() {
           </div>
           <button
             type="submit"
-            className="mt-4 rounded-xl bg-gradient-to-r from-violet-600 to-sky-600 px-6 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-105"
+            className="mt-5 w-full rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-sky-600 px-6 py-3 text-sm font-black text-white shadow-[0_10px_28px_-6px_rgba(91,33,182,0.45)] ring-1 ring-white/25 transition hover:brightness-[1.05] hover:shadow-[0_14px_32px_-4px_rgba(91,33,182,0.4)] active:scale-[0.99] sm:w-auto"
           >
             Hesapla
           </button>
@@ -1949,15 +1945,15 @@ export default function NumerolojiAnalizPage() {
         {error ? (
           <div
             role="alert"
-            className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-center text-sm font-semibold text-rose-900"
+            className="mb-4 rounded-2xl border border-rose-200/80 bg-rose-50/90 px-4 py-3 text-center text-sm font-semibold text-rose-900 shadow-sm ring-1 ring-rose-100/60 backdrop-blur-sm"
           >
             {error}
           </div>
         ) : null}
 
         {out ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg ring-1 ring-amber-100/40">
-            <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200/80 bg-white/90 px-3 py-2">
+          <div className="overflow-hidden rounded-[26px] border border-slate-200/85 bg-white/80 shadow-[0_20px_50px_-18px_rgba(91,33,182,0.14)] ring-1 ring-violet-100/60 backdrop-blur-md">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200/70 bg-gradient-to-r from-white/95 via-violet-50/40 to-amber-50/35 px-3 py-2.5 backdrop-blur-sm sm:px-4">
               <SaveAnalysisButton
                 fullName={isimGoster}
                 birthDateDisplay={dogumGoster}
@@ -1981,7 +1977,7 @@ export default function NumerolojiAnalizPage() {
               ))}
             </div>
 
-            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white to-slate-50/90 p-4 sm:p-5" data-gorsel-rapor-scroll-host>
+            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white/95 via-slate-50/50 to-violet-50/20 p-4 sm:p-6" data-gorsel-rapor-scroll-host>
               {tab === "summary" ? (
                 <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={dogumGoster} />
               ) : null}
@@ -2205,7 +2201,6 @@ export default function NumerolojiAnalizPage() {
             </div>
           </div>
         ) : null}
-      </div>
-    </div>
+    </NumerolojiPremiumShell>
   );
 }
