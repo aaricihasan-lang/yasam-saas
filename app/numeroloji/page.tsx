@@ -1191,6 +1191,71 @@ function GorselNumeroSembol({ tip }: { tip: "ana" | "yan" | "ifade" | "hayat" })
   );
 }
 
+/** Tam rapor + A4 tek sayfa için pdf-mode ile birlikte kullanılır (sadece bu dosyada). */
+const GORSEL_PDF_MODE_CSS = `
+.numeroloji-gorsel-root.pdf-mode{
+  overflow:visible!important;
+  max-height:none!important;
+  padding:0.45rem 0.55rem!important;
+}
+@media (min-width:640px){
+  .numeroloji-gorsel-root.pdf-mode{padding:0.55rem 0.65rem!important;}
+}
+.numeroloji-gorsel-root.pdf-mode header{padding-bottom:0.35rem!important;}
+.numeroloji-gorsel-root.pdf-mode header h2{
+  font-size:clamp(0.82rem,2.4vw,1.05rem)!important;
+  letter-spacing:0.1em!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar{
+  margin-top:0.4rem!important;
+  gap:0.35rem!important;
+}
+@media (min-width:1024px){
+  .numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar{gap:0.45rem!important;}
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar > section{
+  min-height:4.35rem!important;
+  padding-top:0.3rem!important;
+  padding-bottom:0.3rem!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar .gorsel-kart-num{
+  margin-top:0.25rem!important;
+  font-size:clamp(0.95rem,2.6vw,1.35rem)!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-kartlar svg{max-height:1.05rem!important;width:auto!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-pin-cakra{
+  margin-top:0.45rem!important;
+  gap:0.4rem!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-pin-col{gap:0.35rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-pin-cell{
+  height:1.1rem!important;
+  width:1.1rem!important;
+  font-size:0.55rem!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-el-count{font-size:0.7rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-cakra-rows{gap:0.1rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-cakra-rows > div > div{padding-top:0.1rem!important;padding-bottom:0.1rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-yillar{
+  margin-top:0.45rem!important;
+  gap:0.35rem!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-yillar > section{
+  min-height:0!important;
+  padding:0.35rem!important;
+  overflow:visible!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-pdf-flow{
+  overflow:visible!important;
+  max-height:none!important;
+}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-harf{margin-top:0.45rem!important;padding:0.45rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-harf .mt-2{gap:0.35rem!important;margin-top:0.35rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-tas{margin-top:0.4rem!important;padding:0.45rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-tas-body{gap:0.35rem!important;margin-top:0.35rem!important;}
+.numeroloji-gorsel-root.pdf-mode .gorsel-sec-uzman{margin-top:0.45rem!important;padding-top:0.45rem!important;}
+`;
+
 type GorselRaporInfografikProps = {
   out: NumerolojiMotorOut;
   isimGoster: string;
@@ -1203,6 +1268,8 @@ type GorselRaporInfografikProps = {
   tasBileklik: string;
   tasKolye: string;
   tasKutle: string;
+  /** PDF yakalama öncesi: kompakt layout + overflow düzeltmesi */
+  pdfModu?: boolean;
 };
 
 /** Görsel rapor kökünü yüksek çözünürlükte yakalayıp tek sayfa A4 dikey PDF üretir. */
@@ -1214,9 +1281,10 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
     import("jspdf"),
   ]);
 
-  const scale = 3;
-  const w = Math.max(1, Math.ceil(hedef.offsetWidth));
-  const h = Math.max(1, Math.ceil(hedef.scrollHeight));
+  const scale = 2.25;
+  const sw = Math.max(1, Math.ceil(Math.max(hedef.scrollWidth, hedef.offsetWidth, hedef.clientWidth)));
+  const shRaw = Math.max(hedef.scrollHeight, hedef.offsetHeight, hedef.clientHeight);
+  const sh = Math.max(1, Math.ceil(shRaw + 16));
 
   const canvas = await html2canvas(hedef, {
     scale,
@@ -1224,18 +1292,24 @@ async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<
     allowTaint: false,
     backgroundColor: null,
     logging: false,
-    width: w,
-    height: h,
-    windowWidth: w,
-    windowHeight: h,
+    width: sw,
+    height: sh,
+    windowWidth: sw,
+    windowHeight: sh,
     x: 0,
     y: 0,
     scrollX: 0,
     scrollY: 0,
     onclone: (_doc, cloned) => {
       if (!(cloned instanceof HTMLElement)) return;
+      cloned.classList.add("pdf-mode");
       cloned.style.overflow = "visible";
       cloned.style.maxHeight = "none";
+      cloned.style.height = "auto";
+      const cw = Math.max(cloned.scrollWidth, cloned.offsetWidth, sw);
+      const ch = Math.max(cloned.scrollHeight, cloned.offsetHeight, sh);
+      cloned.style.width = `${cw}px`;
+      cloned.style.minHeight = `${ch}px`;
     },
   });
 
@@ -1275,6 +1349,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
     tasBileklik,
     tasKolye,
     tasKutle,
+    pdfModu = false,
   },
   ref,
 ) {
@@ -1323,7 +1398,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
       ref={ref}
       data-gorsel-pdf-root
       style={css}
-      className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none"
+      className={`numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none ${pdfModu ? "overflow-visible pdf-mode" : "overflow-hidden"}`}
     >
       <GorselTemaDekoratif temaId={temaId} />
       <GorselRaporKoseDekor />
@@ -1366,11 +1441,11 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         />
       </header>
 
-      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 lg:mt-4 lg:grid-cols-4 lg:gap-2.5">
+      <div className="gorsel-sec-kartlar relative z-[2] mt-2.5 grid grid-cols-1 gap-1.5 min-[400px]:grid-cols-2 lg:mt-3 lg:grid-cols-4 lg:gap-2">
         {numerolojiKartlari.map(({ label, r, glowVar, tip }) => (
           <section
             key={label}
-            className="flex min-h-[8.75rem] flex-col rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 px-2 pb-1.5 pt-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-[6px] sm:min-h-[9.5rem] sm:px-2.5 sm:pb-2 sm:pt-2.5"
+            className="flex min-h-[6.35rem] flex-col rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 px-2 pb-1 pt-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-[6px] sm:min-h-[6.85rem] sm:px-2.5 sm:pb-1.5 sm:pt-2"
             style={{
               borderColor: "var(--gr-card-border)",
               boxShadow: `var(${glowVar}), inset 0 1px 0 rgba(255,255,255,0.05)`,
@@ -1378,7 +1453,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           >
             <GorselKutuBaslik className="pb-1 text-[7.5px] sm:text-[8.5px]">{label}</GorselKutuBaslik>
             <p
-              className="mt-2 text-[clamp(1.25rem,3.8vw,2rem)] font-black tabular-nums leading-none tracking-tight sm:mt-2.5"
+              className="gorsel-kart-num mt-1.5 text-[clamp(1.05rem,3.1vw,1.65rem)] font-black tabular-nums leading-none tracking-tight sm:mt-2"
               style={{ color: "var(--gr-number)", textShadow: "0 0 16px rgba(0,0,0,0.35)" }}
             >
               {nrDisplay(r)}
@@ -1390,8 +1465,8 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         ))}
       </div>
 
-      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2.5 lg:mt-4 lg:grid-cols-[minmax(0,9.5rem)_1fr]">
-        <div className="flex flex-col gap-2">
+      <div className="gorsel-sec-pin-cakra relative z-[2] mt-2.5 grid grid-cols-1 gap-2 lg:mt-3 lg:grid-cols-[minmax(0,9.5rem)_1fr] lg:gap-2">
+        <div className="gorsel-pin-col flex flex-col gap-2">
           <section
             className="rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:px-2.5"
             style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
@@ -1402,7 +1477,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 {[out.pinKodu.k1, out.pinKodu.k2, out.pinKodu.k3, out.pinKodu.k4].map((v, i) => (
                   <span
                     key={`p1-${i}`}
-                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    className="gorsel-pin-cell flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
                     style={{
                       borderColor: "var(--gr-pin-border)",
                       backgroundColor: "var(--gr-pin-bg)",
@@ -1417,7 +1492,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 {[out.pinKodu.k5, out.pinKodu.k6, out.pinKodu.k7].map((v, i) => (
                   <span
                     key={`p2-${i}`}
-                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    className="gorsel-pin-cell flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
                     style={{
                       borderColor: "var(--gr-pin-border)",
                       backgroundColor: "var(--gr-pin-bg)",
@@ -1432,7 +1507,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 {[out.pinKodu.k8, out.pinKodu.k9].map((v, i) => (
                   <span
                     key={`p3-${i}`}
-                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    className="gorsel-pin-cell flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
                     style={{
                       borderColor: "var(--gr-pin-border)",
                       backgroundColor: "var(--gr-pin-bg)",
@@ -1472,7 +1547,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                   >
                     {el}
                   </span>
-                  <p className="mt-0.5 text-sm font-black tabular-nums leading-none sm:text-base" style={{ color: "var(--gr-number)" }}>
+                  <p className="gorsel-el-count mt-0.5 text-sm font-black tabular-nums leading-none sm:text-base" style={{ color: "var(--gr-number)" }}>
                     {out.elementler.counts[el]}
                   </p>
                 </div>
@@ -1505,7 +1580,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 }}
               />
             </div>
-            <div className="space-y-0.5 sm:space-y-1">
+            <div className="gorsel-cakra-rows space-y-0.5 sm:space-y-0.5">
               {GORSEL_CAKRA_SIRA.map((cNo) => {
                 const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
                 const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
@@ -1570,16 +1645,16 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         </section>
       </div>
 
-      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:mt-4">
+      <div className="gorsel-sec-yillar relative z-[2] mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-3 lg:mt-3">
         <section
-          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          className="flex min-h-[6.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[6.75rem] sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
           <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
             ✧
           </span>
           <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Değişim — dönüşüm</GorselKutuBaslik>
-          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+          <div className="gorsel-pdf-flow mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
             {degGoster.length ? (
               degGoster.map((line, i) => (
                 <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
@@ -1598,14 +1673,14 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         </section>
 
         <section
-          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          className="flex min-h-[6.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[6.75rem] sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
           <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
             ♔
           </span>
           <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Zirve yılları</GorselKutuBaslik>
-          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+          <div className="gorsel-pdf-flow mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
             {zirveGoster.length ? (
               zirveGoster.map((line, i) => (
                 <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
@@ -1624,14 +1699,14 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         </section>
 
         <section
-          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          className="flex min-h-[6.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[6.75rem] sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
           <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
             ⚔
           </span>
           <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Mücadele yılları</GorselKutuBaslik>
-          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+          <div className="gorsel-pdf-flow mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
             {mucGoster.length ? (
               mucGoster.map((line, i) => (
                 <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
@@ -1651,7 +1726,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
       </div>
 
       <section
-        className="relative z-[2] mt-3 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-4 sm:p-3"
+        className="gorsel-sec-harf relative z-[2] mt-2.5 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-3 sm:p-3"
         style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 24px -12px var(--gr-shadow)" }}
       >
         <GorselAltinSatir className="mb-1.5 opacity-80" />
@@ -1755,12 +1830,12 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
       {tasBolumuAcik ? (
         <section
-          className="relative z-[2] mt-3 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-4 sm:p-3"
+          className="gorsel-sec-tas relative z-[2] mt-2.5 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-3 sm:p-3"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 24px -12px var(--gr-shadow)" }}
         >
           <GorselAltinSatir className="mb-1.5 opacity-80" />
           <GorselKutuBaslik className="pb-1.5 text-[7.5px] sm:text-[8.5px]">Önerilen Doğaltaşlar</GorselKutuBaslik>
-          <div className="mt-1.5 space-y-1.5">
+          <div className="gorsel-sec-tas-body mt-1.5 space-y-1.5">
             {bileklikT ? (
               <div
                 className="rounded-lg border-[0.5px] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
@@ -1807,7 +1882,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
       {uzmanGoster ? (
         <footer
-          className="relative z-[2] mt-3 border-t border-[color:var(--gr-header-border)] pt-3 text-center sm:mt-4 sm:pt-4"
+          className="gorsel-sec-uzman relative z-[2] mt-2.5 border-t border-[color:var(--gr-header-border)] pt-2.5 text-center sm:mt-3 sm:pt-3"
         >
           <GorselAltinSatir className="mb-2 opacity-75" />
           <p
@@ -1857,6 +1932,7 @@ export default function NumerolojiPage() {
   const [tasKutle, setTasKutle] = useState("");
   const gorselPdfRef = useRef<HTMLDivElement>(null);
   const [pdfOlusturuluyor, setPdfOlusturuluyor] = useState(false);
+  const [gorselPdfModu, setGorselPdfModu] = useState(false);
 
   useEffect(() => {
     setGorselPortalHazir(true);
@@ -1888,14 +1964,40 @@ export default function NumerolojiPage() {
   }, [tab]);
 
   async function handleGorselPdfIndir() {
-    const el = gorselPdfRef.current;
-    if (!el || pdfOlusturuluyor) return;
+    if (pdfOlusturuluyor) return;
+    const el0 = gorselPdfRef.current;
+    if (!el0) return;
+
+    const scrollHost = el0.closest("[data-gorsel-pdf-scroll-host]") as HTMLElement | null;
+    const prevMaxH = scrollHost?.style.maxHeight ?? "";
+    const prevOverflow = scrollHost?.style.overflow ?? "";
+    const prevMinH = scrollHost?.style.minHeight ?? "";
+
+    setGorselPdfModu(true);
     setPdfOlusturuluyor(true);
+    if (scrollHost) {
+      scrollHost.style.maxHeight = "none";
+      scrollHost.style.overflow = "visible";
+      scrollHost.style.minHeight = "0";
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    await new Promise<void>((r) => setTimeout(r, 120));
+
+    const el = gorselPdfRef.current;
     try {
-      await gorselRaporuPdfYakalaVeIndir(el);
+      if (el) await gorselRaporuPdfYakalaVeIndir(el);
     } catch (err) {
       console.error(err);
     } finally {
+      if (scrollHost) {
+        scrollHost.style.maxHeight = prevMaxH;
+        scrollHost.style.overflow = prevOverflow;
+        scrollHost.style.minHeight = prevMinH;
+      }
+      setGorselPdfModu(false);
       setPdfOlusturuluyor(false);
     }
   }
@@ -2028,7 +2130,9 @@ export default function NumerolojiPage() {
         ) : null}
 
         {out ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg ring-1 ring-amber-100/40">
+          <>
+            <style dangerouslySetInnerHTML={{ __html: GORSEL_PDF_MODE_CSS }} />
+            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg ring-1 ring-amber-100/40">
             <div className="flex flex-wrap gap-0 border-b border-slate-200/80 bg-gradient-to-r from-violet-50/80 via-amber-50/50 to-sky-50/80 px-1 pt-1">
               {TABS.map((t) => (
                 <button
@@ -2046,7 +2150,7 @@ export default function NumerolojiPage() {
               ))}
             </div>
 
-            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white to-slate-50/90 p-4 sm:p-5">
+            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white to-slate-50/90 p-4 sm:p-5" data-gorsel-pdf-scroll-host>
               {tab === "summary" ? (
                 <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={dogumGoster} />
               ) : null}
@@ -2186,6 +2290,7 @@ export default function NumerolojiPage() {
                           tasBileklik={tasBileklik}
                           tasKolye={tasKolye}
                           tasKutle={tasKutle}
+                          pdfModu={gorselPdfModu}
                         />
                       </div>
                     </div>
@@ -2198,6 +2303,7 @@ export default function NumerolojiPage() {
                             aria-modal="true"
                             aria-labelledby="gorsel-fs-title"
                             className="fixed inset-0 z-[9999] overflow-y-auto overflow-x-hidden bg-black/95"
+                            data-gorsel-pdf-scroll-host
                           >
                             <p id="gorsel-fs-title" className="sr-only">
                               Numerolojik yaşam haritası tam ekran görünümü
@@ -2218,6 +2324,7 @@ export default function NumerolojiPage() {
                                   tasBileklik={tasBileklik}
                                   tasKolye={tasKolye}
                                   tasKutle={tasKutle}
+                                  pdfModu={gorselPdfModu}
                                 />
                               </div>
                             </div>
@@ -2268,6 +2375,7 @@ export default function NumerolojiPage() {
               ) : null}
             </div>
           </div>
+          </>
         ) : null}
       </div>
     </div>
