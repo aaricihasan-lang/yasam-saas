@@ -464,6 +464,28 @@ function gorselHarfKartlari(fn: string, ln: string, motorSegs: HarfYankilanisiSe
   });
 }
 
+/** Görsel rapor — ad/soyad harfleri "H A S A N / A R I C I" biçiminde */
+function gorselHarfBaslikSpaced(fn: string, ln: string): string {
+  const spaced = (w: string) =>
+    Array.from(w.trim().toLocaleUpperCase("tr-TR").replace(/\s/g, "")).join(" ");
+  const ad = fn
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(spaced)
+    .join("  ");
+  const soy = ln
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(spaced)
+    .join("  ");
+  if (!ad && !soy) return "—";
+  if (!soy) return ad;
+  if (!ad) return soy;
+  return `${ad} / ${soy}`;
+}
+
 type GorselTemaId = "kozmikMor" | "altinMist" | "kuzeyIsiklari" | "okyanusDerinligi";
 
 const GORSEL_TEMA_LIST: { id: GorselTemaId; label: string }[] = [
@@ -524,12 +546,17 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           className={wrap}
           style={{
             background:
-              "radial-gradient(ellipse 125% 80% at 45% -8%, rgba(167,139,250,0.5), transparent 58%), radial-gradient(ellipse 90% 60% at 100% 20%, rgba(109,40,217,0.42), transparent 52%), radial-gradient(ellipse 70% 55% at 0% 85%, rgba(76,29,149,0.4), transparent 50%), radial-gradient(ellipse 55% 45% at 75% 70%, rgba(139,92,246,0.28), transparent 48%)",
-            opacity: 0.55,
+              "radial-gradient(ellipse 70% 55% at 8% 12%, rgba(192,132,252,0.42), transparent 55%), radial-gradient(ellipse 125% 80% at 45% -8%, rgba(167,139,250,0.5), transparent 58%), radial-gradient(ellipse 90% 60% at 100% 20%, rgba(109,40,217,0.42), transparent 52%), radial-gradient(ellipse 70% 55% at 0% 85%, rgba(76,29,149,0.4), transparent 50%), radial-gradient(ellipse 55% 45% at 75% 70%, rgba(139,92,246,0.28), transparent 48%)",
+            opacity: 0.58,
           }}
           aria-hidden
         />
-        <div className={`${wrap} opacity-[0.26]`} style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div className={`${wrap} opacity-[0.22]`} style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "120% 120%" }} aria-hidden />
+        <div
+          className={`${wrap} opacity-[0.14]`}
+          style={{ backgroundImage: KOZMIK_STARFIELD, backgroundSize: "100% 100%", backgroundPosition: "18% 22%" }}
+          aria-hidden
+        />
         <div
           className={wrap}
           style={{
@@ -571,9 +598,9 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
         <div
           className={wrap}
           style={{
+            opacity: 0.76,
             background:
-              "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(251,191,36,0.28), transparent 54%), radial-gradient(ellipse 85% 65% at 90% 95%, rgba(180,83,9,0.45), transparent 55%), radial-gradient(ellipse 70% 55% at 8% 88%, rgba(120,53,15,0.38), transparent 50%), radial-gradient(ellipse 50% 40% at 40% 40%, rgba(245,158,11,0.12), transparent 55%)",
-            opacity: 0.75,
+              "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(251,191,36,0.32), transparent 54%), radial-gradient(ellipse 85% 65% at 90% 95%, rgba(180,83,9,0.45), transparent 55%), radial-gradient(ellipse 70% 55% at 8% 88%, rgba(120,53,15,0.38), transparent 50%), radial-gradient(ellipse 50% 40% at 40% 40%, rgba(245,158,11,0.12), transparent 55%), radial-gradient(ellipse 60% 35% at 50% 100%, rgba(254,243,199,0.08), transparent 60%)",
           }}
           aria-hidden
         />
@@ -587,6 +614,7 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           aria-hidden
         />
         <div className={`${wrap} opacity-[0.22]`} style={{ backgroundImage: ALTIN_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div className={`${wrap} opacity-[0.12]`} style={{ backgroundImage: ALTIN_STARFIELD, backgroundSize: "140% 140%", backgroundPosition: "30% 40%" }} aria-hidden />
         <div
           className={wrap}
           style={{
@@ -644,6 +672,15 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           aria-hidden
         />
         <div
+          className={`${wrap} left-[-25%] top-[-8%] h-[130%] w-[130%] blur-3xl`}
+          style={{
+            background:
+              "conic-gradient(from 120deg at 40% 40%, transparent 0deg, rgba(52,211,153,0.12) 80deg, transparent 150deg, rgba(6,182,212,0.14) 220deg, transparent 300deg)",
+            opacity: 0.32,
+          }}
+          aria-hidden
+        />
+        <div
           className={`${wrap} left-[-20%] top-[-12%] h-[125%] w-[125%] blur-3xl`}
           style={{
             background:
@@ -653,6 +690,7 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
           aria-hidden
         />
         <div className={`${wrap} opacity-[0.2]`} style={{ backgroundImage: KUZEY_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+        <div className={`${wrap} opacity-[0.11]`} style={{ backgroundImage: KUZEY_STARFIELD, backgroundSize: "130% 130%", backgroundPosition: "40% 30%" }} aria-hidden />
         <div
           className={wrap}
           style={{ opacity: 0.1, boxShadow: "inset 0 0 80px rgba(45,212,191,0.2)" }}
@@ -711,6 +749,16 @@ function GorselTemaDekoratif({ temaId }: { temaId: GorselTemaId }) {
         aria-hidden
       />
       <div className={`${wrap} opacity-[0.18]`} style={{ backgroundImage: OKYANUS_STARFIELD, backgroundSize: "100% 100%" }} aria-hidden />
+      <div className={`${wrap} opacity-[0.1]`} style={{ backgroundImage: OKYANUS_STARFIELD, backgroundSize: "125% 125%", backgroundPosition: "20% 60%" }} aria-hidden />
+      <div
+        className={wrap}
+        style={{
+          opacity: 0.22,
+          backgroundImage:
+            "radial-gradient(ellipse 100% 22% at 20% 62%, rgba(103,232,249,0.1), transparent), radial-gradient(ellipse 90% 18% at 78% 58%, rgba(56,189,248,0.08), transparent), radial-gradient(ellipse 110% 20% at 50% 78%, rgba(14,165,233,0.09), transparent)",
+        }}
+        aria-hidden
+      />
       <div
         className={wrap}
         style={{
@@ -989,6 +1037,51 @@ const GORSEL_EL_TINT: Record<string, string> = {
   Toprak: "rgba(74,222,128,0.32)",
 };
 
+/** Görsel rapor — ince köşe / teker sembolü (birebir kopya değil, atmosfer) */
+function GorselRaporKoseDekor() {
+  const c = "text-[color:var(--gr-gold-faint)]";
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>
+      <svg
+        className={`absolute -right-2 -top-2 h-[5.5rem] w-[5.5rem] opacity-[0.11] sm:h-28 sm:w-28 sm:opacity-[0.14] ${c}`}
+        viewBox="0 0 100 100"
+        fill="none"
+      >
+        <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="0.35" opacity="0.55" />
+        <circle cx="50" cy="50" r="34" stroke="currentColor" strokeWidth="0.28" opacity="0.45" />
+        {Array.from({ length: 12 }, (_, i) => {
+          const a = (i * Math.PI) / 6;
+          const x1 = 50 + 38 * Math.cos(a - 0.04);
+          const y1 = 50 + 38 * Math.sin(a - 0.04);
+          const x2 = 50 + 38 * Math.cos(a + 0.04);
+          const y2 = 50 + 38 * Math.sin(a + 0.04);
+          return <path key={i} d={`M50 50 L${x1} ${y1} M50 50 L${x2} ${y2}`} stroke="currentColor" strokeWidth="0.22" opacity="0.5" />;
+        })}
+      </svg>
+      <svg className={`absolute bottom-2 left-1 h-9 w-9 opacity-[0.1] sm:bottom-3 sm:left-2 sm:h-11 sm:w-11 ${c}`} viewBox="0 0 40 48" fill="none">
+        <path
+          d="M20 2 L34 16 L28 44 L12 44 L6 16 Z"
+          stroke="currentColor"
+          strokeWidth="0.6"
+          fill="currentColor"
+          fillOpacity="0.06"
+        />
+        <path d="M20 12 L26 22 L22 36 L18 36 L14 22 Z" stroke="currentColor" strokeWidth="0.35" fill="currentColor" fillOpacity="0.04" />
+      </svg>
+      <svg className={`absolute bottom-2 right-1 h-10 w-10 opacity-[0.09] sm:bottom-4 sm:right-2 sm:h-12 sm:w-12 ${c}`} viewBox="0 0 48 48" fill="none">
+        <path
+          d="M8 38 Q22 8 40 34"
+          stroke="currentColor"
+          strokeWidth="0.55"
+          strokeLinecap="round"
+          opacity="0.65"
+        />
+        <path d="M14 36 Q24 18 34 32" stroke="currentColor" strokeWidth="0.35" strokeLinecap="round" opacity="0.4" />
+      </svg>
+    </div>
+  );
+}
+
 function GorselAltinSatir({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`} aria-hidden>
@@ -1090,7 +1183,7 @@ function GorselRaporInfografik({
   temaId: GorselTemaId;
 }) {
   const css = GORSEL_TEMA_VARS[temaId];
-  const Y = 4;
+  const Y = 5;
   const hy = out.harflerinYankilanisi;
   const motorSegs = Array.isArray(hy) && hy.length ? hy : undefined;
   const harfKartlari = gorselHarfKartlari(firstName, lastName, motorSegs);
@@ -1103,24 +1196,17 @@ function GorselRaporInfografik({
 
   const mucObj = out.mucadeleYillari;
   let mucGoster: string[] = [];
-  if (mucObj && ((mucObj.method1?.length ?? 0) > 0 || (mucObj.method2?.length ?? 0) > 0)) {
-    const m1Lines = (mucObj.method1 ?? []).map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`);
-    const m2First = mucObj.method2?.[0];
-    const m2Line =
-      m2First != null ? [`${m1Lines.length + 1}. mücadele · ${m2First.age} yaş · ${m2First.topic}. çakra`] : [];
-    mucGoster = [...m1Lines, ...m2Line].slice(0, Y);
-    if (mucGoster.length === 0) mucGoster = gorselMeaningfulLines(out.mucadeleYillariMetni, Y);
-  } else {
-    mucGoster = gorselMeaningfulLines(out.mucadeleYillariMetni, Y);
+  if (mucObj) {
+    const m1 = (mucObj.method1 ?? []).map((m) => `${m.index}. (36) · ${m.age} yaş · ${m.topic}. çakra`);
+    const m2 = (mucObj.method2 ?? []).map((m) => `${m.index}. (9) · ${m.age} yaş · ${m.topic}. çakra`);
+    mucGoster = [...m1, ...m2].slice(0, Y);
   }
+  if (mucGoster.length === 0) mucGoster = gorselMeaningfulLines(out.mucadeleYillariMetni, Y);
 
   let degGoster = gorselDegisimOzetSatirlari(out.degisimDonusumMetni, Y);
   if (!degGoster.length) degGoster = gorselMeaningfulLines(out.degisimDonusumMetni, Y);
 
-  const harfDizisiStr = (() => {
-    const chars = gorselNormalizeHarfDizisi(firstName, lastName);
-    return chars.length ? chars.join(" · ") : "—";
-  })();
+  const harfBaslikStr = gorselHarfBaslikSpaced(firstName, lastName);
 
   const numerolojiKartlari = [
     { label: "Ana Kulvar", r: out.anaKulvar, glowVar: "--gr-glow-ana", tip: "ana" as const },
@@ -1132,11 +1218,12 @@ function GorselRaporInfografik({
   return (
     <div
       style={css}
-      className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_56px_-10px_var(--gr-shadow),0_0_1px_rgba(255,255,255,0.04)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none"
+      className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none"
     >
       <GorselTemaDekoratif temaId={temaId} />
+      <GorselRaporKoseDekor />
 
-      <header className="relative z-[1] pb-2.5 text-center sm:pb-3">
+      <header className="relative z-[2] pb-2.5 text-center sm:pb-3">
         <GorselAltinSatir className="mb-2 opacity-80" />
         <div className="mx-auto mb-1 flex justify-center opacity-[0.5]" aria-hidden>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[color:var(--gr-gold-faint)]">
@@ -1174,7 +1261,7 @@ function GorselRaporInfografik({
         />
       </header>
 
-      <div className="relative z-[1] mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 lg:mt-4 lg:grid-cols-4 lg:gap-2.5">
+      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 lg:mt-4 lg:grid-cols-4 lg:gap-2.5">
         {numerolojiKartlari.map(({ label, r, glowVar, tip }) => (
           <section
             key={label}
@@ -1198,27 +1285,59 @@ function GorselRaporInfografik({
         ))}
       </div>
 
-      <div className="relative z-[1] mt-3 grid grid-cols-1 gap-2.5 lg:mt-4 lg:grid-cols-[minmax(0,9.5rem)_1fr]">
+      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2.5 lg:mt-4 lg:grid-cols-[minmax(0,9.5rem)_1fr]">
         <div className="flex flex-col gap-2">
           <section
             className="rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:px-2.5"
             style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
           >
             <GorselKutuBaslik className="pb-1 text-[7.5px] sm:text-[8.5px]">PIN kodu</GorselKutuBaslik>
-            <div className="mt-1.5 flex flex-wrap justify-center gap-0.5">
-              {[out.pinKodu.k1, out.pinKodu.k2, out.pinKodu.k3, out.pinKodu.k4, out.pinKodu.k5, out.pinKodu.k6, out.pinKodu.k7, out.pinKodu.k8, out.pinKodu.k9].map((v, i) => (
-                <span
-                  key={`p-${i}`}
-                  className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)] sm:h-6 sm:w-6"
-                  style={{
-                    borderColor: "var(--gr-pin-border)",
-                    backgroundColor: "var(--gr-pin-bg)",
-                    color: "var(--gr-number)",
-                  }}
-                >
-                  {v || "—"}
-                </span>
-              ))}
+            <div className="mt-1.5 flex flex-col items-center gap-0.5">
+              <div className="flex flex-wrap justify-center gap-0.5">
+                {[out.pinKodu.k1, out.pinKodu.k2, out.pinKodu.k3, out.pinKodu.k4].map((v, i) => (
+                  <span
+                    key={`p1-${i}`}
+                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    style={{
+                      borderColor: "var(--gr-pin-border)",
+                      backgroundColor: "var(--gr-pin-bg)",
+                      color: "var(--gr-number)",
+                    }}
+                  >
+                    {v || "—"}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap justify-center gap-0.5">
+                {[out.pinKodu.k5, out.pinKodu.k6, out.pinKodu.k7].map((v, i) => (
+                  <span
+                    key={`p2-${i}`}
+                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    style={{
+                      borderColor: "var(--gr-pin-border)",
+                      backgroundColor: "var(--gr-pin-bg)",
+                      color: "var(--gr-number)",
+                    }}
+                  >
+                    {v || "—"}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap justify-center gap-1">
+                {[out.pinKodu.k8, out.pinKodu.k9].map((v, i) => (
+                  <span
+                    key={`p3-${i}`}
+                    className="flex h-6 w-6 items-center justify-center rounded border-[0.5px] text-[10px] font-black tabular-nums shadow-[0_0_8px_-3px_var(--gr-pin-shadow)]"
+                    style={{
+                      borderColor: "var(--gr-pin-border)",
+                      backgroundColor: "var(--gr-pin-bg)",
+                      color: "var(--gr-number)",
+                    }}
+                  >
+                    {v || "—"}
+                  </span>
+                ))}
+              </div>
             </div>
             <p className="mt-1 text-center text-[9px] opacity-40" style={{ color: "var(--gr-el-muted)" }} aria-hidden>
               ✦
@@ -1268,13 +1387,19 @@ function GorselRaporInfografik({
           <GorselKutuBaslik className="pb-1.5 text-[7.5px] sm:text-[8.5px]">Çakra omurgası</GorselKutuBaslik>
           <div className="relative mt-1.5 pl-3.5 sm:pl-4">
             <div
-              className="pointer-events-none absolute left-[9px] top-1 bottom-1 w-[2px] -translate-x-1/2 rounded-full opacity-[0.58] sm:left-[11px]"
-              style={{
-                background: "var(--gr-spine-gradient)",
-                boxShadow: "0 0 12px rgba(255,255,255,0.1), inset 0 0 5px rgba(255,255,255,0.12)",
-              }}
+              className="pointer-events-none absolute left-[9px] top-1 bottom-1 w-[3px] -translate-x-1/2 sm:left-[11px]"
+              style={{ filter: "blur(0.45px)", opacity: 0.85 }}
               aria-hidden
-            />
+            >
+              <div
+                className="h-full w-full rounded-full"
+                style={{
+                  background: "var(--gr-spine-gradient)",
+                  boxShadow:
+                    "0 0 14px rgba(255,255,255,0.12), 0 0 24px var(--gr-dot-glow), inset 0 0 6px rgba(255,255,255,0.15)",
+                }}
+              />
+            </div>
             <div className="space-y-1">
               {[7, 6, 5, 4, 3, 2, 1].map((cNo) => {
                 const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
@@ -1340,59 +1465,16 @@ function GorselRaporInfografik({
         </section>
       </div>
 
-      <div className="relative z-[1] mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:mt-4">
+      <div className="relative z-[2] mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:mt-4">
         <section
-          className="flex min-h-[7.5rem] flex-col rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
-          <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Zirve yılları</GorselKutuBaslik>
-          <div className="mt-1.5 flex-1 space-y-0.5">
-            {zirveGoster.length ? (
-              zirveGoster.map((line, i) => (
-                <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
-                  {line}
-                </p>
-              ))
-            ) : (
-              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
-                —
-              </p>
-            )}
-          </div>
-          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-35" style={{ color: "var(--gr-key)" }} aria-hidden>
-            ♔
+          <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ✧
           </span>
-        </section>
-
-        <section
-          className="flex min-h-[7.5rem] flex-col rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
-          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
-        >
-          <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Mücadele yılları</GorselKutuBaslik>
-          <div className="mt-1.5 flex-1 space-y-0.5">
-            {mucGoster.length ? (
-              mucGoster.map((line, i) => (
-                <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
-                  {line}
-                </p>
-              ))
-            ) : (
-              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
-                —
-              </p>
-            )}
-          </div>
-          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-35" style={{ color: "var(--gr-key)" }} aria-hidden>
-            ⚔
-          </span>
-        </section>
-
-        <section
-          className="flex min-h-[7.5rem] flex-col rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
-          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
-        >
           <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Değişim — dönüşüm</GorselKutuBaslik>
-          <div className="mt-1.5 flex-1 space-y-0.5">
+          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
             {degGoster.length ? (
               degGoster.map((line, i) => (
                 <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
@@ -1405,14 +1487,66 @@ function GorselRaporInfografik({
               </p>
             )}
           </div>
-          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-35" style={{ color: "var(--gr-key)" }} aria-hidden>
-            ✧
+          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-25" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ✦
+          </span>
+        </section>
+
+        <section
+          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
+        >
+          <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ♔
+          </span>
+          <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Zirve yılları</GorselKutuBaslik>
+          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {zirveGoster.length ? (
+              zirveGoster.map((line, i) => (
+                <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
+                  {line}
+                </p>
+              ))
+            ) : (
+              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                —
+              </p>
+            )}
+          </div>
+          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-25" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ✦
+          </span>
+        </section>
+
+        <section
+          className="flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:min-h-[8rem] sm:p-2.5"
+          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
+        >
+          <span className="mb-0.5 text-center text-[10px] opacity-30" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ⚔
+          </span>
+          <GorselKutuBaslik className="shrink-0 pb-1 text-[7.5px] sm:text-[8.5px]">Mücadele yılları</GorselKutuBaslik>
+          <div className="mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {mucGoster.length ? (
+              mucGoster.map((line, i) => (
+                <p key={i} className="break-words text-[9.5px] leading-snug sm:text-[10px]" style={{ color: "var(--gr-line-text)" }}>
+                  {line}
+                </p>
+              ))
+            ) : (
+              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                —
+              </p>
+            )}
+          </div>
+          <span className="mt-auto pt-0.5 text-center text-[9px] opacity-25" style={{ color: "var(--gr-key)" }} aria-hidden>
+            ✦
           </span>
         </section>
       </div>
 
       <section
-        className="relative z-[1] mt-3 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-4 sm:p-3"
+        className="relative z-[2] mt-3 overflow-hidden rounded-xl border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-4 sm:p-3"
         style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 24px -12px var(--gr-shadow)" }}
       >
         <GorselAltinSatir className="mb-1.5 opacity-80" />
@@ -1424,7 +1558,7 @@ function GorselRaporInfografik({
           className="mt-1.5 text-center text-[9px] font-medium leading-relaxed tracking-[0.08em] sm:text-[10px]"
           style={{ color: "var(--gr-harf-label)", fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif" }}
         >
-          {harfDizisiStr}
+          {harfBaslikStr}
         </p>
         <div className="mt-2 flex flex-wrap justify-center gap-1.5 sm:gap-2">
           {harfKartlari.length === 0 ? (
@@ -1434,7 +1568,7 @@ function GorselRaporInfografik({
           ) : null}
           {harfKartlari.map((item, idx) => {
             const rozetOrtak =
-              "relative flex min-w-[3.35rem] flex-col items-center overflow-hidden rounded-lg border-[0.5px] px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_20px_-8px_var(--gr-shadow)] backdrop-blur-md";
+              "relative z-0 flex min-w-[3.35rem] flex-col items-center overflow-hidden rounded-lg border-[0.5px] px-2 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_20px_-8px_var(--gr-shadow)] ring-1 ring-[color:var(--gr-harf-border)] ring-opacity-[0.35] backdrop-blur-md";
             if ("eksik" in item && item.eksik) {
               const ck = LETTER_TO_CHAKRA[item.letter];
               return (
@@ -1447,16 +1581,24 @@ function GorselRaporInfografik({
                     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 16px -6px var(--gr-gold-faint)",
                   }}
                 >
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br from-white/[0.14] via-transparent to-transparent opacity-75"
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-2 top-0 h-px rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-80"
+                    aria-hidden
+                  />
                   <span
-                    className="text-lg font-semibold leading-none"
+                    className="relative z-[1] text-lg font-semibold leading-none"
                     style={{ color: "var(--gr-number)", fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif" }}
                   >
                     {item.letter}
                   </span>
-                  <span className="mt-0.5 text-[9px] font-bold" style={{ color: "var(--gr-harf-label)" }}>
+                  <span className="relative z-[1] mt-0.5 text-[9px] font-bold" style={{ color: "var(--gr-harf-label)" }}>
                     {ck != null ? `${ck}. çakra` : "—"}
                   </span>
-                  <span className="text-[8px] leading-tight" style={{ color: "var(--gr-harf-meta)" }}>
+                  <span className="relative z-[1] text-[8px] leading-tight" style={{ color: "var(--gr-harf-meta)" }}>
                     —
                   </span>
                 </div>
@@ -1473,16 +1615,24 @@ function GorselRaporInfografik({
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 0 18px -6px var(--gr-gold-faint)",
                 }}
               >
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br from-white/[0.16] via-transparent to-transparent opacity-80"
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute inset-x-2 top-0 h-px rounded-full bg-gradient-to-r from-transparent via-white/35 to-transparent opacity-85"
+                  aria-hidden
+                />
                 <span
-                  className="text-lg font-semibold leading-none"
+                  className="relative z-[1] text-lg font-semibold leading-none"
                   style={{ color: "var(--gr-number)", fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif" }}
                 >
                   {seg.letter}
                 </span>
-                <span className="mt-0.5 text-[9px] font-bold" style={{ color: "var(--gr-harf-label)" }}>
+                <span className="relative z-[1] mt-0.5 text-[9px] font-bold" style={{ color: "var(--gr-harf-label)" }}>
                   {seg.chakra}. çakra
                 </span>
-                <span className="text-[8px] leading-tight" style={{ color: "var(--gr-harf-body)" }}>
+                <span className="relative z-[1] text-[8px] leading-tight" style={{ color: "var(--gr-harf-body)" }}>
                   {seg.ageStart}–{seg.ageEnd}
                   {seg.yearStart != null ? (
                     <span style={{ color: "var(--gr-harf-meta)" }}>
