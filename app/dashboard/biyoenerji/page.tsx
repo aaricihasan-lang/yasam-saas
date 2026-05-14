@@ -58,7 +58,7 @@ export default function BiyoenerjiDashboardPage() {
               </p>
             </div>
             <Link
-              href="/dashboard"
+              href="/"
               className="inline-flex w-fit shrink-0 items-center gap-2 self-start rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-white transition hover:border-violet-200 hover:bg-violet-50/80 hover:text-slate-900"
             >
               <span aria-hidden className="text-violet-500">
