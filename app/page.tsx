@@ -153,9 +153,9 @@ const dashboardModules: ModuleCard[] = [
     title: "Numeroloji",
     icon: "🔢",
     desc: "Analiz, rapor ve kişisel yorum alanı",
-    count: "Yakında",
+    count: "Aktif",
     badge: "Plan",
-    href: "#",
+    href: "/numeroloji",
   },
   {
     title: "Refleksoloji",
