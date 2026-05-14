@@ -1230,6 +1230,469 @@ function GorselRaporInfografik({
   );
 }
 
+/** Fullscreen poster: sabit 1280×760, iç scroll yok; üst gömülü rapordan ayrı */
+function GorselRaporFullscreenPoster({
+  out,
+  isimGoster,
+  dogumGoster,
+  temaId,
+}: {
+  out: NumerolojiMotorOut;
+  isimGoster: string;
+  dogumGoster: string;
+  temaId: GorselTemaId;
+}) {
+  const css = GORSEL_TEMA_VARS[temaId];
+  const L = 3;
+
+  return (
+    <div
+      style={css}
+      className="relative flex h-[760px] w-[1280px] flex-col overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-2.5 text-[color:var(--gr-line-text)] shadow-[0_0_40px_-8px_var(--gr-shadow)] ring-1 ring-[color:var(--gr-ring)]"
+    >
+      <GorselTemaDekoratif temaId={temaId} />
+
+      <header className="relative z-[1] shrink-0 border-b border-[color:var(--gr-header-border)] pb-2 text-center">
+        <p className="text-[8px] font-black uppercase tracking-[0.28em]" style={{ color: "var(--gr-eyebrow)" }}>
+          Görsel rapor
+        </p>
+        <h2
+          className="mt-0.5 text-lg font-black tracking-[0.08em]"
+          style={{ color: "var(--gr-name)", textShadow: "0 0 16px var(--gr-title-shadow)" }}
+        >
+          NUMEROLOJİK YAŞAM HARİTASI
+        </h2>
+        <div className="mx-auto mt-1.5 max-w-xl space-y-0.5 border-t pt-1.5" style={{ borderColor: "var(--gr-header-divider)" }}>
+          <p className="truncate text-sm font-semibold" style={{ color: "var(--gr-name)" }}>
+            {(isimGoster || "").trim() || "—"}
+          </p>
+          <p className="text-xs font-semibold tabular-nums tracking-wide" style={{ color: "var(--gr-birth)" }}>
+            {(dogumGoster || "").trim() || "—"}
+          </p>
+        </div>
+      </header>
+
+      <div className="relative z-[1] mt-1.5 grid shrink-0 grid-cols-4 gap-1.5">
+        {(
+          [
+            ["Ana Kulvar", out.anaKulvar],
+            ["Yan Kulvar", out.yanKulvar],
+            ["İfade Sayısı", out.ifadeSayisi],
+            ["Hayat Yolu / DM", out.hayatYolu],
+          ] as const
+        ).map(([label, r]) => {
+          const k = (r.key || "").trim();
+          return (
+            <section
+              key={label}
+              className="flex h-[88px] flex-col rounded-xl border p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[4px]"
+              style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+            >
+              <h3
+                className="border-b pb-1 text-[7px] font-black uppercase leading-tight tracking-[0.12em]"
+                style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+              >
+                {label}
+              </h3>
+              <p className="mt-1 text-2xl font-black tabular-nums leading-none tracking-tight" style={{ color: "var(--gr-number)" }}>
+                {nrDisplay(r)}
+              </p>
+              <p className="mt-auto truncate text-[9px] font-semibold uppercase leading-tight tracking-wide" style={{ color: "var(--gr-key)" }}>
+                {k || "—"}
+              </p>
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="relative z-[1] mt-1.5 grid min-h-0 flex-1 grid-cols-3 gap-1.5 overflow-hidden">
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[4px]"
+          style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            PIN kodu
+          </h3>
+          <div className="mt-1.5 flex flex-1 flex-col items-center justify-center gap-1">
+            <div className="flex flex-wrap justify-center gap-1">
+              {[out.pinKodu.k1, out.pinKodu.k2, out.pinKodu.k3, out.pinKodu.k4].map((v, i) => (
+                <span
+                  key={`fp1-${i}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-black shadow-[0_0_8px_var(--gr-pin-shadow)]"
+                  style={{
+                    borderColor: "var(--gr-pin-border)",
+                    backgroundColor: "var(--gr-pin-bg)",
+                    color: "var(--gr-number)",
+                  }}
+                >
+                  {v || "—"}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-wrap justify-center gap-1">
+              {[out.pinKodu.k5, out.pinKodu.k6, out.pinKodu.k7].map((v, i) => (
+                <span
+                  key={`fp2-${i}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-black shadow-[0_0_8px_var(--gr-pin-shadow)]"
+                  style={{
+                    borderColor: "var(--gr-pin-border)",
+                    backgroundColor: "var(--gr-pin-bg)",
+                    color: "var(--gr-number)",
+                  }}
+                >
+                  {v || "—"}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-wrap justify-center gap-1">
+              {[out.pinKodu.k8, out.pinKodu.k9].map((v, i) => (
+                <span
+                  key={`fp3-${i}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-black shadow-[0_0_8px_var(--gr-pin-shadow)]"
+                  style={{
+                    borderColor: "var(--gr-pin-border)",
+                    backgroundColor: "var(--gr-pin-bg)",
+                    color: "var(--gr-number)",
+                  }}
+                >
+                  {v || "—"}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[4px]"
+          style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            Elementler
+          </h3>
+          <div className="mt-1.5 grid flex-1 grid-cols-2 gap-1 content-start">
+            {ELEMENT_ORDER.map((el) => (
+              <div
+                key={el}
+                className="rounded-lg border px-1.5 py-1 text-center backdrop-blur-sm"
+                style={{ borderColor: "var(--gr-el-border)", backgroundColor: "var(--gr-el-bg)" }}
+              >
+                <p className="text-[7px] font-black uppercase tracking-wider" style={{ color: "var(--gr-el-label)" }}>
+                  {el}
+                </p>
+                <p className="text-lg font-black tabular-nums leading-none" style={{ color: "var(--gr-number)" }}>
+                  {out.elementler.counts[el]}
+                </p>
+              </div>
+            ))}
+          </div>
+          {out.elementler.neutralCount > 0 ? (
+            <p className="mt-1 shrink-0 text-center text-[8px]" style={{ color: "var(--gr-el-muted)" }}>
+              Nötr: {out.elementler.neutralCount}
+            </p>
+          ) : null}
+          {(out.elementler.key || "").trim() ? (
+            <p className="mt-0.5 shrink-0 truncate text-center text-[9px] font-semibold" style={{ color: "var(--gr-key)" }}>
+              Baskın: {out.elementler.key}
+            </p>
+          ) : null}
+        </section>
+
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-gradient-to-b p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[4px]"
+          style={{
+            borderColor: "var(--gr-cakra-wrap-border)",
+            background: `linear-gradient(to bottom, var(--gr-cakra-wrap-from), var(--gr-cakra-wrap-to))`,
+          }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            Çakra omurgası
+          </h3>
+          <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {[7, 6, 5, 4, 3, 2, 1].map((cNo) => {
+              const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
+              const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
+              const [sk, tr] = GORSEL_CAKRA_LABELS[cNo] ?? [`${cNo}`, "Çakra"];
+              const emptyRow = left === 0 && right === 0;
+              return (
+                <div
+                  key={cNo}
+                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 rounded-lg border px-1 py-0.5 backdrop-blur-sm"
+                  style={{ borderColor: "var(--gr-row-border)", backgroundColor: "var(--gr-row-bg)" }}
+                >
+                  <div
+                    className="flex max-h-5 min-w-0 flex-wrap justify-end gap-px overflow-hidden text-xs leading-none"
+                    style={{ color: "var(--gr-number)" }}
+                    aria-hidden
+                  >
+                    {emptyRow ? (
+                      <span style={{ color: "var(--gr-empty)" }}>—</span>
+                    ) : (
+                      Array.from({ length: left }, (_, i) => (
+                        <span key={`fo-${cNo}-${i}`} className="opacity-95">
+                          ○
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  <div className="w-[4.5rem] shrink-0 text-center">
+                    <p className="text-[7px] font-black uppercase leading-tight tracking-wide" style={{ color: "var(--gr-cakra-sk)" }}>
+                      {sk}
+                    </p>
+                    <p className="text-[7px] font-medium leading-tight" style={{ color: "var(--gr-cakra-tr)" }}>
+                      {tr}
+                    </p>
+                  </div>
+                  <div
+                    className="flex max-h-5 min-w-0 flex-wrap justify-start gap-px overflow-hidden text-xs leading-none"
+                    style={{ color: "var(--gr-cakra-dot)", filter: "drop-shadow(0 0 4px var(--gr-dot-glow))" }}
+                    aria-hidden
+                  >
+                    {emptyRow ? (
+                      <span style={{ color: "var(--gr-empty)" }}>—</span>
+                    ) : (
+                      Array.from({ length: right }, (_, i) => (
+                        <span key={`ff-${cNo}-${i}`}>●</span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      <div className="relative z-[1] mt-1.5 grid h-[108px] shrink-0 grid-cols-3 gap-1.5 overflow-hidden">
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 backdrop-blur-[4px]"
+          style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            Değişim — dönüşüm
+          </h3>
+          <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {(() => {
+              const degLines = (out.degisimDonusumMetni || "")
+                .trim()
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .slice(0, L);
+              if (!degLines.length) {
+                return (
+                  <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                    —
+                  </p>
+                );
+              }
+              return degLines.map((line, i) => (
+                <div
+                  key={i}
+                  className="truncate rounded border-l-2 px-1 py-0.5 text-[10px] leading-tight backdrop-blur-sm"
+                  style={{
+                    borderLeftColor: "var(--gr-line-border)",
+                    backgroundColor: "var(--gr-line-bg)",
+                    color: "var(--gr-line-text)",
+                  }}
+                  title={line}
+                >
+                  {line}
+                </div>
+              ));
+            })()}
+          </div>
+        </section>
+
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 backdrop-blur-[4px]"
+          style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            Zirve yılları
+          </h3>
+          <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {out.zirveYillariMetni?.trim() ? (
+              out.zirveYillariMetni
+                .trim()
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .slice(0, L)
+                .map((line, i) => (
+                  <div
+                    key={i}
+                    className="truncate rounded border-l-2 px-1 py-0.5 text-[10px] leading-tight backdrop-blur-sm"
+                    style={{
+                      borderLeftColor: "var(--gr-line-border)",
+                      backgroundColor: "var(--gr-line-bg)",
+                      color: "var(--gr-line-text)",
+                    }}
+                    title={line}
+                  >
+                    {line}
+                  </div>
+                ))
+            ) : out.zirveYillari?.peaks?.length ? (
+              out.zirveYillari.peaks.slice(0, L).map((p) => (
+                <div
+                  key={p.index}
+                  className="truncate rounded border-l-2 px-1 py-0.5 text-[10px] leading-tight backdrop-blur-sm"
+                  style={{
+                    borderLeftColor: "var(--gr-line-border)",
+                    backgroundColor: "var(--gr-line-bg)",
+                    color: "var(--gr-line-text)",
+                  }}
+                  title={`${p.index}. zirve · yaş ${p.age} · konu ${p.topic}`}
+                >
+                  {p.index}. zirve · yaş {p.age} · konu {p.topic}
+                </div>
+              ))
+            ) : (
+              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                —
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 backdrop-blur-[4px]"
+          style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+        >
+          <h3
+            className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+            style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+          >
+            Mücadele yılları
+          </h3>
+          <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+            {out.mucadeleYillariMetni?.trim() ? (
+              out.mucadeleYillariMetni
+                .trim()
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .slice(0, L)
+                .map((line, i) => (
+                  <div
+                    key={i}
+                    className="truncate rounded border-l-2 px-1 py-0.5 text-[10px] leading-tight backdrop-blur-sm"
+                    style={{
+                      borderLeftColor: "var(--gr-line-border)",
+                      backgroundColor: "var(--gr-line-bg)",
+                      color: "var(--gr-line-text)",
+                    }}
+                    title={line}
+                  >
+                    {line}
+                  </div>
+                ))
+            ) : out.mucadeleYillari?.method1?.length ? (
+              out.mucadeleYillari.method1.slice(0, L).map((m) => (
+                <div
+                  key={m.index}
+                  className="truncate rounded border-l-2 px-1 py-0.5 text-[10px] leading-tight backdrop-blur-sm"
+                  style={{
+                    borderLeftColor: "var(--gr-line-border)",
+                    backgroundColor: "var(--gr-line-bg)",
+                    color: "var(--gr-line-text)",
+                  }}
+                  title={`${m.index}. mücadele · yaş ${m.age} · konu ${m.topic}`}
+                >
+                  {m.index}. mücadele · yaş {m.age} · konu {m.topic}
+                </div>
+              ))
+            ) : (
+              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                —
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <section
+        className="relative z-[1] mt-1.5 flex h-[124px] shrink-0 flex-col overflow-hidden rounded-xl border p-2 backdrop-blur-[4px]"
+        style={{ borderColor: "var(--gr-card-border)", backgroundColor: "var(--gr-card-bg)" }}
+      >
+        <h3
+          className="shrink-0 border-b pb-1 text-[7px] font-black uppercase tracking-[0.14em]"
+          style={{ borderColor: "var(--gr-h3-border)", color: "var(--gr-h3)" }}
+        >
+          Harflerin yankılanışı
+        </h3>
+        <div className="mt-1 grid h-full min-h-0 grid-cols-3 gap-1 overflow-hidden">
+          {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0
+            ? out.harflerinYankilanisi.slice(0, 6).map((seg, idx) => (
+                <div
+                  key={`${seg.letter}-${idx}`}
+                  className="flex min-h-0 items-center justify-between gap-1 overflow-hidden rounded-lg border px-1.5 py-1 backdrop-blur-sm"
+                  style={{ borderColor: "var(--gr-harf-border)", backgroundColor: "var(--gr-harf-bg)" }}
+                >
+                  <span className="text-lg font-light leading-none" style={{ color: "var(--gr-number)" }}>
+                    {seg.letter}
+                  </span>
+                  <div className="min-w-0 text-right">
+                    <p className="text-[7px] font-black uppercase tracking-wider" style={{ color: "var(--gr-harf-label)" }}>
+                      Çakra {seg.chakra}
+                    </p>
+                    <p className="truncate text-[9px] leading-tight" style={{ color: "var(--gr-harf-body)" }}>
+                      Yaş {seg.ageStart}–{seg.ageEnd}
+                      {seg.yearStart != null ? (
+                        <span style={{ color: "var(--gr-harf-meta)" }}>
+                          {" "}
+                          · {seg.yearStart}
+                          {seg.yearEnd != null ? `–${seg.yearEnd}` : ""}
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+              ))
+            : (out.harflerinYankilanisiMetni || "")
+                .trim()
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .slice(0, 6)
+                .map((line, i) => (
+                  <div
+                    key={i}
+                    className="truncate rounded-lg border px-1.5 py-1 text-[9px] leading-tight backdrop-blur-sm"
+                    style={{ borderColor: "var(--gr-harf-border)", backgroundColor: "var(--gr-harf-bg)", color: "var(--gr-harf-body)" }}
+                    title={line}
+                  >
+                    {line}
+                  </div>
+                ))}
+          {!Array.isArray(out.harflerinYankilanisi) || out.harflerinYankilanisi.length === 0 ? (
+            !(out.harflerinYankilanisiMetni || "").trim() ? (
+              <p className="text-[10px]" style={{ color: "var(--gr-dash)" }}>
+                —
+              </p>
+            ) : null
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
   { id: "plain", label: "Analiz (Hesap Özetsiz)" },
@@ -1248,10 +1711,21 @@ export default function NumerolojiPage() {
   const [gorselTema, setGorselTema] = useState<GorselTemaId>("kozmikMor");
   const [gorselTamEkran, setGorselTamEkran] = useState(false);
   const [gorselPortalHazir, setGorselPortalHazir] = useState(false);
+  const [gorselFsScale, setGorselFsScale] = useState(1);
 
   useEffect(() => {
     setGorselPortalHazir(true);
   }, []);
+
+  useEffect(() => {
+    if (!gorselTamEkran) return;
+    const updateScale = () => {
+      setGorselFsScale(Math.min(window.innerWidth / 1320, window.innerHeight / 820, 1));
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [gorselTamEkran]);
 
   useEffect(() => {
     if (!gorselTamEkran) return;
@@ -1491,36 +1965,23 @@ export default function NumerolojiPage() {
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="gorsel-fs-title"
-                            className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black/90"
+                            className="pointer-events-none fixed inset-0 z-[9999] bg-black/95"
                           >
                             <p id="gorsel-fs-title" className="sr-only">
                               Numerolojik yaşam haritası tam ekran görünümü
                             </p>
-                            <div className="absolute inset-x-0 top-0 z-[10000] flex flex-col pt-3 pl-3 sm:pt-4 sm:pl-5 sm:pr-28">
+                            <div className="pointer-events-none flex h-screen w-screen items-center justify-center overflow-hidden">
                               <div
-                                role="group"
-                                aria-label="Tam ekran teması"
-                                className="pointer-events-auto flex w-full max-w-[min(100%,calc(100vw-7rem))] flex-wrap items-center gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.75)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2"
+                                className="pointer-events-auto overflow-hidden rounded-2xl shadow-[0_0_48px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/30"
+                                style={{
+                                  width: 1280,
+                                  height: 760,
+                                  transform: `scale(${gorselFsScale})`,
+                                  transformOrigin: "center center",
+                                }}
                               >
-                                {GORSEL_TEMA_LIST.map((t) => (
-                                  <button
-                                    key={`fs-${t.id}`}
-                                    type="button"
-                                    onClick={() => setGorselTema(t.id)}
-                                    className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
-                                      gorselTema === t.id
-                                        ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
-                                        : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
-                                    }`}
-                                  >
-                                    {t.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="relative z-[10001] flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-3 pt-14 sm:px-4 sm:pb-4 sm:pt-16">
-                              <div className="relative w-[96vw] max-w-[1280px] max-h-[86vh] origin-top overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-2xl border-2 border-amber-500/35 shadow-[0_0_56px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/30 md:w-[90vw] md:origin-center md:scale-90">
-                                <GorselRaporInfografik
+                                <GorselRaporFullscreenPoster
+                                  key={gorselTema}
                                   out={out}
                                   isimGoster={isimGoster}
                                   dogumGoster={dogumGoster}
@@ -1528,6 +1989,26 @@ export default function NumerolojiPage() {
                                 />
                               </div>
                             </div>
+                          </div>
+                          <div
+                            role="group"
+                            aria-label="Tam ekran teması"
+                            className="fixed left-6 top-6 z-[10050] flex max-w-[min(calc(100vw-8rem),36rem)] flex-wrap gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md"
+                          >
+                            {GORSEL_TEMA_LIST.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setGorselTema(t.id)}
+                                className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
+                                  gorselTema === t.id
+                                    ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
+                                    : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
+                                }`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
                           </div>
                           <button
                             type="button"
