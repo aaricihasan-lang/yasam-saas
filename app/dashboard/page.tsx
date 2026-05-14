@@ -79,6 +79,8 @@ export default function DashboardPage() {
     icon: string;
     href?: string;
     badge?: string;
+    /** Sadece Numeroloji: güçlü hover / glow / scale */
+    premiumGlow?: boolean;
   }[] = [
     {
       title: "Danışanlar",
@@ -116,6 +118,8 @@ export default function DashboardPage() {
       title: "Numeroloji",
       desc: "Numerolojik analiz modülü",
       icon: "🔢",
+      href: "/numeroloji",
+      premiumGlow: true,
     },
     {
       title: "Refleksoloji",
@@ -269,6 +273,9 @@ export default function DashboardPage() {
               const linkHoverClass =
                 "hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.08] hover:shadow-[0_10px_28px_rgba(0,0,0,0.32)] active:translate-y-0 active:brightness-[0.98]";
 
+              const numerolojiHoverClass =
+                "cursor-pointer transition-all duration-300 ease-out hover:scale-[1.03] hover:-translate-y-0.5 hover:border-violet-400/40 hover:bg-gradient-to-br hover:from-violet-500/[0.14] hover:to-fuchsia-500/[0.08] hover:shadow-[0_0_36px_-6px_rgba(167,139,250,0.55),0_14px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.07)] active:scale-[1.01] active:translate-y-0 active:brightness-[0.97]";
+
               const staticHoverClass =
                 "hover:border-white/14 hover:bg-white/[0.06]";
 
@@ -292,11 +299,15 @@ export default function DashboardPage() {
               );
 
               if (module.href) {
+                const linkMotion = module.premiumGlow ? numerolojiHoverClass : `${linkHoverClass} transition-all duration-200`;
+                const focusRing = module.premiumGlow
+                  ? "focus-visible:ring-2 focus-visible:ring-violet-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]"
+                  : "focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]";
                 return (
                   <Link
                     key={module.title}
                     href={module.href}
-                    className={`${cardClass} ${linkHoverClass} cursor-pointer text-inherit no-underline outline-none transition-all focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]`}
+                    className={`${cardClass} ${linkMotion} text-inherit no-underline outline-none ${focusRing}`}
                   >
                     {module.badge ? (
                       <span className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-indigo-100 ring-1 ring-indigo-400/35 md:right-2 md:top-2">
