@@ -370,8 +370,11 @@ function TabAnalizOzetli({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
-/** Görsel rapor — çakra satırı orta başlık (Türkçe, motor 1–7) */
+/** Görsel rapor — çakra satırı orta başlık (Türkçe, motor 1–10) */
 const GORSEL_CAKRA_TR_A4: Record<number, string> = {
+  10: "10. Çakra",
+  9: "9. Çakra",
+  8: "8. Çakra",
   7: "7. Çakra — Taç",
   6: "6. Çakra — Alın",
   5: "5. Çakra — Boğaz",
@@ -383,6 +386,9 @@ const GORSEL_CAKRA_TR_A4: Record<number, string> = {
 
 /** Çakra satırı — kompakt etiket (tam ad title ile) */
 const GORSEL_CAKRA_KISA: Record<number, string> = {
+  10: "10",
+  9: "9",
+  8: "8",
   7: "7 · Taç",
   6: "6 · Alın",
   5: "5 · Boğaz",
@@ -1031,8 +1037,11 @@ const GORSEL_TEMA_VARS = {
   },
 } as Record<GorselTemaId, CSSProperties>;
 
-/** Çakra sırası 7→1 — omurga noktası renkleri */
+/** Çakra sırası 10→1 (motor çıktısı ile aynı sıra) — omurga noktası renkleri */
 const GORSEL_CAKRA_NOKTA: Record<number, string> = {
+  10: "#ddd6fe",
+  9: "#f0abfc",
+  8: "#c4b5fd",
   7: "#e9d5ff",
   6: "#a5b4fc",
   5: "#67e8f9",
@@ -1041,6 +1050,9 @@ const GORSEL_CAKRA_NOKTA: Record<number, string> = {
   2: "#fb923c",
   1: "#f87171",
 };
+
+/** Motor `cakraOmurgasi` sırası: 10 … 1 */
+const GORSEL_CAKRA_SIRA: readonly number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 const GORSEL_EL_TINT: Record<string, string> = {
   Ateş: "rgba(251,146,60,0.35)",
@@ -1493,8 +1505,8 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 }}
               />
             </div>
-            <div className="space-y-1">
-              {[7, 6, 5, 4, 3, 2, 1].map((cNo) => {
+            <div className="space-y-0.5 sm:space-y-1">
+              {GORSEL_CAKRA_SIRA.map((cNo) => {
                 const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
                 const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
                 const midFull = GORSEL_CAKRA_TR_A4[cNo] ?? `${cNo}. Çakra`;
@@ -1505,18 +1517,18 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                   <div key={cNo} className="relative">
                     <span
                       aria-hidden
-                      className="absolute left-[-6px] top-1/2 z-[2] h-1.5 w-1.5 -translate-y-1/2 rounded-full border-[0.5px] border-white/20 sm:left-[-4px]"
+                      className="absolute left-[-6px] top-1/2 z-[2] h-1 w-1 -translate-y-1/2 rounded-full border-[0.5px] border-white/20 sm:left-[-4px] sm:h-1.5 sm:w-1.5"
                       style={{
                         backgroundColor: dot,
-                        boxShadow: `0 0 8px ${dot}, 0 0 2px rgba(255,255,255,0.3)`,
+                        boxShadow: `0 0 6px ${dot}, 0 0 2px rgba(255,255,255,0.25)`,
                       }}
                     />
                     <div
-                      className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 rounded-md border-[0.5px] px-1.5 py-1 backdrop-blur-sm sm:gap-1.5 sm:px-2 sm:py-1.5"
+                      className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 rounded-md border-[0.5px] px-1 py-0.5 backdrop-blur-sm sm:gap-1 sm:px-1.5 sm:py-1"
                       style={{ borderColor: "var(--gr-row-border)", backgroundColor: "var(--gr-row-bg)" }}
                     >
                       <div
-                        className="flex min-h-[1rem] flex-wrap justify-end gap-px overflow-hidden text-xs leading-none sm:text-sm"
+                        className="flex min-h-[0.85rem] flex-wrap justify-end gap-px overflow-hidden text-[10px] leading-none sm:min-h-[1rem] sm:text-xs"
                         style={{ color: "var(--gr-number)" }}
                         aria-hidden
                       >
@@ -1530,15 +1542,15 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                           ))
                         )}
                       </div>
-                      <div className="w-[5.4rem] shrink-0 text-center sm:w-[7.25rem]" title={midFull}>
-                        <p className="text-[8.5px] font-bold leading-tight sm:text-[9.5px]" style={{ color: "var(--gr-cakra-sk)" }}>
+                      <div className="w-[4.25rem] min-w-0 shrink-0 text-center sm:w-[6.25rem]" title={midFull}>
+                        <p className="text-[7px] font-bold leading-tight sm:text-[8.5px]" style={{ color: "var(--gr-cakra-sk)" }}>
                           <span className="sm:hidden">{midShort}</span>
                           <span className="hidden sm:inline">{midFull}</span>
                         </p>
                       </div>
                       <div
-                        className="flex min-h-[1rem] flex-wrap justify-start gap-px overflow-hidden text-xs leading-none sm:text-sm"
-                        style={{ color: "var(--gr-cakra-dot)", filter: "drop-shadow(0 0 5px var(--gr-dot-glow))" }}
+                        className="flex min-h-[0.85rem] flex-wrap justify-start gap-px overflow-hidden text-[10px] leading-none sm:min-h-[1rem] sm:text-xs"
+                        style={{ color: "var(--gr-cakra-dot)", filter: "drop-shadow(0 0 4px var(--gr-dot-glow))" }}
                         aria-hidden
                       >
                         {emptyRow ? (
