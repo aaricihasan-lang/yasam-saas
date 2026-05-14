@@ -20,6 +20,7 @@ import {
   type ElementResult,
   type PinKoduBoxes,
 } from "@/lib/numeroloji";
+import { gorselRaporuPngYakalaVeIndir } from "./gorselRaporExport";
 
 type TabId = "summary" | "plain" | "detailed" | "tas" | "gorsel";
 
@@ -370,11 +371,11 @@ function TabAnalizOzetli({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
-/** Görsel rapor — çakra satırı orta başlık (Türkçe, motor 1–10) */
+/** Görsel rapor — çakra satırı orta başlık (referans A4 poster, 10 çakra). */
 const GORSEL_CAKRA_TR_A4: Record<number, string> = {
-  10: "10. Çakra",
-  9: "9. Çakra",
-  8: "8. Çakra",
+  10: "10. Çakra — Taç",
+  9: "9. Çakra — Üçüncü Göz",
+  8: "8. Çakra — Ruh Yıldızı",
   7: "7. Çakra — Taç",
   6: "6. Çakra — Alın",
   5: "5. Çakra — Boğaz",
@@ -1044,8 +1045,8 @@ const GORSEL_CAKRA_NOKTA: Record<number, string> = {
   1: "#f87171",
 };
 
-/** Görsel rapor: çakra omurgası 1 → 10 (kökten taça okuma). */
-const GORSEL_CAKRA_SIRA: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/** Görsel rapor: çakra listesi üstten alta 10 → 1 (referans poster). */
+const GORSEL_CAKRA_SIRA: readonly number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 const GORSEL_EL_TINT: Record<string, string> = {
   Ateş: "rgba(251,146,60,0.35)",
@@ -1178,6 +1179,44 @@ function GorselKutuBaslik({ children, className = "", noBorder = false }: { chil
   );
 }
 
+/** Element satırı — küçük çizgi ikon (Hava / Su / Ateş / Toprak). */
+function GorselElementMiniSembol({ el }: { el: string }) {
+  const c = "text-[color:var(--gr-key)] opacity-80";
+  if (el === "Hava") {
+    return (
+      <svg className={`${c} mx-auto h-3.5 w-3.5`} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+        <path d="M4 16c2-4 6-6 10-4s8 2 10-2" strokeWidth="1" strokeLinecap="round" />
+        <path d="M3 12c2-3 5-4 8-2" strokeWidth="0.85" strokeLinecap="round" opacity="0.85" />
+      </svg>
+    );
+  }
+  if (el === "Su") {
+    return (
+      <svg className={`${c} mx-auto h-3.5 w-3.5`} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+        <path d="M12 4c2 4 6 8 6 12a6 6 0 1 1-12 0c0-4 4-8 6-12z" strokeWidth="0.9" fill="currentColor" fillOpacity="0.12" />
+      </svg>
+    );
+  }
+  if (el === "Ateş") {
+    return (
+      <svg className={`${c} mx-auto h-3.5 w-3.5`} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+        <path
+          d="M12 3c1 4-2 6-2 10 0 3 2 5 4 6-1-2 0-4 2-5 1 3-1 7-4 8 5-2 7-7 0-19z"
+          strokeWidth="0.45"
+          fill="currentColor"
+          fillOpacity="0.2"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg className={`${c} mx-auto h-3.5 w-3.5`} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+      <path d="M6 18l6-12 6 12H6z" strokeWidth="0.9" fill="currentColor" fillOpacity="0.12" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function GorselNumeroSembol({ tip }: { tip: "ana" | "yan" | "ifade" | "hayat" }) {
   const base = "mx-auto mt-auto shrink-0 text-[color:var(--gr-h3)] opacity-[0.68]";
   if (tip === "ana") {
@@ -1234,124 +1273,6 @@ type GorselRaporInfografikProps = {
   tasKutle: string;
 };
 
-/** Görsel rapor kökü — tam yükseklik / arka plan korunarak tek canvas. */
-async function gorselRaporuHtml2Canvas(hedef: HTMLElement | null, scale: number): Promise<HTMLCanvasElement | null> {
-  if (!hedef || typeof window === "undefined") return null;
-  const { default: html2canvas } = await import("html2canvas");
-  const sw = Math.max(1, Math.ceil(Math.max(hedef.scrollWidth, hedef.offsetWidth, hedef.clientWidth)));
-  const shRaw = Math.max(hedef.scrollHeight, hedef.offsetHeight, hedef.clientHeight);
-  const sh = Math.max(1, Math.ceil(shRaw + 16));
-
-  const canvas = await html2canvas(hedef, {
-    scale,
-    useCORS: true,
-    allowTaint: false,
-    backgroundColor: null,
-    logging: false,
-    width: sw,
-    height: sh,
-    windowWidth: sw,
-    windowHeight: sh,
-    x: 0,
-    y: 0,
-    scrollX: 0,
-    scrollY: 0,
-    onclone: (_doc, cloned) => {
-      if (!(cloned instanceof HTMLElement)) return;
-      cloned.style.overflow = "visible";
-      cloned.style.maxHeight = "none";
-      cloned.style.height = "auto";
-      const cw = Math.max(cloned.scrollWidth, cloned.offsetWidth, sw);
-      const ch = Math.max(cloned.scrollHeight, cloned.offsetHeight, sh);
-      cloned.style.width = `${cw}px`;
-      cloned.style.minHeight = `${ch}px`;
-    },
-  });
-  return canvas;
-}
-
-/**
- * Yüksek çözünürlüklü PNG raster’ı A4 dikey PDF’e yerleştirir (HTML sıkıştırması yok);
- * yükseklik taşarsa dikey şeritlerle yeni sayfalara devam eder.
- */
-async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
-  if (!hedef || typeof window === "undefined") return;
-
-  const [{ default: jsPDF }] = await Promise.all([import("jspdf")]);
-
-  const canvas = await gorselRaporuHtml2Canvas(hedef, 3);
-  if (!canvas) return;
-
-  const cw = canvas.width;
-  const ch = canvas.height;
-  if (cw < 1 || ch < 1) return;
-
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const marginX = 6;
-  const marginY = 6;
-  const contentW = pageW - 2 * marginX;
-  const contentH = pageH - 2 * marginY;
-  const mmPerPxW = contentW / cw;
-  /** Bir A4 sayfasına sığan kaynak görüntü şeridi (px, tam genişlik). */
-  const slicePx = Math.max(1, Math.floor((contentH / contentW) * cw));
-
-  const sliceCanvas = document.createElement("canvas");
-  sliceCanvas.width = cw;
-  const sliceCtx = sliceCanvas.getContext("2d");
-  if (!sliceCtx) return;
-
-  let y = 0;
-  let firstPage = true;
-  while (y < ch) {
-    const hPx = Math.min(slicePx, ch - y);
-    if (hPx < 1) break;
-    sliceCanvas.height = hPx;
-    sliceCtx.clearRect(0, 0, cw, hPx);
-    sliceCtx.drawImage(canvas, 0, y, cw, hPx, 0, 0, cw, hPx);
-    const sliceMmH = hPx * mmPerPxW;
-    const url = sliceCanvas.toDataURL("image/png", 1);
-    if (!firstPage) pdf.addPage();
-    firstPage = false;
-    pdf.addImage(url, "PNG", marginX, marginY, contentW, sliceMmH);
-    y += hPx;
-  }
-
-  pdf.save("numeroloji-raporu.pdf");
-}
-
-/** Yüksek çözünürlüklü tam rapor PNG’si (WhatsApp / galeri paylaşımı için). */
-async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
-  if (!hedef || typeof window === "undefined") return;
-
-  const canvas = await gorselRaporuHtml2Canvas(hedef, 4);
-  if (!canvas) return;
-
-  await new Promise<void>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("PNG oluşturulamadı."));
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "numeroloji-raporu.png";
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        resolve();
-      },
-      "image/png",
-      1,
-    );
-  });
-}
-
 const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikProps>(function GorselRaporInfografik(
   {
     out,
@@ -1382,10 +1303,11 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const uzmanGoster = gorselTasMetinTemiz(uzmanAdi);
 
   const peaks = out.zirveYillari?.peaks ?? [];
-  const zirveGoster: string[] =
+  const zirveGoster: string[] = (
     peaks.length > 0
       ? peaks.slice(0, Y).map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`)
-      : gorselMeaningfulLines(out.zirveYillariMetni, Y);
+      : gorselMeaningfulLines(out.zirveYillariMetni, Y)
+  ).slice(0, Y);
 
   const mucObj = out.mucadeleYillari;
   let mucGoster: string[] = [];
@@ -1398,6 +1320,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
   let degGoster = gorselDegisimOzetSatirlari(out.degisimDonusumMetni, Y);
   if (!degGoster.length) degGoster = gorselMeaningfulLines(out.degisimDonusumMetni, Y);
+  degGoster = degGoster.slice(0, Y);
 
   const harfBaslikStr = gorselHarfBaslikSpaced(firstName, lastName);
 
@@ -1411,7 +1334,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   return (
     <div
       ref={ref}
-      data-gorsel-pdf-root
+      data-gorsel-rapor-root
       style={css}
       className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border-[1.5px] border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-2.5 py-2.5 text-[color:var(--gr-line-text)] shadow-[0_0_0_0.5px_rgba(251,191,36,0.12),0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-2 ring-amber-400/15 ring-inset sm:px-4 sm:py-4 print:shadow-none"
     >
@@ -1456,7 +1379,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         />
       </header>
 
-      <div className="gorsel-sec-kartlar relative z-[2] mt-2 grid grid-cols-2 gap-1.5 min-[520px]:grid-cols-4 lg:mt-2.5 lg:gap-1.5">
+      <div className="gorsel-sec-kartlar relative z-[2] mt-2 grid grid-cols-2 gap-1.5 min-[440px]:grid-cols-4 lg:mt-2.5 lg:gap-1.5">
         {numerolojiKartlari.map(({ label, r, glowVar, tip }) => (
           <section
             key={label}
@@ -1482,165 +1405,176 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         ))}
       </div>
 
-      <div className="gorsel-sec-pin-cakra relative z-[2] mt-2 grid grid-cols-1 gap-1.5 lg:mt-2.5 lg:grid-cols-[minmax(0,8.75rem)_minmax(0,1fr)] lg:gap-2.5">
-        <div className="gorsel-pin-col flex flex-col gap-1.5">
-          <section
-            className="rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:px-2"
-            style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
-          >
-            <GorselKutuBaslik className="pb-0.5 text-[7px] sm:text-[7.5px]">PIN kodu</GorselKutuBaslik>
-            <div className="mt-1 grid grid-cols-3 justify-items-center gap-0.5 px-0.5">
-              {[
-                out.pinKodu.k1,
-                out.pinKodu.k2,
-                out.pinKodu.k3,
-                out.pinKodu.k4,
-                out.pinKodu.k5,
-                out.pinKodu.k6,
-                out.pinKodu.k7,
-                out.pinKodu.k8,
-                out.pinKodu.k9,
-              ].map((v, i) => (
+      {/* 2. sıra: sol PIN, sağ Elementler (referans A4 — çakra bu satırda değil) */}
+      <div className="gorsel-sec-pin-element relative z-[2] mt-2 grid grid-cols-1 gap-1.5 min-[480px]:grid-cols-2 min-[480px]:items-stretch lg:mt-2.5 lg:gap-2">
+        <section
+          className="flex min-h-0 flex-col rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:px-2"
+          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
+        >
+          <GorselKutuBaslik className="pb-0.5 text-center text-[7px] sm:text-[7.5px]">PIN KODU</GorselKutuBaslik>
+          <div className="mt-1 flex flex-1 flex-col items-center justify-center gap-[3px] px-0.5 pb-0.5">
+            {(() => {
+              const pin = out.pinKodu;
+              const cell = (v: string | number, key: string) => (
                 <span
-                  key={`pin-${i}`}
-                  className="gorsel-pin-cell flex h-[1.35rem] w-[1.35rem] items-center justify-center rounded border-[0.5px] text-[8px] font-black tabular-nums shadow-[0_0_6px_-2px_var(--gr-pin-shadow)] sm:h-6 sm:w-6 sm:text-[9px]"
+                  key={key}
+                  className="gorsel-pin-cell flex h-[1.2rem] w-[1.2rem] shrink-0 items-center justify-center rounded border-[0.5px] text-[8px] font-black tabular-nums shadow-[0_0_6px_-2px_var(--gr-pin-shadow)] sm:h-[1.35rem] sm:w-[1.35rem] sm:text-[9px]"
                   style={{
                     borderColor: "var(--gr-pin-border)",
                     backgroundColor: "var(--gr-pin-bg)",
                     color: "var(--gr-number)",
                   }}
                 >
-                  {v || "—"}
+                  {v ?? "—"}
                 </span>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className="rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:px-2"
-            style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
-          >
-            <GorselKutuBaslik className="pb-0.5 text-[7px] sm:text-[7.5px]">Elementler</GorselKutuBaslik>
-            <div className="mt-1 grid grid-cols-2 gap-0.5 sm:grid-cols-4 sm:gap-1">
-              {ELEMENT_ORDER.map((el) => (
-                <div
-                  key={el}
-                  className="flex min-w-0 flex-col items-center justify-center rounded border-[0.5px] py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:py-1"
-                  style={{
-                    borderColor: "var(--gr-el-border)",
-                    backgroundColor: "var(--gr-el-bg)",
-                    boxShadow: `0 0 8px -4px ${GORSEL_EL_TINT[el] ?? "transparent"}`,
-                  }}
-                >
-                  <span
-                    className="max-w-full truncate px-0.5 text-[6px] font-semibold uppercase leading-none tracking-wide opacity-90 sm:text-[6.5px]"
-                    style={{ color: "var(--gr-el-label)" }}
-                    title={el}
-                  >
-                    {el}
+              );
+              return (
+                <>
+                  <div className="flex justify-center gap-[3px]">
+                    {[pin.k1, pin.k2, pin.k3, pin.k4, pin.k5].map((v, i) => cell(v, `p5-${i}`))}
+                  </div>
+                  <div className="flex justify-center gap-[3px]">
+                    {[pin.k6, pin.k7].map((v, i) => cell(v, `p2-${i}`))}
+                  </div>
+                  <div className="flex justify-center">{cell(pin.k8, "p1-8")}</div>
+                  <div className="flex justify-center">{cell(pin.k9, "p1-9")}</div>
+                  <span className="mt-0.5 text-[9px] leading-none opacity-70" style={{ color: "var(--gr-gold-faint)" }} aria-hidden>
+                    ✦
                   </span>
-                  <p className="gorsel-el-count text-xs font-black tabular-nums leading-none sm:text-sm" style={{ color: "var(--gr-number)" }}>
-                    {out.elementler.counts[el]}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+                </>
+              );
+            })()}
+          </div>
+        </section>
 
         <section
-          className="rounded-lg border-[0.5px] bg-gradient-to-b px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:p-2.5"
-          style={{
-            borderColor: "var(--gr-cakra-wrap-border)",
-            background: `linear-gradient(to bottom, var(--gr-cakra-wrap-from), var(--gr-cakra-wrap-to))`,
-            boxShadow: "0 0 20px -10px var(--gr-shadow)",
-          }}
+          className="flex min-h-0 flex-col rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:px-2"
+          style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 16px -10px var(--gr-shadow)" }}
         >
-          <GorselKutuBaslik className="pb-1 text-[7px] sm:text-[7.5px]">Çakra omurgası</GorselKutuBaslik>
-          <div className="relative mt-1 pl-3 sm:mt-1.5 sm:pl-4">
-            <div
-              className="pointer-events-none absolute left-[8px] top-0.5 bottom-0.5 w-[3px] -translate-x-1/2 sm:left-[10px]"
-              style={{ filter: "blur(0.35px)", opacity: 0.9 }}
-              aria-hidden
-            >
+          <GorselKutuBaslik className="pb-0.5 text-center text-[7px] sm:text-[7.5px]">Elementler</GorselKutuBaslik>
+          <div className="mt-1 grid min-h-0 flex-1 grid-cols-4 gap-0.5 sm:gap-1">
+            {ELEMENT_ORDER.map((el) => (
               <div
-                className="h-full w-full rounded-full"
+                key={el}
+                className="flex min-w-0 flex-col items-center justify-start gap-0.5 rounded border-[0.5px] px-0.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:py-1.5"
                 style={{
-                  background: "var(--gr-spine-gradient)",
-                  boxShadow:
-                    "0 0 14px rgba(255,255,255,0.12), 0 0 24px var(--gr-dot-glow), inset 0 0 6px rgba(255,255,255,0.15)",
+                  borderColor: "var(--gr-el-border)",
+                  backgroundColor: "var(--gr-el-bg)",
+                  boxShadow: `0 0 8px -4px ${GORSEL_EL_TINT[el] ?? "transparent"}`,
                 }}
-              />
-            </div>
-            <div className="gorsel-cakra-rows space-y-0.5">
-              {GORSEL_CAKRA_SIRA.map((cNo) => {
-                const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
-                const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
-                const midFull = GORSEL_CAKRA_TR_A4[cNo] ?? `${cNo}. Çakra`;
-                const emptyRow = left === 0 && right === 0;
-                const dot = GORSEL_CAKRA_NOKTA[cNo] ?? "#fff";
-                return (
-                  <div key={cNo} className="relative">
-                    <span
-                      aria-hidden
-                      className="absolute left-[-5px] top-1/2 z-[2] h-[5px] w-[5px] -translate-y-1/2 rounded-full border-[0.5px] border-white/25 sm:left-[-3px] sm:h-1.5 sm:w-1.5"
-                      style={{
-                        backgroundColor: dot,
-                        boxShadow: `0 0 6px ${dot}, 0 0 2px rgba(255,255,255,0.25)`,
-                      }}
-                    />
-                    <div
-                      className="grid min-h-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-0.5 rounded-md border-[0.5px] px-0.5 py-0.5 backdrop-blur-sm sm:gap-1 sm:px-1 sm:py-0.5"
-                      style={{ borderColor: "var(--gr-row-border)", backgroundColor: "var(--gr-row-bg)" }}
-                    >
-                      <div
-                        className="flex min-h-[0.75rem] flex-wrap justify-end gap-px text-[9px] leading-none sm:min-h-[0.85rem] sm:text-[10px]"
-                        style={{ color: "var(--gr-number)" }}
-                        aria-hidden
-                      >
-                        {emptyRow ? (
-                          <span style={{ color: "var(--gr-empty)" }}>—</span>
-                        ) : (
-                          Array.from({ length: left }, (_, i) => (
-                            <span key={`o-${cNo}-${i}`} className="opacity-95">
-                              ○
-                            </span>
-                          ))
-                        )}
-                      </div>
-                      <div className="w-[min(100%,6.5rem)] min-w-0 shrink px-0.5 text-center sm:w-[min(100%,9.5rem)] sm:px-1" title={midFull}>
-                        <p className="text-[7px] font-bold leading-snug text-balance sm:text-[8.5px]" style={{ color: "var(--gr-cakra-sk)" }}>
-                          {midFull}
-                        </p>
-                      </div>
-                      <div
-                        className="flex min-h-[0.75rem] flex-wrap justify-start gap-px text-[9px] leading-none sm:min-h-[0.85rem] sm:text-[10px]"
-                        style={{ color: "var(--gr-cakra-dot)", filter: "drop-shadow(0 0 4px var(--gr-dot-glow))" }}
-                        aria-hidden
-                      >
-                        {emptyRow ? (
-                          <span style={{ color: "var(--gr-empty)" }}>—</span>
-                        ) : (
-                          Array.from({ length: right }, (_, i) => (
-                            <span key={`f-${cNo}-${i}`}>●</span>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+              >
+                <GorselElementMiniSembol el={el} />
+                <span
+                  className="w-full px-0.5 text-center text-[6.5px] font-semibold uppercase leading-tight tracking-wide opacity-95 sm:text-[7px]"
+                  style={{ color: "var(--gr-el-label)" }}
+                >
+                  {el}
+                </span>
+                <p
+                  className="gorsel-el-count mt-auto text-[11px] font-black tabular-nums leading-none sm:text-sm"
+                  style={{ color: "var(--gr-number)" }}
+                >
+                  {out.elementler.counts[el]}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
       </div>
+
+      {/* 3. Çakra omurgası — tam genişlik, 10 satır, scrollbar yok */}
+      <section
+        className="gorsel-sec-cakra-tam relative z-[2] mt-2 overflow-visible rounded-lg border-[0.5px] bg-gradient-to-b px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-2.5 sm:rounded-xl sm:p-2.5"
+        style={{
+          borderColor: "var(--gr-cakra-wrap-border)",
+          background: `linear-gradient(to bottom, var(--gr-cakra-wrap-from), var(--gr-cakra-wrap-to))`,
+          boxShadow: "0 0 20px -10px var(--gr-shadow)",
+        }}
+      >
+        <GorselKutuBaslik className="pb-1 text-center text-[7px] sm:text-[7.5px]">Çakra omurgası</GorselKutuBaslik>
+        <div className="relative mt-1 overflow-visible pl-3 sm:mt-1.5 sm:pl-4">
+          <div
+            className="pointer-events-none absolute left-[8px] top-0.5 bottom-0.5 w-[3px] -translate-x-1/2 sm:left-[10px]"
+            style={{ filter: "blur(0.35px)", opacity: 0.9 }}
+            aria-hidden
+          >
+            <div
+              className="h-full w-full rounded-full"
+              style={{
+                background: "var(--gr-spine-gradient)",
+                boxShadow:
+                  "0 0 14px rgba(255,255,255,0.12), 0 0 24px var(--gr-dot-glow), inset 0 0 6px rgba(255,255,255,0.15)",
+              }}
+            />
+          </div>
+          <div className="gorsel-cakra-rows space-y-px sm:space-y-0.5">
+            {GORSEL_CAKRA_SIRA.map((cNo) => {
+              const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
+              const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
+              const midFull = GORSEL_CAKRA_TR_A4[cNo] ?? `${cNo}. Çakra`;
+              const emptyRow = left === 0 && right === 0;
+              const dot = GORSEL_CAKRA_NOKTA[cNo] ?? "#fff";
+              return (
+                <div key={cNo} className="relative">
+                  <span
+                    aria-hidden
+                    className="absolute left-[-5px] top-1/2 z-[2] h-[5px] w-[5px] -translate-y-1/2 rounded-full border-[0.5px] border-white/25 sm:left-[-3px] sm:h-1.5 sm:w-1.5"
+                    style={{
+                      backgroundColor: dot,
+                      boxShadow: `0 0 6px ${dot}, 0 0 2px rgba(255,255,255,0.25)`,
+                    }}
+                  />
+                  <div
+                    className="grid min-h-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-0.5 rounded-md border-[0.5px] px-0.5 py-px backdrop-blur-sm sm:gap-1 sm:px-1 sm:py-0.5"
+                    style={{ borderColor: "var(--gr-row-border)", backgroundColor: "var(--gr-row-bg)" }}
+                  >
+                    <div
+                      className="flex min-h-[0.65rem] flex-wrap justify-end gap-px text-[8px] leading-none sm:min-h-[0.75rem] sm:text-[9px]"
+                      style={{ color: "var(--gr-number)" }}
+                      aria-hidden
+                    >
+                      {emptyRow ? (
+                        <span style={{ color: "var(--gr-empty)" }}>—</span>
+                      ) : (
+                        Array.from({ length: left }, (_, i) => (
+                          <span key={`o-${cNo}-${i}`} className="opacity-95">
+                            ○
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <div className="min-w-0 max-w-[11.5rem] shrink px-0.5 text-center sm:max-w-[13rem] sm:px-1" title={midFull}>
+                      <p className="text-[7px] font-bold leading-snug text-balance sm:text-[8px]" style={{ color: "var(--gr-cakra-sk)" }}>
+                        {midFull}
+                      </p>
+                    </div>
+                    <div
+                      className="flex min-h-[0.65rem] flex-wrap justify-start gap-px text-[8px] leading-none sm:min-h-[0.75rem] sm:text-[9px]"
+                      style={{ color: "var(--gr-cakra-dot)", filter: "drop-shadow(0 0 4px var(--gr-dot-glow))" }}
+                      aria-hidden
+                    >
+                      {emptyRow ? (
+                        <span style={{ color: "var(--gr-empty)" }}>—</span>
+                      ) : (
+                        Array.from({ length: right }, (_, i) => (
+                          <span key={`f-${cNo}-${i}`}>●</span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       <div className="gorsel-sec-yillar relative z-[2] mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3 lg:mt-2.5">
         <section
           className="flex flex-col rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
-          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Değişim — dönüşüm</GorselKutuBaslik>
+          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Değişim — Dönüşüm</GorselKutuBaslik>
           <div className="mt-1 flex flex-1 flex-col space-y-0.5 overflow-visible">
             {degGoster.length ? (
               degGoster.map((line, i) => (
@@ -1660,7 +1594,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           className="flex flex-col rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
-          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Zirve yılları</GorselKutuBaslik>
+          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Zirve Yılları</GorselKutuBaslik>
           <div className="mt-1 flex flex-1 flex-col space-y-0.5 overflow-visible">
             {zirveGoster.length ? (
               zirveGoster.map((line, i) => (
@@ -1680,7 +1614,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           className="flex flex-col rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/20 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:rounded-xl sm:p-2"
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 14px -10px var(--gr-shadow)" }}
         >
-          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Mücadele yılları</GorselKutuBaslik>
+          <GorselKutuBaslik className="shrink-0 pb-0.5 text-[7px] sm:text-[7.5px]">Mücadele Yılları</GorselKutuBaslik>
           <div className="mt-1 flex flex-1 flex-col space-y-0.5 overflow-visible">
             {mucGoster.length ? (
               mucGoster.map((line, i) => (
@@ -1698,12 +1632,12 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
       </div>
 
       <section
-        className="gorsel-sec-harf relative z-[2] mt-2 overflow-hidden rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-2.5 sm:rounded-xl sm:p-2.5"
+        className="gorsel-sec-harf relative z-[2] mt-2 overflow-visible rounded-lg border-[0.5px] bg-gradient-to-b from-[color:var(--gr-card-bg)] to-black/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[6px] sm:mt-2.5 sm:rounded-xl sm:p-2.5"
         style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 24px -12px var(--gr-shadow)" }}
       >
         <GorselAltinSatir className="mb-1 opacity-80" />
         <GorselKutuBaslik noBorder className="pb-0 text-center text-[7.5px] sm:text-[8.5px]">
-          Harflerin yankılanışı
+          Harflerin Yankılanışı
         </GorselKutuBaslik>
         <GorselAltinSatir className="mt-1 opacity-75" />
         <p
@@ -1712,7 +1646,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         >
           {harfBaslikStr}
         </p>
-        <div className="mt-1.5 grid w-full grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] justify-items-stretch gap-x-1 gap-y-1.5 sm:gap-x-1.5 sm:gap-y-2">
+        <div className="mt-1.5 flex w-full flex-wrap justify-center gap-x-1.5 gap-y-2 sm:gap-x-2 sm:gap-y-2.5">
           {harfKartlari.length === 0 ? (
             <p className="col-span-full text-center text-[10px]" style={{ color: "var(--gr-dash)" }}>
               —
@@ -1720,7 +1654,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           ) : null}
           {harfKartlari.map((item, idx) => {
             const rozetOrtak =
-              "relative z-0 flex min-h-[4.25rem] w-full min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border-[0.5px] px-1 py-1 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_22px_-10px_var(--gr-shadow)] ring-1 ring-[color:var(--gr-harf-border)] ring-opacity-[0.45] backdrop-blur-md sm:min-h-[4.5rem] sm:px-1.5 sm:py-1.5";
+              "relative z-0 flex min-h-[4.25rem] w-[2.85rem] shrink-0 flex-col items-center justify-center overflow-visible rounded-lg border-[0.5px] px-1 py-1 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_22px_-10px_var(--gr-shadow)] ring-1 ring-[color:var(--gr-harf-border)] ring-opacity-[0.45] backdrop-blur-md sm:min-h-[4.5rem] sm:w-[3.1rem] sm:px-1.5 sm:py-1.5";
             if ("eksik" in item && item.eksik) {
               const ck = LETTER_TO_CHAKRA[item.letter];
               return (
@@ -1870,10 +1804,9 @@ export default function NumerolojiPage() {
   const [tasBileklik, setTasBileklik] = useState("");
   const [tasKolye, setTasKolye] = useState("");
   const [tasKutle, setTasKutle] = useState("");
-  const gorselPdfRef = useRef<HTMLDivElement>(null);
-  const [pdfOlusturuluyor, setPdfOlusturuluyor] = useState(false);
+  const gorselRaporRef = useRef<HTMLDivElement>(null);
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
-  const gorselIndirmeKilitli = pdfOlusturuluyor || gorselPngHazirlaniyor;
+  const gorselIndirmeKilitli = gorselPngHazirlaniyor;
 
   useEffect(() => {
     setGorselPortalHazir(true);
@@ -1906,10 +1839,10 @@ export default function NumerolojiPage() {
 
   async function handleGorselPngIndir() {
     if (gorselIndirmeKilitli) return;
-    const el0 = gorselPdfRef.current;
+    const el0 = gorselRaporRef.current;
     if (!el0) return;
 
-    const scrollHost = el0.closest("[data-gorsel-pdf-scroll-host]") as HTMLElement | null;
+    const scrollHost = el0.closest("[data-gorsel-rapor-scroll-host]") as HTMLElement | null;
     const prevMaxH = scrollHost?.style.maxHeight ?? "";
     const prevOverflow = scrollHost?.style.overflow ?? "";
     const prevMinH = scrollHost?.style.minHeight ?? "";
@@ -1926,7 +1859,7 @@ export default function NumerolojiPage() {
     });
     await new Promise<void>((r) => setTimeout(r, 120));
 
-    const el = gorselPdfRef.current;
+    const el = gorselRaporRef.current;
     try {
       if (el) await gorselRaporuPngYakalaVeIndir(el);
     } catch (err) {
@@ -1938,43 +1871,6 @@ export default function NumerolojiPage() {
         scrollHost.style.minHeight = prevMinH;
       }
       setGorselPngHazirlaniyor(false);
-    }
-  }
-
-  async function handleGorselPdfIndir() {
-    if (gorselIndirmeKilitli) return;
-    const el0 = gorselPdfRef.current;
-    if (!el0) return;
-
-    const scrollHost = el0.closest("[data-gorsel-pdf-scroll-host]") as HTMLElement | null;
-    const prevMaxH = scrollHost?.style.maxHeight ?? "";
-    const prevOverflow = scrollHost?.style.overflow ?? "";
-    const prevMinH = scrollHost?.style.minHeight ?? "";
-
-    setPdfOlusturuluyor(true);
-    if (scrollHost) {
-      scrollHost.style.maxHeight = "none";
-      scrollHost.style.overflow = "visible";
-      scrollHost.style.minHeight = "0";
-    }
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-    await new Promise<void>((r) => setTimeout(r, 120));
-
-    const el = gorselPdfRef.current;
-    try {
-      if (el) await gorselRaporuPdfYakalaVeIndir(el);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (scrollHost) {
-        scrollHost.style.maxHeight = prevMaxH;
-        scrollHost.style.overflow = prevOverflow;
-        scrollHost.style.minHeight = prevMinH;
-      }
-      setPdfOlusturuluyor(false);
     }
   }
 
@@ -2124,7 +2020,7 @@ export default function NumerolojiPage() {
               ))}
             </div>
 
-            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white to-slate-50/90 p-4 sm:p-5" data-gorsel-pdf-scroll-host>
+            <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white to-slate-50/90 p-4 sm:p-5" data-gorsel-rapor-scroll-host>
               {tab === "summary" ? (
                 <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={dogumGoster} />
               ) : null}
@@ -2240,14 +2136,6 @@ export default function NumerolojiPage() {
                         >
                           {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
                         </button>
-                        <button
-                          type="button"
-                          onClick={handleGorselPdfIndir}
-                          disabled={gorselIndirmeKilitli}
-                          className="shrink-0 self-end rounded-full border border-zinc-600/90 bg-zinc-950/80 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 shadow-sm backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-[11px]"
-                        >
-                          {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
-                        </button>
                         {!gorselTamEkran ? (
                           <button
                             type="button"
@@ -2260,7 +2148,7 @@ export default function NumerolojiPage() {
                       </div>
                       <div className="flex justify-center pt-14 sm:pt-[4.5rem]">
                         <GorselRaporInfografik
-                          ref={gorselTamEkran ? null : gorselPdfRef}
+                          ref={gorselTamEkran ? null : gorselRaporRef}
                           out={out}
                           isimGoster={isimGoster}
                           dogumGoster={dogumGoster}
@@ -2284,7 +2172,7 @@ export default function NumerolojiPage() {
                             aria-modal="true"
                             aria-labelledby="gorsel-fs-title"
                             className="fixed inset-0 z-[9999] overflow-y-auto overflow-x-hidden bg-black/95"
-                            data-gorsel-pdf-scroll-host
+                            data-gorsel-rapor-scroll-host
                           >
                             <p id="gorsel-fs-title" className="sr-only">
                               Numerolojik yaşam haritası tam ekran görünümü
@@ -2293,7 +2181,7 @@ export default function NumerolojiPage() {
                               <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-8">
                                 <GorselRaporInfografik
                                   key={gorselTema}
-                                  ref={gorselTamEkran ? gorselPdfRef : null}
+                                  ref={gorselTamEkran ? gorselRaporRef : null}
                                   out={out}
                                   isimGoster={isimGoster}
                                   dogumGoster={dogumGoster}
@@ -2337,14 +2225,6 @@ export default function NumerolojiPage() {
                               className="rounded-full border-2 border-emerald-400/75 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-emerald-50 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-emerald-300 hover:bg-zinc-900 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
                             >
                               {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleGorselPdfIndir}
-                              disabled={gorselIndirmeKilitli}
-                              className="rounded-full border border-zinc-600/90 bg-zinc-950/80 px-2.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-zinc-400 shadow-sm backdrop-blur-md transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-[10px]"
-                            >
-                              {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
                             </button>
                           </div>
                           <button
