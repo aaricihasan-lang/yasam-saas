@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect, type FormEvent, type ReactNode, type CSSProperties } from "react";
+import {
+  forwardRef,
+  useState,
+  useEffect,
+  useRef,
+  type FormEvent,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   hesaplaNumeroloji,
@@ -1171,19 +1179,7 @@ function GorselNumeroSembol({ tip }: { tip: "ana" | "yan" | "ifade" | "hayat" })
   );
 }
 
-function GorselRaporInfografik({
-  out,
-  isimGoster,
-  dogumGoster,
-  firstName,
-  lastName,
-  temaId,
-  uzmanAdi,
-  gorselTaslariGoster,
-  tasBileklik,
-  tasKolye,
-  tasKutle,
-}: {
+type GorselRaporInfografikProps = {
   out: NumerolojiMotorOut;
   isimGoster: string;
   dogumGoster: string;
@@ -1195,7 +1191,81 @@ function GorselRaporInfografik({
   tasBileklik: string;
   tasKolye: string;
   tasKutle: string;
-}) {
+};
+
+/** Görsel rapor kökünü yüksek çözünürlükte yakalayıp tek sayfa A4 dikey PDF üretir. */
+async function gorselRaporuPdfYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
+  if (!hedef || typeof window === "undefined") return;
+
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+
+  const scale = 3;
+  const w = Math.max(1, Math.ceil(hedef.offsetWidth));
+  const h = Math.max(1, Math.ceil(hedef.scrollHeight));
+
+  const canvas = await html2canvas(hedef, {
+    scale,
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: null,
+    logging: false,
+    width: w,
+    height: h,
+    windowWidth: w,
+    windowHeight: h,
+    x: 0,
+    y: 0,
+    scrollX: 0,
+    scrollY: 0,
+    onclone: (_doc, cloned) => {
+      if (!(cloned instanceof HTMLElement)) return;
+      cloned.style.overflow = "visible";
+      cloned.style.maxHeight = "none";
+    },
+  });
+
+  const imgData = canvas.toDataURL("image/png", 1);
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const imgRatio = cw / ch;
+  const pageRatio = pageW / pageH;
+  let imgW: number;
+  let imgH: number;
+  if (imgRatio > pageRatio) {
+    imgW = pageW;
+    imgH = pageW / imgRatio;
+  } else {
+    imgH = pageH;
+    imgW = pageH * imgRatio;
+  }
+  const marginX = (pageW - imgW) / 2;
+  const marginY = (pageH - imgH) / 2;
+  pdf.addImage(imgData, "PNG", marginX, marginY, imgW, imgH);
+  pdf.save("numeroloji-raporu.pdf");
+}
+
+const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikProps>(function GorselRaporInfografik(
+  {
+    out,
+    isimGoster,
+    dogumGoster,
+    firstName,
+    lastName,
+    temaId,
+    uzmanAdi,
+    gorselTaslariGoster,
+    tasBileklik,
+    tasKolye,
+    tasKutle,
+  },
+  ref,
+) {
   const css = GORSEL_TEMA_VARS[temaId];
   const Y = 5;
   const hy = out.harflerinYankilanisi;
@@ -1238,6 +1308,8 @@ function GorselRaporInfografik({
 
   return (
     <div
+      ref={ref}
+      data-gorsel-pdf-root
       style={css}
       className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-3 py-3 text-[color:var(--gr-line-text)] shadow-[0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-1 ring-[color:var(--gr-ring)] sm:px-5 sm:py-5 print:shadow-none"
     >
@@ -1746,7 +1818,7 @@ function GorselRaporInfografik({
       ) : null}
     </div>
   );
-}
+});
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
@@ -1771,6 +1843,8 @@ export default function NumerolojiPage() {
   const [tasBileklik, setTasBileklik] = useState("");
   const [tasKolye, setTasKolye] = useState("");
   const [tasKutle, setTasKutle] = useState("");
+  const gorselPdfRef = useRef<HTMLDivElement>(null);
+  const [pdfOlusturuluyor, setPdfOlusturuluyor] = useState(false);
 
   useEffect(() => {
     setGorselPortalHazir(true);
@@ -1800,6 +1874,19 @@ export default function NumerolojiPage() {
   useEffect(() => {
     if (tab !== "gorsel") setGorselTamEkran(false);
   }, [tab]);
+
+  async function handleGorselPdfIndir() {
+    const el = gorselPdfRef.current;
+    if (!el || pdfOlusturuluyor) return;
+    setPdfOlusturuluyor(true);
+    try {
+      await gorselRaporuPdfYakalaVeIndir(el);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPdfOlusturuluyor(false);
+    }
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -2057,14 +2144,25 @@ export default function NumerolojiPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setGorselTamEkran(true)}
-                          className="shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-amber-50 sm:px-5 sm:text-xs"
+                          onClick={handleGorselPdfIndir}
+                          disabled={pdfOlusturuluyor}
+                          className="shrink-0 self-end rounded-full border-2 border-violet-400/70 bg-zinc-950 px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-violet-100 shadow-[0_0_18px_rgba(167,139,250,0.25)] backdrop-blur-md transition hover:border-violet-300 hover:bg-zinc-900 hover:text-violet-50 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs"
                         >
-                          Tam Ekran
+                          {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
                         </button>
+                        {!gorselTamEkran ? (
+                          <button
+                            type="button"
+                            onClick={() => setGorselTamEkran(true)}
+                            className="shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-amber-50 sm:px-5 sm:text-xs"
+                          >
+                            Tam Ekran
+                          </button>
+                        ) : null}
                       </div>
                       <div className="flex justify-center pt-14 sm:pt-[4.5rem]">
                         <GorselRaporInfografik
+                          ref={gorselTamEkran ? null : gorselPdfRef}
                           out={out}
                           isimGoster={isimGoster}
                           dogumGoster={dogumGoster}
@@ -2096,6 +2194,7 @@ export default function NumerolojiPage() {
                               <div className="w-full max-w-[min(760px,210mm)] shrink-0 pb-8">
                                 <GorselRaporInfografik
                                   key={gorselTema}
+                                  ref={gorselTamEkran ? gorselPdfRef : null}
                                   out={out}
                                   isimGoster={isimGoster}
                                   dogumGoster={dogumGoster}
@@ -2111,25 +2210,35 @@ export default function NumerolojiPage() {
                               </div>
                             </div>
                           </div>
-                          <div
-                            role="group"
-                            aria-label="Tam ekran teması"
-                            className="fixed left-6 top-6 z-[10050] flex max-w-[min(calc(100vw-8rem),36rem)] flex-wrap gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md"
-                          >
-                            {GORSEL_TEMA_LIST.map((t) => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setGorselTema(t.id)}
-                                className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
-                                  gorselTema === t.id
-                                    ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
-                                    : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
-                                }`}
-                              >
-                                {t.label}
-                              </button>
-                            ))}
+                          <div className="fixed left-6 top-6 z-[10050] flex flex-col gap-2">
+                            <div
+                              role="group"
+                              aria-label="Tam ekran teması"
+                              className="flex max-w-[min(calc(100vw-8rem),36rem)] flex-wrap gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md"
+                            >
+                              {GORSEL_TEMA_LIST.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => setGorselTema(t.id)}
+                                  className={`rounded-full border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide shadow-sm transition sm:px-3 sm:text-[11px] ${
+                                    gorselTema === t.id
+                                      ? "border-amber-300/90 bg-amber-400 text-zinc-950 ring-2 ring-amber-200/90"
+                                      : "border-zinc-600/80 bg-zinc-900/95 text-zinc-100 hover:border-amber-500/50 hover:bg-zinc-800"
+                                  }`}
+                                >
+                                  {t.label}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleGorselPdfIndir}
+                              disabled={pdfOlusturuluyor}
+                              className="rounded-full border-2 border-violet-400/70 bg-zinc-950/95 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.1em] text-violet-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-violet-300 hover:bg-zinc-900 hover:text-violet-50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[11px]"
+                            >
+                              {pdfOlusturuluyor ? "PDF…" : "PDF İndir"}
+                            </button>
                           </div>
                           <button
                             type="button"
