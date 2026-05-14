@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
   hesaplaNumeroloji,
+  ELEMENT_ORDER,
   type NumerolojiResult,
   type HarfYankilanisiSegment,
   type ElementResult,
@@ -358,6 +359,17 @@ function TabAnalizOzetli({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
+/** Görsel rapor — çakra satırı orta başlık (motor sayıları 1–7) */
+const GORSEL_CAKRA_LABELS: Record<number, readonly [string, string]> = {
+  1: ["Muladhara", "Kök"],
+  2: ["Svadhisthana", "Sakral"],
+  3: ["Manipura", "Solar pleksus"],
+  4: ["Anahata", "Kalp"],
+  5: ["Vishuddha", "Boğaz"],
+  6: ["Ajna", "Alın"],
+  7: ["Sahasrara", "Taç"],
+};
+
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
   { id: "plain", label: "Analiz (Hesap Özetsiz)" },
@@ -540,30 +552,24 @@ export default function NumerolojiPage() {
               ) : null}
 
               {tab === "gorsel" ? (
-                <div className="relative w-full max-w-none overflow-hidden rounded-xl border border-violet-500/30 bg-gradient-to-b from-violet-950 via-[#070312] to-black p-2 text-violet-50 shadow-[0_0_32px_-10px_rgba(139,92,246,0.45)] ring-1 ring-violet-500/15 sm:rounded-2xl sm:p-2.5">
-                  <div className="pointer-events-none absolute -left-16 -top-16 h-40 w-40 rounded-full bg-violet-600/15 blur-2xl" aria-hidden />
-                  <div className="pointer-events-none absolute -bottom-12 -right-12 h-36 w-36 rounded-full bg-fuchsia-600/10 blur-2xl" aria-hidden />
+                <div className="relative w-full max-w-none overflow-hidden rounded-3xl border border-violet-500/25 bg-gradient-to-b from-[#1a0a2e] via-[#0c0614] to-black px-5 py-8 text-violet-50 shadow-[0_0_60px_-16px_rgba(139,92,246,0.35)] ring-1 ring-amber-400/15 sm:px-8 sm:py-10">
+                  <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-violet-600/12 blur-3xl" aria-hidden />
+                  <div className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl" aria-hidden />
 
-                  <div className="relative z-[1] flex flex-wrap items-end justify-between gap-1 border-b border-violet-500/25 pb-1">
-                    <div>
-                      <p className="text-[7px] font-black uppercase tracking-[0.22em] text-violet-400/95 sm:text-[8px]">İnfografik özet</p>
-                      <h2 className="text-xs font-black uppercase tracking-[0.1em] text-white sm:text-sm">Numerolojik yaşam haritası</h2>
+                  <header className="relative z-[1] border-b border-amber-400/25 pb-8 text-center">
+                    <p className="text-[11px] font-black uppercase tracking-[0.35em] text-violet-300/90">Görsel rapor</p>
+                    <h2 className="mt-3 text-2xl font-black tracking-[0.12em] text-white drop-shadow-[0_0_24px_rgba(167,139,250,0.25)] sm:text-3xl md:text-4xl">
+                      NUMEROLOJİK YAŞAM HARİTASI
+                    </h2>
+                    <div className="mx-auto mt-6 max-w-2xl space-y-1 border-t border-violet-500/20 pt-6">
+                      <p className="text-lg font-semibold text-white sm:text-xl">{(isimGoster || "").trim() || "—"}</p>
+                      <p className="text-base font-semibold tabular-nums tracking-wide text-violet-200/90 sm:text-lg">
+                        {(dogumGoster || "").trim() || "—"}
+                      </p>
                     </div>
-                  </div>
+                  </header>
 
-                  <div className="relative z-[1] mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] leading-tight text-violet-100/95 sm:text-[10px]">
-                    <span>
-                      <span className="font-black uppercase tracking-wide text-violet-400/90">Danışan </span>
-                      <span className="font-semibold text-white">{(isimGoster || "").trim() || "—"}</span>
-                    </span>
-                    <span className="hidden text-violet-500/40 sm:inline">|</span>
-                    <span>
-                      <span className="font-black uppercase tracking-wide text-violet-400/90">Doğum </span>
-                      <span className="font-mono font-semibold">{(dogumGoster || "").trim() || "—"}</span>
-                    </span>
-                  </div>
-
-                  <div className="relative z-[1] mt-1 grid grid-cols-2 gap-1 sm:grid-cols-4">
+                  <div className="relative z-[1] mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {(
                       [
                         ["Ana Kulvar", out.anaKulvar],
@@ -576,144 +582,273 @@ export default function NumerolojiPage() {
                       return (
                         <section
                           key={label}
-                          className="flex min-h-[4.25rem] flex-col rounded-md border border-violet-500/25 bg-black/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                          className="flex flex-col rounded-3xl border border-violet-500/20 bg-black/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                         >
-                          <h3 className="text-[7px] font-black uppercase leading-tight tracking-[0.12em] text-violet-300/90 sm:text-[8px]">
+                          <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
                             {label}
                           </h3>
-                          <p className="mt-0.5 flex-1 text-lg font-black leading-none tracking-tight text-white sm:text-xl">{nrDisplay(r)}</p>
-                          <p className="truncate text-[8px] font-semibold uppercase tracking-wide text-violet-300/80 sm:text-[9px]" title={k || undefined}>
-                            {k || "—"}
-                          </p>
+                          <p className="mt-5 text-4xl font-black tabular-nums tracking-tight text-white sm:text-5xl">{nrDisplay(r)}</p>
+                          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-amber-200/90">{k || "—"}</p>
                         </section>
                       );
                     })}
                   </div>
 
-                  <div className="relative z-[1] mt-1 grid grid-cols-1 gap-1 sm:grid-cols-3">
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-300/95 sm:text-[8px]">
+                  <div className="relative z-[1] mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <section className="rounded-3xl border border-violet-500/20 bg-black/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
                         PIN kodu
                       </h3>
-                      <p className="mt-0.5 break-all font-mono text-[8px] font-bold leading-tight text-violet-50 sm:text-[9px]">{pinOneLine(out.pinKodu)}</p>
-                      <pre className="mt-0.5 max-h-[4.5rem] overflow-y-auto whitespace-pre-wrap font-mono text-[7px] leading-snug text-violet-200/85 sm:max-h-20 sm:text-[8px]">
-                        {(out.pinKoduMetni || "").trim() || "—"}
-                      </pre>
+                      <div className="mt-6 flex flex-col items-center gap-3">
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {[out.pinKodu.k1, out.pinKodu.k2, out.pinKodu.k3, out.pinKodu.k4].map((v, i) => (
+                            <span
+                              key={`p1-${i}`}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-400/35 bg-violet-950/50 text-base font-black text-white shadow-[0_0_18px_rgba(139,92,246,0.2)]"
+                            >
+                              {v || "—"}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {[out.pinKodu.k5, out.pinKodu.k6, out.pinKodu.k7].map((v, i) => (
+                            <span
+                              key={`p2-${i}`}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-400/35 bg-violet-950/50 text-base font-black text-white shadow-[0_0_18px_rgba(139,92,246,0.2)]"
+                            >
+                              {v || "—"}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {[out.pinKodu.k8, out.pinKodu.k9].map((v, i) => (
+                            <span
+                              key={`p3-${i}`}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-400/35 bg-violet-950/50 text-base font-black text-white shadow-[0_0_18px_rgba(139,92,246,0.2)]"
+                            >
+                              {v || "—"}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </section>
 
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-300/95 sm:text-[8px]">
+                    <section className="rounded-3xl border border-violet-500/20 bg-black/40 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
                         Elementler
                       </h3>
-                      <p className="mt-0.5 text-[10px] font-bold leading-tight text-white sm:text-[11px]">{elementShort(out.elementler)}</p>
-                      <p className="mt-0.5 line-clamp-3 text-[7px] leading-snug text-violet-200/88 sm:text-[8px]">
-                        {(out.elementlerMetni || "").trim() || "—"}
-                      </p>
+                      <div className="mt-6 grid grid-cols-2 gap-4">
+                        {ELEMENT_ORDER.map((el) => (
+                          <div
+                            key={el}
+                            className="rounded-2xl border border-violet-500/15 bg-violet-950/30 px-4 py-3 text-center"
+                          >
+                            <p className="text-xs font-black uppercase tracking-widest text-violet-300/80">{el}</p>
+                            <p className="mt-2 text-3xl font-black tabular-nums text-white">{out.elementler.counts[el]}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {out.elementler.neutralCount > 0 ? (
+                        <p className="mt-4 text-center text-xs text-violet-400/80">Nötr: {out.elementler.neutralCount}</p>
+                      ) : null}
+                      {(out.elementler.key || "").trim() ? (
+                        <p className="mt-2 text-center text-sm font-semibold text-amber-200/90">Baskın: {out.elementler.key}</p>
+                      ) : null}
                     </section>
 
-                    <section className="rounded-md border border-violet-500/30 bg-gradient-to-b from-black/55 to-violet-950/35 p-1.5 sm:col-span-1">
-                      <h3 className="border-b border-violet-400/20 pb-0.5 text-[7px] font-black uppercase tracking-[0.14em] text-violet-200/95 sm:text-[8px]">
+                    <section className="rounded-3xl border border-violet-500/25 bg-gradient-to-b from-violet-950/30 to-black/50 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-200/95">
                         Çakra omurgası
                       </h3>
-                      <div className="mt-0.5 max-h-[5.5rem] space-y-px overflow-y-auto pr-0.5 sm:max-h-24">
-                        {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((cNo) => {
+                      <div className="mt-6 space-y-3">
+                        {[7, 6, 5, 4, 3, 2, 1].map((cNo) => {
                           const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
                           const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
+                          const [sk, tr] = GORSEL_CAKRA_LABELS[cNo] ?? [`${cNo}`, "Çakra"];
                           const emptyRow = left === 0 && right === 0;
                           return (
                             <div
                               key={cNo}
-                              className="grid grid-cols-[minmax(0,1fr)_1.25rem_minmax(0,1fr)] items-center gap-0.5 rounded border border-violet-500/15 bg-black/35 px-1 py-px"
+                              className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-violet-500/15 bg-black/35 px-3 py-3"
                             >
-                              <div className="flex flex-wrap justify-end gap-px text-[8px] leading-none text-white/90" aria-hidden>
-                                {emptyRow ? <span className="text-violet-600/50">—</span> : Array.from({ length: left }, (_, i) => <span key={`i-${cNo}-${i}`}>○</span>)}
+                              <div className="flex flex-wrap justify-end gap-1 text-lg leading-none text-white" aria-hidden>
+                                {emptyRow ? (
+                                  <span className="text-violet-600/40">—</span>
+                                ) : (
+                                  Array.from({ length: left }, (_, i) => (
+                                    <span key={`o-${cNo}-${i}`} className="opacity-95">
+                                      ○
+                                    </span>
+                                  ))
+                                )}
                               </div>
-                              <span className="text-center text-[7px] font-black text-violet-200">{cNo}</span>
-                              <div className="flex flex-wrap justify-start gap-px text-[8px] leading-none text-violet-300" aria-hidden>
-                                {emptyRow ? <span className="text-violet-600/50">—</span> : Array.from({ length: right }, (_, i) => <span key={`d-${cNo}-${i}`}>●</span>)}
+                              <div className="min-w-[7.5rem] text-center">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">{sk}</p>
+                                <p className="mt-0.5 text-xs font-medium text-violet-400/90">{tr}</p>
+                              </div>
+                              <div className="flex flex-wrap justify-start gap-1 text-lg leading-none text-violet-300 drop-shadow-[0_0_10px_rgba(167,139,250,0.45)]" aria-hidden>
+                                {emptyRow ? (
+                                  <span className="text-violet-600/40">—</span>
+                                ) : (
+                                  Array.from({ length: right }, (_, i) => (
+                                    <span key={`f-${cNo}-${i}`}>●</span>
+                                  ))
+                                )}
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                      <pre className="mt-0.5 max-h-16 overflow-y-auto whitespace-pre-wrap rounded border border-white/5 bg-black/30 p-1 text-[7px] leading-snug text-violet-200/85 sm:text-[8px]">
-                        {(out.cakraOmurgasiMetni || "").trim() || "—"}
-                      </pre>
                     </section>
                   </div>
 
-                  <div className="relative z-[1] mt-1 grid grid-cols-2 gap-1 lg:grid-cols-4">
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
-                        Değişim-dönüşüm
+                  <div className="relative z-[1] mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <section className="rounded-3xl border border-violet-500/20 bg-black/40 p-6">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
+                        Değişim — dönüşüm
                       </h3>
-                      <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
-                        {(out.degisimDonusumMetni || "").trim() || "—"}
-                      </pre>
+                      <div className="mt-5 space-y-3">
+                        {(() => {
+                          const degLines = (out.degisimDonusumMetni || "")
+                            .trim()
+                            .split(/\r?\n/)
+                            .map((l) => l.trim())
+                            .filter(Boolean)
+                            .slice(0, 4);
+                          if (!degLines.length) {
+                            return <p className="text-sm text-violet-500/70">—</p>;
+                          }
+                          return degLines.map((line, i) => (
+                            <div
+                              key={i}
+                              className="rounded-xl border-l-2 border-amber-400/45 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-violet-100/95"
+                            >
+                              {line}
+                            </div>
+                          ));
+                        })()}
+                      </div>
                     </section>
 
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                    <section className="rounded-3xl border border-violet-500/20 bg-black/40 p-6">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
                         Zirve yılları
                       </h3>
-                      {out.zirveYillariMetni?.trim() ? (
-                        <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
-                          {out.zirveYillariMetni}
-                        </pre>
-                      ) : out.zirveYillari?.peaks?.length ? (
-                        <p className="mt-0.5 line-clamp-4 text-[7px] leading-snug text-violet-200/90 sm:text-[8px]">
-                          {out.zirveYillari.peaks.map((p) => `${p.index}:${p.age}/${p.topic}`).join(" · ")}
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-[8px] text-violet-500/80">—</p>
-                      )}
+                      <div className="mt-5 space-y-3">
+                        {out.zirveYillariMetni?.trim() ? (
+                          out.zirveYillariMetni
+                            .trim()
+                            .split(/\r?\n/)
+                            .map((l) => l.trim())
+                            .filter(Boolean)
+                            .slice(0, 4)
+                            .map((line, i) => (
+                              <div
+                                key={i}
+                                className="rounded-xl border-l-2 border-amber-400/45 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-violet-100/95"
+                              >
+                                {line}
+                              </div>
+                            ))
+                        ) : out.zirveYillari?.peaks?.length ? (
+                          out.zirveYillari.peaks.slice(0, 4).map((p) => (
+                            <div
+                              key={p.index}
+                              className="rounded-xl border-l-2 border-amber-400/45 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-violet-100/95"
+                            >
+                              {p.index}. zirve · yaş {p.age} · konu {p.topic}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-violet-500/70">—</p>
+                        )}
+                      </div>
                     </section>
 
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
+                    <section className="rounded-3xl border border-violet-500/20 bg-black/40 p-6">
+                      <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
                         Mücadele yılları
                       </h3>
-                      {out.mucadeleYillariMetni?.trim() ? (
-                        <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/90 sm:max-h-[4.5rem] sm:text-[8px]">
-                          {out.mucadeleYillariMetni}
-                        </pre>
-                      ) : out.mucadeleYillari?.method1?.length ? (
-                        <p className="mt-0.5 line-clamp-4 text-[7px] leading-snug text-violet-200/90 sm:text-[8px]">
-                          {out.mucadeleYillari.method1.map((m) => `${m.index}:${m.age}/${m.topic}`).join(" · ")}
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-[8px] text-violet-500/80">—</p>
-                      )}
-                    </section>
-
-                    <section className="rounded-md border border-violet-500/25 bg-black/50 p-1.5 lg:col-span-1">
-                      <h3 className="border-b border-violet-500/15 pb-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-violet-300/95 sm:text-[8px]">
-                        Harflerin yankılanışı
-                      </h3>
-                      {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
-                        <p className="mt-0.5 text-[7px] font-semibold text-violet-100/90 sm:text-[8px]">
-                          {out.harflerinYankilanisi.length} dönem ·{" "}
-                          <span className="font-mono text-violet-200/85">
-                            {out.harflerinYankilanisi
-                              .slice(0, 4)
-                              .map((s) => s.letter)
-                              .join(" ")}
-                            {out.harflerinYankilanisi.length > 4 ? "…" : ""}
-                          </span>
-                        </p>
-                      ) : null}
-                      <pre className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap text-[7px] leading-snug text-violet-200/88 sm:max-h-[4.5rem] sm:text-[8px]">
-                        {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0
-                          ? harfSegmentsToText(out.harflerinYankilanisi)
-                          : (out.harflerinYankilanisiMetni || "").trim() || "—"}
-                      </pre>
-                      {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0 ? (
-                        <pre className="mt-0.5 line-clamp-2 max-h-10 overflow-hidden text-[7px] leading-snug text-violet-300/75 sm:text-[8px]">
-                          {(out.harflerinYankilanisiMetni || "").trim() || ""}
-                        </pre>
-                      ) : null}
+                      <div className="mt-5 space-y-3">
+                        {out.mucadeleYillariMetni?.trim() ? (
+                          out.mucadeleYillariMetni
+                            .trim()
+                            .split(/\r?\n/)
+                            .map((l) => l.trim())
+                            .filter(Boolean)
+                            .slice(0, 4)
+                            .map((line, i) => (
+                              <div
+                                key={i}
+                                className="rounded-xl border-l-2 border-amber-400/45 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-violet-100/95"
+                              >
+                                {line}
+                              </div>
+                            ))
+                        ) : out.mucadeleYillari?.method1?.length ? (
+                          out.mucadeleYillari.method1.slice(0, 4).map((m) => (
+                            <div
+                              key={m.index}
+                              className="rounded-xl border-l-2 border-amber-400/45 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-violet-100/95"
+                            >
+                              {m.index}. mücadele · yaş {m.age} · konu {m.topic}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-violet-500/70">—</p>
+                        )}
+                      </div>
                     </section>
                   </div>
+
+                  <section className="relative z-[1] mt-10 rounded-3xl border border-violet-500/20 bg-black/40 p-6">
+                    <h3 className="border-b border-amber-400/20 pb-3 text-xs font-black uppercase tracking-[0.2em] text-violet-300/95">
+                      Harflerin yankılanışı
+                    </h3>
+                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {Array.isArray(out.harflerinYankilanisi) && out.harflerinYankilanisi.length > 0
+                        ? out.harflerinYankilanisi.slice(0, 6).map((seg, idx) => (
+                            <div
+                              key={`${seg.letter}-${idx}`}
+                              className="flex items-center justify-between gap-3 rounded-2xl border border-violet-500/15 bg-violet-950/25 px-5 py-4"
+                            >
+                              <span className="text-3xl font-light text-white">{seg.letter}</span>
+                              <div className="text-right">
+                                <p className="text-xs font-black uppercase tracking-widest text-violet-300/90">Çakra {seg.chakra}</p>
+                                <p className="mt-1 text-sm text-violet-100/90">
+                                  Yaş {seg.ageStart}–{seg.ageEnd}
+                                  {seg.yearStart != null ? (
+                                    <span className="text-violet-400/80">
+                                      {" "}
+                                      · {seg.yearStart}
+                                      {seg.yearEnd != null ? `–${seg.yearEnd}` : ""}
+                                    </span>
+                                  ) : null}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        : (out.harflerinYankilanisiMetni || "")
+                            .trim()
+                            .split(/\r?\n/)
+                            .map((l) => l.trim())
+                            .filter(Boolean)
+                            .slice(0, 6)
+                            .map((line, i) => (
+                              <div
+                                key={i}
+                                className="rounded-2xl border border-violet-500/15 bg-violet-950/25 px-5 py-4 text-sm leading-relaxed text-violet-100/95"
+                              >
+                                {line}
+                              </div>
+                            ))}
+                      {!Array.isArray(out.harflerinYankilanisi) || out.harflerinYankilanisi.length === 0 ? (
+                        !(out.harflerinYankilanisiMetni || "").trim() ? (
+                          <p className="text-sm text-violet-500/70">—</p>
+                        ) : null
+                      ) : null}
+                    </div>
+                  </section>
                 </div>
               ) : null}
             </div>
