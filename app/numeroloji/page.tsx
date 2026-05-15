@@ -10,7 +10,7 @@ const cardHover =
 
 export default function NumerolojiHubPage() {
   return (
-    <div className="relative overflow-x-hidden bg-[#040210] text-white antialiased">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#040210] text-white antialiased">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(124,58,237,0.42),transparent_50%),linear-gradient(185deg,#0a0524_0%,#0c0828_35%,#060314_100%)]"
         aria-hidden
