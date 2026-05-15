@@ -1,77 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/ToastProvider";
 import { getTenantIdFromStorage, saveNumerologyAnalysis } from "../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 type Props = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   birthDateDisplay: string;
-  motorOutput: NumerolojiMotorOut;
-  clientId?: string | null;
-  /** true: kayıt sonrası detay sayfasına git */
-  navigateToDetail?: boolean;
+  motorOutput: NumerolojiMotorOut | null;
+  className?: string;
 };
 
-export function SaveAnalysisButton({
-  fullName,
-  birthDateDisplay,
-  motorOutput,
-  clientId,
-  navigateToDetail = true,
-}: Props) {
-  const router = useRouter();
+export function SaveAnalysisButton({ firstName, lastName, birthDateDisplay, motorOutput, className = "" }: Props) {
+  const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+
+  const disabled = busy || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
 
   async function handleClick() {
-    setMessage(null);
+    if (!motorOutput) return;
+
     const tenantId = getTenantIdFromStorage();
     if (!tenantId) {
-      setMessage("Kaydetmek için giriş yapmalısınız (tenant bilgisi yok).");
-      return;
-    }
-    if (!fullName.trim()) {
-      setMessage("Ad soyad boş olamaz.");
+      showToast({
+        title: "Kayıt yapılamadı",
+        message: "Kaydetmek için giriş yapmalısınız.",
+        type: "error",
+      });
       return;
     }
 
     setBusy(true);
-    const { error, id } = await saveNumerologyAnalysis({
+    const { error } = await saveNumerologyAnalysis({
       tenantId,
-      clientId: clientId ?? null,
-      fullName,
-      birthDate: birthDateDisplay,
+      name: firstName.trim(),
+      surname: lastName.trim(),
+      birthDate: birthDateDisplay.trim(),
       motor: motorOutput,
     });
     setBusy(false);
+
     if (error) {
-      setMessage(error);
+      showToast({
+        title: "Kayıt yapılamadı",
+        message: error,
+        type: "error",
+      });
       return;
     }
-    setMessage("Analiz kaydedildi.");
-    if (navigateToDetail) {
-      if (id) router.push(`/numeroloji/liste/${id}`);
-      else router.push("/numeroloji/liste");
-    }
+
+    showToast({
+      message: "Analiz kaydedildi",
+      type: "success",
+    });
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={busy}
-        className="rounded-xl border border-emerald-200/90 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-900 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {busy ? "Kaydediliyor…" : "Analizi Kaydet"}
-      </button>
-      {message ? (
-        <p className="max-w-xs text-right text-[11px] font-medium text-slate-600" role="status">
-          {message}
-        </p>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled}
+      className={`rounded-2xl border border-violet-300/80 bg-white px-6 py-3 text-sm font-black uppercase tracking-[0.14em] text-violet-900 shadow-sm ring-1 ring-violet-100/80 transition hover:border-amber-300/70 hover:bg-amber-50/90 hover:text-amber-950 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100/80 disabled:text-slate-400 disabled:shadow-none disabled:ring-slate-100 sm:w-auto ${className}`}
+    >
+      {busy ? "Kaydediliyor…" : "KAYDET"}
+    </button>
   );
 }

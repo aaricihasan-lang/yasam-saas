@@ -37,6 +37,17 @@ export function harfSegmentsToText(segments: HarfYankilanisiSegment[]): string {
     .join("\n");
 }
 
+/** Kayıt listesi ve Supabase özeti için kısa metin. */
+export function buildAnalizOzeti(out: NumerolojiMotorOut): string {
+  return [
+    `Ana kulvar: ${nrDisplay(out.anaKulvar)}`,
+    `Yan kulvar: ${nrDisplay(out.yanKulvar)}`,
+    `İfade: ${nrDisplay(out.ifadeSayisi)}`,
+    `Hayat yolu: ${nrDisplay(out.hayatYolu)}`,
+    `PIN: ${pinOneLine(out.pinKodu)}`,
+  ].join(" · ");
+}
+
 export function buildPlainAnalizFull(out: NumerolojiMotorOut): string {
   const chunks: string[] = [];
 

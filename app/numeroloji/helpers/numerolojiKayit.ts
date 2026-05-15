@@ -1,23 +1,23 @@
 import { supabase } from "@/lib/supabase";
-import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import type { AnalysisDataPayload } from "../utils/analysisJson";
 
-export type AnalysisJsonPayload = {
-  version: 1;
-  motor: NumerolojiMotorOut;
-};
-
-export type NumerologyAnalysisRow = {
+export type NumerologyRecordRow = {
   id: string;
   tenant_id: string;
-  client_id: string | null;
-  full_name: string;
+  name: string;
+  surname: string;
   birth_date: string;
-  /** Supabase jsonb — satır okunurken `extractMotorFromAnalysisJson` ile ayrıştırın. */
-  analysis_json: unknown;
+  analysis_data: unknown;
   created_at: string;
 };
 
-const TABLE = "numerology_analyses";
+export type NumerologyRecordListItem = Pick<
+  NumerologyRecordRow,
+  "id" | "name" | "surname" | "birth_date" | "created_at" | "analysis_data"
+>;
+
+const TABLE = "numerology_records";
 
 export function getTenantIdFromStorage(): string | null {
   if (typeof window === "undefined") return null;
@@ -31,22 +31,31 @@ export function getTenantIdFromStorage(): string | null {
   }
 }
 
+export function sortRecordsByNameTurkish<T extends { name: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
+}
+
 export async function saveNumerologyAnalysis(input: {
   tenantId: string;
-  clientId?: string | null;
-  fullName: string;
+  name: string;
+  surname: string;
   birthDate: string;
   motor: NumerolojiMotorOut;
 }): Promise<{ error: string | null; id?: string }> {
-  const analysis_json: AnalysisJsonPayload = { version: 1, motor: input.motor };
+  const analysis_data: AnalysisDataPayload = {
+    version: 1,
+    motor: input.motor,
+    summary: buildAnalizOzeti(input.motor),
+  };
+
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
       tenant_id: input.tenantId,
-      client_id: input.clientId ?? null,
-      full_name: input.fullName.trim(),
+      name: input.name.trim(),
+      surname: input.surname.trim(),
       birth_date: input.birthDate.trim(),
-      analysis_json,
+      analysis_data,
     })
     .select("id")
     .single();
@@ -57,28 +66,31 @@ export async function saveNumerologyAnalysis(input: {
 }
 
 export async function listNumerologyAnalyses(tenantId: string): Promise<{
-  data: Pick<NumerologyAnalysisRow, "id" | "full_name" | "birth_date" | "created_at">[] | null;
+  data: NumerologyRecordListItem[] | null;
   error: string | null;
 }> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, full_name, birth_date, created_at")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
+    .select("id, name, surname, birth_date, analysis_data, created_at")
+    .eq("tenant_id", tenantId);
 
   if (error) return { data: null, error: error.message };
-  return { data: data as Pick<NumerologyAnalysisRow, "id" | "full_name" | "birth_date" | "created_at">[], error: null };
+  const rows = (data ?? []) as NumerologyRecordListItem[];
+  return { data: sortRecordsByNameTurkish(rows), error: null };
 }
 
 export async function getNumerologyAnalysisById(
   id: string,
   tenantId: string,
-): Promise<{ data: NumerologyAnalysisRow | null; error: string | null }> {
+): Promise<{ data: NumerologyRecordRow | null; error: string | null }> {
   const { data, error } = await supabase.from(TABLE).select("*").eq("id", id).maybeSingle();
 
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: "Kayıt bulunamadı." };
   if (data.tenant_id !== tenantId) return { data: null, error: "Bu kayda erişim yok." };
 
-  return { data: data as NumerologyAnalysisRow, error: null };
+  return { data: data as NumerologyRecordRow, error: null };
 }
+
+/** Geriye dönük uyumluluk */
+export type NumerologyAnalysisRow = NumerologyRecordRow;

@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { extractSummaryFromAnalysisData } from "../utils/analysisJson";
 
 export type NumerolojiListeSatir = {
   id: string;
-  full_name: string;
+  name: string;
+  surname: string;
   birth_date: string;
   created_at: string;
+  analysis_data?: unknown;
 };
 
 export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
+  const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
+  const summary = extractSummaryFromAnalysisData(row.analysis_data);
+
   return (
     <li>
       <Link
@@ -21,14 +27,17 @@ export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
           aria-hidden
         />
         <div className="relative flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-black tracking-tight text-slate-900">{row.full_name}</h2>
+          <h2 className="text-base font-black tracking-tight text-slate-900">{adSoyad}</h2>
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-violet-600/90 group-hover:text-violet-800">
             Detay →
           </span>
         </div>
-        <p className="relative mt-2 text-sm font-medium text-slate-600">Doğum: {row.birth_date}</p>
+        <p className="relative mt-2 text-sm font-medium text-slate-600">Doğum tarihi: {row.birth_date}</p>
+        {summary ? (
+          <p className="relative mt-2 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{summary}</p>
+        ) : null}
         <p className="relative mt-1.5 text-xs font-medium text-slate-500">
-          Kayıt:{" "}
+          Oluşturulma:{" "}
           {new Date(row.created_at).toLocaleString("tr-TR", {
             dateStyle: "medium",
             timeStyle: "short",
