@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
-import { CHAKRA_LETTER_MAP, ELEMENT_ORDER, repeatX, turkishUpper, type ElementName } from "@/lib/numeroloji";
+import { ELEMENT_ORDER, repeatX, type ElementName } from "@/lib/numeroloji";
 import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -141,8 +141,6 @@ function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
-type HarfKart = { letter: string; deger: number; adet: number };
-
 const HARF_KART_TINT: Record<number, string> = {
   1: "border-rose-200/70 bg-gradient-to-b from-rose-50/95 to-rose-100/70 hover:from-rose-100 hover:to-rose-50/90 hover:shadow-rose-200/50",
   2: "border-orange-200/70 bg-gradient-to-b from-orange-50/95 to-orange-100/70 hover:from-orange-100 hover:to-orange-50/90 hover:shadow-orange-200/50",
@@ -155,53 +153,70 @@ const HARF_KART_TINT: Record<number, string> = {
   9: "border-violet-200/70 bg-gradient-to-b from-violet-50/95 to-violet-100/70 hover:from-violet-100 hover:to-violet-50/90 hover:shadow-violet-200/50",
 };
 
-function isimHarfKartlari(firstName: string, lastName: string): HarfKart[] {
-  const text = turkishUpper(`${firstName} ${lastName}`.trim());
-  const counts: Record<string, number> = {};
-  const order: string[] = [];
-  for (const ch of Array.from(text)) {
-    if (CHAKRA_LETTER_MAP[ch] === undefined) continue;
-    if (!counts[ch]) order.push(ch);
-    counts[ch] = (counts[ch] || 0) + 1;
-  }
-  return order.map((letter) => ({
-    letter,
-    deger: CHAKRA_LETTER_MAP[letter] ?? 0,
-    adet: counts[letter] ?? 0,
-  }));
+function harfYasMetni(ageStart: number, ageEnd: number): string {
+  return ageStart === ageEnd ? `${ageStart} yaş` : `${ageStart}–${ageEnd} yaş`;
 }
 
-function HarflerBuyukPanel({ firstName, lastName }: { firstName: string; lastName: string }) {
-  const kartlar = isimHarfKartlari(firstName, lastName);
+function harfYilMetni(yearStart?: number, yearEnd?: number): string | null {
+  if (yearStart === undefined || yearEnd === undefined) return null;
+  return yearStart === yearEnd ? `${yearStart}` : `${yearStart}–${yearEnd}`;
+}
+
+function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
+  const yil = new Date().getFullYear();
+  if (seg.yearStart !== undefined && seg.yearEnd !== undefined) {
+    return seg.yearStart <= yil && yil <= seg.yearEnd;
+  }
+  return false;
+}
+
+function HarflerBuyukPanel({
+  segments,
+  aciklamaMetni,
+}: {
+  segments: HarfYankilanisiSegment[];
+  aciklamaMetni?: string | null;
+}) {
+  const aciklama = (aciklamaMetni || "").trim();
 
   return (
     <section className="col-span-full w-full rounded-3xl border border-violet-200/50 bg-gradient-to-br from-violet-50/60 via-white/80 to-fuchsia-50/40 p-5 shadow-[0_16px_48px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md sm:p-8">
       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-violet-900/90 sm:text-base">Harflerin Yankılanışı</h3>
-      <div className="mt-6 flex w-full flex-wrap justify-center gap-3 sm:gap-4 md:gap-5">
-        {kartlar.length === 0 ? (
-          <p className="w-full py-8 text-center text-sm font-medium text-slate-600">İsimde numeroloji harfi bulunamadı.</p>
+      <div className="mt-6 grid w-full grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {segments.length === 0 ? (
+          <p className="col-span-full py-8 text-center text-sm font-medium text-slate-600">Harf dönemi hesaplanamadı.</p>
         ) : (
-          kartlar.map((k) => {
-            const tint = HARF_KART_TINT[k.deger] ?? HARF_KART_TINT[9];
+          segments.map((seg, idx) => {
+            const tint = HARF_KART_TINT[seg.chakra] ?? HARF_KART_TINT[9];
+            const aktif = harfDonemAktif(seg);
+            const yilMetin = harfYilMetni(seg.yearStart, seg.yearEnd);
             return (
               <div
-                key={k.letter}
-                className={`flex h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center rounded-full border-2 text-center shadow-md ring-1 ring-white/60 transition duration-200 hover:-translate-y-1 hover:shadow-lg sm:h-28 sm:w-28 ${tint}`}
+                key={`${idx}-${seg.letter}-${seg.ageStart}`}
+                className={`relative flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl border-2 px-3 py-4 text-center shadow-md ring-1 ring-white/60 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[10.5rem] sm:px-4 ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
               >
-                <span className="text-2xl font-black leading-none text-slate-900 sm:text-3xl">{k.letter}</span>
-                <span className="mt-1 text-lg font-black tabular-nums text-violet-800 sm:text-xl">{k.deger}</span>
-                <span className="mt-0.5 text-[10px] font-bold text-slate-600 sm:text-[11px]">
-                  {k.adet > 0 ? `${k.adet} adet` : "0"}
-                </span>
+                {aktif ? (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-md sm:text-[10px]">
+                    Aktif Dönem
+                  </span>
+                ) : null}
+                <span className="text-3xl font-black leading-none text-slate-900 sm:text-4xl">{seg.letter}</span>
+                <span className="mt-2 text-xl font-black tabular-nums text-violet-800 sm:text-2xl">{seg.chakra}</span>
+                <span className="mt-2 text-[11px] font-bold text-slate-700 sm:text-xs">{harfYasMetni(seg.ageStart, seg.ageEnd)}</span>
+                {yilMetin ? (
+                  <span className="mt-1 text-[11px] font-semibold tabular-nums text-slate-500 sm:text-xs">{yilMetin}</span>
+                ) : null}
               </div>
             );
           })
         )}
       </div>
-      <p className="mt-6 text-center text-xs font-medium leading-relaxed text-slate-600 sm:text-sm">
-        Tekrarlayan harfler enerjiyi güçlendirir.
-        <br className="hidden sm:inline" /> Eksik harfler gelişim alanlarını gösterir.
-      </p>
+      {aciklama ? (
+        <div className="mt-8 rounded-2xl border border-violet-100/80 bg-white/70 p-5 ring-1 ring-violet-50/80 sm:p-6">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-800/90">Detaylı Açıklama</p>
+          <pre className="mt-3 whitespace-pre-wrap text-xs leading-relaxed text-slate-700 sm:text-sm">{aciklama}</pre>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -280,7 +295,10 @@ function TabSonucOzetiPremium({
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6">
-        <HarflerBuyukPanel firstName={firstName} lastName={lastName} />
+        <HarflerBuyukPanel
+          segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []}
+          aciklamaMetni={out.harflerinYankilanisiMetni}
+        />
 
         <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
           <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Elementler</h3>

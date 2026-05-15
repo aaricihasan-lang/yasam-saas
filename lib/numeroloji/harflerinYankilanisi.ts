@@ -32,32 +32,55 @@ function normalizeName(firstName: string, lastName: string): string {
     .join("");
 }
 
+function segmentKapsarYili(seg: HarfYankilanisiSegment, yil: number): boolean {
+  return seg.yearStart !== undefined && seg.yearEnd !== undefined && seg.yearStart <= yil && yil <= seg.yearEnd;
+}
+
 export function calcHarflerinYankilanisi(firstName: string, lastName: string, birthDate?: string, maxAge = 80): HarfYankilanisiSegment[] {
   const normalized = normalizeName(firstName, lastName);
+  const letters = Array.from(normalized).filter((ch) => LETTER_TO_CHAKRA[ch]);
+  if (letters.length === 0) return [];
+
   const parts = birthDate ? parseBirthDate(birthDate) : null;
   const birthYear = parts?.year;
+  const mevcutYil = new Date().getFullYear();
+  const hedefYas = birthYear != null ? Math.max(0, mevcutYil - birthYear) : maxAge;
+
   const segments: HarfYankilanisiSegment[] = [];
   let currentAge = 0;
+  let harfIdx = 0;
+  let guard = 0;
+  const maxGuard = Math.max(letters.length * 400, 64);
 
-  for (const ch of Array.from(normalized)) {
+  while (guard < maxGuard) {
+    guard += 1;
+    const ch = letters[harfIdx % letters.length];
     const chakra = LETTER_TO_CHAKRA[ch];
-    if (!chakra) continue;
+    if (!chakra) {
+      harfIdx += 1;
+      continue;
+    }
 
-    let ageStart = currentAge;
+    const ageStart = currentAge;
     let ageEnd = currentAge + chakra - 1;
-    if (ageStart > maxAge) break;
-    if (ageEnd > maxAge) ageEnd = maxAge;
+    if (ageEnd > hedefYas) ageEnd = hedefYas;
+    if (!birthYear && ageEnd > maxAge) ageEnd = maxAge;
+    if (ageStart > (birthYear ? hedefYas : maxAge)) break;
 
-    segments.push({
+    const seg: HarfYankilanisiSegment = {
       letter: ch,
       chakra,
       ageStart,
       ageEnd,
-      ...(birthYear ? { yearStart: birthYear + ageStart, yearEnd: birthYear + ageEnd } : {}),
-    });
+      ...(birthYear != null ? { yearStart: birthYear + ageStart, yearEnd: birthYear + ageEnd } : {}),
+    };
+    segments.push(seg);
 
     currentAge = ageEnd + 1;
-    if (currentAge > maxAge) break;
+    harfIdx += 1;
+
+    if (birthYear != null && segmentKapsarYili(seg, mevcutYil)) break;
+    if (!birthYear && currentAge > maxAge) break;
   }
 
   return segments;
