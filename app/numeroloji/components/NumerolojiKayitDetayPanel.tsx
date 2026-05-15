@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -102,7 +102,6 @@ export function NumerolojiKayitDetayPanel({
   const [tasBileklik, setTasBileklik] = useState(gorsel.tasBileklik);
   const [tasKolye, setTasKolye] = useState(gorsel.tasKolye);
   const [tasKutle, setTasKutle] = useState(gorsel.tasKutle);
-  const gorselRaporRef = useRef<HTMLDivElement>(null);
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
 
   return (
@@ -163,17 +162,19 @@ export function NumerolojiKayitDetayPanel({
                 type="button"
                 disabled={gorselPngHazirlaniyor}
                 onClick={async () => {
-                  console.log("PNG REF:", gorselRaporRef.current);
-                  const hedef =
-                    gorselRaporRef.current ??
-                    document.querySelector<HTMLDivElement>("[data-gorsel-rapor-root]");
-                  if (!hedef) {
-                    console.warn("Görsel rapor alanı bulunamadı.");
+                  console.log("PNG indir tıklandı");
+                  const el = document.getElementById("numeroloji-kayit-gorsel-rapor-png-root");
+                  console.log("PNG element:", el);
+                  if (!el) {
+                    alert("Görsel rapor alanı bulunamadı.");
                     return;
                   }
                   try {
                     setGorselPngHazirlaniyor(true);
-                    await gorselRaporuPngYakalaVeIndir(hedef);
+                    await gorselRaporuPngYakalaVeIndir(el);
+                  } catch (err) {
+                    console.error(err);
+                    alert("PNG hazırlanırken hata oluştu. Konsolu kontrol edin.");
                   } finally {
                     setGorselPngHazirlaniyor(false);
                   }
@@ -184,20 +185,21 @@ export function NumerolojiKayitDetayPanel({
               </button>
             </div>
             <div className="flex min-w-0 flex-1 justify-center py-1 sm:py-2">
-              <GorselRaporInfografik
-                ref={gorselRaporRef}
-                out={out}
-                isimGoster={isimGoster}
-                dogumGoster={birthDate}
-                firstName={name}
-                lastName={surname}
-                temaId={gorsel.temaId}
-                uzmanAdi={uzmanAdi}
-                gorselTaslariGoster={gorselTaslariGoster}
-                tasBileklik={tasBileklik}
-                tasKolye={tasKolye}
-                tasKutle={tasKutle}
-              />
+              <div id="numeroloji-kayit-gorsel-rapor-png-root">
+                <GorselRaporInfografik
+                  out={out}
+                  isimGoster={isimGoster}
+                  dogumGoster={birthDate}
+                  firstName={name}
+                  lastName={surname}
+                  temaId={gorsel.temaId}
+                  uzmanAdi={uzmanAdi}
+                  gorselTaslariGoster={gorselTaslariGoster}
+                  tasBileklik={tasBileklik}
+                  tasKolye={tasKolye}
+                  tasKutle={tasKutle}
+                />
+              </div>
             </div>
           </div>
         ) : null}
