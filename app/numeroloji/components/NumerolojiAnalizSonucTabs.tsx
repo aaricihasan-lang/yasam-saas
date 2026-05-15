@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
-import { ELEMENT_ORDER, repeatX, type ElementName } from "@/lib/numeroloji";
+import { CHAKRA_LETTER_MAP, ELEMENT_ORDER, repeatX, turkishUpper, type ElementName } from "@/lib/numeroloji";
 import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -141,24 +141,67 @@ function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   );
 }
 
-function HarflerinYankilanisiPremium({ segments }: { segments: HarfYankilanisiSegment[] }) {
+type HarfKart = { letter: string; deger: number; adet: number };
+
+const HARF_KART_TINT: Record<number, string> = {
+  1: "border-rose-200/70 bg-gradient-to-b from-rose-50/95 to-rose-100/70 hover:from-rose-100 hover:to-rose-50/90 hover:shadow-rose-200/50",
+  2: "border-orange-200/70 bg-gradient-to-b from-orange-50/95 to-orange-100/70 hover:from-orange-100 hover:to-orange-50/90 hover:shadow-orange-200/50",
+  3: "border-amber-200/70 bg-gradient-to-b from-amber-50/95 to-amber-100/70 hover:from-amber-100 hover:to-amber-50/90 hover:shadow-amber-200/50",
+  4: "border-lime-200/70 bg-gradient-to-b from-lime-50/95 to-lime-100/70 hover:from-lime-100 hover:to-lime-50/90 hover:shadow-lime-200/50",
+  5: "border-emerald-200/70 bg-gradient-to-b from-emerald-50/95 to-emerald-100/70 hover:from-emerald-100 hover:to-emerald-50/90 hover:shadow-emerald-200/50",
+  6: "border-teal-200/70 bg-gradient-to-b from-teal-50/95 to-teal-100/70 hover:from-teal-100 hover:to-teal-50/90 hover:shadow-teal-200/50",
+  7: "border-sky-200/70 bg-gradient-to-b from-sky-50/95 to-sky-100/70 hover:from-sky-100 hover:to-sky-50/90 hover:shadow-sky-200/50",
+  8: "border-indigo-200/70 bg-gradient-to-b from-indigo-50/95 to-indigo-100/70 hover:from-indigo-100 hover:to-indigo-50/90 hover:shadow-indigo-200/50",
+  9: "border-violet-200/70 bg-gradient-to-b from-violet-50/95 to-violet-100/70 hover:from-violet-100 hover:to-violet-50/90 hover:shadow-violet-200/50",
+};
+
+function isimHarfKartlari(firstName: string, lastName: string): HarfKart[] {
+  const text = turkishUpper(`${firstName} ${lastName}`.trim());
+  const counts: Record<string, number> = {};
+  const order: string[] = [];
+  for (const ch of Array.from(text)) {
+    if (CHAKRA_LETTER_MAP[ch] === undefined) continue;
+    if (!counts[ch]) order.push(ch);
+    counts[ch] = (counts[ch] || 0) + 1;
+  }
+  return order.map((letter) => ({
+    letter,
+    deger: CHAKRA_LETTER_MAP[letter] ?? 0,
+    adet: counts[letter] ?? 0,
+  }));
+}
+
+function HarflerBuyukPanel({ firstName, lastName }: { firstName: string; lastName: string }) {
+  const kartlar = isimHarfKartlari(firstName, lastName);
+
   return (
-    <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-7">
-      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 sm:text-base">Harflerin Yankılanışı</h3>
-      <div className="mt-5 flex w-full flex-wrap gap-3 sm:gap-4">
-        {segments.map((seg, idx) => (
-          <div
-            key={`${seg.letter}-${idx}`}
-            className="flex min-h-[5.5rem] min-w-[4.75rem] flex-col items-center justify-center rounded-2xl border border-violet-200/60 bg-gradient-to-b from-white to-violet-50/50 px-4 py-3 text-center shadow-sm ring-1 ring-violet-100/40 sm:min-h-[6rem] sm:min-w-[5.25rem] sm:px-5 sm:py-4"
-          >
-            <span className="text-2xl font-black text-slate-900 sm:text-3xl">{seg.letter}</span>
-            <span className="mt-1 text-[11px] font-bold text-violet-700/90 sm:text-xs">{seg.chakra}. çakra</span>
-            <span className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-600 sm:text-xs">
-              {seg.ageStart}–{seg.ageEnd} yaş
-            </span>
-          </div>
-        ))}
+    <section className="col-span-full w-full rounded-3xl border border-violet-200/50 bg-gradient-to-br from-violet-50/60 via-white/80 to-fuchsia-50/40 p-5 shadow-[0_16px_48px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md sm:p-8">
+      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-violet-900/90 sm:text-base">Harflerin Yankılanışı</h3>
+      <div className="mt-6 flex w-full flex-wrap justify-center gap-3 sm:gap-4 md:gap-5">
+        {kartlar.length === 0 ? (
+          <p className="w-full py-8 text-center text-sm font-medium text-slate-600">İsimde numeroloji harfi bulunamadı.</p>
+        ) : (
+          kartlar.map((k) => {
+            const tint = HARF_KART_TINT[k.deger] ?? HARF_KART_TINT[9];
+            return (
+              <div
+                key={k.letter}
+                className={`flex h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center rounded-full border-2 text-center shadow-md ring-1 ring-white/60 transition duration-200 hover:-translate-y-1 hover:shadow-lg sm:h-28 sm:w-28 ${tint}`}
+              >
+                <span className="text-2xl font-black leading-none text-slate-900 sm:text-3xl">{k.letter}</span>
+                <span className="mt-1 text-lg font-black tabular-nums text-violet-800 sm:text-xl">{k.deger}</span>
+                <span className="mt-0.5 text-[10px] font-bold text-slate-600 sm:text-[11px]">
+                  {k.adet > 0 ? `${k.adet} adet` : "0"}
+                </span>
+              </div>
+            );
+          })
+        )}
       </div>
+      <p className="mt-6 text-center text-xs font-medium leading-relaxed text-slate-600 sm:text-sm">
+        Tekrarlayan harfler enerjiyi güçlendirir.
+        <br className="hidden sm:inline" /> Eksik harfler gelişim alanlarını gösterir.
+      </p>
     </section>
   );
 }
@@ -203,46 +246,23 @@ function TabSonucOzetiPremium({
   out,
   isimGoster,
   dogumGoster,
+  firstName,
+  lastName,
 }: {
   out: NumerolojiMotorOut;
   isimGoster: string;
   dogumGoster: string;
+  firstName: string;
+  lastName: string;
 }) {
-  const hy = out.harflerinYankilanisi;
-  const harfKisa =
-    Array.isArray(hy) && hy.length > 0
-      ? hy
-          .map((s) => s.letter)
-          .slice(0, 12)
-          .join(", ")
-      : "—";
-  const zirveKisa = out.zirveYillari?.peaks?.[0] ? String(out.zirveYillari.peaks[0].topic) : nrDisplay(out.hayatYolu);
-  const mucadeleKisa = out.mucadeleYillari?.method1?.[0] ? String(out.mucadeleYillari.method1[0].topic) : "—";
-  const degisimKisa =
-    (out.degisimDonusumMetni || "")
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .find((l) => /değişim/i.test(l) && /\d/.test(l))?.replace(/^.*?(\d+.*)$/i, "$1")
-      .slice(0, 12) || "—";
-  const pinKisa = `${out.pinKodu.k1}${out.pinKodu.k2}${out.pinKodu.k3}${out.pinKodu.k4}` || pinOneLine(out.pinKodu).slice(0, 8);
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
-  const harfTop = Object.values(out.cakraOmurgasi.harfler).reduce((a, b) => a + b, 0);
-  const sayiTop = Object.values(out.cakraOmurgasi.sayilar).reduce((a, b) => a + b, 0);
-  const sezgisel = Math.round((el.Su / (el.Hava + el.Su + el.Ateş + el.Toprak || 1)) * 100) || 33;
-  const fiziksel = Math.round((el.Ateş + el.Toprak) / (el.Hava + el.Su + el.Ateş + el.Toprak || 1) * 100) || 33;
-  const zihinsel = Math.max(0, 100 - sezgisel - fiziksel) || 34;
 
   const ustKartlar = [
     { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "from-violet-50/80", icon: "♔" },
     { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "from-indigo-50/80", icon: "⚖" },
     { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "from-fuchsia-50/80", icon: "✦" },
     { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "from-amber-50/80", icon: "☤" },
-    { title: "PIN Kodu", value: pinKisa, tint: "from-sky-50/80", icon: "🔒" },
-    { title: "Çakra", value: String(sayiTop || harfTop || "—"), tint: "from-teal-50/80", icon: "◎" },
-    { title: "Mücadele", value: mucadeleKisa, tint: "from-rose-50/80", icon: "⚑" },
-    { title: "Zirve", value: zirveKisa, tint: "from-orange-50/80", icon: "▲" },
-    { title: "Harflerin Yankılanışı", value: harfKisa, tint: "from-violet-50/80", icon: "🔊" },
   ];
 
   return (
@@ -253,15 +273,16 @@ function TabSonucOzetiPremium({
         <p className="mt-1 text-sm font-medium text-slate-600">Doğum tarihi: {dogumGoster}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {ustKartlar.map((k) => (
           <OzetPremiumKart key={k.title} title={k.title} value={k.value} tint={`bg-gradient-to-br ${k.tint} to-white/90`} icon={<span className="text-lg">{k.icon}</span>} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <section className="rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
+        <HarflerBuyukPanel firstName={firstName} lastName={lastName} />
+
+        <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
           <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Elementler</h3>
           <div className="mt-6 space-y-4">
             {ELEMENT_ORDER.map((name) => (
@@ -281,49 +302,7 @@ function TabSonucOzetiPremium({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Denge</h3>
-          <div className="mt-6 flex flex-col items-center">
-            <div
-              className="relative h-36 w-36 rounded-full shadow-inner ring-4 ring-white/90"
-              style={{
-                background: `conic-gradient(#8b5cf6 0% ${sezgisel}%, #f59e0b ${sezgisel}% ${sezgisel + fiziksel}%, #38bdf8 ${sezgisel + fiziksel}% 100%)`,
-              }}
-            >
-              <div className="absolute inset-5 flex items-center justify-center rounded-full bg-white/95 text-center text-[10px] font-bold leading-tight text-slate-600 shadow-sm">
-                Harf {harfTop}
-                <br />
-                Sayı {sayiTop}
-              </div>
-            </div>
-            <ul className="mt-5 w-full space-y-2 text-xs font-semibold text-slate-700">
-              <li className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
-                Sezgisel (Su) %{sezgisel}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                Fiziksel (Ateş+Toprak) %{fiziksel}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
-                Zihinsel (Hava) %{zihinsel}
-              </li>
-            </ul>
-          </div>
-        </section>
-        </div>
-
         <CakraOmurgasiTablo out={out} />
-
-        {Array.isArray(hy) && hy.length > 0 ? (
-          <HarflerinYankilanisiPremium segments={hy} />
-        ) : (
-          <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-7">
-            <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 sm:text-base">Harflerin Yankılanışı</h3>
-            <p className="mt-5 text-sm font-medium text-slate-600">—</p>
-          </section>
-        )}
       </div>
     </div>
   );
@@ -333,15 +312,27 @@ export function TabSonucOzeti({
   out,
   isimGoster,
   dogumGoster,
+  firstName,
+  lastName,
   layout = "default",
 }: {
   out: NumerolojiMotorOut;
   isimGoster: string;
   dogumGoster: string;
+  firstName?: string;
+  lastName?: string;
   layout?: "default" | "detay" | "premium";
 }) {
   if (layout === "premium") {
-    return <TabSonucOzetiPremium out={out} isimGoster={isimGoster} dogumGoster={dogumGoster} />;
+    return (
+      <TabSonucOzetiPremium
+        out={out}
+        isimGoster={isimGoster}
+        dogumGoster={dogumGoster}
+        firstName={firstName ?? ""}
+        lastName={lastName ?? ""}
+      />
+    );
   }
 
   const pinMetin = (out.pinKoduMetni || "—").trim() || "—";

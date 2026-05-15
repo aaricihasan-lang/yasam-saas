@@ -331,7 +331,14 @@ export default function NumerolojiAnalizPage() {
 
             <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-5 sm:p-8 lg:p-10" data-gorsel-rapor-scroll-host>
               {tab === "summary" ? (
-                <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={dogumGoster} layout="premium" />
+                <TabSonucOzeti
+                  out={out}
+                  isimGoster={isimGoster}
+                  dogumGoster={dogumGoster}
+                  firstName={firstName}
+                  lastName={lastName}
+                  layout="premium"
+                />
               ) : null}
 
               {tab === "plain" ? (
