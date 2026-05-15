@@ -337,7 +337,7 @@ export default function NumerolojiAnalizPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`shrink-0 rounded-xl px-5 py-3 text-left text-sm font-black uppercase tracking-[0.05em] transition sm:text-base ${
+                  className={`min-h-[3.5rem] shrink-0 whitespace-nowrap rounded-xl px-6 py-3.5 text-left text-sm font-black uppercase tracking-wide transition lg:px-8 lg:py-4 lg:text-base ${
                     tab === t.id
                       ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-4px_rgba(91,33,182,0.52)] ring-2 ring-violet-300/45"
                       : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800 hover:shadow-[0_4px_14px_-6px_rgba(91,33,182,0.25)]"
