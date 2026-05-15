@@ -163,13 +163,17 @@ export function NumerolojiKayitDetayPanel({
                 type="button"
                 disabled={gorselPngHazirlaniyor}
                 onClick={async () => {
-                  if (!gorselRaporRef.current) {
+                  console.log("PNG REF:", gorselRaporRef.current);
+                  const hedef =
+                    gorselRaporRef.current ??
+                    document.querySelector<HTMLDivElement>("[data-gorsel-rapor-root]");
+                  if (!hedef) {
                     console.warn("Görsel rapor alanı bulunamadı.");
                     return;
                   }
                   try {
                     setGorselPngHazirlaniyor(true);
-                    await gorselRaporuPngYakalaVeIndir(gorselRaporRef.current);
+                    await gorselRaporuPngYakalaVeIndir(hedef);
                   } finally {
                     setGorselPngHazirlaniyor(false);
                   }

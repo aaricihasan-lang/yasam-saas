@@ -1,8 +1,24 @@
 "use client";
 
-import { forwardRef, type ReactNode, type CSSProperties } from "react";
+import {
+  forwardRef,
+  type CSSProperties,
+  type MutableRefObject,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { turkishUpper, ELEMENT_ORDER, LETTER_TO_CHAKRA, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import { nrDisplay, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+
+function mergeRefs<T>(...refs: Array<Ref<T> | undefined | null>) {
+  return (node: T | null) => {
+    for (const r of refs) {
+      if (!r) continue;
+      if (typeof r === "function") r(node);
+      else (r as MutableRefObject<T | null>).current = node;
+    }
+  };
+}
 
 /** Görsel rapor — çakra satırı orta başlık (referans A4 poster, 10 çakra). */
 const GORSEL_CAKRA_TR_A4: Record<number, string> = {
@@ -966,7 +982,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
   return (
     <div
-      ref={ref}
+      ref={mergeRefs(ref)}
       data-gorsel-rapor-root
       style={css}
       className="numeroloji-gorsel-root relative mx-auto w-full max-w-[min(760px,210mm)] overflow-hidden rounded-2xl border-[1.5px] border-[color:var(--gr-border-outer)] bg-gradient-to-b from-[color:var(--gr-bg-top)] via-[color:var(--gr-bg-mid)] to-[color:var(--gr-bg-bot)] px-2.5 py-2.5 text-[color:var(--gr-line-text)] shadow-[0_0_0_0.5px_rgba(251,191,36,0.12),0_0_64px_-8px_var(--gr-shadow),0_28px_90px_-32px_rgba(0,0,0,0.55),0_0_1px_rgba(255,255,255,0.05)_inset] ring-2 ring-amber-400/15 ring-inset sm:px-4 sm:py-4 print:shadow-none"
@@ -1413,5 +1429,8 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
     </div>
   );
 });
+
+GorselRaporInfografik.displayName = "GorselRaporInfografik";
+
 export { GorselRaporInfografik, GORSEL_TEMA_LIST };
 export type { GorselTemaId };
