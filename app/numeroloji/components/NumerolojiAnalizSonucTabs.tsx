@@ -170,21 +170,13 @@ function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
   return false;
 }
 
-function HarflerBuyukPanel({
-  segments,
-  aciklamaMetni,
-}: {
-  segments: HarfYankilanisiSegment[];
-  aciklamaMetni?: string | null;
-}) {
-  const aciklama = (aciklamaMetni || "").trim();
-
+function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] }) {
   return (
-    <section className="col-span-full w-full rounded-3xl border border-violet-200/50 bg-gradient-to-br from-violet-50/60 via-white/80 to-fuchsia-50/40 p-5 shadow-[0_16px_48px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md sm:p-8">
+    <section className="col-span-full w-full rounded-3xl border border-violet-200/50 bg-gradient-to-br from-violet-50/60 via-white/80 to-fuchsia-50/40 p-5 shadow-[0_16px_48px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md sm:p-6">
       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-violet-900/90 sm:text-base">Harflerin Yankılanışı</h3>
-      <div className="mt-6 grid w-full grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      <div className="mt-5 flex w-full flex-wrap justify-center gap-3 overflow-hidden">
         {segments.length === 0 ? (
-          <p className="col-span-full py-8 text-center text-sm font-medium text-slate-600">Harf dönemi hesaplanamadı.</p>
+          <p className="w-full py-6 text-center text-sm font-medium text-slate-600">Harf dönemi hesaplanamadı.</p>
         ) : (
           segments.map((seg, idx) => {
             const tint = HARF_KART_TINT[seg.chakra] ?? HARF_KART_TINT[9];
@@ -193,30 +185,24 @@ function HarflerBuyukPanel({
             return (
               <div
                 key={`${idx}-${seg.letter}-${seg.ageStart}`}
-                className={`relative flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl border-2 px-3 py-4 text-center shadow-md ring-1 ring-white/60 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[10.5rem] sm:px-4 ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
+                className={`relative flex min-h-[7.25rem] w-[110px] max-w-[130px] shrink-0 flex-col items-center justify-center rounded-2xl border-2 p-4 text-center shadow-md ring-1 ring-white/60 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
               >
                 {aktif ? (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-md sm:text-[10px]">
-                    Aktif Dönem
+                  <span className="absolute -top-2 left-1/2 max-w-[calc(100%+0.5rem)] -translate-x-1/2 truncate rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-md">
+                    Aktif
                   </span>
                 ) : null}
-                <span className="text-3xl font-black leading-none text-slate-900 sm:text-4xl">{seg.letter}</span>
-                <span className="mt-2 text-xl font-black tabular-nums text-violet-800 sm:text-2xl">{seg.chakra}</span>
-                <span className="mt-2 text-[11px] font-bold text-slate-700 sm:text-xs">{harfYasMetni(seg.ageStart, seg.ageEnd)}</span>
+                <span className="text-3xl font-black leading-none text-slate-900">{seg.letter}</span>
+                <span className="mt-1.5 text-xl font-black tabular-nums text-violet-800">{seg.chakra}</span>
+                <span className="mt-1.5 text-xs font-bold leading-tight text-slate-700">{harfYasMetni(seg.ageStart, seg.ageEnd)}</span>
                 {yilMetin ? (
-                  <span className="mt-1 text-[11px] font-semibold tabular-nums text-slate-500 sm:text-xs">{yilMetin}</span>
+                  <span className="mt-0.5 text-xs font-semibold tabular-nums leading-tight text-slate-500">{yilMetin}</span>
                 ) : null}
               </div>
             );
           })
         )}
       </div>
-      {aciklama ? (
-        <div className="mt-8 rounded-2xl border border-violet-100/80 bg-white/70 p-5 ring-1 ring-violet-50/80 sm:p-6">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-800/90">Detaylı Açıklama</p>
-          <pre className="mt-3 whitespace-pre-wrap text-xs leading-relaxed text-slate-700 sm:text-sm">{aciklama}</pre>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -295,10 +281,7 @@ function TabSonucOzetiPremium({
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6">
-        <HarflerBuyukPanel
-          segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []}
-          aciklamaMetni={out.harflerinYankilanisiMetni}
-        />
+        <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
         <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
           <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Elementler</h3>
