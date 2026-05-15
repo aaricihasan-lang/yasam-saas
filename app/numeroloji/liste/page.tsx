@@ -2,11 +2,14 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getTenantIdFromStorage, listNumerologyAnalyses } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
-import { NumerolojiNavPill } from "../components/NumerolojiNavPill";
+
+const listeNavLinkClass =
+  "inline-flex items-center gap-2 rounded-2xl border border-white/85 bg-white/80 px-6 py-3 text-sm font-bold text-violet-900 shadow-[0_8px_26px_-8px_rgba(91,33,182,0.38)] ring-1 ring-violet-200/55 backdrop-blur-md transition hover:scale-[1.03] hover:border-violet-300/90 hover:bg-white hover:text-violet-950 hover:shadow-[0_14px_36px_-8px_rgba(91,33,182,0.45)] no-underline";
 
 export default function NumerolojiListePage() {
   const pathname = usePathname();
@@ -48,14 +51,19 @@ export default function NumerolojiListePage() {
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
       <div className="mb-8 rounded-[32px] border border-white/75 bg-white/55 px-7 py-9 shadow-[0_18px_52px_rgba(15,23,42,0.08)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:px-10 sm:py-11 lg:px-12 lg:py-12">
         <div className="mb-5 flex flex-wrap gap-3 sm:mb-6">
-          <NumerolojiNavPill href="/numeroloji">← Modül seçimi</NumerolojiNavPill>
-          <NumerolojiNavPill href="/numeroloji/analiz">Yeni analiz</NumerolojiNavPill>
+          <Link href="/numeroloji" className={listeNavLinkClass}>
+            ← Modül seçimi
+          </Link>
+          <Link href="/numeroloji/analiz" className={listeNavLinkClass}>
+            <span aria-hidden>✨</span> Yeni analiz
+          </Link>
         </div>
         <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
           Kayıtlı analizler
         </h1>
-        <p className="mt-3 max-w-3xl text-base font-medium leading-relaxed text-slate-600 sm:mt-4 sm:text-lg">
-          Tenant&apos;ınıza ait kayıtlı numeroloji analizleri.
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600">
+          Kaydedilen analizlerinizi görüntüleyin, geçmiş hesaplamaları inceleyin ve tüm numeroloji kayıtlarını tek
+          merkezden yönetin.
         </p>
       </div>
 
