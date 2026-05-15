@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   getStoneAssignment,
   normalizeStoneList,
   saveStoneAssignment,
   stonesToTextarea,
-} from "../helpers/stoneAssignmentStore";
+} from "../helpers/bilgiBankaKayit";
 
 const fieldBase =
   "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
@@ -52,39 +53,46 @@ function isElement(tur: string): tur is "element" {
 }
 
 export function BilgiDogaltasAta() {
+  const { showToast } = useToast();
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [oneriAciklamasi, setOneriAciklamasi] = useState("");
   const [tasListesi, setTasListesi] = useState("");
-  const [kayitMesaj, setKayitMesaj] = useState<string | null>(null);
+  const [kaydediliyor, setKaydediliyor] = useState(false);
 
   function handleAnalizTuruChange(value: string) {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
     setOneriAciklamasi("");
     setTasListesi("");
-    setKayitMesaj(null);
   }
 
   function handleDegerChange(value: string) {
     setDeger(value);
-    setKayitMesaj(null);
   }
 
   useEffect(() => {
-    if (!analizTuru || !deger) {
+    if (!analizTuru || !deger.trim()) {
       setOneriAciklamasi("");
       setTasListesi("");
       return;
     }
-    const entry = getStoneAssignment(analizTuru, deger);
-    if (entry) {
-      setOneriAciklamasi(entry.reason);
-      setTasListesi(stonesToTextarea(entry.stones));
-    } else {
-      setOneriAciklamasi("");
-      setTasListesi("");
-    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await getStoneAssignment(analizTuru, deger.trim());
+      if (cancelled) return;
+      if (error) return;
+      if (data) {
+        setOneriAciklamasi(data.reason);
+        setTasListesi(stonesToTextarea(data.stones));
+      } else {
+        setOneriAciklamasi("");
+        setTasListesi("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [analizTuru, deger]);
 
   function handleYeni() {
@@ -92,28 +100,32 @@ export function BilgiDogaltasAta() {
     setDeger("");
     setOneriAciklamasi("");
     setTasListesi("");
-    setKayitMesaj(null);
   }
 
-  function handleKaydet() {
-    setKayitMesaj(null);
+  async function handleKaydet() {
     if (!analizTuru) {
-      setKayitMesaj("Analiz türü seçin.");
+      showToast({ message: "Analiz türü seçin.", type: "warning" });
       return;
     }
     if (!deger.trim()) {
-      setKayitMesaj("Değer alanını doldurun.");
+      showToast({ message: "Değer alanını doldurun.", type: "warning" });
       return;
     }
     const stones = normalizeStoneList(tasListesi);
-    saveStoneAssignment({
-      category: analizTuru,
-      value: deger.trim(),
+    setKaydediliyor(true);
+    const { error } = await saveStoneAssignment({
+      analysisType: analizTuru,
+      value: deger,
       reason: oneriAciklamasi,
       stones,
     });
+    setKaydediliyor(false);
+    if (error) {
+      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      return;
+    }
     setTasListesi(stonesToTextarea(stones));
-    setKayitMesaj("Kaydedildi.");
+    showToast({ message: "Kayıt kaydedildi", type: "success" });
   }
 
   return (
@@ -213,19 +225,6 @@ export function BilgiDogaltasAta() {
         </div>
       </div>
 
-      {kayitMesaj ? (
-        <p
-          className={`mt-6 rounded-2xl px-4 py-3 text-base font-semibold ${
-            kayitMesaj === "Kaydedildi."
-              ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/70"
-              : "bg-amber-50 text-amber-900 ring-1 ring-amber-200/70"
-          }`}
-          role="status"
-        >
-          {kayitMesaj}
-        </p>
-      ) : null}
-
       <div className="mt-8 flex flex-wrap gap-4 border-t-2 border-violet-100/90 pt-8 sm:mt-10">
         <button
           type="button"
@@ -236,10 +235,11 @@ export function BilgiDogaltasAta() {
         </button>
         <button
           type="button"
-          onClick={handleKaydet}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(16,185,129,0.4)] ring-2 ring-emerald-300/40 transition hover:brightness-105"
+          disabled={kaydediliyor}
+          onClick={() => void handleKaydet()}
+          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(16,185,129,0.4)] ring-2 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Kaydet
+          {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
         </button>
       </div>
     </div>

@@ -1,26 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ANALIZ_TURU_FILTER_OPTIONS,
-  analizTuruLabel,
-  formatBilgiBankaTarih,
-} from "../helpers/bilgiBankaLabels";
-import { listTrainingExplanationRows } from "../helpers/trainingExplanationStore";
-import { listStoneAssignmentRows } from "../helpers/stoneAssignmentStore";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { formatBilgiBankaTarih, ANALIZ_TURU_FILTER_OPTIONS } from "../helpers/bilgiBankaLabels";
+import { listBilgiBankaKayitlari, type BilgiBankaListeSatir } from "../helpers/bilgiBankaKayit";
 
-type KayitTuru = "aciklama" | "dogaltas";
-
-type ListeSatir = {
-  id: string;
-  kayitTuru: KayitTuru;
-  analizTuruKey: string;
-  analizTuru: string;
-  deger: string;
-  bilgiVeyaAciklama: string;
-  guncellemeTarihi: string;
-  aramaMetni: string;
-};
+type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
 const KAYIT_TURU_FILTRE = [
   { value: "", label: "Tüm kayıt türleri" },
@@ -38,45 +23,6 @@ const searchInputClass = `${filterFieldClass} min-w-0 placeholder:text-base plac
 const refreshButtonClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-bold text-white shadow-lg ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
 
-function buildListeSatirlari(): ListeSatir[] {
-  const aciklama = listTrainingExplanationRows().map((row): ListeSatir => {
-    const { category, value, entry } = row;
-    const analiz = analizTuruLabel(category);
-    const bilgi = [entry.source, entry.description].filter(Boolean).join(" — ");
-    return {
-      id: `aciklama:${category}:${value}`,
-      kayitTuru: "aciklama",
-      analizTuruKey: category,
-      analizTuru: analiz,
-      deger: value,
-      bilgiVeyaAciklama: bilgi || "—",
-      guncellemeTarihi: entry.updated_at,
-      aramaMetni: [analiz, value, entry.source, entry.description].join(" ").toLocaleLowerCase("tr-TR"),
-    };
-  });
-
-  const dogaltas = listStoneAssignmentRows().map((row): ListeSatir => {
-    const { category, value, entry } = row;
-    const analiz = analizTuruLabel(category);
-    const taslar = entry.stones.join(", ");
-    const bilgi = [entry.reason, taslar ? `Taşlar: ${taslar}` : ""].filter(Boolean).join(" — ");
-    return {
-      id: `dogaltas:${category}:${value}`,
-      kayitTuru: "dogaltas",
-      analizTuruKey: category,
-      analizTuru: analiz,
-      deger: value,
-      bilgiVeyaAciklama: bilgi || "—",
-      guncellemeTarihi: entry.updated_at,
-      aramaMetni: [analiz, value, entry.reason, taslar].join(" ").toLocaleLowerCase("tr-TR"),
-    };
-  });
-
-  return [...aciklama, ...dogaltas].sort((a, b) =>
-    b.guncellemeTarihi.localeCompare(a.guncellemeTarihi),
-  );
-}
-
 function kayitTuruBadge(tur: KayitTuru) {
   if (tur === "aciklama") {
     return "bg-violet-100 text-violet-900 ring-violet-200/80";
@@ -89,16 +35,30 @@ function kayitTuruLabel(tur: KayitTuru) {
 }
 
 export function BilgiKayitListesi() {
+  const { showToast } = useToast();
   const [kayitTuruFiltre, setKayitTuruFiltre] = useState("");
   const [analizTuruFiltre, setAnalizTuruFiltre] = useState("");
   const [arama, setArama] = useState("");
   const [seciliIds, setSeciliIds] = useState<Set<string>>(new Set());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [tumSatirlar, setTumSatirlar] = useState<BilgiBankaListeSatir[]>([]);
+  const [yukleniyor, setYukleniyor] = useState(true);
 
-  const tumSatirlar = useMemo(() => {
-    void refreshKey;
-    return buildListeSatirlari();
-  }, [refreshKey]);
+  const yukleListe = useCallback(async () => {
+    setYukleniyor(true);
+    const { rows, error } = await listBilgiBankaKayitlari();
+    setYukleniyor(false);
+    if (error) {
+      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      setTumSatirlar([]);
+      return;
+    }
+    setTumSatirlar(rows);
+    setSeciliIds(new Set());
+  }, [showToast]);
+
+  useEffect(() => {
+    void yukleListe();
+  }, [yukleListe]);
 
   const filtrelenmis = useMemo(() => {
     const q = arama.trim().toLocaleLowerCase("tr-TR");
@@ -110,8 +70,8 @@ export function BilgiKayitListesi() {
     });
   }, [tumSatirlar, kayitTuruFiltre, analizTuruFiltre, arama]);
 
-  const hicKayitYok = tumSatirlar.length === 0;
-  const filtreBos = !hicKayitYok && filtrelenmis.length === 0;
+  const hicKayitYok = !yukleniyor && tumSatirlar.length === 0;
+  const filtreBos = !yukleniyor && !hicKayitYok && filtrelenmis.length === 0;
 
   function toggleSec(id: string) {
     setSeciliIds((prev) => {
@@ -188,14 +148,23 @@ export function BilgiKayitListesi() {
             <span className="mb-2.5 hidden text-base font-bold text-transparent xl:block" aria-hidden>
               Yenile
             </span>
-            <button type="button" onClick={() => setRefreshKey((k) => k + 1)} className={refreshButtonClass}>
-              Listeyi yenile
+            <button
+              type="button"
+              disabled={yukleniyor}
+              onClick={() => void yukleListe()}
+              className={refreshButtonClass}
+            >
+              {yukleniyor ? "Yükleniyor…" : "Listeyi yenile"}
             </button>
           </div>
         </div>
       </div>
 
-      {hicKayitYok ? (
+      {yukleniyor ? (
+        <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 px-10 py-20 text-center shadow-xl ring-1 ring-purple-200">
+          <p className="text-lg font-medium text-slate-600">Kayıtlar yükleniyor…</p>
+        </div>
+      ) : hicKayitYok ? (
         <div className="rounded-[32px] border-2 border-dashed border-violet-300/80 bg-white/95 px-10 py-24 text-center shadow-xl ring-1 ring-purple-200 backdrop-blur-md sm:py-28">
           <p className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-slate-600 sm:text-xl">
             Henüz kayıtlı bilgi bankası kaydı yok.

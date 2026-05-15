@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { getKnowledgeRecord, saveKnowledgeRecord } from "../helpers/bilgiBankaKayit";
 
 const fieldBase =
   "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
@@ -46,21 +48,77 @@ function isElement(tur: string): tur is "element" {
 }
 
 export function BilgiKayitEkleDuzenle() {
+  const { showToast } = useToast();
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [bilgiKaynagi, setBilgiKaynagi] = useState("");
   const [aciklamaMetni, setAciklamaMetni] = useState("");
+  const [kaydediliyor, setKaydediliyor] = useState(false);
 
   function handleAnalizTuruChange(value: string) {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
+    setBilgiKaynagi("");
+    setAciklamaMetni("");
   }
+
+  function handleDegerChange(value: string) {
+    setDeger(value);
+  }
+
+  useEffect(() => {
+    if (!analizTuru || !deger.trim()) {
+      setBilgiKaynagi("");
+      setAciklamaMetni("");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await getKnowledgeRecord(analizTuru, deger.trim());
+      if (cancelled) return;
+      if (error) return;
+      if (data) {
+        setBilgiKaynagi(data.source ?? "");
+        setAciklamaMetni(data.description ?? "");
+      } else {
+        setBilgiKaynagi("");
+        setAciklamaMetni("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [analizTuru, deger]);
 
   function handleYeni() {
     setAnalizTuru("");
     setDeger("");
     setBilgiKaynagi("");
     setAciklamaMetni("");
+  }
+
+  async function handleKaydet() {
+    if (!analizTuru) {
+      showToast({ message: "Analiz türü seçin.", type: "warning" });
+      return;
+    }
+    if (!deger.trim()) {
+      showToast({ message: "Değer alanını doldurun.", type: "warning" });
+      return;
+    }
+    setKaydediliyor(true);
+    const { error } = await saveKnowledgeRecord({
+      analysisType: analizTuru,
+      value: deger,
+      source: bilgiKaynagi,
+      description: aciklamaMetni,
+    });
+    setKaydediliyor(false);
+    if (error) {
+      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      return;
+    }
+    showToast({ message: "Kayıt kaydedildi", type: "success" });
   }
 
   return (
@@ -92,7 +150,7 @@ export function BilgiKayitEkleDuzenle() {
             <select
               id="bilgi-deger"
               value={deger}
-              onChange={(e) => setDeger(e.target.value)}
+              onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
               <option value="">Seçiniz...</option>
@@ -106,7 +164,7 @@ export function BilgiKayitEkleDuzenle() {
             <select
               id="bilgi-deger"
               value={deger}
-              onChange={(e) => setDeger(e.target.value)}
+              onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
               <option value="">Seçiniz...</option>
@@ -121,7 +179,7 @@ export function BilgiKayitEkleDuzenle() {
               id="bilgi-deger"
               type="text"
               value={deger}
-              onChange={(e) => setDeger(e.target.value)}
+              onChange={(e) => handleDegerChange(e.target.value)}
               placeholder="Örn. 19, 11, 33/6, 22…"
               className={inputClass}
             />
@@ -167,9 +225,11 @@ export function BilgiKayitEkleDuzenle() {
         </button>
         <button
           type="button"
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105"
+          disabled={kaydediliyor}
+          onClick={() => void handleKaydet()}
+          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Kaydet
+          {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
         </button>
       </div>
     </div>
