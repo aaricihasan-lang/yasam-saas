@@ -123,7 +123,7 @@ export function NumerolojiKayitDetayPanel({
         ))}
       </div>
 
-      <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-6 sm:p-10 lg:p-12">
+      <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-5 sm:p-8 lg:px-10 lg:py-12 xl:px-12">
         {tab === "summary" ? (
           <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={birthDate} layout="premium" />
         ) : null}
@@ -142,10 +142,10 @@ export function NumerolojiKayitDetayPanel({
 
         {tab === "gorsel" ? (
           <div
-            className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-5"
+            className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6 xl:gap-8"
             data-gorsel-rapor-scroll-host
           >
-            <div className="shrink-0 space-y-3 lg:w-[min(100%,300px)]">
+            <div className="w-full shrink-0 space-y-3 lg:w-[min(100%,360px)] xl:w-[400px] [&_aside]:!w-full [&_aside]:!max-w-none">
               <GorselRaporKontrolYanPanel
                 gorselTaslariGoster={gorselTaslariGoster}
                 setGorselTaslariGoster={setGorselTaslariGoster}
@@ -184,8 +184,11 @@ export function NumerolojiKayitDetayPanel({
                 {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
               </button>
             </div>
-            <div className="flex min-w-0 flex-1 justify-center py-1 sm:py-2">
-              <div id="numeroloji-kayit-gorsel-rapor-png-root">
+            <div className="flex min-w-0 w-full flex-1 justify-center py-1 sm:py-2 lg:justify-start">
+              <div
+                id="numeroloji-kayit-gorsel-rapor-png-root"
+                className="w-full max-w-[min(960px,100%)] [&_.numeroloji-gorsel-root]:w-full [&_.numeroloji-gorsel-root]:max-w-none"
+              >
                 <GorselRaporInfografik
                   out={out}
                   isimGoster={isimGoster}

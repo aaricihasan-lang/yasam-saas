@@ -52,7 +52,7 @@ export default function NumerolojiKayitDetayPage() {
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
 
   return (
-    <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
+    <NumerolojiPremiumShell maxWidthClass="max-w-[1600px]">
       <div className="mb-8 flex flex-wrap gap-4">
         <Link href="/numeroloji/liste" className={detayNavLinkClass}>
           ← Listeye dön
