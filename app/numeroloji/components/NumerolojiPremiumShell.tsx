@@ -19,7 +19,7 @@ export function NumerolojiPremiumShell({ children, maxWidthClass = "max-w-5xl" }
         <div className="absolute bottom-[-10%] left-[15%] h-[20rem] w-[20rem] rounded-full bg-sky-400/22 blur-3xl" />
         <div className="absolute right-[10%] top-[45%] h-[14rem] w-[14rem] rounded-full bg-fuchsia-400/15 blur-2xl" />
       </div>
-      <div className={`relative z-10 mx-auto w-full px-4 py-8 sm:px-6 sm:py-10 ${maxWidthClass}`}>{children}</div>
+      <div className={`relative z-10 mx-auto w-full px-6 py-6 sm:py-8 lg:px-10 lg:py-10 ${maxWidthClass}`}>{children}</div>
     </div>
   );
 }
