@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -125,7 +126,9 @@ export default function KombinasyonDetayPage() {
   }, [decodedTitle]);
 
   useEffect(() => {
-    loadRows();
+    runInEffect(() => {
+      loadRows();
+    });
   }, [loadRows]);
 
   async function handleSaveNew() {

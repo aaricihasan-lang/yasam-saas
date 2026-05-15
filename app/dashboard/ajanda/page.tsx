@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -250,8 +251,10 @@ export default function AjandaPage() {
   }
 
   useEffect(() => {
-    loadClients();
-    loadAppointments();
+    runInEffect(() => {
+      loadClients();
+      loadAppointments();
+    });
   }, []);
 
   return (

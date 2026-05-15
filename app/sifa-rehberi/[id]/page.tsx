@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
@@ -296,7 +297,9 @@ export default function SifaRehberiDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    void loadRecord();
+    runInEffect(() => {
+      void loadRecord();
+    });
   }, [loadRecord]);
 
   function setDraftField<K extends DraftTextKey>(key: K, value: string) {

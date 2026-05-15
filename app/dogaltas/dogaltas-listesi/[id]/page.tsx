@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -283,7 +284,10 @@ export default function StoneDetailPage() {
 
   const [stone, setStone] = useState<StoneRecord | null>(null);
   const stoneRef = useRef<StoneRecord | null>(null);
-  stoneRef.current = stone;
+
+  useEffect(() => {
+    stoneRef.current = stone;
+  }, [stone]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -332,7 +336,9 @@ export default function StoneDetailPage() {
   }
 
   useEffect(() => {
-    loadStone();
+    runInEffect(() => {
+      loadStone();
+    });
   }, [id]);
 
   function openReader(title: string, badge: string, text: string | null | undefined) {
@@ -416,7 +422,7 @@ export default function StoneDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    let payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -614,7 +620,7 @@ export default function StoneDetailPage() {
   const hasAssignments = useMemo(() => {
     if (!stone?.assignments) return false;
     return Object.values(stone.assignments).some((rows) => rows.length > 0);
-  }, [stone?.assignments]);
+  }, [stone]);
 
   if (loading) {
     return (

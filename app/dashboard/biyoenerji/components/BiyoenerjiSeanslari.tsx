@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -122,7 +123,9 @@ export default function BiyoenerjiSeanslari() {
   }, [showSoft]);
 
   useEffect(() => {
-    void loadSessions();
+    runInEffect(() => {
+      void loadSessions();
+    });
   }, [loadSessions]);
 
   const filteredRows = useMemo(() => {

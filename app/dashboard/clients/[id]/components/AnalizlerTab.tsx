@@ -33,7 +33,7 @@ type SavedAnalysis = {
   tenant_id: string;
   client_id: string;
   analysis_type: AnalysisType | string | null;
-  analysis_data: any;
+  analysis_data: unknown;
   note: string | null;
   created_at: string;
 };
@@ -225,9 +225,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     setNote(item.note || "");
 
     if (type === "planet") {
-      setPlanetValues(item.analysis_data?.values || makePlanetInitialValues());
+      const data = item.analysis_data as { values?: Record<string, string> } | null | undefined;
+      setPlanetValues(data?.values || makePlanetInitialValues());
     } else {
-      setChakraValues(item.analysis_data?.values || makeChakraInitialValues());
+      const data = item.analysis_data as { values?: Record<string, ChakraRowValue> } | null | undefined;
+      setChakraValues(data?.values || makeChakraInitialValues());
     }
   }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import {
   useCallback,
   useEffect,
@@ -90,9 +91,10 @@ export function LargeTextModal({
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    runInEffect(() => {
       setDraft(initialValue);
-    }
+    });
   }, [open, initialValue]);
 
   useEffect(() => {

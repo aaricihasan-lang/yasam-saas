@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getTenantIdFromStorage, listNumerologyAnalyses } from "../helpers/numerolojiKayit";
@@ -29,7 +30,9 @@ export default function NumerolojiListePage() {
   }, []);
 
   useEffect(() => {
-    void loadRows();
+    runInEffect(() => {
+      void loadRows();
+    });
   }, [loadRows, pathname]);
 
   const filteredRows = useMemo(() => {

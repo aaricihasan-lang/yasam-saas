@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { runInEffect } from "@/lib/runInEffect";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -17,23 +18,6 @@ export default function DashboardNotifications() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [open, setOpen] = useState(false);
   const warnedIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    loadAppointments();
-
-    const refreshInterval = setInterval(() => {
-      loadAppointments();
-    }, 5 * 60 * 1000);
-
-    const warningInterval = setInterval(() => {
-      checkUpcomingAppointments();
-    }, 60 * 1000);
-
-    return () => {
-      clearInterval(refreshInterval);
-      clearInterval(warningInterval);
-    };
-  }, []);
 
   async function loadAppointments() {
     const today = new Date();
@@ -74,6 +58,25 @@ export default function DashboardNotifications() {
       }
     });
   }
+
+  useEffect(() => {
+    runInEffect(() => {
+      void loadAppointments();
+    });
+
+    const refreshInterval = setInterval(() => {
+      void loadAppointments();
+    }, 5 * 60 * 1000);
+
+    const warningInterval = setInterval(() => {
+      checkUpcomingAppointments();
+    }, 60 * 1000);
+
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(warningInterval);
+    };
+  }, []);
 
   const todayCount = useMemo(() => appointments.length, [appointments]);
 

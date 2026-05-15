@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -673,7 +674,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   useEffect(() => {
-    refreshAll();
+    runInEffect(() => {
+      void refreshAll();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 

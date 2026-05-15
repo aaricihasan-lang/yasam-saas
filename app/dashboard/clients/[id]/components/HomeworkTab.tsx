@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -522,7 +523,9 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   }
 
   useEffect(() => {
-    loadHomeworks();
+    runInEffect(() => {
+      loadHomeworks();
+    });
   }, [clientId]);
 
   async function addHomework() {

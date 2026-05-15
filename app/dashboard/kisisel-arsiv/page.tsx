@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import {
   Fragment,
@@ -147,7 +148,7 @@ function rowMatchesSearch(row: ArchiveRow, rawQuery: string): boolean {
 
 /** Başlıkta vurgulama: uzunluk koruyan Türkçe katlama (indeksler orijinal metinle uyumlu). */
 function foldTrAsciiPreserveLen(s: string): string {
-  let t = s.toLocaleLowerCase("tr-TR");
+  const t = s.toLocaleLowerCase("tr-TR");
   return t
     .replace(/ğ/g, "g")
     .replace(/ü/g, "u")
@@ -675,7 +676,9 @@ export default function KisiselArsivPage() {
   }, []);
 
   useEffect(() => {
-    void loadRecords();
+    runInEffect(() => {
+      void loadRecords();
+    });
   }, [loadRecords]);
 
   const visibleRows = useMemo(() => {
@@ -686,10 +689,13 @@ export default function KisiselArsivPage() {
 
   useEffect(() => {
     if (!detailRow || detailEditMode) return;
-    setDetailEditTitle(detailRow.title);
-    setDetailEditCategory(detailRow.category);
-    setDetailEditTags(detailRow.tags ?? "");
-    setDetailEditNote(detailRow.note ?? "");
+    const row = detailRow;
+    runInEffect(() => {
+      setDetailEditTitle(row.title);
+      setDetailEditCategory(row.category);
+      setDetailEditTags(row.tags ?? "");
+      setDetailEditNote(row.note ?? "");
+    });
   }, [detailRow, detailEditMode]);
 
   const fileCount = useCallback((row: ArchiveRow) => {

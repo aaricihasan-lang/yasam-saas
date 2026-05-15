@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
@@ -18,8 +19,10 @@ export default function NumerolojiKayitDetayPage() {
 
   useEffect(() => {
     if (!id) {
-      setError("Geçersiz kayıt.");
-      setLoading(false);
+      runInEffect(() => {
+        setError("Geçersiz kayıt.");
+        setLoading(false);
+      });
       return;
     }
     let cancelled = false;

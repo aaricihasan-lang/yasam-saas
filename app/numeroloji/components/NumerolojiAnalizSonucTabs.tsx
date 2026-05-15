@@ -223,14 +223,12 @@ function TabSonucOzetiPremium({
   out,
   isimGoster,
   dogumGoster,
-  firstName,
-  lastName,
 }: {
   out: NumerolojiMotorOut;
   isimGoster: string;
   dogumGoster: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
 }) {
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);

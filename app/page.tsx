@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -185,14 +186,15 @@ export default function Home() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem("yasam_user");
+    if (!savedUser) return;
 
-    if (savedUser) {
+    runInEffect(() => {
       try {
         setUser(JSON.parse(savedUser));
       } catch {
         localStorage.removeItem("yasam_user");
       }
-    }
+    });
   }, []);
 
   const todayText = useMemo(() => {

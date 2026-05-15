@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/lib/supabase";
@@ -316,16 +317,19 @@ export default function SifaRehberiPage() {
   }
 
   useEffect(() => {
-    loadGuides();
+    runInEffect(() => {
+      loadGuides();
+    });
   }, []);
 
   useEffect(() => {
-    if (!showForm) {
+    if (showForm) return;
+    runInEffect(() => {
       setLargeEditorKey(null);
       setLargeEditorLabel("");
       setLargeEditorValue("");
       setFormTab("rahatsizlik");
-    }
+    });
   }, [showForm]);
 
   const filteredRows = useMemo(() => {

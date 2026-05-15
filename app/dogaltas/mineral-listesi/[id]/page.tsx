@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -328,7 +329,9 @@ export default function MineralDetailPage() {
   }
 
   useEffect(() => {
-    loadMineral();
+    runInEffect(() => {
+      loadMineral();
+    });
   }, [id]);
 
   const filledCount = useMemo(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -115,7 +116,9 @@ export default function DogaltasListesiPage() {
   }
 
   useEffect(() => {
-    loadStones();
+    runInEffect(() => {
+      loadStones();
+    });
   }, []);
 
   const filteredStones = useMemo(() => {

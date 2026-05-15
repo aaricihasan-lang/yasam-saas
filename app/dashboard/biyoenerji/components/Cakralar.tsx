@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -178,7 +179,9 @@ export default function Cakralar() {
   }, [showSoft]);
 
   useEffect(() => {
-    void loadRecords();
+    runInEffect(() => {
+      void loadRecords();
+    });
   }, [loadRecords]);
 
   const filteredRows = useMemo(() => {

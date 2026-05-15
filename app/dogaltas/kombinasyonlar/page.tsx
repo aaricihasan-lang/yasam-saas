@@ -1,5 +1,6 @@
 "use client";
 
+import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -117,7 +118,9 @@ export default function KombinasyonlarPage() {
   }
 
   useEffect(() => {
-    loadCombinations();
+    runInEffect(() => {
+      loadCombinations();
+    });
   }, []);
 
   const filteredRows = useMemo(() => {
