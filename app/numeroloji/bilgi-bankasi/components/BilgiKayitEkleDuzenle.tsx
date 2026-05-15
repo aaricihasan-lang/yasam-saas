@@ -3,15 +3,15 @@
 import { useState } from "react";
 
 const fieldBase =
-  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-5 font-medium text-slate-900 shadow-sm outline-none ring-2 ring-violet-100/50 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/45";
+  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
 
-const selectClass = `h-14 ${fieldBase} text-base`;
+const selectClass = `h-16 ${fieldBase} text-lg`;
 
-const inputClass = `h-14 ${fieldBase} text-base placeholder:text-slate-400`;
+const inputClass = `h-16 ${fieldBase} text-lg placeholder:text-slate-400`;
 
-const textareaClass = `${fieldBase} min-h-[220px] resize-y py-4 text-base leading-relaxed placeholder:text-slate-400 sm:min-h-[260px]`;
+const textareaClass = `${fieldBase} min-h-[300px] resize-y py-5 text-lg leading-relaxed placeholder:text-slate-400`;
 
-const labelClass = "mb-2.5 block text-base font-bold text-slate-800 sm:text-lg";
+const labelClass = "mb-3 block text-lg font-bold text-slate-800";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -64,8 +64,8 @@ export function BilgiKayitEkleDuzenle() {
   }
 
   return (
-    <div className="rounded-[28px] border-2 border-violet-200/75 bg-white/95 p-7 shadow-[0_16px_48px_-14px_rgba(91,33,182,0.22)] ring-2 ring-violet-100/55 backdrop-blur-md sm:p-9 lg:p-10">
-      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10">
+    <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 p-10 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
         <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
             Analiz Türü
