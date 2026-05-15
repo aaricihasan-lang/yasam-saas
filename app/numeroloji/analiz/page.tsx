@@ -214,7 +214,7 @@ export default function NumerolojiAnalizPage() {
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
       <div className="-mt-2 space-y-6 sm:space-y-8">
-        <header className="relative overflow-hidden rounded-[32px] border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-6 py-8 text-center shadow-[0_20px_60px_-24px_rgba(91,33,182,0.35)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-10">
+        <header className="relative overflow-hidden rounded-[32px] border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-6 py-10 text-center shadow-[0_20px_60px_-24px_rgba(91,33,182,0.35)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-12">
           <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
           <div className="relative">
@@ -222,11 +222,25 @@ export default function NumerolojiAnalizPage() {
               <NumerolojiNavPill href="/numeroloji">← Modül seçimi</NumerolojiNavPill>
               <NumerolojiNavPill href="/numeroloji/liste">Kayıtlı analizler</NumerolojiNavPill>
             </div>
-            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-violet-700/90">Yaşam Sistemi · Numeroloji</p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem]">Numeroloji Analizi</h1>
-            <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-relaxed text-slate-600 sm:text-base">
+            <p className="text-xs font-black uppercase tracking-[0.36em] text-violet-800/95 sm:text-sm sm:tracking-[0.42em]">
+              Yaşam Sistemi · Numeroloji
+            </p>
+            <h1
+              className="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:mt-5 sm:text-5xl md:text-6xl lg:text-[3.5rem] lg:leading-[1.06] lg:tracking-[-0.02em]"
+              style={{ textShadow: "0 4px 28px rgba(91,33,182,0.22), 0 2px 0 rgba(255,255,255,0.85)" }}
+            >
+              Numeroloji Analizi
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:mt-5 sm:text-lg sm:leading-[1.65]">
               Yaşam haritanızı hesaplayın, premium görsel raporunuzu oluşturun ve analizlerinizi güvenle kaydedin.
             </p>
+            <div className="relative mx-auto mt-8 flex max-w-lg items-center justify-center gap-3 sm:mt-10" aria-hidden>
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-400/70 to-violet-300/30" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100/95 via-white to-amber-50/90 shadow-[0_0_24px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/70">
+                <span className="text-base leading-none text-violet-600/90">✦</span>
+              </span>
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-400/70 to-violet-300/30" />
+            </div>
           </div>
         </header>
 
