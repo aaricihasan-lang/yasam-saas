@@ -1,5 +1,8 @@
 import {
   hesaplaNumeroloji,
+  parseBirthDate,
+  calcDegisimByYearOnly,
+  calcDegisimByFullDate,
   type NumerolojiResult,
   type HarfYankilanisiSegment,
   type ElementResult,
@@ -48,33 +51,105 @@ export function buildAnalizOzeti(out: NumerolojiMotorOut): string {
   ].join(" · ");
 }
 
+function extractDogumTarihi(...sources: (string | undefined | null)[]): string | null {
+  for (const s of sources) {
+    if (!s) continue;
+    const m = s.match(/Doğum Tarihi:\s*([^\n\r]+)/i);
+    const v = m?.[1]?.trim();
+    if (v) return v;
+  }
+  return null;
+}
+
+function degisimSonucSatirlari(metni: string): string {
+  const picked: string[] = [];
+  for (const raw of metni.split("\n")) {
+    const line = raw.trim();
+    if (/^\d+\.\s*Değişim:/.test(line)) picked.push(line);
+    else if (line.startsWith("Etki Dönemi")) picked.push(`  ${line}`);
+  }
+  return picked.join("\n").trim();
+}
+
+function formatDegisimOzet(out: NumerolojiMotorOut): string {
+  const bd = extractDogumTarihi(
+    out.degisimDonusumMetni,
+    out.elementlerMetni,
+    out.zirveYillariMetni,
+    out.mucadeleYillariMetni,
+  );
+  const parts = bd ? parseBirthDate(bd) : null;
+  if (!parts) {
+    const fallback = degisimSonucSatirlari(out.degisimDonusumMetni || "");
+    return fallback || "—";
+  }
+
+  const { day, month, year } = parts;
+  const lines: string[] = ["Doğum yılına göre:"];
+  for (const r of calcDegisimByYearOnly(year, month, 5)) {
+    lines.push(
+      `  ${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}–${r.effectEndYear})`,
+    );
+  }
+  lines.push("", "Gün ve ay dahil:");
+  for (const r of calcDegisimByFullDate(day, month, year, 5)) {
+    const md = String(r.effectMonth).padStart(2, "0");
+    const dd = String(r.effectDay).padStart(2, "0");
+    lines.push(
+      `  ${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}.${md}.${dd} – ${r.effectEndYear}.${md}.${dd})`,
+    );
+  }
+  return lines.join("\n");
+}
+
+function formatZirveOzet(out: NumerolojiMotorOut): string {
+  const peaks = out.zirveYillari?.peaks;
+  if (!peaks?.length) return "—";
+  return peaks.map((p) => `${p.index}. zirve — yaş ${p.age}, konu ${p.topic}`).join("\n");
+}
+
+function formatMucadeleOzet(out: NumerolojiMotorOut): string {
+  const m = out.mucadeleYillari;
+  if (!m) return "—";
+  const lines: string[] = [];
+  if (m.method1?.length) {
+    lines.push("1. yöntem (36 yıl arayla):");
+    for (const p of m.method1) {
+      lines.push(`  ${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
+    }
+  }
+  if (m.method2?.length) {
+    if (lines.length) lines.push("");
+    lines.push("2. yöntem (9 yıl arayla):");
+    for (const p of m.method2) {
+      lines.push(`  ${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
+    }
+  }
+  return lines.join("\n").trim() || "—";
+}
+
+/** Hesap Özetsiz sekme: yalnızca nihai sonuçlar (adım/formül yok). */
 export function buildPlainAnalizFull(out: NumerolojiMotorOut): string {
   const chunks: string[] = [];
 
-  const pushNum = (title: string, r: NumerolojiResult) => {
-    chunks.push(title, "", r.display || "—");
-    if (r.steps?.length) chunks.push("", ...r.steps);
-    chunks.push("", "——————————", "");
+  const pushBlock = (title: string, body: string) => {
+    chunks.push(title, "", (body || "—").trim(), "", "——————————", "");
   };
 
-  pushNum("ANA KULVAR", out.anaKulvar);
-  pushNum("YAN KULVAR", out.yanKulvar);
-  pushNum("İFADE SAYISI", out.ifadeSayisi);
-  pushNum("HAYAT YOLU / DM", out.hayatYolu);
-
-  chunks.push("PIN KODU", "", pinOneLine(out.pinKodu), "", out.pinKoduMetni || "—", "", "——————————", "");
-  chunks.push("ÇAKRA OMURGASI", "", out.cakraOmurgasiMetni || "—", "", "——————————", "");
-  chunks.push("ELEMENTLER", "", out.elementlerMetni || "—");
-  if (out.elementler.steps?.length) chunks.push("", ...out.elementler.steps);
-  chunks.push("", "——————————", "");
-  chunks.push("DEĞİŞİM — DÖNÜŞÜM", "", out.degisimDonusumMetni || "—", "", "——————————", "");
-  chunks.push("ZİRVE YILLARI", "", out.zirveYillariMetni || "—", "", "——————————", "");
-  chunks.push("MÜCADELE YILLARI", "", out.mucadeleYillariMetni || "—", "", "——————————", "");
+  pushBlock("ANA KULVAR", nrDisplay(out.anaKulvar));
+  pushBlock("YAN KULVAR", nrDisplay(out.yanKulvar));
+  pushBlock("İFADE SAYISI", nrDisplay(out.ifadeSayisi));
+  pushBlock("HAYAT YOLU / DM", nrDisplay(out.hayatYolu));
+  pushBlock("PIN KODU", pinOneLine(out.pinKodu));
+  pushBlock("ÇAKRA OMURGASI", out.cakraOmurgasiMetni || "—");
+  pushBlock("ELEMENTLER", elementShort(out.elementler));
+  pushBlock("DEĞİŞİM — DÖNÜŞÜM", formatDegisimOzet(out));
+  pushBlock("ZİRVE YILLARI", formatZirveOzet(out));
+  pushBlock("MÜCADELE YILLARI", formatMucadeleOzet(out));
 
   chunks.push("HARFLERİN YANKILANIŞI", "");
   const hy = out.harflerinYankilanisi;
-  if (Array.isArray(hy) && hy.length) chunks.push(harfSegmentsToText(hy), "");
-  if (out.harflerinYankilanisiMetni?.trim()) chunks.push(out.harflerinYankilanisiMetni);
+  chunks.push(Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "—");
 
   return chunks.join("\n").trim();
 }
