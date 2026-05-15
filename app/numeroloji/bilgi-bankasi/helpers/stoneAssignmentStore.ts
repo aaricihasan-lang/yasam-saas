@@ -71,3 +71,21 @@ export function normalizeStoneList(input: string): string[] {
 export function stonesToTextarea(stones: string[]): string {
   return stones.join("\n");
 }
+
+export type StoneAssignmentRow = {
+  category: string;
+  value: string;
+  entry: StoneAssignmentEntry;
+};
+
+/** Tüm doğaltaş atama kayıtlarını düz liste olarak döner (güncelleme tarihine göre yeni önce). */
+export function listStoneAssignmentRows(): StoneAssignmentRow[] {
+  const store = loadStore();
+  const rows: StoneAssignmentRow[] = [];
+  for (const [category, values] of Object.entries(store)) {
+    for (const [value, entry] of Object.entries(values)) {
+      rows.push({ category, value, entry });
+    }
+  }
+  return rows.sort((a, b) => b.entry.updated_at.localeCompare(a.entry.updated_at));
+}
