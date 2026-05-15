@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -102,45 +102,8 @@ export function NumerolojiKayitDetayPanel({
   const [tasBileklik, setTasBileklik] = useState(gorsel.tasBileklik);
   const [tasKolye, setTasKolye] = useState(gorsel.tasKolye);
   const [tasKutle, setTasKutle] = useState(gorsel.tasKutle);
-  const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const gorselRaporRef = useRef<HTMLDivElement>(null);
-
-  const handleGorselPngIndir = useCallback(async () => {
-    if (gorselPngHazirlaniyor) return;
-    const el0 = gorselRaporRef.current;
-    if (!el0) return;
-
-    const scrollHost = el0.closest("[data-gorsel-rapor-scroll-host]") as HTMLElement | null;
-    const prevMaxH = scrollHost?.style.maxHeight ?? "";
-    const prevOverflow = scrollHost?.style.overflow ?? "";
-    const prevMinH = scrollHost?.style.minHeight ?? "";
-
-    setGorselPngHazirlaniyor(true);
-    if (scrollHost) {
-      scrollHost.style.maxHeight = "none";
-      scrollHost.style.overflow = "visible";
-      scrollHost.style.minHeight = "0";
-    }
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-    await new Promise<void>((r) => setTimeout(r, 120));
-
-    const el = gorselRaporRef.current;
-    try {
-      if (el) await gorselRaporuPngYakalaVeIndir(el);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (scrollHost) {
-        scrollHost.style.maxHeight = prevMaxH;
-        scrollHost.style.overflow = prevOverflow;
-        scrollHost.style.minHeight = prevMinH;
-      }
-      setGorselPngHazirlaniyor(false);
-    }
-  }, [gorselPngHazirlaniyor]);
+  const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200/85 bg-white/85 shadow-[0_28px_64px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md">
@@ -198,8 +161,19 @@ export function NumerolojiKayitDetayPanel({
               />
               <button
                 type="button"
-                onClick={() => void handleGorselPngIndir()}
                 disabled={gorselPngHazirlaniyor}
+                onClick={async () => {
+                  if (!gorselRaporRef.current) {
+                    console.warn("Görsel rapor alanı bulunamadı.");
+                    return;
+                  }
+                  try {
+                    setGorselPngHazirlaniyor(true);
+                    await gorselRaporuPngYakalaVeIndir(gorselRaporRef.current);
+                  } finally {
+                    setGorselPngHazirlaniyor(false);
+                  }
+                }}
                 className="w-full rounded-xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
