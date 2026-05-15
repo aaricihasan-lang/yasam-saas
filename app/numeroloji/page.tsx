@@ -3,10 +3,21 @@
 import Link from "next/link";
 
 const cardGlass =
-  "group relative flex min-h-[320px] flex-col justify-between overflow-hidden rounded-[28px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-8 shadow-[0_8px_48px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform sm:min-h-[340px] sm:p-10 lg:min-h-[380px] lg:p-12";
+  "group relative flex min-h-[280px] flex-col justify-between overflow-hidden rounded-[24px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-6 shadow-[0_8px_48px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform sm:min-h-[300px] sm:p-7 lg:min-h-0 lg:p-6 xl:p-7";
 
 const cardHover =
-  "hover:z-[1] hover:scale-105 hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_60px_-8px_rgba(167,139,250,0.45),0_0_80px_-20px_rgba(251,191,36,0.12),0_32px_64px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
+  "hover:z-[1] hover:scale-[1.03] hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_60px_-8px_rgba(167,139,250,0.45),0_0_80px_-20px_rgba(251,191,36,0.12),0_32px_64px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
+
+const cardIcon =
+  "inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-400/35 bg-gradient-to-br from-violet-900/60 to-[#0c0618] text-5xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_40px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md lg:h-[4.5rem] lg:w-[4.5rem] lg:text-[2.75rem]";
+
+const cardTitle = "mt-5 text-2xl font-black tracking-tight text-white sm:mt-6 sm:text-[1.65rem] lg:mt-5 lg:text-2xl lg:leading-tight";
+
+const cardDesc =
+  "mt-3 text-sm font-medium leading-relaxed text-violet-100/88 sm:text-[0.95rem] lg:mt-3 lg:text-sm lg:leading-relaxed";
+
+const cardCta =
+  "relative mt-6 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 sm:text-sm lg:mt-7";
 
 export default function NumerolojiHubPage() {
   return (
@@ -23,11 +34,11 @@ export default function NumerolojiHubPage() {
       </div>
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col px-4 pb-8 pt-6 sm:px-10 sm:pb-10 sm:pt-8 lg:px-14 lg:pb-12 lg:pt-10">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6 lg:px-10 lg:pb-8 lg:pt-7 xl:max-w-[1520px] xl:px-12">
         <header className="shrink-0 text-center">
           <p className="text-xs font-black uppercase tracking-[0.4em] text-amber-200/85 sm:text-sm">Yaşam Sistemi</p>
           <h1
-            className="mt-3 font-black tracking-tight text-white sm:mt-4 text-4xl sm:text-5xl md:text-6xl lg:text-7xl"
+            className="mt-2 font-black tracking-tight text-white sm:mt-3 text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-[4.25rem]"
             style={{
               fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif",
               lineHeight: 1.02,
@@ -38,16 +49,16 @@ export default function NumerolojiHubPage() {
             Numeroloji
           </h1>
           <div
-            className="mx-auto mt-6 h-px max-w-lg bg-gradient-to-r from-transparent via-amber-400/45 to-transparent sm:mt-7"
+            className="mx-auto mt-4 h-px max-w-lg bg-gradient-to-r from-transparent via-amber-400/45 to-transparent sm:mt-5 lg:mt-5"
             aria-hidden
           />
-          <p className="mx-auto mt-6 max-w-3xl text-lg font-medium leading-relaxed text-violet-100/92 sm:mt-8 sm:text-xl sm:leading-relaxed lg:text-[1.35rem] lg:leading-relaxed">
+          <p className="mx-auto mt-4 max-w-3xl text-base font-medium leading-relaxed text-violet-100/92 sm:mt-5 sm:text-lg lg:mt-6 lg:text-xl lg:leading-relaxed">
             Yaşam haritanızı hesaplayın, premium görsel raporunuzu oluşturun ve analizlerinizi güvenle saklayın. Aşağıdan devam etmek istediğiniz modülü seçin.
           </p>
         </header>
 
-        <div className="mt-10 flex flex-col sm:mt-12 lg:mt-14">
-          <div className="grid grid-cols-1 gap-10 sm:gap-12 lg:grid-cols-2 lg:gap-14 xl:gap-16">
+        <div className="mt-8 flex flex-1 flex-col justify-center sm:mt-10 lg:mt-8">
+          <div className="grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-3 lg:gap-6 xl:gap-8">
             <Link href="/numeroloji/analiz" className={`${cardGlass} ${cardHover} no-underline`}>
               <div
                 className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-600/20 via-transparent to-sky-600/10 opacity-50 transition-all duration-300 group-hover:opacity-100"
@@ -58,19 +69,17 @@ export default function NumerolojiHubPage() {
                 aria-hidden
               />
               <div className="relative flex flex-1 flex-col">
-                <div className="inline-flex h-28 w-28 items-center justify-center rounded-3xl border border-violet-400/35 bg-gradient-to-br from-violet-900/60 to-[#0c0618] text-6xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_40px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md sm:h-32 sm:w-32 sm:text-7xl">
+                <div className={cardIcon}>
                   <span aria-hidden>🔢</span>
                 </div>
-                <h2 className="mt-8 text-3xl font-black tracking-tight text-white sm:mt-10 sm:text-4xl lg:text-[2.5rem] lg:leading-tight">
-                  Numeroloji Analizi
-                </h2>
-                <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-violet-100/88 sm:mt-5 sm:text-lg lg:text-lg lg:leading-relaxed">
+                <h2 className={cardTitle}>Numeroloji Analizi</h2>
+                <p className={cardDesc}>
                   Ad, soyad ve doğum tarihi ile tam motor çıktısı; sekmeli analiz, premium yaşam haritası görseli ve yüksek çözünürlüklü PNG dışa aktarım tek ekranda.
                 </p>
               </div>
-              <span className="relative mt-10 flex items-center gap-3 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 sm:text-base">
+              <span className={cardCta}>
                 Modülü aç
-                <span className="text-xl transition-transform duration-300 group-hover:translate-x-2" aria-hidden>
+                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
                   →
                 </span>
               </span>
@@ -86,19 +95,43 @@ export default function NumerolojiHubPage() {
                 aria-hidden
               />
               <div className="relative flex flex-1 flex-col">
-                <div className="inline-flex h-28 w-28 items-center justify-center rounded-3xl border border-violet-400/35 bg-gradient-to-br from-indigo-950/80 to-[#0c0618] text-6xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_40px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md sm:h-32 sm:w-32 sm:text-7xl">
+                <div className={`${cardIcon} from-indigo-950/80`}>
                   <span aria-hidden>📋</span>
                 </div>
-                <h2 className="mt-8 text-3xl font-black tracking-tight text-white sm:mt-10 sm:text-4xl lg:text-[2.5rem] lg:leading-tight">
-                  Kayıtlı Analizler
-                </h2>
-                <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-violet-100/88 sm:mt-5 sm:text-lg lg:text-lg lg:leading-relaxed">
+                <h2 className={cardTitle}>Kayıtlı Analizler</h2>
+                <p className={cardDesc}>
                   Kayıtlarınızı listeleyin; ad soyad, doğum tarihi ve kayıt zamanıyla birlikte her kaydı açıp tam metin özetini anında görüntüleyin.
                 </p>
               </div>
-              <span className="relative mt-10 flex items-center gap-3 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 sm:text-base">
+              <span className={cardCta}>
                 Listeyi aç
-                <span className="text-xl transition-transform duration-300 group-hover:translate-x-2" aria-hidden>
+                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
+                  →
+                </span>
+              </span>
+            </Link>
+
+            <Link href="/numeroloji/bilgi-bankasi" className={`${cardGlass} ${cardHover} no-underline`}>
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-500/14 via-transparent to-emerald-600/12 opacity-50 transition-all duration-300 group-hover:opacity-100"
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute -left-12 bottom-[-3rem] h-48 w-48 rounded-full bg-sky-500/20 blur-3xl transition-all duration-300 group-hover:bg-sky-400/30"
+                aria-hidden
+              />
+              <div className="relative flex flex-1 flex-col">
+                <div className={`${cardIcon} from-teal-950/70`}>
+                  <span aria-hidden>📚</span>
+                </div>
+                <h2 className={cardTitle}>Bilgi Bankası</h2>
+                <p className={cardDesc}>
+                  Numeroloji eğitim notları, açıklamalar, yorum metinleri ve bilgi içeriklerini tek merkezde düzenleyin.
+                </p>
+              </div>
+              <span className={cardCta}>
+                BİLGİ BANKASINI AÇ
+                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
                   →
                 </span>
               </span>
