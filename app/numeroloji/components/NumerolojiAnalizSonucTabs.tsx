@@ -59,18 +59,18 @@ function CakraEnerjiDaireleri({
 }) {
   return (
     <div
-      className={`flex min-h-[1.25rem] flex-1 flex-wrap gap-1 ${align === "left" ? "justify-end" : "justify-start"}`}
+      className={`flex min-h-[1.5rem] min-w-0 flex-1 flex-wrap content-center gap-2 sm:gap-2.5 ${align === "left" ? "justify-end" : "justify-start"}`}
       aria-hidden={count === 0}
     >
       {Array.from({ length: count }, (_, i) => (
         <span
           key={i}
-          className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/80 sm:h-3 sm:w-3"
+          className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/90 sm:h-6 sm:w-6"
           style={{
             backgroundColor: hex,
-            opacity: tone === "pasif" ? 0.4 : 1,
-            filter: tone === "aktif" ? "brightness(0.7) saturate(1.2)" : "saturate(0.8)",
-            boxShadow: tone === "aktif" ? `0 1px 5px ${hex}66` : `0 0 0 1px ${hex}22`,
+            opacity: tone === "pasif" ? 0.48 : 1,
+            filter: tone === "aktif" ? "brightness(0.65) saturate(1.25)" : "saturate(0.85) brightness(1.08)",
+            boxShadow: tone === "aktif" ? `0 2px 8px ${hex}77` : `0 1px 4px ${hex}33`,
           }}
         />
       ))}
@@ -82,25 +82,20 @@ function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   return (
     <section className="col-span-full w-full rounded-2xl border border-violet-200/50 bg-gradient-to-br from-violet-50/90 via-white/95 to-indigo-50/60 p-5 shadow-[0_10px_36px_-14px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-sm sm:p-7">
       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-violet-900/90 sm:text-base">Çakra Sütunu & Çakra Omurgası</h3>
-      <div className="mt-5 space-y-2 sm:space-y-2.5">
+      <div className="mt-5 space-y-1.5 sm:space-y-2">
         {CAKRA_TABLO_SIRA.map((cNo) => {
           const sol = out.cakraOmurgasi.sayilar[cNo] ?? 0;
           const sag = out.cakraOmurgasi.harfler[cNo] ?? 0;
-          const enerji = sol + sag;
           const hex = CHAKRA_TABLO_HEX[cNo] ?? "#8b5cf6";
           return (
             <div
               key={cNo}
-              className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl border border-violet-100/70 bg-white/65 px-3 py-3 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30 sm:gap-3 sm:px-4 sm:py-3.5"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-violet-100/70 bg-white/65 px-4 py-2.5 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30 sm:gap-6 sm:px-6 sm:py-3"
             >
               <CakraEnerjiDaireleri count={sol} hex={hex} tone="pasif" align="left" />
-              <div className="flex shrink-0 items-center gap-2 whitespace-nowrap px-1 sm:px-2">
-                <span className="text-xs font-bold text-slate-700 sm:text-sm">{cNo}. Çakra</span>
-                <span className="font-light text-slate-300" aria-hidden>
-                  |
-                </span>
-                <span className="text-base font-black tabular-nums text-violet-800 sm:text-lg">{enerji}</span>
-              </div>
+              <span className="shrink-0 px-2 text-center text-xs font-bold text-slate-800 sm:px-4 sm:text-sm">
+                {cNo}. Çakra
+              </span>
               <CakraEnerjiDaireleri count={sag > 0 ? sag : 0} hex={hex} tone="aktif" align="right" />
             </div>
           );
