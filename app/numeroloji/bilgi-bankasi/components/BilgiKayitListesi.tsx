@@ -28,11 +28,15 @@ const KAYIT_TURU_FILTRE = [
   { value: "dogaltas", label: "Doğaltaş Atama" },
 ] as const;
 
-const filterSelectClass =
-  "h-14 min-w-[12rem] flex-1 rounded-2xl border-2 border-violet-200/90 bg-white px-5 text-lg font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50 sm:min-w-[14rem]";
+const filterLabelClass = "mb-2.5 block text-base font-bold text-slate-800";
 
-const searchInputClass =
-  "h-14 w-full min-w-0 flex-[2] rounded-2xl border-2 border-violet-200/90 bg-white px-5 text-lg font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+const filterFieldClass =
+  "h-14 w-full rounded-2xl border-2 border-violet-200/90 bg-white px-5 text-base font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+
+const searchInputClass = `${filterFieldClass} min-w-0 placeholder:text-base placeholder:text-slate-400 xl:min-w-[420px]`;
+
+const refreshButtonClass =
+  "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-bold text-white shadow-lg ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
 
 function buildListeSatirlari(): ListeSatir[] {
   const aciklama = listTrainingExplanationRows().map((row): ListeSatir => {
@@ -128,17 +132,17 @@ export function BilgiKayitListesi() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 p-6 shadow-xl ring-1 ring-purple-200 backdrop-blur-md sm:p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-xs">
-            <label htmlFor="liste-kayit-turu" className="text-sm font-bold text-slate-700 sm:text-base">
+      <div className="min-h-[140px] rounded-[28px] border-2 border-violet-200/80 bg-white/95 p-8 shadow-xl ring-1 ring-purple-200 backdrop-blur-md md:p-10">
+        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-[1.1fr_1.1fr_2fr_auto] xl:items-end">
+          <div className="min-w-0">
+            <label htmlFor="liste-kayit-turu" className={filterLabelClass}>
               Kayıt türü
             </label>
             <select
               id="liste-kayit-turu"
               value={kayitTuruFiltre}
               onChange={(e) => setKayitTuruFiltre(e.target.value)}
-              className={filterSelectClass}
+              className={filterFieldClass}
             >
               {KAYIT_TURU_FILTRE.map((opt) => (
                 <option key={opt.value || "tum"} value={opt.value}>
@@ -148,15 +152,15 @@ export function BilgiKayitListesi() {
             </select>
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-xs">
-            <label htmlFor="liste-analiz-turu" className="text-sm font-bold text-slate-700 sm:text-base">
+          <div className="min-w-0">
+            <label htmlFor="liste-analiz-turu" className={filterLabelClass}>
               Analiz türü
             </label>
             <select
               id="liste-analiz-turu"
               value={analizTuruFiltre}
               onChange={(e) => setAnalizTuruFiltre(e.target.value)}
-              className={filterSelectClass}
+              className={filterFieldClass}
             >
               {ANALIZ_TURU_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value || "tum"} value={opt.value}>
@@ -166,8 +170,8 @@ export function BilgiKayitListesi() {
             </select>
           </div>
 
-          <div className="flex min-w-0 flex-[2] flex-col gap-2 lg:min-w-[280px]">
-            <label htmlFor="liste-arama" className="text-sm font-bold text-slate-700 sm:text-base">
+          <div className="min-w-0">
+            <label htmlFor="liste-arama" className={filterLabelClass}>
               Arama
             </label>
             <input
@@ -175,18 +179,19 @@ export function BilgiKayitListesi() {
               type="search"
               value={arama}
               onChange={(e) => setArama(e.target.value)}
-              placeholder="Analiz türü, değer, kaynak, açıklama, taş…"
+              placeholder="Analiz türü, değer, kaynak, açıklama veya taş adı ile arayın…"
               className={searchInputClass}
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className="inline-flex h-14 shrink-0 items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-violet-50/80 px-6 text-base font-bold text-violet-900 shadow-md ring-1 ring-purple-200 transition hover:bg-violet-100/90"
-          >
-            Listeyi yenile
-          </button>
+          <div className="min-w-0">
+            <span className="mb-2.5 hidden text-base font-bold text-transparent xl:block" aria-hidden>
+              Yenile
+            </span>
+            <button type="button" onClick={() => setRefreshKey((k) => k + 1)} className={refreshButtonClass}>
+              Listeyi yenile
+            </button>
+          </div>
         </div>
       </div>
 
