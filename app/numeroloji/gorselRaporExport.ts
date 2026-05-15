@@ -9,6 +9,13 @@ async function gorselRaporuHtml2Canvas(
 ): Promise<HTMLCanvasElement | null> {
   if (!hedef || typeof window === "undefined") return null;
 
+  const rect = hedef.getBoundingClientRect();
+  if (!rect.width || !rect.height || rect.width < 50 || rect.height < 50) {
+    throw new Error("Rapor boyutu oluşmadı");
+  }
+
+  await new Promise((r) => setTimeout(r, 500));
+
   const { default: html2canvas } = await import("html2canvas");
 
   const sw = Math.max(1, Math.ceil(Math.max(hedef.scrollWidth, hedef.offsetWidth, hedef.clientWidth)));
@@ -21,6 +28,7 @@ async function gorselRaporuHtml2Canvas(
     allowTaint: false,
     backgroundColor: null,
     logging: false,
+    removeContainer: true,
     width: sw,
     height: sh,
     windowWidth: sw,
@@ -30,17 +38,24 @@ async function gorselRaporuHtml2Canvas(
     scrollX: 0,
     scrollY: 0,
     onclone: (_doc, cloned) => {
-      if (!(cloned instanceof HTMLElement)) return;
+      if (cloned instanceof HTMLElement) {
+        cloned.style.overflow = "visible";
+        cloned.style.maxHeight = "none";
+        cloned.style.height = "auto";
 
-      cloned.style.overflow = "visible";
-      cloned.style.maxHeight = "none";
-      cloned.style.height = "auto";
+        const cw = Math.max(cloned.scrollWidth, cloned.offsetWidth, sw);
+        const ch = Math.max(cloned.scrollHeight, cloned.offsetHeight, sh);
 
-      const cw = Math.max(cloned.scrollWidth, cloned.offsetWidth, sw);
-      const ch = Math.max(cloned.scrollHeight, cloned.offsetHeight, sh);
+        cloned.style.width = `${cw}px`;
+        cloned.style.minHeight = `${ch}px`;
+      }
 
-      cloned.style.width = `${cw}px`;
-      cloned.style.minHeight = `${ch}px`;
+      cloned.querySelectorAll("canvas").forEach((c) => {
+        const el = c as HTMLCanvasElement;
+        if (el.width === 0 || el.height === 0) {
+          el.remove();
+        }
+      });
     },
   });
 
