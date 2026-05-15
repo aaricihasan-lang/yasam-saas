@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { NumerolojiResult } from "@/lib/numeroloji";
-import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
+import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
+import { ELEMENT_ORDER, repeatX, type ElementName } from "@/lib/numeroloji";
 import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -31,18 +31,137 @@ function OzetMetinPre(s: string | undefined | null) {
   return <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800 sm:text-sm">{s}</pre>;
 }
 
-const CHAKRA_DOT: Record<number, string> = {
-  1: "bg-red-500",
-  2: "bg-orange-500",
-  3: "bg-amber-400",
-  4: "bg-lime-500",
-  5: "bg-emerald-500",
-  6: "bg-teal-500",
-  7: "bg-sky-500",
-  8: "bg-indigo-500",
-  9: "bg-violet-500",
-  10: "bg-fuchsia-500",
+const CAKRA_TABLO_SIRA: readonly number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+const CHAKRA_TABLO_AD: Record<number, string> = {
+  10: "10 — Taç",
+  9: "9 — Üçüncü Göz",
+  8: "8 — Ruh Yıldızı",
+  7: "7 — Taç",
+  6: "6 — Alın",
+  5: "5 — Boğaz",
+  4: "4 — Kalp",
+  3: "3 — Solar Pleksus",
+  2: "2 — Sakral",
+  1: "1 — Kök",
 };
+
+const CHAKRA_TABLO_HEX: Record<number, string> = {
+  1: "#ef4444",
+  2: "#f97316",
+  3: "#f59e0b",
+  4: "#84cc16",
+  5: "#10b981",
+  6: "#14b8a6",
+  7: "#0ea5e9",
+  8: "#6366f1",
+  9: "#8b5cf6",
+  10: "#d946ef",
+};
+
+const CHAKRA_TABLO_SEMBOL: Record<number, string> = {
+  10: "✦",
+  9: "◉",
+  8: "☆",
+  7: "△",
+  6: "◇",
+  5: "◎",
+  4: "♡",
+  3: "☀",
+  2: "◐",
+  1: "▼",
+};
+
+function cakraXAlani(count: number): string {
+  return count > 0 ? repeatX(count) : "—";
+}
+
+function cakraDegerGoster(count: number): string {
+  return count > 0 ? "●".repeat(count) : "—";
+}
+
+function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
+  return (
+    <section className="col-span-full w-full rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-7">
+      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 sm:text-base">Çakra Omurgası</h3>
+      <div className="mt-5 w-full overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-left">
+          <thead>
+            <tr className="border-b border-violet-200/60 bg-gradient-to-r from-violet-50/90 to-indigo-50/50">
+              {["Çakra adı", "Enerji değeri", "X alanı", "Renk", "Sembol", "Değer"].map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-3.5 text-[11px] font-black uppercase tracking-[0.14em] text-violet-900/85 first:pl-4 last:pr-4 sm:px-4 sm:py-4 sm:text-xs"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {CAKRA_TABLO_SIRA.map((cNo) => {
+              const sol = out.cakraOmurgasi.sayilar[cNo] ?? 0;
+              const sag = out.cakraOmurgasi.harfler[cNo] ?? 0;
+              const enerji = sol + sag;
+              const hex = CHAKRA_TABLO_HEX[cNo] ?? "#8b5cf6";
+              return (
+                <tr
+                  key={cNo}
+                  className="border-b border-slate-100/90 transition-colors last:border-b-0 hover:bg-violet-50/35"
+                >
+                  <td className="px-3 py-4 pl-4 text-sm font-bold text-slate-900 sm:px-4 sm:py-5 sm:text-base">
+                    {CHAKRA_TABLO_AD[cNo] ?? `${cNo}. Çakra`}
+                  </td>
+                  <td className="px-3 py-4 text-center text-lg font-black tabular-nums text-violet-800 sm:px-4 sm:py-5 sm:text-xl">
+                    {enerji > 0 ? enerji : "—"}
+                  </td>
+                  <td className="px-3 py-4 font-mono text-sm font-bold tracking-wider text-slate-700 sm:px-4 sm:py-5 sm:text-base">
+                    {cakraXAlani(sol)}
+                  </td>
+                  <td className="px-3 py-4 sm:px-4 sm:py-5">
+                    <span
+                      className="inline-block h-7 w-7 rounded-full shadow-md ring-2 ring-white/90 sm:h-8 sm:w-8"
+                      style={{ backgroundColor: hex }}
+                      aria-hidden
+                    />
+                  </td>
+                  <td className="px-3 py-4 text-center text-xl text-violet-800 sm:px-4 sm:py-5 sm:text-2xl">
+                    {CHAKRA_TABLO_SEMBOL[cNo] ?? "·"}
+                  </td>
+                  <td className="pr-4 px-3 py-4 font-mono text-sm font-bold tracking-wide text-violet-700 sm:px-4 sm:py-5 sm:text-base">
+                    {cakraDegerGoster(sag)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function HarflerinYankilanisiPremium({ segments }: { segments: HarfYankilanisiSegment[] }) {
+  return (
+    <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-7">
+      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 sm:text-base">Harflerin Yankılanışı</h3>
+      <div className="mt-5 flex w-full flex-wrap gap-3 sm:gap-4">
+        {segments.map((seg, idx) => (
+          <div
+            key={`${seg.letter}-${idx}`}
+            className="flex min-h-[5.5rem] min-w-[4.75rem] flex-col items-center justify-center rounded-2xl border border-violet-200/60 bg-gradient-to-b from-white to-violet-50/50 px-4 py-3 text-center shadow-sm ring-1 ring-violet-100/40 sm:min-h-[6rem] sm:min-w-[5.25rem] sm:px-5 sm:py-4"
+          >
+            <span className="text-2xl font-black text-slate-900 sm:text-3xl">{seg.letter}</span>
+            <span className="mt-1 text-[11px] font-bold text-violet-700/90 sm:text-xs">{seg.chakra}. çakra</span>
+            <span className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-600 sm:text-xs">
+              {seg.ageStart}–{seg.ageEnd} yaş
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 const ELEMENT_BAR: Record<ElementName, string> = {
   Hava: "bg-sky-400",
@@ -110,7 +229,6 @@ function TabSonucOzetiPremium({
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
   const harfTop = Object.values(out.cakraOmurgasi.harfler).reduce((a, b) => a + b, 0);
   const sayiTop = Object.values(out.cakraOmurgasi.sayilar).reduce((a, b) => a + b, 0);
-  const dengeTop = harfTop + sayiTop || 1;
   const sezgisel = Math.round((el.Su / (el.Hava + el.Su + el.Ateş + el.Toprak || 1)) * 100) || 33;
   const fiziksel = Math.round((el.Ateş + el.Toprak) / (el.Hava + el.Su + el.Ateş + el.Toprak || 1) * 100) || 33;
   const zihinsel = Math.max(0, 100 - sezgisel - fiziksel) || 34;
@@ -141,26 +259,8 @@ function TabSonucOzetiPremium({
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <section className="rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Çakra Omurgası</h3>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            {[7, 6, 5, 4, 3, 2, 1].map((c) => {
-              const n = (out.cakraOmurgasi.sayilar[c] || 0) + (out.cakraOmurgasi.harfler[c] || 0);
-              return (
-                <div key={c} className="flex flex-col items-center gap-2">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-black text-white shadow-lg ring-2 ring-white/80 ${CHAKRA_DOT[c] || "bg-violet-500"}`}
-                  >
-                    {n > 0 ? n : c}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-500">{c}. çakra</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
+      <div className="grid grid-cols-1 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <section className="rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
           <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Elementler</h3>
           <div className="mt-6 space-y-4">
@@ -212,6 +312,18 @@ function TabSonucOzetiPremium({
             </ul>
           </div>
         </section>
+        </div>
+
+        <CakraOmurgasiTablo out={out} />
+
+        {Array.isArray(hy) && hy.length > 0 ? (
+          <HarflerinYankilanisiPremium segments={hy} />
+        ) : (
+          <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-7">
+            <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800 sm:text-base">Harflerin Yankılanışı</h3>
+            <p className="mt-5 text-sm font-medium text-slate-600">—</p>
+          </section>
+        )}
       </div>
     </div>
   );
