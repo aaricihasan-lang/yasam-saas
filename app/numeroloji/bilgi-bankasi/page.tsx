@@ -22,8 +22,8 @@ export default function NumerolojiBilgiBankasiPage() {
   const [tab, setTab] = useState<BilgiTabId>("kayit-ekle");
 
   return (
-    <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
-      <div className="mb-6 rounded-[32px] border border-white/75 bg-white/55 px-7 py-9 shadow-[0_18px_52px_rgba(15,23,42,0.08)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:px-10 sm:py-11 lg:px-12 lg:py-12">
+    <NumerolojiPremiumShell maxWidthClass="max-w-[1500px]">
+      <div className="mb-8 rounded-[32px] border border-violet-200/70 bg-white/80 px-8 py-10 shadow-[0_20px_56px_-16px_rgba(91,33,182,0.22)] ring-2 ring-violet-100/60 backdrop-blur-xl sm:px-12 sm:py-12 lg:px-14 lg:py-14">
         <div className="mb-5 flex flex-wrap gap-3 sm:mb-6">
           <Link href="/numeroloji" className={navLinkClass}>
             ← Modül seçimi
@@ -35,25 +35,25 @@ export default function NumerolojiBilgiBankasiPage() {
             Kayıtlı Analizler
           </Link>
         </div>
-        <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+        <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-5xl lg:leading-tight">
           Bilgi Bankası
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600">
+        <p className="mt-4 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg">
           Numeroloji eğitim ve bilgi içerikleri bu alanda yönetilecek.
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-[32px] border border-slate-200/85 bg-white/85 shadow-[0_28px_64px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md">
-        <div className="flex flex-wrap gap-2 border-b border-slate-200/80 bg-gradient-to-r from-violet-50/85 via-amber-50/55 to-sky-50/85 p-2 sm:gap-3 sm:p-3">
+      <div className="overflow-hidden rounded-[32px] border border-violet-200/75 bg-white/90 shadow-[0_32px_72px_-20px_rgba(91,33,182,0.28)] ring-2 ring-violet-100/60 backdrop-blur-md">
+        <div className="flex flex-wrap gap-3 border-b border-violet-200/80 bg-gradient-to-r from-violet-50/90 via-amber-50/60 to-sky-50/85 p-3 sm:gap-4 sm:p-4 lg:p-5">
           {BILGI_TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`min-h-[3rem] shrink-0 whitespace-nowrap rounded-xl px-5 py-3 text-left text-sm font-black uppercase tracking-wide transition sm:px-6 sm:py-3.5 lg:text-[0.95rem] ${
+              className={`min-h-[56px] shrink-0 whitespace-nowrap rounded-2xl px-8 py-4 text-left text-base font-black uppercase tracking-wide transition lg:text-lg ${
                 tab === t.id
-                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-4px_rgba(91,33,182,0.52)] ring-2 ring-violet-300/45"
-                  : "bg-white/70 text-slate-600 hover:bg-white hover:text-violet-800 hover:shadow-[0_4px_14px_-6px_rgba(91,33,182,0.25)]"
+                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_12px_32px_-6px_rgba(91,33,182,0.55)] ring-2 ring-violet-300/50"
+                  : "border border-violet-200/60 bg-white/85 text-slate-600 shadow-sm ring-1 ring-violet-100/50 hover:border-violet-300/80 hover:bg-white hover:text-violet-800 hover:shadow-[0_8px_24px_-8px_rgba(91,33,182,0.3)]"
               }`}
             >
               {t.label}
@@ -61,7 +61,7 @@ export default function NumerolojiBilgiBankasiPage() {
           ))}
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="bg-gradient-to-b from-white/95 to-violet-50/20 p-6 sm:p-8 lg:p-10 xl:p-12">
           {tab === "kayit-ekle" ? <BilgiKayitEkleDuzenle /> : null}
           {tab === "dogaltas-ata" ? <BilgiDogaltasAta /> : null}
           {tab === "kayit-listesi" ? <BilgiKayitListesi /> : null}

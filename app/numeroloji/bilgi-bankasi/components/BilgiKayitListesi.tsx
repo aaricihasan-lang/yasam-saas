@@ -1,7 +1,7 @@
 export function BilgiKayitListesi() {
   return (
-    <div className="rounded-[28px] border border-dashed border-violet-200/90 bg-white/70 px-8 py-16 text-center shadow-[0_12px_40px_-12px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md sm:px-12 sm:py-20">
-      <p className="mx-auto max-w-xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+    <div className="rounded-[28px] border-2 border-dashed border-violet-300/80 bg-white/95 px-10 py-20 text-center shadow-[0_16px_48px_-14px_rgba(91,33,182,0.2)] ring-2 ring-violet-100/55 backdrop-blur-md sm:px-14 sm:py-24 lg:py-28">
+      <p className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-slate-600 sm:text-xl">
         Kayıt listesi sonraki aşamada bağlanacak.
       </p>
     </div>

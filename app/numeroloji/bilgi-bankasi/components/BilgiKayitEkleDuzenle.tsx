@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 
-const selectClass =
-  "h-12 w-full rounded-2xl border border-violet-200/80 bg-white px-4 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+const fieldBase =
+  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-5 font-medium text-slate-900 shadow-sm outline-none ring-2 ring-violet-100/50 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/45";
 
-const inputClass =
-  "h-12 w-full rounded-2xl border border-violet-200/80 bg-white px-4 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+const selectClass = `h-14 ${fieldBase} text-base`;
 
-const textareaClass =
-  "w-full resize-y rounded-2xl border border-violet-200/80 bg-white px-4 py-3 text-base font-medium leading-relaxed text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+const inputClass = `h-14 ${fieldBase} text-base placeholder:text-slate-400`;
 
-const labelClass = "mb-2 block text-sm font-bold text-slate-700";
+const textareaClass = `${fieldBase} min-h-[220px] resize-y py-4 text-base leading-relaxed placeholder:text-slate-400 sm:min-h-[260px]`;
+
+const labelClass = "mb-2.5 block text-base font-bold text-slate-800 sm:text-lg";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -64,9 +64,9 @@ export function BilgiKayitEkleDuzenle() {
   }
 
   return (
-    <div className="rounded-[28px] border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-12px_rgba(91,33,182,0.15)] ring-1 ring-violet-100/50 backdrop-blur-md sm:p-8">
-      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-        <div className="sm:col-span-2 lg:col-span-1">
+    <div className="rounded-[28px] border-2 border-violet-200/75 bg-white/95 p-7 shadow-[0_16px_48px_-14px_rgba(91,33,182,0.22)] ring-2 ring-violet-100/55 backdrop-blur-md sm:p-9 lg:p-10">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10">
+        <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
             Analiz Türü
           </label>
@@ -128,7 +128,7 @@ export function BilgiKayitEkleDuzenle() {
           )}
         </div>
 
-        <div className="sm:col-span-2">
+        <div className="lg:col-span-2">
           <label htmlFor="bilgi-kaynak" className={labelClass}>
             Bilgi Kaynağı
           </label>
@@ -142,7 +142,7 @@ export function BilgiKayitEkleDuzenle() {
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div className="lg:col-span-2">
           <label htmlFor="bilgi-aciklama" className={labelClass}>
             Açıklama Metni
           </label>
@@ -150,24 +150,24 @@ export function BilgiKayitEkleDuzenle() {
             id="bilgi-aciklama"
             value={aciklamaMetni}
             onChange={(e) => setAciklamaMetni(e.target.value)}
-            rows={6}
+            rows={10}
             placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
             className={textareaClass}
           />
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3 border-t border-violet-100/80 pt-6 sm:mt-8">
+      <div className="mt-8 flex flex-wrap gap-4 border-t-2 border-violet-100/90 pt-8 sm:mt-10">
         <button
           type="button"
           onClick={handleYeni}
-          className="inline-flex min-h-[2.75rem] items-center justify-center rounded-2xl border border-violet-200/90 bg-white px-6 py-2.5 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm ring-1 ring-violet-100/60 transition hover:border-violet-300 hover:bg-violet-50/80"
+          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 py-3 text-base font-black uppercase tracking-wide text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80"
         >
           Yeni
         </button>
         <button
           type="button"
-          className="inline-flex min-h-[2.75rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 py-2.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_10px_28px_-8px_rgba(91,33,182,0.4)] ring-1 ring-violet-300/40 transition hover:brightness-105"
+          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105"
         >
           Kaydet
         </button>
