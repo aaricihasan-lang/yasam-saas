@@ -219,16 +219,18 @@ export default function NumerolojiAnalizPage() {
         <header className="relative overflow-hidden rounded-[32px] border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-6 py-10 text-center shadow-[0_20px_60px_-24px_rgba(91,33,182,0.35)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-12">
           <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
-          <div className="relative">
-            <div className="absolute right-4 top-4 z-10 flex max-w-[calc(100%-2rem)] flex-row flex-wrap items-center justify-end gap-2 sm:right-6 sm:top-6">
-              <Link href="/numeroloji" className={analizNavLinkClass}>
-                ← Modül seçimi
-              </Link>
-              <Link href="/numeroloji/liste" className={analizNavLinkClass}>
-                Kayıtlı analizler
-              </Link>
-            </div>
-            <div className="relative pt-14 sm:pt-2">
+          <nav
+            className="absolute top-6 right-6 z-20 flex flex-row flex-wrap items-center justify-end gap-3 sm:top-8 sm:right-8"
+            aria-label="Sayfa gezinmesi"
+          >
+            <Link href="/numeroloji" className={analizNavLinkClass}>
+              ← Modül seçimi
+            </Link>
+            <Link href="/numeroloji/liste" className={analizNavLinkClass}>
+              Kayıtlı analizler
+            </Link>
+          </nav>
+          <div className="relative pt-20 sm:pt-24">
             <p className="text-xs font-black uppercase tracking-[0.36em] text-violet-800/95 sm:text-sm sm:tracking-[0.42em]">
               Yaşam Sistemi · Numeroloji
             </p>
@@ -247,7 +249,6 @@ export default function NumerolojiAnalizPage() {
                 <span className="text-base leading-none text-violet-600/90">✦</span>
               </span>
               <span className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-400/70 to-violet-300/30" />
-            </div>
             </div>
           </div>
         </header>
