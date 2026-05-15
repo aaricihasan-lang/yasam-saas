@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { NumerolojiResult } from "@/lib/numeroloji";
-import {
-  buildPlainAnalizFull,
-  harfSegmentsToText,
-  nrDisplay,
-  elementShort,
-  pinOneLine,
-  type NumerolojiMotorOut,
-} from "../utils/numerolojiPlainMetin";
+import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
@@ -41,10 +34,12 @@ export function TabSonucOzeti({
   out,
   isimGoster,
   dogumGoster,
+  layout = "default",
 }: {
   out: NumerolojiMotorOut;
   isimGoster: string;
   dogumGoster: string;
+  layout?: "default" | "detay";
 }) {
   const pinMetin = (out.pinKoduMetni || "—").trim() || "—";
   const elementMetinKisa = (out.elementlerMetni || "").trim().split("\n").slice(0, 3).join("\n") || "—";
@@ -78,11 +73,17 @@ export function TabSonucOzeti({
       </div>
 
       <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm ring-1 ring-sky-100/50 sm:p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-800/90">PIN özeti</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-800/90">PIN Kodu</p>
         <p className="mt-2 break-all font-mono text-[11px] font-semibold leading-relaxed text-slate-800 sm:text-xs">
           {pinOneLine(out.pinKodu)}
         </p>
-        <pre className="mt-3 max-h-36 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-slate-700 sm:text-xs">
+        <pre
+          className={
+            layout === "detay"
+              ? "mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-slate-700 sm:text-xs"
+              : "mt-3 max-h-36 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-slate-700 sm:text-xs"
+          }
+        >
           {pinMetin}
         </pre>
       </div>
@@ -165,14 +166,20 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function NumeroCardBody({ r }: { r: NumerolojiResult }) {
+function NumeroCardBody({ r, layout = "default" }: { r: NumerolojiResult; layout?: "default" | "detay" }) {
   const k = (r.key || "").trim();
   return (
     <div className="space-y-2">
       <p className="text-xl font-black tracking-tight text-violet-900 sm:text-2xl">{nrDisplay(r)}</p>
       {k ? <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anahtar: {k}</p> : null}
       {r.steps?.length ? (
-        <pre className="mt-2 max-h-[min(50vh,24rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-800">
+        <pre
+          className={
+            layout === "detay"
+              ? "mt-2 whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-800"
+              : "mt-2 max-h-[min(50vh,24rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-800"
+          }
+        >
           {r.steps.join("\n")}
         </pre>
       ) : null}
@@ -180,128 +187,80 @@ function NumeroCardBody({ r }: { r: NumerolojiResult }) {
   );
 }
 
-export function TabAnalizOzetli({ out }: { out: NumerolojiMotorOut }) {
+export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMotorOut; layout?: "default" | "detay" }) {
   const hy = out.harflerinYankilanisi;
   const harfListe = Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "";
   const harfMetin = out.harflerinYankilanisiMetni?.trim() ?? "";
-
+  const preScroll =
+    layout === "detay"
+      ? "whitespace-pre-wrap text-sm leading-relaxed text-slate-800"
+      : "max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800";
+  const preScrollSm =
+    layout === "detay"
+      ? "mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
+      : "mt-3 max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm";
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       <DetayCard title="Ana Kulvar">
-        <NumeroCardBody r={out.anaKulvar} />
+        <NumeroCardBody r={out.anaKulvar} layout={layout} />
       </DetayCard>
       <DetayCard title="Yan Kulvar">
-        <NumeroCardBody r={out.yanKulvar} />
+        <NumeroCardBody r={out.yanKulvar} layout={layout} />
       </DetayCard>
       <DetayCard title="İfade Sayısı">
-        <NumeroCardBody r={out.ifadeSayisi} />
+        <NumeroCardBody r={out.ifadeSayisi} layout={layout} />
       </DetayCard>
       <DetayCard title="Hayat Yolu">
-        <NumeroCardBody r={out.hayatYolu} />
+        <NumeroCardBody r={out.hayatYolu} layout={layout} />
       </DetayCard>
       <DetayCard title="PIN">
         <p className="break-all font-mono text-xs font-semibold text-slate-800 sm:text-sm">{pinOneLine(out.pinKodu)}</p>
-        <pre className="mt-3 max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm">
-          {out.pinKoduMetni || "—"}
-        </pre>
+        <pre className={preScrollSm}>{out.pinKoduMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Çakra">
-        <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {out.cakraOmurgasiMetni || "—"}
-        </pre>
+        <pre className={preScroll}>{out.cakraOmurgasiMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Elementler">
-        <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {out.elementlerMetni || "—"}
-        </pre>
+        <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
         {out.elementler.steps?.length ? (
-          <pre className="mt-3 max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-700">
+          <pre
+            className={
+              layout === "detay"
+                ? "mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-700"
+                : "mt-3 max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-700"
+            }
+          >
             {out.elementler.steps.join("\n")}
           </pre>
         ) : null}
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
-        <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {out.degisimDonusumMetni || "—"}
-        </pre>
+        <pre className={preScroll}>{out.degisimDonusumMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Zirve">
-        <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {out.zirveYillariMetni || "—"}
-        </pre>
+        <pre className={preScroll}>{out.zirveYillariMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Mücadele">
-        <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {out.mucadeleYillariMetni || "—"}
-        </pre>
+        <pre className={preScroll}>{out.mucadeleYillariMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Harflerin Yankılanışı">
         {harfListe ? (
-          <pre className="mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm">
+          <pre
+            className={
+              layout === "detay"
+                ? "mb-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
+                : "mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
+            }
+          >
             {harfListe}
           </pre>
         ) : null}
         {harfMetin ? (
-          <pre className="max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-            {harfMetin}
-          </pre>
+          <pre className={preScroll}>{harfMetin}</pre>
         ) : !harfListe ? (
           <p className="text-sm text-slate-600">—</p>
         ) : null}
       </DetayCard>
-    </div>
-  );
-}
-
-const KAYIT_TABS = [
-  { id: "summary" as const, label: "Sonuç Özeti" },
-  { id: "plain" as const, label: "Tam analiz" },
-  { id: "detailed" as const, label: "Detaylı analiz" },
-];
-
-type KayitTabId = (typeof KAYIT_TABS)[number]["id"];
-
-export function NumerolojiKayitSonucPanel({
-  out,
-  name,
-  surname,
-  birthDate,
-}: {
-  out: NumerolojiMotorOut;
-  name: string;
-  surname: string;
-  birthDate: string;
-}) {
-  const [tab, setTab] = useState<KayitTabId>("summary");
-  const isimGoster = `${name} ${surname}`.replace(/\s+/g, " ").trim();
-
-  return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200/85 bg-white/80 shadow-[0_20px_50px_-18px_rgba(91,33,182,0.14)] ring-1 ring-violet-100/60 backdrop-blur-md">
-      <div className="flex flex-wrap gap-0 border-b border-slate-200/80 bg-gradient-to-r from-violet-50/80 via-amber-50/50 to-sky-50/80 px-1 pt-1">
-        {KAYIT_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`min-h-[2.5rem] shrink-0 rounded-t-lg px-3 py-2 text-left text-[11px] font-black uppercase tracking-wide transition sm:px-4 sm:text-xs ${
-              tab === t.id
-                ? "bg-amber-100 text-amber-950 shadow-inner ring-1 ring-amber-200/90"
-                : "text-slate-600 hover:bg-white/70"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="max-h-[min(70vh,36rem)] overflow-y-auto bg-gradient-to-b from-white/95 via-slate-50/50 to-violet-50/20 p-4 sm:p-6">
-        {tab === "summary" ? <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={birthDate} /> : null}
-        {tab === "plain" ? (
-          <pre className="whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/70 p-4 font-mono text-[11px] leading-relaxed text-slate-800 shadow-inner sm:p-5 sm:text-xs">
-            {buildPlainAnalizFull(out)}
-          </pre>
-        ) : null}
-        {tab === "detailed" ? <TabAnalizOzetli out={out} /> : null}
-      </div>
     </div>
   );
 }

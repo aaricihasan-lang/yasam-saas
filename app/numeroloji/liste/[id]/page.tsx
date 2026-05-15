@@ -2,9 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { extractMotorFromAnalysisJson, extractSummaryFromAnalysisData } from "../../utils/analysisJson";
+import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
 import { getNumerologyAnalysisById, getTenantIdFromStorage, type NumerologyRecordRow } from "../../helpers/numerolojiKayit";
-import { NumerolojiKayitSonucPanel } from "../../components/NumerolojiAnalizSonucTabs";
+import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
 import { NumerolojiPremiumShell } from "../../components/NumerolojiPremiumShell";
 import { NumerolojiNavPill } from "../../components/NumerolojiNavPill";
 
@@ -25,13 +25,6 @@ export default function NumerolojiKayitDetayPage() {
     let cancelled = false;
     async function run() {
       const tid = getTenantIdFromStorage();
-      if (!tid) {
-        if (!cancelled) {
-          setError("Giriş gerekli.");
-          setLoading(false);
-        }
-        return;
-      }
       const { data, error: e } = await getNumerologyAnalysisById(id, tid);
       if (cancelled) return;
       if (e || !data) {
@@ -50,12 +43,11 @@ export default function NumerolojiKayitDetayPage() {
   }, [id]);
 
   const motor = row ? extractMotorFromAnalysisJson(row.analysis_data) : null;
-  const summary = row ? extractSummaryFromAnalysisData(row.analysis_data) : null;
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
 
   return (
-    <NumerolojiPremiumShell maxWidthClass="max-w-5xl">
-      <div className="mb-6 flex flex-wrap gap-2">
+    <NumerolojiPremiumShell maxWidthClass="max-w-6xl">
+      <div className="mb-5 flex flex-wrap gap-2 sm:mb-6">
         <NumerolojiNavPill href="/numeroloji/liste">← Listeye dön</NumerolojiNavPill>
         <NumerolojiNavPill href="/numeroloji/analiz">Yeni analiz</NumerolojiNavPill>
         <NumerolojiNavPill href="/numeroloji">Modül seçimi</NumerolojiNavPill>
@@ -66,31 +58,41 @@ export default function NumerolojiKayitDetayPage() {
           Yükleniyor…
         </div>
       ) : null}
+
       {error ? (
-        <div className="rounded-[22px] border border-rose-200/85 bg-rose-50/90 px-5 py-4 text-sm font-medium text-rose-900 shadow-sm ring-1 ring-rose-100/50 backdrop-blur-sm" role="alert">
+        <div
+          className="rounded-[22px] border border-rose-200/85 bg-rose-50/90 px-5 py-4 text-sm font-medium text-rose-900 shadow-sm ring-1 ring-rose-100/50 backdrop-blur-sm"
+          role="alert"
+        >
           {error}
         </div>
       ) : null}
 
       {row && !error ? (
-        <div className="space-y-6">
-          <div className="rounded-[26px] border border-white/75 bg-white/60 p-6 shadow-[0_14px_42px_rgba(15,23,42,0.06)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:p-8">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">{adSoyad}</h1>
-            <p className="mt-2 text-sm font-medium text-slate-600">Doğum tarihi: {row.birth_date}</p>
-            <p className="mt-1 text-xs font-medium text-slate-500">
-              Oluşturulma:{" "}
-              {new Date(row.created_at).toLocaleString("tr-TR", {
-                dateStyle: "long",
-                timeStyle: "short",
-              })}
-            </p>
-            {summary ? (
-              <p className="mt-4 rounded-xl border border-violet-100/80 bg-violet-50/40 px-4 py-3 text-xs font-medium leading-relaxed text-slate-700">{summary}</p>
-            ) : null}
-          </div>
+        <div className="space-y-5 sm:space-y-6">
+          <header className="rounded-[26px] border border-white/75 bg-white/65 px-5 py-5 shadow-[0_14px_42px_rgba(15,23,42,0.06)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:px-7 sm:py-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">Kayıtlı numeroloji analizi</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{adSoyad}</h1>
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm font-medium text-slate-600">
+              <span>Doğum tarihi: {row.birth_date}</span>
+              <span className="text-xs text-slate-500 sm:text-sm">
+                Oluşturulma:{" "}
+                {new Date(row.created_at).toLocaleString("tr-TR", {
+                  dateStyle: "long",
+                  timeStyle: "short",
+                })}
+              </span>
+            </div>
+          </header>
 
           {motor ? (
-            <NumerolojiKayitSonucPanel out={motor} name={row.name} surname={row.surname} birthDate={row.birth_date} />
+            <NumerolojiKayitDetayPanel
+              out={motor}
+              name={row.name}
+              surname={row.surname}
+              birthDate={row.birth_date}
+              analysisData={row.analysis_data}
+            />
           ) : (
             <p className="rounded-2xl border border-slate-200/80 bg-white/70 px-5 py-4 text-sm font-medium text-slate-600">
               Kayıtlı analiz verisi okunamadı veya eski formatta.
