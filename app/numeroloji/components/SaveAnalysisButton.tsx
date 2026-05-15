@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getTenantIdFromStorage, saveNumerologyAnalysis } from "../helpers/numerolojiKayit";
+import { saveNumerologyAnalysis } from "../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 type Props = {
@@ -22,19 +22,8 @@ export function SaveAnalysisButton({ firstName, lastName, birthDateDisplay, moto
   async function handleClick() {
     if (!motorOutput) return;
 
-    const tenantId = getTenantIdFromStorage();
-    if (!tenantId) {
-      showToast({
-        title: "Kayıt yapılamadı",
-        message: "Kaydetmek için giriş yapmalısınız.",
-        type: "error",
-      });
-      return;
-    }
-
     setBusy(true);
-    const { error } = await saveNumerologyAnalysis({
-      tenantId,
+    const { error, id } = await saveNumerologyAnalysis({
       name: firstName.trim(),
       surname: lastName.trim(),
       birthDate: birthDateDisplay.trim(),
@@ -49,6 +38,10 @@ export function SaveAnalysisButton({ firstName, lastName, birthDateDisplay, moto
         type: "error",
       });
       return;
+    }
+
+    if (id) {
+      console.log("[numeroloji] Kayıt id:", id);
     }
 
     showToast({

@@ -2,6 +2,11 @@ import { supabase } from "@/lib/supabase";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import type { AnalysisDataPayload } from "../utils/analysisJson";
 
+/** Diğer modüllerle aynı demo tenant — yasam_user yoksa kullanılır. */
+export const NUMEROLOJI_TENANT_ID = "11111111-1111-1111-1111-111111111111";
+
+const TABLE = "numerology_records";
+
 export type NumerologyRecordRow = {
   id: string;
   tenant_id: string;
@@ -12,36 +17,39 @@ export type NumerologyRecordRow = {
   created_at: string;
 };
 
-export type NumerologyRecordListItem = Pick<
-  NumerologyRecordRow,
-  "id" | "name" | "surname" | "birth_date" | "created_at" | "analysis_data"
->;
+export type NumerologyRecordListItem = NumerologyRecordRow;
 
-const TABLE = "numerology_records";
-
-export function getTenantIdFromStorage(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem("yasam_user");
-    if (!raw) return null;
-    const u = JSON.parse(raw) as { tenant_id?: string };
-    return typeof u.tenant_id === "string" && u.tenant_id.length > 0 ? u.tenant_id : null;
-  } catch {
-    return null;
+/** localStorage yasam_user.tenant_id veya NUMEROLOJI_TENANT_ID */
+export function getTenantIdFromStorage(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("yasam_user");
+      if (raw) {
+        const u = JSON.parse(raw) as { tenant_id?: string };
+        if (typeof u.tenant_id === "string" && u.tenant_id.length > 0) {
+          return u.tenant_id;
+        }
+      }
+    } catch {
+      /* demo tenant */
+    }
   }
+  return NUMEROLOJI_TENANT_ID;
 }
 
-export function sortRecordsByNameTurkish<T extends { name: string }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
+export function sortRecordsByNameTurkish(rows: NumerologyRecordListItem[]): NumerologyRecordListItem[] {
+  return [...rows].sort((a, b) =>
+    `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`, "tr-TR"),
+  );
 }
 
 export async function saveNumerologyAnalysis(input: {
-  tenantId: string;
   name: string;
   surname: string;
   birthDate: string;
   motor: NumerolojiMotorOut;
 }): Promise<{ error: string | null; id?: string }> {
+  const tenantId = getTenantIdFromStorage();
   const analysis_data: AnalysisDataPayload = {
     version: 1,
     motor: input.motor,
@@ -51,7 +59,7 @@ export async function saveNumerologyAnalysis(input: {
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
-      tenant_id: input.tenantId,
+      tenant_id: tenantId,
       name: input.name.trim(),
       surname: input.surname.trim(),
       birth_date: input.birthDate.trim(),
@@ -71,8 +79,9 @@ export async function listNumerologyAnalyses(tenantId: string): Promise<{
 }> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, name, surname, birth_date, analysis_data, created_at")
-    .eq("tenant_id", tenantId);
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .order("name", { ascending: true });
 
   if (error) return { data: null, error: error.message };
   const rows = (data ?? []) as NumerologyRecordListItem[];
