@@ -84,3 +84,39 @@ export function extractGorselFromAnalysisData(raw: unknown): AnalysisGorselData 
 export function kayitBolumYokMesaji(): string {
   return KAYIT_BOLUM_YOK;
 }
+
+/** Virgülle ayrılmış taş listesinde her parçanın ilk harfini Türkçe büyük yapar. */
+export function formatVirgulluTasGirdi(value: string): string {
+  if (!value) return value;
+  return value
+    .split(",")
+    .map((part) => {
+      const lead = part.match(/^\s*/)?.[0] ?? "";
+      const body = part.trim();
+      if (!body) return part;
+      const first = body.charAt(0).toLocaleUpperCase("tr-TR");
+      const rest = body.slice(1);
+      return `${lead}${first}${rest}`;
+    })
+    .join(",");
+}
+
+export function mergeGorselIntoAnalysisData(
+  raw: unknown,
+  gorsel: AnalysisGorselData,
+): AnalysisDataPayload | null {
+  const o = asRecord(raw);
+  if (!o) return null;
+  const motor = o.motor;
+  if (!motor || typeof motor !== "object" || Array.isArray(motor)) return null;
+  const summary = typeof o.summary === "string" ? o.summary : "";
+  const payload: AnalysisDataPayload = {
+    version: 1,
+    motor: motor as NumerolojiMotorOut,
+    summary,
+    gorsel,
+  };
+  const tas = extractTasFromAnalysisData(raw);
+  if (tas) payload.tas = tas;
+  return payload;
+}

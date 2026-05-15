@@ -108,6 +108,8 @@ export default function NumerolojiKayitDetayPage() {
               surname={row.surname}
               birthDate={row.birth_date}
               analysisData={row.analysis_data}
+              recordId={row.id}
+              onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
             />
           ) : (
             <p className="rounded-[26px] border border-slate-200/80 bg-white/70 px-6 py-5 text-base font-medium text-slate-600 sm:px-8 sm:py-6 sm:text-lg">

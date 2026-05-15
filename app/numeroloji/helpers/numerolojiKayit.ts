@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
-import type { AnalysisDataPayload } from "../utils/analysisJson";
+import {
+  mergeGorselIntoAnalysisData,
+  type AnalysisDataPayload,
+  type AnalysisGorselData,
+} from "../utils/analysisJson";
 
 /** Diğer modüllerle aynı demo tenant — yasam_user yoksa kullanılır. */
 export const NUMEROLOJI_TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -99,6 +103,28 @@ export async function getNumerologyAnalysisById(
   if (data.tenant_id !== tenantId) return { data: null, error: "Bu kayda erişim yok." };
 
   return { data: data as NumerologyRecordRow, error: null };
+}
+
+/** Kayıtlı analizin yalnızca `analysis_data.gorsel` alanını günceller. */
+export async function updateNumerologyAnalysisGorsel(
+  id: string,
+  tenantId: string,
+  gorselData: AnalysisGorselData,
+  currentAnalysisData: unknown,
+): Promise<{ error: string | null; analysis_data?: AnalysisDataPayload }> {
+  const merged = mergeGorselIntoAnalysisData(currentAnalysisData, gorselData);
+  if (!merged) {
+    return { error: "Kayıt verisi güncellenemedi." };
+  }
+
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ analysis_data: merged })
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { error: error.message };
+  return { error: null, analysis_data: merged };
 }
 
 /** Geriye dönük uyumluluk */
