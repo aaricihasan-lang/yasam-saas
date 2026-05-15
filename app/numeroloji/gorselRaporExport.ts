@@ -49,14 +49,29 @@ async function gorselRaporuHtml2Canvas(
 
 /** Yüksek çözünürlüklü tam rapor PNG’si. */
 export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
-  console.log("hedef:", hedef);
   if (!hedef || typeof window === "undefined") return;
 
-  const canvas = await gorselRaporuHtml2Canvas(hedef, 4);
-  console.log("canvas oluştu", canvas);
-  if (!canvas) return;
+  let canvas: HTMLCanvasElement;
 
-  console.log("PNG hazır");
+  try {
+    console.log("PNG başladı");
+
+    const canvasResult = await gorselRaporuHtml2Canvas(hedef, 4);
+
+    console.log("Canvas:", canvasResult);
+
+    if (!canvasResult) {
+      throw new Error("Canvas oluşmadı");
+    }
+
+    console.log("Canvas size:", canvasResult.width, canvasResult.height);
+
+    canvas = canvasResult;
+  } catch (err) {
+    console.error("PNG HATASI:", err);
+    alert("PNG HATASI: " + (err instanceof Error ? err.message : "Bilinmeyen hata"));
+    throw err;
+  }
 
   await new Promise<void>((resolve, reject) => {
     canvas.toBlob(
