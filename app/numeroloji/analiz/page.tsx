@@ -337,10 +337,10 @@ export default function NumerolojiAnalizPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`min-h-[3rem] shrink-0 rounded-xl px-4 py-2.5 text-left text-[11px] font-black uppercase tracking-wide transition sm:px-5 sm:text-xs ${
+                  className={`shrink-0 rounded-xl px-5 py-3 text-left text-sm font-black uppercase tracking-[0.05em] transition sm:text-base ${
                     tab === t.id
-                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_8px_24px_-4px_rgba(91,33,182,0.45)] ring-1 ring-violet-400/30"
-                      : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800"
+                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-4px_rgba(91,33,182,0.52)] ring-2 ring-violet-300/45"
+                      : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800 hover:shadow-[0_4px_14px_-6px_rgba(91,33,182,0.25)]"
                   }`}
                 >
                   {t.label}
