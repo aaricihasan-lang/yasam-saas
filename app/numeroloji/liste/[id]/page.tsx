@@ -10,7 +10,7 @@ import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetay
 import { NumerolojiPremiumShell } from "../../components/NumerolojiPremiumShell";
 
 const detayNavLinkClass =
-  "inline-flex items-center gap-2 rounded-2xl border border-white/85 bg-white/80 px-6 py-3 text-sm font-bold text-violet-900 shadow-[0_8px_26px_-8px_rgba(91,33,182,0.38)] ring-1 ring-violet-200/55 backdrop-blur-md transition hover:scale-[1.03] hover:border-violet-300/90 hover:bg-white hover:text-violet-950 hover:shadow-[0_14px_36px_-8px_rgba(91,33,182,0.45)] no-underline";
+  "inline-flex min-h-[56px] items-center gap-2.5 rounded-2xl border border-violet-200/80 bg-white/80 px-7 py-4 text-base font-black text-violet-900 shadow-[0_14px_40px_-10px_rgba(91,33,182,0.25)] ring-1 ring-violet-300/60 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:scale-[1.04] hover:border-violet-300/90 hover:bg-white hover:text-violet-950 hover:shadow-[0_18px_48px_-10px_rgba(91,33,182,0.35)] no-underline";
 
 export default function NumerolojiKayitDetayPage() {
   const params = useParams();
@@ -53,7 +53,7 @@ export default function NumerolojiKayitDetayPage() {
 
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
-      <div className="mb-6 flex flex-wrap gap-3 sm:mb-8">
+      <div className="mb-8 flex flex-wrap gap-4">
         <Link href="/numeroloji/liste" className={detayNavLinkClass}>
           ← Listeye dön
         </Link>
