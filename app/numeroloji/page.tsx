@@ -10,7 +10,7 @@ const cardHover =
 
 export default function NumerolojiHubPage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#040210] text-white antialiased">
+    <div className="relative overflow-x-hidden bg-[#040210] text-white antialiased">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(124,58,237,0.42),transparent_50%),linear-gradient(185deg,#0a0524_0%,#0c0828_35%,#060314_100%)]"
         aria-hidden
@@ -23,7 +23,7 @@ export default function NumerolojiHubPage() {
       </div>
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-10 sm:pb-14 sm:pt-8 lg:px-14 lg:pb-16 lg:pt-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col px-4 pb-8 pt-6 sm:px-10 sm:pb-10 sm:pt-8 lg:px-14 lg:pb-12 lg:pt-10">
         <header className="shrink-0 text-center">
           <p className="text-xs font-black uppercase tracking-[0.4em] text-amber-200/85 sm:text-sm">Yaşam Sistemi</p>
           <h1
@@ -46,7 +46,7 @@ export default function NumerolojiHubPage() {
           </p>
         </header>
 
-        <div className="mt-10 flex min-h-0 flex-1 flex-col justify-center sm:mt-12 lg:mt-14">
+        <div className="mt-10 flex flex-col sm:mt-12 lg:mt-14">
           <div className="grid grid-cols-1 gap-10 sm:gap-12 lg:grid-cols-2 lg:gap-14 xl:gap-16">
             <Link href="/numeroloji/analiz" className={`${cardGlass} ${cardHover} no-underline`}>
               <div
@@ -105,10 +105,6 @@ export default function NumerolojiHubPage() {
             </Link>
           </div>
         </div>
-
-        <p className="mt-10 shrink-0 text-center text-xs font-semibold uppercase tracking-[0.28em] text-violet-400/45 sm:mt-12 lg:mt-14">
-          Premium numeroloji modülü
-        </p>
       </div>
     </div>
   );
