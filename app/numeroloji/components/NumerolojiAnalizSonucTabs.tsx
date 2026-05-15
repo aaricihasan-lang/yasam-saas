@@ -46,6 +46,15 @@ const CHAKRA_TABLO_HEX: Record<number, string> = {
   10: "#d946ef",
 };
 
+function CakraBosCizgi({ align }: { align: "left" | "right" }) {
+  return (
+    <span
+      className={`block h-1.5 min-w-20 w-full max-w-32 shrink-0 rounded-full bg-black/80 shadow-sm ${align === "left" ? "ml-auto" : "mr-auto"}`}
+      aria-hidden
+    />
+  );
+}
+
 function CakraEnerjiDaireleri({
   count,
   hex,
@@ -60,20 +69,23 @@ function CakraEnerjiDaireleri({
   return (
     <div
       className={`flex min-h-[1.5rem] min-w-0 flex-1 flex-wrap content-center gap-2 sm:gap-2.5 ${align === "left" ? "justify-end" : "justify-start"}`}
-      aria-hidden={count === 0}
     >
-      {Array.from({ length: count }, (_, i) => (
-        <span
-          key={i}
-          className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/90 sm:h-6 sm:w-6"
-          style={{
-            backgroundColor: hex,
-            opacity: tone === "pasif" ? 0.48 : 1,
-            filter: tone === "aktif" ? "brightness(0.65) saturate(1.25)" : "saturate(0.85) brightness(1.08)",
-            boxShadow: tone === "aktif" ? `0 2px 8px ${hex}77` : `0 1px 4px ${hex}33`,
-          }}
-        />
-      ))}
+      {count === 0 ? (
+        <CakraBosCizgi align={align} />
+      ) : (
+        Array.from({ length: count }, (_, i) => (
+          <span
+            key={i}
+            className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/90 sm:h-6 sm:w-6"
+            style={{
+              backgroundColor: hex,
+              opacity: tone === "pasif" ? 0.48 : 1,
+              filter: tone === "aktif" ? "brightness(0.65) saturate(1.25)" : "saturate(0.85) brightness(1.08)",
+              boxShadow: tone === "aktif" ? `0 2px 8px ${hex}77` : `0 1px 4px ${hex}33`,
+            }}
+          />
+        ))
+      )}
     </div>
   );
 }
