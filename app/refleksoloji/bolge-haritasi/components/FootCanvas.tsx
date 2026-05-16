@@ -17,11 +17,7 @@ import {
   rotateRegionByPointer,
   type ResizeHandle,
 } from "../utils/regionTransform";
-import {
-  FreeDrawDraftPreview,
-  RegionDraftPreview,
-  RegionShape,
-} from "./regions/RegionShape";
+import { RegionDraftPreview, RegionShape } from "./regions/RegionShape";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
@@ -40,9 +36,14 @@ type FootCanvasProps = {
   onDrawComplete?: () => void;
 };
 
-type DraftState =
-  | { kind: "box"; shape: "oval" | "rect"; start: { x: number; y: number }; current: { x: number; y: number } }
-  | { kind: "free"; points: { x: number; y: number }[] };
+type DraftState = {
+  kind: "box";
+  shape: "oval" | "rect";
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+};
+
+type PreviewPoint = { x: number; y: number };
 
 type EditDragState =
   | { kind: "move"; regionId: string; start: { x: number; y: number }; snapshot: Region }
@@ -107,10 +108,13 @@ export function FootCanvas({
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [imageLoadError, setImageLoadError] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [isManualDrawing, setIsManualDrawing] = useState(false);
+  const [currentPreviewPoints, setCurrentPreviewPoints] = useState<PreviewPoint[]>([]);
   const [editDrag, setEditDrag] = useState<EditDragState | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMoveState | null>(null);
 
   const draftRef = useRef<DraftState | null>(null);
+  const previewPointsRef = useRef<PreviewPoint[]>([]);
   const finishDraftRef = useRef<(state: DraftState) => boolean>(() => false);
   const onDrawCompleteRef = useRef(onDrawComplete);
   const getNormalizedPointRef = useRef(
@@ -174,34 +178,37 @@ export function FootCanvas({
     [imageRect],
   );
 
-  const finishDraft = useCallback(
+  const finishBoxDraft = useCallback(
     (state: DraftState): boolean => {
       if (!activeOrgan) return false;
 
-      if (state.kind === "box") {
-        const box = boxFromDrag(
-          state.start,
-          state.current,
-          state.shape === "oval" ? "oval" : "rect",
-        );
-        if (!box) return false;
+      const box = boxFromDrag(
+        state.start,
+        state.current,
+        state.shape === "oval" ? "oval" : "rect",
+      );
+      if (!box) return false;
 
-        const newRegion: Region = {
-          id: crypto.randomUUID(),
-          organ: activeOrgan,
-          footSide: selectedFoot,
-          view: selectedView,
-          color: REGION_COLOR,
-          ...box,
-        };
-        onUpsertRegion(newRegion);
-        onSelectRegion(newRegion.id);
-        return true;
-      }
+      const newRegion: Region = {
+        id: crypto.randomUUID(),
+        organ: activeOrgan,
+        footSide: selectedFoot,
+        view: selectedView,
+        color: REGION_COLOR,
+        ...box,
+      };
+      onUpsertRegion(newRegion);
+      onSelectRegion(newRegion.id);
+      return true;
+    },
+    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+  );
 
-      if (state.points.length < 2) return false;
+  const finishManualDraw = useCallback(
+    (points: PreviewPoint[]): boolean => {
+      if (!activeOrgan || points.length < 2) return false;
 
-      const pathLen = state.points.reduce((acc, p, i, arr) => {
+      const pathLen = points.reduce((acc, p, i, arr) => {
         if (i === 0) return 0;
         const prev = arr[i - 1];
         return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
@@ -214,7 +221,7 @@ export function FootCanvas({
         footSide: selectedFoot,
         view: selectedView,
         shape: "free_draw",
-        points: state.points,
+        points,
         color: REGION_COLOR,
       };
       onUpsertRegion(newRegion);
@@ -224,12 +231,16 @@ export function FootCanvas({
     [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
   );
 
+  const finishManualDrawRef = useRef(finishManualDraw);
+
   draftRef.current = draft;
-  finishDraftRef.current = finishDraft;
+  finishDraftRef.current = finishBoxDraft;
+  finishManualDrawRef.current = finishManualDraw;
+  previewPointsRef.current = currentPreviewPoints;
   onDrawCompleteRef.current = onDrawComplete;
   getNormalizedPointRef.current = getNormalizedPoint;
 
-  const isDrawing = draft !== null;
+  const isBoxDrawing = draft !== null;
 
   const handleOverlayPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -243,7 +254,10 @@ export function FootCanvas({
       overlayRef.current?.setPointerCapture(e.pointerId);
 
       if (drawShape === "free_draw") {
-        setDraft({ kind: "free", points: [point] });
+        const initial = [point];
+        previewPointsRef.current = initial;
+        setIsManualDrawing(true);
+        setCurrentPreviewPoints(initial);
         return;
       }
 
@@ -313,7 +327,7 @@ export function FootCanvas({
   );
 
   useEffect(() => {
-    if (!isDrawing) return;
+    if (!isBoxDrawing) return;
 
     lockDocumentSelection(true);
 
@@ -321,16 +335,7 @@ export function FootCanvas({
       e.preventDefault();
       const point = getNormalizedPointRef.current(e.clientX, e.clientY, true);
       if (!point) return;
-
-      setDraft((prev) => {
-        if (!prev) return prev;
-        if (prev.kind === "box") return { ...prev, current: point };
-        const last = prev.points[prev.points.length - 1];
-        if (last && Math.hypot(point.x - last.x, point.y - last.y) < FREE_DRAW_POINT_MIN_DIST) {
-          return prev;
-        }
-        return { ...prev, points: [...prev.points, point] };
-      });
+      setDraft((prev) => (prev ? { ...prev, current: point } : prev));
     };
 
     const onUp = (e: PointerEvent) => {
@@ -359,7 +364,56 @@ export function FootCanvas({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [isDrawing]);
+  }, [isBoxDrawing]);
+
+  useEffect(() => {
+    if (!isManualDrawing) return;
+
+    lockDocumentSelection(true);
+
+    const onMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const point = getNormalizedPointRef.current(e.clientX, e.clientY, true);
+      if (!point) return;
+
+      setCurrentPreviewPoints((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && Math.hypot(point.x - last.x, point.y - last.y) < FREE_DRAW_POINT_MIN_DIST) {
+          return prev;
+        }
+        const next = [...prev, point];
+        previewPointsRef.current = next;
+        return next;
+      });
+    };
+
+    const onUp = (e: PointerEvent) => {
+      e.preventDefault();
+      lockDocumentSelection(false);
+      try {
+        overlayRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        /* capture may already be released */
+      }
+
+      const points = previewPointsRef.current;
+      setIsManualDrawing(false);
+      setCurrentPreviewPoints([]);
+
+      const created = finishManualDrawRef.current(points);
+      if (created) onDrawCompleteRef.current?.();
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      lockDocumentSelection(false);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [isManualDrawing]);
 
   useEffect(() => {
     if (!pendingMove) return;
@@ -564,10 +618,35 @@ export function FootCanvas({
                 />
               ))}
 
-              {draft?.kind === "box" ? (
+              {draft ? (
                 <RegionDraftPreview shape={draft.shape} start={draft.start} current={draft.current} />
               ) : null}
-              {draft?.kind === "free" ? <FreeDrawDraftPreview points={draft.points} /> : null}
+
+              {isManualDrawing && currentPreviewPoints.length > 0 ? (
+                <svg
+                  className="pointer-events-none absolute inset-0 z-[50] h-full w-full overflow-visible"
+                  aria-hidden
+                >
+                  {currentPreviewPoints.length === 1 ? (
+                    <circle
+                      cx={currentPreviewPoints[0].x * 100}
+                      cy={currentPreviewPoints[0].y * 100}
+                      r={1.5}
+                      fill="rgb(220, 38, 38)"
+                    />
+                  ) : (
+                    <polyline
+                      points={currentPreviewPoints.map((p) => `${p.x * 100},${p.y * 100}`).join(" ")}
+                      fill="none"
+                      stroke="rgb(220, 38, 38)"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </svg>
+              ) : null}
             </div>
           ) : null}
         </div>
