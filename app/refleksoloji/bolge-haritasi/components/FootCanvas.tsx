@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
-import { DEFAULT_THICK_LINE_WIDTH } from "../types";
+/** Yeni kalın çizgi kayıtları — normalize 0..1 */
+const THICK_LINE_WIDTH = 0.009;
 import {
   atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
@@ -322,7 +323,7 @@ export function FootCanvas({
         y1: clamp01(draftLine.y1),
         x2: clamp01(draftLine.x2),
         y2: clamp01(draftLine.y2),
-        lineWidth: DEFAULT_THICK_LINE_WIDTH,
+        lineWidth: THICK_LINE_WIDTH,
         color: REGION_COLOR,
       };
       onUpsertRegion(newRegion);
@@ -371,7 +372,7 @@ export function FootCanvas({
       y1: thickLineDraft.y1 * overlayH,
       x2: thickLineDraft.x2 * overlayW,
       y2: thickLineDraft.y2 * overlayH,
-      strokePx: Math.max(6, DEFAULT_THICK_LINE_WIDTH * overlayW * 1.2),
+      strokePx: Math.max(5, THICK_LINE_WIDTH * overlayW * 0.55),
     };
   }, [thickLineDraft, overlayW, overlayH]);
 

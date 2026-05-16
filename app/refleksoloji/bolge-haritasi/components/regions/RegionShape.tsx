@@ -80,7 +80,7 @@ export function RegionShape({
     const { x1, y1, x2, y2, lineWidth } = region;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
-    const strokeW = Math.max(2, lineWidth * 100 * 2.2);
+    const strokeW = Math.max(2, lineWidth * 100 * 1.05);
     const hitStrokeW = Math.max(12, lineWidth * 100 * 5);
     const handlesVisible = showEditHandles && isSelected && interactive;
 
