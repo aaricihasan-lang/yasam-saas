@@ -106,19 +106,35 @@ export function BilgiKayitEkleDuzenle() {
       showToast({ message: "Değer alanını doldurun.", type: "warning" });
       return;
     }
-    setKaydediliyor(true);
-    const { error } = await saveKnowledgeRecord({
+    const payload = {
       analysisType: analizTuru,
-      value: deger,
+      value: deger.trim(),
       source: bilgiKaynagi,
       description: aciklamaMetni,
-    });
-    setKaydediliyor(false);
-    if (error) {
-      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
-      return;
+    };
+    console.log("Kaydedilecek veri:", payload);
+    setKaydediliyor(true);
+    try {
+      const { error } = await saveKnowledgeRecord(payload);
+      if (error) {
+        console.error("Bilgi Bankası kayıt hatası:", error);
+        showToast({
+          message: `Kayıt sırasında hata oluştu: ${error}`,
+          type: "error",
+        });
+        return;
+      }
+      showToast({ message: "Kayıt kaydedildi", type: "success" });
+    } catch (err) {
+      console.error("Bilgi Bankası beklenmeyen hata:", err);
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({
+        message: `Kayıt sırasında hata oluştu: ${msg}`,
+        type: "error",
+      });
+    } finally {
+      setKaydediliyor(false);
     }
-    showToast({ message: "Kayıt kaydedildi", type: "success" });
   }
 
   return (

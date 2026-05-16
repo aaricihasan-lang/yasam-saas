@@ -112,20 +112,36 @@ export function BilgiDogaltasAta() {
       return;
     }
     const stones = normalizeStoneList(tasListesi);
-    setKaydediliyor(true);
-    const { error } = await saveStoneAssignment({
+    const payload = {
       analysisType: analizTuru,
-      value: deger,
+      value: deger.trim(),
       reason: oneriAciklamasi,
       stones,
-    });
-    setKaydediliyor(false);
-    if (error) {
-      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
-      return;
+    };
+    console.log("Kaydedilecek veri:", payload);
+    setKaydediliyor(true);
+    try {
+      const { error } = await saveStoneAssignment(payload);
+      if (error) {
+        console.error("Bilgi Bankası kayıt hatası:", error);
+        showToast({
+          message: `Kayıt sırasında hata oluştu: ${error}`,
+          type: "error",
+        });
+        return;
+      }
+      setTasListesi(stonesToTextarea(stones));
+      showToast({ message: "Kayıt kaydedildi", type: "success" });
+    } catch (err) {
+      console.error("Bilgi Bankası beklenmeyen hata:", err);
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({
+        message: `Kayıt sırasında hata oluştu: ${msg}`,
+        type: "error",
+      });
+    } finally {
+      setKaydediliyor(false);
     }
-    setTasListesi(stonesToTextarea(stones));
-    showToast({ message: "Kayıt kaydedildi", type: "success" });
   }
 
   return (
