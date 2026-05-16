@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
 import {
+  buildOrganStatuses,
   missingAtlasOrgans,
   resolveColoredRegionsForOrgans,
 } from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
@@ -29,7 +30,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
 
   const organs = protocol?.organs ?? [];
 
-  const { regions, statuses } = useMemo(
+  const { regions } = useMemo(
     () => resolveColoredRegionsForOrgans(organs, footView),
     [organs, footView],
   );
@@ -111,7 +112,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 <p className="mt-2 text-base font-medium text-slate-500">Organ tanımlanmamış.</p>
               ) : (
                 <ul className="mt-4 flex flex-col gap-3">
-                  {statuses.map((status) => (
+                  {organStatuses.map((status) => (
                       <li
                         key={status.name}
                         className={`rounded-xl border p-4 ${status.color.chipClass}`}
