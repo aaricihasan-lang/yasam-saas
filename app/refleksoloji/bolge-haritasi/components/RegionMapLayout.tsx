@@ -62,9 +62,10 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               organs={workspace.organs}
               selectedOrgans={workspace.selectedOrgans}
               activeOrgan={workspace.activeOrgan}
+              selectedRegionId={workspace.selectedRegionId}
               onToggleOrgan={workspace.handleToggleOrgan}
               onAddOrgan={workspace.handleAddOrgan}
-              onDeleteOrgan={workspace.handleDeleteOrgan}
+              onDeleteDrawing={workspace.handleDeleteSelectedDrawing}
             />
             <FootCanvas
               activeOrgan={workspace.activeOrgan}
@@ -77,6 +78,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               onUpsertRegion={workspace.handleUpsertRegion}
               selectedRegionId={workspace.selectedRegionId}
               onSelectRegion={workspace.setSelectedRegionId}
+              onDrawComplete={() => setToolMode("select")}
             />
             <RegionNotesPanel selectedOrgan={workspace.activeOrgan} />
           </div>

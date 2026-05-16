@@ -7,18 +7,20 @@ type OrganListPanelProps = {
   organs: string[];
   selectedOrgans: string[];
   activeOrgan: string | null;
+  selectedRegionId: string | null;
   onToggleOrgan: (organ: string) => void;
   onAddOrgan: (name: string) => boolean;
-  onDeleteOrgan: () => void;
+  onDeleteDrawing: () => void;
 };
 
 export function OrganListPanel({
   organs,
   selectedOrgans,
   activeOrgan,
+  selectedRegionId,
   onToggleOrgan,
   onAddOrgan,
-  onDeleteOrgan,
+  onDeleteDrawing,
 }: OrganListPanelProps) {
   const [query, setQuery] = useState("");
   const [newOrganName, setNewOrganName] = useState("");
@@ -88,23 +90,18 @@ export function OrganListPanel({
         />
       </label>
 
-      {activeOrgan ? (
-        <button
-          type="button"
-          onClick={onDeleteOrgan}
-          className="mt-2 w-full rounded-xl border border-rose-300/80 bg-rose-50/90 px-3 py-2 text-sm font-bold text-rose-900 transition hover:bg-rose-100/90"
-        >
-          Organ Sil
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled
-          className="mt-2 w-full cursor-not-allowed rounded-xl border border-rose-200/60 bg-rose-50/50 px-3 py-2 text-sm font-bold text-rose-400"
-        >
-          Organ Sil
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onDeleteDrawing}
+        disabled={!selectedRegionId}
+        className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-bold transition ${
+          selectedRegionId
+            ? "border-rose-300/80 bg-rose-50/90 text-rose-900 hover:bg-rose-100/90"
+            : "cursor-not-allowed border-rose-200/60 bg-rose-50/50 text-rose-400"
+        }`}
+      >
+        Çizimi Sil
+      </button>
 
       <ul className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         {listEmpty ? (

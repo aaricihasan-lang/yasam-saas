@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   atlasHasRegionId,
   buildDisplayRegions,
-  getRegionsForOrgan,
   listOrganNamesFromAtlas,
   loadAtlas,
   loadOrganList,
   mergeDraftIntoAtlas,
-  removeOrganFromAtlas,
   saveAtlas,
   saveOrganList,
 } from "@/lib/atlasStorage";
@@ -101,24 +99,6 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     [organs],
   );
 
-  const handleDeleteOrgan = useCallback(() => {
-    if (!activeOrgan) return;
-
-    const organ = activeOrgan;
-    const removedIds = new Set(getRegionsForOrgan(atlas, organ).map((r) => r.id));
-
-    setOrgans((prev) => prev.filter((o) => o !== organ));
-    setSelectedOrgans((prev) => prev.filter((o) => o !== organ));
-    setDraftRegions((prev) => prev.filter((r) => r.organ !== organ));
-    setDeletedRegionIds((prev) => prev.filter((id) => !removedIds.has(id)));
-
-    const nextAtlas = removeOrganFromAtlas(atlas, organ);
-    saveAtlas(nextAtlas);
-    setAtlas(nextAtlas);
-    setActiveOrgan(null);
-    setSelectedRegionId(null);
-  }, [activeOrgan, atlas]);
-
   const handleUpsertRegion = useCallback((region: Region) => {
     setDraftRegions((prev) => {
       const idx = prev.findIndex((r) => r.id === region.id);
@@ -151,21 +131,17 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setOrgans((prev) => mergeOrganLists(listOrganNamesFromAtlas(next), prev));
   }, [atlas, draftRegions, deletedRegionIds]);
 
-  const handleClear = useCallback(() => {
-    if (selectedRegionId) {
-      handleDeleteRegion(selectedRegionId);
+  const handleDeleteSelectedDrawing = useCallback(() => {
+    if (!selectedRegionId) {
+      console.warn("Silmek için önce bir çizim seçiniz.");
       return;
     }
+    handleDeleteRegion(selectedRegionId);
+  }, [selectedRegionId, handleDeleteRegion]);
 
-    if (!activeOrgan) return;
-
-    const matching = displayRegions.filter((r) => r.organ === activeOrgan);
-    if (matching.length === 0) return;
-
-    for (const region of matching) {
-      handleDeleteRegion(region.id);
-    }
-  }, [selectedRegionId, activeOrgan, displayRegions, handleDeleteRegion]);
+  const handleClear = useCallback(() => {
+    handleDeleteSelectedDrawing();
+  }, [handleDeleteSelectedDrawing]);
 
   return {
     hydrated,
@@ -181,7 +157,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     displayRegions,
     handleToggleOrgan,
     handleAddOrgan,
-    handleDeleteOrgan,
+    handleDeleteSelectedDrawing,
     handleUpsertRegion,
     handleSave,
     handleClear,

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Region } from "../../types";
-import { regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
+import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
 import {
   REGION_FILL,
   REGION_FREE_STROKE_WIDTH,
@@ -19,7 +19,7 @@ type RegionShapeProps = {
   moveMode: boolean;
   showEditHandles: boolean;
   onSelect: (id: string) => void;
-  onMoveStart?: (id: string, clientX: number, clientY: number) => void;
+  onMovePointerDown?: (id: string, clientX: number, clientY: number) => void;
   onResizeStart?: (id: string, handle: ResizeHandle, clientX: number, clientY: number) => void;
   onRotateStart?: (id: string, clientX: number, clientY: number) => void;
 };
@@ -31,7 +31,7 @@ export function RegionShape({
   moveMode,
   showEditHandles,
   onSelect,
-  onMoveStart,
+  onMovePointerDown,
   onResizeStart,
   onRotateStart,
 }: RegionShapeProps) {
@@ -39,9 +39,11 @@ export function RegionShape({
 
   const handleBodyPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     if (!interactive) return;
-    if (moveMode && onMoveStart) {
-      onMoveStart(region.id, e.clientX, e.clientY);
+
+    if (moveMode && onMovePointerDown) {
+      onMovePointerDown(region.id, e.clientX, e.clientY);
       return;
     }
     onSelect(region.id);
@@ -50,43 +52,56 @@ export function RegionShape({
   if (region.shape === "free_draw" && region.points && region.points.length >= 1) {
     const pointsAttr = region.points.map((p) => `${p.x * 100},${p.y * 100}`).join(" ");
     const showLine = region.points.length >= 2;
+    const bounds = getPointsBounds(region.points);
 
     return (
       <div
-        role="button"
-        tabIndex={interactive ? 0 : -1}
-        onPointerDown={handleBodyPointerDown}
-        className={`absolute inset-0 ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : "pointer-events-none"} ${
-          isSelected ? "z-20" : "z-10"
-        }`}
-        aria-label={label}
-        title={label}
+        className={`absolute ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+        style={{
+          left: `${bounds.minX * 100}%`,
+          top: `${bounds.minY * 100}%`,
+          width: `${(bounds.maxX - bounds.minX) * 100}%`,
+          height: `${(bounds.maxY - bounds.minY) * 100}%`,
+        }}
       >
-        <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {showLine ? (
-            <polyline
-              points={pointsAttr}
-              fill="none"
-              stroke={REGION_STROKE}
-              strokeWidth={REGION_FREE_STROKE_WIDTH}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          ) : (
-            <circle
-              cx={region.points[0].x * 100}
-              cy={region.points[0].y * 100}
-              r={1.2}
-              fill={REGION_STROKE}
-            />
-          )}
-        </svg>
-        {isSelected ? (
-          <span className="pointer-events-none absolute left-1 top-1 max-w-[90%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm">
-            {label}
-          </span>
-        ) : null}
+        <div
+          role="button"
+          tabIndex={interactive ? 0 : -1}
+          onPointerDown={handleBodyPointerDown}
+          className={`absolute inset-0 touch-none select-none ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}`}
+          aria-label={label}
+          title={label}
+        >
+          <svg
+            className="absolute h-full w-full overflow-visible"
+            viewBox={`${bounds.minX * 100} ${bounds.minY * 100} ${(bounds.maxX - bounds.minX) * 100} ${(bounds.maxY - bounds.minY) * 100}`}
+            preserveAspectRatio="none"
+          >
+            {showLine ? (
+              <polyline
+                points={pointsAttr}
+                fill="none"
+                stroke={REGION_STROKE}
+                strokeWidth={REGION_FREE_STROKE_WIDTH}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : (
+              <circle
+                cx={region.points[0].x * 100}
+                cy={region.points[0].y * 100}
+                r={1.2}
+                fill={REGION_STROKE}
+              />
+            )}
+          </svg>
+          {isSelected ? (
+            <span className="pointer-events-none absolute left-0 top-0 max-w-[90%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm">
+              {label}
+            </span>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -99,7 +114,7 @@ export function RegionShape({
 
   return (
     <div
-      className={`absolute ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+      className={`absolute touch-none select-none ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       style={{
         left: box.left,
         top: box.top,
@@ -172,19 +187,14 @@ export function RegionDraftPreview({
   );
 }
 
-/** Manuel çizim canlı önizleme — 1+ nokta */
+/** Manuel çizim canlı önizleme */
 export function FreeDrawDraftPreview({ points }: { points: { x: number; y: number }[] }) {
   if (points.length === 0) return null;
 
   if (points.length === 1) {
     return (
-      <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible">
-        <circle
-          cx={points[0].x * 100}
-          cy={points[0].y * 100}
-          r={1.5}
-          fill={REGION_STROKE}
-        />
+      <svg className="pointer-events-none absolute inset-0 z-[35] h-full w-full overflow-visible">
+        <circle cx={points[0].x * 100} cy={points[0].y * 100} r={1.5} fill={REGION_STROKE} />
       </svg>
     );
   }
@@ -192,7 +202,7 @@ export function FreeDrawDraftPreview({ points }: { points: { x: number; y: numbe
   const pointsAttr = points.map((p) => `${p.x * 100},${p.y * 100}`).join(" ");
 
   return (
-    <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible">
+    <svg className="pointer-events-none absolute inset-0 z-[35] h-full w-full overflow-visible">
       <polyline
         points={pointsAttr}
         fill="none"

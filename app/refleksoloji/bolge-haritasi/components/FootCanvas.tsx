@@ -9,7 +9,7 @@ import {
 } from "../utils/atlasBackground";
 import { computeObjectContainRect } from "../utils/imageContainRect";
 import { pointerToImageNormalized } from "../utils/normalizePointer";
-import { boxFromDrag, clamp01, regionHasBox } from "../utils/regionGeometry";
+import { boxFromDrag, clamp01, MIN_DRAG_SIZE, regionHasBox } from "../utils/regionGeometry";
 import { DEFAULT_REGION_COLOR as REGION_COLOR } from "../utils/regionStyles";
 import {
   asBoxRegion,
@@ -23,6 +23,9 @@ import {
   RegionShape,
 } from "./regions/RegionShape";
 
+const MOVE_DRAG_THRESHOLD = 0.004;
+const FREE_DRAW_POINT_MIN_DIST = 0.003;
+
 type FootCanvasProps = {
   activeOrgan: string | null;
   selectedOrgans: string[];
@@ -34,6 +37,7 @@ type FootCanvasProps = {
   onUpsertRegion: (region: Region) => void;
   selectedRegionId: string | null;
   onSelectRegion: (id: string | null) => void;
+  onDrawComplete?: () => void;
 };
 
 type DraftState =
@@ -44,6 +48,12 @@ type EditDragState =
   | { kind: "move"; regionId: string; start: { x: number; y: number }; snapshot: Region }
   | { kind: "resize"; regionId: string; handle: ResizeHandle; snapshot: Region }
   | { kind: "rotate"; regionId: string; snapshot: Region };
+
+type PendingMoveState = {
+  regionId: string;
+  start: { x: number; y: number };
+  snapshot: Region;
+};
 
 function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
   if (snapshot.shape === "free_draw" && snapshot.points) {
@@ -67,6 +77,12 @@ function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
   return snapshot;
 }
 
+function lockDocumentSelection(lock: boolean) {
+  if (typeof document === "undefined") return;
+  document.body.style.userSelect = lock ? "none" : "";
+  document.body.style.webkitUserSelect = lock ? "none" : "";
+}
+
 function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
   const footLabel = foot === "left" ? "Sol Ayak" : "Sağ Ayak";
   return `${footLabel} • ${atlasBackgroundLabel(backgroundKey)}`;
@@ -83,13 +99,24 @@ export function FootCanvas({
   onUpsertRegion,
   selectedRegionId,
   onSelectRegion,
+  onDrawComplete,
 }: FootCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [imageLoadError, setImageLoadError] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [editDrag, setEditDrag] = useState<EditDragState | null>(null);
+  const [pendingMove, setPendingMove] = useState<PendingMoveState | null>(null);
+
+  const draftRef = useRef<DraftState | null>(null);
+  const finishDraftRef = useRef<(state: DraftState) => boolean>(() => false);
+  const onDrawCompleteRef = useRef(onDrawComplete);
+  const getNormalizedPointRef = useRef(
+    (clientX: number, clientY: number, clamp?: boolean) =>
+      null as { x: number; y: number } | null,
+  );
 
   const atlasBackgroundKey = useMemo(
     () => resolveAtlasBackgroundKey(selectedView, activeOrgan),
@@ -148,8 +175,8 @@ export function FootCanvas({
   );
 
   const finishDraft = useCallback(
-    (state: DraftState) => {
-      if (!activeOrgan) return;
+    (state: DraftState): boolean => {
+      if (!activeOrgan) return false;
 
       if (state.kind === "box") {
         const box = boxFromDrag(
@@ -157,7 +184,7 @@ export function FootCanvas({
           state.current,
           state.shape === "oval" ? "oval" : "rect",
         );
-        if (!box) return;
+        if (!box) return false;
 
         const newRegion: Region = {
           id: crypto.randomUUID(),
@@ -169,10 +196,17 @@ export function FootCanvas({
         };
         onUpsertRegion(newRegion);
         onSelectRegion(newRegion.id);
-        return;
+        return true;
       }
 
-      if (state.points.length < 2) return;
+      if (state.points.length < 2) return false;
+
+      const pathLen = state.points.reduce((acc, p, i, arr) => {
+        if (i === 0) return 0;
+        const prev = arr[i - 1];
+        return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
+      }, 0);
+      if (pathLen < MIN_DRAG_SIZE) return false;
 
       const newRegion: Region = {
         id: crypto.randomUUID(),
@@ -185,16 +219,28 @@ export function FootCanvas({
       };
       onUpsertRegion(newRegion);
       onSelectRegion(newRegion.id);
+      return true;
     },
     [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
   );
 
-  const handlePointerDown = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!isAddMode || !activeOrgan) return;
+  draftRef.current = draft;
+  finishDraftRef.current = finishDraft;
+  onDrawCompleteRef.current = onDrawComplete;
+  getNormalizedPointRef.current = getNormalizedPoint;
 
-      const point = getNormalizedPoint(clientX, clientY, true);
+  const isDrawing = draft !== null;
+
+  const handleOverlayPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || !isAddMode || !activeOrgan) return;
+
+      const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      overlayRef.current?.setPointerCapture(e.pointerId);
 
       if (drawShape === "free_draw") {
         setDraft({ kind: "free", points: [point] });
@@ -207,7 +253,7 @@ export function FootCanvas({
     [isAddMode, activeOrgan, drawShape, getNormalizedPoint],
   );
 
-  const handleRegionMoveStart = useCallback(
+  const handleRegionMovePointerDown = useCallback(
     (regionId: string, clientX: number, clientY: number) => {
       if (!isMoveMode) return;
 
@@ -216,8 +262,7 @@ export function FootCanvas({
       if (!point || !region) return;
 
       onSelectRegion(regionId);
-      setEditDrag({
-        kind: "move",
+      setPendingMove({
         regionId,
         start: point,
         snapshot: structuredClone(region),
@@ -235,6 +280,8 @@ export function FootCanvas({
       if (!box) return;
 
       onSelectRegion(regionId);
+      setPendingMove(null);
+      lockDocumentSelection(true);
       setEditDrag({
         kind: "resize",
         regionId,
@@ -254,6 +301,8 @@ export function FootCanvas({
       if (!box) return;
 
       onSelectRegion(regionId);
+      setPendingMove(null);
+      lockDocumentSelection(true);
       setEditDrag({
         kind: "rotate",
         regionId,
@@ -264,26 +313,76 @@ export function FootCanvas({
   );
 
   useEffect(() => {
-    if (!draft) return;
+    if (!isDrawing) return;
+
+    lockDocumentSelection(true);
 
     const onMove = (e: PointerEvent) => {
-      const point = getNormalizedPoint(e.clientX, e.clientY, true);
+      e.preventDefault();
+      const point = getNormalizedPointRef.current(e.clientX, e.clientY, true);
       if (!point) return;
 
       setDraft((prev) => {
         if (!prev) return prev;
         if (prev.kind === "box") return { ...prev, current: point };
         const last = prev.points[prev.points.length - 1];
-        if (last && Math.hypot(last.x - point.x, last.y - point.y) < 0.002) return prev;
+        if (last && Math.hypot(point.x - last.x, point.y - last.y) < FREE_DRAW_POINT_MIN_DIST) {
+          return prev;
+        }
         return { ...prev, points: [...prev.points, point] };
       });
     };
 
-    const onUp = () => {
-      setDraft((prev) => {
-        if (prev) finishDraft(prev);
-        return null;
+    const onUp = (e: PointerEvent) => {
+      e.preventDefault();
+      lockDocumentSelection(false);
+      try {
+        overlayRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        /* capture may already be released */
+      }
+
+      const prev = draftRef.current;
+      setDraft(null);
+      if (prev) {
+        const created = finishDraftRef.current(prev);
+        if (created) onDrawCompleteRef.current?.();
+      }
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      lockDocumentSelection(false);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [isDrawing]);
+
+  useEffect(() => {
+    if (!pendingMove) return;
+
+    const onMove = (e: PointerEvent) => {
+      const point = getNormalizedPoint(e.clientX, e.clientY, true);
+      if (!point) return;
+
+      const dist = Math.hypot(point.x - pendingMove.start.x, point.y - pendingMove.start.y);
+      if (dist < MOVE_DRAG_THRESHOLD) return;
+
+      lockDocumentSelection(true);
+      setEditDrag({
+        kind: "move",
+        regionId: pendingMove.regionId,
+        start: pendingMove.start,
+        snapshot: pendingMove.snapshot,
       });
+      setPendingMove(null);
+    };
+
+    const onUp = () => {
+      setPendingMove(null);
     };
 
     window.addEventListener("pointermove", onMove);
@@ -294,12 +393,13 @@ export function FootCanvas({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [draft, getNormalizedPoint, finishDraft]);
+  }, [pendingMove, getNormalizedPoint]);
 
   useEffect(() => {
     if (!editDrag) return;
 
     const onMove = (e: PointerEvent) => {
+      e.preventDefault();
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
 
@@ -326,12 +426,16 @@ export function FootCanvas({
       }
     };
 
-    const onUp = () => setEditDrag(null);
+    const onUp = () => {
+      lockDocumentSelection(false);
+      setEditDrag(null);
+    };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
+      lockDocumentSelection(false);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
@@ -339,11 +443,8 @@ export function FootCanvas({
   }, [editDrag, getNormalizedPoint, onUpsertRegion]);
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    if (isAddMode) {
-      handlePointerDown(e.clientX, e.clientY);
-      return;
-    }
+    if (e.button !== 0 || isAddMode) return;
+    if (e.target !== e.currentTarget) return;
     onSelectRegion(null);
   };
 
@@ -383,7 +484,7 @@ export function FootCanvas({
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
           ref={canvasRef}
-          className={`relative h-full min-h-0 w-full flex-1 overflow-hidden bg-white ${
+          className={`relative h-full min-h-0 w-full flex-1 select-none overflow-hidden bg-white touch-none ${
             canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : isMoveMode ? "cursor-default" : ""
           }`}
           onPointerDown={handleCanvasPointerDown}
@@ -393,12 +494,13 @@ export function FootCanvas({
               key={currentImageSrc}
               src={currentImageSrc}
               alt={imageAlt}
+              draggable={false}
               onLoad={(e) => {
                 const img = e.currentTarget;
                 setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
               }}
               onError={() => setImageLoadError(true)}
-              className="absolute inset-0 z-0 h-full w-full object-contain opacity-100 pointer-events-none select-none"
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-contain opacity-100"
             />
           ) : (
             <p className="absolute inset-0 z-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-amber-900">
@@ -407,7 +509,20 @@ export function FootCanvas({
           )}
 
           {imageRect.width > 0 ? (
-            <div className="absolute z-10" style={imageOverlayStyle}>
+            <div
+              ref={overlayRef}
+              className="absolute z-10 touch-none select-none"
+              style={imageOverlayStyle}
+              onPointerDown={(e) => {
+                if (isAddMode) {
+                  handleOverlayPointerDown(e);
+                  return;
+                }
+                if (e.target === e.currentTarget) {
+                  onSelectRegion(null);
+                }
+              }}
+            >
               {showOrganRequired ? (
                 <p className="pointer-events-none absolute left-1/2 top-2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
                   Önce soldan bir organ seçiniz.
@@ -424,7 +539,7 @@ export function FootCanvas({
 
               {isMoveMode ? (
                 <p className="pointer-events-none absolute top-2 right-2 z-40 rounded-full border border-sky-300/70 bg-sky-50/95 px-2.5 py-1 text-xs font-semibold text-sky-950 shadow-sm">
-                  Taşı · boyutlandır · döndür
+                  Seç · sürükle · boyutlandır · döndür
                 </p>
               ) : null}
 
@@ -443,18 +558,14 @@ export function FootCanvas({
                   moveMode={isMoveMode}
                   showEditHandles={showEditHandles}
                   onSelect={onSelectRegion}
-                  onMoveStart={handleRegionMoveStart}
+                  onMovePointerDown={handleRegionMovePointerDown}
                   onResizeStart={handleResizeStart}
                   onRotateStart={handleRotateStart}
                 />
               ))}
 
               {draft?.kind === "box" ? (
-                <RegionDraftPreview
-                  shape={draft.shape}
-                  start={draft.start}
-                  current={draft.current}
-                />
+                <RegionDraftPreview shape={draft.shape} start={draft.start} current={draft.current} />
               ) : null}
               {draft?.kind === "free" ? <FreeDrawDraftPreview points={draft.points} /> : null}
             </div>
