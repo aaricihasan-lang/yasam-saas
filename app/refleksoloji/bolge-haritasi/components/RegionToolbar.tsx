@@ -38,12 +38,13 @@ export function RegionToolbar({
   const isMove = toolMode === "move";
 
   return (
-    <div
-      className="shrink-0 border-t border-purple-100 bg-white/80 p-4 backdrop-blur-md"
-      role="toolbar"
-      aria-label="Bölge haritası araçları"
-    >
-      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pb-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]">
+    <div className="flex w-full shrink-0 justify-center px-8 pb-3">
+      <div
+        className="mx-auto w-fit max-w-[calc(100vw-120px)] rounded-[28px] border border-purple-100/90 bg-white/80 px-5 py-4 backdrop-blur-md"
+        role="toolbar"
+        aria-label="Bölge haritası araçları"
+      >
+        <div className="flex flex-nowrap items-center justify-center gap-3 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:thin]">
         <button
           type="button"
           onClick={() => setToolMode("add")}
@@ -171,6 +172,7 @@ export function RegionToolbar({
         >
           Yan Görünümü
         </button>
+        </div>
       </div>
     </div>
   );
