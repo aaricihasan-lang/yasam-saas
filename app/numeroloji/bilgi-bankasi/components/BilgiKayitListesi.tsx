@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { ANALIZ_TURU_FILTER_OPTIONS } from "../helpers/bilgiBankaLabels";
 import {
   deleteBilgiBankaKayit,
+  deleteBilgiBankaKayitlari,
   listBilgiBankaKayitlari,
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
@@ -29,11 +30,17 @@ const searchInputClass = `${filterFieldClass} min-w-0 placeholder:text-base plac
 const refreshButtonClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-bold text-white shadow-lg ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
 
+const checkboxClass =
+  "size-6 cursor-pointer rounded-md border-2 border-violet-400/90 bg-white text-violet-600 shadow-sm ring-2 ring-violet-100/70 transition focus:ring-violet-500";
+
 const detayBtnClass =
-  "inline-flex min-h-[2.25rem] items-center justify-center rounded-xl border-2 border-violet-200/90 bg-violet-50/90 px-4 py-2 text-sm font-bold text-violet-900 shadow-sm ring-1 ring-violet-100/60 transition hover:border-violet-300 hover:bg-violet-100/90";
+  "inline-flex items-center justify-center rounded-xl border-2 border-violet-500/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110 hover:shadow-md";
 
 const silBtnClass =
-  "inline-flex min-h-[2.25rem] items-center justify-center rounded-xl border-2 border-rose-200/90 bg-rose-50/90 px-4 py-2 text-sm font-bold text-rose-900 shadow-sm ring-1 ring-rose-100/60 transition hover:border-rose-300 hover:bg-rose-100/90 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-xl border-2 border-rose-500/90 bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+
+const secilileriSilBtnClass =
+  "inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-rose-400/90 bg-gradient-to-r from-rose-600 to-red-700 px-6 py-2 text-base font-bold text-white shadow-lg ring-2 ring-rose-200/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:border-slate-300 disabled:from-slate-400 disabled:to-slate-500 disabled:text-slate-100 disabled:opacity-60 disabled:shadow-none";
 
 function kayitTuruBadge(tur: KayitTuru) {
   if (tur === "aciklama") {
@@ -57,6 +64,7 @@ export function BilgiKayitListesi() {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [detayRow, setDetayRow] = useState<BilgiBankaListeSatir | null>(null);
   const [siliniyorId, setSiliniyorId] = useState<string | null>(null);
+  const [topluSiliniyor, setTopluSiliniyor] = useState(false);
 
   const yukleListe = useCallback(async () => {
     setYukleniyor(true);
@@ -98,6 +106,17 @@ export function BilgiKayitListesi() {
   const hicKayitYok = !yukleniyor && tumSatirlar.length === 0;
   const filtreBos = !yukleniyor && !hicKayitYok && filtrelenmis.length === 0;
 
+  const seciliSatirlar = useMemo(
+    () => tumSatirlar.filter((r) => seciliIds.has(r.id)),
+    [tumSatirlar, seciliIds],
+  );
+  const seciliSayisi = seciliSatirlar.length;
+
+  const filtrelenmisHepsiSecili = useMemo(() => {
+    if (filtrelenmis.length === 0) return false;
+    return filtrelenmis.every((r) => seciliIds.has(r.id));
+  }, [filtrelenmis, seciliIds]);
+
   function toggleSec(id: string) {
     setSeciliIds((prev) => {
       const next = new Set(prev);
@@ -108,11 +127,53 @@ export function BilgiKayitListesi() {
   }
 
   function toggleTumunu() {
-    if (seciliIds.size === filtrelenmis.length && filtrelenmis.length > 0) {
-      setSeciliIds(new Set());
+    if (filtrelenmisHepsiSecili) {
+      setSeciliIds((prev) => {
+        const next = new Set(prev);
+        for (const r of filtrelenmis) next.delete(r.id);
+        return next;
+      });
     } else {
-      setSeciliIds(new Set(filtrelenmis.map((r) => r.id)));
+      setSeciliIds((prev) => {
+        const next = new Set(prev);
+        for (const r of filtrelenmis) next.add(r.id);
+        return next;
+      });
     }
+  }
+
+  async function handleSecilileriSil() {
+    if (seciliSayisi === 0) return;
+
+    const ok = await confirm({
+      title: "Seçili kayıtları sil",
+      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
+      tone: "danger",
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+    });
+    if (!ok) return;
+
+    const knowledgeIds = seciliSatirlar
+      .filter((r) => r.kayitTuru === "aciklama")
+      .map((r) => r.recordId);
+    const stoneIds = seciliSatirlar
+      .filter((r) => r.kayitTuru === "dogaltas")
+      .map((r) => r.recordId);
+
+    setTopluSiliniyor(true);
+    const { error } = await deleteBilgiBankaKayitlari(knowledgeIds, stoneIds);
+    setTopluSiliniyor(false);
+
+    if (error) {
+      showToast({ message: `Seçili kayıtlar silinemedi: ${error}`, type: "error" });
+      return;
+    }
+
+    showToast({ message: "Seçili kayıtlar silindi", type: "success" });
+    if (detayRow && seciliIds.has(detayRow.id)) setDetayRow(null);
+    setSeciliIds(new Set());
+    void yukleListe();
   }
 
   async function handleSil(row: BilgiBankaListeSatir) {
@@ -142,7 +203,7 @@ export function BilgiKayitListesi() {
   return (
     <div className="space-y-8">
       <div className="min-h-[140px] rounded-[28px] border-2 border-violet-200/80 bg-white/95 p-8 shadow-xl ring-1 ring-purple-200 backdrop-blur-md md:p-10">
-        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-[1.1fr_1.1fr_2fr_auto] xl:items-end">
+        <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-2 xl:items-end 2xl:grid-cols-[1.1fr_1.1fr_2fr_auto_1.3fr]">
           <div className="min-w-0">
             <label htmlFor="liste-kayit-turu" className={filterLabelClass}>
               Kayıt türü
@@ -206,6 +267,22 @@ export function BilgiKayitListesi() {
               {yukleniyor ? "Yükleniyor…" : "Listeyi yenile"}
             </button>
           </div>
+
+          <div className="min-w-0">
+            <span className="mb-2.5 block text-base font-bold text-slate-800">Toplu işlem</span>
+            <button
+              type="button"
+              disabled={seciliSayisi === 0 || topluSiliniyor || yukleniyor}
+              onClick={() => void handleSecilileriSil()}
+              className={`${secilileriSilBtnClass} w-full`}
+            >
+              {topluSiliniyor
+                ? "Siliniyor…"
+                : seciliSayisi > 0
+                  ? `Seçilileri Sil (${seciliSayisi})`
+                  : "Seçilileri Sil"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -225,70 +302,110 @@ export function BilgiKayitListesi() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white/95 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] border-collapse text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-violet-200/80 bg-gradient-to-r from-violet-50/90 to-white px-6 py-4 sm:px-8">
+            <p className="text-sm font-bold text-violet-900/90">
+              {seciliSayisi > 0
+                ? `${seciliSayisi} kayıt seçildi`
+                : "Görünen kayıtları seçmek için kutucukları işaretleyin"}
+            </p>
+            <button
+              type="button"
+              disabled={seciliSayisi === 0 || topluSiliniyor}
+              onClick={() => void handleSecilileriSil()}
+              className={secilileriSilBtnClass}
+            >
+              {topluSiliniyor
+                ? "Siliniyor…"
+                : seciliSayisi > 0
+                  ? `Seçilileri Sil (${seciliSayisi})`
+                  : "Seçilileri Sil"}
+            </button>
+          </div>
+          <div className="overflow-x-auto p-3 sm:p-4">
+            <table className="w-full min-w-[960px] border-separate border-spacing-y-2 text-left">
               <thead>
-                <tr className="border-b-2 border-violet-200/90 bg-gradient-to-r from-violet-50/95 via-white to-amber-50/80">
-                  <th className="w-14 px-4 py-5 sm:px-6">
-                    <input
-                      type="checkbox"
-                      checked={filtrelenmis.length > 0 && seciliIds.size === filtrelenmis.length}
-                      onChange={toggleTumunu}
-                      className="size-5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
-                      aria-label="Tümünü seç"
-                    />
+                <tr>
+                  <th className="w-16 rounded-l-2xl border-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 sm:px-6">
+                    <div className="flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={filtrelenmisHepsiSecili}
+                        onChange={toggleTumunu}
+                        className={checkboxClass}
+                        aria-label="Tümünü seç veya tümünü kaldır"
+                      />
+                    </div>
                   </th>
-                  <th className="px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
                     Kayıt Türü
                   </th>
-                  <th className="px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
                     Analiz Türü
                   </th>
-                  <th className="px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
                     Değer
                   </th>
-                  <th className="min-w-[220px] px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className="min-w-[220px] border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
                     Bilgi Kaynağı / Açıklama
                   </th>
-                  <th className="whitespace-nowrap px-4 py-5 text-right text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className="rounded-r-2xl border-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-right text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
                     İşlemler
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filtrelenmis.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    className={`border-b border-violet-100/90 transition hover:bg-violet-50/60 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-violet-50/25"
-                    } ${seciliIds.has(row.id) ? "ring-1 ring-inset ring-violet-300/50" : ""}`}
-                  >
-                    <td className="px-4 py-5 sm:px-6">
-                      <input
-                        type="checkbox"
-                        checked={seciliIds.has(row.id)}
-                        onChange={() => toggleSec(row.id)}
-                        className="size-5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
-                        aria-label={`${row.analizTuru} ${row.deger} seç`}
-                      />
+                {filtrelenmis.map((row) => {
+                  const secili = seciliIds.has(row.id);
+                  return (
+                  <tr key={row.id} className="group">
+                    <td className="rounded-l-2xl border-2 border-violet-200/90 bg-white/95 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 group-hover:bg-violet-50/90 sm:px-6">
+                      <div className="flex justify-center">
+                        <input
+                          type="checkbox"
+                          checked={secili}
+                          onChange={() => toggleSec(row.id)}
+                          className={checkboxClass}
+                          aria-label={`${row.analizTuru} ${row.deger} seç`}
+                        />
+                      </div>
                     </td>
-                    <td className="px-4 py-5 sm:px-6">
+                    <td
+                      className={`border-y-2 border-violet-200/90 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                        secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
+                      }`}
+                    >
                       <span
                         className={`inline-block rounded-xl px-3 py-1.5 text-sm font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}
                       >
                         {kayitTuruLabel(row.kayitTuru)}
                       </span>
                     </td>
-                    <td className="px-4 py-5 text-base font-semibold text-slate-900 sm:px-6 sm:text-lg">
+                    <td
+                      className={`border-y-2 border-violet-200/90 px-4 py-6 text-base font-semibold text-slate-900 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 sm:text-lg ${
+                        secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
+                      }`}
+                    >
                       {row.analizTuru}
                     </td>
-                    <td className="px-4 py-5 text-base font-medium text-slate-800 sm:px-6 sm:text-lg">
+                    <td
+                      className={`border-y-2 border-violet-200/90 px-4 py-6 text-base font-medium text-slate-800 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 sm:text-lg ${
+                        secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
+                      }`}
+                    >
                       {row.deger}
                     </td>
-                    <td className="max-w-md px-4 py-5 text-base leading-relaxed text-slate-700 sm:px-6">
+                    <td
+                      className={`max-w-md border-y-2 border-violet-200/90 px-4 py-6 text-base leading-relaxed text-slate-700 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                        secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
+                      }`}
+                    >
                       <span className="line-clamp-3">{row.bilgiVeyaAciklama}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-5 sm:px-6">
+                    <td
+                      className={`rounded-r-2xl border-2 border-violet-200/90 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                        secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
+                      }`}
+                    >
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
@@ -300,7 +417,7 @@ export function BilgiKayitListesi() {
                         <button
                           type="button"
                           className={silBtnClass}
-                          disabled={siliniyorId === row.id}
+                          disabled={siliniyorId === row.id || topluSiliniyor}
                           onClick={() => void handleSil(row)}
                         >
                           {siliniyorId === row.id ? "Siliniyor…" : "Sil"}
@@ -308,7 +425,8 @@ export function BilgiKayitListesi() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -318,3 +318,30 @@ export async function deleteBilgiBankaKayit(
 
   return { error: error?.message ?? null };
 }
+
+export async function deleteBilgiBankaKayitlari(
+  knowledgeIds: string[],
+  stoneIds: string[],
+): Promise<{ error: string | null }> {
+  const tenantId = getTenantIdFromStorage();
+
+  if (knowledgeIds.length > 0) {
+    const { error } = await supabase
+      .from(KNOWLEDGE_TABLE)
+      .delete()
+      .in("id", knowledgeIds)
+      .eq("tenant_id", tenantId);
+    if (error) return { error: error.message };
+  }
+
+  if (stoneIds.length > 0) {
+    const { error } = await supabase
+      .from(STONE_TABLE)
+      .delete()
+      .in("id", stoneIds)
+      .eq("tenant_id", tenantId);
+    if (error) return { error: error.message };
+  }
+
+  return { error: null };
+}
