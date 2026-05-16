@@ -8,6 +8,8 @@ type HubModule = {
   gradient: string;
   ring: string;
   hoverRing: string;
+  borderTint: string;
+  accentGlow: string;
 };
 
 const MENU_MODULES: HubModule[] = [
@@ -22,6 +24,8 @@ const MENU_MODULES: HubModule[] = [
     gradient: "from-violet-400/35 via-indigo-300/30 to-sky-200/40",
     ring: "ring-violet-300/50",
     hoverRing: "group-hover:ring-violet-400/80",
+    borderTint: "border-violet-200/75",
+    accentGlow: "bg-violet-400/28",
   },
   {
     href: "/refleksoloji/kayitli-atlas",
@@ -31,6 +35,8 @@ const MENU_MODULES: HubModule[] = [
     gradient: "from-fuchsia-400/30 via-violet-300/28 to-pink-200/38",
     ring: "ring-fuchsia-300/45",
     hoverRing: "group-hover:ring-fuchsia-400/75",
+    borderTint: "border-fuchsia-200/75",
+    accentGlow: "bg-fuchsia-400/28",
   },
   {
     href: "/refleksoloji/protokol-haritasi",
@@ -43,24 +49,30 @@ const MENU_MODULES: HubModule[] = [
     gradient: "from-amber-300/35 via-violet-300/25 to-orange-200/35",
     ring: "ring-amber-300/45",
     hoverRing: "group-hover:ring-amber-400/70",
+    borderTint: "border-amber-200/75",
+    accentGlow: "bg-amber-400/26",
   },
   {
     href: "/refleksoloji/kayitli-protokoller",
     title: "Kayıtlı Protokoller",
     icon: "📚",
     lines: ["Kayıtlı protokolleri listele ve görüntüle."],
-    gradient: "from-emerald-300/32 via-cyan-200/28 to-teal-200/36",
-    ring: "ring-emerald-300/45",
-    hoverRing: "group-hover:ring-emerald-400/70",
+    gradient: "from-emerald-300/42 via-cyan-300/38 to-sky-200/44",
+    ring: "ring-emerald-300/55",
+    hoverRing: "group-hover:ring-emerald-400/85",
+    borderTint: "border-emerald-200/80",
+    accentGlow: "bg-emerald-400/32",
   },
   {
     href: "/refleksoloji/notlar",
     title: "Notlar",
     icon: "📝",
     lines: ["Klinik seans notları ve ek bilgi alanı."],
-    gradient: "from-rose-400/32 via-violet-300/26 to-pink-200/38",
-    ring: "ring-rose-300/45",
-    hoverRing: "group-hover:ring-rose-400/75",
+    gradient: "from-rose-300/40 via-fuchsia-300/38 to-violet-200/42",
+    ring: "ring-rose-300/55",
+    hoverRing: "group-hover:ring-fuchsia-400/85",
+    borderTint: "border-rose-200/80",
+    accentGlow: "bg-fuchsia-400/30",
   },
 ];
 
@@ -77,14 +89,18 @@ function ReflexologyHubCard({
   return (
     <Link
       href={module.href}
-      className={`group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/80 bg-white/70 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.ring} ${module.hoverRing}`}
+      className={`group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border bg-white/50 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/65 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.borderTint} ${module.ring} ${module.hoverRing}`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-95 transition-opacity duration-300 group-hover:opacity-100`}
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-100 transition-opacity duration-300`}
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/30 blur-2xl transition-all duration-300 group-hover:bg-white/40"
+        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/35 blur-2xl transition-all duration-300 group-hover:bg-white/45"
+        aria-hidden
+      />
+      <div
+        className={`pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full blur-3xl ${module.accentGlow}`}
         aria-hidden
       />
 
@@ -96,12 +112,12 @@ function ReflexologyHubCard({
       </span>
 
       <div className="relative flex flex-col items-center justify-center px-1">
-        <h2 className="text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl">
+        <h2 className="text-[1.35rem] font-black leading-tight tracking-tight text-slate-900 sm:text-[1.65rem] lg:text-[1.75rem]">
           {module.title}
         </h2>
         <div className="mt-2 w-full space-y-1">
           {module.lines.map((line) => (
-            <p key={line} className="text-sm font-medium leading-snug text-slate-600/95 sm:text-[0.95rem]">
+            <p key={line} className="text-[0.9375rem] font-semibold leading-relaxed text-slate-700/95 sm:text-base">
               {line}
             </p>
           ))}
@@ -136,7 +152,7 @@ function ReflexologyMainMenu() {
         <div className="absolute left-[48%] top-[38%] h-48 w-48 -translate-x-1/2 rounded-full bg-indigo-300/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1460px] flex-col px-4 py-2 sm:px-5 lg:px-6 lg:py-3">
+      <div className="relative z-10 mx-auto flex h-full w-[92vw] max-w-[1650px] flex-col px-4 py-2 sm:px-5 lg:px-6 lg:py-3">
         <div className="flex shrink-0 items-start justify-between gap-4">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-violet-700/90 sm:text-[11px]">
@@ -171,7 +187,7 @@ function ReflexologyMainMenu() {
                 ))}
               </div>
               <div className="flex justify-center">
-                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[84%] lg:max-w-[1180px] lg:gap-5">
+                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[92%] lg:max-w-[1320px] lg:gap-5">
                   {MENU_MODULES.slice(3).map((module) => (
                     <ReflexologyHubCard key={module.href} module={module} size="bottom" />
                   ))}
