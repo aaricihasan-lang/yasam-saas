@@ -1,9 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useState,
   type Dispatch,
   type MouseEvent,
   type SetStateAction,
@@ -110,7 +111,14 @@ export function FootCanvas({
     [selectedView, selectedOrgan],
   );
 
-  const atlasSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
+  const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
+  const imageAlt = atlasBackgroundLabel(atlasBackgroundKey);
+
+  const [imageLoadError, setImageLoadError] = useState(false);
+
+  useEffect(() => {
+    setImageLoadError(false);
+  }, [currentImageSrc]);
 
   const atlasRegions = useMemo(
     () => filterVisibleRegions(ATLAS_REGIONS, selectedFoot, selectedView),
@@ -194,18 +202,21 @@ export function FootCanvas({
           aria-label={`${canvasBadge} — refleks bölgeleri`}
           onClick={handleCanvasClick}
         >
-          <Image
-            key={atlasSrc}
-            src={atlasSrc}
-            alt={canvasBadge}
-            fill
-            priority
-            sizes="(max-width: 1200px) 70vw, 1200px"
-            className="pointer-events-none object-contain object-center"
-            draggable={false}
-          />
+          {!imageLoadError ? (
+            <img
+              key={currentImageSrc}
+              src={currentImageSrc}
+              alt={imageAlt}
+              onError={() => setImageLoadError(true)}
+              className="absolute inset-0 z-0 h-full w-full object-contain opacity-100 pointer-events-none select-none"
+            />
+          ) : (
+            <p className="absolute inset-0 z-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-amber-900">
+              Atlas görseli yüklenemedi.
+            </p>
+          )}
 
-          <div className="absolute inset-0 z-[5]">
+          <div className="absolute inset-0 z-10">
             {showOrganRequired ? (
               <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
                 Önce organ seçiniz.
