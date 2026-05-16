@@ -29,8 +29,8 @@ export function OrganListPanel({ selectedOrgan, setSelectedOrgan }: OrganListPan
 
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col rounded-2xl border border-white/90 bg-white/80 p-3 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md lg:w-[300px]">
-      <h2 className="text-sm font-black uppercase tracking-[0.22em] text-violet-800/90">Organlar</h2>
-      <label className="mt-3 block">
+      <h2 className="text-lg font-black uppercase tracking-[0.2em] text-violet-900">Organlar</h2>
+      <label className="mt-2 block">
         <span className="sr-only">Organ ara</span>
         <input
           type="search"
@@ -41,9 +41,9 @@ export function OrganListPanel({ selectedOrgan, setSelectedOrgan }: OrganListPan
         />
       </label>
 
-      <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-0.5">
+      <ul className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         {filteredOrgans.length === 0 ? (
-          <li className="rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-3 py-4 text-center text-sm font-medium text-slate-500">
+          <li className="rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-3 py-4 text-center text-base font-medium text-slate-600">
             Eşleşen organ bulunamadı.
           </li>
         ) : (
@@ -54,16 +54,18 @@ export function OrganListPanel({ selectedOrgan, setSelectedOrgan }: OrganListPan
                 <button
                   type="button"
                   onClick={() => setSelectedOrgan(organ)}
-                  className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-3 text-left text-base font-semibold transition-all duration-200 ${
+                  className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-3.5 text-left text-base font-bold transition-all duration-200 ${
                     isSelected
-                      ? "scale-[1.02] border-violet-300/90 bg-gradient-to-r from-violet-200/70 via-fuchsia-100/50 to-violet-100/60 text-violet-950 shadow-[0_6px_20px_-10px_rgba(109,40,217,0.35)] ring-1 ring-violet-300/50"
-                      : "border-transparent bg-white/50 text-slate-700 hover:border-violet-200/60 hover:bg-violet-50/50 hover:text-violet-900"
+                      ? "border-violet-400/90 bg-gradient-to-r from-violet-300/90 via-fuchsia-200/85 to-violet-200/90 text-violet-950 shadow-[0_8px_22px_-10px_rgba(109,40,217,0.4)] ring-1 ring-violet-400/55"
+                      : "border-violet-100/90 bg-gradient-to-r from-violet-50/90 via-fuchsia-50/70 to-white/80 text-slate-800 shadow-sm hover:border-violet-200/80 hover:from-violet-100/90 hover:to-fuchsia-50/80"
                   }`}
                   aria-current={isSelected ? "true" : undefined}
                 >
                   <span
-                    className={`h-2 w-2 shrink-0 rounded-full transition ${
-                      isSelected ? "bg-violet-600 shadow-[0_0_0_3px_rgba(124,58,237,0.25)]" : "bg-transparent"
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full transition ${
+                      isSelected
+                        ? "bg-violet-700 shadow-[0_0_0_3px_rgba(124,58,237,0.3)]"
+                        : "bg-violet-300/80"
                     }`}
                     aria-hidden
                   />

@@ -23,22 +23,22 @@ export function RegionMapLayout() {
       </div>
 
       <div className="relative z-10 flex h-full w-full max-w-none flex-col px-3 py-2">
-        <div className="flex max-h-[90px] shrink-0 items-center gap-3 pb-1.5">
+        <div className="flex max-h-[90px] shrink-0 items-center gap-3 pb-1">
           <Link
             href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200/90 bg-white/85 px-2.5 py-1.5 text-[11px] font-black text-violet-900 shadow-sm ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:px-3 sm:text-xs"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200/90 bg-white/85 px-2.5 py-1.5 text-sm font-black text-violet-900 shadow-sm ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:px-3"
           >
             <span aria-hidden>←</span>
             <span className="hidden sm:inline">Ana Menü</span>
           </Link>
           <header className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.28em] text-violet-700/85 sm:text-[10px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-violet-700/90 sm:text-xs">
               Refleksoloji · Bölge Haritası
             </p>
-            <h1 className="truncate text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-xl">
+            <h1 className="truncate text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl">
               Bölge Haritası
             </h1>
-            <p className="hidden truncate text-[11px] font-medium text-slate-600 xl:block">
+            <p className="line-clamp-1 text-sm font-medium text-slate-600">
               Organ seçin, ayak haritasında bölgeleri işaretleyin.
             </p>
           </header>

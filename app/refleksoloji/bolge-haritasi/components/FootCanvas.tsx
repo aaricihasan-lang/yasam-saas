@@ -98,8 +98,8 @@ function RegionOval({
       title={region.organ}
     >
       <span
-        className={`pointer-events-none max-w-[90%] truncate px-1 text-center font-bold leading-tight text-slate-800/90 ${
-          emphasized ? "text-[10px] sm:text-xs" : "text-[9px] sm:text-[10px]"
+        className={`pointer-events-none max-w-[92%] truncate px-1 text-center font-bold leading-tight text-slate-900 ${
+          emphasized ? "text-xs sm:text-sm" : "text-[11px] sm:text-xs"
         }`}
       >
         {region.organ}
@@ -180,14 +180,14 @@ export function FootCanvas({
       aria-label="Ayak haritası çalışma alanı"
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100/80 px-3 py-1.5 sm:px-4">
-        <span className="inline-flex items-center gap-2.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-4 py-2 text-[10px] font-black tracking-wide text-violet-950 shadow-[0_6px_24px_-6px_rgba(91,33,182,0.32)] ring-1 ring-inset ring-white/95 backdrop-blur-md sm:px-5 sm:text-[11px]">
+        <span className="inline-flex items-center gap-2.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-4 py-1.5 text-sm font-black tracking-wide text-violet-950 shadow-[0_6px_24px_-6px_rgba(91,33,182,0.32)] ring-1 ring-inset ring-white/95 backdrop-blur-md sm:px-5 sm:text-base">
           <span
             className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-400 shadow-[0_0_8px_rgba(139,92,246,0.7)]"
             aria-hidden
           />
           {canvasBadge}
         </span>
-        <p className="text-[10px] font-semibold text-slate-500 sm:text-xs">
+        <p className="text-sm font-semibold text-slate-700">
           {selectedOrgan ? selectedOrgan : "Organ seçilmedi"} · {visibleRegions.length} bölge
           {isAddMode ? " · Ekleme modu" : null}
         </p>
@@ -221,25 +221,25 @@ export function FootCanvas({
 
           <div className="relative z-[5] min-h-full w-full">
             {showOrganRequired ? (
-              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-xs font-bold text-amber-950 shadow-sm">
+              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
                 Önce organ seçiniz.
               </p>
             ) : null}
 
             {showSelectHint ? (
-              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-violet-200/80 bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-800/90 shadow-sm sm:text-xs">
+              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-violet-200/80 bg-white/90 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-violet-900 shadow-sm">
                 Haritada vurgulamak için soldan organ seçin
               </p>
             ) : null}
 
             {isAddMode && selectedOrgan ? (
-              <p className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-[10px] font-semibold text-violet-900 shadow-sm sm:text-xs">
+              <p className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1.5 text-sm font-semibold text-violet-900 shadow-sm">
                 Haritaya tıklayarak «{selectedOrgan}» bölgesi ekleyin
               </p>
             ) : null}
 
             {visibleRegions.length === 0 ? (
-              <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm font-medium text-slate-500">
+              <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-base font-medium text-slate-600">
                 Bu ayak ve görünüm için kayıtlı bölge yok.
               </p>
             ) : (
@@ -256,7 +256,7 @@ export function FootCanvas({
         </div>
 
         {selectedOrgan && !hasRegionForOrgan ? (
-          <p className="mt-2 text-center text-xs font-medium text-amber-800/90">
+          <p className="mt-1.5 text-center text-sm font-medium text-amber-900">
             «{selectedOrgan}» bu ayak görünümünde henüz bölge içermiyor.
           </p>
         ) : null}
