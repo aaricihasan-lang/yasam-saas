@@ -36,16 +36,23 @@ type RegionShapeProps = {
   onThickLineRotateStart?: (id: string, clientX: number, clientY: number) => void;
 };
 
+function isFiniteCoord(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function safeThickLineWidth(lineWidth?: number): number {
+  return Number.isFinite(lineWidth) ? (lineWidth as number) : 0.008;
+}
+
 export function regionHasThickLine(
   region: Region,
-): region is Region & { x1: number; y1: number; x2: number; y2: number; lineWidth: number } {
+): region is Region & { x1: number; y1: number; x2: number; y2: number; lineWidth?: number } {
   return (
     region.shape === "thick_line" &&
-    typeof region.x1 === "number" &&
-    typeof region.y1 === "number" &&
-    typeof region.x2 === "number" &&
-    typeof region.y2 === "number" &&
-    typeof region.lineWidth === "number"
+    isFiniteCoord(region.x1) &&
+    isFiniteCoord(region.y1) &&
+    isFiniteCoord(region.x2) &&
+    isFiniteCoord(region.y2)
   );
 }
 
@@ -76,12 +83,27 @@ export function RegionShape({
     onSelect(region.id);
   };
 
-  if (regionHasThickLine(region)) {
-    const { x1, y1, x2, y2, lineWidth } = region;
+  if (region.shape === "thick_line") {
+    if (
+      region.x1 == null ||
+      region.y1 == null ||
+      region.x2 == null ||
+      region.y2 == null ||
+      !isFiniteCoord(region.x1) ||
+      !isFiniteCoord(region.y1) ||
+      !isFiniteCoord(region.x2) ||
+      !isFiniteCoord(region.y2)
+    ) {
+      return null;
+    }
+
+    const { x1, y1, x2, y2 } = region;
+    const lineWidth = region.lineWidth ?? 0.008;
+    const safeWidth = Number.isFinite(lineWidth) ? lineWidth : 0.008;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
-    const strokeW = Math.max(2, lineWidth * 100 * 1.05);
-    const hitStrokeW = Math.max(12, lineWidth * 100 * 5);
+    const strokeW = Math.max(2, safeWidth * 100 * 1.05);
+    const hitStrokeW = Math.max(12, safeWidth * 100 * 5);
     const handlesVisible = showEditHandles && isSelected && interactive;
 
     return (

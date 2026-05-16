@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
+import { normalizeThickLineRegion } from "../types";
 /** Yeni kalın çizgi kayıtları — normalize 0..1 */
 const THICK_LINE_WIDTH = 0.009;
 import {
@@ -19,7 +20,12 @@ import {
   rotateRegionByPointer,
   type ResizeHandle,
 } from "../utils/regionTransform";
-import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/RegionShape";
+import {
+  regionHasThickLine,
+  RegionDraftPreview,
+  RegionShape,
+  safeThickLineWidth,
+} from "./regions/RegionShape";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
@@ -206,7 +212,10 @@ export function FootCanvas({
   const showOrganRequired = isAddMode && !activeOrgan;
   const showEditHandles = isMoveMode;
 
-  const visibleRegions = regions;
+  const visibleRegions = useMemo(
+    () => regions.map((region) => normalizeThickLineRegion(region)),
+    [regions],
+  );
 
   const imageRect = useMemo(
     () => computeObjectContainRect(containerSize.w, containerSize.h, naturalSize.w, naturalSize.h),
@@ -367,13 +376,15 @@ export function FootCanvas({
 
   const thickLinePreviewPixels = useMemo(() => {
     if (!thickLineDraft || overlayW <= 0 || overlayH <= 0) return null;
-    return {
-      x1: thickLineDraft.x1 * overlayW,
-      y1: thickLineDraft.y1 * overlayH,
-      x2: thickLineDraft.x2 * overlayW,
-      y2: thickLineDraft.y2 * overlayH,
-      strokePx: Math.max(5, THICK_LINE_WIDTH * overlayW * 0.55),
-    };
+    const x1 = thickLineDraft.x1 * overlayW;
+    const y1 = thickLineDraft.y1 * overlayH;
+    const x2 = thickLineDraft.x2 * overlayW;
+    const y2 = thickLineDraft.y2 * overlayH;
+    if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+    const safeWidth = safeThickLineWidth(THICK_LINE_WIDTH);
+    const strokePx = Math.max(5, safeWidth * overlayW * 0.55);
+    if (!Number.isFinite(strokePx)) return null;
+    return { x1, y1, x2, y2, strokePx };
   }, [thickLineDraft, overlayW, overlayH]);
 
   const finishManualStroke = useCallback(

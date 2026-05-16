@@ -33,4 +33,14 @@ export type Region = {
   color?: string;
 };
 
-export const DEFAULT_THICK_LINE_WIDTH = 0.018;
+/** Eski kayıtlar ve fallback render için varsayılan kalın çizgi genişliği (normalize) */
+export const FALLBACK_THICK_LINE_WIDTH = 0.008;
+
+/** @deprecated Yeni çizimler FootCanvas içindeki THICK_LINE_WIDTH kullanır */
+export const DEFAULT_THICK_LINE_WIDTH = FALLBACK_THICK_LINE_WIDTH;
+
+export function normalizeThickLineRegion(region: Region): Region {
+  if (region.shape !== "thick_line") return region;
+  if (region.lineWidth != null && Number.isFinite(region.lineWidth)) return region;
+  return { ...region, lineWidth: FALLBACK_THICK_LINE_WIDTH };
+}
