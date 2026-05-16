@@ -8,6 +8,13 @@ import {
   type KnowledgeNote,
   type KnowledgeNotesForAnalysis,
 } from "../bilgi-bankasi/helpers/knowledgeLookup";
+import {
+  getStoneAssignmentsForAnalysis,
+  type StoneAssignmentForAnalysis,
+} from "../bilgi-bankasi/helpers/stoneLookup";
+
+const STONE_TYPE_CAKRA = "cakra-omurga";
+const STONE_TYPE_ELEMENT = "element";
 import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -440,6 +447,45 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
+function TasDestekItem({ item }: { item: StoneAssignmentForAnalysis }) {
+  return (
+    <div className="border-t border-emerald-100/90 pt-3 first:border-t-0 first:pt-0">
+      <p className="text-xs font-bold text-emerald-950">{item.value}</p>
+      {item.reason ? (
+        <p className="mt-2 text-sm leading-relaxed text-slate-800">
+          <span className="font-bold text-slate-700">Öneri:</span> {item.reason}
+        </p>
+      ) : null}
+      {item.stones.length ? (
+        <p className="mt-2 text-sm leading-relaxed text-slate-800">
+          <span className="font-bold text-slate-700">Taşlar:</span> {item.stones.join(", ")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function TasDestekSectionBlock({
+  title,
+  items,
+}: {
+  title: string;
+  items: StoneAssignmentForAnalysis[];
+}) {
+  if (!items.length) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white/95 p-4 ring-1 ring-emerald-100/70 sm:p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-900/95">{title}</p>
+      <div className="mt-3 space-y-4">
+        {items.map((item) => (
+          <TasDestekItem key={`${item.typeKey}:${item.value}`} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
   if (!notes.length) return null;
 
@@ -500,18 +546,51 @@ function NumeroCardBody({
   );
 }
 
+export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
+  const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStoneAssignmentsForAnalysis(out).then((items) => {
+      if (!cancelled) setStoneAssignments(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [out]);
+
+  const cakraItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_CAKRA);
+  const elementItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
+
+  if (!cakraItems.length && !elementItems.length) return null;
+
+  return (
+    <div className="flex flex-col gap-5 sm:gap-6">
+      <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraItems} />
+      <TasDestekSectionBlock title="Element Taş Destekleri" items={elementItems} />
+    </div>
+  );
+}
+
 export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMotorOut; layout?: "default" | "detay" }) {
   const [knowledgeNotes, setKnowledgeNotes] = useState<KnowledgeNotesForAnalysis | null>(null);
+  const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void getKnowledgeNotesForAnalysis(out).then((notes) => {
       if (!cancelled) setKnowledgeNotes(notes);
     });
+    void getStoneAssignmentsForAnalysis(out).then((items) => {
+      if (!cancelled) setStoneAssignments(items);
+    });
     return () => {
       cancelled = true;
     };
   }, [out]);
+
+  const cakraStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_CAKRA);
+  const elementStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
 
   const hy = out.harflerinYankilanisi;
   const harfListe = Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "";
@@ -563,6 +642,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {knowledgeNotes?.cakraOmurga.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
         ) : null}
+        <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} />
       </DetayCard>
       <DetayCard title="Elementler">
         <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
@@ -580,6 +660,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {knowledgeNotes?.element.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}
+        <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} />
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
         <pre className={preScroll}>{out.degisimDonusumMetni || "—"}</pre>

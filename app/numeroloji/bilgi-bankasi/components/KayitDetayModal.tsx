@@ -21,8 +21,8 @@ const ANALIZ_TURU_OPTIONS = Object.entries(ANALIZ_TURU_LABELS).map(([value, labe
 }));
 
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
-  `${el} | AZ`,
-  `${el} | FAZLA`,
+  `${el} | AZ Destek`,
+  `${el} | FAZLA Destek`,
 ]);
 
 const modalFieldBase =

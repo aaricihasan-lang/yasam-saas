@@ -8,7 +8,7 @@ import Link from "next/link";
 import { hesaplaNumeroloji } from "@/lib/numeroloji";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
 import { SaveAnalysisButton } from "../components/SaveAnalysisButton";
-import { TabSonucOzeti, TabAnalizOzetli } from "../components/NumerolojiAnalizSonucTabs";
+import { TabSonucOzeti, TabAnalizOzetli, TabTasAtamalari } from "../components/NumerolojiAnalizSonucTabs";
 import { buildPlainAnalizFull, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import { GorselRaporInfografik, type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
 import {
@@ -368,11 +368,7 @@ export default function NumerolojiAnalizPage() {
 
               {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
 
-              {tab === "tas" ? (
-                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center text-sm font-medium leading-relaxed text-slate-600">
-                  Taş öneri sistemi sonraki aşamada bağlanacak.
-                </p>
-              ) : null}
+              {tab === "tas" ? <TabTasAtamalari out={out} /> : null}
 
               {tab === "gorsel" ? (
                 <>

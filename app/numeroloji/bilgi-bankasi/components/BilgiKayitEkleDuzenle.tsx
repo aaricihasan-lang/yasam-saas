@@ -28,8 +28,8 @@ const ANALIZ_TURU_OPTIONS = [
 ] as const;
 
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
-  `${el} | AZ`,
-  `${el} | FAZLA`,
+  `${el} | AZ Destek`,
+  `${el} | FAZLA Destek`,
 ]);
 
 type AnalizTuruValue = (typeof ANALIZ_TURU_OPTIONS)[number]["value"];

@@ -5,7 +5,7 @@ import {
   GorselRaporInfografik,
   type GorselTemaId,
 } from "./NumerolojiGorselRaporInfografik";
-import { TabSonucOzeti, TabAnalizOzetli } from "./NumerolojiAnalizSonucTabs";
+import { TabSonucOzeti, TabAnalizOzetli, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
 import { getTenantIdFromStorage, updateNumerologyAnalysisGorsel } from "../helpers/numerolojiKayit";
 import { buildPlainAnalizFull, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
@@ -345,7 +345,12 @@ export function NumerolojiKayitDetayPanel({
 
         {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
 
-        {tab === "tas" ? tas ? <TasKayitGorunum tas={tas} /> : <KayitBosBolum /> : null}
+        {tab === "tas" ? (
+          <div className="space-y-6 sm:space-y-8">
+            <TabTasAtamalari out={out} />
+            {tas ? <TasKayitGorunum tas={tas} /> : null}
+          </div>
+        ) : null}
 
         {tab === "gorsel" ? (
           <div
