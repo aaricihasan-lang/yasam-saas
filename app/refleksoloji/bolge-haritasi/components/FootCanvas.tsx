@@ -44,6 +44,15 @@ type DraftState = {
 };
 
 type PreviewPoint = { x: number; y: number };
+type PixelPoint = { x: number; y: number };
+
+function normalizedToOverlayPixel(
+  point: PreviewPoint,
+  overlayWidth: number,
+  overlayHeight: number,
+): PixelPoint {
+  return { x: point.x * overlayWidth, y: point.y * overlayHeight };
+}
 
 type EditDragState =
   | { kind: "move"; regionId: string; start: { x: number; y: number }; snapshot: Region }
@@ -110,11 +119,14 @@ export function FootCanvas({
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [isManualDrawing, setIsManualDrawing] = useState(false);
   const [currentPreviewPoints, setCurrentPreviewPoints] = useState<PreviewPoint[]>([]);
+  const [liveStrokePoint, setLiveStrokePoint] = useState<PreviewPoint | null>(null);
   const [editDrag, setEditDrag] = useState<EditDragState | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMoveState | null>(null);
 
   const draftRef = useRef<DraftState | null>(null);
   const previewPointsRef = useRef<PreviewPoint[]>([]);
+  const isManualDrawingRef = useRef(false);
+  const manualPointerIdRef = useRef<number | null>(null);
   const finishDraftRef = useRef<(state: DraftState) => boolean>(() => false);
   const onDrawCompleteRef = useRef(onDrawComplete);
   const getNormalizedPointRef = useRef(
@@ -242,6 +254,47 @@ export function FootCanvas({
 
   const isBoxDrawing = draft !== null;
 
+  const overlayW = imageRect.width;
+  const overlayH = imageRect.height;
+
+  const displayPreviewPoints = useMemo((): PixelPoint[] => {
+    if (overlayW <= 0 || overlayH <= 0) return [];
+
+    const pixels = currentPreviewPoints.map((p) => normalizedToOverlayPixel(p, overlayW, overlayH));
+
+    if (liveStrokePoint) {
+      const live = normalizedToOverlayPixel(liveStrokePoint, overlayW, overlayH);
+      const last = pixels[pixels.length - 1];
+      if (!last || last.x !== live.x || last.y !== live.y) {
+        pixels.push(live);
+      }
+    }
+
+    return pixels;
+  }, [currentPreviewPoints, liveStrokePoint, overlayW, overlayH]);
+
+  const finishManualStroke = useCallback(
+    (target: HTMLElement, pointerId: number) => {
+      isManualDrawingRef.current = false;
+      manualPointerIdRef.current = null;
+      try {
+        target.releasePointerCapture(pointerId);
+      } catch {
+        /* already released */
+      }
+
+      const points = previewPointsRef.current;
+      setIsManualDrawing(false);
+      setCurrentPreviewPoints([]);
+      setLiveStrokePoint(null);
+      previewPointsRef.current = [];
+
+      const created = finishManualDrawRef.current(points);
+      if (created) onDrawCompleteRef.current?.();
+    },
+    [],
+  );
+
   const handleOverlayPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || !isAddMode || !activeOrgan) return;
@@ -251,20 +304,64 @@ export function FootCanvas({
 
       e.preventDefault();
       e.stopPropagation();
-      overlayRef.current?.setPointerCapture(e.pointerId);
 
       if (drawShape === "free_draw") {
         const initial = [point];
         previewPointsRef.current = initial;
+        isManualDrawingRef.current = true;
+        manualPointerIdRef.current = e.pointerId;
         setIsManualDrawing(true);
         setCurrentPreviewPoints(initial);
+        setLiveStrokePoint(point);
+        e.currentTarget.setPointerCapture(e.pointerId);
         return;
       }
 
+      overlayRef.current?.setPointerCapture(e.pointerId);
       const shape = drawShape === "rect" ? "rect" : "oval";
       setDraft({ kind: "box", shape, start: point, current: point });
     },
     [isAddMode, activeOrgan, drawShape, getNormalizedPoint],
+  );
+
+  const handleOverlayPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isManualDrawingRef.current) return;
+
+      const point = getNormalizedPoint(e.clientX, e.clientY, true);
+      if (!point) return;
+
+      e.preventDefault();
+      setLiveStrokePoint(point);
+
+      setCurrentPreviewPoints((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && Math.hypot(point.x - last.x, point.y - last.y) < FREE_DRAW_POINT_MIN_DIST) {
+          return prev;
+        }
+        const next = [...prev, point];
+        previewPointsRef.current = next;
+        return next;
+      });
+    },
+    [getNormalizedPoint],
+  );
+
+  const handleOverlayPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isManualDrawingRef.current) return;
+      e.preventDefault();
+      finishManualStroke(e.currentTarget, e.pointerId);
+    },
+    [finishManualStroke],
+  );
+
+  const handleOverlayPointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isManualDrawingRef.current) return;
+      finishManualStroke(e.currentTarget, e.pointerId);
+    },
+    [finishManualStroke],
   );
 
   const handleRegionMovePointerDown = useCallback(
@@ -368,51 +465,8 @@ export function FootCanvas({
 
   useEffect(() => {
     if (!isManualDrawing) return;
-
     lockDocumentSelection(true);
-
-    const onMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const point = getNormalizedPointRef.current(e.clientX, e.clientY, true);
-      if (!point) return;
-
-      setCurrentPreviewPoints((prev) => {
-        const last = prev[prev.length - 1];
-        if (last && Math.hypot(point.x - last.x, point.y - last.y) < FREE_DRAW_POINT_MIN_DIST) {
-          return prev;
-        }
-        const next = [...prev, point];
-        previewPointsRef.current = next;
-        return next;
-      });
-    };
-
-    const onUp = (e: PointerEvent) => {
-      e.preventDefault();
-      lockDocumentSelection(false);
-      try {
-        overlayRef.current?.releasePointerCapture(e.pointerId);
-      } catch {
-        /* capture may already be released */
-      }
-
-      const points = previewPointsRef.current;
-      setIsManualDrawing(false);
-      setCurrentPreviewPoints([]);
-
-      const created = finishManualDrawRef.current(points);
-      if (created) onDrawCompleteRef.current?.();
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      lockDocumentSelection(false);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
+    return () => lockDocumentSelection(false);
   }, [isManualDrawing]);
 
   useEffect(() => {
@@ -576,6 +630,17 @@ export function FootCanvas({
                   onSelectRegion(null);
                 }
               }}
+              onPointerMove={handleOverlayPointerMove}
+              onPointerUp={handleOverlayPointerUp}
+              onPointerCancel={handleOverlayPointerCancel}
+              onLostPointerCapture={(e) => {
+                if (
+                  isManualDrawingRef.current &&
+                  manualPointerIdRef.current === e.pointerId
+                ) {
+                  finishManualStroke(e.currentTarget, e.pointerId);
+                }
+              }}
             >
               {showOrganRequired ? (
                 <p className="pointer-events-none absolute left-1/2 top-2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
@@ -622,27 +687,28 @@ export function FootCanvas({
                 <RegionDraftPreview shape={draft.shape} start={draft.start} current={draft.current} />
               ) : null}
 
-              {isManualDrawing && currentPreviewPoints.length > 0 ? (
+              {isManualDrawing && displayPreviewPoints.length > 0 ? (
                 <svg
-                  className="pointer-events-none absolute inset-0 z-[50] h-full w-full overflow-visible"
+                  className="pointer-events-none absolute inset-0 z-30 h-full w-full"
+                  width="100%"
+                  height="100%"
                   aria-hidden
                 >
-                  {currentPreviewPoints.length === 1 ? (
+                  {displayPreviewPoints.length === 1 ? (
                     <circle
-                      cx={currentPreviewPoints[0].x * 100}
-                      cy={currentPreviewPoints[0].y * 100}
-                      r={1.5}
+                      cx={displayPreviewPoints[0].x}
+                      cy={displayPreviewPoints[0].y}
+                      r={2}
                       fill="rgb(220, 38, 38)"
                     />
                   ) : (
                     <polyline
-                      points={currentPreviewPoints.map((p) => `${p.x * 100},${p.y * 100}`).join(" ")}
+                      points={displayPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")}
                       fill="none"
                       stroke="rgb(220, 38, 38)"
                       strokeWidth={3}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
                     />
                   )}
                 </svg>
