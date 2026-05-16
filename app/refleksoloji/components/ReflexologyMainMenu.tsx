@@ -57,11 +57,11 @@ const MENU_MODULES: HubModule[] = [
     title: "Kayıtlı Protokoller",
     icon: "📚",
     lines: ["Kayıtlı protokolleri listele ve görüntüle."],
-    gradient: "from-emerald-300/42 via-cyan-300/38 to-sky-200/44",
+    gradient: "from-emerald-50 via-cyan-50 to-sky-50",
     ring: "ring-emerald-300/55",
     hoverRing: "group-hover:ring-emerald-400/85",
-    borderTint: "border-emerald-200/80",
-    accentGlow: "bg-emerald-400/32",
+    borderTint: "border-emerald-200/70",
+    accentGlow: "bg-emerald-400/20",
   },
   {
     href: "/refleksoloji/notlar",
@@ -85,27 +85,59 @@ function ReflexologyHubCard({
 }) {
   const heightClass =
     size === "bottom" ? "h-[220px] max-h-[220px]" : "h-[260px] max-h-[260px]";
+  const isKayitliProtokoller = module.href === "/refleksoloji/kayitli-protokoller";
 
   return (
     <Link
       href={module.href}
-      className={`group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border bg-white/50 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/65 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.borderTint} ${module.ring} ${module.hoverRing}`}
+      className={
+        isKayitliProtokoller
+          ? `group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 p-5 text-center shadow-[0_14px_40px_-16px_rgba(16,185,129,0.22)] ring-1 ring-emerald-300/55 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_22px_48px_-12px_rgba(52,211,153,0.32)] hover:shadow-emerald-200/40 active:translate-y-0 group-hover:ring-emerald-400/85`
+          : `group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border bg-white/50 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/65 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.borderTint} ${module.ring} ${module.hoverRing}`
+      }
     >
-      <div
-        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-100 transition-opacity duration-300`}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/35 blur-2xl transition-all duration-300 group-hover:bg-white/45"
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full blur-3xl ${module.accentGlow}`}
-        aria-hidden
-      />
+      {isKayitliProtokoller ? (
+        <>
+          <div
+            className="pointer-events-none absolute -bottom-7 -right-5 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-9 -left-7 h-32 w-32 rounded-full bg-emerald-400/18 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute bottom-2 left-3 h-14 w-[4.5rem] rotate-[-14deg] rounded-[58%_42%_62%_38%] bg-emerald-300/14 blur-xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -right-8 top-[-2rem] h-28 w-28 rounded-full bg-white/30 blur-2xl"
+            aria-hidden
+          />
+        </>
+      ) : (
+        <>
+          <div
+            className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-100 transition-opacity duration-300`}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/35 blur-2xl transition-all duration-300 group-hover:bg-white/45"
+            aria-hidden
+          />
+          <div
+            className={`pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full blur-3xl ${module.accentGlow}`}
+            aria-hidden
+          />
+        </>
+      )}
 
       <span
-        className="relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-[1.65rem] shadow-[0_8px_24px_-10px_rgba(109,40,217,0.25)] ring-1 ring-white/80 transition-transform duration-300 group-hover:scale-105 sm:h-[3.25rem] sm:w-[3.25rem] sm:text-[1.85rem]"
+        className={
+          isKayitliProtokoller
+            ? "relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-100 via-cyan-50 to-sky-100 text-[1.65rem] shadow-[0_8px_24px_-10px_rgba(16,185,129,0.22)] ring-1 ring-emerald-100/90 transition-transform duration-300 group-hover:scale-105 sm:h-[3.25rem] sm:w-[3.25rem] sm:text-[1.85rem]"
+            : "relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-[1.65rem] shadow-[0_8px_24px_-10px_rgba(109,40,217,0.25)] ring-1 ring-white/80 transition-transform duration-300 group-hover:scale-105 sm:h-[3.25rem] sm:w-[3.25rem] sm:text-[1.85rem]"
+        }
         aria-hidden
       >
         {module.icon}
