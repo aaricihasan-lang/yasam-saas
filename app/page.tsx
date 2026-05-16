@@ -103,20 +103,12 @@ const featureItems: FeatureItem[] = [
 
 const dashboardModules: ModuleCard[] = [
   {
-    title: "Danışanlar",
-    icon: "👥",
-    desc: "Danışan kayıtları, detaylar ve takip sistemi",
+    title: "Danışan Yolculuğu",
+    icon: "🧭",
+    desc: "Danışan kayıtları, randevu ve seans takibi tek merkezde",
     count: "Aktif",
     badge: "Ana Modül",
-    href: "/dashboard/clients",
-  },
-  {
-    title: "Ajanda",
-    icon: "📅",
-    desc: "Randevu, seans planlama ve günlük takip",
-    count: "Aktif",
-    badge: "Takip",
-    href: "/dashboard/ajanda",
+    href: "/danisan-yolculugu",
   },
   {
     title: "Doğaltaş",
