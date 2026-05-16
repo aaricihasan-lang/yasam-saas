@@ -1,6 +1,14 @@
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
-import type { ProtocolDisplayRegion, ProtocolOrgan } from "../types";
+import type {
+  ColoredDisplayRegion,
+  OrganAtlasStatus,
+  OrganColorStyle,
+  ProtocolDisplayRegion,
+  ProtocolFootView,
+} from "../types";
+import { getOrganColor } from "../types";
+import { organHasAtlasRegions, resolveOrganNameInAtlas } from "./atlasMatch";
 
 function atlasRegionToDisplay(region: Region): ProtocolDisplayRegion | null {
   if (region.shape !== "oval" && region.shape !== "rect") return null;
@@ -21,41 +29,69 @@ function atlasRegionToDisplay(region: Region): ProtocolDisplayRegion | null {
   };
 }
 
-/** Atlas’taki kayıtlı bölgeler varsa onları, yoksa katalog fallback kullan */
-export function resolveOrganDisplayRegions(organ: ProtocolOrgan): ProtocolDisplayRegion[] {
-  if (typeof window === "undefined") return organ.fallbackRegions;
-
+export function resolveColoredRegionsForOrgans(
+  organNames: string[],
+  footView: ProtocolFootView,
+): { regions: ColoredDisplayRegion[]; statuses: OrganAtlasStatus[] } {
   const atlas = loadAtlas();
-  const fromAtlas = getRegionsForOrgan(atlas, organ.name, { view: organ.footView })
-    .map(atlasRegionToDisplay)
-    .filter((r): r is ProtocolDisplayRegion => r != null);
-
-  if (fromAtlas.length > 0) return fromAtlas;
-  return organ.fallbackRegions;
-}
-
-export function resolveProblemDisplayRegions(
-  organs: ProtocolOrgan[],
-  options?: { organId?: string | null; footView?: "taban" | "yan"; footSide?: "left" | "right" },
-): ProtocolDisplayRegion[] {
-  const targetOrgans = options?.organId
-    ? organs.filter((o) => o.id === options.organId)
-    : organs;
-
-  const merged: ProtocolDisplayRegion[] = [];
+  const regions: ColoredDisplayRegion[] = [];
+  const statuses: OrganAtlasStatus[] = [];
   const seen = new Set<string>();
 
-  for (const organ of targetOrgans) {
-    if (options?.footView && organ.footView !== options.footView) continue;
+  organNames.forEach((rawName, index) => {
+    const name = rawName.trim();
+    if (!name) return;
 
-    for (const region of resolveOrganDisplayRegions(organ)) {
-      if (options?.footSide && region.footSide !== options.footSide) continue;
-      const key = region.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.push(region);
+    const color = getOrganColor(index);
+    const atlasKey = resolveOrganNameInAtlas(atlas, name);
+    const lookupKey = atlasKey ?? name;
+    const fromAtlas = getRegionsForOrgan(atlas, lookupKey, { view: footView })
+      .map(atlasRegionToDisplay)
+      .filter((r): r is ProtocolDisplayRegion => r != null);
+
+    statuses.push({
+      name,
+      atlasKey,
+      found: fromAtlas.length > 0,
+      regionCount: fromAtlas.length,
+      color,
+    });
+
+    for (const region of fromAtlas) {
+      if (seen.has(region.id)) continue;
+      seen.add(region.id);
+      regions.push({ ...region, organ: name, ...color });
     }
-  }
+  });
 
-  return merged;
+  return { regions, statuses };
+}
+
+export function buildOrganStatuses(
+  organNames: string[],
+  footView?: ProtocolFootView,
+): OrganAtlasStatus[] {
+  const atlas = loadAtlas();
+  return organNames
+    .map((raw, index) => raw.trim())
+    .filter(Boolean)
+    .map((name, index) => {
+      const color = getOrganColor(index);
+      const atlasKey = resolveOrganNameInAtlas(atlas, name);
+      const found = organHasAtlasRegions(atlas, name, footView);
+      const regionCount = atlasKey
+        ? getRegionsForOrgan(atlas, atlasKey, footView ? { view: footView } : undefined).filter(
+            (r) => r.shape === "oval" || r.shape === "rect",
+          ).length
+        : 0;
+      return { name, atlasKey, found, regionCount, color };
+    });
+}
+
+export function missingAtlasOrgans(statuses: OrganAtlasStatus[]): string[] {
+  return statuses.filter((s) => !s.found).map((s) => s.name);
+}
+
+export function withOrganColor(region: ProtocolDisplayRegion, color: OrganColorStyle): ColoredDisplayRegion {
+  return { ...region, ...color };
 }

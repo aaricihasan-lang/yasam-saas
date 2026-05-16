@@ -1,12 +1,6 @@
-/** İleride JSON / Supabase şemasına taşınacak protokol modeli */
-
-export type ProtocolProblemId = string;
-
 export type ProtocolFootView = "taban" | "yan";
 
-export type ProtocolFootSide = "left" | "right" | "both";
-
-/** Atlas ile uyumlu normalize bölge (salt okunur önizleme) */
+/** Atlas önizleme bölgesi (salt okunur) */
 export type ProtocolDisplayRegion = {
   id: string;
   organ: string;
@@ -19,45 +13,73 @@ export type ProtocolDisplayRegion = {
   ry: number;
 };
 
-export type ProtocolOrgan = {
+export type OrganColorStyle = {
+  fill: string;
+  stroke: string;
+  chipClass: string;
+};
+
+export type ColoredDisplayRegion = ProtocolDisplayRegion & OrganColorStyle;
+
+export type OrganAtlasStatus = {
+  name: string;
+  atlasKey: string | null;
+  found: boolean;
+  regionCount: number;
+  color: OrganColorStyle;
+};
+
+/** localStorage — yasam-refleksoloji-protokoller-v1 */
+export type SavedProtocol = {
   id: string;
-  name: string;
-  protocolSummary: string;
-  applicationNotes: string;
-  footView: ProtocolFootView;
-  footSide: ProtocolFootSide;
-  fallbackRegions: ProtocolDisplayRegion[];
-};
-
-export type ProtocolProblem = {
-  id: ProtocolProblemId;
   title: string;
-  shortDescription: string;
-  accentClass: string;
-  organs: ProtocolOrgan[];
+  description: string;
+  organs: string[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-/** Form — fallback bölgeler korunur veya boş */
-export type ProtocolOrganDraft = {
-  id?: string;
-  name: string;
-  protocolSummary: string;
-  applicationNotes: string;
-  footView: ProtocolFootView;
-  footSide: ProtocolFootSide;
-};
-
-export type ProtocolProblemDraft = {
+export type ProtocolFormDraft = {
   title: string;
-  shortDescription: string;
-  organs: ProtocolOrganDraft[];
+  description: string;
+  organs: string[];
+  notes: string;
 };
 
-export const PROTOCOL_ACCENT_PRESETS = [
-  "from-amber-200/90 to-orange-100/80 border-amber-300/70",
-  "from-sky-200/90 to-cyan-100/80 border-sky-300/70",
-  "from-violet-200/90 to-fuchsia-100/80 border-violet-300/70",
-  "from-indigo-200/90 to-blue-100/80 border-indigo-300/70",
-  "from-rose-200/90 to-pink-100/80 border-rose-300/70",
-  "from-emerald-200/90 to-teal-100/80 border-emerald-300/70",
-] as const;
+export const ORGAN_COLOR_PALETTE: OrganColorStyle[] = [
+  {
+    fill: "rgba(239, 68, 68, 0.32)",
+    stroke: "rgb(220, 38, 38)",
+    chipClass: "border-red-300/80 bg-red-50 text-red-900",
+  },
+  {
+    fill: "rgba(249, 115, 22, 0.32)",
+    stroke: "rgb(234, 88, 12)",
+    chipClass: "border-orange-300/80 bg-orange-50 text-orange-950",
+  },
+  {
+    fill: "rgba(168, 85, 247, 0.32)",
+    stroke: "rgb(147, 51, 234)",
+    chipClass: "border-violet-300/80 bg-violet-50 text-violet-950",
+  },
+  {
+    fill: "rgba(34, 197, 94, 0.32)",
+    stroke: "rgb(22, 163, 74)",
+    chipClass: "border-emerald-300/80 bg-emerald-50 text-emerald-950",
+  },
+  {
+    fill: "rgba(14, 165, 233, 0.32)",
+    stroke: "rgb(2, 132, 199)",
+    chipClass: "border-sky-300/80 bg-sky-50 text-sky-950",
+  },
+  {
+    fill: "rgba(244, 63, 94, 0.32)",
+    stroke: "rgb(225, 29, 72)",
+    chipClass: "border-rose-300/80 bg-rose-50 text-rose-950",
+  },
+];
+
+export function getOrganColor(index: number): OrganColorStyle {
+  return ORGAN_COLOR_PALETTE[index % ORGAN_COLOR_PALETTE.length];
+}
