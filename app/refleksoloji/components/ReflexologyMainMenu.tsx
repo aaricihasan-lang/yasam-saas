@@ -64,11 +64,20 @@ const MENU_MODULES: HubModule[] = [
   },
 ];
 
-function ReflexologyHubCard({ module }: { module: HubModule }) {
+function ReflexologyHubCard({
+  module,
+  size = "top",
+}: {
+  module: HubModule;
+  size?: "top" | "bottom";
+}) {
+  const heightClass =
+    size === "bottom" ? "h-[220px] max-h-[220px]" : "h-[260px] max-h-[260px]";
+
   return (
     <Link
       href={module.href}
-      className={`group relative flex h-[260px] max-h-[260px] flex-col items-center justify-between overflow-hidden rounded-2xl border border-white/80 bg-white/70 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.ring} ${module.hoverRing}`}
+      className={`group relative flex ${heightClass} flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/80 bg-white/70 p-5 text-center shadow-[0_14px_40px_-16px_rgba(91,33,182,0.28)] ring-1 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 hover:shadow-[0_22px_50px_-14px_rgba(91,33,182,0.38)] active:translate-y-0 ${module.ring} ${module.hoverRing}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-95 transition-opacity duration-300 group-hover:opacity-100`}
@@ -86,7 +95,7 @@ function ReflexologyHubCard({ module }: { module: HubModule }) {
         {module.icon}
       </span>
 
-      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-1 py-1">
+      <div className="relative flex flex-col items-center justify-center px-1">
         <h2 className="text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl">
           {module.title}
         </h2>
@@ -153,20 +162,24 @@ function ReflexologyMainMenu() {
           </Link>
         </div>
 
-        <section
-          className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[26px] border border-white/70 bg-white/40 shadow-[0_20px_56px_-22px_rgba(91,33,182,0.3)] ring-1 ring-white/50 backdrop-blur-xl lg:mt-2.5"
-          style={{ height: "calc(100vh - 108px)" }}
-        >
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5 lg:overflow-hidden lg:p-5">
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4 lg:overflow-hidden">
-              {MENU_MODULES.map((module) => (
-                <div key={module.href} className="min-h-0">
-                  <ReflexologyHubCard module={module} />
+        <div className="flex min-h-0 flex-1 flex-col justify-center pt-2 pb-3 lg:pt-3 lg:pb-4">
+          <section className="w-full shrink-0 rounded-[26px] border border-white/70 bg-white/40 px-4 py-4 shadow-[0_20px_56px_-22px_rgba(91,33,182,0.3)] ring-1 ring-white/50 backdrop-blur-xl sm:px-5 sm:py-5 lg:px-6 lg:py-5">
+            <div className="flex flex-col gap-3.5 lg:gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
+                {MENU_MODULES.slice(0, 3).map((module) => (
+                  <ReflexologyHubCard key={module.href} module={module} size="top" />
+                ))}
+              </div>
+              <div className="flex justify-center">
+                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[84%] lg:max-w-[1180px] lg:gap-5">
+                  {MENU_MODULES.slice(3).map((module) => (
+                    <ReflexologyHubCard key={module.href} module={module} size="bottom" />
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );
