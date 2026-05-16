@@ -1,8 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
 import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
+import {
+  getKnowledgeNotesForAnalysis,
+  type KnowledgeNote,
+  type KnowledgeNotesForAnalysis,
+} from "../bilgi-bankasi/helpers/knowledgeLookup";
 import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -435,7 +440,45 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function NumeroCardBody({ r, layout = "default" }: { r: NumerolojiResult; layout?: "default" | "detay" }) {
+function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
+  if (!notes.length) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/95 p-4 ring-1 ring-violet-100/70 sm:p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-800/95">
+        Bilgi Bankası Yorumu
+      </p>
+      <div className="mt-3 space-y-4">
+        {notes.map((note) => (
+          <div
+            key={note.id}
+            className="border-t border-violet-100/90 pt-3 first:border-t-0 first:pt-0"
+          >
+            <p className="text-xs font-bold text-violet-900">{note.value}</p>
+            {note.source?.trim() ? (
+              <p className="mt-1 text-xs font-medium text-slate-500">Kaynak: {note.source.trim()}</p>
+            ) : null}
+            {note.description?.trim() ? (
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                {note.description.trim()}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NumeroCardBody({
+  r,
+  layout = "default",
+  knowledgeNotes,
+}: {
+  r: NumerolojiResult;
+  layout?: "default" | "detay";
+  knowledgeNotes?: KnowledgeNote[];
+}) {
   const k = (r.key || "").trim();
   return (
     <div className="space-y-2">
@@ -452,11 +495,24 @@ function NumeroCardBody({ r, layout = "default" }: { r: NumerolojiResult; layout
           {r.steps.join("\n")}
         </pre>
       ) : null}
+      {knowledgeNotes?.length ? <BilgiBankasiYorumBlock notes={knowledgeNotes} /> : null}
     </div>
   );
 }
 
 export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMotorOut; layout?: "default" | "detay" }) {
+  const [knowledgeNotes, setKnowledgeNotes] = useState<KnowledgeNotesForAnalysis | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getKnowledgeNotesForAnalysis(out).then((notes) => {
+      if (!cancelled) setKnowledgeNotes(notes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [out]);
+
   const hy = out.harflerinYankilanisi;
   const harfListe = Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "";
   const harfMetin = out.harflerinYankilanisiMetni?.trim() ?? "";
@@ -471,16 +527,32 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       <DetayCard title="Ana Kulvar">
-        <NumeroCardBody r={out.anaKulvar} layout={layout} />
+        <NumeroCardBody
+          r={out.anaKulvar}
+          layout={layout}
+          knowledgeNotes={knowledgeNotes?.anaKulvar}
+        />
       </DetayCard>
       <DetayCard title="Yan Kulvar">
-        <NumeroCardBody r={out.yanKulvar} layout={layout} />
+        <NumeroCardBody
+          r={out.yanKulvar}
+          layout={layout}
+          knowledgeNotes={knowledgeNotes?.yanKulvar}
+        />
       </DetayCard>
       <DetayCard title="İfade Sayısı">
-        <NumeroCardBody r={out.ifadeSayisi} layout={layout} />
+        <NumeroCardBody
+          r={out.ifadeSayisi}
+          layout={layout}
+          knowledgeNotes={knowledgeNotes?.ifadeSayisi}
+        />
       </DetayCard>
       <DetayCard title="Hayat Yolu">
-        <NumeroCardBody r={out.hayatYolu} layout={layout} />
+        <NumeroCardBody
+          r={out.hayatYolu}
+          layout={layout}
+          knowledgeNotes={knowledgeNotes?.hayatYolu}
+        />
       </DetayCard>
       <DetayCard title="PIN">
         <p className="break-all font-mono text-xs font-semibold text-slate-800 sm:text-sm">{pinOneLine(out.pinKodu)}</p>
@@ -488,6 +560,9 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       </DetayCard>
       <DetayCard title="Çakra">
         <pre className={preScroll}>{out.cakraOmurgasiMetni || "—"}</pre>
+        {knowledgeNotes?.cakraOmurga.length ? (
+          <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
+        ) : null}
       </DetayCard>
       <DetayCard title="Elementler">
         <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
@@ -501,6 +576,9 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
           >
             {out.elementler.steps.join("\n")}
           </pre>
+        ) : null}
+        {knowledgeNotes?.element.length ? (
+          <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
