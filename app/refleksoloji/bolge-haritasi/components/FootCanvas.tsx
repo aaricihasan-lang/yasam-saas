@@ -9,7 +9,14 @@ import {
 } from "../utils/atlasBackground";
 import { computeObjectContainRect } from "../utils/imageContainRect";
 import { pointerToImageNormalized } from "../utils/normalizePointer";
-import { boxFromDrag, clamp01, DEFAULT_REGION_COLOR, regionHasBox } from "../utils/regionGeometry";
+import { boxFromDrag, clamp01, regionHasBox } from "../utils/regionGeometry";
+import { DEFAULT_REGION_COLOR as REGION_COLOR } from "../utils/regionStyles";
+import {
+  asBoxRegion,
+  resizeRegionByHandle,
+  rotateRegionByPointer,
+  type ResizeHandle,
+} from "../utils/regionTransform";
 import {
   FreeDrawDraftPreview,
   RegionDraftPreview,
@@ -33,11 +40,10 @@ type DraftState =
   | { kind: "box"; shape: "oval" | "rect"; start: { x: number; y: number }; current: { x: number; y: number } }
   | { kind: "free"; points: { x: number; y: number }[] };
 
-type RegionDragState = {
-  regionId: string;
-  start: { x: number; y: number };
-  snapshot: Region;
-};
+type EditDragState =
+  | { kind: "move"; regionId: string; start: { x: number; y: number }; snapshot: Region }
+  | { kind: "resize"; regionId: string; handle: ResizeHandle; snapshot: Region }
+  | { kind: "rotate"; regionId: string; snapshot: Region };
 
 function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
   if (snapshot.shape === "free_draw" && snapshot.points) {
@@ -83,7 +89,7 @@ export function FootCanvas({
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [imageLoadError, setImageLoadError] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
-  const [regionDrag, setRegionDrag] = useState<RegionDragState | null>(null);
+  const [editDrag, setEditDrag] = useState<EditDragState | null>(null);
 
   const atlasBackgroundKey = useMemo(
     () => resolveAtlasBackgroundKey(selectedView, activeOrgan),
@@ -97,6 +103,7 @@ export function FootCanvas({
   const isAddMode = toolMode === "add";
   const isMoveMode = toolMode === "move";
   const showOrganRequired = isAddMode && !activeOrgan;
+  const showEditHandles = isMoveMode;
 
   const visibleRegions = regions;
 
@@ -157,7 +164,7 @@ export function FootCanvas({
           organ: activeOrgan,
           footSide: selectedFoot,
           view: selectedView,
-          color: DEFAULT_REGION_COLOR,
+          color: REGION_COLOR,
           ...box,
         };
         onUpsertRegion(newRegion);
@@ -174,7 +181,7 @@ export function FootCanvas({
         view: selectedView,
         shape: "free_draw",
         points: state.points,
-        color: DEFAULT_REGION_COLOR,
+        color: REGION_COLOR,
       };
       onUpsertRegion(newRegion);
       onSelectRegion(newRegion.id);
@@ -209,7 +216,8 @@ export function FootCanvas({
       if (!point || !region) return;
 
       onSelectRegion(regionId);
-      setRegionDrag({
+      setEditDrag({
+        kind: "move",
         regionId,
         start: point,
         snapshot: structuredClone(region),
@@ -218,10 +226,47 @@ export function FootCanvas({
     [isMoveMode, getNormalizedPoint, regions, onSelectRegion],
   );
 
+  const handleResizeStart = useCallback(
+    (regionId: string, handle: ResizeHandle, clientX: number, clientY: number) => {
+      if (!isMoveMode) return;
+
+      const region = regions.find((r) => r.id === regionId);
+      const box = region ? asBoxRegion(region) : null;
+      if (!box) return;
+
+      onSelectRegion(regionId);
+      setEditDrag({
+        kind: "resize",
+        regionId,
+        handle,
+        snapshot: structuredClone(box),
+      });
+    },
+    [isMoveMode, regions, onSelectRegion],
+  );
+
+  const handleRotateStart = useCallback(
+    (regionId: string, clientX: number, clientY: number) => {
+      if (!isMoveMode) return;
+
+      const region = regions.find((r) => r.id === regionId);
+      const box = region ? asBoxRegion(region) : null;
+      if (!box) return;
+
+      onSelectRegion(regionId);
+      setEditDrag({
+        kind: "rotate",
+        regionId,
+        snapshot: structuredClone(box),
+      });
+    },
+    [isMoveMode, regions, onSelectRegion],
+  );
+
   useEffect(() => {
     if (!draft) return;
 
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
 
@@ -229,7 +274,7 @@ export function FootCanvas({
         if (!prev) return prev;
         if (prev.kind === "box") return { ...prev, current: point };
         const last = prev.points[prev.points.length - 1];
-        if (last && Math.hypot(last.x - point.x, last.y - point.y) < 0.004) return prev;
+        if (last && Math.hypot(last.x - point.x, last.y - point.y) < 0.002) return prev;
         return { ...prev, points: [...prev.points, point] };
       });
     };
@@ -241,39 +286,59 @@ export function FootCanvas({
       });
     };
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [draft, getNormalizedPoint, finishDraft]);
 
   useEffect(() => {
-    if (!regionDrag) return;
+    if (!editDrag) return;
 
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
 
-      const dx = point.x - regionDrag.start.x;
-      const dy = point.y - regionDrag.start.y;
+      if (editDrag.kind === "move") {
+        const dx = point.x - editDrag.start.x;
+        const dy = point.y - editDrag.start.y;
+        onUpsertRegion(applyRegionDelta(editDrag.snapshot, dx, dy));
+        return;
+      }
 
-      const updated = applyRegionDelta(regionDrag.snapshot, dx, dy);
-      onUpsertRegion(updated);
+      if (editDrag.kind === "resize") {
+        const box = asBoxRegion(editDrag.snapshot);
+        if (!box) return;
+        const updated = resizeRegionByHandle(box, editDrag.handle, point);
+        onUpsertRegion({ ...updated, color: editDrag.snapshot.color ?? REGION_COLOR });
+        return;
+      }
+
+      if (editDrag.kind === "rotate") {
+        const box = asBoxRegion(editDrag.snapshot);
+        if (!box) return;
+        const updated = rotateRegionByPointer(box, point);
+        onUpsertRegion({ ...updated, color: editDrag.snapshot.color ?? REGION_COLOR });
+      }
     };
 
-    const onUp = () => setRegionDrag(null);
+    const onUp = () => setEditDrag(null);
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
-  }, [regionDrag, getNormalizedPoint, onUpsertRegion]);
+  }, [editDrag, getNormalizedPoint, onUpsertRegion]);
 
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     if (isAddMode) {
       handlePointerDown(e.clientX, e.clientY);
@@ -311,7 +376,7 @@ export function FootCanvas({
         <p className="text-sm font-semibold text-slate-700">
           {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
           {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
-          {isAddMode ? " · Çizim modu" : isMoveMode ? " · Taşıma modu" : null}
+          {isAddMode ? " · Çizim modu" : isMoveMode ? " · Düzenleme modu" : null}
         </p>
       </div>
 
@@ -321,7 +386,7 @@ export function FootCanvas({
           className={`relative h-full min-h-0 w-full flex-1 overflow-hidden bg-white ${
             canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : isMoveMode ? "cursor-default" : ""
           }`}
-          onMouseDown={handleCanvasMouseDown}
+          onPointerDown={handleCanvasPointerDown}
         >
           {!imageLoadError ? (
             <img
@@ -359,7 +424,7 @@ export function FootCanvas({
 
               {isMoveMode ? (
                 <p className="pointer-events-none absolute top-2 right-2 z-40 rounded-full border border-sky-300/70 bg-sky-50/95 px-2.5 py-1 text-xs font-semibold text-sky-950 shadow-sm">
-                  Bölgeyi sürükleyerek taşıyın
+                  Taşı · boyutlandır · döndür
                 </p>
               ) : null}
 
@@ -376,8 +441,11 @@ export function FootCanvas({
                   isSelected={selectedRegionId === region.id}
                   interactive={regionInteractive}
                   moveMode={isMoveMode}
+                  showEditHandles={showEditHandles}
                   onSelect={onSelectRegion}
                   onMoveStart={handleRegionMoveStart}
+                  onResizeStart={handleResizeStart}
+                  onRotateStart={handleRotateStart}
                 />
               ))}
 

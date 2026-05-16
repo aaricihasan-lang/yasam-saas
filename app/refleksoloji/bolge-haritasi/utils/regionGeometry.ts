@@ -8,7 +8,7 @@ export function clamp01(value: number): number {
 export const MIN_REGION_RX = 0.012;
 export const MIN_REGION_RY = 0.012;
 
-export const DEFAULT_REGION_COLOR = "rgba(196, 181, 253, 0.55)";
+export { DEFAULT_REGION_COLOR } from "./regionStyles";
 
 export function regionHasBox(region: Region): region is Region & {
   cx: number;

@@ -2,17 +2,26 @@
 
 import type { Region } from "../../types";
 import { regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
-
-const SELECTED_GLOW =
-  "ring-2 ring-violet-400/95 ring-offset-1 ring-offset-white/90 shadow-[0_0_24px_rgba(167,139,250,0.65)]";
+import {
+  REGION_FILL,
+  REGION_FREE_STROKE_WIDTH,
+  REGION_SELECTED_SHADOW,
+  REGION_STROKE,
+  REGION_STROKE_WIDTH,
+} from "../../utils/regionStyles";
+import type { ResizeHandle } from "../../utils/regionTransform";
+import { RegionHandles } from "./RegionHandles";
 
 type RegionShapeProps = {
   region: Region;
   isSelected: boolean;
   interactive: boolean;
   moveMode: boolean;
+  showEditHandles: boolean;
   onSelect: (id: string) => void;
   onMoveStart?: (id: string, clientX: number, clientY: number) => void;
+  onResizeStart?: (id: string, handle: ResizeHandle, clientX: number, clientY: number) => void;
+  onRotateStart?: (id: string, clientX: number, clientY: number) => void;
 };
 
 export function RegionShape({
@@ -20,61 +29,65 @@ export function RegionShape({
   isSelected,
   interactive,
   moveMode,
+  showEditHandles,
   onSelect,
   onMoveStart,
+  onResizeStart,
+  onRotateStart,
 }: RegionShapeProps) {
-  const handlePointerDown = (e: React.PointerEvent, id: string) => {
+  const label = region.organ;
+
+  const handleBodyPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     if (!interactive) return;
     if (moveMode && onMoveStart) {
-      onMoveStart(id, e.clientX, e.clientY);
+      onMoveStart(region.id, e.clientX, e.clientY);
       return;
     }
-    onSelect(id);
+    onSelect(region.id);
   };
-  const color = region.color ?? "rgba(196, 181, 253, 0.55)";
-  const label = region.organ;
 
-  if (region.shape === "free_draw" && region.points && region.points.length >= 2) {
+  if (region.shape === "free_draw" && region.points && region.points.length >= 1) {
     const pointsAttr = region.points.map((p) => `${p.x * 100},${p.y * 100}`).join(" ");
+    const showLine = region.points.length >= 2;
 
     return (
-      <button
-        type="button"
-        onPointerDown={(e) => handlePointerDown(e, region.id)}
-        className={`absolute inset-0 transition-all duration-200 ${
-          interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : "pointer-events-none"
-        } ${isSelected ? "z-20" : "z-10"}`}
+      <div
+        role="button"
+        tabIndex={interactive ? 0 : -1}
+        onPointerDown={handleBodyPointerDown}
+        className={`absolute inset-0 ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : "pointer-events-none"} ${
+          isSelected ? "z-20" : "z-10"
+        }`}
         aria-label={label}
         title={label}
       >
-        <svg
-          className="absolute inset-0 h-full w-full overflow-visible"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points={pointsAttr}
-            fill="none"
-            stroke={isSelected ? "rgba(124, 58, 237, 0.95)" : color.replace(/[\d.]+\)$/, "0.85)")}
-            strokeWidth={isSelected ? 1.8 : 1.2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
+        <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {showLine ? (
+            <polyline
+              points={pointsAttr}
+              fill="none"
+              stroke={REGION_STROKE}
+              strokeWidth={REGION_FREE_STROKE_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : (
+            <circle
+              cx={region.points[0].x * 100}
+              cy={region.points[0].y * 100}
+              r={1.2}
+              fill={REGION_STROKE}
+            />
+          )}
         </svg>
         {isSelected ? (
-          <span className="pointer-events-none absolute left-1 top-1 max-w-[90%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-violet-950 shadow-sm">
+          <span className="pointer-events-none absolute left-1 top-1 max-w-[90%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm">
             {label}
           </span>
         ) : null}
-        {isSelected ? (
-          <span
-            className={`pointer-events-none absolute inset-0 rounded ${SELECTED_GLOW}`}
-            aria-hidden
-          />
-        ) : null}
-      </button>
+      </div>
     );
   }
 
@@ -82,14 +95,11 @@ export function RegionShape({
   if (!box) return null;
 
   const isOval = region.shape === "oval";
+  const handlesVisible = showEditHandles && isSelected && regionHasBox(region);
 
   return (
-    <button
-      type="button"
-      onPointerDown={(e) => handlePointerDown(e, region.id)}
-      className={`absolute flex items-center justify-center transition-all duration-200 ${
-        interactive ? (moveMode ? "cursor-move hover:brightness-105" : "cursor-pointer hover:brightness-105") : "pointer-events-none"
-      } ${isSelected ? `z-20 scale-[1.02] ${SELECTED_GLOW}` : "z-10 opacity-80 hover:opacity-90"}`}
+    <div
+      className={`absolute ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       style={{
         left: box.left,
         top: box.top,
@@ -97,20 +107,41 @@ export function RegionShape({
         height: box.height,
         transform: box.transform,
         transformOrigin: "center center",
-        borderRadius: isOval ? 9999 : 4,
-        backgroundColor: isSelected ? color.replace(/[\d.]+\)$/, "0.78)") : color,
       }}
-      aria-label={label}
-      title={label}
     >
-      <span className="pointer-events-none max-w-[92%] truncate px-1 text-center text-[10px] font-bold leading-tight text-slate-900 sm:text-[11px]">
-        {label}
-      </span>
-    </button>
+      <div
+        role="button"
+        tabIndex={interactive ? 0 : -1}
+        onPointerDown={handleBodyPointerDown}
+        className={`absolute inset-0 flex items-center justify-center border-2 transition-shadow ${
+          interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""
+        }`}
+        style={{
+          borderRadius: isOval ? 9999 : 4,
+          backgroundColor: REGION_FILL,
+          borderColor: REGION_STROKE,
+          borderWidth: REGION_STROKE_WIDTH,
+          boxShadow: isSelected ? REGION_SELECTED_SHADOW : undefined,
+        }}
+        aria-label={label}
+        title={label}
+      >
+        <span className="pointer-events-none max-w-[92%] truncate px-1 text-center text-[10px] font-bold leading-tight text-red-950 sm:text-[11px]">
+          {label}
+        </span>
+      </div>
+
+      {handlesVisible && onResizeStart && onRotateStart ? (
+        <RegionHandles
+          onResizeStart={(handle, clientX, clientY) => onResizeStart(region.id, handle, clientX, clientY)}
+          onRotateStart={(clientX, clientY) => onRotateStart(region.id, clientX, clientY)}
+        />
+      ) : null}
+    </div>
   );
 }
 
-/** Sürükleme önizlemesi */
+/** Sürükleme önizlemesi — kırmızı */
 export function RegionDraftPreview({
   shape,
   start,
@@ -127,20 +158,37 @@ export function RegionDraftPreview({
 
   return (
     <div
-      className="pointer-events-none absolute border-2 border-dashed border-violet-500/80 bg-violet-300/25"
+      className="pointer-events-none absolute z-30"
       style={{
         left: `${cx - rx}%`,
         top: `${cy - ry}%`,
         width: `${rx * 2}%`,
         height: `${ry * 2}%`,
         borderRadius: shape === "oval" ? 9999 : 4,
+        backgroundColor: REGION_FILL,
+        border: `${REGION_STROKE_WIDTH}px solid ${REGION_STROKE}`,
       }}
     />
   );
 }
 
+/** Manuel çizim canlı önizleme — 1+ nokta */
 export function FreeDrawDraftPreview({ points }: { points: { x: number; y: number }[] }) {
-  if (points.length < 2) return null;
+  if (points.length === 0) return null;
+
+  if (points.length === 1) {
+    return (
+      <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible">
+        <circle
+          cx={points[0].x * 100}
+          cy={points[0].y * 100}
+          r={1.5}
+          fill={REGION_STROKE}
+        />
+      </svg>
+    );
+  }
+
   const pointsAttr = points.map((p) => `${p.x * 100},${p.y * 100}`).join(" ");
 
   return (
@@ -148,8 +196,8 @@ export function FreeDrawDraftPreview({ points }: { points: { x: number; y: numbe
       <polyline
         points={pointsAttr}
         fill="none"
-        stroke="rgba(124, 58, 237, 0.85)"
-        strokeWidth="2"
+        stroke={REGION_STROKE}
+        strokeWidth={REGION_FREE_STROKE_WIDTH}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
