@@ -211,7 +211,7 @@ export default function NumerolojiAnalizPage() {
   const inputClass =
     "w-full rounded-2xl border border-slate-200/90 bg-white/95 px-5 py-4 text-lg font-medium text-slate-900 shadow-sm outline-none ring-violet-100/80 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
   const analizNavLinkClass =
-    "inline-flex shrink-0 items-center rounded-full border border-violet-200/85 bg-white/80 px-4 py-2.5 text-sm font-bold text-violet-900 shadow-[0_4px_18px_-6px_rgba(91,33,182,0.28)] ring-1 ring-violet-100/70 backdrop-blur-md transition hover:border-violet-300/90 hover:bg-white/95 hover:shadow-[0_6px_22px_-6px_rgba(91,33,182,0.35)] no-underline sm:px-5 sm:py-3 sm:text-base";
+    "inline-flex shrink-0 items-center justify-center gap-4 rounded-2xl border-2 border-violet-200/90 bg-white/85 px-8 py-4 text-[15px] font-black text-violet-900 shadow-lg shadow-violet-600/30 ring-1 ring-violet-100/80 backdrop-blur-md transition-all hover:scale-[1.03] hover:border-violet-300 hover:bg-white/95 hover:shadow-xl hover:shadow-violet-600/35 no-underline min-h-[58px] min-w-[170px]";
 
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
@@ -220,7 +220,7 @@ export default function NumerolojiAnalizPage() {
           <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
           <nav
-            className="absolute top-6 right-6 z-20 flex flex-row flex-wrap items-center justify-end gap-3 sm:top-8 sm:right-8"
+            className="absolute top-6 right-6 z-20 flex flex-row flex-wrap items-center justify-end gap-5 sm:top-8 sm:right-8"
             aria-label="Sayfa gezinmesi"
           >
             <Link href="/numeroloji" className={analizNavLinkClass}>
