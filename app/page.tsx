@@ -261,7 +261,7 @@ export default function Home() {
           padding: 14,
         }}
       >
-        <section style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <section className="mx-auto w-[96vw] max-w-none px-4 md:px-6 xl:px-8">
           <header
             style={{
               background: "rgba(255,255,255,0.86)",
@@ -326,14 +326,7 @@ export default function Home() {
             </button>
           </header>
 
-          <div
-            style={{
-              marginTop: 14,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 10,
-            }}
-          >
+          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["👥", "Danışan", "Aktif", "Kayıt ve takip"],
               ["📅", "Ajanda", "Aktif", "Randevu sistemi"],
@@ -342,24 +335,12 @@ export default function Home() {
             ].map(([icon, title, value, desc]) => (
               <div
                 key={title}
-                style={{
-                  background: "rgba(255,255,255,0.84)",
-                  border: "1px solid rgba(226,232,240,0.9)",
-                  borderRadius: 18,
-                  padding: 14,
-                  boxShadow: "0 12px 28px rgba(15,23,42,0.045)",
-                }}
+                className="min-h-[130px] rounded-[18px] border border-slate-200/90 bg-white/85 p-6 shadow-[0_12px_28px_rgba(15,23,42,0.045)]"
               >
-                <div style={{ fontSize: 20 }}>{icon}</div>
-                <div style={{ marginTop: 10, fontSize: 18, fontWeight: 950 }}>
-                  {value}
-                </div>
-                <div style={{ fontWeight: 900, marginTop: 2, fontSize: 12 }}>
-                  {title}
-                </div>
-                <div style={{ color: "#64748b", fontSize: 11, marginTop: 4 }}>
-                  {desc}
-                </div>
+                <div className="text-xl">{icon}</div>
+                <div className="mt-2.5 text-base font-semibold text-slate-900">{value}</div>
+                <div className="mt-0.5 text-sm font-bold text-slate-800">{title}</div>
+                <div className="mt-1 text-sm text-slate-500">{desc}</div>
               </div>
             ))}
           </div>
@@ -384,29 +365,15 @@ export default function Home() {
               </p>
             </div>
 
-            <div
-              style={{
-                marginTop: 14,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-                gap: 10,
-              }}
-            >
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {dashboardModules.map((item) => {
                 const isReady = item.href !== "#";
 
                 const card = (
                   <div
-                    style={{
-                      background:
-                        "linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 18,
-                      padding: 14,
-                      minHeight: 116,
-                      boxShadow: "0 10px 24px rgba(15,23,42,0.04)",
-                      cursor: isReady ? "pointer" : "default",
-                    }}
+                    className={`min-h-[170px] rounded-[18px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.04)] md:p-7 ${
+                      isReady ? "cursor-pointer" : "cursor-default"
+                    }`}
                   >
                     <div
                       style={{
@@ -431,15 +398,15 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <h3 style={{ marginTop: 12, marginBottom: 5, fontSize: 16, fontWeight: 950 }}>
+                    <h3 className="mb-1.5 mt-3 text-xl font-bold text-slate-900">
                       {item.title}
                     </h3>
 
-                    <p style={{ color: "#64748b", margin: 0, fontSize: 12, lineHeight: 1.42 }}>
+                    <p className="m-0 text-sm leading-relaxed text-slate-500">
                       {item.desc}
                     </p>
 
-                    <div style={{ marginTop: 10, fontWeight: 900, color: "#111827", fontSize: 11 }}>
+                    <div className="mt-3 text-base font-semibold text-slate-900">
                       {item.count}
                     </div>
                   </div>
