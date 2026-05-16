@@ -162,9 +162,9 @@ const dashboardModules: ModuleCard[] = [
     title: "Refleksoloji",
     icon: "🦶",
     desc: "Protokoller, atlas ve uygulama notları",
-    count: "Yakında",
+    count: "Aktif",
     badge: "Plan",
-    href: "#",
+    href: "/dashboard/refleksoloji",
   },
   {
     title: "Aromaterapi",
