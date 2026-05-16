@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { suggestedFootViewForOrgan } from "../utils/atlasBackground";
 import { FootCanvas } from "./FootCanvas";
 import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
@@ -15,6 +16,11 @@ export function RegionMapLayout() {
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [userRegions, setUserRegions] = useState<Region[]>([]);
 
+  const handleOrganSelect = useCallback((organ: string) => {
+    setSelectedOrgan(organ);
+    setSelectedView(suggestedFootViewForOrgan(organ));
+  }, []);
+
   return (
     <main className="relative flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -22,7 +28,7 @@ export function RegionMapLayout() {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full max-w-none flex-col px-3 py-2">
+      <div className="relative z-10 flex h-full w-full max-w-none flex-col px-2 py-1.5 sm:px-3">
         <div className="flex max-h-[90px] shrink-0 items-center gap-3 pb-1">
           <Link
             href="/refleksoloji"
@@ -46,7 +52,7 @@ export function RegionMapLayout() {
 
         <div className="flex min-h-0 flex-1 flex-col gap-1.5">
           <div className="flex min-h-0 flex-1 gap-2 lg:flex-row lg:gap-3">
-            <OrganListPanel selectedOrgan={selectedOrgan} setSelectedOrgan={setSelectedOrgan} />
+            <OrganListPanel selectedOrgan={selectedOrgan} setSelectedOrgan={handleOrganSelect} />
             <FootCanvas
               selectedOrgan={selectedOrgan}
               selectedFoot={selectedFoot}

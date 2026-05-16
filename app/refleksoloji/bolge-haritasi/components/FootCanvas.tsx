@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   useCallback,
   useMemo,
@@ -9,6 +10,11 @@ import {
 } from "react";
 import { ATLAS_REGIONS } from "../atlasRegions";
 import type { FootSide, FootView, Region, RegionToolMode } from "../types";
+import {
+  atlasBackgroundLabel,
+  ATLAS_IMAGE_SRC,
+  resolveAtlasBackgroundKey,
+} from "../utils/atlasBackground";
 import {
   clamp01,
   DEFAULT_NEW_REGION_RX,
@@ -29,35 +35,6 @@ type FootCanvasProps = {
 
 function filterVisibleRegions(regions: Region[], foot: FootSide, view: FootView) {
   return regions.filter((r) => r.footSide === foot && r.view === view);
-}
-
-const FOOT_SILHOUETTE_COLOR = "#a39aad";
-
-function FootSilhouettePlaceholder({ label, side }: { label: string; side: FootSide }) {
-  const position =
-    side === "left" ? "left-[5%] sm:left-[8%]" : "right-[5%] sm:right-[8%]";
-
-  return (
-    <div
-      className={`pointer-events-none absolute bottom-[4%] top-[8%] z-[1] flex w-[36%] max-w-[200px] flex-col items-center justify-end ${position}`}
-      style={{ opacity: 0.08 }}
-      aria-hidden
-    >
-      <p className="mb-2 text-[9px] font-black uppercase tracking-[0.24em] text-violet-600/50 sm:text-[10px]">
-        {label}
-      </p>
-      <div className="relative h-[82%] w-[58%] blur-[3px]">
-        <div
-          className="absolute inset-[2%_8%_6%_8%] rounded-[50%]"
-          style={{ backgroundColor: FOOT_SILHOUETTE_COLOR }}
-        />
-        <div
-          className="absolute bottom-0 left-1/2 h-[11%] w-[48%] -translate-x-1/2 rounded-[50%]"
-          style={{ backgroundColor: FOOT_SILHOUETTE_COLOR }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function RegionOval({
@@ -115,10 +92,9 @@ function RegionOval({
   );
 }
 
-function buildCanvasBadge(foot: FootSide, view: FootView): string {
+function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
   const footLabel = foot === "left" ? "Sol Ayak" : "Sağ Ayak";
-  const viewLabel = view === "taban" ? "Taban Görünüm" : "Yan Görünüm";
-  return `${footLabel} • ${viewLabel}`;
+  return `${footLabel} • ${atlasBackgroundLabel(backgroundKey)}`;
 }
 
 export function FootCanvas({
@@ -129,6 +105,13 @@ export function FootCanvas({
   userRegions,
   setUserRegions,
 }: FootCanvasProps) {
+  const atlasBackgroundKey = useMemo(
+    () => resolveAtlasBackgroundKey(selectedView, selectedOrgan),
+    [selectedView, selectedOrgan],
+  );
+
+  const atlasSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
+
   const atlasRegions = useMemo(
     () => filterVisibleRegions(ATLAS_REGIONS, selectedFoot, selectedView),
     [selectedFoot, selectedView],
@@ -147,7 +130,7 @@ export function FootCanvas({
   const hasRegionForOrgan =
     selectedOrgan !== null && visibleRegions.some((r) => r.organ === selectedOrgan);
 
-  const canvasBadge = buildCanvasBadge(selectedFoot, selectedView);
+  const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
   const isAddMode = toolMode === "add";
   const showOrganRequired = isAddMode && !selectedOrgan;
   const showSelectHint = !selectedOrgan && !isAddMode;
@@ -181,7 +164,7 @@ export function FootCanvas({
 
   return (
     <section
-      className="flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-white/90 bg-white/75 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md"
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md"
       aria-label="Ayak haritası çalışma alanı"
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100/80 px-3 py-1.5 sm:px-4">
@@ -198,33 +181,31 @@ export function FootCanvas({
         </p>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col p-1.5 sm:p-2">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
-          className={`relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-xl border bg-gradient-to-br from-violet-50/60 via-white to-fuchsia-50/35 shadow-inner ${
+          className={`relative h-full min-h-0 w-full flex-1 overflow-hidden bg-white ${
             isAddMode
-              ? "cursor-crosshair border-violet-400/70 ring-2 ring-violet-300/40"
+              ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40"
               : toolMode === "move"
-                ? "cursor-grab border-violet-200/60"
-                : "border-violet-200/60"
+                ? "cursor-grab"
+                : ""
           }`}
           role="img"
           aria-label={`${canvasBadge} — refleks bölgeleri`}
           onClick={handleCanvasClick}
         >
-          <FootSilhouettePlaceholder label="Sol Ayak" side="left" />
-          <FootSilhouettePlaceholder label="Sağ Ayak" side="right" />
-
-          <div
-            className="pointer-events-none absolute inset-0 z-[2] opacity-[0.1]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px)",
-              backgroundSize: "48px 48px",
-            }}
-            aria-hidden
+          <Image
+            key={atlasSrc}
+            src={atlasSrc}
+            alt={canvasBadge}
+            fill
+            priority
+            sizes="(max-width: 1200px) 70vw, 1200px"
+            className="pointer-events-none object-contain object-center"
+            draggable={false}
           />
 
-          <div className="relative z-[5] min-h-full w-full">
+          <div className="absolute inset-0 z-[5]">
             {showOrganRequired ? (
               <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
                 Önce organ seçiniz.
@@ -244,7 +225,7 @@ export function FootCanvas({
             ) : null}
 
             {visibleRegions.length === 0 ? (
-              <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-base font-medium text-slate-600">
+              <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-base font-medium text-slate-600/90">
                 Bu ayak ve görünüm için kayıtlı bölge yok.
               </p>
             ) : (
@@ -261,7 +242,7 @@ export function FootCanvas({
         </div>
 
         {selectedOrgan && !hasRegionForOrgan ? (
-          <p className="mt-1.5 text-center text-sm font-medium text-amber-900">
+          <p className="shrink-0 border-t border-violet-100/60 bg-amber-50/40 px-3 py-1 text-center text-sm font-medium text-amber-900">
             «{selectedOrgan}» bu ayak görünümünde henüz bölge içermiyor.
           </p>
         ) : null}
