@@ -1,10 +1,5 @@
-import { RefleksolojiModulePlaceholder } from "../components/RefleksolojiModulePlaceholder";
+import { redirect } from "next/navigation";
 
-export default function KayitliProtokollerPage() {
-  return (
-    <RefleksolojiModulePlaceholder
-      title="Kayıtlı Protokoller"
-      description="Tanımlı protokollerin arşivi, düzenleme ve hızlı erişim alanı bu modülde yer alacaktır."
-    />
-  );
+export default function KayitliProtokollerDashboardRedirectPage() {
+  redirect("/refleksoloji/kayitli-protokoller");
 }

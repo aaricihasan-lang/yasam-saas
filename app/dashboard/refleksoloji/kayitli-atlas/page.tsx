@@ -1,10 +1,5 @@
-import { RefleksolojiModulePlaceholder } from "../components/RefleksolojiModulePlaceholder";
+import { redirect } from "next/navigation";
 
-export default function KayitliAtlasPage() {
-  return (
-    <RefleksolojiModulePlaceholder
-      title="Kayıtlı Atlas"
-      description="Kayıtlı refleksoloji atlas kayıtlarının listesi, arama ve yönetimi bu modülde yer alacaktır."
-    />
-  );
+export default function KayitliAtlasDashboardRedirectPage() {
+  redirect("/refleksoloji/kayitli-atlas");
 }

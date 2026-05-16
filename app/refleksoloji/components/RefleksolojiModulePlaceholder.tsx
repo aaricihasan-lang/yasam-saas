@@ -10,7 +10,7 @@ export function RefleksolojiModulePlaceholder({ title, description }: Refleksolo
     <main className="min-h-screen bg-[linear-gradient(145deg,#f5f0ff_0%,#ede9fe_32%,#faf5ff_68%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <Link
-          href="/dashboard/refleksoloji"
+          href="/refleksoloji"
           className="mb-8 inline-flex w-fit items-center gap-2 rounded-2xl border border-violet-200/90 bg-white/90 px-5 py-3 text-sm font-black text-violet-900 shadow-md ring-1 ring-violet-100/80 transition hover:border-violet-300 hover:bg-white hover:shadow-lg"
         >
           <span aria-hidden>←</span>

@@ -1,5 +1,5 @@
-import { ReflexologyMainMenu } from "./components/ReflexologyMainMenu";
+import { redirect } from "next/navigation";
 
-export default function RefleksolojiHubPage() {
-  return <ReflexologyMainMenu />;
+export default function RefleksolojiDashboardRedirectPage() {
+  redirect("/refleksoloji");
 }

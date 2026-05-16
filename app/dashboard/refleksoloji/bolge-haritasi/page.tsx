@@ -1,5 +1,5 @@
-import { RegionMapLayout } from "./components/RegionMapLayout";
+import { redirect } from "next/navigation";
 
-export default function BolgeHaritasiPage() {
-  return <RegionMapLayout />;
+export default function BolgeHaritasiDashboardRedirectPage() {
+  redirect("/refleksoloji/bolge-haritasi");
 }

@@ -1,10 +1,5 @@
-import { RefleksolojiModulePlaceholder } from "../components/RefleksolojiModulePlaceholder";
+import { redirect } from "next/navigation";
 
-export default function ProtokolHaritasiPage() {
-  return (
-    <RefleksolojiModulePlaceholder
-      title="Protokol Haritası"
-      description="Seans protokolü için görsel harita, uygulama sırası ve akış şeması bu modülde yer alacaktır."
-    />
-  );
+export default function ProtokolHaritasiDashboardRedirectPage() {
+  redirect("/refleksoloji/protokol-haritasi");
 }

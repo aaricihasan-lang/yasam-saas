@@ -24,7 +24,7 @@ export function RegionMapLayout() {
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-3 py-4 sm:px-5 sm:py-6 lg:px-6 lg:py-8">
         <Link
-          href="/dashboard/refleksoloji"
+          href="/refleksoloji"
           className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-violet-200/90 bg-white/85 px-4 py-2.5 text-sm font-black text-violet-900 shadow-md ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:mb-5"
         >
           <span aria-hidden>←</span>

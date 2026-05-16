@@ -3,7 +3,7 @@ import { ReflexologyModuleCard, type ReflexologyModuleCardProps } from "./Reflex
 
 const PRIMARY_MODULES: ReflexologyModuleCardProps[] = [
   {
-    href: "/dashboard/refleksoloji/bolge-haritasi",
+    href: "/refleksoloji/bolge-haritasi",
     title: "Bölge Haritası",
     icon: "🗺️",
     lines: [
@@ -14,7 +14,7 @@ const PRIMARY_MODULES: ReflexologyModuleCardProps[] = [
     ring: "ring-violet-200/60",
   },
   {
-    href: "/dashboard/refleksoloji/kayitli-atlas",
+    href: "/refleksoloji/kayitli-atlas",
     title: "Kayıtlı Atlas",
     icon: "🧠",
     lines: ["Kaydedilmiş organ bölgelerini listele, görüntüle ve düzenle."],
@@ -22,7 +22,7 @@ const PRIMARY_MODULES: ReflexologyModuleCardProps[] = [
     ring: "ring-indigo-200/55",
   },
   {
-    href: "/dashboard/refleksoloji/protokol-haritasi",
+    href: "/refleksoloji/protokol-haritasi",
     title: "Protokol Haritası",
     icon: "📋",
     lines: [
@@ -33,7 +33,7 @@ const PRIMARY_MODULES: ReflexologyModuleCardProps[] = [
     ring: "ring-purple-200/55",
   },
   {
-    href: "/dashboard/refleksoloji/kayitli-protokoller",
+    href: "/refleksoloji/kayitli-protokoller",
     title: "Kayıtlı Protokoller",
     icon: "📚",
     lines: ["Kayıtlı protokolleri listele ve görüntüle."],
@@ -43,7 +43,7 @@ const PRIMARY_MODULES: ReflexologyModuleCardProps[] = [
 ];
 
 const NOTES_MODULE: ReflexologyModuleCardProps = {
-  href: "/dashboard/refleksoloji/notlar",
+  href: "/refleksoloji/notlar",
   title: "Notlar",
   icon: "📝",
   lines: ["Klinik seans notları ve ek bilgi alanı."],
@@ -67,7 +67,7 @@ function ReflexologyMainMenu() {
           className="mb-6 inline-flex w-fit items-center gap-2 rounded-2xl border border-violet-200/90 bg-white/85 px-5 py-3 text-sm font-black text-violet-900 shadow-[0_8px_28px_-10px_rgba(109,40,217,0.25)] ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white hover:shadow-[0_12px_32px_-10px_rgba(109,40,217,0.3)] sm:mb-8"
         >
           <span aria-hidden>←</span>
-          Ana Panele Dön
+          Ana Sayfaya Dön
         </Link>
 
         <section className="mx-auto w-full max-w-3xl flex-1 rounded-[36px] border border-white/80 bg-white/55 px-6 py-10 shadow-[0_32px_80px_-28px_rgba(91,33,182,0.28)] ring-1 ring-violet-100/60 backdrop-blur-xl sm:px-10 sm:py-12 lg:px-12 lg:py-14">

@@ -1,4 +1,4 @@
-import ReflexologyMainMenu from "@/app/dashboard/refleksoloji/components/ReflexologyMainMenu";
+import ReflexologyMainMenu from "./components/ReflexologyMainMenu";
 
 export default function RefleksolojiPage() {
   return <ReflexologyMainMenu />;
