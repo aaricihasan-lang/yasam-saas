@@ -14,17 +14,14 @@ type RegionToolbarProps = {
 };
 
 const btnBase =
-  "rounded-lg border px-3.5 py-2 text-sm font-bold transition-all duration-200 sm:px-4";
+  "inline-flex h-11 shrink-0 items-center justify-center rounded-xl border px-5 text-sm font-bold shadow-sm transition-all duration-200";
 
-const shapeBtnBase =
-  "rounded-md border px-2.5 py-1.5 text-xs font-bold transition-all duration-200 sm:text-sm";
-
-function activeStyle(tone: string) {
-  return `${tone} scale-[1.02] shadow-[0_6px_18px_-6px_rgba(91,33,182,0.35)] ring-1`;
+function activeBtn(extra = "") {
+  return `ring-2 ring-purple-300 bg-purple-100 text-purple-950 border-purple-200 ${extra}`;
 }
 
-function idleStyle(tone: string) {
-  return `${tone} hover:brightness-[0.98]`;
+function idleBtn(extra = "") {
+  return `border-violet-200/80 bg-white/95 text-slate-800 hover:border-violet-300 hover:bg-violet-50/90 ${extra}`;
 }
 
 export function RegionToolbar({
@@ -44,30 +41,22 @@ export function RegionToolbar({
 
   return (
     <div
-      className="shrink-0 rounded-xl border border-white/90 bg-white/85 px-2 py-1.5 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md sm:px-2.5"
+      className="shrink-0 border-t border-purple-100 bg-white/85 p-3 shadow-[0_-8px_32px_-12px_rgba(91,33,182,0.12)] backdrop-blur-md"
       role="toolbar"
       aria-label="Bölge haritası araçları"
     >
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+      <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]">
         <button
           type="button"
           onClick={() => setToolMode("add")}
           aria-pressed={isAdd}
-          className={`${btnBase} ${
-            isAdd
-              ? activeStyle(
-                  "border-emerald-400/90 bg-gradient-to-br from-emerald-300 to-teal-200 text-emerald-950 ring-emerald-400/50",
-                )
-              : idleStyle(
-                  "border-emerald-200/80 bg-emerald-50/95 text-emerald-900 hover:border-emerald-300/80 hover:bg-emerald-100/90",
-                )
-          }`}
+          className={`${btnBase} ${isAdd ? activeBtn() : idleBtn("border-emerald-200/90 text-emerald-900 hover:bg-emerald-50")}`}
         >
           Bölge Ekle
         </button>
 
         <div
-          className="flex items-center gap-1 rounded-lg border border-violet-200/80 bg-violet-50/60 px-1 py-0.5"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-200/80 bg-violet-50/50 p-1"
           role="group"
           aria-label="Çizim tipi"
         >
@@ -75,11 +64,7 @@ export function RegionToolbar({
             type="button"
             onClick={() => setDrawShape("oval")}
             aria-pressed={drawShape === "oval"}
-            className={`${shapeBtnBase} ${
-              drawShape === "oval"
-                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
-                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
-            }`}
+            className={`${btnBase} h-10 px-4 ${drawShape === "oval" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
           >
             Oval
           </button>
@@ -87,11 +72,7 @@ export function RegionToolbar({
             type="button"
             onClick={() => setDrawShape("rect")}
             aria-pressed={drawShape === "rect"}
-            className={`${shapeBtnBase} ${
-              drawShape === "rect"
-                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
-                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
-            }`}
+            className={`${btnBase} h-10 px-4 ${drawShape === "rect" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
           >
             Kare
           </button>
@@ -99,11 +80,7 @@ export function RegionToolbar({
             type="button"
             onClick={() => setDrawShape("free_draw")}
             aria-pressed={drawShape === "free_draw"}
-            className={`${shapeBtnBase} ${
-              drawShape === "free_draw"
-                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
-                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
-            }`}
+            className={`${btnBase} h-10 px-4 ${drawShape === "free_draw" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
           >
             Manuel Çizim
           </button>
@@ -111,11 +88,7 @@ export function RegionToolbar({
             type="button"
             onClick={() => setDrawShape("thick_line")}
             aria-pressed={drawShape === "thick_line"}
-            className={`${shapeBtnBase} ${
-              drawShape === "thick_line"
-                ? "border-rose-400/90 bg-gradient-to-br from-rose-200/95 to-red-100/90 text-rose-950 ring-1 ring-rose-300/60"
-                : "border-transparent bg-transparent text-rose-800 hover:bg-rose-100/80"
-            }`}
+            className={`${btnBase} h-10 px-4 ${drawShape === "thick_line" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
           >
             Kalın Çizgi
           </button>
@@ -125,105 +98,65 @@ export function RegionToolbar({
           type="button"
           onClick={() => setToolMode("move")}
           aria-pressed={isMove}
-          className={`${btnBase} ${
-            isMove
-              ? activeStyle(
-                  "border-sky-400/90 bg-gradient-to-br from-sky-300 to-cyan-200 text-sky-950 ring-sky-400/50",
-                )
-              : idleStyle(
-                  "border-sky-200/80 bg-sky-50/95 text-sky-900 hover:border-sky-300/80 hover:bg-sky-100/90",
-                )
-          }`}
+          className={`${btnBase} ${isMove ? activeBtn() : idleBtn("border-sky-200/90 text-sky-900 hover:bg-sky-50")}`}
         >
           Taşı / Düzenle
         </button>
+
         <button
           type="button"
           onClick={onSave}
-          className={`${btnBase} ${idleStyle(
-            "border-violet-300/80 bg-violet-100/95 text-violet-900 hover:border-violet-400/80 hover:bg-violet-200/90",
-          )}`}
+          className={`${btnBase} ${idleBtn("border-violet-300/90 bg-violet-100 text-violet-950 hover:bg-violet-200/90")}`}
         >
           Kaydet
         </button>
+
         <button
           type="button"
           onClick={onClear}
-          className={`${btnBase} ${idleStyle(
-            "border-rose-300/80 bg-rose-50/95 text-rose-900 hover:border-rose-400/80 hover:bg-rose-100/90",
-          )}`}
+          className={`${btnBase} ${idleBtn("border-rose-200/90 text-rose-900 hover:bg-rose-50")}`}
         >
           Temizle
         </button>
 
-        <span className="mx-0.5 hidden h-5 w-px bg-violet-200/80 sm:inline" aria-hidden />
+        <span className="mx-1 hidden h-8 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"
           onClick={() => setSelectedFoot("left")}
           aria-pressed={selectedFoot === "left"}
-          className={`${btnBase} ${
-            selectedFoot === "left"
-              ? activeStyle(
-                  "border-indigo-400/90 bg-gradient-to-br from-indigo-300 to-violet-200 text-indigo-950 ring-indigo-400/50",
-                )
-              : idleStyle(
-                  "border-indigo-200/80 bg-indigo-50/95 text-indigo-900 hover:border-indigo-300/80 hover:bg-indigo-100/90",
-                )
-          }`}
+          className={`${btnBase} ${selectedFoot === "left" ? activeBtn() : idleBtn()}`}
         >
           Sol Ayak
         </button>
+
         <button
           type="button"
           onClick={() => setSelectedFoot("right")}
           aria-pressed={selectedFoot === "right"}
-          className={`${btnBase} ${
-            selectedFoot === "right"
-              ? activeStyle(
-                  "border-indigo-400/90 bg-gradient-to-br from-indigo-300 to-violet-200 text-indigo-950 ring-indigo-400/50",
-                )
-              : idleStyle(
-                  "border-indigo-200/80 bg-indigo-50/95 text-indigo-900 hover:border-indigo-300/80 hover:bg-indigo-100/90",
-                )
-          }`}
+          className={`${btnBase} ${selectedFoot === "right" ? activeBtn() : idleBtn()}`}
         >
           Sağ Ayak
         </button>
 
-        <span className="mx-0.5 hidden h-5 w-px bg-violet-200/80 sm:inline" aria-hidden />
+        <span className="mx-1 hidden h-8 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"
           onClick={() => setSelectedView("taban")}
           aria-pressed={selectedView === "taban"}
-          className={`${btnBase} ${
-            selectedView === "taban"
-              ? activeStyle(
-                  "border-fuchsia-400/90 bg-gradient-to-br from-fuchsia-300 to-pink-200 text-fuchsia-950 ring-fuchsia-400/50",
-                )
-              : idleStyle(
-                  "border-fuchsia-200/80 bg-fuchsia-50/95 text-fuchsia-900 hover:border-fuchsia-300/80 hover:bg-fuchsia-100/90",
-                )
-          }`}
+          className={`${btnBase} ${selectedView === "taban" ? activeBtn() : idleBtn()}`}
         >
-          Taban Görünüm
+          Taban Görünümü
         </button>
+
         <button
           type="button"
           onClick={() => setSelectedView("yan")}
           aria-pressed={selectedView === "yan"}
-          className={`${btnBase} ${
-            selectedView === "yan"
-              ? activeStyle(
-                  "border-fuchsia-400/90 bg-gradient-to-br from-fuchsia-300 to-pink-200 text-fuchsia-950 ring-fuchsia-400/50",
-                )
-              : idleStyle(
-                  "border-fuchsia-200/80 bg-fuchsia-50/95 text-fuchsia-900 hover:border-fuchsia-300/80 hover:bg-fuchsia-100/90",
-                )
-          }`}
+          className={`${btnBase} ${selectedView === "yan" ? activeBtn() : idleBtn()}`}
         >
-          Yan Görünüm
+          Yan Görünümü
         </button>
       </div>
     </div>

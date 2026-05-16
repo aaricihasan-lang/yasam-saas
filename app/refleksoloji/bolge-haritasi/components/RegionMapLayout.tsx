@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
 import type { RegionDrawShape, RegionToolMode } from "../types";
+import { AtlasSaveToast } from "./AtlasSaveToast";
 import { FootCanvas } from "./FootCanvas";
 import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
@@ -16,8 +17,22 @@ type RegionMapLayoutProps = {
 export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
+  const [saveToastVisible, setSaveToastVisible] = useState(false);
 
   const workspace = useAtlasWorkspace(initialOrgan);
+
+  const saveAtlas = workspace.handleSave;
+
+  const handleSave = useCallback(() => {
+    const saved = saveAtlas();
+    if (!saved) return;
+    setToolMode("select");
+    setSaveToastVisible(true);
+  }, [saveAtlas]);
+
+  const dismissSaveToast = useCallback(() => {
+    setSaveToastVisible(false);
+  }, []);
 
   if (!workspace.hydrated) {
     return (
@@ -92,11 +107,13 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
             setToolMode={setToolMode}
             drawShape={drawShape}
             setDrawShape={setDrawShape}
-            onSave={workspace.handleSave}
+            onSave={handleSave}
             onClear={workspace.handleClear}
           />
         </div>
       </div>
+
+      <AtlasSaveToast visible={saveToastVisible} onDismiss={dismissSaveToast} />
     </main>
   );
 }

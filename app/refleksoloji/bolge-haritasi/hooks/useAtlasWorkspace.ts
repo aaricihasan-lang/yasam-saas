@@ -122,13 +122,17 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     [atlas],
   );
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback((): boolean => {
     const next = mergeDraftIntoAtlas(atlas, draftRegions, deletedRegionIds);
     saveAtlas(next);
     setAtlas(next);
     setDraftRegions([]);
     setDeletedRegionIds([]);
+    setSelectedOrgans([]);
+    setActiveOrgan(null);
+    setSelectedRegionId(null);
     setOrgans((prev) => mergeOrganLists(listOrganNamesFromAtlas(next), prev));
+    return true;
   }, [atlas, draftRegions, deletedRegionIds]);
 
   const handleDeleteSelectedDrawing = useCallback(() => {
