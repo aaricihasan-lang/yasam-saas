@@ -107,6 +107,18 @@ export function RegionToolbar({
           >
             Manuel Çizim
           </button>
+          <button
+            type="button"
+            onClick={() => setDrawShape("thick_line")}
+            aria-pressed={drawShape === "thick_line"}
+            className={`${shapeBtnBase} ${
+              drawShape === "thick_line"
+                ? "border-rose-400/90 bg-gradient-to-br from-rose-200/95 to-red-100/90 text-rose-950 ring-1 ring-rose-300/60"
+                : "border-transparent bg-transparent text-rose-800 hover:bg-rose-100/80"
+            }`}
+          >
+            Kalın Çizgi
+          </button>
         </div>
 
         <button

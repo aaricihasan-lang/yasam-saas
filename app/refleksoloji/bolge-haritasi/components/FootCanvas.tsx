@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
+import { DEFAULT_THICK_LINE_WIDTH } from "../types";
 import {
   atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
@@ -17,10 +18,14 @@ import {
   rotateRegionByPointer,
   type ResizeHandle,
 } from "../utils/regionTransform";
-import { RegionDraftPreview, RegionShape } from "./regions/RegionShape";
+import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/RegionShape";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
+const MIN_THICK_LINE_PX = 20;
+
+type ThickLineDraft = { x1: number; y1: number; x2: number; y2: number };
+type ThickLineEndpoint = "start" | "end";
 
 type FootCanvasProps = {
   activeOrgan: string | null;
@@ -57,7 +62,9 @@ function normalizedToOverlayPixel(
 type EditDragState =
   | { kind: "move"; regionId: string; start: { x: number; y: number }; snapshot: Region }
   | { kind: "resize"; regionId: string; handle: ResizeHandle; snapshot: Region }
-  | { kind: "rotate"; regionId: string; snapshot: Region };
+  | { kind: "rotate"; regionId: string; snapshot: Region }
+  | { kind: "line-end"; regionId: string; endpoint: ThickLineEndpoint; snapshot: Region }
+  | { kind: "line-rotate"; regionId: string; startPointerAngle: number; snapshot: Region };
 
 type PendingMoveState = {
   regionId: string;
@@ -84,7 +91,54 @@ function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
     };
   }
 
+  if (regionHasThickLine(snapshot)) {
+    return {
+      ...snapshot,
+      x1: clamp01(snapshot.x1 + dx),
+      y1: clamp01(snapshot.y1 + dy),
+      x2: clamp01(snapshot.x2 + dx),
+      y2: clamp01(snapshot.y2 + dy),
+    };
+  }
+
   return snapshot;
+}
+
+function rotatePointAround(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  deltaRad: number,
+): { x: number; y: number } {
+  const dx = px - cx;
+  const dy = py - cy;
+  const cos = Math.cos(deltaRad);
+  const sin = Math.sin(deltaRad);
+  return {
+    x: cx + dx * cos - dy * sin,
+    y: cy + dx * sin + dy * cos,
+  };
+}
+
+function rotateThickLineByPointer(
+  snapshot: Region & { x1: number; y1: number; x2: number; y2: number },
+  pointer: { x: number; y: number },
+  startPointerAngle: number,
+): Region {
+  const cx = (snapshot.x1 + snapshot.x2) / 2;
+  const cy = (snapshot.y1 + snapshot.y2) / 2;
+  const currentAngle = Math.atan2(pointer.y - cy, pointer.x - cx);
+  const delta = currentAngle - startPointerAngle;
+  const p1 = rotatePointAround(snapshot.x1, snapshot.y1, cx, cy, delta);
+  const p2 = rotatePointAround(snapshot.x2, snapshot.y2, cx, cy, delta);
+  return {
+    ...snapshot,
+    x1: clamp01(p1.x),
+    y1: clamp01(p1.y),
+    x2: clamp01(p2.x),
+    y2: clamp01(p2.y),
+  };
 }
 
 function lockDocumentSelection(lock: boolean) {
@@ -120,12 +174,15 @@ export function FootCanvas({
   const [isManualDrawing, setIsManualDrawing] = useState(false);
   const [currentPreviewPoints, setCurrentPreviewPoints] = useState<PreviewPoint[]>([]);
   const [liveStrokePoint, setLiveStrokePoint] = useState<PreviewPoint | null>(null);
+  const [thickLineDraft, setThickLineDraft] = useState<ThickLineDraft | null>(null);
   const [editDrag, setEditDrag] = useState<EditDragState | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMoveState | null>(null);
 
   const draftRef = useRef<DraftState | null>(null);
   const previewPointsRef = useRef<PreviewPoint[]>([]);
   const isManualDrawingRef = useRef(false);
+  const isThickLineDrawingRef = useRef(false);
+  const thickLineDraftRef = useRef<ThickLineDraft | null>(null);
   const manualPointerIdRef = useRef<number | null>(null);
   const finishDraftRef = useRef<(state: DraftState) => boolean>(() => false);
   const onDrawCompleteRef = useRef(onDrawComplete);
@@ -245,10 +302,44 @@ export function FootCanvas({
 
   const finishManualDrawRef = useRef(finishManualDraw);
 
+  const finishThickLineDraw = useCallback(
+    (draftLine: ThickLineDraft, overlayWidth: number, overlayHeight: number): boolean => {
+      if (!activeOrgan || overlayWidth <= 0 || overlayHeight <= 0) return false;
+
+      const pxLen = Math.hypot(
+        (draftLine.x2 - draftLine.x1) * overlayWidth,
+        (draftLine.y2 - draftLine.y1) * overlayHeight,
+      );
+      if (pxLen < MIN_THICK_LINE_PX) return false;
+
+      const newRegion: Region = {
+        id: crypto.randomUUID(),
+        organ: activeOrgan,
+        footSide: selectedFoot,
+        view: selectedView,
+        shape: "thick_line",
+        x1: clamp01(draftLine.x1),
+        y1: clamp01(draftLine.y1),
+        x2: clamp01(draftLine.x2),
+        y2: clamp01(draftLine.y2),
+        lineWidth: DEFAULT_THICK_LINE_WIDTH,
+        color: REGION_COLOR,
+      };
+      onUpsertRegion(newRegion);
+      onSelectRegion(newRegion.id);
+      return true;
+    },
+    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+  );
+
+  const finishThickLineDrawRef = useRef(finishThickLineDraw);
+
   draftRef.current = draft;
   finishDraftRef.current = finishBoxDraft;
   finishManualDrawRef.current = finishManualDraw;
+  finishThickLineDrawRef.current = finishThickLineDraw;
   previewPointsRef.current = currentPreviewPoints;
+  thickLineDraftRef.current = thickLineDraft;
   onDrawCompleteRef.current = onDrawComplete;
   getNormalizedPointRef.current = getNormalizedPoint;
 
@@ -273,6 +364,17 @@ export function FootCanvas({
     return pixels;
   }, [currentPreviewPoints, liveStrokePoint, overlayW, overlayH]);
 
+  const thickLinePreviewPixels = useMemo(() => {
+    if (!thickLineDraft || overlayW <= 0 || overlayH <= 0) return null;
+    return {
+      x1: thickLineDraft.x1 * overlayW,
+      y1: thickLineDraft.y1 * overlayH,
+      x2: thickLineDraft.x2 * overlayW,
+      y2: thickLineDraft.y2 * overlayH,
+      strokePx: Math.max(6, DEFAULT_THICK_LINE_WIDTH * overlayW * 1.2),
+    };
+  }, [thickLineDraft, overlayW, overlayH]);
+
   const finishManualStroke = useCallback(
     (target: HTMLElement, pointerId: number) => {
       isManualDrawingRef.current = false;
@@ -293,6 +395,28 @@ export function FootCanvas({
       if (created) onDrawCompleteRef.current?.();
     },
     [],
+  );
+
+  const finishThickLineStroke = useCallback(
+    (target: HTMLElement, pointerId: number) => {
+      isThickLineDrawingRef.current = false;
+      manualPointerIdRef.current = null;
+      try {
+        target.releasePointerCapture(pointerId);
+      } catch {
+        /* already released */
+      }
+
+      const draftLine = thickLineDraftRef.current;
+      setThickLineDraft(null);
+      thickLineDraftRef.current = null;
+
+      if (draftLine) {
+        const created = finishThickLineDrawRef.current(draftLine, overlayW, overlayH);
+        if (created) onDrawCompleteRef.current?.();
+      }
+    },
+    [overlayW, overlayH],
   );
 
   const handleOverlayPointerDown = useCallback(
@@ -317,6 +441,16 @@ export function FootCanvas({
         return;
       }
 
+      if (drawShape === "thick_line") {
+        const initial: ThickLineDraft = { x1: point.x, y1: point.y, x2: point.x, y2: point.y };
+        thickLineDraftRef.current = initial;
+        isThickLineDrawingRef.current = true;
+        manualPointerIdRef.current = e.pointerId;
+        setThickLineDraft(initial);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
+
       overlayRef.current?.setPointerCapture(e.pointerId);
       const shape = drawShape === "rect" ? "rect" : "oval";
       setDraft({ kind: "box", shape, start: point, current: point });
@@ -326,10 +460,23 @@ export function FootCanvas({
 
   const handleOverlayPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isManualDrawingRef.current) return;
-
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
+
+      if (isThickLineDrawingRef.current) {
+        e.preventDefault();
+        const next: ThickLineDraft = {
+          x1: thickLineDraftRef.current?.x1 ?? point.x,
+          y1: thickLineDraftRef.current?.y1 ?? point.y,
+          x2: point.x,
+          y2: point.y,
+        };
+        thickLineDraftRef.current = next;
+        setThickLineDraft(next);
+        return;
+      }
+
+      if (!isManualDrawingRef.current) return;
 
       e.preventDefault();
       setLiveStrokePoint(point);
@@ -349,19 +496,28 @@ export function FootCanvas({
 
   const handleOverlayPointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isThickLineDrawingRef.current) {
+        e.preventDefault();
+        finishThickLineStroke(e.currentTarget, e.pointerId);
+        return;
+      }
       if (!isManualDrawingRef.current) return;
       e.preventDefault();
       finishManualStroke(e.currentTarget, e.pointerId);
     },
-    [finishManualStroke],
+    [finishManualStroke, finishThickLineStroke],
   );
 
   const handleOverlayPointerCancel = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isThickLineDrawingRef.current) {
+        finishThickLineStroke(e.currentTarget, e.pointerId);
+        return;
+      }
       if (!isManualDrawingRef.current) return;
       finishManualStroke(e.currentTarget, e.pointerId);
     },
-    [finishManualStroke],
+    [finishManualStroke, finishThickLineStroke],
   );
 
   const handleRegionMovePointerDown = useCallback(
@@ -423,6 +579,53 @@ export function FootCanvas({
     [isMoveMode, regions, onSelectRegion],
   );
 
+  const handleThickLineEndpointStart = useCallback(
+    (regionId: string, endpoint: ThickLineEndpoint, clientX: number, clientY: number) => {
+      if (!isMoveMode) return;
+
+      const region = regions.find((r) => r.id === regionId);
+      if (!region || !regionHasThickLine(region)) return;
+
+      onSelectRegion(regionId);
+      setPendingMove(null);
+      lockDocumentSelection(true);
+      setEditDrag({
+        kind: "line-end",
+        regionId,
+        endpoint,
+        snapshot: structuredClone(region),
+      });
+    },
+    [isMoveMode, regions, onSelectRegion],
+  );
+
+  const handleThickLineRotateStart = useCallback(
+    (regionId: string, clientX: number, clientY: number) => {
+      if (!isMoveMode) return;
+
+      const region = regions.find((r) => r.id === regionId);
+      if (!region || !regionHasThickLine(region)) return;
+
+      const point = getNormalizedPoint(clientX, clientY, true);
+      if (!point) return;
+
+      const cx = (region.x1 + region.x2) / 2;
+      const cy = (region.y1 + region.y2) / 2;
+      const startPointerAngle = Math.atan2(point.y - cy, point.x - cx);
+
+      onSelectRegion(regionId);
+      setPendingMove(null);
+      lockDocumentSelection(true);
+      setEditDrag({
+        kind: "line-rotate",
+        regionId,
+        startPointerAngle,
+        snapshot: structuredClone(region),
+      });
+    },
+    [isMoveMode, regions, onSelectRegion, getNormalizedPoint],
+  );
+
   useEffect(() => {
     if (!isBoxDrawing) return;
 
@@ -464,10 +667,10 @@ export function FootCanvas({
   }, [isBoxDrawing]);
 
   useEffect(() => {
-    if (!isManualDrawing) return;
+    if (!isManualDrawing && !thickLineDraft) return;
     lockDocumentSelection(true);
     return () => lockDocumentSelection(false);
-  }, [isManualDrawing]);
+  }, [isManualDrawing, thickLineDraft]);
 
   useEffect(() => {
     if (!pendingMove) return;
@@ -531,6 +734,33 @@ export function FootCanvas({
         if (!box) return;
         const updated = rotateRegionByPointer(box, point);
         onUpsertRegion({ ...updated, color: editDrag.snapshot.color ?? REGION_COLOR });
+        return;
+      }
+
+      if (editDrag.kind === "line-end") {
+        const snap = editDrag.snapshot;
+        if (!regionHasThickLine(snap)) return;
+        if (editDrag.endpoint === "start") {
+          onUpsertRegion({
+            ...snap,
+            x1: clamp01(point.x),
+            y1: clamp01(point.y),
+          });
+        } else {
+          onUpsertRegion({
+            ...snap,
+            x2: clamp01(point.x),
+            y2: clamp01(point.y),
+          });
+        }
+        return;
+      }
+
+      if (editDrag.kind === "line-rotate") {
+        const snap = editDrag.snapshot;
+        if (!regionHasThickLine(snap)) return;
+        const updated = rotateThickLineByPointer(snap, point, editDrag.startPointerAngle);
+        onUpsertRegion(updated);
       }
     };
 
@@ -634,10 +864,12 @@ export function FootCanvas({
               onPointerUp={handleOverlayPointerUp}
               onPointerCancel={handleOverlayPointerCancel}
               onLostPointerCapture={(e) => {
-                if (
-                  isManualDrawingRef.current &&
-                  manualPointerIdRef.current === e.pointerId
-                ) {
+                if (manualPointerIdRef.current !== e.pointerId) return;
+                if (isThickLineDrawingRef.current) {
+                  finishThickLineStroke(e.currentTarget, e.pointerId);
+                  return;
+                }
+                if (isManualDrawingRef.current) {
                   finishManualStroke(e.currentTarget, e.pointerId);
                 }
               }}
@@ -652,7 +884,9 @@ export function FootCanvas({
                 <p className="pointer-events-none absolute bottom-2 left-1/2 z-40 max-w-[95%] -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm">
                   {drawShape === "free_draw"
                     ? `«${activeOrgan}» için basılı tutup çizin`
-                    : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+                    : drawShape === "thick_line"
+                      ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
+                      : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
                 </p>
               ) : null}
 
@@ -680,6 +914,8 @@ export function FootCanvas({
                   onMovePointerDown={handleRegionMovePointerDown}
                   onResizeStart={handleResizeStart}
                   onRotateStart={handleRotateStart}
+                  onThickLineEndpointStart={handleThickLineEndpointStart}
+                  onThickLineRotateStart={handleThickLineRotateStart}
                 />
               ))}
 
@@ -711,6 +947,25 @@ export function FootCanvas({
                       strokeLinejoin="round"
                     />
                   )}
+                </svg>
+              ) : null}
+
+              {thickLinePreviewPixels ? (
+                <svg
+                  className="pointer-events-none absolute inset-0 z-30 h-full w-full"
+                  width="100%"
+                  height="100%"
+                  aria-hidden
+                >
+                  <line
+                    x1={thickLinePreviewPixels.x1}
+                    y1={thickLinePreviewPixels.y1}
+                    x2={thickLinePreviewPixels.x2}
+                    y2={thickLinePreviewPixels.y2}
+                    stroke="rgb(220, 38, 38)"
+                    strokeWidth={thickLinePreviewPixels.strokePx}
+                    strokeLinecap="round"
+                  />
                 </svg>
               ) : null}
             </div>

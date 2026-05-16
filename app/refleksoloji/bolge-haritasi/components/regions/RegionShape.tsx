@@ -12,6 +12,11 @@ import {
 import type { ResizeHandle } from "../../utils/regionTransform";
 import { RegionHandles } from "./RegionHandles";
 
+const HANDLE_CLASS =
+  "absolute z-30 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-red-600 shadow-sm touch-none";
+
+type ThickLineEndpoint = "start" | "end";
+
 type RegionShapeProps = {
   region: Region;
   isSelected: boolean;
@@ -22,7 +27,27 @@ type RegionShapeProps = {
   onMovePointerDown?: (id: string, clientX: number, clientY: number) => void;
   onResizeStart?: (id: string, handle: ResizeHandle, clientX: number, clientY: number) => void;
   onRotateStart?: (id: string, clientX: number, clientY: number) => void;
+  onThickLineEndpointStart?: (
+    id: string,
+    endpoint: ThickLineEndpoint,
+    clientX: number,
+    clientY: number,
+  ) => void;
+  onThickLineRotateStart?: (id: string, clientX: number, clientY: number) => void;
 };
+
+export function regionHasThickLine(
+  region: Region,
+): region is Region & { x1: number; y1: number; x2: number; y2: number; lineWidth: number } {
+  return (
+    region.shape === "thick_line" &&
+    typeof region.x1 === "number" &&
+    typeof region.y1 === "number" &&
+    typeof region.x2 === "number" &&
+    typeof region.y2 === "number" &&
+    typeof region.lineWidth === "number"
+  );
+}
 
 export function RegionShape({
   region,
@@ -34,6 +59,8 @@ export function RegionShape({
   onMovePointerDown,
   onResizeStart,
   onRotateStart,
+  onThickLineEndpointStart,
+  onThickLineRotateStart,
 }: RegionShapeProps) {
   const label = region.organ;
 
@@ -48,6 +75,113 @@ export function RegionShape({
     }
     onSelect(region.id);
   };
+
+  if (regionHasThickLine(region)) {
+    const { x1, y1, x2, y2, lineWidth } = region;
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const strokeW = Math.max(2, lineWidth * 100 * 2.2);
+    const hitStrokeW = Math.max(12, lineWidth * 100 * 5);
+    const handlesVisible = showEditHandles && isSelected && interactive;
+
+    return (
+      <div
+        className={`absolute inset-0 touch-none select-none ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+      >
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <line
+            x1={x1 * 100}
+            y1={y1 * 100}
+            x2={x2 * 100}
+            y2={y2 * 100}
+            stroke={REGION_STROKE}
+            strokeWidth={strokeW}
+            strokeLinecap="round"
+            style={
+              isSelected
+                ? { filter: "drop-shadow(0 0 6px rgba(239,68,68,0.9)) drop-shadow(0 0 14px rgba(239,68,68,0.45))" }
+                : undefined
+            }
+          />
+        </svg>
+
+        <svg
+          className="absolute inset-0 h-full w-full overflow-visible"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <line
+            x1={x1 * 100}
+            y1={y1 * 100}
+            x2={x2 * 100}
+            y2={y2 * 100}
+            stroke="transparent"
+            strokeWidth={hitStrokeW}
+            strokeLinecap="round"
+            className={interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}
+            onPointerDown={handleBodyPointerDown}
+          />
+        </svg>
+
+        {handlesVisible ? (
+          <>
+            <button
+              type="button"
+              aria-label="Çizgi başlangıcı"
+              className={`${HANDLE_CLASS} cursor-crosshair`}
+              style={{ left: `${x1 * 100}%`, top: `${y1 * 100}%` }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onThickLineEndpointStart?.(region.id, "start", e.clientX, e.clientY);
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Çizgi bitişi"
+              className={`${HANDLE_CLASS} cursor-crosshair`}
+              style={{ left: `${x2 * 100}%`, top: `${y2 * 100}%` }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onThickLineEndpointStart?.(region.id, "end", e.clientX, e.clientY);
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Çizgiyi döndür"
+              className="absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md touch-none"
+              style={{
+                left: `${midX * 100}%`,
+                top: `${midY * 100}%`,
+                transform: "translate(-50%, calc(-50% - 10px))",
+                cursor: "grab",
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onThickLineRotateStart?.(region.id, e.clientX, e.clientY);
+              }}
+            />
+          </>
+        ) : null}
+
+        {isSelected ? (
+          <span
+            className="pointer-events-none absolute z-30 max-w-[40%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm"
+            style={{ left: `${midX * 100}%`, top: `${midY * 100}%`, transform: "translate(-50%, -120%)" }}
+          >
+            {label}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   if (region.shape === "free_draw" && region.points && region.points.length >= 1) {
     const pointsAttr = region.points.map((p) => `${p.x * 100},${p.y * 100}`).join(" ");

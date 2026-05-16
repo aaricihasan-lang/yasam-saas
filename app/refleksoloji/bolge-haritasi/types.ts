@@ -2,10 +2,10 @@ export type FootSide = "left" | "right";
 
 export type FootView = "taban" | "yan";
 
-export type RegionShapeType = "oval" | "rect" | "free_draw";
+export type RegionShapeType = "oval" | "rect" | "free_draw" | "thick_line";
 
-/** Toolbar çizim tipi (oval / kare / manuel) */
-export type RegionDrawShape = "oval" | "rect" | "free_draw";
+/** Toolbar çizim tipi */
+export type RegionDrawShape = "oval" | "rect" | "free_draw" | "thick_line";
 
 export type RegionToolMode = "select" | "add" | "move";
 
@@ -24,5 +24,13 @@ export type Region = {
   ry?: number;
   angle?: number;
   points?: RegionPoint[];
+  /** Kalın çizgi — normalize 0..1 */
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  lineWidth?: number;
   color?: string;
 };
+
+export const DEFAULT_THICK_LINE_WIDTH = 0.018;

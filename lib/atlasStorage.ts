@@ -17,6 +17,11 @@ export type StoredRegion = {
   ry?: number;
   angle?: number;
   points?: RegionPoint[];
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  lineWidth?: number;
   color?: string;
 };
 
@@ -75,6 +80,11 @@ export function regionToStored(region: Region): StoredRegion {
     ry: region.ry,
     angle: region.angle,
     points: region.points,
+    x1: region.x1,
+    y1: region.y1,
+    x2: region.x2,
+    y2: region.y2,
+    lineWidth: region.lineWidth,
     color: region.color,
   };
 }
@@ -97,6 +107,11 @@ export function storedToRegion(
     ry: stored.ry,
     angle: stored.angle,
     points: stored.points,
+    x1: stored.x1,
+    y1: stored.y1,
+    x2: stored.x2,
+    y2: stored.y2,
+    lineWidth: stored.lineWidth,
     color: stored.color,
   };
 }
