@@ -1,4 +1,22 @@
-export const CHAKRA_VALUE_OPTIONS = Array.from({ length: 10 }, (_, i) => {
-  const no = i + 1;
-  return [`${no}. Çakra | AZ Destek`, `${no}. Çakra | FAZLA Destek`];
-}).flat();
+export const CHAKRA_VALUE_OPTIONS = [
+  "1. Çakra | AZ Destek",
+  "1. Çakra | FAZLA Destek",
+  "2. Çakra | AZ Destek",
+  "2. Çakra | FAZLA Destek",
+  "3. Çakra | AZ Destek",
+  "3. Çakra | FAZLA Destek",
+  "4. Çakra | AZ Destek",
+  "4. Çakra | FAZLA Destek",
+  "5. Çakra | AZ Destek",
+  "5. Çakra | FAZLA Destek",
+  "6. Çakra | AZ Destek",
+  "6. Çakra | FAZLA Destek",
+  "7. Çakra | AZ Destek",
+  "7. Çakra | FAZLA Destek",
+  "8. Çakra | AZ Destek",
+  "8. Çakra | FAZLA Destek",
+  "9. Çakra | AZ Destek",
+  "9. Çakra | FAZLA Destek",
+  "10. Çakra | AZ Destek",
+  "10. Çakra | FAZLA Destek",
+];
