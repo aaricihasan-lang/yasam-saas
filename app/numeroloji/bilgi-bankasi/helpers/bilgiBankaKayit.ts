@@ -27,6 +27,7 @@ export type StoneAssignmentRow = {
 
 export type BilgiBankaListeSatir = {
   id: string;
+  recordId: string;
   kayitTuru: "aciklama" | "dogaltas";
   analizTuruKey: string;
   analizTuru: string;
@@ -34,6 +35,10 @@ export type BilgiBankaListeSatir = {
   bilgiVeyaAciklama: string;
   guncellemeTarihi: string;
   aramaMetni: string;
+  source?: string;
+  description?: string;
+  reason?: string;
+  stones?: string[];
 };
 
 /** Virgül, nokta, noktalı virgül ve satır sonuna göre parçalar; Türkçe baş harf büyütür. */
@@ -202,12 +207,15 @@ export async function listBilgiBankaKayitlari(): Promise<{
     const bilgi = [row.source, row.description].filter(Boolean).join(" — ");
     return {
       id: `aciklama:${row.id}`,
+      recordId: row.id,
       kayitTuru: "aciklama",
       analizTuruKey: row.analysis_type,
       analizTuru: analiz,
       deger: row.value,
       bilgiVeyaAciklama: bilgi || "—",
       guncellemeTarihi: row.updated_at,
+      source: row.source ?? "",
+      description: row.description ?? "",
       aramaMetni: [analiz, row.value, row.source, row.description]
         .filter(Boolean)
         .join(" ")
@@ -223,12 +231,15 @@ export async function listBilgiBankaKayitlari(): Promise<{
     const bilgi = [row.reason, tasMetin ? `Taşlar: ${tasMetin}` : ""].filter(Boolean).join(" — ");
     return {
       id: `dogaltas:${row.id}`,
+      recordId: row.id,
       kayitTuru: "dogaltas",
       analizTuruKey: row.analysis_type,
       analizTuru: analiz,
       deger: row.value,
       bilgiVeyaAciklama: bilgi || "—",
       guncellemeTarihi: row.updated_at,
+      reason: row.reason ?? "",
+      stones: taslar,
       aramaMetni: [analiz, row.value, row.reason, tasMetin]
         .filter(Boolean)
         .join(" ")
@@ -241,4 +252,19 @@ export async function listBilgiBankaKayitlari(): Promise<{
   );
 
   return { rows, error: null };
+}
+
+export async function deleteBilgiBankaKayit(
+  kayitTuru: "aciklama" | "dogaltas",
+  recordId: string,
+): Promise<{ error: string | null }> {
+  const tenantId = getTenantIdFromStorage();
+  const table = kayitTuru === "aciklama" ? KNOWLEDGE_TABLE : STONE_TABLE;
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq("id", recordId)
+    .eq("tenant_id", tenantId);
+
+  return { error: error?.message ?? null };
 }
