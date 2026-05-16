@@ -127,12 +127,12 @@ const dashboardModules: ModuleCard[] = [
     href: "/sifa-rehberi",
   },
   {
-    title: "Biyoenerji",
-    icon: "✨",
-    desc: "Aura, çakra, imajinasyon ve sembol dili çalışma alanı",
+    title: "Enerji & Beden",
+    icon: "⚡",
+    desc: "Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları",
     count: "Aktif",
-    badge: "Yeni",
-    href: "/dashboard/biyoenerji",
+    badge: "Modül",
+    href: "/enerji-beden",
   },
   {
     title: "Kişisel Arşiv",
@@ -149,22 +149,6 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Plan",
     href: "/numeroloji",
-  },
-  {
-    title: "Refleksoloji",
-    icon: "🦶",
-    desc: "Protokoller, atlas ve uygulama notları",
-    count: "Aktif",
-    badge: "Plan",
-    href: "/refleksoloji",
-  },
-  {
-    title: "Aromaterapi",
-    icon: "🌿",
-    desc: "Yağlar, karışımlar ve kullanım rehberi",
-    count: "Planlandı",
-    badge: "Sırada",
-    href: "#",
   },
 ];
 
