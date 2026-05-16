@@ -38,24 +38,24 @@ const energyFolders = [
 
 export default function EnerjiBedenPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#eef4ff] via-[#f6f1ff] to-[#e8fff8] text-slate-900 antialiased">
+    <main className="relative min-h-screen overflow-hidden bg-[#071226] text-slate-100 antialiased">
       <div
-        className="pointer-events-none absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-purple-300/20 blur-[120px]"
+        className="pointer-events-none absolute left-[-150px] top-[-120px] h-[650px] w-[650px] rounded-full bg-purple-600/25 blur-[140px]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -bottom-32 -right-24 h-[600px] w-[600px] rounded-full bg-cyan-300/20 blur-[140px]"
+        className="pointer-events-none absolute right-[-180px] top-0 h-[700px] w-[700px] rounded-full bg-cyan-500/20 blur-[160px]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[400px] -translate-x-1/2 translate-y-1/3 rounded-full bg-emerald-200/20 blur-[120px]"
+        className="pointer-events-none absolute bottom-[-250px] left-1/2 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-blue-500/20 blur-[180px]"
         aria-hidden
       />
 
       <div className="relative z-10 mx-auto flex h-full min-h-[calc(100vh-90px)] w-[98vw] max-w-none flex-col overflow-hidden px-6 py-5">
         <Link
           href="/"
-          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl border border-white/80 bg-white/75 px-6 py-3 text-base font-semibold text-slate-800 shadow-lg backdrop-blur transition-all duration-200 hover:scale-[1.05] hover:border-violet-200 hover:bg-white/90"
+          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-6 py-3 text-base font-semibold text-white shadow-lg backdrop-blur transition-all duration-200 hover:scale-[1.05] hover:border-cyan-300/40 hover:bg-white/15"
         >
           <span className="text-xl leading-none" aria-hidden>
             ←
@@ -64,17 +64,17 @@ export default function EnerjiBedenPage() {
         </Link>
 
         <header className="shrink-0 py-6 text-center">
-          <p className="text-sm font-bold uppercase tracking-[8px] text-purple-600">
+          <p className="text-sm font-bold uppercase tracking-[8px] text-cyan-300/90">
             YAŞAM SİSTEMİ
           </p>
-          <h1 className="mt-4 bg-gradient-to-r from-purple-700 via-indigo-600 to-cyan-600 bg-clip-text text-7xl font-black tracking-tight text-transparent">
+          <h1 className="mt-4 bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-blue-400 bg-clip-text text-7xl font-black tracking-tight text-transparent drop-shadow-[0_0_28px_rgba(56,189,248,0.35)]">
             Enerji & Beden
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
             Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları
           </p>
           <div
-            className="mx-auto mt-6 h-[3px] w-[420px] max-w-full rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1px]"
+            className="mx-auto mt-6 h-[4px] w-[500px] max-w-full rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_30px_rgba(56,189,248,0.8)]"
             aria-hidden
           />
         </header>
