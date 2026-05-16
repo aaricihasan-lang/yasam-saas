@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { normalizeThickLineRegion } from "../types";
 /** Yeni kalın çizgi kayıtları — normalize 0..1 */
-const THICK_LINE_WIDTH = 0.009;
+const THICK_LINE_WIDTH = 0.004;
 import {
   atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
@@ -382,7 +382,7 @@ export function FootCanvas({
     const y2 = thickLineDraft.y2 * overlayH;
     if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
     const safeWidth = safeThickLineWidth(THICK_LINE_WIDTH);
-    const strokePx = Math.max(5, safeWidth * overlayW * 0.55);
+    const strokePx = Math.max(3, safeWidth * overlayW * 0.55);
     if (!Number.isFinite(strokePx)) return null;
     return { x1, y1, x2, y2, strokePx };
   }, [thickLineDraft, overlayW, overlayH]);

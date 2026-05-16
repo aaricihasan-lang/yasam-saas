@@ -38,7 +38,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
         <div className="flex max-h-[90px] shrink-0 items-center gap-3 pb-1">
           <Link
             href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200/90 bg-white/85 px-2.5 py-1.5 text-sm font-black text-violet-900 shadow-sm ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:px-3"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 border-violet-300/95 bg-white/90 px-3 py-2 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white hover:shadow-lg sm:px-3.5"
           >
             <span aria-hidden>←</span>
             <span className="hidden sm:inline">Ana Menü</span>

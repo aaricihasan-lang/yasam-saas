@@ -41,7 +41,7 @@ function isFiniteCoord(value: unknown): value is number {
 }
 
 export function safeThickLineWidth(lineWidth?: number): number {
-  return Number.isFinite(lineWidth) ? (lineWidth as number) : 0.008;
+  return Number.isFinite(lineWidth) ? (lineWidth as number) : 0.004;
 }
 
 export function regionHasThickLine(
@@ -98,8 +98,8 @@ export function RegionShape({
     }
 
     const { x1, y1, x2, y2 } = region;
-    const lineWidth = region.lineWidth ?? 0.008;
-    const safeWidth = Number.isFinite(lineWidth) ? lineWidth : 0.008;
+    const lineWidth = region.lineWidth ?? 0.004;
+    const safeWidth = Number.isFinite(lineWidth) ? lineWidth : 0.004;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const strokeW = Math.max(2, safeWidth * 100 * 1.05);
