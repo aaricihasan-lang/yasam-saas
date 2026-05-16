@@ -8,12 +8,11 @@ import { NoteListCard } from "./NoteListCard";
 
 type KayitliNotlarTabProps = {
   notes: SavedClinicalNote[];
-  onView: (note: SavedClinicalNote) => void;
   onEdit: (note: SavedClinicalNote) => void;
   onDelete: (id: string) => void;
 };
 
-export function KayitliNotlarTab({ notes, onView, onEdit, onDelete }: KayitliNotlarTabProps) {
+export function KayitliNotlarTab({ notes, onEdit, onDelete }: KayitliNotlarTabProps) {
   const { confirm } = useConfirm();
   const [search, setSearch] = useState("");
 
@@ -65,7 +64,6 @@ export function KayitliNotlarTab({ notes, onView, onEdit, onDelete }: KayitliNot
             <NoteListCard
               key={note.id}
               note={note}
-              onView={() => onView(note)}
               onEdit={() => onEdit(note)}
               onDelete={() => void handleDelete(note.id)}
             />

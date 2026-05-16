@@ -1,17 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import type { SavedClinicalNote } from "../types";
 import { noteContentPreview } from "../lib/noteSearch";
 import { formatNoteDate } from "../lib/noteFormat";
 
 type NoteListCardProps = {
   note: SavedClinicalNote;
-  onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
 };
 
-export function NoteListCard({ note, onView, onEdit, onDelete }: NoteListCardProps) {
+export function NoteListCard({ note, onEdit, onDelete }: NoteListCardProps) {
   return (
     <article className="flex flex-col rounded-[28px] border border-purple-100 bg-white/80 p-6 shadow-sm ring-1 ring-violet-100/60 transition hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
@@ -28,13 +28,12 @@ export function NoteListCard({ note, onView, onEdit, onDelete }: NoteListCardPro
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onView}
-          className="flex-1 rounded-xl border border-violet-300/80 bg-violet-100 px-4 py-2.5 text-sm font-bold text-violet-950 transition hover:bg-violet-200/90"
+        <Link
+          href={`/refleksoloji/notlar/${encodeURIComponent(note.id)}`}
+          className="flex-1 rounded-xl border border-violet-300/80 bg-violet-100 px-4 py-2.5 text-center text-sm font-bold text-violet-950 transition hover:bg-violet-200/90"
         >
-          Görüntüle
-        </button>
+          Detay
+        </Link>
         <button
           type="button"
           onClick={onEdit}

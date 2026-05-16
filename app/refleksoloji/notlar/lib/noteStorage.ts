@@ -8,21 +8,33 @@ function normalizeAttachments(raw: unknown): NoteAttachment[] {
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const o = item as Record<string, unknown>;
-      if (
-        typeof o.id !== "string" ||
-        typeof o.displayName !== "string" ||
-        typeof o.fileName !== "string" ||
-        typeof o.dataUrl !== "string"
-      ) {
-        return null;
-      }
+      if (typeof o.id !== "string") return null;
+
+      const legacyName =
+        typeof o.displayName === "string"
+          ? o.displayName
+          : typeof o.name === "string"
+            ? o.name
+            : "";
+      const fileName =
+        typeof o.fileName === "string" ? o.fileName : legacyName.trim();
+      const displayName = legacyName.trim() || fileName;
+      if (!displayName && !fileName) return null;
+
+      const mimeType =
+        typeof o.mimeType === "string"
+          ? o.mimeType
+          : typeof o.type === "string"
+            ? o.type
+            : "application/octet-stream";
+
       return {
         id: o.id,
-        displayName: o.displayName.trim() || o.fileName,
-        fileName: o.fileName,
-        mimeType: typeof o.mimeType === "string" ? o.mimeType : "application/octet-stream",
+        displayName: displayName || fileName,
+        fileName: fileName || displayName,
+        mimeType,
         size: typeof o.size === "number" ? o.size : 0,
-        dataUrl: o.dataUrl,
+        dataUrl: typeof o.dataUrl === "string" ? o.dataUrl : "",
       };
     })
     .filter((a): a is NoteAttachment => a != null);

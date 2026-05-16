@@ -12,23 +12,12 @@ import {
   savedToDraft,
   todayDateInputValue,
 } from "../lib/noteStorage";
+import { MAX_ATTACHMENT_BYTES, readFileAsDataUrl } from "../lib/readAttachmentFile";
 import type { ClinicalNoteFormDraft, ClinicalNotesTab, NoteAttachment, SavedClinicalNote } from "../types";
 import { KayitliNotlarTab } from "./KayitliNotlarTab";
 import { NotKaydiTab } from "./NotKaydiTab";
 import { NoteContentModal } from "./NoteContentModal";
 import { NoteSaveToast } from "./NoteSaveToast";
-import { NoteViewModal } from "./NoteViewModal";
-
-const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("READ_FAILED"));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function KlinikNotlarLayout() {
   const { confirm } = useConfirm();
@@ -42,8 +31,6 @@ export function KlinikNotlarLayout() {
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [saveToastVisible, setSaveToastVisible] = useState(false);
-  const [viewNote, setViewNote] = useState<SavedClinicalNote | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
@@ -368,7 +355,6 @@ export function KlinikNotlarLayout() {
           ) : (
             <KayitliNotlarTab
               notes={notes}
-              onView={setViewNote}
               onEdit={loadNoteIntoForm}
               onDelete={handleDeleteFromList}
             />
@@ -382,8 +368,6 @@ export function KlinikNotlarLayout() {
         onClose={() => setEditorOpen(false)}
         onSave={(content) => patchDraft({ content })}
       />
-
-      <NoteViewModal note={viewNote} onClose={() => setViewNote(null)} />
 
       <NoteSaveToast visible={saveToastVisible} onDismiss={dismissSaveToast} />
     </main>
