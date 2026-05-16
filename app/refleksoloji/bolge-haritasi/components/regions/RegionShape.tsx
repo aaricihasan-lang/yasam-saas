@@ -10,10 +10,28 @@ type RegionShapeProps = {
   region: Region;
   isSelected: boolean;
   interactive: boolean;
+  moveMode: boolean;
   onSelect: (id: string) => void;
+  onMoveStart?: (id: string, clientX: number, clientY: number) => void;
 };
 
-export function RegionShape({ region, isSelected, interactive, onSelect }: RegionShapeProps) {
+export function RegionShape({
+  region,
+  isSelected,
+  interactive,
+  moveMode,
+  onSelect,
+  onMoveStart,
+}: RegionShapeProps) {
+  const handlePointerDown = (e: React.PointerEvent, id: string) => {
+    e.stopPropagation();
+    if (!interactive) return;
+    if (moveMode && onMoveStart) {
+      onMoveStart(id, e.clientX, e.clientY);
+      return;
+    }
+    onSelect(id);
+  };
   const color = region.color ?? "rgba(196, 181, 253, 0.55)";
   const label = region.organ;
 
@@ -23,12 +41,9 @@ export function RegionShape({ region, isSelected, interactive, onSelect }: Regio
     return (
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (interactive) onSelect(region.id);
-        }}
+        onPointerDown={(e) => handlePointerDown(e, region.id)}
         className={`absolute inset-0 transition-all duration-200 ${
-          interactive ? "cursor-pointer" : "pointer-events-none"
+          interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : "pointer-events-none"
         } ${isSelected ? "z-20" : "z-10"}`}
         aria-label={label}
         title={label}
@@ -71,12 +86,9 @@ export function RegionShape({ region, isSelected, interactive, onSelect }: Regio
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (interactive) onSelect(region.id);
-      }}
+      onPointerDown={(e) => handlePointerDown(e, region.id)}
       className={`absolute flex items-center justify-center transition-all duration-200 ${
-        interactive ? "cursor-pointer hover:brightness-105" : "pointer-events-none"
+        interactive ? (moveMode ? "cursor-move hover:brightness-105" : "cursor-pointer hover:brightness-105") : "pointer-events-none"
       } ${isSelected ? `z-20 scale-[1.02] ${SELECTED_GLOW}` : "z-10 opacity-80 hover:opacity-90"}`}
       style={{
         left: box.left,

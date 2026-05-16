@@ -14,10 +14,6 @@ export function isInnerYanOrgan(organ: string): boolean {
   return n.includes("mesane") || n.includes("rahim") || n.includes("prostat");
 }
 
-export function suggestedFootViewForOrgan(organ: string): FootView {
-  return isInnerYanOrgan(organ) ? "yan" : "taban";
-}
-
 export function resolveAtlasBackgroundKey(
   footView: FootView,
   selectedOrgan: string | null,

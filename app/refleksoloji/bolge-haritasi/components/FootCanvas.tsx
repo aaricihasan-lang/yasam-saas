@@ -18,7 +18,7 @@ import {
 } from "../utils/atlasBackground";
 import { computeObjectContainRect } from "../utils/imageContainRect";
 import { pointerToImageNormalized } from "../utils/normalizePointer";
-import { boxFromDrag, DEFAULT_REGION_COLOR } from "../utils/regionGeometry";
+import { boxFromDrag, clamp01, DEFAULT_REGION_COLOR, regionHasBox } from "../utils/regionGeometry";
 import {
   FreeDrawDraftPreview,
   RegionDraftPreview,
@@ -31,8 +31,8 @@ type FootCanvasProps = {
   selectedView: FootView;
   toolMode: RegionToolMode;
   drawShape: RegionDrawShape;
-  userRegions: Region[];
-  setUserRegions: Dispatch<SetStateAction<Region[]>>;
+  regions: Region[];
+  setRegions: Dispatch<SetStateAction<Region[]>>;
   selectedRegionId: string | null;
   onSelectRegion: (id: string | null) => void;
 };
@@ -41,8 +41,36 @@ type DraftState =
   | { kind: "box"; shape: "oval" | "rect"; start: { x: number; y: number }; current: { x: number; y: number } }
   | { kind: "free"; points: { x: number; y: number }[] };
 
+type RegionDragState = {
+  regionId: string;
+  start: { x: number; y: number };
+  snapshot: Region;
+};
+
 function filterVisibleRegions(regions: Region[], foot: FootSide, view: FootView) {
   return regions.filter((r) => r.footSide === foot && r.view === view);
+}
+
+function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
+  if (snapshot.shape === "free_draw" && snapshot.points) {
+    return {
+      ...snapshot,
+      points: snapshot.points.map((p) => ({
+        x: clamp01(p.x + dx),
+        y: clamp01(p.y + dy),
+      })),
+    };
+  }
+
+  if (regionHasBox(snapshot)) {
+    return {
+      ...snapshot,
+      cx: clamp01(snapshot.cx + dx),
+      cy: clamp01(snapshot.cy + dy),
+    };
+  }
+
+  return snapshot;
 }
 
 function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
@@ -56,8 +84,8 @@ export function FootCanvas({
   selectedView,
   toolMode,
   drawShape,
-  userRegions,
-  setUserRegions,
+  regions,
+  setRegions,
   selectedRegionId,
   onSelectRegion,
 }: FootCanvasProps) {
@@ -66,6 +94,7 @@ export function FootCanvas({
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [imageLoadError, setImageLoadError] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [regionDrag, setRegionDrag] = useState<RegionDragState | null>(null);
 
   const atlasBackgroundKey = useMemo(
     () => resolveAtlasBackgroundKey(selectedView, selectedOrgan),
@@ -77,12 +106,12 @@ export function FootCanvas({
   const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
 
   const isAddMode = toolMode === "add";
-  const isSelectMode = toolMode === "select";
+  const isMoveMode = toolMode === "move";
   const showOrganRequired = isAddMode && !selectedOrgan;
 
   const visibleRegions = useMemo(
-    () => filterVisibleRegions(userRegions, selectedFoot, selectedView),
-    [userRegions, selectedFoot, selectedView],
+    () => filterVisibleRegions(regions, selectedFoot, selectedView),
+    [regions, selectedFoot, selectedView],
   );
 
   const imageRect = useMemo(
@@ -145,7 +174,7 @@ export function FootCanvas({
           color: DEFAULT_REGION_COLOR,
           ...box,
         };
-        setUserRegions((prev) => [...prev, newRegion]);
+        setRegions((prev) => [...prev, newRegion]);
         onSelectRegion(newRegion.id);
         return;
       }
@@ -161,10 +190,10 @@ export function FootCanvas({
         points: state.points,
         color: DEFAULT_REGION_COLOR,
       };
-      setUserRegions((prev) => [...prev, newRegion]);
+      setRegions((prev) => [...prev, newRegion]);
       onSelectRegion(newRegion.id);
     },
-    [selectedOrgan, selectedFoot, selectedView, setUserRegions, onSelectRegion],
+    [selectedOrgan, selectedFoot, selectedView, setRegions, onSelectRegion],
   );
 
   const handlePointerDown = useCallback(
@@ -183,6 +212,24 @@ export function FootCanvas({
       setDraft({ kind: "box", shape, start: point, current: point });
     },
     [isAddMode, selectedOrgan, drawShape, getNormalizedPoint],
+  );
+
+  const handleRegionMoveStart = useCallback(
+    (regionId: string, clientX: number, clientY: number) => {
+      if (!isMoveMode) return;
+
+      const point = getNormalizedPoint(clientX, clientY, true);
+      const region = regions.find((r) => r.id === regionId);
+      if (!point || !region) return;
+
+      onSelectRegion(regionId);
+      setRegionDrag({
+        regionId,
+        start: point,
+        snapshot: structuredClone(region),
+      });
+    },
+    [isMoveMode, getNormalizedPoint, regions, onSelectRegion],
   );
 
   useEffect(() => {
@@ -216,13 +263,40 @@ export function FootCanvas({
     };
   }, [draft, getNormalizedPoint, finishDraft]);
 
+  useEffect(() => {
+    if (!regionDrag) return;
+
+    const onMove = (e: MouseEvent) => {
+      const point = getNormalizedPoint(e.clientX, e.clientY, true);
+      if (!point) return;
+
+      const dx = point.x - regionDrag.start.x;
+      const dy = point.y - regionDrag.start.y;
+
+      setRegions((prev) =>
+        prev.map((r) =>
+          r.id === regionDrag.regionId ? applyRegionDelta(regionDrag.snapshot, dx, dy) : r,
+        ),
+      );
+    };
+
+    const onUp = () => setRegionDrag(null);
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [regionDrag, getNormalizedPoint, setRegions]);
+
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    if (isSelectMode) {
-      onSelectRegion(null);
+    if (isAddMode) {
+      handlePointerDown(e.clientX, e.clientY);
       return;
     }
-    handlePointerDown(e.clientX, e.clientY);
+    onSelectRegion(null);
   };
 
   const imageOverlayStyle = useMemo(
@@ -236,6 +310,7 @@ export function FootCanvas({
   );
 
   const canDraw = isAddMode && selectedOrgan && imageRect.width > 0;
+  const regionInteractive = !isAddMode;
 
   return (
     <section
@@ -252,7 +327,7 @@ export function FootCanvas({
         </span>
         <p className="text-sm font-semibold text-slate-700">
           {selectedOrgan ? selectedOrgan : "Organ seçilmedi"} · {visibleRegions.length} bölge
-          {isAddMode ? " · Çizim modu" : null}
+          {isAddMode ? " · Çizim modu" : isMoveMode ? " · Taşıma modu" : null}
         </p>
       </div>
 
@@ -260,7 +335,7 @@ export function FootCanvas({
         <div
           ref={canvasRef}
           className={`relative h-full min-h-0 w-full flex-1 overflow-hidden bg-white ${
-            canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : ""
+            canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : isMoveMode ? "cursor-default" : ""
           }`}
           onMouseDown={handleCanvasMouseDown}
         >
@@ -283,10 +358,7 @@ export function FootCanvas({
           )}
 
           {imageRect.width > 0 ? (
-            <div
-              className="absolute z-10"
-              style={imageOverlayStyle}
-            >
+            <div className="absolute z-10" style={imageOverlayStyle}>
               {showOrganRequired ? (
                 <p className="pointer-events-none absolute left-1/2 top-2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
                   Önce soldan bir organ seçiniz.
@@ -301,6 +373,12 @@ export function FootCanvas({
                 </p>
               ) : null}
 
+              {isMoveMode ? (
+                <p className="pointer-events-none absolute top-2 right-2 z-40 rounded-full border border-sky-300/70 bg-sky-50/95 px-2.5 py-1 text-xs font-semibold text-sky-950 shadow-sm">
+                  Bölgeyi sürükleyerek taşıyın
+                </p>
+              ) : null}
+
               {visibleRegions.length === 0 && !isAddMode ? (
                 <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm font-medium text-slate-500">
                   Bu görünümde henüz çizilmiş bölge yok. Bölge Ekle ile çizmeye başlayın.
@@ -312,8 +390,10 @@ export function FootCanvas({
                   key={region.id}
                   region={region}
                   isSelected={selectedRegionId === region.id}
-                  interactive={!isAddMode}
+                  interactive={regionInteractive}
+                  moveMode={isMoveMode}
                   onSelect={onSelectRegion}
+                  onMoveStart={handleRegionMoveStart}
                 />
               ))}
 

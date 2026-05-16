@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { suggestedFootViewForOrgan } from "../utils/atlasBackground";
+import { isDuplicateOrgan } from "../utils/organUtils";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { FootCanvas } from "./FootCanvas";
 import { OrganListPanel } from "./OrganListPanel";
@@ -10,50 +10,71 @@ import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
 
 export function RegionMapLayout() {
+  const [organs, setOrgans] = useState<string[]>([]);
   const [selectedOrgan, setSelectedOrgan] = useState<string | null>(null);
   const [selectedFoot, setSelectedFoot] = useState<FootSide>("left");
   const [selectedView, setSelectedView] = useState<FootView>("taban");
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
-  const [userRegions, setUserRegions] = useState<Region[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
 
   const handleOrganSelect = useCallback((organ: string) => {
     setSelectedOrgan(organ);
-    setSelectedView(suggestedFootViewForOrgan(organ));
     setSelectedRegionId(null);
   }, []);
 
+  const handleAddOrgan = useCallback(
+    (name: string): boolean => {
+      const trimmed = name.trim();
+      if (!trimmed || isDuplicateOrgan(trimmed, organs)) return false;
+
+      setOrgans((prev) => [...prev, trimmed]);
+      setSelectedOrgan(trimmed);
+      setSelectedRegionId(null);
+      return true;
+    },
+    [organs],
+  );
+
+  const handleDeleteOrgan = useCallback(() => {
+    if (!selectedOrgan) return;
+
+    setOrgans((prev) => prev.filter((o) => o !== selectedOrgan));
+    setRegions((prev) => prev.filter((r) => r.organ !== selectedOrgan));
+    setSelectedOrgan(null);
+    setSelectedRegionId(null);
+  }, [selectedOrgan]);
+
   const handleSave = useCallback(() => {
-    if (!selectedOrgan) {
-      console.warn("Kaydetmek için önce bir organ seçiniz.");
-      return;
-    }
-
-    const payload = {
-      organName: selectedOrgan,
-      view: selectedView,
-      footSide: selectedFoot,
-      regions: userRegions.filter(
-        (r) =>
-          r.organ === selectedOrgan &&
-          r.footSide === selectedFoot &&
-          r.view === selectedView,
-      ),
-    };
-
-    console.log(payload);
-  }, [selectedOrgan, selectedView, selectedFoot, userRegions]);
+    console.log({
+      organs,
+      regions,
+    });
+  }, [organs, regions]);
 
   const handleClear = useCallback(() => {
-    if (!selectedRegionId) {
-      console.warn("Silmek için önce bir bölge seçiniz.");
+    if (selectedRegionId) {
+      setRegions((prev) => prev.filter((r) => r.id !== selectedRegionId));
+      setSelectedRegionId(null);
       return;
     }
 
-    setUserRegions((prev) => prev.filter((r) => r.id !== selectedRegionId));
+    if (!selectedOrgan) return;
+
+    const matching = regions.filter(
+      (r) =>
+        r.organ === selectedOrgan &&
+        r.footSide === selectedFoot &&
+        r.view === selectedView,
+    );
+
+    if (matching.length === 0) return;
+
+    const removeIds = new Set(matching.map((r) => r.id));
+    setRegions((prev) => prev.filter((r) => !removeIds.has(r.id)));
     setSelectedRegionId(null);
-  }, [selectedRegionId]);
+  }, [selectedRegionId, selectedOrgan, selectedFoot, selectedView, regions]);
 
   return (
     <main className="relative flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
@@ -79,22 +100,28 @@ export function RegionMapLayout() {
               Bölge Haritası
             </h1>
             <p className="line-clamp-1 text-sm font-medium text-slate-600">
-              Organ seçin, ayak üzerinde bölgeyi çizin ve kaydedin.
+              Organ ekleyin, ayak üzerinde bölgeyi çizin ve kaydedin.
             </p>
           </header>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-1.5">
           <div className="flex min-h-0 flex-1 gap-2 lg:flex-row lg:gap-3">
-            <OrganListPanel selectedOrgan={selectedOrgan} setSelectedOrgan={handleOrganSelect} />
+            <OrganListPanel
+              organs={organs}
+              selectedOrgan={selectedOrgan}
+              onSelectOrgan={handleOrganSelect}
+              onAddOrgan={handleAddOrgan}
+              onDeleteOrgan={handleDeleteOrgan}
+            />
             <FootCanvas
               selectedOrgan={selectedOrgan}
               selectedFoot={selectedFoot}
               selectedView={selectedView}
               toolMode={toolMode}
               drawShape={drawShape}
-              userRegions={userRegions}
-              setUserRegions={setUserRegions}
+              regions={regions}
+              setRegions={setRegions}
               selectedRegionId={selectedRegionId}
               onSelectRegion={setSelectedRegionId}
             />
