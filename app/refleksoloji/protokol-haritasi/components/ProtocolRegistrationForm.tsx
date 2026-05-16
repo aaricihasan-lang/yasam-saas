@@ -2,18 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { listOrganNamesFromAtlas, loadAtlas, loadOrganList } from "@/lib/atlasStorage";
-import type { ProtocolFormDraft, SavedProtocol } from "../types";
+import type { ProtocolFormDraft } from "../types";
 import { getOrganColor } from "../types";
+import { ProtocolNotesModal } from "./ProtocolNotesModal";
 
 type ProtocolRegistrationFormProps = {
   draft: ProtocolFormDraft;
-  editId: string | null;
-  savedProtocols: SavedProtocol[];
   onDraftChange: (draft: ProtocolFormDraft) => void;
   onSave: () => void;
   onClear: () => void;
-  onSelectSaved: (protocol: SavedProtocol) => void;
-  saveMessage: string | null;
+  validationMessage: string | null;
 };
 
 const inputClass =
@@ -26,16 +24,14 @@ function normalizeKey(name: string): string {
 
 export function ProtocolRegistrationForm({
   draft,
-  editId,
-  savedProtocols,
   onDraftChange,
   onSave,
   onClear,
-  onSelectSaved,
-  saveMessage,
+  validationMessage,
 }: ProtocolRegistrationFormProps) {
   const [organInput, setOrganInput] = useState("");
   const [organSuggestions, setOrganSuggestions] = useState<string[]>([]);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
 
   useEffect(() => {
     const atlas = loadAtlas();
@@ -59,6 +55,8 @@ export function ProtocolRegistrationForm({
   const removeOrgan = (name: string) => {
     onDraftChange({ ...draft, organs: draft.organs.filter((o) => o !== name) });
   };
+
+  const openNotesModal = () => setNotesModalOpen(true);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -159,22 +157,33 @@ export function ProtocolRegistrationForm({
         )}
 
         <div>
-          <label className={labelClass} htmlFor="protocol-notes">
-            Uygulama Notları
-          </label>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <label className={labelClass} htmlFor="protocol-notes">
+              Uygulama Notları
+            </label>
+            <button
+              type="button"
+              onClick={openNotesModal}
+              className="text-sm font-bold text-violet-700 underline-offset-2 hover:underline"
+            >
+              Genişlet
+            </button>
+          </div>
           <textarea
             id="protocol-notes"
             value={draft.notes}
             onChange={(e) => onDraftChange({ ...draft, notes: e.target.value })}
+            onFocus={openNotesModal}
+            onClick={openNotesModal}
             rows={4}
-            className={`${inputClass} resize-none`}
-            placeholder="Seans süresi, basınç, sıklık vb."
+            className={`${inputClass} cursor-text resize-none`}
+            placeholder="Tıklayarak geniş not alanını açın…"
           />
         </div>
 
-        {saveMessage ? (
-          <p className="rounded-xl border border-emerald-300/80 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
-            {saveMessage}
+        {validationMessage ? (
+          <p className="rounded-xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">
+            {validationMessage}
           </p>
         ) : null}
 
@@ -184,7 +193,7 @@ export function ProtocolRegistrationForm({
             onClick={onSave}
             className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-emerald-600"
           >
-            {editId ? "Güncelle" : "Kaydet"}
+            Kaydet
           </button>
           <button
             type="button"
@@ -194,33 +203,14 @@ export function ProtocolRegistrationForm({
             Temizle
           </button>
         </div>
-
-        {savedProtocols.length > 0 ? (
-          <div className="mt-2 border-t border-violet-100/80 pt-4">
-            <h3 className="text-base font-bold text-violet-900">Kayıtlı Protokoller</h3>
-            <ul className="mt-3 flex flex-col gap-2">
-              {savedProtocols.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectSaved(p)}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition ${
-                      editId === p.id
-                        ? "border-violet-400 bg-violet-100 text-violet-950"
-                        : "border-violet-100 bg-white/90 text-slate-800 hover:border-violet-200 hover:bg-violet-50/80"
-                    }`}
-                  >
-                    {p.title}
-                    <span className="mt-0.5 block text-sm font-medium text-slate-500">
-                      {p.organs.length} organ
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
+
+      <ProtocolNotesModal
+        open={notesModalOpen}
+        value={draft.notes}
+        onClose={() => setNotesModalOpen(false)}
+        onSave={(notes) => onDraftChange({ ...draft, notes })}
+      />
     </div>
   );
 }

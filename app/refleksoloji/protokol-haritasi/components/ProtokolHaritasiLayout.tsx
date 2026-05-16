@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { EMPTY_PROTOCOL_DRAFT, savedToDraft } from "../lib/protocolStorage";
+import { useToast } from "@/components/ui/ToastProvider";
+import { EMPTY_PROTOCOL_DRAFT } from "../lib/protocolStorage";
 import {
   missingAtlasOrgans,
   resolveColoredRegionsForOrgans,
 } from "../lib/resolveDisplayRegions";
 import { useProtocolRegistry } from "../hooks/useProtocolRegistry";
-import type { ProtocolFootView, ProtocolFormDraft, SavedProtocol } from "../types";
+import type { ProtocolFootView, ProtocolFormDraft } from "../types";
 import { ProtocolFootMap } from "./ProtocolFootMap";
 import { ProtocolRegistrationForm } from "./ProtocolRegistrationForm";
 import { ProtocolSummaryPanel } from "./ProtocolSummaryPanel";
@@ -18,12 +18,11 @@ const panelClass =
   "flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-white/90 bg-white/80 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md";
 
 export function ProtokolHaritasiLayout() {
-  const { confirm } = useConfirm();
-  const { protocols, hydrated, saveProtocol, deleteProtocol } = useProtocolRegistry();
+  const { showToast } = useToast();
+  const { hydrated, saveProtocol } = useProtocolRegistry();
   const [draft, setDraft] = useState<ProtocolFormDraft>(EMPTY_PROTOCOL_DRAFT);
-  const [editId, setEditId] = useState<string | null>(null);
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
   const { regions, statuses } = useMemo(
     () => resolveColoredRegionsForOrgans(draft.organs, footView),
@@ -34,48 +33,35 @@ export function ProtokolHaritasiLayout() {
 
   const resetForm = useCallback(() => {
     setDraft(EMPTY_PROTOCOL_DRAFT);
-    setEditId(null);
-    setSaveMessage(null);
+    setValidationMessage(null);
   }, []);
 
   const handleSave = () => {
     if (!draft.title.trim()) {
-      setSaveMessage("Hedef / sorun adı zorunludur.");
+      setValidationMessage("Hedef / sorun adı zorunludur.");
       return;
     }
     if (draft.organs.length === 0) {
-      setSaveMessage("En az bir organ ekleyin.");
+      setValidationMessage("En az bir organ ekleyin.");
       return;
     }
-    const saved = saveProtocol(draft, editId);
+
+    const saved = saveProtocol(draft, null);
     if (!saved) {
-      setSaveMessage("Kayıt yapılamadı. Alanları kontrol edin.");
+      setValidationMessage("Kayıt yapılamadı. Alanları kontrol edin.");
       return;
     }
-    setSaveMessage(editId ? "Protokol güncellendi." : "Protokol kaydedildi.");
-    setEditId(saved.id);
+
+    showToast({
+      type: "success",
+      title: "Protokol kaydedildi",
+      message: `«${saved.title}» başarıyla kaydedildi.`,
+    });
+    resetForm();
   };
 
   const handleClear = () => {
     resetForm();
-  };
-
-  const handleSelectSaved = (protocol: SavedProtocol) => {
-    setDraft(savedToDraft(protocol));
-    setEditId(protocol.id);
-    setSaveMessage(null);
-  };
-
-  const handleDeleteSaved = async (protocol: SavedProtocol) => {
-    const ok = await confirm({
-      message: "Bu protokol silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-      tone: "danger",
-    });
-    if (!ok) return;
-    deleteProtocol(protocol.id);
-    if (editId === protocol.id) resetForm();
   };
 
   if (!hydrated) {
@@ -104,13 +90,13 @@ export function ProtokolHaritasiLayout() {
           </Link>
           <header className="min-w-0 flex-1">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
-              Refleksoloji · Protokol Oluştur
+              Refleksoloji · Protokol Kaydı
             </p>
             <h1 className="truncate text-4xl font-black leading-tight tracking-tight text-slate-900 sm:text-5xl">
               Protokol Haritası
             </h1>
             <p className="mt-1 line-clamp-2 text-lg font-medium text-slate-600">
-              Protokol kaydı oluşturun; organ bölgeleri Kayıtlı Atlas&apos;tan otomatik işaretlenir.
+              Yeni protokol oluşturun; kayıtlı protokoller için Kayıtlı Protokoller sayfasını kullanın.
             </p>
           </header>
         </div>
@@ -119,13 +105,10 @@ export function ProtokolHaritasiLayout() {
           <aside className={`${panelClass} p-6 xl:p-8`}>
             <ProtocolRegistrationForm
               draft={draft}
-              editId={editId}
-              savedProtocols={protocols}
               onDraftChange={setDraft}
               onSave={handleSave}
               onClear={handleClear}
-              onSelectSaved={handleSelectSaved}
-              saveMessage={saveMessage}
+              validationMessage={validationMessage}
             />
           </aside>
 
@@ -147,21 +130,6 @@ export function ProtokolHaritasiLayout() {
             </div>
           </div>
         </div>
-
-        {editId && protocols.some((p) => p.id === editId) ? (
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                const p = protocols.find((x) => x.id === editId);
-                if (p) void handleDeleteSaved(p);
-              }}
-              className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-100"
-            >
-              Bu protokolü sil
-            </button>
-          </div>
-        ) : null}
       </div>
     </main>
   );
