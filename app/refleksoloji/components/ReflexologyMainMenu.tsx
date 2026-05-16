@@ -49,46 +49,60 @@ const NOTES_MODULE: ReflexologyModuleCardProps = {
   lines: ["Klinik seans notları ve ek bilgi alanı."],
   accent: "from-violet-300/45 via-violet-50/40 to-white",
   ring: "ring-violet-300/50",
-  wide: true,
 };
+
+const MENU_MODULES = [...PRIMARY_MODULES, NOTES_MODULE];
+
+function gridCellClass(index: number): string {
+  if (index < 3) return "lg:col-span-2";
+  if (index === 3) return "lg:col-span-2 lg:col-start-2";
+  return "lg:col-span-2 lg:col-start-4";
+}
 
 function ReflexologyMainMenu() {
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
+    <main className="relative h-screen overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-32 top-0 h-[28rem] w-[28rem] rounded-full bg-violet-300/30 blur-3xl" />
         <div className="absolute right-[-10%] top-[12%] h-[32rem] w-[32rem] rounded-full bg-fuchsia-200/25 blur-3xl" />
         <div className="absolute bottom-[-8%] left-[25%] h-80 w-80 rounded-full bg-indigo-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-        <Link
-          href="/"
-          className="mb-6 inline-flex w-fit items-center gap-2 rounded-2xl border border-violet-200/90 bg-white/85 px-5 py-3 text-sm font-black text-violet-900 shadow-[0_8px_28px_-10px_rgba(109,40,217,0.25)] ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white hover:shadow-[0_12px_32px_-10px_rgba(109,40,217,0.3)] sm:mb-8"
-        >
-          <span aria-hidden>←</span>
-          Ana Sayfaya Dön
-        </Link>
-
-        <section className="mx-auto w-full max-w-3xl flex-1 rounded-[36px] border border-white/80 bg-white/55 px-6 py-10 shadow-[0_32px_80px_-28px_rgba(91,33,182,0.28)] ring-1 ring-violet-100/60 backdrop-blur-xl sm:px-10 sm:py-12 lg:px-12 lg:py-14">
-          <header className="text-center">
-            <p className="text-[11px] font-black uppercase tracking-[0.38em] text-violet-700/85">Yaşam Sistemi</p>
-            <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem]">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1180px] flex-col px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+        <div className="flex shrink-0 items-start justify-between gap-4">
+          <header className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-violet-700/85 sm:text-[11px]">
+              Yaşam Sistemi
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
               Refleksoloji
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+            <p className="mt-1 max-w-2xl text-sm font-medium leading-snug text-slate-600 sm:text-base">
               Ayak refleksoloji atlası, protokoller ve klinik çalışma alanı
             </p>
           </header>
 
-          <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 sm:gap-6">
-            {PRIMARY_MODULES.map((card) => (
-              <ReflexologyModuleCard key={card.href} {...card} />
-            ))}
-          </div>
+          <Link
+            href="/"
+            className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-violet-200/90 bg-white/85 px-3.5 py-2 text-xs font-black text-violet-900 shadow-md ring-1 ring-violet-100/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:px-4 sm:text-sm"
+          >
+            <span aria-hidden>←</span>
+            Ana Sayfaya Dön
+          </Link>
+        </div>
 
-          <div className="mt-5 sm:mt-6">
-            <ReflexologyModuleCard {...NOTES_MODULE} />
+        <section
+          className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white/55 shadow-[0_24px_64px_-24px_rgba(91,33,182,0.26)] ring-1 ring-violet-100/60 backdrop-blur-xl sm:mt-4"
+          style={{ height: "calc(100vh - 120px)" }}
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5 lg:overflow-hidden lg:p-6">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:gap-3.5 lg:grid-cols-6 lg:grid-rows-2 lg:gap-4 lg:overflow-hidden">
+              {MENU_MODULES.map((card, index) => (
+                <div key={card.href} className={`min-h-0 ${gridCellClass(index)}`}>
+                  <ReflexologyModuleCard {...card} compact />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>
