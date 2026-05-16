@@ -3,94 +3,46 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
-  type MouseEvent,
   type SetStateAction,
 } from "react";
-import { ATLAS_REGIONS } from "../atlasRegions";
-import type { FootSide, FootView, Region, RegionToolMode } from "../types";
+import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
 import {
   atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
   resolveAtlasBackgroundKey,
 } from "../utils/atlasBackground";
+import { computeObjectContainRect } from "../utils/imageContainRect";
+import { pointerToImageNormalized } from "../utils/normalizePointer";
+import { boxFromDrag, DEFAULT_REGION_COLOR } from "../utils/regionGeometry";
 import {
-  clamp01,
-  DEFAULT_NEW_REGION_RX,
-  DEFAULT_NEW_REGION_RY,
-  regionToPercentBox,
-} from "../utils/regionGeometry";
-
-const NEW_REGION_COLOR = "rgba(216, 180, 254, 0.58)";
+  FreeDrawDraftPreview,
+  RegionDraftPreview,
+  RegionShape,
+} from "./regions/RegionShape";
 
 type FootCanvasProps = {
   selectedOrgan: string | null;
   selectedFoot: FootSide;
   selectedView: FootView;
   toolMode: RegionToolMode;
+  drawShape: RegionDrawShape;
   userRegions: Region[];
   setUserRegions: Dispatch<SetStateAction<Region[]>>;
+  selectedRegionId: string | null;
+  onSelectRegion: (id: string | null) => void;
 };
+
+type DraftState =
+  | { kind: "box"; shape: "oval" | "rect"; start: { x: number; y: number }; current: { x: number; y: number } }
+  | { kind: "free"; points: { x: number; y: number }[] };
 
 function filterVisibleRegions(regions: Region[], foot: FootSide, view: FootView) {
   return regions.filter((r) => r.footSide === foot && r.view === view);
-}
-
-function RegionOval({
-  region,
-  selectedOrgan,
-  pointerEvents,
-}: {
-  region: Region;
-  selectedOrgan: string | null;
-  pointerEvents: boolean;
-}) {
-  const emphasized = selectedOrgan !== null && region.organ === selectedOrgan;
-  const dimmed = selectedOrgan !== null && region.organ !== selectedOrgan;
-  const idle = selectedOrgan === null;
-  const isOval = region.shape === "oval";
-  const box = regionToPercentBox(region);
-
-  return (
-    <div
-      className={`group absolute flex items-center justify-center transition-all duration-300 ease-out ${
-        pointerEvents ? "hover:scale-110" : "pointer-events-none"
-      } ${
-        emphasized
-          ? "z-20 scale-[1.1] ring-2 ring-violet-400/95 ring-offset-2 ring-offset-white/95"
-          : dimmed
-            ? "z-0 opacity-40 hover:opacity-55"
-            : idle
-              ? "z-10 opacity-65 hover:opacity-80"
-              : "z-10 opacity-90"
-      }`}
-      style={{
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        transform: box.transform,
-        transformOrigin: "center center",
-        borderRadius: isOval ? 9999 : undefined,
-        backgroundColor: emphasized ? region.color.replace(/[\d.]+\)$/, "0.82)") : region.color,
-        boxShadow: emphasized
-          ? "0 0 28px rgba(167, 139, 250, 0.75), 0 0 48px rgba(216, 180, 254, 0.45), 0 0 64px rgba(192, 132, 252, 0.25), 0 14px 36px -8px rgba(109, 40, 217, 0.5)"
-          : undefined,
-        filter: emphasized ? "brightness(1.12) saturate(1.08)" : undefined,
-      }}
-      title={region.organ}
-    >
-      <span
-        className={`pointer-events-none max-w-[92%] truncate px-1 text-center font-bold leading-tight text-slate-900 ${
-          emphasized ? "text-xs sm:text-sm" : "text-[11px] sm:text-xs"
-        }`}
-      >
-        {region.organ}
-      </span>
-    </div>
-  );
 }
 
 function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
@@ -103,9 +55,18 @@ export function FootCanvas({
   selectedFoot,
   selectedView,
   toolMode,
+  drawShape,
   userRegions,
   setUserRegions,
+  selectedRegionId,
+  onSelectRegion,
 }: FootCanvasProps) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [draft, setDraft] = useState<DraftState | null>(null);
+
   const atlasBackgroundKey = useMemo(
     () => resolveAtlasBackgroundKey(selectedView, selectedOrgan),
     [selectedView, selectedOrgan],
@@ -113,62 +74,168 @@ export function FootCanvas({
 
   const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
   const imageAlt = atlasBackgroundLabel(atlasBackgroundKey);
+  const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
 
-  const [imageLoadError, setImageLoadError] = useState(false);
+  const isAddMode = toolMode === "add";
+  const isSelectMode = toolMode === "select";
+  const showOrganRequired = isAddMode && !selectedOrgan;
 
-  useEffect(() => {
-    setImageLoadError(false);
-  }, [currentImageSrc]);
-
-  const atlasRegions = useMemo(
-    () => filterVisibleRegions(ATLAS_REGIONS, selectedFoot, selectedView),
-    [selectedFoot, selectedView],
-  );
-
-  const sessionRegions = useMemo(
+  const visibleRegions = useMemo(
     () => filterVisibleRegions(userRegions, selectedFoot, selectedView),
     [userRegions, selectedFoot, selectedView],
   );
 
-  const visibleRegions = useMemo(
-    () => [...atlasRegions, ...sessionRegions],
-    [atlasRegions, sessionRegions],
+  const imageRect = useMemo(
+    () => computeObjectContainRect(containerSize.w, containerSize.h, naturalSize.w, naturalSize.h),
+    [containerSize, naturalSize],
   );
 
-  const hasRegionForOrgan =
-    selectedOrgan !== null && visibleRegions.some((r) => r.organ === selectedOrgan);
+  useEffect(() => {
+    setImageLoadError(false);
+    setNaturalSize({ w: 0, h: 0 });
+  }, [currentImageSrc]);
 
-  const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
-  const isAddMode = toolMode === "add";
-  const showOrganRequired = isAddMode && !selectedOrgan;
-  const showSelectHint = !selectedOrgan && !isAddMode;
+  useLayoutEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
 
-  const handleCanvasClick = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (toolMode !== "add" || !selectedOrgan) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      setContainerSize({ w: rect.width, h: rect.height });
+    };
 
-      const rect = event.currentTarget.getBoundingClientRect();
-      const cx = clamp01((event.clientX - rect.left) / rect.width);
-      const cy = clamp01((event.clientY - rect.top) / rect.height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const getNormalizedPoint = useCallback(
+    (clientX: number, clientY: number, clamp = false) => {
+      const el = canvasRef.current;
+      if (!el) return null;
+      return pointerToImageNormalized(
+        clientX,
+        clientY,
+        el.getBoundingClientRect(),
+        imageRect,
+        { clamp },
+      );
+    },
+    [imageRect],
+  );
+
+  const finishDraft = useCallback(
+    (state: DraftState) => {
+      if (!selectedOrgan) return;
+
+      if (state.kind === "box") {
+        const box = boxFromDrag(
+          state.start,
+          state.current,
+          state.shape === "oval" ? "oval" : "rect",
+        );
+        if (!box) return;
+
+        const newRegion: Region = {
+          id: crypto.randomUUID(),
+          organ: selectedOrgan,
+          footSide: selectedFoot,
+          view: selectedView,
+          color: DEFAULT_REGION_COLOR,
+          ...box,
+        };
+        setUserRegions((prev) => [...prev, newRegion]);
+        onSelectRegion(newRegion.id);
+        return;
+      }
+
+      if (state.points.length < 2) return;
 
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: selectedOrgan,
         footSide: selectedFoot,
         view: selectedView,
-        shape: "oval",
-        cx,
-        cy,
-        rx: DEFAULT_NEW_REGION_RX,
-        ry: DEFAULT_NEW_REGION_RY,
-        angle: 0,
-        color: NEW_REGION_COLOR,
+        shape: "free_draw",
+        points: state.points,
+        color: DEFAULT_REGION_COLOR,
       };
-
       setUserRegions((prev) => [...prev, newRegion]);
+      onSelectRegion(newRegion.id);
     },
-    [toolMode, selectedOrgan, selectedFoot, selectedView, setUserRegions],
+    [selectedOrgan, selectedFoot, selectedView, setUserRegions, onSelectRegion],
   );
+
+  const handlePointerDown = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!isAddMode || !selectedOrgan) return;
+
+      const point = getNormalizedPoint(clientX, clientY, true);
+      if (!point) return;
+
+      if (drawShape === "free_draw") {
+        setDraft({ kind: "free", points: [point] });
+        return;
+      }
+
+      const shape = drawShape === "rect" ? "rect" : "oval";
+      setDraft({ kind: "box", shape, start: point, current: point });
+    },
+    [isAddMode, selectedOrgan, drawShape, getNormalizedPoint],
+  );
+
+  useEffect(() => {
+    if (!draft) return;
+
+    const onMove = (e: MouseEvent) => {
+      const point = getNormalizedPoint(e.clientX, e.clientY, true);
+      if (!point) return;
+
+      setDraft((prev) => {
+        if (!prev) return prev;
+        if (prev.kind === "box") return { ...prev, current: point };
+        const last = prev.points[prev.points.length - 1];
+        if (last && Math.hypot(last.x - point.x, last.y - point.y) < 0.004) return prev;
+        return { ...prev, points: [...prev.points, point] };
+      });
+    };
+
+    const onUp = () => {
+      setDraft((prev) => {
+        if (prev) finishDraft(prev);
+        return null;
+      });
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [draft, getNormalizedPoint, finishDraft]);
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if (isSelectMode) {
+      onSelectRegion(null);
+      return;
+    }
+    handlePointerDown(e.clientX, e.clientY);
+  };
+
+  const imageOverlayStyle = useMemo(
+    () => ({
+      left: imageRect.left,
+      top: imageRect.top,
+      width: imageRect.width,
+      height: imageRect.height,
+    }),
+    [imageRect],
+  );
+
+  const canDraw = isAddMode && selectedOrgan && imageRect.width > 0;
 
   return (
     <section
@@ -185,28 +252,27 @@ export function FootCanvas({
         </span>
         <p className="text-sm font-semibold text-slate-700">
           {selectedOrgan ? selectedOrgan : "Organ seçilmedi"} · {visibleRegions.length} bölge
-          {isAddMode ? " · Ekleme modu" : null}
+          {isAddMode ? " · Çizim modu" : null}
         </p>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
+          ref={canvasRef}
           className={`relative h-full min-h-0 w-full flex-1 overflow-hidden bg-white ${
-            isAddMode
-              ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40"
-              : toolMode === "move"
-                ? "cursor-grab"
-                : ""
+            canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : ""
           }`}
-          role="img"
-          aria-label={`${canvasBadge} — refleks bölgeleri`}
-          onClick={handleCanvasClick}
+          onMouseDown={handleCanvasMouseDown}
         >
           {!imageLoadError ? (
             <img
               key={currentImageSrc}
               src={currentImageSrc}
               alt={imageAlt}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+              }}
               onError={() => setImageLoadError(true)}
               className="absolute inset-0 z-0 h-full w-full object-contain opacity-100 pointer-events-none select-none"
             />
@@ -216,47 +282,52 @@ export function FootCanvas({
             </p>
           )}
 
-          <div className="absolute inset-0 z-10">
-            {showOrganRequired ? (
-              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
-                Önce organ seçiniz.
-              </p>
-            ) : null}
+          {imageRect.width > 0 ? (
+            <div
+              className="absolute z-10"
+              style={imageOverlayStyle}
+            >
+              {showOrganRequired ? (
+                <p className="pointer-events-none absolute left-1/2 top-2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
+                  Önce soldan bir organ seçiniz.
+                </p>
+              ) : null}
 
-            {showSelectHint ? (
-              <p className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-violet-200/80 bg-white/90 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-violet-900 shadow-sm">
-                Haritada vurgulamak için soldan organ seçin
-              </p>
-            ) : null}
+              {isAddMode && selectedOrgan ? (
+                <p className="pointer-events-none absolute bottom-2 left-1/2 z-40 max-w-[95%] -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm">
+                  {drawShape === "free_draw"
+                    ? `«${selectedOrgan}» için basılı tutup çizin`
+                    : `«${selectedOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+                </p>
+              ) : null}
 
-            {isAddMode && selectedOrgan ? (
-              <p className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1.5 text-sm font-semibold text-violet-900 shadow-sm">
-                Haritaya tıklayarak «{selectedOrgan}» bölgesi ekleyin
-              </p>
-            ) : null}
+              {visibleRegions.length === 0 && !isAddMode ? (
+                <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm font-medium text-slate-500">
+                  Bu görünümde henüz çizilmiş bölge yok. Bölge Ekle ile çizmeye başlayın.
+                </p>
+              ) : null}
 
-            {visibleRegions.length === 0 ? (
-              <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-base font-medium text-slate-600/90">
-                Bu ayak ve görünüm için kayıtlı bölge yok.
-              </p>
-            ) : (
-              visibleRegions.map((region) => (
-                <RegionOval
+              {visibleRegions.map((region) => (
+                <RegionShape
                   key={region.id}
                   region={region}
-                  selectedOrgan={selectedOrgan}
-                  pointerEvents={!isAddMode}
+                  isSelected={selectedRegionId === region.id}
+                  interactive={!isAddMode}
+                  onSelect={onSelectRegion}
                 />
-              ))
-            )}
-          </div>
-        </div>
+              ))}
 
-        {selectedOrgan && !hasRegionForOrgan ? (
-          <p className="shrink-0 border-t border-violet-100/60 bg-amber-50/40 px-3 py-1 text-center text-sm font-medium text-amber-900">
-            «{selectedOrgan}» bu ayak görünümünde henüz bölge içermiyor.
-          </p>
-        ) : null}
+              {draft?.kind === "box" ? (
+                <RegionDraftPreview
+                  shape={draft.shape}
+                  start={draft.start}
+                  current={draft.current}
+                />
+              ) : null}
+              {draft?.kind === "free" ? <FreeDrawDraftPreview points={draft.points} /> : null}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

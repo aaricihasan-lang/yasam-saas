@@ -3,23 +3,57 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { suggestedFootViewForOrgan } from "../utils/atlasBackground";
+import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { FootCanvas } from "./FootCanvas";
 import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
-import type { FootSide, FootView, Region, RegionToolMode } from "../types";
 
 export function RegionMapLayout() {
   const [selectedOrgan, setSelectedOrgan] = useState<string | null>(null);
   const [selectedFoot, setSelectedFoot] = useState<FootSide>("left");
   const [selectedView, setSelectedView] = useState<FootView>("taban");
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
+  const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
   const [userRegions, setUserRegions] = useState<Region[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
 
   const handleOrganSelect = useCallback((organ: string) => {
     setSelectedOrgan(organ);
     setSelectedView(suggestedFootViewForOrgan(organ));
+    setSelectedRegionId(null);
   }, []);
+
+  const handleSave = useCallback(() => {
+    if (!selectedOrgan) {
+      console.warn("Kaydetmek için önce bir organ seçiniz.");
+      return;
+    }
+
+    const payload = {
+      organName: selectedOrgan,
+      view: selectedView,
+      footSide: selectedFoot,
+      regions: userRegions.filter(
+        (r) =>
+          r.organ === selectedOrgan &&
+          r.footSide === selectedFoot &&
+          r.view === selectedView,
+      ),
+    };
+
+    console.log(payload);
+  }, [selectedOrgan, selectedView, selectedFoot, userRegions]);
+
+  const handleClear = useCallback(() => {
+    if (!selectedRegionId) {
+      console.warn("Silmek için önce bir bölge seçiniz.");
+      return;
+    }
+
+    setUserRegions((prev) => prev.filter((r) => r.id !== selectedRegionId));
+    setSelectedRegionId(null);
+  }, [selectedRegionId]);
 
   return (
     <main className="relative flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
@@ -45,7 +79,7 @@ export function RegionMapLayout() {
               Bölge Haritası
             </h1>
             <p className="line-clamp-1 text-sm font-medium text-slate-600">
-              Organ seçin, ayak haritasında bölgeleri işaretleyin.
+              Organ seçin, ayak üzerinde bölgeyi çizin ve kaydedin.
             </p>
           </header>
         </div>
@@ -58,8 +92,11 @@ export function RegionMapLayout() {
               selectedFoot={selectedFoot}
               selectedView={selectedView}
               toolMode={toolMode}
+              drawShape={drawShape}
               userRegions={userRegions}
               setUserRegions={setUserRegions}
+              selectedRegionId={selectedRegionId}
+              onSelectRegion={setSelectedRegionId}
             />
             <RegionNotesPanel selectedOrgan={selectedOrgan} />
           </div>
@@ -71,6 +108,10 @@ export function RegionMapLayout() {
             setSelectedView={setSelectedView}
             toolMode={toolMode}
             setToolMode={setToolMode}
+            drawShape={drawShape}
+            setDrawShape={setDrawShape}
+            onSave={handleSave}
+            onClear={handleClear}
           />
         </div>
       </div>

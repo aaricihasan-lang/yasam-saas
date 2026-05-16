@@ -1,4 +1,4 @@
-import type { FootSide, FootView, RegionToolMode } from "../types";
+import type { FootSide, FootView, RegionDrawShape, RegionToolMode } from "../types";
 
 type RegionToolbarProps = {
   selectedFoot: FootSide;
@@ -7,10 +7,17 @@ type RegionToolbarProps = {
   setSelectedView: (view: FootView) => void;
   toolMode: RegionToolMode;
   setToolMode: (mode: RegionToolMode) => void;
+  drawShape: RegionDrawShape;
+  setDrawShape: (shape: RegionDrawShape) => void;
+  onSave: () => void;
+  onClear: () => void;
 };
 
 const btnBase =
   "rounded-lg border px-3.5 py-2 text-sm font-bold transition-all duration-200 sm:px-4";
+
+const shapeBtnBase =
+  "rounded-md border px-2.5 py-1.5 text-xs font-bold transition-all duration-200 sm:text-sm";
 
 function activeStyle(tone: string) {
   return `${tone} scale-[1.02] shadow-[0_6px_18px_-6px_rgba(91,33,182,0.35)] ring-1`;
@@ -27,6 +34,10 @@ export function RegionToolbar({
   setSelectedView,
   toolMode,
   setToolMode,
+  drawShape,
+  setDrawShape,
+  onSave,
+  onClear,
 }: RegionToolbarProps) {
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
@@ -54,6 +65,50 @@ export function RegionToolbar({
         >
           Bölge Ekle
         </button>
+
+        <div
+          className="flex items-center gap-1 rounded-lg border border-violet-200/80 bg-violet-50/60 px-1 py-0.5"
+          role="group"
+          aria-label="Çizim tipi"
+        >
+          <button
+            type="button"
+            onClick={() => setDrawShape("oval")}
+            aria-pressed={drawShape === "oval"}
+            className={`${shapeBtnBase} ${
+              drawShape === "oval"
+                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
+                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
+            }`}
+          >
+            Oval
+          </button>
+          <button
+            type="button"
+            onClick={() => setDrawShape("rect")}
+            aria-pressed={drawShape === "rect"}
+            className={`${shapeBtnBase} ${
+              drawShape === "rect"
+                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
+                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
+            }`}
+          >
+            Kare
+          </button>
+          <button
+            type="button"
+            onClick={() => setDrawShape("free_draw")}
+            aria-pressed={drawShape === "free_draw"}
+            className={`${shapeBtnBase} ${
+              drawShape === "free_draw"
+                ? "border-violet-400/80 bg-violet-200/90 text-violet-950"
+                : "border-transparent bg-transparent text-violet-800 hover:bg-violet-100/80"
+            }`}
+          >
+            Manuel Çizim
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => setToolMode("move")}
@@ -72,17 +127,19 @@ export function RegionToolbar({
         </button>
         <button
           type="button"
-          disabled
-          className={`${btnBase} cursor-default border-violet-200/80 bg-violet-50/95 text-violet-900`}
-          title="Yakında aktif olacak"
+          onClick={onSave}
+          className={`${btnBase} ${idleStyle(
+            "border-violet-300/80 bg-violet-100/95 text-violet-900 hover:border-violet-400/80 hover:bg-violet-200/90",
+          )}`}
         >
           Kaydet
         </button>
         <button
           type="button"
-          disabled
-          className={`${btnBase} cursor-default border-rose-200/80 bg-rose-50/95 text-rose-900`}
-          title="Yakında aktif olacak"
+          onClick={onClear}
+          className={`${btnBase} ${idleStyle(
+            "border-rose-300/80 bg-rose-50/95 text-rose-900 hover:border-rose-400/80 hover:bg-rose-100/90",
+          )}`}
         >
           Temizle
         </button>

@@ -2,21 +2,27 @@ export type FootSide = "left" | "right";
 
 export type FootView = "taban" | "yan";
 
-export type RegionShape = "oval" | "rect";
+export type RegionShapeType = "oval" | "rect" | "free_draw";
+
+/** Toolbar çizim tipi (oval / kare / manuel) */
+export type RegionDrawShape = "oval" | "rect" | "free_draw";
 
 export type RegionToolMode = "select" | "add" | "move";
 
-/** Normalize merkez tabanlı bölge (0..1). Masaüstü RegionN ile uyumlu. */
+export type RegionPoint = { x: number; y: number };
+
+/** Normalize koordinatlar (0..1) — görsel alanına göre. Masaüstü RegionN ile uyumlu. */
 export type Region = {
   id: string;
   organ: string;
   footSide: FootSide;
   view: FootView;
-  shape: RegionShape;
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  angle: number;
-  color: string;
+  shape: RegionShapeType;
+  cx?: number;
+  cy?: number;
+  rx?: number;
+  ry?: number;
+  angle?: number;
+  points?: RegionPoint[];
+  color?: string;
 };
