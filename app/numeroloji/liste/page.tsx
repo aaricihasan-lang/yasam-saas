@@ -9,7 +9,7 @@ import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/N
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 
 const listeNavLinkClass =
-  "inline-flex items-center gap-2 rounded-2xl border border-white/85 bg-white/80 px-6 py-3 text-sm font-bold text-violet-900 shadow-[0_8px_26px_-8px_rgba(91,33,182,0.38)] ring-1 ring-violet-200/55 backdrop-blur-md transition hover:scale-[1.03] hover:border-violet-300/90 hover:bg-white hover:text-violet-950 hover:shadow-[0_14px_36px_-8px_rgba(91,33,182,0.45)] no-underline";
+  "inline-flex shrink-0 items-center justify-center gap-3 rounded-3xl border-2 border-violet-200/90 bg-white/90 px-10 py-5 text-lg font-black text-violet-900 shadow-xl shadow-violet-600/35 ring-1 ring-violet-100/70 backdrop-blur-md transition-all duration-300 hover:scale-[1.05] hover:border-violet-300 hover:bg-white hover:text-violet-950 hover:shadow-2xl hover:shadow-violet-600/40 no-underline min-h-[68px] min-w-[220px]";
 
 export default function NumerolojiListePage() {
   const pathname = usePathname();
@@ -50,7 +50,7 @@ export default function NumerolojiListePage() {
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
       <div className="mb-8 rounded-[32px] border border-white/75 bg-white/55 px-7 py-9 shadow-[0_18px_52px_rgba(15,23,42,0.08)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:px-10 sm:py-11 lg:px-12 lg:py-12">
-        <div className="mb-5 flex flex-wrap gap-3 sm:mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-6 pt-2 sm:mb-7 sm:pt-4">
           <Link href="/numeroloji" className={listeNavLinkClass}>
             ← Modül seçimi
           </Link>
