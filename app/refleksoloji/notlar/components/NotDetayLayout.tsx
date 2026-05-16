@@ -30,8 +30,8 @@ type NotDetayLayoutProps = {
 const panelClass =
   "rounded-[28px] border border-purple-100 bg-white/80 p-6 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md md:p-8";
 
-const headerBtn =
-  "rounded-xl border px-4 py-2.5 text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45";
+const headerBtnBase =
+  "inline-flex h-12 items-center justify-center border px-6 text-base font-bold rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100";
 
 export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const router = useRouter();
@@ -233,7 +233,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
           <div className="flex min-w-0 flex-wrap items-center gap-4">
             <Link
               href="/refleksoloji/notlar"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-violet-300/95 bg-white/90 px-4 py-2.5 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white"
+              className={`${headerBtnBase} shrink-0 gap-1.5 border-purple-200 bg-white text-purple-800`}
             >
               <span aria-hidden>←</span>
               Notlara Dön
@@ -251,7 +251,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className={`${headerBtn} border-fuchsia-300/80 bg-fuchsia-100 text-fuchsia-950 hover:bg-fuchsia-200/90`}
+                className={`${headerBtnBase} border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700`}
               >
                 Düzenle
               </button>
@@ -260,14 +260,14 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className={`${headerBtn} border-slate-300/80 bg-slate-100 text-slate-700 hover:bg-slate-200`}
+                  className={`${headerBtnBase} border-slate-200 bg-slate-100 text-slate-700`}
                 >
-                  Vazgeç
+                  İptal
                 </button>
                 <button
                   type="button"
                   onClick={handleUpdate}
-                  className={`${headerBtn} border-violet-400/80 bg-violet-600 text-white hover:bg-violet-700`}
+                  className={`${headerBtnBase} border-emerald-300 bg-emerald-100 text-emerald-800`}
                 >
                   Güncelle
                 </button>
@@ -276,7 +276,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
             <button
               type="button"
               onClick={() => void handleDeleteNote()}
-              className={`${headerBtn} border-red-300/80 bg-red-50 text-red-700 hover:bg-red-100`}
+              className={`${headerBtnBase} border-red-200 bg-red-50 text-red-700`}
             >
               Sil
             </button>
