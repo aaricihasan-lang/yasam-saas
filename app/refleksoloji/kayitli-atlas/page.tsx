@@ -1,10 +1,5 @@
-import { RefleksolojiModulePlaceholder } from "../components/RefleksolojiModulePlaceholder";
+import { KayitliAtlasLayout } from "./components/KayitliAtlasLayout";
 
 export default function KayitliAtlasPage() {
-  return (
-    <RefleksolojiModulePlaceholder
-      title="Kayıtlı Atlas"
-      description="Kayıtlı refleksoloji atlas kayıtlarının listesi, arama ve yönetimi bu modülde yer alacaktır."
-    />
-  );
+  return <KayitliAtlasLayout />;
 }

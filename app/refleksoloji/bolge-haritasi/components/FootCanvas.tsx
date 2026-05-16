@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
 import {
   atlasBackgroundLabel,
@@ -26,13 +17,14 @@ import {
 } from "./regions/RegionShape";
 
 type FootCanvasProps = {
-  selectedOrgan: string | null;
+  activeOrgan: string | null;
+  selectedOrgans: string[];
   selectedFoot: FootSide;
   selectedView: FootView;
   toolMode: RegionToolMode;
   drawShape: RegionDrawShape;
   regions: Region[];
-  setRegions: Dispatch<SetStateAction<Region[]>>;
+  onUpsertRegion: (region: Region) => void;
   selectedRegionId: string | null;
   onSelectRegion: (id: string | null) => void;
 };
@@ -46,10 +38,6 @@ type RegionDragState = {
   start: { x: number; y: number };
   snapshot: Region;
 };
-
-function filterVisibleRegions(regions: Region[], foot: FootSide, view: FootView) {
-  return regions.filter((r) => r.footSide === foot && r.view === view);
-}
 
 function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
   if (snapshot.shape === "free_draw" && snapshot.points) {
@@ -79,13 +67,14 @@ function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resol
 }
 
 export function FootCanvas({
-  selectedOrgan,
+  activeOrgan,
+  selectedOrgans,
   selectedFoot,
   selectedView,
   toolMode,
   drawShape,
   regions,
-  setRegions,
+  onUpsertRegion,
   selectedRegionId,
   onSelectRegion,
 }: FootCanvasProps) {
@@ -97,8 +86,8 @@ export function FootCanvas({
   const [regionDrag, setRegionDrag] = useState<RegionDragState | null>(null);
 
   const atlasBackgroundKey = useMemo(
-    () => resolveAtlasBackgroundKey(selectedView, selectedOrgan),
-    [selectedView, selectedOrgan],
+    () => resolveAtlasBackgroundKey(selectedView, activeOrgan),
+    [selectedView, activeOrgan],
   );
 
   const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
@@ -107,12 +96,9 @@ export function FootCanvas({
 
   const isAddMode = toolMode === "add";
   const isMoveMode = toolMode === "move";
-  const showOrganRequired = isAddMode && !selectedOrgan;
+  const showOrganRequired = isAddMode && !activeOrgan;
 
-  const visibleRegions = useMemo(
-    () => filterVisibleRegions(regions, selectedFoot, selectedView),
-    [regions, selectedFoot, selectedView],
-  );
+  const visibleRegions = regions;
 
   const imageRect = useMemo(
     () => computeObjectContainRect(containerSize.w, containerSize.h, naturalSize.w, naturalSize.h),
@@ -156,7 +142,7 @@ export function FootCanvas({
 
   const finishDraft = useCallback(
     (state: DraftState) => {
-      if (!selectedOrgan) return;
+      if (!activeOrgan) return;
 
       if (state.kind === "box") {
         const box = boxFromDrag(
@@ -168,13 +154,13 @@ export function FootCanvas({
 
         const newRegion: Region = {
           id: crypto.randomUUID(),
-          organ: selectedOrgan,
+          organ: activeOrgan,
           footSide: selectedFoot,
           view: selectedView,
           color: DEFAULT_REGION_COLOR,
           ...box,
         };
-        setRegions((prev) => [...prev, newRegion]);
+        onUpsertRegion(newRegion);
         onSelectRegion(newRegion.id);
         return;
       }
@@ -183,22 +169,22 @@ export function FootCanvas({
 
       const newRegion: Region = {
         id: crypto.randomUUID(),
-        organ: selectedOrgan,
+        organ: activeOrgan,
         footSide: selectedFoot,
         view: selectedView,
         shape: "free_draw",
         points: state.points,
         color: DEFAULT_REGION_COLOR,
       };
-      setRegions((prev) => [...prev, newRegion]);
+      onUpsertRegion(newRegion);
       onSelectRegion(newRegion.id);
     },
-    [selectedOrgan, selectedFoot, selectedView, setRegions, onSelectRegion],
+    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
   );
 
   const handlePointerDown = useCallback(
     (clientX: number, clientY: number) => {
-      if (!isAddMode || !selectedOrgan) return;
+      if (!isAddMode || !activeOrgan) return;
 
       const point = getNormalizedPoint(clientX, clientY, true);
       if (!point) return;
@@ -211,7 +197,7 @@ export function FootCanvas({
       const shape = drawShape === "rect" ? "rect" : "oval";
       setDraft({ kind: "box", shape, start: point, current: point });
     },
-    [isAddMode, selectedOrgan, drawShape, getNormalizedPoint],
+    [isAddMode, activeOrgan, drawShape, getNormalizedPoint],
   );
 
   const handleRegionMoveStart = useCallback(
@@ -273,11 +259,8 @@ export function FootCanvas({
       const dx = point.x - regionDrag.start.x;
       const dy = point.y - regionDrag.start.y;
 
-      setRegions((prev) =>
-        prev.map((r) =>
-          r.id === regionDrag.regionId ? applyRegionDelta(regionDrag.snapshot, dx, dy) : r,
-        ),
-      );
+      const updated = applyRegionDelta(regionDrag.snapshot, dx, dy);
+      onUpsertRegion(updated);
     };
 
     const onUp = () => setRegionDrag(null);
@@ -288,7 +271,7 @@ export function FootCanvas({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [regionDrag, getNormalizedPoint, setRegions]);
+  }, [regionDrag, getNormalizedPoint, onUpsertRegion]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -309,7 +292,7 @@ export function FootCanvas({
     [imageRect],
   );
 
-  const canDraw = isAddMode && selectedOrgan && imageRect.width > 0;
+  const canDraw = isAddMode && activeOrgan && imageRect.width > 0;
   const regionInteractive = !isAddMode;
 
   return (
@@ -326,7 +309,8 @@ export function FootCanvas({
           {canvasBadge}
         </span>
         <p className="text-sm font-semibold text-slate-700">
-          {selectedOrgan ? selectedOrgan : "Organ seçilmedi"} · {visibleRegions.length} bölge
+          {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
+          {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
           {isAddMode ? " · Çizim modu" : isMoveMode ? " · Taşıma modu" : null}
         </p>
       </div>
@@ -365,11 +349,11 @@ export function FootCanvas({
                 </p>
               ) : null}
 
-              {isAddMode && selectedOrgan ? (
+              {isAddMode && activeOrgan ? (
                 <p className="pointer-events-none absolute bottom-2 left-1/2 z-40 max-w-[95%] -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm">
                   {drawShape === "free_draw"
-                    ? `«${selectedOrgan}» için basılı tutup çizin`
-                    : `«${selectedOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+                    ? `«${activeOrgan}» için basılı tutup çizin`
+                    : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
                 </p>
               ) : null}
 
