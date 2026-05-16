@@ -5,10 +5,16 @@ import {
   GorselRaporInfografik,
   type GorselTemaId,
 } from "./NumerolojiGorselRaporInfografik";
-import { TabSonucOzeti, TabAnalizOzetli, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
+import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
+import {
+  ContentFontSizeProvider,
+  NumerolojiFontSizeControl,
+  useContentTypography,
+  type ContentFontSize,
+} from "./numerolojiContentTypography";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
 import { getTenantIdFromStorage, updateNumerologyAnalysisGorsel } from "../helpers/numerolojiKayit";
-import { buildPlainAnalizFull, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
   extractGorselFromAnalysisData,
   extractTasFromAnalysisData,
@@ -29,14 +35,16 @@ const DETAY_TABS = [
 type DetayTabId = (typeof DETAY_TABS)[number]["id"];
 
 function KayitBosBolum({ children }: { children?: string }) {
+  const typo = useContentTypography();
   return (
     <div className="rounded-[26px] border border-dashed border-slate-200/90 bg-slate-50/70 px-8 py-16 text-center sm:py-20">
-      <p className="text-base font-medium leading-relaxed text-slate-600 sm:text-lg">{children ?? kayitBolumYokMesaji()}</p>
+      <p className={`${typo.body} font-medium text-slate-600`}>{children ?? kayitBolumYokMesaji()}</p>
     </div>
   );
 }
 
 function TasKayitGorunum({ tas }: { tas: AnalysisTasData }) {
+  const typo = useContentTypography();
   const kolonlar = [
     { baslik: "Bileklik taşları", metin: tas.bileklik },
     { baslik: "Kolye taşları", metin: tas.kolye },
@@ -52,16 +60,16 @@ function TasKayitGorunum({ tas }: { tas: AnalysisTasData }) {
               key={k.baslik}
               className="rounded-[26px] border border-slate-200/90 bg-white/95 p-6 shadow-md ring-1 ring-violet-100/40 sm:p-7"
             >
-              <h3 className="text-xs font-black uppercase tracking-[0.18em] text-violet-800/90 sm:text-sm">{k.baslik}</h3>
-              <p className="mt-4 text-base font-medium leading-relaxed text-slate-800 sm:text-lg">{k.metin}</p>
+              <h3 className={`${typo.sectionTitle} text-violet-800/90`}>{k.baslik}</h3>
+              <p className={`mt-4 ${typo.body} font-medium text-slate-800`}>{k.metin}</p>
             </section>
           ))}
         </div>
       ) : null}
       {tas.notlar ? (
         <section className="rounded-[26px] border border-amber-200/70 bg-amber-50/40 p-6 ring-1 ring-amber-100/50 sm:p-7">
-          <h3 className="text-xs font-black uppercase tracking-[0.18em] text-amber-950/85 sm:text-sm">Notlar</h3>
-          <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-slate-800 sm:text-lg">{tas.notlar}</p>
+          <h3 className={`${typo.sectionTitle} text-amber-950/85`}>Notlar</h3>
+          <p className={`mt-4 whitespace-pre-wrap ${typo.body} text-slate-800`}>{tas.notlar}</p>
         </section>
       ) : null}
     </div>
@@ -256,6 +264,9 @@ export function NumerolojiKayitDetayPanel({
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const [kayitGorselKaydediliyor, setKayitGorselKaydediliyor] = useState(false);
   const [kayitGorselMesaj, setKayitGorselMesaj] = useState<string | null>(null);
+  const [contentFontSize, setContentFontSize] = useState<ContentFontSize>("normal");
+
+  const isOkumaTab = tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas";
 
   useEffect(() => {
     const next = gorselDefaults(extractGorselFromAnalysisData(analysisData));
@@ -313,13 +324,17 @@ export function NumerolojiKayitDetayPanel({
 
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200/85 bg-white/85 shadow-[0_28px_64px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md">
-      <div className="flex flex-wrap gap-2 border-b border-slate-200/80 bg-gradient-to-r from-violet-50/85 via-amber-50/55 to-sky-50/85 p-2 sm:gap-3 sm:p-3">
+      <div className="border-b border-slate-200/80 bg-gradient-to-r from-violet-50/85 via-amber-50/55 to-sky-50/85 p-3 sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-3 sm:mb-4">
+          <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
+        </div>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
         {DETAY_TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`min-h-[3.5rem] shrink-0 whitespace-nowrap rounded-xl px-6 py-3.5 text-left text-sm font-black uppercase tracking-wide transition lg:px-8 lg:py-4 lg:text-base ${
+            className={`min-h-[58px] shrink-0 whitespace-nowrap rounded-xl px-7 py-4 text-left text-base font-black uppercase tracking-wide transition ${
               tab === t.id
                 ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-4px_rgba(91,33,182,0.52)] ring-2 ring-violet-300/45"
                 : "bg-white/70 text-slate-600 hover:bg-white hover:text-violet-800 hover:shadow-[0_4px_14px_-6px_rgba(91,33,182,0.25)]"
@@ -328,28 +343,27 @@ export function NumerolojiKayitDetayPanel({
             {t.label}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-5 sm:p-8 lg:px-10 lg:py-12 xl:px-12">
-        {tab === "summary" ? (
-          <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={birthDate} layout="premium" />
-        ) : null}
+        {isOkumaTab ? (
+          <ContentFontSizeProvider size={contentFontSize}>
+            {tab === "summary" ? (
+              <TabSonucOzeti out={out} isimGoster={isimGoster} dogumGoster={birthDate} layout="premium" />
+            ) : null}
 
-        {tab === "plain" ? (
-          <div className="rounded-[26px] border border-slate-200/80 bg-white/90 p-7 shadow-inner ring-1 ring-slate-100/80 sm:p-9">
-            <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-800 sm:text-base">
-              {buildPlainAnalizFull(out)}
-            </pre>
-          </div>
-        ) : null}
+            {tab === "plain" ? <TabPlainAnaliz out={out} /> : null}
 
-        {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
+            {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
 
-        {tab === "tas" ? (
-          <div className="space-y-6 sm:space-y-8">
-            <TabTasAtamalari out={out} />
-            {tas ? <TasKayitGorunum tas={tas} /> : null}
-          </div>
+            {tab === "tas" ? (
+              <div className="space-y-6 sm:space-y-8">
+                <TabTasAtamalari out={out} />
+                {tas ? <TasKayitGorunum tas={tas} /> : null}
+              </div>
+            ) : null}
+          </ContentFontSizeProvider>
         ) : null}
 
         {tab === "gorsel" ? (

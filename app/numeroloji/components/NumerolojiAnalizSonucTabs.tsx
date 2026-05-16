@@ -15,32 +15,43 @@ import {
 
 const STONE_TYPE_CAKRA = "cakra-omurga";
 const STONE_TYPE_ELEMENT = "element";
-import { harfSegmentsToText, nrDisplay, elementShort, pinOneLine, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import {
+  buildPlainAnalizFull,
+  harfSegmentsToText,
+  nrDisplay,
+  elementShort,
+  pinOneLine,
+  type NumerolojiMotorOut,
+} from "../utils/numerolojiPlainMetin";
+import { useContentTypography } from "./numerolojiContentTypography";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
 function OzetRow({ label, value }: { label: string; value: string }) {
+  const typo = useContentTypography();
   return (
     <div className="grid grid-cols-1 gap-1 border-b border-slate-100/90 py-3 last:border-b-0 sm:grid-cols-[minmax(9rem,12rem)_1fr] sm:items-baseline sm:gap-4">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</div>
-      <div className="text-sm font-semibold leading-snug text-slate-900">{value}</div>
+      <div className={`${typo.label} text-slate-500`}>{label}</div>
+      <div className={`${typo.body} font-semibold text-slate-900`}>{value}</div>
     </div>
   );
 }
 
 function OzetSectionCard({ title, children }: { title: string; children: ReactNode }) {
+  const typo = useContentTypography();
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700/90">{title}</p>
-      <div className="mt-2">{children}</div>
+    <div className={`rounded-2xl border border-slate-200/90 bg-white/90 shadow-sm ring-1 ring-slate-100/70 ${typo.boxPadding}`}>
+      <p className={`${typo.sectionTitle} text-slate-700/90`}>{title}</p>
+      <div className="mt-3">{children}</div>
     </div>
   );
 }
 
-function OzetMetinPre(s: string | undefined | null) {
-  const t = (s || "").trim();
-  if (!t) return <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>;
-  return <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800 sm:text-sm">{s}</pre>;
+function OzetMetinPre({ text }: { text: string | undefined | null }) {
+  const typo = useContentTypography();
+  const metin = (text || "").trim();
+  if (!metin) return <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>;
+  return <pre className={`whitespace-pre-wrap ${typo.pre} text-slate-800`}>{text}</pre>;
 }
 
 const CAKRA_TABLO_SIRA: readonly number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -242,6 +253,7 @@ function TabSonucOzetiPremium({
   firstName?: string;
   lastName?: string;
 }) {
+  const typo = useContentTypography();
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
 
@@ -254,10 +266,10 @@ function TabSonucOzetiPremium({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="rounded-3xl border border-violet-200/60 bg-gradient-to-r from-violet-100/50 via-white/80 to-amber-100/40 px-6 py-5 shadow-inner ring-1 ring-white/60 backdrop-blur-sm sm:px-8">
-        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-700/90">Numerolojik sonuç özeti</p>
-        <p className="mt-2 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">{isimGoster}</p>
-        <p className="mt-1 text-sm font-medium text-slate-600">Doğum tarihi: {dogumGoster}</p>
+      <div className={`rounded-3xl border border-violet-200/60 bg-gradient-to-r from-violet-100/50 via-white/80 to-amber-100/40 shadow-inner ring-1 ring-white/60 backdrop-blur-sm ${typo.boxPadding} sm:px-8`}>
+        <p className={`${typo.sectionTitle} text-violet-700/90`}>Numerolojik sonuç özeti</p>
+        <p className={`mt-2 ${typo.body} font-black tracking-tight text-slate-900`}>{isimGoster}</p>
+        <p className={`mt-1 ${typo.caption} text-slate-600`}>Doğum tarihi: {dogumGoster}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -270,11 +282,11 @@ function TabSonucOzetiPremium({
         <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
         <section className="w-full rounded-3xl border border-white/80 bg-white/75 p-6 shadow-[0_12px_40px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-md">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-800">Elementler</h3>
+          <h3 className={`${typo.sectionTitle} text-slate-800`}>Elementler</h3>
           <div className="mt-6 space-y-4">
             {ELEMENT_ORDER.map((name) => (
               <div key={name}>
-                <div className="mb-1.5 flex justify-between text-xs font-bold text-slate-600">
+                <div className={`mb-1.5 flex justify-between ${typo.caption} font-bold text-slate-600`}>
                   <span>{name}</span>
                   <span>{el[name]}</span>
                 </div>
@@ -337,13 +349,14 @@ export function TabSonucOzeti({
   const harfStr = out.harflerinYankilanisiMetni?.trim() ?? "";
   const harfIsArray = Array.isArray(hy);
   const harfHasSegments = harfIsArray && hy.length > 0;
+  const typo = useContentTypography();
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <div className="rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/95 via-white to-amber-50/25 p-4 shadow-sm ring-1 ring-violet-100/50 sm:p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">Numerolojik sonuç özeti</p>
-        <p className="mt-2 text-base font-bold tracking-tight text-slate-900">{isimGoster}</p>
-        <p className="mt-0.5 text-xs font-medium text-slate-600">Doğum tarihi: {dogumGoster}</p>
+      <div className={`rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/95 via-white to-amber-50/25 shadow-sm ring-1 ring-violet-100/50 ${typo.boxPadding}`}>
+        <p className={`${typo.sectionTitle} text-violet-700/90`}>Numerolojik sonuç özeti</p>
+        <p className={`mt-2 ${typo.body} font-bold tracking-tight text-slate-900`}>{isimGoster}</p>
+        <p className={`mt-1 ${typo.caption} text-slate-600`}>Doğum tarihi: {dogumGoster}</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-1 px-4 shadow-sm ring-1 ring-slate-100/80 sm:px-5">
@@ -353,36 +366,34 @@ export function TabSonucOzeti({
         <OzetRow label="Hayat Yolu / DM" value={nrDisplay(out.hayatYolu)} />
       </div>
 
-      <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm ring-1 ring-sky-100/50 sm:p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-800/90">PIN Kodu</p>
-        <p className="mt-2 break-all font-mono text-[11px] font-semibold leading-relaxed text-slate-800 sm:text-xs">
-          {pinOneLine(out.pinKodu)}
-        </p>
+      <div className={`rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white shadow-sm ring-1 ring-sky-100/50 ${typo.boxPadding}`}>
+        <p className={`${typo.sectionTitle} text-sky-800/90`}>PIN Kodu</p>
+        <p className={`mt-2 break-all ${typo.pre} font-semibold text-slate-800`}>{pinOneLine(out.pinKodu)}</p>
         <pre
           className={
             layout === "detay"
-              ? "mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-slate-700 sm:text-xs"
-              : "mt-3 max-h-36 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 font-mono text-[11px] leading-relaxed text-slate-700 sm:text-xs"
+              ? `mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 ${typo.pre} text-slate-700`
+              : `mt-3 max-h-36 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/80 p-3 ${typo.pre} text-slate-700`
           }
         >
           {pinMetin}
         </pre>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 shadow-sm ring-1 ring-amber-100/60 sm:p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-900/85">Elementler (kısa)</p>
-        <p className="mt-2 text-sm font-semibold text-slate-900">{elementShort(out.elementler)}</p>
-        <pre className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{elementMetinKisa}</pre>
+      <div className={`rounded-2xl border border-slate-200/90 bg-white/90 shadow-sm ring-1 ring-amber-100/60 ${typo.boxPadding}`}>
+        <p className={`${typo.sectionTitle} text-amber-900/85`}>Elementler (kısa)</p>
+        <p className={`mt-2 ${typo.body} font-semibold text-slate-900`}>{elementShort(out.elementler)}</p>
+        <pre className={`mt-2 line-clamp-4 whitespace-pre-wrap ${typo.pre} text-slate-600`}>{elementMetinKisa}</pre>
       </div>
 
-      <OzetSectionCard title="Çakra Omurgası Özeti">{OzetMetinPre(out.cakraOmurgasiMetni)}</OzetSectionCard>
-      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">{OzetMetinPre(out.degisimDonusumMetni)}</OzetSectionCard>
+      <OzetSectionCard title="Çakra Omurgası Özeti"><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
+      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti"><OzetMetinPre text={out.degisimDonusumMetni} /></OzetSectionCard>
 
       <OzetSectionCard title="Zirve Yılları Özeti">
         {zirveStr ? (
-          OzetMetinPre(out.zirveYillariMetni)
+          <OzetMetinPre text={out.zirveYillariMetni} />
         ) : zirveHasArray && zirveObj ? (
-          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+          <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
             {zirveObj.peaks.map((p) => (
               <li key={p.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
                 {p.index}. zirve — yaş {p.age}, konu {p.topic}
@@ -390,15 +401,15 @@ export function TabSonucOzeti({
             ))}
           </ul>
         ) : (
-          <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>
+          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
         )}
       </OzetSectionCard>
 
       <OzetSectionCard title="Mücadele Yılları Özeti">
         {mucadeleStr ? (
-          OzetMetinPre(out.mucadeleYillariMetni)
+          <OzetMetinPre text={out.mucadeleYillariMetni} />
         ) : mucadeleHasArray && mucadeleObj ? (
-          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+          <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
             {mucadeleObj.method1.map((m) => (
               <li key={m.index} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
                 {m.index}. mücadele — yaş {m.age}, konu {m.topic}
@@ -406,13 +417,13 @@ export function TabSonucOzeti({
             ))}
           </ul>
         ) : (
-          <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p>
+          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
         )}
       </OzetSectionCard>
 
       <OzetSectionCard title="Harflerin Yankılanışı Özeti">
         {harfHasSegments ? (
-          <ul className="space-y-1.5 text-xs font-medium leading-snug text-slate-800 sm:text-sm">
+          <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
             {hy.map((seg, idx) => {
               const y =
                 seg.yearStart != null
@@ -428,36 +439,38 @@ export function TabSonucOzeti({
           </ul>
         ) : null}
         {harfStr ? (
-          <div className={harfHasSegments ? "mt-3 border-t border-slate-100 pt-3" : ""}>{OzetMetinPre(out.harflerinYankilanisiMetni)}</div>
+          <div className={harfHasSegments ? "mt-3 border-t border-slate-100 pt-3" : ""}><OzetMetinPre text={out.harflerinYankilanisiMetni} /></div>
         ) : null}
-        {!harfHasSegments && !harfStr ? <p className="text-sm leading-relaxed text-slate-600">{OZET_VERI_YOK}</p> : null}
+        {!harfHasSegments && !harfStr ? <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p> : null}
       </OzetSectionCard>
     </div>
   );
 }
 
 function DetayCard({ title, children }: { title: string; children: ReactNode }) {
+  const typo = useContentTypography();
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-violet-50/30 p-4 shadow-md ring-1 ring-violet-100/35 sm:p-5">
-      <h3 className="border-b border-amber-200/50 pb-2.5 text-[11px] font-black uppercase tracking-[0.16em] text-amber-950/90">
-        {title}
-      </h3>
+    <section
+      className={`rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-violet-50/30 shadow-md ring-1 ring-violet-100/35 ${typo.boxPadding}`}
+    >
+      <h3 className={`border-b border-amber-200/50 pb-3 ${typo.sectionTitle} text-amber-950/90`}>{title}</h3>
       <div className="pt-4">{children}</div>
     </section>
   );
 }
 
 function TasDestekItem({ item }: { item: StoneAssignmentForAnalysis }) {
+  const typo = useContentTypography();
   return (
     <div className="border-t border-emerald-100/90 pt-3 first:border-t-0 first:pt-0">
-      <p className="text-xs font-bold text-emerald-950">{item.value}</p>
+      <p className={`${typo.body} font-bold text-emerald-950`}>{item.value}</p>
       {item.reason ? (
-        <p className="mt-2 text-sm leading-relaxed text-slate-800">
+        <p className={`mt-2 ${typo.body} text-slate-800`}>
           <span className="font-bold text-slate-700">Öneri:</span> {item.reason}
         </p>
       ) : null}
       {item.stones.length ? (
-        <p className="mt-2 text-sm leading-relaxed text-slate-800">
+        <p className={`mt-2 ${typo.body} text-slate-800`}>
           <span className="font-bold text-slate-700">Taşlar:</span> {item.stones.join(", ")}
         </p>
       ) : null}
@@ -472,11 +485,14 @@ function TasDestekSectionBlock({
   title: string;
   items: StoneAssignmentForAnalysis[];
 }) {
+  const typo = useContentTypography();
   if (!items.length) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white/95 p-4 ring-1 ring-emerald-100/70 sm:p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-900/95">{title}</p>
+    <div
+      className={`mt-4 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white/95 ring-1 ring-emerald-100/70 ${typo.infoBoxPadding}`}
+    >
+      <p className={`${typo.sectionTitle} text-emerald-900/95`}>{title}</p>
       <div className="mt-3 space-y-4">
         {items.map((item) => (
           <TasDestekItem key={`${item.typeKey}:${item.value}`} item={item} />
@@ -487,27 +503,26 @@ function TasDestekSectionBlock({
 }
 
 function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
+  const typo = useContentTypography();
   if (!notes.length) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/95 p-4 ring-1 ring-violet-100/70 sm:p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-800/95">
-        Bilgi Bankası Yorumu
-      </p>
+    <div
+      className={`mt-4 rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/95 ring-1 ring-violet-100/70 ${typo.infoBoxPadding}`}
+    >
+      <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
       <div className="mt-3 space-y-4">
         {notes.map((note) => (
           <div
             key={note.id}
             className="border-t border-violet-100/90 pt-3 first:border-t-0 first:pt-0"
           >
-            <p className="text-xs font-bold text-violet-900">{note.value}</p>
+            <p className={`${typo.body} font-bold text-violet-900`}>{note.value}</p>
             {note.source?.trim() ? (
-              <p className="mt-1 text-xs font-medium text-slate-500">Kaynak: {note.source.trim()}</p>
+              <p className={`mt-1 ${typo.caption} text-slate-500`}>Kaynak: {note.source.trim()}</p>
             ) : null}
             {note.description?.trim() ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-                {note.description.trim()}
-              </p>
+              <p className={`mt-2 whitespace-pre-wrap ${typo.body} text-slate-800`}>{note.description.trim()}</p>
             ) : null}
           </div>
         ))}
@@ -526,16 +541,16 @@ function NumeroCardBody({
   knowledgeNotes?: KnowledgeNote[];
 }) {
   const k = (r.key || "").trim();
+  const typo = useContentTypography();
+  const stepsPre = `mt-2 whitespace-pre-wrap border-t border-slate-100 pt-3 ${typo.pre} text-slate-800`;
   return (
     <div className="space-y-2">
-      <p className="text-xl font-black tracking-tight text-violet-900 sm:text-2xl">{nrDisplay(r)}</p>
-      {k ? <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anahtar: {k}</p> : null}
+      <p className={`${typo.display} text-violet-900`}>{nrDisplay(r)}</p>
+      {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>Anahtar: {k}</p> : null}
       {r.steps?.length ? (
         <pre
           className={
-            layout === "detay"
-              ? "mt-2 whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-800"
-              : "mt-2 max-h-[min(50vh,24rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-800"
+            layout === "detay" ? stepsPre : `max-h-[min(50vh,24rem)] overflow-y-auto ${stepsPre}`
           }
         >
           {r.steps.join("\n")}
@@ -543,6 +558,17 @@ function NumeroCardBody({
       ) : null}
       {knowledgeNotes?.length ? <BilgiBankasiYorumBlock notes={knowledgeNotes} /> : null}
     </div>
+  );
+}
+
+export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
+  const typo = useContentTypography();
+  return (
+    <pre
+      className={`whitespace-pre-wrap rounded-2xl border border-slate-200/80 bg-white/90 p-6 shadow-inner ring-1 ring-slate-100/80 sm:p-8 ${typo.pre} text-slate-800`}
+    >
+      {buildPlainAnalizFull(out)}
+    </pre>
   );
 }
 
@@ -595,14 +621,23 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   const hy = out.harflerinYankilanisi;
   const harfListe = Array.isArray(hy) && hy.length ? harfSegmentsToText(hy) : "";
   const harfMetin = out.harflerinYankilanisiMetni?.trim() ?? "";
+  const typo = useContentTypography();
   const preScroll =
     layout === "detay"
-      ? "whitespace-pre-wrap text-sm leading-relaxed text-slate-800"
-      : "max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800";
+      ? `whitespace-pre-wrap ${typo.pre} text-slate-800`
+      : `max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap ${typo.pre} text-slate-800`;
   const preScrollSm =
     layout === "detay"
-      ? "mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
-      : "mt-3 max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm";
+      ? `mt-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 ${typo.pre} text-slate-800`
+      : `mt-3 max-h-[min(55vh,28rem)] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 ${typo.pre} text-slate-800`;
+  const preSteps =
+    layout === "detay"
+      ? `mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 ${typo.pre} text-slate-700`
+      : `mt-3 max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 ${typo.pre} text-slate-700`;
+  const harfPre =
+    layout === "detay"
+      ? `mb-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`
+      : `mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`;
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       <DetayCard title="Ana Kulvar">
@@ -634,7 +669,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         />
       </DetayCard>
       <DetayCard title="PIN">
-        <p className="break-all font-mono text-xs font-semibold text-slate-800 sm:text-sm">{pinOneLine(out.pinKodu)}</p>
+        <p className={`break-all ${typo.pre} font-semibold text-slate-800`}>{pinOneLine(out.pinKodu)}</p>
         <pre className={preScrollSm}>{out.pinKoduMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Çakra">
@@ -647,15 +682,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       <DetayCard title="Elementler">
         <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
         {out.elementler.steps?.length ? (
-          <pre
-            className={
-              layout === "detay"
-                ? "mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-700"
-                : "mt-3 max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-700"
-            }
-          >
-            {out.elementler.steps.join("\n")}
-          </pre>
+          <pre className={preSteps}>{out.elementler.steps.join("\n")}</pre>
         ) : null}
         {knowledgeNotes?.element.length ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
@@ -672,21 +699,11 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         <pre className={preScroll}>{out.mucadeleYillariMetni || "—"}</pre>
       </DetayCard>
       <DetayCard title="Harflerin Yankılanışı">
-        {harfListe ? (
-          <pre
-            className={
-              layout === "detay"
-                ? "mb-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
-                : "mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-xs leading-relaxed text-slate-800 sm:text-sm"
-            }
-          >
-            {harfListe}
-          </pre>
-        ) : null}
+        {harfListe ? <pre className={harfPre}>{harfListe}</pre> : null}
         {harfMetin ? (
           <pre className={preScroll}>{harfMetin}</pre>
         ) : !harfListe ? (
-          <p className="text-sm text-slate-600">—</p>
+          <p className={`${typo.body} text-slate-600`}>—</p>
         ) : null}
       </DetayCard>
     </div>

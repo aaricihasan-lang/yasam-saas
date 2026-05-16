@@ -8,8 +8,18 @@ import Link from "next/link";
 import { hesaplaNumeroloji } from "@/lib/numeroloji";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
 import { SaveAnalysisButton } from "../components/SaveAnalysisButton";
-import { TabSonucOzeti, TabAnalizOzetli, TabTasAtamalari } from "../components/NumerolojiAnalizSonucTabs";
-import { buildPlainAnalizFull, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import {
+  TabSonucOzeti,
+  TabAnalizOzetli,
+  TabPlainAnaliz,
+  TabTasAtamalari,
+} from "../components/NumerolojiAnalizSonucTabs";
+import {
+  ContentFontSizeProvider,
+  NumerolojiFontSizeControl,
+  type ContentFontSize,
+} from "../components/numerolojiContentTypography";
+import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import { GorselRaporInfografik, type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
 import {
   GorselRaporKontrolCubugu,
@@ -85,6 +95,7 @@ export default function NumerolojiAnalizPage() {
   const [tasBileklik, setTasBileklik] = useState("");
   const [tasKolye, setTasKolye] = useState("");
   const [tasKutle, setTasKutle] = useState("");
+  const [contentFontSize, setContentFontSize] = useState<ContentFontSize>("normal");
   const gorselRaporRef = useRef<HTMLDivElement>(null);
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const gorselIndirmeKilitli = gorselPngHazirlaniyor;
@@ -331,13 +342,17 @@ export default function NumerolojiAnalizPage() {
 
         {out ? (
           <div className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/85 shadow-[0_24px_56px_-20px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 backdrop-blur-md">
-            <div className="flex flex-wrap gap-2 border-b border-slate-200/80 bg-gradient-to-r from-violet-100/70 via-white/50 to-amber-50/60 p-2 sm:gap-3 sm:p-3">
+            <div className="border-b border-slate-200/80 bg-gradient-to-r from-violet-100/70 via-white/50 to-amber-50/60 p-3 sm:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-end gap-3 sm:mb-4">
+                <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
+              </div>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
               {TABS.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`min-h-[3.5rem] shrink-0 whitespace-nowrap rounded-xl px-6 py-3.5 text-left text-sm font-black uppercase tracking-wide transition lg:px-8 lg:py-4 lg:text-base ${
+                  className={`min-h-[58px] shrink-0 whitespace-nowrap rounded-xl px-7 py-4 text-left text-base font-black uppercase tracking-wide transition ${
                     tab === t.id
                       ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-4px_rgba(91,33,182,0.52)] ring-2 ring-violet-300/45"
                       : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800 hover:shadow-[0_4px_14px_-6px_rgba(91,33,182,0.25)]"
@@ -346,29 +361,30 @@ export default function NumerolojiAnalizPage() {
                   {t.label}
                 </button>
               ))}
+              </div>
             </div>
 
             <div className="bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-5 sm:p-8 lg:p-10" data-gorsel-rapor-scroll-host>
-              {tab === "summary" ? (
-                <TabSonucOzeti
-                  out={out}
-                  isimGoster={isimGoster}
-                  dogumGoster={dogumGoster}
-                  firstName={firstName}
-                  lastName={lastName}
-                  layout="premium"
-                />
+              {tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas" ? (
+                <ContentFontSizeProvider size={contentFontSize}>
+                  {tab === "summary" ? (
+                    <TabSonucOzeti
+                      out={out}
+                      isimGoster={isimGoster}
+                      dogumGoster={dogumGoster}
+                      firstName={firstName}
+                      lastName={lastName}
+                      layout="premium"
+                    />
+                  ) : null}
+
+                  {tab === "plain" ? <TabPlainAnaliz out={out} /> : null}
+
+                  {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
+
+                  {tab === "tas" ? <TabTasAtamalari out={out} /> : null}
+                </ContentFontSizeProvider>
               ) : null}
-
-              {tab === "plain" ? (
-                <pre className="whitespace-pre-wrap rounded-2xl border border-slate-200/80 bg-white/90 p-6 font-mono text-sm leading-relaxed text-slate-800 shadow-inner sm:p-8">
-                  {buildPlainAnalizFull(out)}
-                </pre>
-              ) : null}
-
-              {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
-
-              {tab === "tas" ? <TabTasAtamalari out={out} /> : null}
 
               {tab === "gorsel" ? (
                 <>
