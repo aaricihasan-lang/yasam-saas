@@ -176,10 +176,10 @@ export function FootCanvas({
 
   return (
     <section
-      className="flex h-full min-h-0 min-w-0 flex-[1.8] flex-col rounded-[28px] border border-white/90 bg-white/75 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md lg:min-h-[700px]"
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-white/90 bg-white/75 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md"
       aria-label="Ayak haritası çalışma alanı"
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100/80 px-4 py-2 sm:px-5">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100/80 px-3 py-1.5 sm:px-4">
         <span className="inline-flex items-center gap-2.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-4 py-2 text-[10px] font-black tracking-wide text-violet-950 shadow-[0_6px_24px_-6px_rgba(91,33,182,0.32)] ring-1 ring-inset ring-white/95 backdrop-blur-md sm:px-5 sm:text-[11px]">
           <span
             className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-400 shadow-[0_0_8px_rgba(139,92,246,0.7)]"
@@ -193,9 +193,9 @@ export function FootCanvas({
         </p>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col p-2 sm:p-3">
+      <div className="relative flex min-h-0 flex-1 flex-col p-1.5 sm:p-2">
         <div
-          className={`relative h-full min-h-0 flex-1 overflow-hidden rounded-[22px] border bg-gradient-to-br from-violet-50/60 via-white to-fuchsia-50/35 shadow-inner lg:min-h-[640px] ${
+          className={`relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-xl border bg-gradient-to-br from-violet-50/60 via-white to-fuchsia-50/35 shadow-inner ${
             isAddMode
               ? "cursor-crosshair border-violet-400/70 ring-2 ring-violet-300/40"
               : toolMode === "move"

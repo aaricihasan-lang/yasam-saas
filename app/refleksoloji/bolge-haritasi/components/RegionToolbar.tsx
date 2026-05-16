@@ -43,7 +43,7 @@ export function RegionToolbar({
 }: RegionToolbarProps) {
   return (
     <div
-      className="rounded-[18px] border border-white/90 bg-white/85 px-2.5 py-2 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md sm:px-3"
+      className="shrink-0 rounded-xl border border-white/90 bg-white/85 px-2 py-1.5 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md sm:px-2.5"
       role="toolbar"
       aria-label="Bölge haritası araçları"
     >
