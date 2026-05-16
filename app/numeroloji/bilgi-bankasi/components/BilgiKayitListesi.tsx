@@ -9,6 +9,7 @@ import {
   listBilgiBankaKayitlari,
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
+import { KayitDetayModal } from "./KayitDetayModal";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -45,103 +46,6 @@ function kayitTuruLabel(tur: KayitTuru) {
   return tur === "aciklama" ? "Açıklama Kaydı" : "Doğaltaş Atama";
 }
 
-function KayitDetayModal({ row, onClose }: { row: BilgiBankaListeSatir; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bilgi-detay-baslik"
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        aria-label="Kapat"
-        onClick={onClose}
-      />
-      <div className="relative z-10 max-h-[min(90vh,820px)] w-full max-w-2xl overflow-y-auto rounded-[28px] border-2 border-violet-200/80 bg-white p-8 shadow-2xl ring-1 ring-purple-200 sm:p-10">
-        <div className="mb-6 flex items-start justify-between gap-4 border-b border-violet-100/90 pb-5">
-          <div>
-            <h2 id="bilgi-detay-baslik" className="text-2xl font-black text-slate-900">
-              Kayıt detayı
-            </h2>
-            <p className="mt-1 text-sm font-medium text-slate-500">Bilgi bankası kayıt özeti</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
-          >
-            Kapat
-          </button>
-        </div>
-
-        <dl className="space-y-5">
-          <div>
-            <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Kayıt türü</dt>
-            <dd className="mt-1.5">
-              <span
-                className={`inline-block rounded-xl px-3 py-1.5 text-sm font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}
-              >
-                {kayitTuruLabel(row.kayitTuru)}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Analiz türü</dt>
-            <dd className="mt-1.5 text-lg font-semibold text-slate-900">{row.analizTuru}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Değer</dt>
-            <dd className="mt-1.5 text-lg font-medium text-slate-800">{row.deger}</dd>
-          </div>
-          {row.kayitTuru === "aciklama" ? (
-            <>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Bilgi kaynağı</dt>
-                <dd className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                  {row.source?.trim() || "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Açıklama metni</dt>
-                <dd className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                  {row.description?.trim() || "—"}
-                </dd>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Öneri açıklaması</dt>
-                <dd className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                  {row.reason?.trim() || "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wider text-violet-800/80">Taş listesi</dt>
-                <dd className="mt-1.5">
-                  {row.stones && row.stones.length > 0 ? (
-                    <ul className="space-y-1.5 rounded-2xl border border-emerald-100/80 bg-emerald-50/50 p-4">
-                      {row.stones.map((tas) => (
-                        <li key={tas} className="text-base font-medium text-slate-800">
-                          {tas}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span className="text-slate-500">—</span>
-                  )}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-      </div>
-    </div>
-  );
-}
-
 export function BilgiKayitListesi() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -165,6 +69,16 @@ export function BilgiKayitListesi() {
     }
     setTumSatirlar(rows);
     setSeciliIds(new Set());
+  }, [showToast]);
+
+  const detayGuncelleVeYenile = useCallback(async () => {
+    const { rows, error } = await listBilgiBankaKayitlari();
+    if (error) {
+      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      return;
+    }
+    setTumSatirlar(rows);
+    setDetayRow((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
   }, [showToast]);
 
   useEffect(() => {
@@ -407,7 +321,13 @@ export function BilgiKayitListesi() {
         </div>
       )}
 
-      {detayRow ? <KayitDetayModal row={detayRow} onClose={() => setDetayRow(null)} /> : null}
+      {detayRow ? (
+        <KayitDetayModal
+          row={detayRow}
+          onClose={() => setDetayRow(null)}
+          onSaved={detayGuncelleVeYenile}
+        />
+      ) : null}
     </div>
   );
 }

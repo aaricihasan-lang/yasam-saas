@@ -254,6 +254,56 @@ export async function listBilgiBankaKayitlari(): Promise<{
   return { rows, error: null };
 }
 
+export async function updateKnowledgeRecordById(
+  recordId: string,
+  input: {
+    analysisType: string;
+    value: string;
+    source: string;
+    description: string;
+  },
+): Promise<{ error: string | null }> {
+  const tenantId = getTenantIdFromStorage();
+  const { error } = await supabase
+    .from(KNOWLEDGE_TABLE)
+    .update({
+      analysis_type: input.analysisType,
+      value: input.value.trim(),
+      source: input.source.trim(),
+      description: input.description.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", recordId)
+    .eq("tenant_id", tenantId);
+
+  return { error: error?.message ?? null };
+}
+
+export async function updateStoneAssignmentById(
+  recordId: string,
+  input: {
+    analysisType: string;
+    value: string;
+    reason: string;
+    stones: string[];
+  },
+): Promise<{ error: string | null }> {
+  const tenantId = getTenantIdFromStorage();
+  const { error } = await supabase
+    .from(STONE_TABLE)
+    .update({
+      analysis_type: input.analysisType,
+      value: input.value.trim(),
+      reason: input.reason.trim(),
+      stones: input.stones,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", recordId)
+    .eq("tenant_id", tenantId);
+
+  return { error: error?.message ?? null };
+}
+
 export async function deleteBilgiBankaKayit(
   kayitTuru: "aciklama" | "dogaltas",
   recordId: string,
