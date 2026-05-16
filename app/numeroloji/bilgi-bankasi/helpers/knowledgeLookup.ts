@@ -83,11 +83,16 @@ function valueCandidatesFromResult(r: NumerolojiResult): string[] {
   return ordered;
 }
 
-/** Çakra X sayısı: 2–3 ideal; altı AZ, üstü FAZLA */
-export function chakraLookupValue(chakraNo: number, xCount: number): string | null {
-  if (xCount === 2 || xCount === 3) return null;
-  if (xCount < 2) return `${chakraNo}. Çakra | AZ Destek`;
+/** Sağ sütun (destek) X sayısı: 0–1 AZ, 2–3 ideal (not yok), 4+ FAZLA */
+export function chakraLookupValue(chakraNo: number, sagDestekXCount: number): string | null {
+  if (sagDestekXCount === 2 || sagDestekXCount === 3) return null;
+  if (sagDestekXCount <= 1) return `${chakraNo}. Çakra | AZ Destek`;
   return `${chakraNo}. Çakra | FAZLA Destek`;
+}
+
+/** Sadece sağ sütun (harfler); sol (sayilar) fazlalık — yorumda kullanılmaz */
+export function cakraSagDestekCount(out: NumerolojiMotorOut, chakraNo: number): number {
+  return out.cakraOmurgasi?.harfler?.[chakraNo] ?? 0;
 }
 
 export function buildChakraLookupValues(out: NumerolojiMotorOut): string[] {
@@ -95,8 +100,8 @@ export function buildChakraLookupValues(out: NumerolojiMotorOut): string[] {
   const seen = new Set<string>();
 
   for (let cNo = 1; cNo <= 10; cNo += 1) {
-    const xCount = out.cakraOmurgasi?.sayilar?.[cNo] ?? 0;
-    const lookup = chakraLookupValue(cNo, xCount);
+    const sagX = cakraSagDestekCount(out, cNo);
+    const lookup = chakraLookupValue(cNo, sagX);
     if (!lookup || seen.has(lookup)) continue;
     seen.add(lookup);
     values.push(lookup);
