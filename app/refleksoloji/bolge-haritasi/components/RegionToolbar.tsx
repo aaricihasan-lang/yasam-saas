@@ -14,14 +14,12 @@ type RegionToolbarProps = {
 };
 
 const btnBase =
-  "inline-flex h-11 shrink-0 items-center justify-center rounded-xl border px-5 text-sm font-bold shadow-sm transition-all duration-200";
+  "inline-flex h-12 min-w-[110px] shrink-0 items-center justify-center rounded-2xl border px-6 text-sm font-bold shadow-md transition-all duration-200 hover:scale-[1.03]";
 
-function activeBtn(extra = "") {
-  return `ring-2 ring-purple-300 bg-purple-100 text-purple-950 border-purple-200 ${extra}`;
-}
+const activeRing = "ring-2 ring-purple-300 scale-[1.03]";
 
-function idleBtn(extra = "") {
-  return `border-violet-200/80 bg-white/95 text-slate-800 hover:border-violet-300 hover:bg-violet-50/90 ${extra}`;
+function btnClass(idle: string, active: boolean) {
+  return `${btnBase} ${idle} ${active ? activeRing : ""}`;
 }
 
 export function RegionToolbar({
@@ -41,64 +39,67 @@ export function RegionToolbar({
 
   return (
     <div
-      className="shrink-0 border-t border-purple-100 bg-white/85 p-3 shadow-[0_-8px_32px_-12px_rgba(91,33,182,0.12)] backdrop-blur-md"
+      className="shrink-0 border-t border-purple-100 bg-white/80 p-4 backdrop-blur-md"
       role="toolbar"
       aria-label="Bölge haritası araçları"
     >
-      <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]">
+      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pb-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]">
         <button
           type="button"
           onClick={() => setToolMode("add")}
           aria-pressed={isAdd}
-          className={`${btnBase} ${isAdd ? activeBtn() : idleBtn("border-emerald-200/90 text-emerald-900 hover:bg-emerald-50")}`}
+          className={btnClass("border-emerald-200 bg-emerald-50 text-emerald-700", isAdd)}
         >
           Bölge Ekle
         </button>
 
-        <div
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-200/80 bg-violet-50/50 p-1"
-          role="group"
-          aria-label="Çizim tipi"
+        <button
+          type="button"
+          onClick={() => setDrawShape("oval")}
+          aria-pressed={drawShape === "oval"}
+          className={btnClass("border-violet-200 bg-violet-50 text-violet-700", drawShape === "oval")}
         >
-          <button
-            type="button"
-            onClick={() => setDrawShape("oval")}
-            aria-pressed={drawShape === "oval"}
-            className={`${btnBase} h-10 px-4 ${drawShape === "oval" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
-          >
-            Oval
-          </button>
-          <button
-            type="button"
-            onClick={() => setDrawShape("rect")}
-            aria-pressed={drawShape === "rect"}
-            className={`${btnBase} h-10 px-4 ${drawShape === "rect" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
-          >
-            Kare
-          </button>
-          <button
-            type="button"
-            onClick={() => setDrawShape("free_draw")}
-            aria-pressed={drawShape === "free_draw"}
-            className={`${btnBase} h-10 px-4 ${drawShape === "free_draw" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
-          >
-            Manuel Çizim
-          </button>
-          <button
-            type="button"
-            onClick={() => setDrawShape("thick_line")}
-            aria-pressed={drawShape === "thick_line"}
-            className={`${btnBase} h-10 px-4 ${drawShape === "thick_line" ? activeBtn() : idleBtn("border-transparent bg-transparent shadow-none")}`}
-          >
-            Kalın Çizgi
-          </button>
-        </div>
+          Oval
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDrawShape("rect")}
+          aria-pressed={drawShape === "rect"}
+          className={btnClass("border-blue-200 bg-blue-50 text-blue-700", drawShape === "rect")}
+        >
+          Kare
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDrawShape("free_draw")}
+          aria-pressed={drawShape === "free_draw"}
+          className={btnClass(
+            "border-pink-200 bg-pink-50 text-pink-700",
+            drawShape === "free_draw",
+          )}
+        >
+          Manuel Çizim
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDrawShape("thick_line")}
+          aria-pressed={drawShape === "thick_line"}
+          className={btnClass(
+            "border-orange-200 bg-orange-50 text-orange-700",
+            drawShape === "thick_line",
+          )}
+        >
+          Kalın Çizgi
+        </button>
 
         <button
           type="button"
           onClick={() => setToolMode("move")}
           aria-pressed={isMove}
-          className={`${btnBase} ${isMove ? activeBtn() : idleBtn("border-sky-200/90 text-sky-900 hover:bg-sky-50")}`}
+          className={btnClass("border-cyan-200 bg-cyan-50 text-cyan-700", isMove)}
         >
           Taşı / Düzenle
         </button>
@@ -106,7 +107,7 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={onSave}
-          className={`${btnBase} ${idleBtn("border-violet-300/90 bg-violet-100 text-violet-950 hover:bg-violet-200/90")}`}
+          className={btnClass("border-green-300 bg-green-100 text-green-800", false)}
         >
           Kaydet
         </button>
@@ -114,18 +115,21 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={onClear}
-          className={`${btnBase} ${idleBtn("border-rose-200/90 text-rose-900 hover:bg-rose-50")}`}
+          className={btnClass("border-red-200 bg-red-50 text-red-700", false)}
         >
           Temizle
         </button>
 
-        <span className="mx-1 hidden h-8 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+        <span className="mx-1 hidden h-10 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"
           onClick={() => setSelectedFoot("left")}
           aria-pressed={selectedFoot === "left"}
-          className={`${btnBase} ${selectedFoot === "left" ? activeBtn() : idleBtn()}`}
+          className={btnClass(
+            "border-indigo-200 bg-indigo-50 text-indigo-700",
+            selectedFoot === "left",
+          )}
         >
           Sol Ayak
         </button>
@@ -134,18 +138,24 @@ export function RegionToolbar({
           type="button"
           onClick={() => setSelectedFoot("right")}
           aria-pressed={selectedFoot === "right"}
-          className={`${btnBase} ${selectedFoot === "right" ? activeBtn() : idleBtn()}`}
+          className={btnClass(
+            "border-sky-200 bg-sky-50 text-sky-700",
+            selectedFoot === "right",
+          )}
         >
           Sağ Ayak
         </button>
 
-        <span className="mx-1 hidden h-8 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+        <span className="mx-1 hidden h-10 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"
           onClick={() => setSelectedView("taban")}
           aria-pressed={selectedView === "taban"}
-          className={`${btnBase} ${selectedView === "taban" ? activeBtn() : idleBtn()}`}
+          className={btnClass(
+            "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+            selectedView === "taban",
+          )}
         >
           Taban Görünümü
         </button>
@@ -154,7 +164,10 @@ export function RegionToolbar({
           type="button"
           onClick={() => setSelectedView("yan")}
           aria-pressed={selectedView === "yan"}
-          className={`${btnBase} ${selectedView === "yan" ? activeBtn() : idleBtn()}`}
+          className={btnClass(
+            "border-purple-200 bg-purple-50 text-purple-700",
+            selectedView === "yan",
+          )}
         >
           Yan Görünümü
         </button>
