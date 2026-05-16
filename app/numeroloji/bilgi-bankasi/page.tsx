@@ -8,7 +8,7 @@ import { BilgiDogaltasAta } from "./components/BilgiDogaltasAta";
 import { BilgiKayitListesi } from "./components/BilgiKayitListesi";
 
 const navLinkClass =
-  "inline-flex items-center gap-2 rounded-2xl border border-white/85 bg-white/80 px-6 py-3 text-sm font-bold text-violet-900 shadow-[0_8px_26px_-8px_rgba(91,33,182,0.38)] ring-1 ring-violet-200/55 backdrop-blur-md transition hover:scale-[1.03] hover:border-violet-300/90 hover:bg-white hover:text-violet-950 hover:shadow-[0_14px_36px_-8px_rgba(91,33,182,0.45)] no-underline";
+  "inline-flex min-h-[56px] items-center gap-4 rounded-2xl border-2 border-violet-300/90 bg-white/85 px-7 py-4 text-base font-black text-violet-900 shadow-lg ring-2 ring-violet-200/70 backdrop-blur-md transition hover:scale-[1.03] hover:border-violet-400 hover:bg-white hover:text-violet-950 hover:shadow-xl no-underline";
 
 const BILGI_TABS = [
   { id: "kayit-ekle" as const, label: "Kayıt Ekle / Düzenle" },
@@ -24,7 +24,7 @@ export default function NumerolojiBilgiBankasiPage() {
   return (
     <NumerolojiPremiumShell maxWidthClass="w-[96%] max-w-[1800px]">
       <div className="mb-10 rounded-[32px] border-2 border-violet-200/80 bg-white/90 px-16 py-14 shadow-xl ring-1 ring-purple-200 backdrop-blur-xl">
-        <div className="mb-5 flex flex-wrap gap-3 sm:mb-6">
+        <div className="mb-5 flex flex-wrap gap-4 sm:mb-6">
           <Link href="/numeroloji" className={navLinkClass}>
             ← Modül seçimi
           </Link>
