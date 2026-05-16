@@ -38,34 +38,43 @@ const energyFolders = [
 
 export default function EnerjiBedenPage() {
   return (
-    <main
-      className="h-screen overflow-hidden text-slate-900 antialiased"
-      style={{
-        background:
-          "linear-gradient(135deg,#f7fbff 0%,#f5f1ff 45%,#f5fff8 100%)",
-      }}
-    >
-      <div className="mx-auto flex h-full min-h-[calc(100vh-90px)] w-[98vw] max-w-none flex-col overflow-hidden px-6 py-5">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#eef4ff] via-[#f6f1ff] to-[#e8fff8] text-slate-900 antialiased">
+      <div
+        className="pointer-events-none absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-purple-300/20 blur-[120px]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-32 -right-24 h-[600px] w-[600px] rounded-full bg-cyan-300/20 blur-[140px]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[400px] -translate-x-1/2 translate-y-1/3 rounded-full bg-emerald-200/20 blur-[120px]"
+        aria-hidden
+      />
+
+      <div className="relative z-10 mx-auto flex h-full min-h-[calc(100vh-90px)] w-[98vw] max-w-none flex-col overflow-hidden px-6 py-5">
         <Link
           href="/"
-          className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm backdrop-blur transition hover:border-violet-300 hover:bg-white"
+          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl border border-white/80 bg-white/75 px-6 py-3 text-base font-semibold text-slate-800 shadow-lg backdrop-blur transition-all duration-200 hover:scale-[1.05] hover:border-violet-200 hover:bg-white/90"
         >
-          <span aria-hidden>←</span>
+          <span className="text-xl leading-none" aria-hidden>
+            ←
+          </span>
           Ana Sayfaya Dön
         </Link>
 
         <header className="shrink-0 py-6 text-center">
-          <p className="text-sm font-black uppercase tracking-[0.28em] text-violet-700/90">
-            Yaşam Sistemi
+          <p className="text-sm font-bold uppercase tracking-[8px] text-purple-600">
+            YAŞAM SİSTEMİ
           </p>
-          <h1 className="mt-3 text-6xl font-bold tracking-tight text-slate-900">
+          <h1 className="mt-4 bg-gradient-to-r from-purple-700 via-indigo-600 to-cyan-600 bg-clip-text text-7xl font-black tracking-tight text-transparent">
             Enerji & Beden
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-base font-medium text-slate-600">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
             Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları
           </p>
           <div
-            className="mx-auto mt-5 h-px w-full max-w-xl bg-gradient-to-r from-transparent via-cyan-300 to-transparent"
+            className="mx-auto mt-6 h-[3px] w-[420px] max-w-full rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1px]"
             aria-hidden
           />
         </header>
