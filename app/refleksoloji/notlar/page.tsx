@@ -1,10 +1,5 @@
-import { RefleksolojiModulePlaceholder } from "../components/RefleksolojiModulePlaceholder";
+import { KlinikNotlarLayout } from "./components/KlinikNotlarLayout";
 
 export default function RefleksolojiNotlarPage() {
-  return (
-    <RefleksolojiModulePlaceholder
-      title="Notlar"
-      description="Danışan ve seans notları, serbest metin kayıtları ve takip alanı bu modülde yer alacaktır."
-    />
-  );
+  return <KlinikNotlarLayout />;
 }
