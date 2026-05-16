@@ -52,12 +52,7 @@ export function useProtocolCatalog() {
 
   const deleteProtocol = useCallback(
     (id: string): boolean => {
-      const target = protocols.find((p) => p.id === id);
-      if (!target) return false;
-      const ok = window.confirm(
-        `«${target.title}» protokolünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
-      );
-      if (!ok) return false;
+      if (!protocols.some((p) => p.id === id)) return false;
       persist(protocols.filter((p) => p.id !== id));
       return true;
     },
