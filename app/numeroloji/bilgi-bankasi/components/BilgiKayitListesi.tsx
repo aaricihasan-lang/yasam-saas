@@ -302,25 +302,6 @@ export function BilgiKayitListesi() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white/95 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-violet-200/80 bg-gradient-to-r from-violet-50/90 to-white px-6 py-4 sm:px-8">
-            <p className="text-sm font-bold text-violet-900/90">
-              {seciliSayisi > 0
-                ? `${seciliSayisi} kayıt seçildi`
-                : "Görünen kayıtları seçmek için kutucukları işaretleyin"}
-            </p>
-            <button
-              type="button"
-              disabled={seciliSayisi === 0 || topluSiliniyor}
-              onClick={() => void handleSecilileriSil()}
-              className={secilileriSilBtnClass}
-            >
-              {topluSiliniyor
-                ? "Siliniyor…"
-                : seciliSayisi > 0
-                  ? `Seçilileri Sil (${seciliSayisi})`
-                  : "Seçilileri Sil"}
-            </button>
-          </div>
           <div className="overflow-x-auto p-3 sm:p-4">
             <table className="w-full min-w-[960px] border-separate border-spacing-y-2 text-left">
               <thead>
