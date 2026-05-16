@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
-import { normalizeThickLineRegion } from "../types";
-/** Yeni kalın çizgi kayıtları — normalize 0..1 */
-const THICK_LINE_WIDTH = 0.004;
+import { normalizeThickLineRegion, THICK_LINE_RENDER_STROKE_PX } from "../types";
+
+/** Yeni kalın çizgi kayıtları — normalize 0..1 (yalnızca veri; görsel 3px) */
+const THICK_LINE_WIDTH = 0.003;
+
 import {
   atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
@@ -20,12 +22,7 @@ import {
   rotateRegionByPointer,
   type ResizeHandle,
 } from "../utils/regionTransform";
-import {
-  regionHasThickLine,
-  RegionDraftPreview,
-  RegionShape,
-  safeThickLineWidth,
-} from "./regions/RegionShape";
+import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/RegionShape";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
@@ -381,10 +378,7 @@ export function FootCanvas({
     const x2 = thickLineDraft.x2 * overlayW;
     const y2 = thickLineDraft.y2 * overlayH;
     if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
-    const safeWidth = safeThickLineWidth(THICK_LINE_WIDTH);
-    const strokePx = Math.max(3, safeWidth * overlayW * 0.55);
-    if (!Number.isFinite(strokePx)) return null;
-    return { x1, y1, x2, y2, strokePx };
+    return { x1, y1, x2, y2 };
   }, [thickLineDraft, overlayW, overlayH]);
 
   const finishManualStroke = useCallback(
@@ -975,7 +969,7 @@ export function FootCanvas({
                     x2={thickLinePreviewPixels.x2}
                     y2={thickLinePreviewPixels.y2}
                     stroke="rgb(220, 38, 38)"
-                    strokeWidth={thickLinePreviewPixels.strokePx}
+                    strokeWidth={THICK_LINE_RENDER_STROKE_PX}
                     strokeLinecap="round"
                   />
                 </svg>

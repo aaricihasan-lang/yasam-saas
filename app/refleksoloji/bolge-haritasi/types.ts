@@ -34,7 +34,11 @@ export type Region = {
 };
 
 /** Eski kayıtlar ve fallback render için varsayılan kalın çizgi genişliği (normalize) */
-export const FALLBACK_THICK_LINE_WIDTH = 0.004;
+/** Kalın çizgi veri modeli — görsel kalınlık render’da sabit px kullanır */
+export const FALLBACK_THICK_LINE_WIDTH = 0.003;
+
+/** thick_line ekran stroke kalınlığı (px) */
+export const THICK_LINE_RENDER_STROKE_PX = 3;
 
 /** @deprecated Yeni çizimler FootCanvas içindeki THICK_LINE_WIDTH kullanır */
 export const DEFAULT_THICK_LINE_WIDTH = FALLBACK_THICK_LINE_WIDTH;

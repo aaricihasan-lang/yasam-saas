@@ -1,6 +1,7 @@
 "use client";
 
 import type { Region } from "../../types";
+import { THICK_LINE_RENDER_STROKE_PX } from "../../types";
 import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
 import {
   REGION_FILL,
@@ -98,12 +99,9 @@ export function RegionShape({
     }
 
     const { x1, y1, x2, y2 } = region;
-    const lineWidth = region.lineWidth ?? 0.004;
-    const safeWidth = Number.isFinite(lineWidth) ? lineWidth : 0.004;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
-    const strokeW = Math.max(2, safeWidth * 100 * 1.05);
-    const hitStrokeW = Math.max(12, safeWidth * 100 * 5);
+    const hitStrokeW = 14;
     const handlesVisible = showEditHandles && isSelected && interactive;
 
     return (
@@ -122,8 +120,9 @@ export function RegionShape({
             x2={x2 * 100}
             y2={y2 * 100}
             stroke={REGION_STROKE}
-            strokeWidth={strokeW}
+            strokeWidth={THICK_LINE_RENDER_STROKE_PX}
             strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
             style={
               isSelected
                 ? { filter: "drop-shadow(0 0 6px rgba(239,68,68,0.9)) drop-shadow(0 0 14px rgba(239,68,68,0.45))" }
@@ -145,6 +144,7 @@ export function RegionShape({
             stroke="transparent"
             strokeWidth={hitStrokeW}
             strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
             className={interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}
             onPointerDown={handleBodyPointerDown}
           />
