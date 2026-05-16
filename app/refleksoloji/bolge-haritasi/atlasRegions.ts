@@ -1,8 +1,9 @@
 import type { Region } from "./types";
+import { regionFromLegacyPercentBox } from "./utils/regionGeometry";
 
-/** Referans atlas bölgeleri — Supabase kayıt katmanı gelene kadar sabit örnek set. Konumlar % (sol-üst). */
+/** Referans atlas bölgeleri — Supabase kayıt katmanı gelene kadar sabit örnek set. */
 export const ATLAS_REGIONS: Region[] = [
-  {
+  regionFromLegacyPercentBox({
     id: "mesane-left-taban",
     organ: "Mesane",
     footSide: "left",
@@ -11,10 +12,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 68,
     width: 16,
     height: 11,
-    shapeType: "oval",
     color: "rgba(167, 139, 250, 0.52)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "mesane-right-taban",
     organ: "Mesane",
     footSide: "right",
@@ -23,10 +23,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 70,
     width: 15,
     height: 10,
-    shapeType: "oval",
     color: "rgba(167, 139, 250, 0.52)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "bobrek-left-taban",
     organ: "Böbrek",
     footSide: "left",
@@ -35,10 +34,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 42,
     width: 18,
     height: 14,
-    shapeType: "oval",
     color: "rgba(129, 140, 248, 0.5)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "bobrek-right-taban",
     organ: "Böbrek",
     footSide: "right",
@@ -47,10 +45,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 44,
     width: 17,
     height: 13,
-    shapeType: "oval",
     color: "rgba(129, 140, 248, 0.5)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "bobrek-left-yan",
     organ: "Böbrek",
     footSide: "left",
@@ -59,10 +56,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 38,
     width: 12,
     height: 22,
-    shapeType: "oval",
     color: "rgba(99, 102, 241, 0.45)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "karaciger-left-taban",
     organ: "Karaciğer",
     footSide: "left",
@@ -71,10 +67,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 28,
     width: 20,
     height: 12,
-    shapeType: "oval",
     color: "rgba(251, 191, 36, 0.48)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "karaciger-right-taban",
     organ: "Karaciğer",
     footSide: "right",
@@ -83,10 +78,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 30,
     width: 19,
     height: 11,
-    shapeType: "oval",
     color: "rgba(251, 191, 36, 0.48)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "mide-left-taban",
     organ: "Mide",
     footSide: "left",
@@ -95,10 +89,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 38,
     width: 17,
     height: 12,
-    shapeType: "oval",
     color: "rgba(52, 211, 153, 0.48)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "mide-right-taban",
     organ: "Mide",
     footSide: "right",
@@ -107,10 +100,9 @@ export const ATLAS_REGIONS: Region[] = [
     y: 40,
     width: 16,
     height: 11,
-    shapeType: "oval",
     color: "rgba(52, 211, 153, 0.48)",
-  },
-  {
+  }),
+  regionFromLegacyPercentBox({
     id: "mide-left-yan",
     organ: "Mide",
     footSide: "left",
@@ -119,7 +111,6 @@ export const ATLAS_REGIONS: Region[] = [
     y: 32,
     width: 14,
     height: 18,
-    shapeType: "oval",
     color: "rgba(16, 185, 129, 0.42)",
-  },
+  }),
 ];

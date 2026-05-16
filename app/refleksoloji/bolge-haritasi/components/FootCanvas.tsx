@@ -9,9 +9,13 @@ import {
 } from "react";
 import { ATLAS_REGIONS } from "../atlasRegions";
 import type { FootSide, FootView, Region, RegionToolMode } from "../types";
+import {
+  clamp01,
+  DEFAULT_NEW_REGION_RX,
+  DEFAULT_NEW_REGION_RY,
+  regionToPercentBox,
+} from "../utils/regionGeometry";
 
-const NEW_REGION_WIDTH = 12;
-const NEW_REGION_HEIGHT = 8;
 const NEW_REGION_COLOR = "rgba(216, 180, 254, 0.58)";
 
 type FootCanvasProps = {
@@ -68,7 +72,8 @@ function RegionOval({
   const emphasized = selectedOrgan !== null && region.organ === selectedOrgan;
   const dimmed = selectedOrgan !== null && region.organ !== selectedOrgan;
   const idle = selectedOrgan === null;
-  const isOval = region.shapeType === "oval";
+  const isOval = region.shape === "oval";
+  const box = regionToPercentBox(region);
 
   return (
     <div
@@ -84,10 +89,12 @@ function RegionOval({
               : "z-10 opacity-90"
       }`}
       style={{
-        left: `${region.x}%`,
-        top: `${region.y}%`,
-        width: `${region.width}%`,
-        height: `${region.height}%`,
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+        transform: box.transform,
+        transformOrigin: "center center",
         borderRadius: isOval ? 9999 : undefined,
         backgroundColor: emphasized ? region.color.replace(/[\d.]+\)$/, "0.82)") : region.color,
         boxShadow: emphasized
@@ -150,22 +157,20 @@ export function FootCanvas({
       if (toolMode !== "add" || !selectedOrgan) return;
 
       const rect = event.currentTarget.getBoundingClientRect();
-      const centerX = ((event.clientX - rect.left) / rect.width) * 100;
-      const centerY = ((event.clientY - rect.top) / rect.height) * 100;
-
-      const x = Math.max(0, Math.min(100 - NEW_REGION_WIDTH, centerX - NEW_REGION_WIDTH / 2));
-      const y = Math.max(0, Math.min(100 - NEW_REGION_HEIGHT, centerY - NEW_REGION_HEIGHT / 2));
+      const cx = clamp01((event.clientX - rect.left) / rect.width);
+      const cy = clamp01((event.clientY - rect.top) / rect.height);
 
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: selectedOrgan,
         footSide: selectedFoot,
         view: selectedView,
-        x,
-        y,
-        width: NEW_REGION_WIDTH,
-        height: NEW_REGION_HEIGHT,
-        shapeType: "oval",
+        shape: "oval",
+        cx,
+        cy,
+        rx: DEFAULT_NEW_REGION_RX,
+        ry: DEFAULT_NEW_REGION_RY,
+        angle: 0,
         color: NEW_REGION_COLOR,
       };
 
