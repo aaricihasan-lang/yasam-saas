@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getKnowledgeRecord, saveKnowledgeRecord } from "../helpers/bilgiBankaKayit";
+import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
 
 const fieldBase =
   "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
@@ -25,12 +26,6 @@ const ANALIZ_TURU_OPTIONS = [
   { value: "element", label: "Element" },
   { value: "diger", label: "Diğer" },
 ] as const;
-
-const CAKRA_OMURGA_DEGER_OPTIONS = Array.from({ length: 20 }, (_, i) => {
-  const n = i + 1;
-  const durum = n % 2 === 1 ? "AZ" : "FAZLA";
-  return `${n}. Çakra | ${durum}`;
-});
 
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
   `${el} | AZ`,
@@ -170,7 +165,7 @@ export function BilgiKayitEkleDuzenle() {
               className={selectClass}
             >
               <option value="">Seçiniz...</option>
-              {CAKRA_OMURGA_DEGER_OPTIONS.map((opt) => (
+              {CHAKRA_VALUE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>
