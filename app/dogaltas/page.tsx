@@ -62,8 +62,8 @@ const modules = [
 export default function DogaltasPage() {
   return (
     <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
-      <div className="grid h-full w-full grid-cols-[320px_1fr] overflow-x-hidden">
-        <aside className="flex h-screen w-[320px] min-w-[320px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-5 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+      <div className="grid h-full w-full grid-cols-[300px_1fr] overflow-x-hidden">
+        <aside className="flex h-screen w-[300px] min-w-[300px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-5 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-4 flex h-16 items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-md ring-1 ring-slate-100">
               💎
@@ -80,41 +80,45 @@ export default function DogaltasPage() {
             MODÜLLER
           </div>
 
-          <nav className="min-h-0 flex-1 space-y-1 overflow-hidden">
-            {modules.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex h-[72px] items-center gap-4 rounded-2xl px-4 transition-all duration-300 hover:scale-[1.02] hover:bg-white/80 hover:shadow-lg"
-              >
-                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.dot}`} />
+          <nav className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            {modules.map((item, index) => {
+              const isFeatured = index === 0;
 
-                <span
-                  className={`flex h-12 w-12 min-w-12 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-md ring-1 ring-slate-100 ${item.iconBg}`}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`group flex h-[74px] shrink-0 items-center gap-4 rounded-[24px] border px-4 shadow-sm transition-all duration-300 hover:scale-[1.03] hover:bg-white/85 hover:shadow-xl ${
+                    isFeatured
+                      ? "border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-md"
+                      : "border-white/60 bg-white/50"
+                  }`}
                 >
-                  {item.icon}
-                </span>
-
-                <span className="min-w-0 flex-1 pr-1">
-                  <span className="block text-[17px] font-black leading-tight text-slate-950">
-                    {item.title}
+                  <span
+                    className={`flex h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-[22px] text-2xl shadow-lg ring-1 ring-white/80 ${item.iconBg}`}
+                  >
+                    {item.icon}
                   </span>
-                  <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-slate-600 line-clamp-2">
-                    {item.subtitle}
-                  </span>
-                </span>
 
-                <span className="shrink-0 text-lg opacity-70 transition group-hover:translate-x-0.5 group-hover:opacity-100">
-                  →
-                </span>
-              </Link>
-            ))}
+                  <span className="flex-1 pr-1">
+                    <span className="block text-[17px] font-black leading-tight text-slate-950">
+                      {item.title}
+                    </span>
+                    <span className="mt-0.5 block text-[13px] font-semibold leading-tight text-slate-600">
+                      {item.subtitle}
+                    </span>
+                  </span>
+
+                  <span className="shrink-0 text-xl font-black opacity-80 transition group-hover:translate-x-0.5 group-hover:opacity-100">
+                    ›
+                  </span>
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="mt-3 shrink-0 rounded-2xl bg-white/80 p-3 shadow-md ring-1 ring-white/80">
-            <p className="text-xs font-bold leading-5 text-slate-700">
-              ✨ Bilgiyi yönetin, değere dönüştürün.
-            </p>
+          <div className="mt-4 shrink-0 rounded-3xl bg-white/75 p-5 text-sm font-bold leading-relaxed text-slate-700 shadow-md ring-1 ring-white/80">
+            ✨ Bilgiyi yönetin, değere dönüştürün.
           </div>
         </aside>
 
