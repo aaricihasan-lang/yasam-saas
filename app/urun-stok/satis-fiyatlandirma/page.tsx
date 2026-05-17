@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { centralOptionLabel, filterCentralProducts } from "@/lib/urun-stok/centralSalesCatalog";
 import {
   CATEGORY_LABELS,
   type GeneralSaleRecord,
@@ -35,8 +34,9 @@ const btnPrimary =
 const btnSecondary =
   "inline-flex h-12 items-center justify-center rounded-2xl border-2 border-fuchsia-200 bg-fuchsia-50 px-6 text-sm font-black text-slate-800 transition hover:bg-fuchsia-100 no-underline disabled:cursor-not-allowed disabled:opacity-50";
 
-function productKey(p: UnifiedProduct): string {
-  return `${p.category}:${p.productId}`;
+function productOptionLabel(p: UnifiedProduct): string {
+  const unit = p.baseUnit ?? p.unitLabel ?? "adet";
+  return `${p.name} | ${p.productGroup || "—"} | Stok: ${p.stockAmount} ${unit}`;
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
@@ -82,21 +82,41 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const [saleLabel, setSaleLabel] = useState("");
   const [basket, setBasket] = useState<GeneralSaleRecord[]>([]);
 
-  const filtered = useMemo(
-    () => filterCentralProducts(products, categoryFilter, search),
-    [products, categoryFilter, search],
-  );
+  const catalogProducts = useMemo(() => {
+    if (!hydrated) return [];
+    return products.length > 0 ? products : loadUnifiedProducts(toFloat(usdRate, 0));
+  }, [hydrated, products, usdRate]);
+
+  const filtered = useMemo(() => {
+    let list =
+      categoryFilter === "all"
+        ? catalogProducts
+        : catalogProducts.filter((p) => p.category === categoryFilter);
+    const ql = search.trim().toLocaleLowerCase("tr-TR");
+    if (!ql) return list;
+    return list.filter(
+      (p) =>
+        p.name.toLocaleLowerCase("tr-TR").includes(ql) ||
+        (p.productGroup ?? "").toLocaleLowerCase("tr-TR").includes(ql) ||
+        p.subtitle.toLocaleLowerCase("tr-TR").includes(ql),
+    );
+  }, [catalogProducts, categoryFilter, search]);
 
   const picked = useMemo(() => {
     if (!pickKey) return undefined;
-    return filtered.find((p) => productKey(p) === pickKey) ?? products.find((p) => productKey(p) === pickKey);
-  }, [filtered, products, pickKey]);
+    return (
+      filtered.find((p) => p.productId === pickKey) ??
+      catalogProducts.find((p) => p.productId === pickKey)
+    );
+  }, [filtered, catalogProducts, pickKey]);
 
   const pickedPhotos = useMemo(() => picked?.photos ?? [], [picked]);
 
   useEffect(() => {
     if (!pickKey) return;
-    const p = products.find((x) => productKey(x) === pickKey);
+    const p =
+      filtered.find((x) => x.productId === pickKey) ??
+      catalogProducts.find((x) => x.productId === pickKey);
     if (!p) return;
     if (p.saleMode === "measure" && p.saleUnits?.length) {
       if (!p.saleUnits.includes(saleUnit as never)) setSaleUnit(p.saleUnits[0]);
@@ -106,7 +126,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setSaleLabel(`${p.name} — ${CATEGORY_LABELS[p.category]}`);
     setProfitPct(String(p.profitPct > 0 ? p.profitPct : 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca ürün değişince varsayılanları yükle
-  }, [pickKey, products]);
+  }, [pickKey, filtered, catalogProducts]);
 
   const preview = useMemo(() => {
     if (!picked) return null;
@@ -290,14 +310,15 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             <label className="block">
               <span className="mb-2 block text-sm font-black">Ürün seç</span>
               <select
+                key={`product-pick-${categoryFilter}-${filtered.length}`}
                 className={inputClass}
                 value={pickKey}
                 onChange={(e) => setPickKey(e.target.value)}
               >
                 <option value="">— Ürün seçin —</option>
                 {filtered.map((p) => (
-                  <option key={productKey(p)} value={productKey(p)}>
-                    {centralOptionLabel(p)}
+                  <option key={p.productId} value={p.productId}>
+                    {productOptionLabel(p)}
                   </option>
                 ))}
               </select>
@@ -305,11 +326,11 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
                   Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
                 </p>
-              ) : products.length === 0 ? (
+              ) : catalogProducts.length === 0 ? (
                 <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
                   Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
                 </p>
-              ) : categoryFilter === "all" && filtered.length === 0 && products.length > 0 ? (
+              ) : categoryFilter === "all" && filtered.length === 0 && catalogProducts.length > 0 ? (
                 <p className="mt-2 text-sm font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
               ) : null}
             </label>
