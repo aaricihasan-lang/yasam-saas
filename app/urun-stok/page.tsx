@@ -12,6 +12,7 @@ const hubModules = [
     desc: "Bileklik, dizi, kolye ve ham taş stokları; maliyet ve satış fiyatı.",
     icon: "💎",
     accent: "from-cyan-100 to-teal-50 border-cyan-200/80 ring-cyan-100",
+    href: "/urun-stok/dogaltas",
   },
   {
     title: "Yağ Ürün/Stok",
@@ -60,6 +61,70 @@ const hubModules = [
 
 const cardBase =
   "group relative flex min-h-[220px] flex-col justify-between rounded-[28px] border-2 bg-gradient-to-br p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 backdrop-blur-xl transition-all duration-300";
+
+function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
+  const href = "href" in item ? item.href : undefined;
+  const isActive = Boolean(href);
+  const badge =
+    "statusLabel" in item && item.statusLabel
+      ? item.statusLabel
+      : isActive
+        ? "Aktif"
+        : "Yakında";
+
+  const inner = (
+    <>
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-3xl shadow-md ring-1 ring-white/60">
+            {item.icon}
+          </span>
+          <span
+            className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
+              isActive
+                ? "border-cyan-200/90 bg-cyan-50 text-cyan-800"
+                : "border-slate-200/90 bg-white/90 text-slate-500"
+            }`}
+          >
+            {badge}
+          </span>
+        </div>
+        <h3 className="mt-5 text-xl font-black leading-tight text-slate-900 sm:text-2xl">
+          {item.title}
+        </h3>
+        <p className="mt-3 text-base leading-relaxed text-slate-600">{item.desc}</p>
+      </div>
+      <span
+        className={`mt-6 inline-flex items-center gap-2 text-sm font-black uppercase tracking-[0.15em] ${
+          isActive ? "text-cyan-700" : "text-slate-400"
+        }`}
+      >
+        {isActive ? "Modüle git" : "Modül hazırlanıyor"}
+        <span aria-hidden>→</span>
+      </span>
+    </>
+  );
+
+  const cls = `${cardBase} ${item.accent} ${
+    isActive
+      ? "opacity-100 hover:-translate-y-1 hover:shadow-xl"
+      : "cursor-default opacity-[0.97]"
+  }`;
+
+  if (href) {
+    return (
+      <Link href={href} className={`${cls} block no-underline`}>
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={cls} aria-disabled>
+      {inner}
+    </div>
+  );
+}
 
 export default function UrunStokHubPage() {
   return (
@@ -117,30 +182,7 @@ export default function UrunStokHubPage() {
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {hubModules.map((item) => (
-            <div
-              key={item.title}
-              className={`${cardBase} ${item.accent} cursor-default opacity-[0.97]`}
-              aria-disabled
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-3xl shadow-md ring-1 ring-white/60">
-                    {item.icon}
-                  </span>
-                  <span className="rounded-full border border-slate-200/90 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                    {"statusLabel" in item && item.statusLabel ? item.statusLabel : "Yakında"}
-                  </span>
-                </div>
-                <h3 className="mt-5 text-xl font-black leading-tight text-slate-900 sm:text-2xl">
-                  {item.title}
-                </h3>
-                <p className="mt-3 text-base leading-relaxed text-slate-600">{item.desc}</p>
-              </div>
-              <span className="mt-6 inline-flex items-center gap-2 text-sm font-black uppercase tracking-[0.15em] text-slate-400">
-                Modül hazırlanıyor
-                <span aria-hidden>→</span>
-              </span>
-            </div>
+            <HubModuleCard key={item.title} item={item} />
           ))}
         </div>
       </div>
