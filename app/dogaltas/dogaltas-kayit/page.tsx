@@ -22,19 +22,22 @@ const effectSections = [
     title: "Fiziksel Etkiler",
     key: "physical_effects",
     desc: "Bedensel etkiler, destek alanları ve kullanım notları.",
-    color: "from-cyan-50 to-white",
+    icon: "🫀",
+    accent: "cyan",
   },
   {
     title: "Ruhsal Etkiler",
     key: "spiritual_effects",
     desc: "Ruhsal denge, farkındalık ve içsel çalışma notları.",
-    color: "from-violet-50 to-white",
+    icon: "✨",
+    accent: "violet",
   },
   {
     title: "Diğer Etkiler",
     key: "other_effects",
     desc: "Ek bilgiler, gözlemler ve tamamlayıcı notlar.",
-    color: "from-emerald-50 to-white",
+    icon: "📝",
+    accent: "emerald",
   },
 ];
 
@@ -134,6 +137,12 @@ const emptyAssignmentInputs: AssignmentInputs = {
   "Astrolojik Atama": [""],
   Elementler: [""],
 };
+
+const uiCard =
+  "rounded-[30px] border border-white/10 bg-white/[0.04] shadow-[0_10px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl transition-all duration-300 hover:border-cyan-400/30 hover:shadow-cyan-500/10";
+const uiInput =
+  "w-full rounded-2xl border border-white/10 bg-slate-950/60 py-4 px-5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30";
+const uiLabel = "mb-1.5 block text-xs font-bold text-slate-400";
 
 function safeFileName(fileName: string) {
   return fileName
@@ -414,27 +423,30 @@ export default function DogaltasKayitPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] pb-28 text-slate-950">
-      <div className="mx-auto max-w-[1320px] px-6 py-6">
-        <header className="mb-6 flex items-center justify-between gap-5">
+    <main className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#1e1b4b_0%,#0f172a_35%,#020617_100%)] pb-28 text-white">
+      <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-500/10 blur-[140px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] bg-violet-500/10 blur-[140px]" />
+
+      <div className="relative w-full px-6 py-6 xl:px-10 2xl:px-14">
+        <header className="mb-5 flex items-center justify-between gap-5">
           <div className="flex items-center gap-4">
             <Link
               href="/dogaltas"
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-lg shadow-[0_14px_35px_rgba(15,23,42,0.055)] ring-1 ring-white"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-white backdrop-blur-xl transition hover:border-cyan-400/30 hover:bg-white/10"
             >
               ←
             </Link>
 
             <div>
-              <div className="mb-1 inline-flex rounded-full bg-white/70 px-3 py-1 text-[11px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-white">
+              <div className="mb-1 inline-flex rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-black tracking-[0.12em] text-cyan-300">
                 💎 DOĞALTAŞ MODÜLÜ
               </div>
 
-              <h1 className="text-[34px] font-black tracking-tight">
+              <h1 className="text-3xl font-black tracking-tight text-white xl:text-[34px]">
                 Doğaltaş Kayıt
               </h1>
 
-              <p className="mt-1 text-[14px] font-medium text-slate-500">
+              <p className="mt-1 text-sm text-slate-400">
                 Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin.
               </p>
             </div>
@@ -442,10 +454,10 @@ export default function DogaltasKayitPage() {
 
           {(savedMessage || errorMessage) && (
             <span
-              className={`rounded-2xl px-4 py-3 text-[12px] font-black ring-1 ${
+              className={`rounded-2xl px-4 py-3 text-xs font-black ring-1 ${
                 errorMessage
-                  ? "bg-rose-50 text-rose-700 ring-rose-100"
-                  : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                  ? "border-rose-400/30 bg-rose-500/10 text-rose-300"
+                  : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
               }`}
             >
               {errorMessage || savedMessage}
@@ -453,25 +465,30 @@ export default function DogaltasKayitPage() {
           )}
         </header>
 
-        <section className="space-y-5">
-          <div className="rounded-[30px] bg-white/76 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-[18px] font-black text-slate-950">Temel Bilgi</h2>
-                <p className="mt-1 text-[12px] text-slate-500">
+        <section className="space-y-6">
+          <div className={`${uiCard} p-5`}>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/15 text-xl ring-1 ring-cyan-400/20">
+                  💎
+                </span>
+                <div>
+                <h2 className="text-xl font-bold text-white">Temel Bilgi</h2>
+                <p className="mt-0.5 text-sm text-slate-400">
                   Masaüstündeki temel kayıt alanının sade web uyarlaması.
                 </p>
+                </div>
               </div>
 
-              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-black text-cyan-700">
+              <span className="shrink-0 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-black text-cyan-300">
                 Ana Kayıt
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_330px]">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                  <label className={uiLabel}>
                     Taş Adı
                   </label>
                   <input
@@ -479,12 +496,12 @@ export default function DogaltasKayitPage() {
                     value={formData.stone_name}
                     onChange={(event) => updateField("stone_name", event.target.value)}
                     placeholder="Örn. Ametist"
-                    className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white/90 px-4 text-[14px] font-medium outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    className={uiInput}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                  <label className={uiLabel}>
                     Kısa Açıklama
                   </label>
 
@@ -493,27 +510,27 @@ export default function DogaltasKayitPage() {
                     onChange={(event) => updateField("short_description", event.target.value)}
                     onFocus={() => openLargeEditor("Kısa Açıklama", "short_description")}
                     placeholder="Taşın kısa tanımı, temel özelliği ve öne çıkan etkisi..."
-                    className="h-[160px] w-full resize-none rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-[14px] font-medium leading-6 outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    className={`${uiInput} h-[120px] resize-none leading-6`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                <label className={uiLabel}>
                   Görsel Alanı
                 </label>
 
-                <div className="rounded-[26px] border border-dashed border-cyan-200 bg-gradient-to-br from-cyan-50/80 to-white/80 p-4 text-center">
-                  <div className="flex min-h-[180px] flex-col items-center justify-center">
-                    <div className="text-[52px]">💎</div>
-                    <p className="mt-3 text-[13px] font-black text-slate-700">
+                <div className="rounded-3xl border-2 border-dashed border-cyan-500/40 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 p-4 text-center">
+                  <div className="flex min-h-[320px] flex-col items-center justify-center">
+                    <div className="text-6xl">💎</div>
+                    <p className="mt-3 text-sm font-bold text-white">
                       Birden fazla taş görseli ekle
                     </p>
-                    <p className="mt-1 max-w-[230px] text-[11px] leading-5 text-slate-500">
+                    <p className="mt-1 max-w-[260px] text-xs leading-5 text-slate-400">
                       Şimdilik dosya adı Supabase’e kaydolur. Storage bağlantısını sonraki adımda yapacağız.
                     </p>
 
-                    <label className="mt-4 cursor-pointer rounded-2xl bg-white px-4 py-2 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50">
+                    <label className="mt-4 cursor-pointer rounded-full bg-gradient-to-r from-cyan-500 to-violet-600 px-8 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110">
                       Resim Seç
                       <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                     </label>
@@ -522,7 +539,7 @@ export default function DogaltasKayitPage() {
                   {images.length > 0 && (
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       {images.map((image) => (
-                        <div key={image.id} className="group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                        <div key={image.id} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60">
                           <button type="button" onClick={() => setPreviewImage(image)} className="block h-24 w-full">
                             <img src={image.url} alt={image.name} className="h-full w-full object-cover" />
                           </button>
@@ -543,12 +560,17 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className="rounded-[30px] bg-white/76 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-            <div className="mb-4">
-              <h2 className="text-[18px] font-black text-slate-950">Genel Bilgi</h2>
-              <p className="mt-1 text-[12px] text-slate-500">
-                Bilgi paneli / tablo / özet mantığının sade web karşılığı.
-              </p>
+          <div className={`${uiCard} p-5`}>
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 text-xl ring-1 ring-violet-400/20">
+                📋
+              </span>
+              <div>
+                <h2 className="text-xl font-bold text-white">Genel Bilgi</h2>
+                <p className="mt-0.5 text-sm text-slate-400">
+                  Bilgi paneli / tablo / özet mantığının sade web karşılığı.
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -557,7 +579,7 @@ export default function DogaltasKayitPage() {
                 { title: "Oluşum / Kaynak Notu", key: "source_note" as keyof FormData },
               ].map((item) => (
                 <div key={item.key}>
-                  <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                  <label className={uiLabel}>
                     {item.title}
                   </label>
 
@@ -566,24 +588,35 @@ export default function DogaltasKayitPage() {
                     onChange={(event) => updateField(item.key, event.target.value)}
                     onFocus={() => openLargeEditor(item.title, item.key)}
                     placeholder={`${item.title} yaz...`}
-                    className="h-[150px] w-full resize-none rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-[14px] font-medium leading-6 outline-none focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    className={`${uiInput} h-[120px] resize-none leading-6`}
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {effectSections.map((section) => (
               <div
                 key={section.title}
-                className={`rounded-[26px] bg-gradient-to-br ${section.color} p-5 shadow-[0_18px_45px_rgba(15,23,42,0.038)] ring-1 ring-white`}
+                className={`${uiCard} flex min-h-[220px] flex-col p-5 transition-all duration-300 hover:-translate-y-2`}
               >
-                <div className="mb-2">
-                  <h3 className="text-[15px] font-black text-slate-900">{section.title}</h3>
-                  <p className="mt-2 min-h-[42px] text-[12px] leading-5 text-slate-500">
-                    {section.desc}
-                  </p>
+                <div className="mb-3 flex items-start gap-3">
+                  <span
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ring-1 ${
+                      section.accent === "cyan"
+                        ? "bg-cyan-500/15 ring-cyan-400/20"
+                        : section.accent === "violet"
+                          ? "bg-violet-500/15 ring-violet-400/20"
+                          : "bg-emerald-500/15 ring-emerald-400/20"
+                    }`}
+                  >
+                    {section.icon}
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{section.title}</h3>
+                    <p className="mt-0.5 text-sm text-slate-400">{section.desc}</p>
+                  </div>
                 </div>
 
                 <textarea
@@ -591,23 +624,31 @@ export default function DogaltasKayitPage() {
                   onChange={(event) => updateField(section.key as keyof FormData, event.target.value)}
                   onFocus={() => openLargeEditor(section.title, section.key as keyof FormData)}
                   placeholder="Bu alana tıklayınca büyük yazı ekranı açılır..."
-                  className="mt-3 h-[105px] w-full resize-none rounded-2xl border border-slate-200/70 bg-white/86 p-3 text-[13px] font-medium leading-5 outline-none focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                  className={`${uiInput} mt-auto h-[88px] resize-none text-sm leading-5`}
                 />
               </div>
             ))}
           </div>
 
-          <div className="rounded-[30px] bg-white/76 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[18px] font-black text-slate-950">Uyarılar</h2>
-              <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-rose-700 shadow-sm ring-1 ring-rose-100">
+          <div className={`${uiCard} p-5`}>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/15 text-xl ring-1 ring-rose-400/20">
+                  ⚠️
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Uyarılar</h2>
+                  <p className="mt-0.5 text-sm text-slate-400">Klinik ve güvenlik notları.</p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full border border-rose-400/20 bg-rose-500/10 px-3 py-1.5 text-[11px] font-black text-rose-300">
                 Klinik Not
               </span>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
               <div>
-                <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                <label className={uiLabel}>
                   Uyarı Metni
                 </label>
 
@@ -616,25 +657,25 @@ export default function DogaltasKayitPage() {
                   onChange={(event) => updateField("warning_text", event.target.value)}
                   onFocus={() => openLargeEditor("Uyarılar", "warning_text")}
                   placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
-                  className="h-[160px] w-full resize-none rounded-2xl border border-rose-100 bg-white/90 p-4 text-[14px] font-medium leading-6 outline-none transition placeholder:text-slate-400 focus:border-rose-200 focus:ring-4 focus:ring-rose-100/70"
+                  className={`${uiInput} h-[120px] resize-none leading-6 focus:border-rose-400 focus:ring-rose-500/30`}
                 />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[12px] font-black text-slate-600">
+                <label className={uiLabel}>
                   Uyarı Etiketleri
                 </label>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   {warningTypes.map((warning) => (
-                    <label key={warning} className="flex cursor-pointer items-center gap-2 rounded-2xl bg-white/86 px-3 py-3 ring-1 ring-rose-100 transition hover:bg-rose-50">
+                    <label key={warning} className="flex cursor-pointer items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-3 transition hover:border-rose-400/30 hover:bg-rose-500/10">
                       <input
                         type="checkbox"
                         checked={selectedWarnings.includes(warning)}
                         onChange={() => toggleWarning(warning)}
-                        className="h-4 w-4 accent-rose-600"
+                        className="h-4 w-4 accent-rose-500"
                       />
-                      <span className="text-[12px] font-bold text-slate-700">{warning}</span>
+                      <span className="text-xs font-bold text-slate-200">{warning}</span>
                     </label>
                   ))}
                 </div>
@@ -642,33 +683,45 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className="rounded-[30px] bg-white/76 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-            <div className="mb-4">
-              <h2 className="text-[18px] font-black text-slate-950">Kullanım / Uygulama Alanları</h2>
-              <p className="mt-1 text-[12px] text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
+          <div className={`${uiCard} p-5`}>
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-xl ring-1 ring-emerald-400/20">
+                🧘
+              </span>
+              <div>
+                <h2 className="text-xl font-bold text-white">Kullanım / Uygulama Alanları</h2>
+                <p className="mt-0.5 text-sm text-slate-400">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
-              {usageSections.map((item, index) => (
-                <div key={item.key} className={`rounded-2xl p-4 ring-1 ring-white ${index === 0 ? "bg-emerald-50" : "bg-white/84"}`}>
-                  <p className="mb-3 text-[13px] font-black text-slate-800">{item.title}</p>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+              {usageSections.map((item) => (
+                <div key={item.key} className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+                  <p className="mb-3 text-sm font-bold text-white">{item.title}</p>
 
                   <textarea
                     value={formData[item.key as keyof FormData]}
                     onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
                     onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
                     placeholder={`${item.title} notu...`}
-                    className="h-[95px] w-full resize-none rounded-xl border border-slate-200/70 bg-white/88 p-3 text-[12px] outline-none focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                    className={`${uiInput} h-[80px] resize-none text-xs`}
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_330px]">
-            <div className="rounded-[30px] bg-white/78 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-              <h2 className="text-[18px] font-black text-slate-950">Atamalar</h2>
-              <p className="mt-1 text-[12px] text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+            <div className={`${uiCard} p-5`}>
+              <div className="mb-4 flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/15 text-xl ring-1 ring-indigo-400/20">
+                  🔗
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Atamalar</h2>
+                  <p className="mt-0.5 text-sm text-slate-400">Mineral, organ, astroloji ve element alanları.</p>
+                </div>
+              </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {assignmentSections.map((item) => (
@@ -676,35 +729,42 @@ export default function DogaltasKayitPage() {
                     key={item.title}
                     type="button"
                     onClick={() => setAssignmentTitle(item.title)}
-                    className="flex w-full items-center justify-between rounded-2xl bg-white/86 px-4 py-3 text-left ring-1 ring-slate-100 transition hover:bg-cyan-50 hover:ring-cyan-100"
+                    className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-left transition hover:border-cyan-400/30 hover:bg-cyan-500/10"
                   >
                     <span className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-lg">{item.icon}</span>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-lg ring-1 ring-white/10">{item.icon}</span>
                       <span>
-                        <span className="block text-[13px] font-black text-slate-700">{item.title}</span>
-                        <span className="block text-[11px] font-medium text-slate-400">Düzenle / ekle</span>
+                        <span className="block text-sm font-bold text-white">{item.title}</span>
+                        <span className="block text-xs font-medium text-slate-400">Düzenle / ekle</span>
                       </span>
                     </span>
-                    <span className="text-slate-400">→</span>
+                    <span className="text-cyan-400">→</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[30px] bg-white/78 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.045)] ring-1 ring-white">
-              <h2 className="text-[18px] font-black text-slate-950">Çakra Atama</h2>
-              <p className="mt-1 text-[12px] text-slate-500">Desktop’taki checkbox yapısının web karşılığı.</p>
+            <div className={`${uiCard} p-5`}>
+              <div className="mb-4 flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/15 text-xl ring-1 ring-cyan-400/20">
+                  🌀
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Çakra Atama</h2>
+                  <p className="mt-0.5 text-sm text-slate-400">Desktop’taki checkbox yapısının web karşılığı.</p>
+                </div>
+              </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2.5">
                 {chakraOptions.map((chakra) => (
-                  <label key={chakra} className="flex cursor-pointer items-center gap-3 rounded-2xl bg-white/86 px-4 py-3 ring-1 ring-slate-100 transition hover:bg-cyan-50">
+                  <label key={chakra} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 transition hover:border-cyan-400/30 hover:bg-cyan-500/10">
                     <input
                       type="checkbox"
                       checked={selectedChakras.includes(chakra)}
                       onChange={() => toggleChakra(chakra)}
-                      className="h-4 w-4 accent-cyan-600"
+                      className="h-4 w-4 accent-cyan-500"
                     />
-                    <span className="text-[13px] font-bold text-slate-700">{chakra}</span>
+                    <span className="text-sm font-bold text-slate-200">{chakra}</span>
                   </label>
                 ))}
               </div>
@@ -713,18 +773,18 @@ export default function DogaltasKayitPage() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/70 bg-white/80 px-6 py-4 shadow-[0_-18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4">
-          <p className="text-[12px] font-bold text-slate-500">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/70 px-6 py-4 backdrop-blur-xl xl:px-10 2xl:px-14">
+        <div className="flex w-full items-center justify-between gap-4">
+          <p className="text-xs font-semibold text-slate-400">
             Değişiklikleri kaydetmeden çıkarsanız bu sayfadaki taslak bilgiler kaybolabilir.
           </p>
 
           <div className="flex items-center gap-3">
-            <button type="button" onClick={handleClear} className="rounded-2xl bg-white px-5 py-3 text-[13px] font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50">
+            <button type="button" onClick={handleClear} className="rounded-2xl bg-white/5 px-5 py-3 text-sm font-bold text-slate-200 ring-1 ring-white/10 transition hover:bg-white/10">
               Temizle
             </button>
 
-            <button type="button" onClick={handleCancel} className="rounded-2xl bg-white px-5 py-3 text-[13px] font-black text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50">
+            <button type="button" onClick={handleCancel} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/10">
               İptal
             </button>
 
@@ -732,7 +792,7 @@ export default function DogaltasKayitPage() {
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-2xl bg-slate-950 px-7 py-3 text-[13px] font-black text-white shadow-[0_16px_35px_rgba(15,23,42,0.13)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl bg-gradient-to-r from-cyan-500 to-violet-600 px-7 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? "Kaydediliyor..." : "Kaydet"}
             </button>
@@ -799,7 +859,7 @@ export default function DogaltasKayitPage() {
               <div className={activeAssignment.fields.length === 2 ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
                 {activeAssignment.fields.map((field, index) => (
                   <div key={field}>
-                    <label className="mb-1.5 block text-[12px] font-black text-slate-600">{field}</label>
+                    <label className={uiLabel}>{field}</label>
                     <input
                       type="text"
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
