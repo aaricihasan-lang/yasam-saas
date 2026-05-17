@@ -6,38 +6,27 @@ import {
   type AccessorySaleRecord,
   appendAccessorySales,
   calcLineAmounts as calcAccessoryLine,
-  deductAccessoryInventory,
-  formatStockDisplay as formatAccessoryStock,
-  formatVariantLabel,
   loadAccessoryInventory,
-  saveAccessoryInventory,
 } from "@/lib/urun-stok/accessoryStockLogic";
 import {
-  type InvItem,
   type SaleLine,
   type SaleRecord,
   appendSales as appendDogaltasSales,
-  deductInventoryForSales,
   fmtMoney,
   itemKey,
   loadInventory as loadDogaltasInventory,
-  saveInventory as saveDogaltasInventory,
   toFloat,
   turkishUpper,
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
   type OilInputUnit,
-  type OilItem,
   type OilSaleLine,
   type OilSaleRecord,
   appendOilSales,
   calcLineAmounts as calcOilLine,
-  deductOilInventory,
-  formatStockDisplay as formatOilStock,
   fmtUnitCost as fmtOilUnitCost,
   loadOilInventory,
-  saveOilInventory,
 } from "@/lib/urun-stok/oilStockLogic";
 import {
   type OtInputUnit,
@@ -45,26 +34,26 @@ import {
   type OtherSaleRecord,
   appendOtherSales,
   calcLineAmounts as calcOtherLine,
-  deductOtherInventory,
-  formatStockDisplay as formatOtherStock,
-  formatVariantLabel as formatOtherVariantLabel,
   fmtUnitCost as fmtOtherUnitCost,
   loadOtherInventory,
-  saveOtherInventory,
 } from "@/lib/urun-stok/otherStockLogic";
 import {
   type ScInputUnit,
-  type SoapCreamItem,
   type SoapCreamSaleLine,
   type SoapCreamSaleRecord,
   appendSoapCreamSales,
   calcLineAmounts as calcSoapLine,
-  deductSoapCreamInventory,
-  formatStockDisplay as formatSoapStock,
   fmtUnitCost as fmtSoapUnitCost,
   loadSoapCreamInventory,
-  saveSoapCreamInventory,
 } from "@/lib/urun-stok/soapCreamStockLogic";
+import {
+  INVENTORY_SOURCE_KEYS,
+  countCentralSalesInventory,
+  deductCentralInventory,
+  loadCentralSalesProducts,
+} from "@/lib/urun-stok/centralSalesCatalog";
+import { toCanonical as otherToCanonical } from "@/lib/urun-stok/otherStockLogic";
+import { toCanonical as oilToCanonical } from "@/lib/urun-stok/oilStockLogic";
 
 export const GENERAL_SALES_STORAGE_KEY = "general_sales_history_v1";
 export const STOCK_MOVEMENTS_STORAGE_KEY = "stock_movements_v1";
@@ -98,8 +87,10 @@ export const CATEGORY_LABELS: Record<ProductCategory, string> = {
 
 export type UnifiedProduct = {
   category: ProductCategory;
+  sourceKey: string;
   productId: string;
   name: string;
+  productGroup: string;
   subtitle: string;
   stockDisplay: string;
   stockAmount: number;
@@ -121,6 +112,7 @@ export type LiveInventoryCounts = Record<ProductCategory, number>;
 
 export type GeneralSaleLine = {
   category: ProductCategory;
+  sourceKey: string;
   productId: string;
   productName: string;
   productSubtitle: string;
@@ -150,124 +142,12 @@ export function unitsForMeasureType(measureType: string): ScInputUnit[] {
 }
 
 export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
-  const out: UnifiedProduct[] = [];
-
-  for (const it of loadDogaltasInventory()) {
-    const qty = it.adet || 0;
-    if (qty <= 0) continue;
-    const { unit } = unitCostAndCurrency(it, usdRate);
-    const costPerUnit = unit > 0 ? unit : it.adet_price || 0;
-    out.push({
-      category: "dogaltas",
-      productId: itemKey(it.name, it.type),
-      name: it.name,
-      subtitle: it.type,
-      stockDisplay: `${qty} adet`,
-      stockAmount: qty,
-      saleMode: "adet",
-      costPerUnit,
-      salePerUnit: costPerUnit,
-      profitPct: 100,
-      unitLabel: "adet",
-      photoCount: it.photos?.length ?? 0,
-      dogaltasStone: it.name,
-      dogaltasType: it.type,
-    });
-  }
-
-  for (const it of loadOilInventory()) {
-    if (it.stockBase <= 0) continue;
-    out.push({
-      category: "oil",
-      productId: it.id,
-      name: it.name,
-      subtitle: `${it.oilType} · ${it.measureType}`,
-      stockDisplay: formatOilStock(it),
-      stockAmount: it.stockBase,
-      saleMode: it.baseUnit === "adet" ? "adet" : "measure",
-      measureType: it.measureType,
-      saleUnits: unitsForMeasureType(it.measureType) as OilInputUnit[],
-      baseUnit: it.baseUnit,
-      costPerUnit: it.costPerBase,
-      salePerUnit: it.salePerBase,
-      profitPct: it.profitPct,
-      unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
-      photoCount: it.photos?.length ?? 0,
-    });
-  }
-
-  for (const it of loadSoapCreamInventory()) {
-    if (it.stockBase <= 0) continue;
-    out.push({
-      category: "soap_cream",
-      productId: it.id,
-      name: it.name,
-      subtitle: `${it.productGroup} · ${it.measureType}`,
-      stockDisplay: formatSoapStock(it),
-      stockAmount: it.stockBase,
-      saleMode: it.baseUnit === "adet" ? "adet" : "measure",
-      measureType: it.measureType,
-      saleUnits: unitsForMeasureType(it.measureType) as OilInputUnit[],
-      baseUnit: it.baseUnit,
-      costPerUnit: it.costPerBase,
-      salePerUnit: it.salePerBase,
-      profitPct: it.profitPct,
-      unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
-      photoCount: it.photos?.length ?? 0,
-    });
-  }
-
-  for (const it of loadAccessoryInventory()) {
-    if (it.stockQty <= 0) continue;
-    out.push({
-      category: "accessory",
-      productId: it.id,
-      name: it.name,
-      subtitle: formatVariantLabel(it),
-      stockDisplay: formatAccessoryStock(it),
-      stockAmount: it.stockQty,
-      saleMode: "adet",
-      costPerUnit: it.costPerUnit,
-      salePerUnit: it.salePerUnit,
-      profitPct: it.profitPct,
-      unitLabel: "adet",
-      photoCount: it.photos?.length ?? 0,
-    });
-  }
-
-  for (const it of loadOtherInventory()) {
-    if (it.stockBase <= 0) continue;
-    out.push({
-      category: "other",
-      productId: it.id,
-      name: it.name,
-      subtitle: formatOtherVariantLabel(it),
-      stockDisplay: formatOtherStock(it),
-      stockAmount: it.stockBase,
-      saleMode: it.baseUnit === "adet" ? "adet" : "measure",
-      measureType: it.measureType,
-      saleUnits: unitsForMeasureType(it.measureType) as OilInputUnit[],
-      baseUnit: it.baseUnit,
-      costPerUnit: it.costPerBase,
-      salePerUnit: it.salePerBase,
-      profitPct: it.profitPct,
-      unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
-      photoCount: it.photos?.length ?? 0,
-    });
-  }
-
-  return out;
+  return loadCentralSalesProducts(usdRate) as UnifiedProduct[];
 }
 
-/** Stoklu ürün sayıları — canlı envanter panellerinden */
+/** Stoklu ürün sayıları — normalize edilmiş canlı envanterden */
 export function countLiveInventoryByCategory(): LiveInventoryCounts {
-  return {
-    dogaltas: loadDogaltasInventory().filter((i) => (i.adet || 0) > 0).length,
-    oil: loadOilInventory().filter((i) => i.stockBase > 0).length,
-    soap_cream: loadSoapCreamInventory().filter((i) => i.stockBase > 0).length,
-    accessory: loadAccessoryInventory().filter((i) => i.stockQty > 0).length,
-    other: loadOtherInventory().filter((i) => i.stockBase > 0).length,
-  };
+  return countCentralSalesInventory();
 }
 
 function loadStockMovements(): StockMovementRecord[] {
@@ -323,9 +203,58 @@ export function filterUnifiedProducts(
   return list.filter(
     (p) =>
       p.name.toLowerCase().includes(ql) ||
+      p.productGroup.toLowerCase().includes(ql) ||
       p.subtitle.toLowerCase().includes(ql) ||
       CATEGORY_LABELS[p.category].toLowerCase().includes(ql),
   );
+}
+
+function measureSaleBaseQty(
+  product: UnifiedProduct,
+  saleQty: number,
+  saleUnit: string,
+): { saleBaseQty: number } | { error: string } {
+  if (product.saleMode === "adet") {
+    const qty = Math.floor(saleQty);
+    if (qty <= 0) return { error: "Satılacak adet 0'dan büyük olmalı." };
+    if (qty > product.stockAmount) {
+      return { error: `Yetersiz stok. Mevcut: ${product.stockDisplay}` };
+    }
+    return { saleBaseQty: qty };
+  }
+  const toCanon = product.category === "other" ? otherToCanonical : oilToCanonical;
+  const { amount: saleBaseQty, base } = toCanon(saleQty, saleUnit as OilInputUnit);
+  if (base !== product.baseUnit) {
+    return { error: "Satış birimi ürün ölçü tipi ile uyumlu değil." };
+  }
+  if (saleBaseQty <= 0) return { error: "Satılacak miktar 0'dan büyük olmalı." };
+  if (saleBaseQty > product.stockAmount) {
+    return { error: `Yetersiz stok. Mevcut: ${product.stockDisplay}` };
+  }
+  return { saleBaseQty };
+}
+
+function saleLineFromProduct(
+  product: UnifiedProduct,
+  saleQty: number,
+  saleUnit: string,
+  profitPct: number,
+  lineCost: number,
+  lineSale: number,
+  saleBaseQty: number,
+): GeneralSaleLine {
+  return {
+    category: product.category,
+    sourceKey: product.sourceKey,
+    productId: product.productId,
+    productName: product.name,
+    productSubtitle: product.subtitle,
+    saleQty,
+    saleUnit,
+    saleBaseQty,
+    lineCost,
+    lineSale,
+  };
 }
 
 export function fmtUnifiedUnitCost(p: UnifiedProduct): string {
@@ -353,98 +282,111 @@ export function calcUnifiedSale(
     const inv = loadDogaltasInventory().find(
       (i) => itemKey(i.name, i.type) === product.productId,
     );
-    if (!inv) return { error: "Ürün stokta bulunamadı." };
-    const { unit, warning } = unitCostAndCurrency(inv, usdRate);
-    if (warning) return { error: warning };
-    if (unit <= 0) return { error: "Birim maliyet hesaplanamadı." };
-    const lineCost = unit * qty;
+    if (inv) {
+      const { unit, warning } = unitCostAndCurrency(inv, usdRate);
+      if (warning) return { error: warning };
+      if (unit <= 0) return { error: "Birim maliyet hesaplanamadı." };
+      const lineCost = unit * qty;
+      const lineSale = lineCost * (1 + pct / 100);
+      return saleLineFromProduct(product, qty, "adet", pct, lineCost, lineSale, qty);
+    }
+    const lineCost = product.costPerUnit * qty;
     const lineSale = lineCost * (1 + pct / 100);
-    return {
-      category: "dogaltas",
-      productId: product.productId,
-      productName: product.name,
-      productSubtitle: product.subtitle,
-      saleQty: qty,
-      saleUnit: "adet",
-      saleBaseQty: qty,
-      lineCost,
-      lineSale,
-    };
+    return saleLineFromProduct(product, qty, "adet", pct, lineCost, lineSale, qty);
   }
 
   if (product.category === "oil") {
     const item = loadOilInventory().find((i) => i.id === product.productId);
-    if (!item) return { error: "Ürün stokta bulunamadı." };
-    const calc = calcOilLine(item, saleQty, saleUnit as OilInputUnit);
-    if ("error" in calc) return calc;
-    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
-    return {
-      category: "oil",
-      productId: product.productId,
-      productName: product.name,
-      productSubtitle: product.subtitle,
-      saleQty,
-      saleUnit,
-      saleBaseQty: calc.saleBaseQty,
-      lineCost: calc.lineCost,
-      lineSale,
-    };
+    if (item) {
+      const calc = calcOilLine(item, saleQty, saleUnit as OilInputUnit);
+      if ("error" in calc) return calc;
+      const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+      return saleLineFromProduct(
+        product,
+        saleQty,
+        saleUnit,
+        pct,
+        calc.lineCost,
+        lineSale,
+        calc.saleBaseQty,
+      );
+    }
+    const base = measureSaleBaseQty(product, saleQty, saleUnit);
+    if ("error" in base) return base;
+    const lineCost = product.costPerUnit * base.saleBaseQty;
+    const lineSale = pct > 0 ? lineCost * (1 + pct / 100) : product.salePerUnit * base.saleBaseQty;
+    return saleLineFromProduct(product, saleQty, saleUnit, pct, lineCost, lineSale, base.saleBaseQty);
   }
 
   if (product.category === "soap_cream") {
     const item = loadSoapCreamInventory().find((i) => i.id === product.productId);
-    if (!item) return { error: "Ürün stokta bulunamadı." };
-    const calc = calcSoapLine(item, saleQty, saleUnit as ScInputUnit);
-    if ("error" in calc) return calc;
-    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
-    return {
-      category: "soap_cream",
-      productId: product.productId,
-      productName: product.name,
-      productSubtitle: product.subtitle,
-      saleQty,
-      saleUnit,
-      saleBaseQty: calc.saleBaseQty,
-      lineCost: calc.lineCost,
-      lineSale,
-    };
+    if (item) {
+      const calc = calcSoapLine(item, saleQty, saleUnit as ScInputUnit);
+      if ("error" in calc) return calc;
+      const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+      return saleLineFromProduct(
+        product,
+        saleQty,
+        saleUnit,
+        pct,
+        calc.lineCost,
+        lineSale,
+        calc.saleBaseQty,
+      );
+    }
+    const base = measureSaleBaseQty(product, saleQty, saleUnit);
+    if ("error" in base) return base;
+    const lineCost = product.costPerUnit * base.saleBaseQty;
+    const lineSale = pct > 0 ? lineCost * (1 + pct / 100) : product.salePerUnit * base.saleBaseQty;
+    return saleLineFromProduct(product, saleQty, saleUnit, pct, lineCost, lineSale, base.saleBaseQty);
   }
 
   if (product.category === "other") {
     const item = loadOtherInventory().find((i) => i.id === product.productId);
-    if (!item) return { error: "Ürün stokta bulunamadı." };
-    const calc = calcOtherLine(item, saleQty, saleUnit as OtInputUnit);
-    if ("error" in calc) return calc;
-    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
-    return {
-      category: "other",
-      productId: product.productId,
-      productName: product.name,
-      productSubtitle: product.subtitle,
-      saleQty,
-      saleUnit,
-      saleBaseQty: calc.saleBaseQty,
-      lineCost: calc.lineCost,
-      lineSale,
-    };
+    if (item) {
+      const calc = calcOtherLine(item, saleQty, saleUnit as OtInputUnit);
+      if ("error" in calc) return calc;
+      const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+      return saleLineFromProduct(
+        product,
+        saleQty,
+        saleUnit,
+        pct,
+        calc.lineCost,
+        lineSale,
+        calc.saleBaseQty,
+      );
+    }
+    const base = measureSaleBaseQty(product, saleQty, saleUnit);
+    if ("error" in base) return base;
+    const lineCost = product.costPerUnit * base.saleBaseQty;
+    const lineSale = pct > 0 ? lineCost * (1 + pct / 100) : product.salePerUnit * base.saleBaseQty;
+    return saleLineFromProduct(product, saleQty, saleUnit, pct, lineCost, lineSale, base.saleBaseQty);
   }
 
   const item = loadAccessoryInventory().find((i) => i.id === product.productId);
-  if (!item) return { error: "Ürün stokta bulunamadı." };
-  const calc = calcAccessoryLine(item, saleQty);
-  if ("error" in calc) return calc;
-  const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
-  return {
-    category: "accessory",
-    productId: product.productId,
-    productName: product.name,
-    productSubtitle: product.subtitle,
-    saleQty: calc.saleQty,
-    saleUnit: "adet",
-    saleBaseQty: calc.saleQty,
-    lineCost: calc.lineCost,
-    lineSale,
-  };
+  if (item) {
+    const calc = calcAccessoryLine(item, saleQty);
+    if ("error" in calc) return calc;
+    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+    return saleLineFromProduct(
+      product,
+      calc.saleQty,
+      "adet",
+      pct,
+      calc.lineCost,
+      lineSale,
+      calc.saleQty,
+    );
+  }
+  const qty = Math.floor(saleQty);
+  if (qty <= 0) return { error: "Satılacak adet 0'dan büyük olmalı." };
+  if (qty > product.stockAmount) {
+    return { error: `Yetersiz stok. Mevcut: ${product.stockDisplay}` };
+  }
+  const lineCost = product.costPerUnit * qty;
+  const lineSale = pct > 0 ? lineCost * (1 + pct / 100) : product.salePerUnit * qty;
+  return saleLineFromProduct(product, qty, "adet", pct, lineCost, lineSale, qty);
 }
 
 export function loadGeneralSales(): GeneralSaleRecord[] {
@@ -498,7 +440,7 @@ function toOilSaleRecord(rec: GeneralSaleRecord): OilSaleRecord {
       return {
         productId: l.productId,
         productName: l.productName,
-        oilType: item?.oilType ?? "",
+        oilType: item?.oilType ?? l.productSubtitle.split(" · ")[0] ?? "",
         saleQty: l.saleQty,
         saleUnit: l.saleUnit as OilInputUnit,
         saleBaseQty: l.saleBaseQty,
@@ -525,7 +467,7 @@ function toSoapSaleRecord(rec: GeneralSaleRecord): SoapCreamSaleRecord {
       return {
         productId: l.productId,
         productName: l.productName,
-        productGroup: item?.productGroup ?? "",
+        productGroup: item?.productGroup ?? l.productSubtitle.split(" · ")[0] ?? "",
         saleQty: l.saleQty,
         saleUnit: l.saleUnit as ScInputUnit,
         saleBaseQty: l.saleBaseQty,
@@ -552,7 +494,7 @@ function toOtherSaleRecord(rec: GeneralSaleRecord): OtherSaleRecord {
       return {
         productId: l.productId,
         productName: l.productName,
-        productGroup: item?.productGroup ?? "",
+        productGroup: item?.productGroup ?? l.productSubtitle.split(" · ")[0] ?? "",
         saleQty: l.saleQty,
         saleUnit: l.saleUnit as OtInputUnit,
         saleBaseQty: l.saleBaseQty,
@@ -579,7 +521,7 @@ function toAccessorySaleRecord(rec: GeneralSaleRecord): AccessorySaleRecord {
       return {
         productId: l.productId,
         productName: l.productName,
-        productGroup: item?.productGroup ?? "",
+        productGroup: item?.productGroup ?? l.productSubtitle.split(" · ")[0] ?? "",
         saleQty: l.saleQty,
         lineCost: l.lineCost,
         lineSale: l.lineSale,
@@ -603,11 +545,24 @@ export function commitCentralSales(
 ): { ok: true } | { ok: false; error: string } {
   if (!basket.length) return { ok: false, error: "Sepet boş." };
 
-  let dogaltas = loadDogaltasInventory();
-  let oil = loadOilInventory();
-  let soap = loadSoapCreamInventory();
-  let accessory = loadAccessoryInventory();
-  let other = loadOtherInventory();
+  const deductMap = new Map<
+    string,
+    { category: ProductCategory; lines: { productId: string; saleBaseQty: number }[] }
+  >();
+
+  for (const rec of basket) {
+    for (const ln of rec.lines) {
+      const key = ln.sourceKey || INVENTORY_SOURCE_KEYS[ln.category];
+      const entry = deductMap.get(key) ?? { category: ln.category, lines: [] };
+      entry.lines.push({ productId: ln.productId, saleBaseQty: ln.saleBaseQty });
+      deductMap.set(key, entry);
+    }
+  }
+
+  for (const [sourceKey, { category, lines }] of deductMap) {
+    const deduct = deductCentralInventory(sourceKey, category, lines);
+    if (!deduct.ok) return deduct;
+  }
 
   const dogaltasBasket: SaleRecord[] = [];
   const oilBasket: OilSaleRecord[] = [];
@@ -616,60 +571,18 @@ export function commitCentralSales(
   const otherBasket: OtherSaleRecord[] = [];
 
   for (const rec of basket) {
-    const hasDog = rec.lines.some((l) => l.category === "dogaltas");
-    const hasOil = rec.lines.some((l) => l.category === "oil");
-    const hasSoap = rec.lines.some((l) => l.category === "soap_cream");
-    const hasAcc = rec.lines.some((l) => l.category === "accessory");
-    const hasOther = rec.lines.some((l) => l.category === "other");
-
-    if (hasDog) dogaltasBasket.push(toDogaltasSaleRecord(rec));
-    if (hasOil) oilBasket.push(toOilSaleRecord(rec));
-    if (hasSoap) soapBasket.push(toSoapSaleRecord(rec));
-    if (hasAcc) accessoryBasket.push(toAccessorySaleRecord(rec));
-    if (hasOther) otherBasket.push(toOtherSaleRecord(rec));
+    if (rec.lines.some((l) => l.category === "dogaltas")) dogaltasBasket.push(toDogaltasSaleRecord(rec));
+    if (rec.lines.some((l) => l.category === "oil")) oilBasket.push(toOilSaleRecord(rec));
+    if (rec.lines.some((l) => l.category === "soap_cream")) soapBasket.push(toSoapSaleRecord(rec));
+    if (rec.lines.some((l) => l.category === "accessory")) accessoryBasket.push(toAccessorySaleRecord(rec));
+    if (rec.lines.some((l) => l.category === "other")) otherBasket.push(toOtherSaleRecord(rec));
   }
 
-  if (dogaltasBasket.length) {
-    dogaltas = deductInventoryForSales(dogaltas, dogaltasBasket);
-    saveDogaltasInventory(dogaltas);
-    appendDogaltasSales(dogaltasBasket);
-  }
-
-  if (oilBasket.length) {
-    const deductLines = oilBasket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-    );
-    oil = deductOilInventory(oil, deductLines);
-    saveOilInventory(oil);
-    appendOilSales(oilBasket);
-  }
-
-  if (soapBasket.length) {
-    const deductLines = soapBasket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-    );
-    soap = deductSoapCreamInventory(soap, deductLines);
-    saveSoapCreamInventory(soap);
-    appendSoapCreamSales(soapBasket);
-  }
-
-  if (accessoryBasket.length) {
-    const deductLines = accessoryBasket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleQty: l.saleQty })),
-    );
-    accessory = deductAccessoryInventory(accessory, deductLines);
-    saveAccessoryInventory(accessory);
-    appendAccessorySales(accessoryBasket);
-  }
-
-  if (otherBasket.length) {
-    const deductLines = otherBasket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-    );
-    other = deductOtherInventory(other, deductLines);
-    saveOtherInventory(other);
-    appendOtherSales(otherBasket);
-  }
+  if (dogaltasBasket.length) appendDogaltasSales(dogaltasBasket);
+  if (oilBasket.length) appendOilSales(oilBasket);
+  if (soapBasket.length) appendSoapCreamSales(soapBasket);
+  if (accessoryBasket.length) appendAccessorySales(accessoryBasket);
+  if (otherBasket.length) appendOtherSales(otherBasket);
 
   void usdRate;
   appendGeneralSales(basket);

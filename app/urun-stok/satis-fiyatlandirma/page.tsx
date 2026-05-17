@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { loadAccessoryInventory } from "@/lib/urun-stok/accessoryStockLogic";
-import {
-  itemKey,
-  loadInventory as loadDogaltasInventory,
-} from "@/lib/urun-stok/dogaltasStockLogic";
+import { centralOptionLabel, filterCentralProducts } from "@/lib/urun-stok/centralSalesCatalog";
 import {
   CATEGORY_LABELS,
   type GeneralSaleRecord,
@@ -15,16 +11,12 @@ import {
   calcUnifiedSale,
   commitCentralSales,
   countLiveInventoryByCategory,
-  filterUnifiedProducts,
   fmtMoney,
   fmtUnifiedUnitCost,
   loadUnifiedProducts,
   toFloat,
   turkishUpper,
 } from "@/lib/urun-stok/generalSalesLogic";
-import { loadOilInventory } from "@/lib/urun-stok/oilStockLogic";
-import { loadOtherInventory } from "@/lib/urun-stok/otherStockLogic";
-import { loadSoapCreamInventory } from "@/lib/urun-stok/soapCreamStockLogic";
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(245,208,254,0.28),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(244,114,182,0.12),transparent_30%),linear-gradient(160deg,#fdf4ff_0%,#fff1f2_40%,#f5f3ff_100%)] text-slate-950";
@@ -45,37 +37,6 @@ const btnSecondary =
 
 function productKey(p: UnifiedProduct): string {
   return `${p.category}:${p.productId}`;
-}
-
-function optionLabel(p: UnifiedProduct): string {
-  return `${p.name} | ${CATEGORY_LABELS[p.category]} | Stok: ${p.stockDisplay}`;
-}
-
-function getProductPhotos(p: UnifiedProduct): string[] {
-  switch (p.category) {
-    case "dogaltas": {
-      const it = loadDogaltasInventory().find((i) => itemKey(i.name, i.type) === p.productId);
-      return it?.photos ?? [];
-    }
-    case "oil": {
-      const it = loadOilInventory().find((i) => i.id === p.productId);
-      return it?.photos ?? [];
-    }
-    case "soap_cream": {
-      const it = loadSoapCreamInventory().find((i) => i.id === p.productId);
-      return it?.photos ?? [];
-    }
-    case "accessory": {
-      const it = loadAccessoryInventory().find((i) => i.id === p.productId);
-      return it?.photos ?? [];
-    }
-    case "other": {
-      const it = loadOtherInventory().find((i) => i.id === p.productId);
-      return it?.photos ?? [];
-    }
-    default:
-      return [];
-  }
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
@@ -122,16 +83,16 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const [basket, setBasket] = useState<GeneralSaleRecord[]>([]);
 
   const filtered = useMemo(
-    () => filterUnifiedProducts(products, categoryFilter, search),
+    () => filterCentralProducts(products, categoryFilter, search),
     [products, categoryFilter, search],
   );
 
-  const picked = useMemo(
-    () => products.find((p) => productKey(p) === pickKey),
-    [products, pickKey],
-  );
+  const picked = useMemo(() => {
+    if (!pickKey) return undefined;
+    return filtered.find((p) => productKey(p) === pickKey) ?? products.find((p) => productKey(p) === pickKey);
+  }, [filtered, products, pickKey]);
 
-  const pickedPhotos = useMemo(() => (picked ? getProductPhotos(picked) : []), [picked]);
+  const pickedPhotos = useMemo(() => picked?.photos ?? [], [picked]);
 
   useEffect(() => {
     if (!pickKey) return;
@@ -336,15 +297,19 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 <option value="">— Ürün seçin —</option>
                 {filtered.map((p) => (
                   <option key={productKey(p)} value={productKey(p)}>
-                    {optionLabel(p)}
+                    {centralOptionLabel(p)}
                   </option>
                 ))}
               </select>
-              {products.length === 0 ? (
+              {categoryFilter !== "all" && filtered.length === 0 ? (
                 <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
                   Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
                 </p>
-              ) : filtered.length === 0 ? (
+              ) : products.length === 0 ? (
+                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
+                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+                </p>
+              ) : categoryFilter === "all" && filtered.length === 0 && products.length > 0 ? (
                 <p className="mt-2 text-sm font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
               ) : null}
             </label>
