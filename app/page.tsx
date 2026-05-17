@@ -266,8 +266,30 @@ export default function Home() {
 
   if (user) {
     return (
-      <main className="min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.16),transparent_35%),linear-gradient(135deg,#f8fbff,#eef6ff,#f8f1ff)] text-slate-900 antialiased">
-        <div className="mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
+      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.14),transparent_35%),linear-gradient(135deg,#f8fbff,#eef5ff,#f6f1ff)] text-slate-900 antialiased">
+        <div
+          className="pointer-events-none absolute left-[-120px] top-[-150px] h-[500px] w-[500px] rounded-full bg-indigo-400/15 blur-[150px]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute right-[-120px] top-[80px] h-[450px] w-[450px] rounded-full bg-cyan-300/15 blur-[150px]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-[-180px] right-[10%] h-[550px] w-[550px] rounded-full bg-fuchsia-400/10 blur-[160px]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(15,23,42,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.9) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+          aria-hidden
+        />
+
+        <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
           <div
             className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-8 text-white shadow-[0_28px_70px_rgba(79,70,229,0.30)] sm:px-8 sm:py-9 lg:py-10"
             aria-label="Uzman ve kurum profili"
