@@ -303,7 +303,11 @@ function loadSoapProducts(): CatalogProduct[] {
       costPerBase: p.costPerBase,
       salePerBase: p.salePerBase,
       profitPct: p.profitPct,
-      photos: p.photos,
+      packagingType: pickStr(r, "packagingType", "packageType", "package_type"),
+      netAmount: pickStr(r, "netAmount", "net_amount"),
+      expiryDate: pickStr(r, "expiryDate", "expireDate", "expire_date"),
+      lotNo: pickStr(r, "lotNo", "lot_no"),
+      photos: pickPhotos(r),
       note: pickStr(r, "note"),
     };
     out.push({
