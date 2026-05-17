@@ -20,27 +20,27 @@ export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
     <li>
       <Link
         href={`/numeroloji/liste/${row.id}`}
-        className="group relative block min-h-[7.5rem] overflow-hidden rounded-[28px] border border-white/75 bg-white/55 p-6 shadow-[0_14px_44px_rgba(15,23,42,0.08)] ring-1 ring-violet-100/45 no-underline backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-violet-300/70 hover:bg-white/80 hover:shadow-[0_22px_48px_-12px_rgba(91,33,182,0.22)] sm:min-h-[8rem] sm:p-8"
+        className="group relative block overflow-hidden rounded-[30px] border-[3px] border-violet-300/45 bg-white/80 p-7 no-underline shadow-[0_0_40px_rgba(139,92,246,0.14)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-fuchsia-400 hover:shadow-[0_0_50px_rgba(217,70,239,0.18)]"
       >
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-500/[0.06] via-transparent to-sky-500/[0.05] opacity-0 transition group-hover:opacity-100"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-500/[0.06] via-transparent to-fuchsia-500/[0.05] opacity-0 transition group-hover:opacity-100"
           aria-hidden
         />
-        <div className="relative flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">{adSoyad}</h2>
-          <span className="inline-flex shrink-0 items-center rounded-full border border-violet-200/85 bg-violet-50/90 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-violet-800 shadow-sm ring-1 ring-violet-100/70 transition group-hover:border-violet-300 group-hover:bg-violet-100 group-hover:text-violet-950 sm:px-5 sm:py-2.5 sm:text-sm">
-            Detay →
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-3xl font-black text-slate-950">{adSoyad}</h2>
+          <span className="inline-flex shrink-0 items-center rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-7 py-4 text-base font-black tracking-wide text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 group-hover:-translate-y-1">
+            DETAY
           </span>
         </div>
-        <p className="relative mt-3 text-base font-semibold text-slate-600 sm:mt-4 sm:text-lg">
+        <p className="relative mt-4 text-lg font-black text-slate-700">
           Doğum tarihi: {row.birth_date}
         </p>
         {summary ? (
-          <p className="relative mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-slate-600 sm:mt-4 sm:text-base">
+          <p className="relative mt-4 text-base font-semibold leading-8 text-slate-600 xl:text-lg">
             {summary}
           </p>
         ) : null}
-        <p className="relative mt-3 text-sm font-medium text-slate-500 sm:mt-4 sm:text-base">
+        <p className="relative mt-4 text-sm font-semibold text-slate-500 xl:text-base">
           Oluşturulma:{" "}
           {new Date(row.created_at).toLocaleString("tr-TR", {
             dateStyle: "medium",
