@@ -31,13 +31,25 @@ const refreshButtonClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-bold text-white shadow-lg ring-2 ring-violet-300/40 transition hover:brightness-105 xl:w-auto xl:shrink-0";
 
 const checkboxClass =
-  "size-6 cursor-pointer rounded-md border-2 border-violet-400/90 bg-white text-violet-600 shadow-sm ring-2 ring-violet-100/70 transition focus:ring-violet-500";
+  "h-6 w-6 cursor-pointer rounded-md border-2 border-violet-400/90 bg-white text-violet-600 shadow-sm ring-2 ring-violet-100/70 transition focus:ring-violet-500";
 
 const detayBtnClass =
-  "inline-flex items-center justify-center rounded-xl border-2 border-violet-500/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110 hover:shadow-md";
+  "inline-flex items-center justify-center rounded-2xl border-2 border-violet-500/90 bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-base font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md";
 
 const silBtnClass =
-  "inline-flex items-center justify-center rounded-xl border-2 border-rose-500/90 bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-2xl border-2 border-rose-500/90 bg-gradient-to-r from-rose-600 to-red-600 px-6 py-3 text-base font-black text-white shadow-sm transition hover:brightness-110 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+
+const tableThClass =
+  "border-y-2 border-violet-200/90 bg-violet-100/80 px-6 py-6 text-base font-black tracking-[0.12em] text-violet-800 xl:text-lg";
+
+const tableTdClass =
+  "min-h-[86px] border-y-2 border-violet-200/90 px-6 py-6 text-base font-semibold leading-7 text-slate-700 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 xl:text-lg";
+
+const bilgiKolonMetinClass =
+  "line-clamp-3 text-base font-medium leading-8 text-slate-700 xl:text-lg";
+
+const kayitTuruRozetClass =
+  "inline-block rounded-full px-5 py-2 text-sm font-black shadow-sm ring-1 xl:text-base";
 
 const secilileriSilBtnClass =
   "inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-rose-400/90 bg-gradient-to-r from-rose-600 to-red-700 px-6 py-2 text-base font-bold text-white shadow-lg ring-2 ring-rose-200/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:border-slate-300 disabled:from-slate-400 disabled:to-slate-500 disabled:text-slate-100 disabled:opacity-60 disabled:shadow-none";
@@ -306,7 +318,7 @@ export function BilgiKayitListesi() {
             <table className="w-full min-w-[960px] border-separate border-spacing-y-2 text-left">
               <thead>
                 <tr>
-                  <th className="w-16 rounded-l-2xl border-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 sm:px-6">
+                  <th className={`w-16 rounded-l-2xl border-2 border-violet-200/90 bg-violet-100/80 ${tableThClass}`}>
                     <div className="flex justify-center">
                       <input
                         type="checkbox"
@@ -317,19 +329,11 @@ export function BilgiKayitListesi() {
                       />
                     </div>
                   </th>
-                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
-                    Kayıt Türü
-                  </th>
-                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
-                    Analiz Türü
-                  </th>
-                  <th className="border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
-                    Değer
-                  </th>
-                  <th className="min-w-[220px] border-y-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
-                    Bilgi Kaynağı / Açıklama
-                  </th>
-                  <th className="rounded-r-2xl border-2 border-violet-200/90 bg-violet-100/80 px-4 py-5 text-right text-sm font-black uppercase tracking-wide text-violet-900 sm:px-6 sm:text-base">
+                  <th className={tableThClass}>Kayıt Türü</th>
+                  <th className={tableThClass}>Analiz Türü</th>
+                  <th className={tableThClass}>Değer</th>
+                  <th className={`min-w-[220px] ${tableThClass}`}>Bilgi Kaynağı / Açıklama</th>
+                  <th className={`rounded-r-2xl border-2 border-violet-200/90 bg-violet-100/80 text-right ${tableThClass}`}>
                     İşlemler
                   </th>
                 </tr>
@@ -339,7 +343,7 @@ export function BilgiKayitListesi() {
                   const secili = seciliIds.has(row.id);
                   return (
                   <tr key={row.id} className="group">
-                    <td className="rounded-l-2xl border-2 border-violet-200/90 bg-white/95 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 group-hover:bg-violet-50/90 sm:px-6">
+                    <td className="min-h-[86px] rounded-l-2xl border-2 border-violet-200/90 bg-white/95 px-6 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 group-hover:bg-violet-50/90">
                       <div className="flex justify-center">
                         <input
                           type="checkbox"
@@ -351,39 +355,37 @@ export function BilgiKayitListesi() {
                       </div>
                     </td>
                     <td
-                      className={`border-y-2 border-violet-200/90 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                      className={`${tableTdClass} ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
-                      <span
-                        className={`inline-block rounded-xl px-3 py-1.5 text-sm font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}
-                      >
+                      <span className={`${kayitTuruRozetClass} ${kayitTuruBadge(row.kayitTuru)}`}>
                         {kayitTuruLabel(row.kayitTuru)}
                       </span>
                     </td>
                     <td
-                      className={`border-y-2 border-violet-200/90 px-4 py-6 text-base font-semibold text-slate-900 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 sm:text-lg ${
+                      className={`${tableTdClass} ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
                       {row.analizTuru}
                     </td>
                     <td
-                      className={`border-y-2 border-violet-200/90 px-4 py-6 text-base font-medium text-slate-800 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 sm:text-lg ${
+                      className={`${tableTdClass} ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
                       {row.deger}
                     </td>
                     <td
-                      className={`max-w-md border-y-2 border-violet-200/90 px-4 py-6 text-base leading-relaxed text-slate-700 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                      className={`max-w-md ${tableTdClass} ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
-                      <span className="line-clamp-3">{row.bilgiVeyaAciklama}</span>
+                      <span className={bilgiKolonMetinClass}>{row.bilgiVeyaAciklama}</span>
                     </td>
                     <td
-                      className={`rounded-r-2xl border-2 border-violet-200/90 px-4 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 sm:px-6 ${
+                      className={`min-h-[86px] rounded-r-2xl border-2 border-violet-200/90 px-6 py-6 shadow-sm backdrop-blur-sm transition group-hover:border-violet-300 ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
@@ -411,7 +413,7 @@ export function BilgiKayitListesi() {
               </tbody>
             </table>
           </div>
-          <p className="border-t border-violet-100/90 px-6 py-4 text-sm font-medium text-slate-500">
+          <p className="border-t border-violet-100/90 px-6 py-4 text-base font-medium text-slate-500">
             {filtrelenmis.length} kayıt gösteriliyor
             {tumSatirlar.length !== filtrelenmis.length
               ? ` (toplam ${tumSatirlar.length})`

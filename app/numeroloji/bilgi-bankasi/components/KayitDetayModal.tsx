@@ -28,25 +28,28 @@ const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatM
 const modalFieldBase =
   "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
 
-const modalSelectClass = `h-16 ${modalFieldBase} text-lg`;
+const modalSelectClass = `h-16 ${modalFieldBase} px-6 text-lg font-semibold`;
 
-const modalInputClass = `h-16 ${modalFieldBase} text-lg placeholder:text-slate-400`;
+const modalInputClass = `h-16 ${modalFieldBase} px-6 text-lg font-semibold placeholder:text-slate-400`;
 
-const modalTextareaClass = `${modalFieldBase} min-h-[220px] resize-y py-5 text-lg leading-relaxed placeholder:text-slate-400`;
+const modalTextareaClass = `${modalFieldBase} min-h-[220px] resize-y rounded-2xl p-6 text-lg font-medium leading-9 text-slate-700 placeholder:text-slate-400 xl:text-xl`;
 
-const modalLabelClass = "mb-3 block text-base font-bold text-slate-800";
+const modalLabelClass = "mb-3 block text-base font-black text-slate-800 xl:text-lg";
 
 const modalReadonlyClass =
-  "mt-2 rounded-2xl border border-violet-100/90 bg-violet-50/30 px-5 py-4 text-lg leading-relaxed text-slate-800";
+  "mt-2 flex min-h-[4rem] items-center rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 px-6 text-lg font-semibold text-slate-800";
+
+const modalReadonlyAciklamaClass =
+  "mt-2 min-h-[220px] whitespace-pre-wrap rounded-2xl border-2 border-violet-200/90 bg-violet-50/30 p-6 text-lg font-medium leading-9 text-slate-700 xl:text-xl";
 
 const modalPrimaryBtn =
-  "inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-8 text-base font-black text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 xl:text-lg";
 
 const modalSecondaryBtn =
-  "inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 py-3 text-base font-black uppercase tracking-wide text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80";
+  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 text-base font-black text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80 xl:text-lg";
 
 const modalCloseBtn =
-  "inline-flex min-h-[3.25rem] shrink-0 items-center justify-center rounded-2xl border-2 border-slate-300/90 bg-slate-50 px-8 py-3 text-base font-black text-slate-800 shadow-md ring-2 ring-slate-200/60 transition hover:border-slate-400 hover:bg-white";
+  "inline-flex h-14 shrink-0 items-center justify-center rounded-2xl border-2 border-slate-300/90 bg-slate-50 px-8 text-base font-black text-slate-800 shadow-md ring-2 ring-slate-200/60 transition hover:border-slate-400 hover:bg-white xl:text-lg";
 
 type ModalFormState = {
   analizTuruKey: string;
@@ -258,17 +261,17 @@ export function KayitDetayModal({
         aria-label="Kapat"
         onClick={() => void requestClose()}
       />
-      <div className="relative z-10 flex max-h-[min(92vh,920px)] w-[92vw] max-w-[1100px] flex-col overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white shadow-2xl ring-1 ring-purple-200">
+      <div className="relative z-10 flex max-h-[88vh] min-h-[720px] w-[92vw] max-w-[1200px] flex-col overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white shadow-2xl ring-1 ring-purple-200">
         <div className="shrink-0 border-b border-violet-100/90 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/80 px-8 py-8 sm:px-12 sm:py-10">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-700/80">
                 Bilgi bankası
               </p>
-              <h2 id="bilgi-detay-baslik" className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h2 id="bilgi-detay-baslik" className="mt-2 text-4xl font-black tracking-tight text-slate-900 xl:text-5xl">
                 Kayıt detayı
               </h2>
-              <p className="mt-2 text-base font-medium text-slate-500 sm:text-lg">
+              <p className="mt-2 text-lg font-medium text-slate-600">
                 {editMode
                   ? "Kaydı düzenleyin ve Kaydet ile güncelleyin"
                   : "Kayıt bilgilerini görüntüleyin veya güncelleyin"}
@@ -285,7 +288,8 @@ export function KayitDetayModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8 sm:px-12 sm:py-10">
+        <div className="min-h-0 flex-1 overflow-hidden p-8 xl:p-10">
+          <div className="max-h-[calc(88vh-170px)] overflow-y-auto">
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
             <div>
               <label htmlFor="detay-analiz-turu" className={modalLabelClass}>
@@ -351,7 +355,7 @@ export function KayitDetayModal({
                       className={modalTextareaClass}
                     />
                   ) : (
-                    <div className={`${modalReadonlyClass} whitespace-pre-wrap`}>
+                    <div className={modalReadonlyAciklamaClass}>
                       {form.description.trim() || "—"}
                     </div>
                   )}
@@ -373,7 +377,7 @@ export function KayitDetayModal({
                       className={modalTextareaClass}
                     />
                   ) : (
-                    <div className={`${modalReadonlyClass} whitespace-pre-wrap`}>
+                    <div className={modalReadonlyAciklamaClass}>
                       {form.reason.trim() || "—"}
                     </div>
                   )}
@@ -410,6 +414,7 @@ export function KayitDetayModal({
                 </div>
               </>
             )}
+          </div>
           </div>
         </div>
 
