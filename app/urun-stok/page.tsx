@@ -6,6 +6,7 @@ const hubModules = [
     desc: "Doğaltaş, yağ, sabun, krem, tespih ve diğer tüm ürünleri tek listede görüntüleyin.",
     icon: "📋",
     accent: "from-violet-100 to-indigo-50 border-violet-200/80 ring-violet-100",
+    href: "/urun-stok/canli-stok",
   },
   {
     title: "Doğaltaş Ürün/Stok",
