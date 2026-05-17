@@ -1,9 +1,13 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   CalendarCheck,
+  CalendarClock,
   CalendarDays,
   CalendarRange,
+  ChartColumn,
+  Clock3,
   ContactRound,
   Shield,
   UsersRound,
@@ -11,21 +15,63 @@ import {
 
 const PLACEHOLDER = "—";
 
-const clientSummaryStats = [
-  { label: "Toplam Danışan", value: PLACEHOLDER },
-  { label: "Son Kayıt Tarihi", value: PLACEHOLDER },
-  { label: "Bu Ay Yeni Danışan", value: PLACEHOLDER },
-  { label: "Son 3 Ay Ortalaması", value: PLACEHOLDER },
-  { label: "Bu Yıl Toplam", value: PLACEHOLDER },
-] as const;
-
-const appointmentSummaryStats = [
-  { label: "Bu Ay Randevu", value: PLACEHOLDER },
-  { label: "En Yakın Randevu Tarihi", value: PLACEHOLDER },
-  { label: "Bu Hafta", value: PLACEHOLDER },
-  { label: "Bu Ay", value: PLACEHOLDER },
-  { label: "Bu Yıl Toplam", value: PLACEHOLDER },
-] as const;
+const summaryStatCards: {
+  label: string;
+  value: string;
+  Icon: LucideIcon;
+  cardBg: string;
+  iconWrap: string;
+  iconColor: string;
+}[] = [
+  {
+    label: "Toplam Danışan",
+    value: PLACEHOLDER,
+    Icon: UsersRound,
+    cardBg: "bg-gradient-to-br from-violet-50 to-violet-100/80",
+    iconWrap: "bg-violet-100",
+    iconColor: "text-violet-600",
+  },
+  {
+    label: "Son Kayıt",
+    value: PLACEHOLDER,
+    Icon: CalendarDays,
+    cardBg: "bg-gradient-to-br from-sky-50 to-blue-50/90",
+    iconWrap: "bg-sky-100",
+    iconColor: "text-sky-600",
+  },
+  {
+    label: "Bu Ay",
+    value: PLACEHOLDER,
+    Icon: Clock3,
+    cardBg: "bg-gradient-to-br from-cyan-50 to-teal-50/80",
+    iconWrap: "bg-cyan-100",
+    iconColor: "text-cyan-600",
+  },
+  {
+    label: "3 Ay Ortalama",
+    value: PLACEHOLDER,
+    Icon: ChartColumn,
+    cardBg: "bg-gradient-to-br from-orange-50 to-amber-50/70",
+    iconWrap: "bg-orange-100",
+    iconColor: "text-orange-600",
+  },
+  {
+    label: "Bu Hafta",
+    value: PLACEHOLDER,
+    Icon: Activity,
+    cardBg: "bg-gradient-to-br from-purple-50 to-violet-50/80",
+    iconWrap: "bg-purple-100",
+    iconColor: "text-purple-600",
+  },
+  {
+    label: "En Yakın Randevu",
+    value: PLACEHOLDER,
+    Icon: CalendarClock,
+    cardBg: "bg-gradient-to-br from-pink-50 to-rose-50/80",
+    iconWrap: "bg-pink-100",
+    iconColor: "text-pink-600",
+  },
+];
 
 const journeyFolders: {
   title: string;
@@ -44,8 +90,7 @@ const journeyFolders: {
     desc: "Danışan kayıtları, detaylar ve analiz işlemleri.",
     href: "/dashboard/clients",
     badge: "Kayıt & Detay",
-    cardGradient:
-      "bg-gradient-to-br from-violet-50/90 via-white/70 to-indigo-50/90",
+    cardGradient: "bg-gradient-to-br from-violet-50 via-white to-indigo-50",
     iconWrap: "bg-violet-100",
     iconColor: "text-violet-600",
     decorColor: "text-violet-500",
@@ -57,7 +102,7 @@ const journeyFolders: {
     desc: "Randevular, seans planlama ve günlük takip.",
     href: "/dashboard/ajanda",
     badge: "Takip & Plan",
-    cardGradient: "bg-gradient-to-br from-cyan-50/90 via-white/70 to-teal-50/90",
+    cardGradient: "bg-gradient-to-br from-cyan-50 via-white to-teal-50",
     iconWrap: "bg-cyan-100",
     iconColor: "text-teal-600",
     decorColor: "text-teal-500",
@@ -66,31 +111,25 @@ const journeyFolders: {
   },
 ];
 
-function StatBlock({
-  title,
-  items,
-}: {
-  title: string;
-  items: readonly { label: string; value: string }[];
-}) {
+function SummaryStatCard({
+  label,
+  value,
+  Icon,
+  cardBg,
+  iconWrap,
+  iconColor,
+}: (typeof summaryStatCards)[number]) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">
-        {title}
-      </h3>
-      <ul className="space-y-2.5">
-        {items.map((item) => (
-          <li
-            key={item.label}
-            className="flex items-center justify-between gap-4 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5"
-          >
-            <span className="text-sm font-semibold text-slate-600">{item.label}</span>
-            <span className="shrink-0 text-sm font-black tabular-nums text-slate-900">
-              {item.value}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div
+      className={`flex flex-col rounded-3xl border border-white/80 bg-white/80 p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] backdrop-blur-xl ${cardBg}`}
+    >
+      <div
+        className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${iconWrap}`}
+      >
+        <Icon className={`h-5 w-5 ${iconColor}`} strokeWidth={2} aria-hidden />
+      </div>
+      <p className="text-3xl font-black tabular-nums text-slate-900">{value}</p>
+      <p className="mt-2 text-xs text-slate-500">{label}</p>
     </div>
   );
 }
@@ -193,10 +232,9 @@ export default function DanisanYolculuguPage() {
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/85">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-900 lg:text-6xl">
+                <h1 className="mt-3 text-6xl font-black tracking-tight text-slate-900">
                   Danışan Yolculuğu
                 </h1>
-                <p className="mt-2 text-sm font-bold text-red-600">TEST UI UPDATE</p>
                 <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-600 lg:text-xl">
                   Danışan sürecinizi iki ana klasörde yönetin: kayıtlar ve detaylar ile
                   randevu ve günlük takip.
@@ -217,7 +255,7 @@ export default function DanisanYolculuguPage() {
                     <Link
                       key={folder.title}
                       href={folder.href}
-                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border border-white/80 p-10 shadow-[0_28px_75px_rgba(15,23,42,0.10)] ring-1 ring-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_35px_95px_rgba(79,70,229,0.18)] ${folder.cardGradient}`}
+                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border border-white/80 p-10 shadow-[0_28px_75px_rgba(15,23,42,0.10)] ring-1 ring-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_95px_rgba(79,70,229,0.18)] ${folder.cardGradient}`}
                     >
                       <DecorIcon
                         className={`pointer-events-none absolute -bottom-2 -right-2 h-40 w-40 ${folder.decorColor} opacity-[0.05]`}
@@ -257,15 +295,16 @@ export default function DanisanYolculuguPage() {
           </div>
 
           <aside className="lg:sticky lg:top-8">
-            <div className="rounded-[36px] border border-white/80 bg-white/60 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.12)] ring-1 ring-white/60 backdrop-blur-xl">
+            <div className="rounded-[36px] border border-white/80 bg-white/65 p-8 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <h2 className="text-2xl font-black text-slate-900">Genel Özet</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Danışan ve randevu süreçlerinizin anonim genel durumu.
               </p>
 
-              <div className="mt-8 space-y-8">
-                <StatBlock title="Danışan Özeti" items={clientSummaryStats} />
-                <StatBlock title="Randevu Özeti" items={appointmentSummaryStats} />
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                {summaryStatCards.map((stat) => (
+                  <SummaryStatCard key={stat.label} {...stat} />
+                ))}
               </div>
 
               <div className="mt-8 rounded-2xl border border-violet-100/80 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-5">
