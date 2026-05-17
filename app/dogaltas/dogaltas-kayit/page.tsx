@@ -37,7 +37,7 @@ const effectSections = [
     key: "other_effects",
     desc: "Ek bilgiler, gözlemler ve tamamlayıcı notlar.",
     icon: "📝",
-    accent: "amber",
+    accent: "orange",
   },
 ];
 
@@ -139,14 +139,14 @@ const emptyAssignmentInputs: AssignmentInputs = {
 };
 
 const uiCard =
-  "rounded-[30px] border-2 border-cyan-500/40 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 shadow-[0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-xl transition-all duration-300 hover:border-violet-500/60";
+  "rounded-[32px] border-[3px] border-cyan-400/70 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 bg-white/55 shadow-[0_0_35px_rgba(34,211,238,0.25)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01]";
 const uiInput =
-  "w-full h-16 rounded-2xl border-2 border-slate-200 bg-white/80 px-6 text-[17px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "w-full h-16 rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-6 text-[17px] text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiTextarea =
-  "w-full min-h-[170px] resize-none rounded-2xl border-2 border-slate-200 bg-white/80 px-6 py-5 text-[17px] leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "w-full min-h-[170px] resize-none rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-6 py-5 text-[17px] leading-relaxed text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiLabel = "mb-2 block text-[15px] font-bold text-slate-700";
 const uiPanel =
-  "rounded-3xl border border-slate-200 bg-white/80 shadow-md transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1";
+  "rounded-3xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 shadow-md transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1";
 const uiBtn =
   "inline-flex h-14 items-center justify-center rounded-2xl px-8 text-base font-black transition";
 
@@ -429,16 +429,16 @@ export default function DogaltasKayitPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-32 text-slate-950">
-      <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-300/20 blur-[140px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] bg-violet-300/20 blur-[140px]" />
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-32 text-slate-950">
+      <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-300/20 blur-[150px]" />
+      <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-violet-300/20 blur-[150px]" />
 
       <div className="relative w-full px-6 py-6 xl:px-10 2xl:px-14">
         <header className="mb-5 flex items-center justify-between gap-5">
           <div className="flex items-center gap-4">
             <Link
               href="/dogaltas"
-              className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-xl text-slate-800 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
+              className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 text-xl text-slate-800 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
             >
               ←
             </Link>
@@ -545,7 +545,7 @@ export default function DogaltasKayitPage() {
                   {images.length > 0 && (
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       {images.map((image) => (
-                        <div key={image.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div key={image.id} className="group relative overflow-hidden rounded-2xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 shadow-sm">
                           <button type="button" onClick={() => setPreviewImage(image)} className="block h-24 w-full">
                             <img src={image.url} alt={image.name} className="h-full w-full object-cover" />
                           </button>
@@ -605,12 +605,12 @@ export default function DogaltasKayitPage() {
             {effectSections.map((section) => (
               <div
                 key={section.title}
-                className={`${uiCard} flex min-h-[220px] flex-col border-l-[6px] p-5 hover:-translate-y-1 ${
+                className={`${uiCard} flex min-h-[220px] flex-col border-l-[8px] p-5 ${
                   section.accent === "cyan"
                     ? "border-l-cyan-500"
                     : section.accent === "violet"
                       ? "border-l-violet-500"
-                      : "border-l-amber-500"
+                      : "border-l-orange-500"
                 }`}
               >
                 <div className="mb-3 flex items-start gap-3">
@@ -620,7 +620,7 @@ export default function DogaltasKayitPage() {
                         ? "bg-cyan-50 ring-cyan-100"
                         : section.accent === "violet"
                           ? "bg-violet-50 ring-violet-100"
-                          : "bg-amber-50 ring-amber-100"
+                          : "bg-orange-50 ring-orange-100"
                     }`}
                   >
                     {section.icon}
@@ -785,7 +785,7 @@ export default function DogaltasKayitPage() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-6 py-4 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-10 2xl:px-14">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-6 py-4 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-10 2xl:px-14">
         <div className="flex w-full items-center justify-between gap-4">
           <p className="text-base font-semibold text-slate-600">
             Değişiklikleri kaydetmeden çıkarsanız bu sayfadaki taslak bilgiler kaybolabilir.
@@ -796,7 +796,7 @@ export default function DogaltasKayitPage() {
               Temizle
             </button>
 
-            <button type="button" onClick={handleCancel} className={`${uiBtn} border-2 border-slate-200 bg-white text-slate-800 hover:bg-slate-50`}>
+            <button type="button" onClick={handleCancel} className={`${uiBtn} border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 text-slate-800 hover:brightness-[1.02]`}>
               İptal
             </button>
 
@@ -833,7 +833,7 @@ export default function DogaltasKayitPage() {
               value={largeEditorValue}
               onChange={(event) => setLargeEditorValue(event.target.value)}
               placeholder="Notunuzu geniş ekranda yazın..."
-              className="min-h-0 flex-1 resize-none rounded-[24px] border border-slate-200 bg-slate-50/70 p-5 text-[15px] font-medium leading-7 text-slate-700 outline-none focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+              className="min-h-0 flex-1 resize-none rounded-[24px] border-2 border-cyan-300/50 bg-white/90 p-5 text-[15px] font-medium leading-7 text-slate-700 shadow-inner outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30"
               autoFocus
             />
 
@@ -877,7 +877,7 @@ export default function DogaltasKayitPage() {
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
                       onChange={(event) => updateAssignmentInput(activeAssignment.title, index, event.target.value)}
                       placeholder={`${field} yaz...`}
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 text-[14px] font-medium outline-none focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                      className="h-12 w-full rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30"
                     />
                   </div>
                 ))}
@@ -888,7 +888,7 @@ export default function DogaltasKayitPage() {
               </button>
             </div>
 
-            <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
+            <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4">
               <div className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500" : "grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500"}>
                 <span>{activeAssignment.fields[0]}</span>
                 {activeAssignment.fields.length === 2 && <span>{activeAssignment.fields[1]}</span>}
@@ -904,7 +904,7 @@ export default function DogaltasKayitPage() {
                   (assignmentRows[activeAssignment.title] || []).map((row, rowIndex) => (
                     <div
                       key={`${activeAssignment.title}-${rowIndex}`}
-                      className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] items-center rounded-2xl bg-white px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-slate-100" : "grid grid-cols-[1fr_90px] items-center rounded-2xl bg-white px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-slate-100"}
+                      className={activeAssignment.fields.length === 2 ? "grid grid-cols-[1fr_120px_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-cyan-200/60" : "grid grid-cols-[1fr_90px] items-center rounded-2xl bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-4 py-3 text-[13px] font-bold text-slate-700 ring-1 ring-cyan-200/60"}
                     >
                       <span>{row[0]}</span>
                       {activeAssignment.fields.length === 2 && <span>{row[1]}</span>}
