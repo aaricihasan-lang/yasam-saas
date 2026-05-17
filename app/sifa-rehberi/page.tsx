@@ -660,9 +660,12 @@ export default function SifaRehberiPage() {
               </p>
             </div>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 p-4 lg:grid-cols-[260px_1fr] lg:p-6">
-              <nav className="flex shrink-0 gap-2 overflow-x-auto pb-1 lg:w-64 lg:flex-col lg:overflow-y-auto lg:pb-0">
-                <div className="space-y-2 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-3 ring-1 ring-white/90">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 p-4 lg:grid-cols-[320px_1fr] lg:p-6">
+              <nav className="flex shrink-0 gap-2 overflow-x-auto pb-1 lg:w-[320px] lg:flex-col lg:overflow-y-auto lg:pb-0">
+                <div className="min-h-[760px] w-full min-w-[280px] space-y-6 rounded-[34px] border-[3px] border-emerald-300/40 bg-gradient-to-b from-emerald-50 via-cyan-50 to-white p-5 shadow-[0_0_45px_rgba(16,185,129,0.12)] lg:min-w-0">
+                  <div className="inline-flex rounded-full bg-emerald-100 px-4 py-2 font-black tracking-[0.2em] text-emerald-700">
+                    BÖLÜMLER
+                  </div>
                   {FORM_TABS.map((tab) => {
                     const active = formTab === tab.id;
                     return (
@@ -670,16 +673,16 @@ export default function SifaRehberiPage() {
                         key={tab.id}
                         type="button"
                         onClick={() => setFormTab(tab.id)}
-                        className={`flex h-14 w-full min-w-[200px] items-center gap-3 rounded-2xl px-6 text-left text-base font-black shadow-sm transition-all hover:scale-[1.02] lg:min-w-0 ${
+                        className={`flex h-[74px] w-full min-w-[260px] items-center justify-start gap-4 rounded-[22px] px-6 text-left text-lg font-black shadow-sm transition-all duration-300 hover:scale-[1.02] hover:translate-x-2 lg:min-w-0 ${
                           active
-                            ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
-                            : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
+                            ? "scale-[1.03] bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.30)]"
+                            : "border-2 border-emerald-100 bg-white/90 text-slate-800 hover:bg-emerald-50"
                         }`}
                       >
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-2xl leading-none">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[28px] leading-none">
                           {tab.icon}
                         </span>
-                        <span className="leading-tight">{tab.label}</span>
+                        <span className="leading-snug">{tab.label}</span>
                       </button>
                     );
                   })}
