@@ -158,10 +158,10 @@ function SummaryStatCard({
 }: (typeof summaryStatCards)[number]) {
   return (
     <div
-      className={`flex min-h-[112px] flex-col rounded-[22px] border p-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_22px_55px_rgba(79,70,229,0.16)] ${border} ${cardBg}`}
+      className={`group relative z-0 flex min-h-[112px] cursor-pointer flex-col rounded-[22px] border p-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:z-30 hover:-translate-y-2 hover:scale-[1.08] hover:shadow-[0_35px_80px_rgba(79,70,229,0.22)] ${border} ${cardBg}`}
     >
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-md ${iconBox}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${iconBox}`}
       >
         <Icon className="h-5 w-5" strokeWidth={2.25} aria-hidden />
       </div>
@@ -175,53 +175,35 @@ function SummaryStatCard({
 
 export default function DanisanYolculuguPage() {
   return (
-    <main className="relative min-h-screen bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-6 text-slate-900 antialiased lg:px-14">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -left-[240px] bottom-[-200px] h-[780px] w-[780px] rounded-full bg-blue-400/18 blur-[190px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-[220px] top-[-140px] h-[680px] w-[680px] rounded-full bg-pink-300/14 blur-[190px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-[36%] top-[22%] h-[560px] w-[560px] rounded-full bg-violet-300/12 blur-[175px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-10 top-24 h-24 w-24 rounded-full bg-white/35 backdrop-blur-sm"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-28 top-40 h-14 w-14 rounded-full bg-white/30 backdrop-blur-sm"
-        aria-hidden
-      />
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-6 text-slate-900 antialiased lg:px-14">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]" />
+        <div className="absolute -bottom-32 -left-32 h-[520px] w-[520px] rounded-full bg-blue-400/18 blur-[160px]" />
+        <div className="absolute -right-32 -top-24 h-[480px] w-[480px] rounded-full bg-pink-300/14 blur-[160px]" />
+        <div className="absolute left-[30%] top-[18%] h-[420px] w-[420px] rounded-full bg-violet-300/12 blur-[150px]" />
+        <div className="absolute left-8 top-20 h-20 w-20 rounded-full bg-white/35 backdrop-blur-sm" />
+        <div className="absolute left-24 top-32 h-12 w-12 rounded-full bg-white/30 backdrop-blur-sm" />
+        <svg
+          className="absolute bottom-0 left-0 h-20 w-full opacity-[0.08]"
+          viewBox="0 0 1440 100"
+          preserveAspectRatio="none"
+          fill="none"
+        >
+          <path
+            d="M0 72 C 280 28, 520 88, 760 48 C 1020 8, 1240 68, 1440 42 L 1440 100 L 0 100 Z"
+            fill="url(#journey-bottom-glow)"
+          />
+          <defs>
+            <linearGradient id="journey-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(99,102,241,0)" />
+              <stop offset="45%" stopColor="rgba(129,140,248,0.35)" />
+              <stop offset="100%" stopColor="rgba(217,70,239,0)" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
 
-      <svg
-        className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.08]"
-        viewBox="0 0 1440 100"
-        preserveAspectRatio="none"
-        fill="none"
-        aria-hidden
-      >
-        <path
-          d="M0 72 C 280 28, 520 88, 760 48 C 1020 8, 1240 68, 1440 42 L 1440 100 L 0 100 Z"
-          fill="url(#journey-bottom-glow)"
-        />
-        <defs>
-          <linearGradient id="journey-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(99,102,241,0)" />
-            <stop offset="45%" stopColor="rgba(129,140,248,0.35)" />
-            <stop offset="100%" stopColor="rgba(217,70,239,0)" />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      <div className="relative z-10 mx-auto max-w-[1760px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1760px]">
         <Link
           href="/"
           className={`inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-5 py-3 text-base font-bold text-slate-800 shadow-md hover:bg-white/90 hover:shadow-lg ${hoverLift}`}
@@ -303,16 +285,14 @@ export default function DanisanYolculuguPage() {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-6">
-            <div
-              className={`rounded-[36px] border border-white/80 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl ${hoverLift}`}
-            >
+          <aside className="min-w-0 lg:sticky lg:top-6">
+            <div className="rounded-[36px] border border-white/80 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <h2 className="text-3xl font-black text-slate-950">Genel Özet</h2>
               <p className="mt-1.5 text-sm font-medium leading-relaxed text-slate-600">
                 Danışan ve randevu süreçlerinizin anonim genel görünümü.
               </p>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 overflow-visible sm:grid-cols-2 lg:grid-cols-3">
                 {summaryStatCards.map((stat) => (
                   <SummaryStatCard key={stat.label} {...stat} />
                 ))}
