@@ -85,12 +85,18 @@ function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
           </span>
           <span
             className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
-              isActive
-                ? "border-cyan-200/90 bg-cyan-50 text-cyan-800"
-                : "border-slate-200/90 bg-white/90 text-slate-500"
+              typeof badge === "object" && badge !== null && "color" in badge
+                ? (badge as { color: string }).color
+                : isActive
+                  ? "border-cyan-200/90 bg-cyan-50 text-cyan-800"
+                  : "border-slate-200/90 bg-white/90 text-slate-500"
             }`}
           >
-            {badge}
+            {typeof badge === "string"
+              ? badge
+              : typeof badge === "object" && badge !== null && "text" in badge
+                ? (badge as { text: string }).text
+                : ""}
           </span>
         </div>
         <h3 className="mt-5 text-xl font-black leading-tight text-slate-900 sm:text-2xl">
