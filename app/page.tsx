@@ -3,6 +3,18 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import {
+  Archive,
+  Calendar,
+  Compass,
+  Gem,
+  Hash,
+  Leaf,
+  Rocket,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type User = {
@@ -14,13 +26,21 @@ type User = {
   status: string;
 };
 
+type ModuleTheme = {
+  accent: string;
+  border: string;
+  iconWrap: string;
+  surface: string;
+};
+
 type ModuleCard = {
   title: string;
-  icon: string;
   desc: string;
   count: string;
   badge: string;
   href: string;
+  Icon: LucideIcon;
+  theme: ModuleTheme;
 };
 
 type LandingModule = {
@@ -104,51 +124,87 @@ const featureItems: FeatureItem[] = [
 const dashboardModules: ModuleCard[] = [
   {
     title: "Danışan Yolculuğu",
-    icon: "🧭",
     desc: "Danışan kayıtları, randevu ve seans takibi tek merkezde",
     count: "Aktif",
     badge: "Ana Modül",
     href: "/danisan-yolculugu",
+    Icon: Compass,
+    theme: {
+      accent: "bg-blue-500",
+      border: "border-l-blue-500",
+      iconWrap: "from-blue-500 to-indigo-600",
+      surface: "from-blue-50/90 via-white to-white",
+    },
   },
   {
     title: "Doğaltaş",
-    icon: "💎",
     desc: "Taş, mineral ve danışan eşleştirmeleri",
     count: "Aktif",
     badge: "Modül",
     href: "/dogaltas",
+    Icon: Gem,
+    theme: {
+      accent: "bg-teal-500",
+      border: "border-l-teal-500",
+      iconWrap: "from-teal-500 to-cyan-600",
+      surface: "from-teal-50/90 via-white to-white",
+    },
   },
   {
     title: "Şifa Rehberi",
-    icon: "🌿",
     desc: "Rahatsızlık bazlı bütünsel destek rehberi",
     count: "Aktif",
     badge: "Modül",
     href: "/sifa-rehberi",
+    Icon: Leaf,
+    theme: {
+      accent: "bg-emerald-500",
+      border: "border-l-emerald-500",
+      iconWrap: "from-emerald-500 to-green-600",
+      surface: "from-emerald-50/90 via-white to-white",
+    },
   },
   {
     title: "Enerji & Beden",
-    icon: "⚡",
     desc: "Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları",
     count: "Aktif",
     badge: "Modül",
     href: "/enerji-beden",
+    Icon: Sparkles,
+    theme: {
+      accent: "bg-purple-500",
+      border: "border-l-purple-500",
+      iconWrap: "from-purple-500 to-fuchsia-600",
+      surface: "from-purple-50/90 via-white to-white",
+    },
   },
   {
     title: "Kişisel Arşiv",
-    icon: "🗂️",
     desc: "Ses, video, belge ve kişisel kayıt sistemi",
     count: "Aktif",
     badge: "YENİ",
     href: "/dashboard/kisisel-arsiv",
+    Icon: Archive,
+    theme: {
+      accent: "bg-orange-500",
+      border: "border-l-orange-500",
+      iconWrap: "from-orange-500 to-amber-600",
+      surface: "from-orange-50/90 via-white to-white",
+    },
   },
   {
     title: "Numeroloji",
-    icon: "🔢",
     desc: "Analiz, rapor ve kişisel yorum alanı",
     count: "Aktif",
     badge: "Plan",
     href: "/numeroloji",
+    Icon: Hash,
+    theme: {
+      accent: "bg-indigo-500",
+      border: "border-l-indigo-500",
+      iconWrap: "from-indigo-500 to-violet-600",
+      surface: "from-indigo-50/90 via-white to-white",
+    },
   },
 ];
 
@@ -228,168 +284,113 @@ export default function Home() {
 
   if (user) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          background:
-            "linear-gradient(135deg,#f7fbff 0%,#f5f1ff 45%,#f5fff8 100%)",
-          color: "#111827",
-          padding: 14,
-        }}
-      >
-        <section className="mx-auto w-[96vw] max-w-none px-4 md:px-6 xl:px-8">
-          <header
-            style={{
-              background: "rgba(255,255,255,0.86)",
-              border: "1px solid rgba(226,232,240,0.9)",
-              borderRadius: 22,
-              padding: 16,
-              boxShadow: "0 14px 34px rgba(15,23,42,0.055)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 14,
-              flexWrap: "wrap",
-            }}
-          >
+      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 text-slate-900 antialiased">
+        <div
+          className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-200/20 blur-[140px]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 right-0 h-[500px] w-[500px] bg-purple-300/20 blur-[140px]"
+          aria-hidden
+        />
+
+        <section className="relative z-10 mx-auto w-full max-w-[1800px] px-3 py-5 md:px-6 lg:px-8">
+          <header className="flex flex-wrap items-start justify-between gap-4 rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl md:p-8">
             <div>
-              <div
-                style={{
-                  display: "inline-flex",
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  background: "white",
-                  border: "1px solid #e5e7eb",
-                  color: "#64748b",
-                  fontSize: 11,
-                  fontWeight: 850,
-                  marginBottom: 8,
-                }}
-              >
+              <div className="mb-3 inline-flex rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-bold text-slate-600">
                 {todayText}
               </div>
-
-              <h1
-                style={{
-                  fontSize: 24,
-                  fontWeight: 950,
-                  margin: 0,
-                  letterSpacing: "-0.8px",
-                }}
-              >
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
                 Hoş geldin, {user.name} ✨
               </h1>
-
-              <p style={{ color: "#64748b", marginTop: 6, fontSize: 12 }}>
+              <p className="mt-2 text-base text-slate-600">
                 Çalışma alanlarını buradan yönetebilir, modüllere hızlıca geçebilirsin.
               </p>
             </div>
 
             <button
+              type="button"
               onClick={logout}
-              style={{
-                padding: "9px 13px",
-                borderRadius: 13,
-                border: "none",
-                background: "#111827",
-                color: "white",
-                fontWeight: 900,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800"
             >
               Çıkış Yap
             </button>
           </header>
 
-          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["👥", "Danışan", "Aktif", "Kayıt ve takip"],
-              ["📅", "Ajanda", "Aktif", "Randevu sistemi"],
-              ["💎", "Doğaltaş", "Aktif", "Modül hazır"],
-              ["🚀", "Sistem", "Online", "Web bağlantısı"],
-            ].map(([icon, title, value, desc]) => (
+              { Icon: Users, title: "Danışan", value: "Aktif", desc: "Kayıt ve takip" },
+              { Icon: Calendar, title: "Ajanda", value: "Aktif", desc: "Randevu sistemi" },
+              { Icon: Gem, title: "Doğaltaş", value: "Aktif", desc: "Modül hazır" },
+              { Icon: Rocket, title: "Sistem", value: "Online", desc: "Web bağlantısı" },
+            ].map(({ Icon, title, value, desc }) => (
               <div
                 key={title}
-                className="min-h-[130px] rounded-[18px] border border-slate-200/90 bg-white/85 p-6 shadow-[0_12px_28px_rgba(15,23,42,0.045)]"
+                className="min-h-[165px] rounded-3xl border border-white/80 bg-white/80 p-8 shadow-[0_12px_32px_rgba(15,23,42,0.05)] backdrop-blur-sm"
               >
-                <div className="text-xl">{icon}</div>
-                <div className="mt-2.5 text-base font-semibold text-slate-900">{value}</div>
-                <div className="mt-0.5 text-sm font-bold text-slate-800">{title}</div>
-                <div className="mt-1 text-sm text-slate-500">{desc}</div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 shadow-md">
+                  <Icon className="h-8 w-8 text-slate-700" strokeWidth={2} />
+                </div>
+                <div className="mt-4 text-xl font-bold text-slate-900">{value}</div>
+                <div className="mt-1 text-base font-semibold text-slate-800">{title}</div>
+                <div className="mt-1 text-base text-slate-500">{desc}</div>
               </div>
             ))}
           </div>
 
-          <section
-            style={{
-              marginTop: 14,
-              background: "rgba(255,255,255,0.84)",
-              border: "1px solid rgba(226,232,240,0.9)",
-              borderRadius: 22,
-              padding: 16,
-              boxShadow: "0 14px 34px rgba(15,23,42,0.055)",
-            }}
-          >
+          <section className="mt-8 rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl md:p-8">
             <div>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>
-                Modüller
-              </h2>
-
-              <p style={{ color: "#64748b", marginTop: 5, fontSize: 12 }}>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900">Modüller</h2>
+              <p className="mt-2 text-base text-slate-600">
                 Yaşam Sistemi içindeki ana çalışma alanları.
               </p>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-3">
               {dashboardModules.map((item) => {
                 const isReady = item.href !== "#";
+                const { Icon, theme } = item;
 
                 const card = (
                   <div
-                    className={`min-h-[170px] rounded-[18px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-[0_10px_24px_rgba(15,23,42,0.04)] md:p-7 ${
-                      isReady ? "cursor-pointer" : "cursor-default"
+                    className={`group relative min-h-[230px] overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-br p-8 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all duration-300 ${theme.surface} ${theme.border} border-l-4 ${
+                      isReady
+                        ? "cursor-pointer hover:-translate-y-2 hover:scale-[1.03] hover:shadow-2xl"
+                        : "cursor-default opacity-90"
                     }`}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ fontSize: 25 }}>{item.icon}</div>
+                    <div className={`absolute inset-x-8 top-0 h-1 rounded-full ${theme.accent}`} />
 
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 900,
-                          color: "#475569",
-                          background: "#f1f5f9",
-                          padding: "5px 8px",
-                          borderRadius: 999,
-                        }}
+                    <div className="flex items-start justify-between gap-3">
+                      <div
+                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.iconWrap} text-white shadow-md`}
                       >
+                        <Icon className="h-8 w-8" strokeWidth={2} />
+                      </div>
+
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                         {item.badge}
                       </span>
                     </div>
 
-                    <h3 className="mb-1.5 mt-3 text-xl font-bold text-slate-900">
-                      {item.title}
-                    </h3>
+                    <h3 className="mt-5 text-2xl font-bold text-slate-900">{item.title}</h3>
 
-                    <p className="m-0 text-sm leading-relaxed text-slate-500">
-                      {item.desc}
-                    </p>
+                    <p className="mt-2 text-base leading-relaxed text-slate-600">{item.desc}</p>
 
-                    <div className="mt-3 text-base font-semibold text-slate-900">
-                      {item.count}
+                    <div className="mt-5">
+                      <span className="inline-flex rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
+                        {item.count}
+                      </span>
                     </div>
                   </div>
                 );
 
                 return isReady ? (
-                  <Link key={item.title} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="block text-inherit no-underline"
+                  >
                     {card}
                   </Link>
                 ) : (
