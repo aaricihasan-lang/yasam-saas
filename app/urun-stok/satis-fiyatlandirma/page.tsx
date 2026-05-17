@@ -29,7 +29,7 @@ import { loadSoapCreamInventory } from "@/lib/urun-stok/soapCreamStockLogic";
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(245,208,254,0.28),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(244,114,182,0.12),transparent_30%),linear-gradient(160deg,#fdf4ff_0%,#fff1f2_40%,#f5f3ff_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14";
+const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14 pointer-events-auto";
 
 const panelClass =
   "w-full rounded-[28px] border-2 border-fuchsia-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -134,15 +134,18 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const pickedPhotos = useMemo(() => (picked ? getProductPhotos(picked) : []), [picked]);
 
   useEffect(() => {
-    if (!picked) return;
-    if (picked.saleMode === "measure" && picked.saleUnits?.length) {
-      if (!picked.saleUnits.includes(saleUnit as never)) setSaleUnit(picked.saleUnits[0]);
+    if (!pickKey) return;
+    const p = products.find((x) => productKey(x) === pickKey);
+    if (!p) return;
+    if (p.saleMode === "measure" && p.saleUnits?.length) {
+      if (!p.saleUnits.includes(saleUnit as never)) setSaleUnit(p.saleUnits[0]);
     } else {
       setSaleUnit("adet");
     }
-    setSaleLabel(`${picked.name} — ${CATEGORY_LABELS[picked.category]}`);
-    setProfitPct(String(picked.profitPct > 0 ? picked.profitPct : 100));
-  }, [picked]);
+    setSaleLabel(`${p.name} — ${CATEGORY_LABELS[p.category]}`);
+    setProfitPct(String(p.profitPct > 0 ? p.profitPct : 100));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca ürün değişince varsayılanları yükle
+  }, [pickKey, products]);
 
   const preview = useMemo(() => {
     if (!picked) return null;
@@ -180,7 +183,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       return;
     }
     const rec: GeneralSaleRecord = {
-      name: turkishUpper(saleLabel.trim() || picked.name),
+      name: turkishUpper((saleLabel.trim() || picked.name)),
       lines: [line],
       total_cost: line.lineCost,
       sale_price: line.lineSale,
@@ -223,7 +226,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-80 w-80 rounded-full bg-fuchsia-200/40 blur-3xl" />
         <div className="absolute right-0 top-16 h-96 w-96 rounded-full bg-pink-200/30 blur-3xl" />
       </div>
@@ -272,21 +275,15 @@ export default function MerkeziSatisFiyatlandirmaPage() {
           </p>
         ) : null}
 
-        <section className={`${panelClass} mb-2`}>
+        <section className={`${panelClass} relative z-20 mb-2`}>
           <h2 className="text-xl font-black text-fuchsia-900">Satış paneli</h2>
           <p className="mt-1 text-sm text-slate-600">
             Kategori filtreleyin, ürün seçin, miktar ve kâr oranı ile sepete ekleyin.
           </p>
         </section>
 
-        <div className="grid w-full gap-6 xl:grid-cols-[1.65fr_1fr]">
-          <section className={`${panelClass} space-y-6`}>
-            {products.length === 0 ? (
-              <p className="rounded-2xl border-2 border-dashed border-fuchsia-200 bg-fuchsia-50/50 px-4 py-8 text-center text-base font-semibold text-slate-600">
-                Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
-              </p>
-            ) : null}
-
+        <div className="relative z-20 grid w-full gap-6 xl:grid-cols-[1.65fr_1fr]">
+          <section className={`${panelClass} relative z-20 space-y-6 pointer-events-auto`}>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-black">Kategori</span>
@@ -297,7 +294,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     setCategoryFilter(e.target.value as ProductCategory | "all");
                     setPickKey("");
                   }}
-                  disabled={!products.length}
                 >
                   <option value="all">Tümü</option>
                   {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
@@ -327,7 +323,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Ürün adı, tür, grup, model…"
-                disabled={!products.length}
               />
             </label>
 
@@ -337,7 +332,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 className={inputClass}
                 value={pickKey}
                 onChange={(e) => setPickKey(e.target.value)}
-                disabled={!products.length}
               >
                 <option value="">— Ürün seçin —</option>
                 {filtered.map((p) => (
@@ -346,7 +340,11 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   </option>
                 ))}
               </select>
-              {products.length > 0 && filtered.length === 0 ? (
+              {products.length === 0 ? (
+                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
+                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+                </p>
+              ) : filtered.length === 0 ? (
                 <p className="mt-2 text-sm font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
               ) : null}
             </label>
@@ -408,8 +406,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               <input
                 className={inputClass}
                 value={saleLabel}
-                onChange={(e) => setSaleLabel(turkishUpper(e.target.value))}
-                disabled={!picked}
+                onChange={(e) => setSaleLabel(e.target.value)}
               />
             </label>
 
@@ -425,7 +422,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   min="0"
                   value={saleQty}
                   onChange={(e) => setSaleQty(e.target.value)}
-                  disabled={!picked}
                 />
               </label>
               {picked?.saleMode === "measure" ? (
@@ -435,7 +431,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     className={inputClass}
                     value={saleUnit}
                     onChange={(e) => setSaleUnit(e.target.value)}
-                    disabled={!picked}
                   >
                     {picked.saleUnits?.map((u) => (
                       <option key={u} value={u}>
@@ -452,7 +447,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   value={profitPct}
                   onChange={(e) => setProfitPct(e.target.value)}
                   placeholder="100"
-                  disabled={!picked}
                 />
               </label>
             </div>
@@ -478,13 +472,13 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               type="button"
               className={`${btnPrimary} w-full`}
               onClick={addToBasket}
-              disabled={!picked || !products.length}
+              disabled={!picked}
             >
               Sepete Ekle
             </button>
           </section>
 
-          <section className={`${panelClass} flex flex-col`}>
+          <section className={`${panelClass} relative z-20 flex flex-col`}>
             <h2 className="mb-4 text-xl font-black">Sepet</h2>
             <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto">
               {basket.length === 0 ? (
