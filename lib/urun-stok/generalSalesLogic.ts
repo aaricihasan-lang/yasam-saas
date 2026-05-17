@@ -104,6 +104,7 @@ export type UnifiedProduct = {
   profitPct: number;
   unitLabel: string;
   photoCount: number;
+  photos: string[];
   dogaltasStone?: string;
   dogaltasType?: string;
 };

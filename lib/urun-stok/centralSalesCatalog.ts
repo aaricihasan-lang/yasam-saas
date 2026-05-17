@@ -109,8 +109,7 @@ function pickNum(r: Record<string, unknown>, ...keys: string[]): number {
 }
 
 function pickPhotos(r: Record<string, unknown>): string[] {
-  const p = r.photos ?? r.images;
-  return Array.isArray(p) ? (p as string[]) : [];
+  return Array.isArray(r.photos) ? (r.photos as string[]) : Array.isArray(r.images) ? (r.images as string[]) : [];
 }
 
 function loadRawArray(storageKey: string): Record<string, unknown>[] {
