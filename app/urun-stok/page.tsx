@@ -51,9 +51,10 @@ const hubModules = [
   },
   {
     title: "Stok Hareketleri",
-    desc: "Giriş, çıkış ve satışa bağlı stok hareket geçmişi.",
+    desc: "Tüm ürün girişleri, satışlar, çıkışlar ve stok değişim geçmişi",
     icon: "📊",
     accent: "from-slate-100 to-zinc-50 border-slate-200/80 ring-slate-100",
+    href: "/urun-stok/stok-hareketleri",
   },
   {
     title: "Diğer Ürünler",
