@@ -1,19 +1,17 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
-  Calendar,
   Crown,
   Diamond,
   FolderArchive,
   Gem,
   Hash,
   Leaf,
-  Rocket,
   Sparkles,
   Star,
   UsersRound,
@@ -225,15 +223,6 @@ export default function Home() {
     });
   }, []);
 
-  const todayText = useMemo(() => {
-    return new Date().toLocaleDateString("tr-TR", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }, []);
-
   const handleLogin = async () => {
     if (!email || !password) {
       setMessage("Email ve şifre giriniz.");
@@ -279,110 +268,34 @@ export default function Home() {
   };
 
   if (user) {
-    const statusCards = [
-      {
-        Icon: UsersRound,
-        title: "Danışan",
-        value: "Aktif",
-        desc: "Kayıt ve takip",
-        iconWrap: "from-violet-500 to-indigo-600",
-      },
-      {
-        Icon: Calendar,
-        title: "Ajanda",
-        value: "Aktif",
-        desc: "Randevu sistemi",
-        iconWrap: "from-sky-500 to-blue-600",
-      },
-      {
-        Icon: Gem,
-        title: "Doğaltaş",
-        value: "Aktif",
-        desc: "Modül hazır",
-        iconWrap: "from-cyan-500 to-teal-600",
-      },
-      {
-        Icon: Rocket,
-        title: "Sistem",
-        value: "Online",
-        desc: "Web bağlantısı",
-        iconWrap: "from-orange-500 to-rose-600",
-      },
-    ] as const;
-
     return (
       <main className="min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.16),transparent_35%),linear-gradient(135deg,#f8fbff,#eef6ff,#f8f1ff)] text-slate-900 antialiased">
-        <div className="mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 py-4 lg:px-10 lg:py-5 xl:px-14">
-          <header className="relative shrink-0 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-r from-white/90 via-white/75 to-indigo-50/60 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl lg:p-5">
-            <div
-              className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-sky-300/25 blur-3xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute -bottom-12 left-1/3 h-28 w-28 rounded-full bg-violet-300/20 blur-3xl"
-              aria-hidden
-            />
-
-            <div className="relative flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 inline-flex rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                  {todayText}
-                </div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 lg:text-4xl">
-                  Hoş geldin, {user.name} ✨
-                </h1>
-                <p className="mt-1 hidden text-sm text-slate-600 sm:block">
-                  Çalışma alanlarını buradan yönetebilir, modüllere hızlıca geçebilirsin.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={logout}
-                className="shrink-0 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
-              >
-                Çıkış Yap
-              </button>
-            </div>
-          </header>
-
-          <div className="mt-3 grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
-            {statusCards.map(({ Icon, title, value, desc, iconWrap }) => (
-              <div
-                key={title}
-                className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/75 p-3.5 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-sm"
-              >
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${iconWrap} text-white shadow-lg`}
-                >
-                  <Icon className="h-6 w-6" strokeWidth={2.25} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-black text-slate-900">{value}</div>
-                  <div className="truncate text-xs font-bold text-slate-800">{title}</div>
-                  <div className="truncate text-[11px] text-slate-500">{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
+        <div className="mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
           <div
-            className="relative mt-3 w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-6 text-white shadow-[0_28px_70px_rgba(79,70,229,0.30)] sm:px-8 sm:py-7"
+            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-8 text-white shadow-[0_28px_70px_rgba(79,70,229,0.30)] sm:px-8 sm:py-9 lg:py-10"
             aria-label="Uzman ve kurum profili"
           >
             <div
-              className="pointer-events-none absolute -right-10 -top-8 h-36 w-36 rounded-full bg-white/10 blur-3xl"
+              className="pointer-events-none absolute -right-10 -top-8 h-40 w-40 animate-pulse rounded-full bg-white/15 blur-3xl"
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute bottom-0 left-1/4 h-24 w-48 rounded-full bg-fuchsia-300/15 blur-2xl"
+              className="pointer-events-none absolute bottom-0 left-1/4 h-28 w-56 animate-pulse rounded-full bg-fuchsia-300/20 blur-2xl [animation-delay:700ms]"
               aria-hidden
             />
 
-            <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={logout}
+              className="absolute right-4 top-4 z-10 rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md transition hover:bg-white/20 sm:right-6 sm:top-5"
+            >
+              Çıkış Yap
+            </button>
+
+            <div className="relative flex flex-col gap-7 pr-20 xl:flex-row xl:items-center xl:justify-between xl:pr-28">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div
-                  className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-4 border-yellow-300/80 bg-slate-950/80 text-6xl font-light text-yellow-200 shadow-2xl"
+                  className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-7xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-36 sm:w-36 sm:text-8xl"
                   aria-hidden
                 >
                   H
@@ -393,13 +306,15 @@ export default function Home() {
                     UZMAN PROFİLİ
                   </span>
 
-                  <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl lg:text-4xl">
+                  <h1 className="mt-3 text-2xl font-black leading-tight sm:text-3xl lg:text-[2.35rem] lg:leading-tight">
                     Bütüncül Yaşam Analiz Platformu
-                  </h2>
+                  </h1>
 
-                  <p className="mt-2 text-2xl font-black text-yellow-300">Hasan ARICI</p>
+                  <p className="mt-2 text-3xl font-black tracking-tight text-yellow-300 sm:text-4xl lg:text-[2.75rem]">
+                    Hasan ARICI
+                  </p>
 
-                  <p className="mt-1 text-sm font-medium text-white/85">
+                  <p className="mt-2 text-sm font-medium text-white/90 sm:text-base">
                     Doğaltaş • Enerji • Akademi
                   </p>
                 </div>
