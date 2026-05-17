@@ -33,6 +33,7 @@ const hubModules = [
     desc: "Tespih, bileklik, kolye ve aksesuar ürün stokları.",
     icon: "📿",
     accent: "from-amber-100 to-orange-50 border-amber-200/80 ring-amber-100",
+    href: "/urun-stok/aksesuar",
   },
   {
     title: "Satış & Fiyatlandırma",
