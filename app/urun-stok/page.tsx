@@ -40,6 +40,7 @@ const hubModules = [
     desc: "Sepet, kur, maliyet, kâr hesabı ve satış kaydı.",
     icon: "💰",
     accent: "from-fuchsia-100 to-pink-50 border-fuchsia-200/80 ring-fuchsia-100",
+    href: "/urun-stok/satis-fiyatlandirma",
   },
   {
     title: "Satış Geçmişi",
