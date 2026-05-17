@@ -76,7 +76,7 @@ function filledCount(mineral: MineralRecord) {
 }
 
 const uiHeaderCard =
-  "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/70 p-6 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
+  "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/70 px-6 py-10 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
 const uiFilterCard =
   "rounded-[28px] border-[3px] border-amber-300/40 bg-white/70 p-5 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
 const uiTableCard =
@@ -217,23 +217,25 @@ export default function MineralListesiPage() {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <Link
                 href="/dogaltas"
-                className="rounded-2xl border border-white/40 bg-white/60 px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400/60"
+                className="inline-flex h-14 items-center rounded-2xl border border-white/40 bg-white/60 px-7 text-base font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400/60"
               >
                 ← Geri
               </Link>
 
-              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
+              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-5 py-2 text-sm font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL LİSTESİ
               </span>
             </div>
 
-            <h1 className="text-4xl font-black tracking-tight text-slate-950">
-              Mineral Listesi
-            </h1>
+            <div className="space-y-4">
+              <h1 className="text-6xl font-black tracking-tight text-slate-950 xl:text-7xl">
+                Mineral Listesi
+              </h1>
 
-            <p className="mt-2 text-base font-medium text-slate-600">
-              Kayıtlı mineralleri arayın, seçin, detaylandırın veya düzenleyin.
-            </p>
+              <p className="mt-3 text-xl font-medium text-slate-600">
+                Kayıtlı mineralleri arayın, seçin, detaylandırın veya düzenleyin.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
