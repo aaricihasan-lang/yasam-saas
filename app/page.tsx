@@ -6,14 +6,11 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
-  Crown,
-  Diamond,
-  FolderArchive,
   ChartColumn,
+  FolderArchive,
   Gem,
   Leaf,
   Sparkles,
-  Star,
   UsersRound,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -292,8 +289,7 @@ export default function Home() {
               Çıkış Yap
             </button>
 
-            <div className="relative flex flex-col gap-7 pr-20 xl:flex-row xl:items-center xl:justify-between xl:pr-28">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <div className="relative flex flex-col gap-6 pr-20 sm:flex-row sm:items-center sm:gap-8 sm:pr-28">
                 <div
                   className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-7xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-36 sm:w-36 sm:text-8xl"
                   aria-hidden
@@ -302,11 +298,7 @@ export default function Home() {
                 </div>
 
                 <div className="min-w-0">
-                  <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95 backdrop-blur-sm">
-                    UZMAN PROFİLİ
-                  </span>
-
-                  <h1 className="mt-3 text-2xl font-black leading-tight sm:text-3xl lg:text-[2.35rem] lg:leading-tight">
+                  <h1 className="text-2xl font-black leading-tight sm:text-3xl lg:text-[2.35rem] lg:leading-tight">
                     Bütüncül Yaşam Analiz Platformu
                   </h1>
 
@@ -318,36 +310,6 @@ export default function Home() {
                     Doğaltaş • Enerji • Akademi
                   </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:max-w-[720px] xl:flex-1">
-                {[
-                  {
-                    Icon: Crown,
-                    title: "Aktif Uzman",
-                    desc: "Sistem yöneticisi",
-                  },
-                  {
-                    Icon: Diamond,
-                    title: "Premium Panel",
-                    desc: "Tüm modüllere erişim",
-                  },
-                  {
-                    Icon: Star,
-                    title: "Kişisel Marka Alanı",
-                    desc: "Size özel çalışma alanı",
-                  },
-                ].map(({ Icon, title, desc }) => (
-                  <div
-                    key={title}
-                    className="rounded-2xl border border-white/20 bg-white/15 p-4 backdrop-blur-xl sm:p-5"
-                  >
-                    <Icon className="mb-2 h-5 w-5 text-yellow-200" strokeWidth={2} aria-hidden />
-                    <p className="text-sm font-black leading-tight">{title}</p>
-                    <p className="mt-1 text-xs font-medium text-white/75">{desc}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
 
