@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
@@ -340,20 +340,18 @@ export default function ClientsPage() {
             </Field>
 
             <Field label="Doğum Tarihi">
-              <input
-                type="date"
+              <PremiumDatePicker
                 value={dogum}
-                onChange={(e) => setDogum(e.target.value)}
-                className={inputClassName}
+                onChange={setDogum}
+                inputClassName={inputClassName}
               />
             </Field>
 
             <Field label="Görüşme Tarihi">
-              <input
-                type="date"
+              <PremiumDatePicker
                 value={gorusme}
-                onChange={(e) => setGorusme(e.target.value)}
-                className={inputClassName}
+                onChange={setGorusme}
+                inputClassName={inputClassName}
               />
             </Field>
 
@@ -570,6 +568,234 @@ export default function ClientsPage() {
       )}
       </div>
     </main>
+  );
+}
+
+const MONTH_NAMES_TR = [
+  "Ocak",
+  "Şubat",
+  "Mart",
+  "Nisan",
+  "Mayıs",
+  "Haziran",
+  "Temmuz",
+  "Ağustos",
+  "Eylül",
+  "Ekim",
+  "Kasım",
+  "Aralık",
+] as const;
+
+const WEEKDAY_NAMES_TR = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
+
+function parseInputDate(value: string) {
+  if (!value) return null;
+  const parts = value.split("-");
+  if (parts.length !== 3) return null;
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!y || !m || !d) return null;
+  return { y, m, d };
+}
+
+function toInputDate(y: number, m: number, d: number) {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate();
+}
+
+function mondayFirstOffset(year: number, month: number) {
+  const day = new Date(year, month - 1, 1).getDay();
+  return (day + 6) % 7;
+}
+
+function PremiumDatePicker({
+  value,
+  onChange,
+  inputClassName,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  inputClassName: string;
+}) {
+  const today = todayForInput();
+  const parsedToday = parseInputDate(today);
+  const parsedValue = parseInputDate(value);
+
+  const initialYear = parsedValue?.y ?? parsedToday?.y ?? new Date().getFullYear();
+  const initialMonth = parsedValue?.m ?? parsedToday?.m ?? new Date().getMonth() + 1;
+
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(initialYear);
+  const [viewMonth, setViewMonth] = useState(initialMonth);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const parsed = parseInputDate(value);
+    if (parsed) {
+      setViewYear(parsed.y);
+      setViewMonth(parsed.m);
+    }
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  function goMonth(delta: number) {
+    let nextMonth = viewMonth + delta;
+    let nextYear = viewYear;
+    if (nextMonth < 1) {
+      nextMonth = 12;
+      nextYear -= 1;
+    } else if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    setViewMonth(nextMonth);
+    setViewYear(nextYear);
+  }
+
+  const leading = mondayFirstOffset(viewYear, viewMonth);
+  const totalDays = daysInMonth(viewYear, viewMonth);
+  const cells: Array<{ day: number; inMonth: boolean }> = [];
+
+  for (let i = 0; i < leading; i += 1) {
+    cells.push({ day: 0, inMonth: false });
+  }
+  for (let day = 1; day <= totalDays; day += 1) {
+    cells.push({ day, inMonth: true });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: 0, inMonth: false });
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`${inputClassName} flex items-center justify-between text-left`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <span className={value ? "text-slate-900" : "text-slate-400"}>
+          {value ? formatDateTR(value) : "Tarih seçin"}
+        </span>
+        <span className="text-lg text-indigo-500" aria-hidden>
+          📅
+        </span>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Tarih seçici"
+          className="absolute left-0 top-[calc(100%+10px)] z-50 w-[300px] origin-top-left scale-[1.35] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => goMonth(-1)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-all hover:scale-110 hover:bg-indigo-100"
+              aria-label="Önceki ay"
+            >
+              ‹
+            </button>
+            <p className="text-lg font-black text-slate-900">
+              {MONTH_NAMES_TR[viewMonth - 1]} {viewYear}
+            </p>
+            <button
+              type="button"
+              onClick={() => goMonth(1)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-all hover:scale-110 hover:bg-indigo-100"
+              aria-label="Sonraki ay"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="mb-2 grid grid-cols-7 gap-1">
+            {WEEKDAY_NAMES_TR.map((name) => (
+              <div
+                key={name}
+                className="flex h-8 items-center justify-center text-sm font-bold text-slate-500"
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((cell, index) => {
+              if (!cell.inMonth) {
+                return <div key={`empty-${index}`} className="h-10 w-10" />;
+              }
+
+              const cellValue = toInputDate(viewYear, viewMonth, cell.day);
+              const isSelected = value === cellValue;
+              const isToday = today === cellValue;
+
+              return (
+                <button
+                  key={cellValue}
+                  type="button"
+                  onClick={() => {
+                    onChange(cellValue);
+                    setOpen(false);
+                  }}
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl font-semibold transition-all hover:scale-110 hover:bg-indigo-100 ${
+                    isSelected
+                      ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg hover:from-indigo-500 hover:to-violet-500"
+                      : "text-slate-800"
+                  } ${isToday && !isSelected ? "border-2 border-indigo-300" : ""}`}
+                >
+                  {cell.day}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+              className="rounded-xl px-3 py-2 font-bold text-slate-600 transition-all hover:scale-110 hover:bg-indigo-100"
+            >
+              Temizle
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(today);
+                if (parsedToday) {
+                  setViewYear(parsedToday.y);
+                  setViewMonth(parsedToday.m);
+                }
+                setOpen(false);
+              }}
+              className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-2 font-bold text-white shadow-md transition-all hover:scale-110"
+            >
+              Bugün
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
