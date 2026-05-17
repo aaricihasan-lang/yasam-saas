@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MEASURE_TYPES,
   PRODUCT_GROUPS,
@@ -70,6 +70,56 @@ function unitsForMeasure(mt: OtMeasureType): OtInputUnit[] {
   if (mt === "Adet") return ["adet"];
   if (mt === "Gram / KG") return ["gram", "kg"];
   return ["ml", "litre"];
+}
+
+function normMeasureText(...parts: string[]): string {
+  return parts
+    .join(" ")
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Ürün grubu / ad / alt kategoriye göre başlangıç ölçü tipi */
+function inferMeasureType(productGroup: string, productName: string, subCategory: string): OtMeasureType {
+  const text = normMeasureText(productGroup, productName, subCategory);
+
+  const mlKeywords = ["ucucu yag", "sabit yag", "karisim yag"];
+  for (const k of mlKeywords) {
+    if (text.includes(k)) return "ML / Litre";
+  }
+  if (/\byag\b/.test(text)) return "ML / Litre";
+
+  const gramKeywords = ["tuz", "toz", "ham tas", "bitki", "kirik tas"];
+  for (const k of gramKeywords) {
+    if (text.includes(k)) return "Gram / KG";
+  }
+
+  const adetKeywords = [
+    "mutfak robotu",
+    "blender",
+    "kahve makinesi",
+    "telefon",
+    "kulaklik",
+    "elektronik",
+    "ic giyim",
+    "tisort",
+    "pantolon",
+    "sutyen",
+    "corap",
+    "mum",
+    "kupa",
+    "bardak",
+    "defter",
+  ];
+  for (const k of adetKeywords) {
+    if (text.includes(k)) return "Adet";
+  }
+
+  const group = normMeasureText(productGroup);
+  if (group === "giyim" || group === "ic giyim" || group === "ev urunu") return "Adet";
+
+  return "Adet";
 }
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
@@ -179,7 +229,8 @@ export default function DigerUrunStokPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState<string>(PRODUCT_GROUPS[0]);
-  const [measureType, setMeasureType] = useState<OtMeasureType>("Gram / KG");
+  const [measureType, setMeasureType] = useState<OtMeasureType>("Adet");
+  const measureTypeManualRef = useRef(false);
   const [stockQty, setStockQty] = useState("");
   const [inputUnit, setInputUnit] = useState<OtInputUnit>("gram");
   const [costTotal, setCostTotal] = useState("");
@@ -222,9 +273,17 @@ export default function DigerUrunStokPage() {
     if (!allowed.includes(inputUnit)) setInputUnit(allowed[0]);
   }, [measureType, inputUnit]);
 
+  useEffect(() => {
+    if (editId !== null || measureTypeManualRef.current) return;
+    setMeasureType(inferMeasureType(productGroup, name, subCategory));
+  }, [editId, productGroup, name, subCategory]);
+
   function resetForm() {
     setEditId(null);
+    measureTypeManualRef.current = false;
     setName("");
+    setProductGroup(PRODUCT_GROUPS[0]);
+    setMeasureType(inferMeasureType(PRODUCT_GROUPS[0], "", ""));
     setStockQty("");
     setCostTotal("");
     setSalePriceTotal("");
@@ -238,6 +297,7 @@ export default function DigerUrunStokPage() {
   }
 
   function loadToForm(it: OtherItem) {
+    measureTypeManualRef.current = true;
     setEditId(it.id);
     setName(it.name);
     setProductGroup(it.productGroup);
@@ -470,7 +530,10 @@ export default function DigerUrunStokPage() {
                   <select
                     className={inputClass}
                     value={measureType}
-                    onChange={(e) => setMeasureType(e.target.value as OtMeasureType)}
+                    onChange={(e) => {
+                      measureTypeManualRef.current = true;
+                      setMeasureType(e.target.value as OtMeasureType);
+                    }}
                   >
                     {MEASURE_TYPES.map((t) => (
                       <option key={t}>{t}</option>
