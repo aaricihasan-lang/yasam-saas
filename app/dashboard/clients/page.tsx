@@ -221,8 +221,12 @@ export default function ClientsPage() {
     router.push(`/dashboard/clients/${clientId}`);
   }
 
+  const inputClassName =
+    "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-emerald-300";
+
   return (
-    <main style={pageStyle}>
+    <main className="min-h-screen w-full bg-[linear-gradient(135deg,#eef5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-10 xl:px-14">
+      <div className="mx-auto w-full max-w-[1700px]">
       <header style={headerStyle}>
         <div>
           <div style={topBarStyle}>
@@ -268,7 +272,10 @@ export default function ClientsPage() {
         </div>
       </header>
 
-      <section style={mainTabsShellStyle}>
+      <section
+        style={mainTabsShellStyle}
+        className="transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+      >
         <div style={mainTabsBarStyle}>
           <button
             type="button"
@@ -313,28 +320,28 @@ export default function ClientsPage() {
       </section>
 
       {activeMainTab === "new" && (
-        <section style={newClientPanelStyle}>
-          <div style={newClientHeaderStyle}>
-            <div>
-              <div style={greenPillStyle}>Yeni Danışan Kaydı</div>
-              <h2 style={panelTitleStyle}>Danışanı Kaydet</h2>
-              <p style={panelSubTextStyle}>
-                Doğum tarihi girilince burç otomatik hesaplanır.
-              </p>
-            </div>
+        <section className="mb-8 rounded-[32px] border border-emerald-200/70 bg-white/75 p-8 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="mb-6">
+            <span className="inline-flex rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-black text-emerald-800">
+              Yeni Danışan Kaydı
+            </span>
+            <h2 className="mt-3 text-3xl font-black text-slate-950">Danışanı Kaydet</h2>
+            <p className="mt-2 text-base text-slate-600">
+              Doğum tarihi girilince burç otomatik hesaplanır.
+            </p>
           </div>
 
-          <div style={{ ...gridStyle, marginTop: 12 }}>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <Field label="Ad">
-              <input value={ad} onChange={(e) => setAd(e.target.value)} style={inputStyle} />
+              <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} />
             </Field>
 
             <Field label="Soyad">
-              <input value={soyad} onChange={(e) => setSoyad(e.target.value)} style={inputStyle} />
+              <input value={soyad} onChange={(e) => setSoyad(e.target.value)} className={inputClassName} />
             </Field>
 
             <Field label="Telefon">
-              <input value={telefon} onChange={(e) => setTelefon(e.target.value)} style={inputStyle} />
+              <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} />
             </Field>
 
             <Field label="Doğum Tarihi">
@@ -342,7 +349,7 @@ export default function ClientsPage() {
                 type="date"
                 value={dogum}
                 onChange={(e) => setDogum(e.target.value)}
-                style={inputStyle}
+                className={inputClassName}
               />
             </Field>
 
@@ -351,16 +358,20 @@ export default function ClientsPage() {
                 type="date"
                 value={gorusme}
                 onChange={(e) => setGorusme(e.target.value)}
-                style={inputStyle}
+                className={inputClassName}
               />
             </Field>
 
             <Field label="Burç (Otomatik)">
-              <input value={burc} disabled style={disabledInputStyle} />
+              <input
+                value={burc}
+                disabled
+                className={`${inputClassName} bg-slate-100 text-slate-700`}
+              />
             </Field>
 
             <Field label="Kan Grubu">
-              <select value={kan} onChange={(e) => setKan(e.target.value)} style={inputStyle}>
+              <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>
                 <option value="">Seçiniz</option>
                 <option>A Rh+</option>
                 <option>A Rh-</option>
@@ -374,7 +385,11 @@ export default function ClientsPage() {
             </Field>
 
             <Field label="Mizaç">
-              <select value={mizac} onChange={(e) => setMizac(e.target.value)} style={inputStyle}>
+              <select
+                value={mizac}
+                onChange={(e) => setMizac(e.target.value)}
+                className={inputClassName}
+              >
                 <option value="">Seçiniz</option>
                 <option value="safra">Safra</option>
                 <option value="sovdavi">Sovdavi</option>
@@ -384,15 +399,50 @@ export default function ClientsPage() {
             </Field>
           </div>
 
-          <button onClick={saveClient} disabled={saving} style={buttonStyle}>
+          <button
+            type="button"
+            onClick={saveClient}
+            disabled={saving}
+            className="mt-6 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-black text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
           </button>
+
+          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[24px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+              <p className="text-sm font-black text-emerald-800">Kayıt güvenliği</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Verileriniz güvenli şekilde saklanır.
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+              <p className="text-sm font-black text-violet-800">Otomatik burç hesaplama</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Doğum tarihinden burç otomatik belirlenir.
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+              <p className="text-sm font-black text-cyan-800">Danışan süreci</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Kayıt sonrası detay sayfasına geçebilirsiniz.
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+              <p className="text-sm font-black text-amber-800">Gizlilik</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Kişisel veriler yalnızca yetkili kullanımdadır.
+              </p>
+            </div>
+          </div>
         </section>
       )}
 
       {activeMainTab === "list" && (
         <>
-          <section style={panelStyle}>
+          <section
+            style={panelStyle}
+            className="transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+          >
             <div style={panelHeaderStyle}>
               <div>
                 <div style={bluePillStyle}>Arama & Filtreleme</div>
@@ -461,7 +511,10 @@ export default function ClientsPage() {
             </div>
           </section>
 
-          <section style={listPanelStyle}>
+          <section
+            style={listPanelStyle}
+            className="transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+          >
             <h2 style={sectionTitleStyle}>Danışan Listesi</h2>
 
             {loading ? (
@@ -520,6 +573,7 @@ export default function ClientsPage() {
           </section>
         </>
       )}
+      </div>
     </main>
   );
 }
@@ -532,286 +586,232 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label style={fieldStyle}>
-      <span style={labelStyle}>{label}</span>
+    <label className="flex flex-col gap-2">
+      <span className="text-sm font-black text-slate-700">{label}</span>
       {children}
     </label>
   );
 }
 
-const pageStyle: React.CSSProperties = {
-  padding: 14,
-  background: "linear-gradient(135deg,#f7fbff 0%,#f5f1ff 45%,#f5fff8 100%)",
-  minHeight: "100vh",
-  color: "#0f172a",
+const headerStyle: React.CSSProperties = {
+  marginBottom: 32,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 24,
+  alignItems: "flex-start",
+  flexWrap: "wrap",
 };
 
 const topBarStyle: React.CSSProperties = {
   display: "flex",
-  gap: 8,
+  gap: 12,
   alignItems: "center",
-  marginBottom: 10,
+  marginBottom: 16,
   flexWrap: "wrap",
 };
 
 const backButtonStyle: React.CSSProperties = {
   textDecoration: "none",
-  background: "white",
+  background: "rgba(255,255,255,0.85)",
   color: "#0f172a",
-  border: "1px solid #e2e8f0",
-  borderRadius: 999,
-  padding: "7px 11px",
-  fontSize: 11,
-  fontWeight: 900,
-  boxShadow: "0 8px 18px rgba(15,23,42,0.04)",
-};
-
-const headerStyle: React.CSSProperties = {
-  marginBottom: 10,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 10,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
-};
-
-const headerStatsStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 8,
-  alignItems: "center",
-  flexWrap: "wrap",
-};
-
-const statCardStyle: React.CSSProperties = {
-  minWidth: 78,
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: 15,
-  padding: "8px 10px",
-  boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
-};
-
-const statNumberStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 15,
-  fontWeight: 950,
-  color: "#0f172a",
-  lineHeight: 1,
-};
-
-const statLabelStyle: React.CSSProperties = {
-  display: "block",
-  marginTop: 4,
-  color: "#64748b",
-  fontSize: 10,
-  fontWeight: 850,
-  textTransform: "uppercase",
-  letterSpacing: 0.4,
+  border: "1px solid rgba(255,255,255,0.8)",
+  borderRadius: 16,
+  padding: "12px 20px",
+  fontSize: 16,
+  fontWeight: 700,
+  boxShadow: "0 4px 14px rgba(15,23,42,0.08)",
 };
 
 const refreshButtonStyle: React.CSSProperties = {
   border: "none",
   background: "#0f172a",
   color: "white",
-  padding: "7px 11px",
-  borderRadius: 999,
-  fontWeight: 900,
-  fontSize: 11,
+  padding: "12px 20px",
+  borderRadius: 16,
+  fontWeight: 700,
+  fontSize: 16,
   cursor: "pointer",
+  boxShadow: "0 4px 14px rgba(15,23,42,0.12)",
 };
 
 const titleStyle: React.CSSProperties = {
-  fontSize: 24,
-  fontWeight: 950,
+  fontSize: 48,
+  fontWeight: 900,
   margin: 0,
-  letterSpacing: "-0.6px",
+  letterSpacing: "-0.02em",
+  color: "#020617",
 };
 
 const subtitleStyle: React.CSSProperties = {
-  marginTop: 5,
+  marginTop: 12,
+  color: "#475569",
+  fontSize: 18,
+  lineHeight: 1.5,
+};
+
+const headerStatsStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 16,
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+
+const statCardStyle: React.CSSProperties = {
+  minWidth: 120,
+  background: "rgba(255,255,255,0.85)",
+  border: "1px solid rgba(255,255,255,0.8)",
+  borderRadius: 16,
+  padding: "16px 20px",
+  boxShadow: "0 4px 14px rgba(15,23,42,0.08)",
+  textAlign: "center",
+};
+
+const statNumberStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 28,
+  fontWeight: 900,
+  color: "#0f172a",
+  lineHeight: 1,
+};
+
+const statLabelStyle: React.CSSProperties = {
+  display: "block",
+  marginTop: 6,
   color: "#64748b",
-  fontSize: 12,
+  fontSize: 13,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
 };
 
 const mainTabsShellStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.86)",
-  border: "1px solid #e2e8f0",
-  borderRadius: 16,
-  padding: 8,
-  marginBottom: 10,
-  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
+  background: "rgba(255,255,255,0.75)",
+  border: "1px solid rgba(255,255,255,0.8)",
+  borderRadius: 28,
+  padding: 12,
+  marginBottom: 32,
+  boxShadow: "0 20px 60px rgba(15,23,42,0.08)",
+  backdropFilter: "blur(12px)",
 };
 
 const mainTabsBarStyle: React.CSSProperties = {
   display: "flex",
-  gap: 8,
+  gap: 12,
   flexWrap: "wrap",
 };
 
 const mainTabButtonStyle: React.CSSProperties = {
   border: "1px solid",
-  padding: "8px 11px",
-  borderRadius: 13,
-  fontSize: 11,
-  fontWeight: 950,
+  padding: "12px 24px",
+  borderRadius: 16,
+  fontSize: 16,
+  fontWeight: 700,
   cursor: "pointer",
-  transition: "0.18s ease",
+  transition: "all 0.3s ease",
+  boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
 };
 
 const panelStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.88)",
-  padding: 13,
-  borderRadius: 16,
-  marginBottom: 10,
-  border: "1px solid #e2e8f0",
-  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
-};
-
-const newClientPanelStyle: React.CSSProperties = {
-  background: "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,244,0.95))",
-  padding: 13,
-  borderRadius: 16,
-  marginBottom: 18,
-  border: "1px solid #bbf7d0",
-  boxShadow: "0 10px 24px rgba(22,163,74,0.08)",
+  background: "rgba(255,255,255,0.75)",
+  padding: 32,
+  borderRadius: 32,
+  marginBottom: 32,
+  border: "1px solid rgba(255,255,255,0.8)",
+  boxShadow: "0 25px 70px rgba(15,23,42,0.08)",
+  backdropFilter: "blur(12px)",
 };
 
 const panelHeaderStyle: React.CSSProperties = {
-  marginBottom: 12,
-};
-
-const newClientHeaderStyle: React.CSSProperties = {
-  marginBottom: 10,
+  marginBottom: 24,
 };
 
 const bluePillStyle: React.CSSProperties = {
   display: "inline-flex",
   background: "#dbeafe",
   color: "#1d4ed8",
-  padding: "5px 10px",
+  padding: "6px 14px",
   borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 950,
-};
-
-const greenPillStyle: React.CSSProperties = {
-  display: "inline-flex",
-  background: "#dcfce7",
-  color: "#15803d",
-  padding: "5px 10px",
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 950,
+  fontSize: 14,
+  fontWeight: 800,
 };
 
 const panelTitleStyle: React.CSSProperties = {
-  margin: "6px 0 2px",
-  fontSize: 15,
-  fontWeight: 950,
+  margin: "12px 0 8px",
+  fontSize: 30,
+  fontWeight: 900,
+  color: "#020617",
 };
 
 const panelSubTextStyle: React.CSSProperties = {
   margin: 0,
-  color: "#64748b",
-  fontSize: 11,
+  color: "#475569",
+  fontSize: 16,
+  lineHeight: 1.5,
 };
 
 const listPanelStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.9)",
-  padding: 13,
-  borderRadius: 16,
-  border: "1px solid #e2e8f0",
-  boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
+  background: "rgba(255,255,255,0.75)",
+  padding: 32,
+  borderRadius: 32,
+  border: "1px solid rgba(255,255,255,0.8)",
+  boxShadow: "0 25px 70px rgba(15,23,42,0.08)",
+  backdropFilter: "blur(12px)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 15,
+  fontSize: 28,
   fontWeight: 900,
   marginTop: 0,
-  marginBottom: 12,
+  marginBottom: 20,
+  color: "#020617",
 };
 
 const filterGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-  gap: 8,
-};
-
-const gridStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-  gap: 8,
-};
-
-const fieldStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 5,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 850,
-  color: "#334155",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 20,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "8px 10px",
-  borderRadius: 11,
-  border: "1px solid #d8dee9",
-  fontSize: 11,
+  height: 56,
+  padding: "0 16px",
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  fontSize: 16,
   outline: "none",
   background: "white",
   boxSizing: "border-box",
 };
 
-const disabledInputStyle: React.CSSProperties = {
-  ...inputStyle,
-  background: "#f1f5f9",
-  color: "#334155",
-};
-
-const buttonStyle: React.CSSProperties = {
-  marginTop: 14,
-  background: "#16a34a",
-  color: "white",
-  border: "none",
-  padding: "9px 13px",
-  borderRadius: 13,
-  fontWeight: 900,
-  fontSize: 11,
-  cursor: "pointer",
-  boxShadow: "0 8px 18px rgba(22,163,74,0.18)",
-};
-
 const emptyStyle: React.CSSProperties = {
-  padding: 12,
-  borderRadius: 14,
+  padding: 24,
+  borderRadius: 20,
   background: "#f8fafc",
   color: "#475569",
-  fontSize: 12,
+  fontSize: 16,
 };
 
 const loadingStyle: React.CSSProperties = {
   color: "#475569",
-  fontSize: 12,
-  fontWeight: 800,
+  fontSize: 16,
+  fontWeight: 700,
 };
 
 const cardsStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-  gap: 8,
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+  gap: 20,
 };
 
 const cardStyle: React.CSSProperties = {
-  padding: 10,
-  borderRadius: 14,
+  padding: 24,
+  borderRadius: 24,
   background: "white",
   border: "1px solid #e2e8f0",
   cursor: "pointer",
-  transition: "0.2s",
+  transition: "all 0.3s ease",
+  boxShadow: "0 12px 34px rgba(15,23,42,0.06)",
 };
 
 const cardHeaderStyle: React.CSSProperties = {
@@ -823,38 +823,38 @@ const cardHeaderStyle: React.CSSProperties = {
 };
 
 const cardNameStyle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 950,
+  fontSize: 22,
+  fontWeight: 900,
 };
 
 const expiredPillStyle: React.CSSProperties = {
   background: "#fee2e2",
   color: "#dc2626",
-  padding: "7px 9px",
+  padding: "8px 12px",
   borderRadius: 999,
-  fontSize: 10,
-  fontWeight: 950,
+  fontSize: 13,
+  fontWeight: 800,
   whiteSpace: "nowrap",
 };
 
 const detailBadgeStyle: React.CSSProperties = {
   background: "#e0f2fe",
   color: "#0369a1",
-  padding: "7px 11px",
+  padding: "10px 16px",
   borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 950,
+  fontSize: 14,
+  fontWeight: 800,
   whiteSpace: "nowrap",
 };
 
 const cardFooterStyle: React.CSSProperties = {
-  marginTop: 14,
+  marginTop: 16,
   display: "flex",
   justifyContent: "flex-end",
 };
 
 const cardMetaStyle: React.CSSProperties = {
-  marginTop: 4,
+  marginTop: 8,
   color: "#475569",
-  fontSize: 11,
+  fontSize: 15,
 };
