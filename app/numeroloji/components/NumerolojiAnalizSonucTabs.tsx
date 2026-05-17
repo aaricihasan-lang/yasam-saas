@@ -40,9 +40,9 @@ function OzetRow({ label, value }: { label: string; value: string }) {
 function OzetSectionCard({ title, children }: { title: string; children: ReactNode }) {
   const typo = useContentTypography();
   return (
-    <div className={`rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
-      <h3 className="text-2xl font-black text-slate-950">{title}</h3>
-      <div className="mt-4">{children}</div>
+    <div className={`min-w-0 border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
+      <h3 className="text-lg font-black tracking-wide text-slate-950">{title}</h3>
+      <div className="mt-4 w-full min-w-0">{children}</div>
     </div>
   );
 }
@@ -115,8 +115,8 @@ function CakraEnerjiDaireleri({
 
 function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   return (
-    <section className="col-span-full w-full rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 p-6 shadow-[0_0_32px_rgba(139,92,246,0.10)] xl:p-7">
-      <h3 className="text-2xl font-black text-slate-950">Çakra Sütunu & Çakra Omurgası</h3>
+    <section className="col-span-full min-w-0 w-full rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 p-7 shadow-[0_0_32px_rgba(139,92,246,0.10)]">
+      <h3 className="text-lg font-black tracking-wide text-slate-950">Çakra Sütunu & Çakra Omurgası</h3>
       <div className="mt-5 space-y-1.5 sm:space-y-2">
         {CAKRA_TABLO_SIRA.map((cNo) => {
           const sol = out.cakraOmurgasi.sayilar[cNo] ?? 0;
@@ -128,7 +128,7 @@ function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
               className="flex w-full items-center justify-between gap-3 rounded-2xl border border-violet-100/70 bg-white/65 px-4 py-2.5 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30 sm:gap-6 sm:px-6 sm:py-3"
             >
               <CakraEnerjiDaireleri count={sol} hex={hex} tone="pasif" align="left" />
-              <span className="shrink-0 px-2 text-center text-xs font-bold text-slate-800 sm:px-4 sm:text-sm">
+              <span className="shrink-0 px-2 text-center text-lg font-black tracking-wide text-slate-800 sm:px-4">
                 {cNo}. Çakra
               </span>
               <CakraEnerjiDaireleri count={sag > 0 ? sag : 0} hex={hex} tone="aktif" align="right" />
@@ -171,11 +171,13 @@ function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
 
 function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] }) {
   return (
-    <section className="col-span-full w-full rounded-[34px] border-[3px] border-amber-300/45 bg-white/80 p-7 shadow-[0_0_45px_rgba(245,158,11,0.14)] backdrop-blur-xl">
-      <h3 className="text-xl font-black tracking-[0.22em] text-violet-700">Harflerin Yankılanışı</h3>
-      <div className="mt-6 flex w-full flex-wrap justify-center gap-4 overflow-hidden">
+    <section className="col-span-full min-w-0 w-full rounded-[28px] border-[3px] border-amber-300/45 bg-white/80 p-7 shadow-[0_0_45px_rgba(245,158,11,0.14)] backdrop-blur-xl">
+      <h3 className="text-lg font-black tracking-wide text-violet-700">Harflerin Yankılanışı</h3>
+      <div className="mt-6 flex w-full min-w-0 flex-wrap justify-center gap-4">
         {segments.length === 0 ? (
-          <p className="w-full py-6 text-center text-sm font-medium text-slate-600">Harf dönemi hesaplanamadı.</p>
+          <p className="w-full min-h-[140px] px-6 py-5 text-center text-lg font-medium leading-9 text-slate-700">
+            Harf dönemi hesaplanamadı.
+          </p>
         ) : (
           segments.map((seg, idx) => {
             const tint = HARF_KART_TINT[seg.chakra] ?? HARF_KART_TINT[9];
@@ -184,18 +186,22 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
             return (
               <div
                 key={`${idx}-${seg.letter}-${seg.ageStart}`}
-                className={`relative flex min-w-[82px] shrink-0 flex-col items-center justify-center rounded-2xl border-2 p-4 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
+                className={`relative flex min-h-[120px] min-w-[95px] shrink-0 flex-col items-center justify-center rounded-2xl border-2 p-5 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
               >
                 {aktif ? (
-                  <span className="absolute -top-2 left-1/2 max-w-[calc(100%+0.5rem)] -translate-x-1/2 truncate rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-md">
+                  <span className="absolute -top-2 left-1/2 z-10 w-full max-w-[calc(100%+1rem)] -translate-x-1/2 whitespace-normal break-words rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1 text-center text-sm font-black leading-8 tracking-wide text-white shadow-md">
                     Aktif
                   </span>
                 ) : null}
-                <span className="text-3xl font-black leading-none text-slate-900">{seg.letter}</span>
-                <span className="mt-1.5 text-xl font-black tabular-nums text-violet-700">{seg.chakra}</span>
-                <span className="mt-1.5 text-xs font-bold leading-tight text-slate-700">{harfYasMetni(seg.ageStart, seg.ageEnd)}</span>
+                <span className="w-full text-4xl font-black leading-none text-slate-900">{seg.letter}</span>
+                <span className="mt-2 w-full text-2xl font-black tabular-nums text-violet-700">{seg.chakra}</span>
+                <span className="mt-2 w-full whitespace-normal break-words text-lg font-medium leading-9 text-slate-700">
+                  {harfYasMetni(seg.ageStart, seg.ageEnd)}
+                </span>
                 {yilMetin ? (
-                  <span className="mt-0.5 text-xs font-semibold tabular-nums leading-tight text-slate-500">{yilMetin}</span>
+                  <span className="mt-1 w-full whitespace-normal break-words text-lg font-medium leading-9 tabular-nums text-slate-600">
+                    {yilMetin}
+                  </span>
                 ) : null}
               </div>
             );
@@ -226,13 +232,15 @@ function OzetPremiumKart({
 }) {
   return (
     <div
-      className={`group relative overflow-hidden rounded-[28px] border-[3px] border-violet-200 bg-white/85 p-6 shadow-[0_0_32px_rgba(139,92,246,0.10)] transition-all duration-300 hover:-translate-y-1 ${tint}`}
+      className={`group relative min-w-0 overflow-hidden rounded-[28px] border-[3px] border-violet-200 bg-white/85 p-7 shadow-[0_0_32px_rgba(139,92,246,0.10)] transition-all duration-300 hover:-translate-y-1 ${tint}`}
     >
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-400/10 blur-2xl transition group-hover:bg-violet-400/20" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-black tracking-[0.22em] text-slate-500">{title}</p>
-          <p className="mt-2 truncate text-4xl font-black text-slate-950">{value}</p>
+      <div className="relative flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 w-full flex-1">
+          <p className="text-base font-black text-slate-600">{title}</p>
+          <p className="mt-2 w-full whitespace-normal break-words text-5xl font-black leading-tight text-slate-950">
+            {value}
+          </p>
         </div>
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/80 text-violet-700 shadow-sm ring-1 ring-violet-100/80">
           {icon}
@@ -266,10 +274,10 @@ function TabSonucOzetiPremium({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="rounded-[30px] border-[3px] border-violet-300/40 bg-gradient-to-br from-white/85 via-violet-50/60 to-amber-50/50 p-7 shadow-[0_0_40px_rgba(139,92,246,0.13)]">
-        <p className="text-sm font-black tracking-[0.22em] text-violet-700">Numerolojik sonuç özeti</p>
-        <p className="mt-3 text-xl font-black text-slate-950">{isimGoster}</p>
-        <p className="mt-1 text-base text-slate-600">Doğum tarihi: {dogumGoster}</p>
+      <div className="min-w-0 rounded-[28px] border-[3px] border-violet-300/40 bg-gradient-to-br from-white/85 via-violet-50/60 to-amber-50/50 p-7 shadow-[0_0_40px_rgba(139,92,246,0.13)]">
+        <p className="text-lg font-black tracking-wide text-violet-700">Numerolojik sonuç özeti</p>
+        <p className="mt-3 w-full text-xl font-black leading-9 text-slate-950">{isimGoster}</p>
+        <p className="mt-2 w-full text-xl font-medium leading-9 text-slate-700">Doğum tarihi: {dogumGoster}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -281,13 +289,13 @@ function TabSonucOzetiPremium({
       <div className="grid grid-cols-1 gap-5 sm:gap-6">
         <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
-        <section className={`w-full rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
-          <h3 className="text-2xl font-black text-slate-950">Elementler</h3>
-          <div className="mt-6 space-y-4">
+        <section className={`min-w-0 w-full border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
+          <h3 className="text-lg font-black tracking-wide text-slate-950">Elementler</h3>
+          <div className="mt-6 w-full min-w-0 space-y-5">
             {ELEMENT_ORDER.map((name) => (
-              <div key={name}>
-                <div className={`mb-1.5 flex justify-between ${typo.caption} font-bold text-slate-600`}>
-                  <span>{name}</span>
+              <div key={name} className="min-w-0 w-full">
+                <div className="mb-2 flex w-full min-w-0 justify-between gap-4 text-lg font-black tracking-wide text-slate-700">
+                  <span className="min-w-0">{name}</span>
                   <span>{el[name]}</span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
@@ -451,10 +459,10 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
   const typo = useContentTypography();
   return (
     <section
-      className={`rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}
+      className={`min-w-0 border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}
     >
-      <h3 className="border-b border-violet-100/80 pb-4 text-2xl font-black text-slate-950">{title}</h3>
-      <div className="pt-5">{children}</div>
+      <h3 className="border-b border-violet-100/80 pb-4 text-lg font-black tracking-wide text-slate-950">{title}</h3>
+      <div className="w-full min-w-0 pt-5">{children}</div>
     </section>
   );
 }
@@ -565,7 +573,7 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
   const typo = useContentTypography();
   return (
     <pre
-      className={`whitespace-pre-wrap rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 p-6 shadow-[0_0_32px_rgba(139,92,246,0.10)] xl:p-7 ${typo.pre}`}
+      className={`min-w-0 w-full whitespace-pre-wrap border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding} ${typo.pre}`}
     >
       {buildPlainAnalizFull(out)}
     </pre>

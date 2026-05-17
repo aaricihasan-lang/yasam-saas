@@ -37,8 +37,8 @@ type DetayTabId = (typeof DETAY_TABS)[number]["id"];
 function KayitBosBolum({ children }: { children?: string }) {
   const typo = useContentTypography();
   return (
-    <div className="rounded-[28px] border-[3px] border-dashed border-violet-200/90 bg-white/80 px-8 py-16 text-center shadow-[0_0_32px_rgba(139,92,246,0.10)] sm:py-20">
-      <p className={`${typo.body} font-medium text-slate-600`}>{children ?? kayitBolumYokMesaji()}</p>
+    <div className="min-w-0 rounded-[28px] border-[3px] border-dashed border-violet-200/90 bg-white/80 p-7 text-center shadow-[0_0_32px_rgba(139,92,246,0.10)]">
+      <p className={`min-h-[140px] w-full px-6 py-5 ${typo.body}`}>{children ?? kayitBolumYokMesaji()}</p>
     </div>
   );
 }
@@ -60,7 +60,7 @@ function TasKayitGorunum({ tas }: { tas: AnalysisTasData }) {
               key={k.baslik}
               className="rounded-[26px] border border-slate-200/90 bg-white/95 p-6 shadow-md ring-1 ring-violet-100/40 sm:p-7"
             >
-              <h3 className="text-2xl font-black text-slate-950">{k.baslik}</h3>
+              <h3 className="text-lg font-black tracking-wide text-slate-950">{k.baslik}</h3>
               <p className={`mt-4 ${typo.body} font-medium text-slate-800`}>{k.metin}</p>
             </section>
           ))}
@@ -68,7 +68,7 @@ function TasKayitGorunum({ tas }: { tas: AnalysisTasData }) {
       ) : null}
       {tas.notlar ? (
         <section className="rounded-[28px] border-[3px] border-amber-300/45 bg-white/80 p-6 shadow-[0_0_32px_rgba(245,158,11,0.10)] xl:p-7">
-          <h3 className="text-2xl font-black text-slate-950">Notlar</h3>
+          <h3 className="text-lg font-black tracking-wide text-slate-950">Notlar</h3>
           <p className={`mt-4 whitespace-pre-wrap ${typo.body} text-slate-800`}>{tas.notlar}</p>
         </section>
       ) : null}

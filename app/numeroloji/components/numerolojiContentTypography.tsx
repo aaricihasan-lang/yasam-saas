@@ -19,36 +19,36 @@ export function getContentTypography(size: ContentFontSize): ContentTypography {
   switch (size) {
     case "large":
       return {
-        body: "text-lg leading-8",
-        pre: "text-base leading-8 font-mono",
-        label: "text-sm leading-7 font-black uppercase tracking-[0.14em]",
-        caption: "text-base leading-7",
-        sectionTitle: "text-xs leading-7 font-black uppercase tracking-[0.16em]",
-        display: "text-2xl sm:text-3xl font-black tracking-tight",
-        boxPadding: "p-5 sm:p-6",
-        infoBoxPadding: "p-5 sm:p-7",
+        body: "w-full min-w-0 text-xl leading-9 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-xl leading-9 font-mono text-slate-700",
+        label: "text-xl font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-xl leading-9 font-medium text-slate-700",
+        sectionTitle: "text-xl font-black tracking-wide text-slate-800",
+        display: "text-5xl font-black text-slate-950",
+        boxPadding: "rounded-[28px] p-7",
+        infoBoxPadding: "rounded-[28px] p-7",
       };
     case "xlarge":
       return {
-        body: "text-xl leading-9",
-        pre: "text-lg leading-9 font-mono",
-        label: "text-base leading-8 font-black uppercase tracking-[0.14em]",
-        caption: "text-lg leading-8",
-        sectionTitle: "text-sm leading-8 font-black uppercase tracking-[0.16em]",
-        display: "text-3xl sm:text-4xl font-black tracking-tight",
-        boxPadding: "p-6 sm:p-7",
-        infoBoxPadding: "p-6 sm:p-8",
+        body: "w-full min-w-0 text-2xl leading-9 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-2xl leading-9 font-mono text-slate-700",
+        label: "text-2xl font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-2xl leading-9 font-medium text-slate-700",
+        sectionTitle: "text-2xl font-black tracking-wide text-slate-800",
+        display: "text-6xl font-black text-slate-950",
+        boxPadding: "rounded-[28px] p-7",
+        infoBoxPadding: "rounded-[28px] p-7",
       };
     default:
       return {
-        body: "text-base leading-8 text-slate-700 xl:text-lg",
-        pre: "text-base leading-8 font-mono text-slate-700 xl:text-lg",
-        label: "text-xs leading-6 font-black uppercase tracking-[0.14em]",
-        caption: "text-base leading-8 text-slate-600",
-        sectionTitle: "text-sm font-black tracking-[0.22em]",
-        display: "text-2xl font-black tracking-tight text-slate-950",
-        boxPadding: "p-6 xl:p-7",
-        infoBoxPadding: "p-6 xl:p-7",
+        body: "w-full min-w-0 text-lg leading-9 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-lg leading-9 font-mono text-slate-700",
+        label: "text-lg font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-lg leading-9 font-medium text-slate-700",
+        sectionTitle: "text-lg font-black tracking-wide text-slate-800",
+        display: "text-5xl font-black text-slate-950",
+        boxPadding: "rounded-[28px] p-7",
+        infoBoxPadding: "rounded-[28px] p-7",
       };
   }
 }
