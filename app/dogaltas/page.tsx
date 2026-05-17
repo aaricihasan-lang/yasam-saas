@@ -62,54 +62,56 @@ const modules = [
 export default function DogaltasPage() {
   return (
     <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
-      <div className="grid h-full w-full grid-cols-[280px_1fr] overflow-x-hidden">
-        <aside className="flex h-screen w-[280px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-5 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-md ring-1 ring-slate-100">
+      <div className="grid h-full w-full grid-cols-[320px_1fr] overflow-x-hidden">
+        <aside className="flex h-screen w-[320px] min-w-[320px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-5 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <div className="mb-4 flex h-16 items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-md ring-1 ring-slate-100">
               💎
             </div>
-            <div className="min-w-0">
-              <h2 className="text-xs font-black tracking-[0.18em] text-slate-950">
+            <div>
+              <h2 className="text-[13px] font-black tracking-[0.22em] text-slate-950">
                 YAŞAM SİSTEMİ
               </h2>
-              <p className="mt-0.5 text-xs font-bold text-emerald-700">Doğaltaş Modülü</p>
+              <p className="mt-0.5 text-[13px] font-bold text-emerald-700">Doğaltaş Modülü</p>
             </div>
           </div>
 
-          <div className="mb-3 text-[11px] font-black tracking-[0.22em] text-slate-400">
+          <div className="mb-3 text-[13px] font-black tracking-[0.22em] text-slate-400">
             MODÜLLER
           </div>
 
-          <nav className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-hidden">
             {modules.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="group flex h-16 items-center gap-4 rounded-2xl px-4 text-sm font-black transition-all duration-300 hover:scale-[1.03] hover:bg-white/80 hover:shadow-lg"
+                className="group flex h-[72px] items-center gap-4 rounded-2xl px-4 transition-all duration-300 hover:scale-[1.02] hover:bg-white/80 hover:shadow-lg"
               >
                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.dot}`} />
 
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl shadow-md ring-1 ring-slate-100 ${item.iconBg}`}
+                  className={`flex h-12 w-12 min-w-12 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-md ring-1 ring-slate-100 ${item.iconBg}`}
                 >
                   {item.icon}
                 </span>
 
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{item.title}</span>
-                  <span className="block truncate text-xs font-semibold text-slate-500">
+                <span className="min-w-0 flex-1 pr-1">
+                  <span className="block text-[17px] font-black leading-tight text-slate-950">
+                    {item.title}
+                  </span>
+                  <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-slate-600 line-clamp-2">
                     {item.subtitle}
                   </span>
                 </span>
 
-                <span className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-600">
+                <span className="shrink-0 text-lg opacity-70 transition group-hover:translate-x-0.5 group-hover:opacity-100">
                   →
                 </span>
               </Link>
             ))}
           </nav>
 
-          <div className="mt-4 shrink-0 rounded-2xl bg-white/80 p-3 shadow-md ring-1 ring-white/80">
+          <div className="mt-3 shrink-0 rounded-2xl bg-white/80 p-3 shadow-md ring-1 ring-white/80">
             <p className="text-xs font-bold leading-5 text-slate-700">
               ✨ Bilgiyi yönetin, değere dönüştürün.
             </p>
@@ -118,18 +120,17 @@ export default function DogaltasPage() {
 
         <section className="relative h-screen min-w-0 overflow-hidden px-8 py-6">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-200/30 blur-3xl" />
-            <div className="absolute left-[10%] -top-20 h-64 w-64 rounded-full bg-violet-200/25 blur-3xl" />
-            <div className="absolute bottom-0 left-[30%] h-56 w-56 rounded-full bg-emerald-200/20 blur-3xl" />
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
+            <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl" />
+            <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl" />
           </div>
 
-          <div className="relative flex h-full w-full max-w-none flex-col gap-4 overflow-hidden">
-            <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-[32px] border border-white/80 bg-white/65 px-8 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          <div className="relative flex h-full w-full max-w-none flex-col gap-3 overflow-hidden">
+            <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[30px] border border-white/80 bg-white/65 px-8 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex min-w-0 flex-1 items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center text-4xl leading-none">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center text-3xl leading-none">
                   💎
                 </div>
-
                 <div className="min-w-0">
                   <h1 className="text-4xl font-black tracking-tight text-slate-950">
                     <span className="bg-[linear-gradient(90deg,#a855f7_0%,#38bdf8_45%,#34d399_100%)] bg-clip-text text-transparent">
@@ -137,13 +138,12 @@ export default function DogaltasPage() {
                     </span>{" "}
                     Yönetimi
                   </h1>
-                  <p className="mt-1 text-base text-slate-600">
+                  <p className="mt-0.5 text-base text-slate-600">
                     Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden
                     yönetin.
                   </p>
                 </div>
               </div>
-
               <Link
                 href="/"
                 className="shrink-0 rounded-2xl border border-white/80 bg-white/90 px-5 py-2.5 text-sm font-black text-slate-700 shadow-md transition hover:bg-white"
@@ -152,7 +152,7 @@ export default function DogaltasPage() {
               </Link>
             </header>
 
-            <div className="w-full shrink-0 rounded-[26px] border border-white/80 bg-white/75 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <div className="w-full shrink-0 rounded-[26px] border border-white/80 bg-white/75 p-3 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex gap-3">
                 <div className="relative min-w-0 flex-1">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base text-slate-400">
@@ -166,46 +166,46 @@ export default function DogaltasPage() {
                 </div>
                 <button
                   type="button"
-                  className="h-14 shrink-0 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-7 text-sm font-black text-white shadow-lg transition-all hover:scale-[1.03]"
+                  className="h-14 shrink-0 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-7 text-sm font-black text-white shadow-lg transition-all hover:scale-[1.02]"
                 >
                   Ara
                 </button>
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/80 bg-white/70 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white/70 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <div className="mb-4 flex shrink-0 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-lg">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base">
                   📊
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-950">Hesaplanmış Analizler</h2>
-                  <p className="text-sm text-slate-600">Sistem verilerine göre otomatik analizler</p>
+                  <h2 className="text-lg font-black text-slate-950">Hesaplanmış Analizler</h2>
+                  <p className="text-xs text-slate-600">Sistem verilerine göre otomatik analizler</p>
                 </div>
               </div>
 
-              <div className="grid min-h-0 flex-1 grid-cols-3 gap-4">
-                <div className="flex min-h-[190px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-slate-800">Stok Değeri</p>
+              <div className="grid shrink-0 grid-cols-3 gap-3">
+                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
+                  <p className="text-base font-black text-slate-800">Stok Değeri</p>
                   <p className="text-xs text-slate-500">Toplam stok değeri</p>
-                  <h3 className="mt-auto pt-4 text-2xl font-black text-slate-950">₺ 2.450.780</h3>
+                  <h3 className="mt-auto pt-2 text-3xl font-black text-slate-950">₺ 2.450.780</h3>
                   <p className="mt-1 text-xs font-bold text-emerald-600">↗ %12.5</p>
                 </div>
 
-                <div className="flex min-h-[190px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-slate-800">Aylık Kayıt Trendi</p>
+                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
+                  <p className="text-base font-black text-slate-800">Aylık Kayıt Trendi</p>
                   <p className="text-xs text-slate-500">Son 6 ay</p>
-                  <div className="mt-2 flex flex-1 items-end gap-2 pb-1">
+                  <div className="mt-2 flex h-[88px] items-end gap-1.5">
                     {[45, 70, 50, 78, 96, 74].map((height, index) => (
-                      <div key={index} className="flex flex-1 flex-col justify-end">
+                      <div key={index} className="flex h-full flex-1 flex-col justify-end">
                         <div
-                          className="w-full rounded-t-xl bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
-                          style={{ height: `${height}%`, minHeight: "8px" }}
+                          className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
+                          style={{ height: `${height}%`, minHeight: "6px" }}
                         />
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-6 gap-0.5 text-center text-[10px] font-medium text-slate-500">
+                  <div className="mt-1.5 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500">
                     <span>Kas</span>
                     <span>Ara</span>
                     <span>Oca</span>
@@ -215,10 +215,10 @@ export default function DogaltasPage() {
                   </div>
                 </div>
 
-                <div className="flex min-h-[190px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-slate-800">En Çok Satılan Taşlar</p>
+                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
+                  <p className="text-base font-black text-slate-800">En Çok Satılan Taşlar</p>
                   <p className="text-xs text-slate-500">Bu ay</p>
-                  <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-hidden">
+                  <div className="mt-2 space-y-1 overflow-hidden">
                     {[
                       ["1", "🟣", "Ametist", "412"],
                       ["2", "⚪", "Kuvars", "356"],
@@ -226,43 +226,33 @@ export default function DogaltasPage() {
                       ["4", "🔴", "Akik", "241"],
                       ["5", "⚫", "Turmalin", "187"],
                     ].map(([rank, icon, name, count]) => (
-                      <div key={rank} className="flex items-center justify-between gap-1">
-                        <div className="flex min-w-0 items-center gap-2">
+                      <div key={rank} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
                             {rank}
                           </span>
                           <span className="text-sm">{icon}</span>
-                          <span className="truncate text-xs font-bold text-slate-700">
-                            {name}
-                          </span>
+                          <span className="text-sm font-bold text-slate-700">{name}</span>
                         </div>
-                        <span className="shrink-0 text-[10px] font-bold text-slate-500">
-                          {count}
-                        </span>
+                        <span className="shrink-0 text-sm font-bold text-slate-500">{count}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 grid shrink-0 grid-cols-3 gap-4">
-                <div className="flex min-h-[105px] flex-col justify-center rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-5 shadow-md">
-                  <p className="text-xs font-black uppercase tracking-wide text-teal-700">
-                    Toplam Taş Kaydı
-                  </p>
-                  <p className="mt-2 text-3xl font-black text-slate-950">—</p>
+              <div className="mt-3 grid shrink-0 grid-cols-3 gap-3">
+                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-5 shadow-md">
+                  <p className="text-sm font-black text-teal-700">Toplam Taş Kaydı</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
                 </div>
-                <div className="flex min-h-[105px] flex-col justify-center rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md">
-                  <p className="text-xs font-black uppercase tracking-wide text-violet-700">
-                    Mineral Bankası
-                  </p>
-                  <p className="mt-2 text-3xl font-black text-slate-950">—</p>
+                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md">
+                  <p className="text-sm font-black text-violet-700">Mineral Bankası</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
                 </div>
-                <div className="flex min-h-[105px] flex-col justify-center rounded-[24px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md">
-                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                    Aktif Kombinasyonlar
-                  </p>
-                  <p className="mt-2 text-3xl font-black text-slate-950">—</p>
+                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md">
+                  <p className="text-sm font-black text-amber-700">Aktif Kombinasyonlar</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
                 </div>
               </div>
             </div>
