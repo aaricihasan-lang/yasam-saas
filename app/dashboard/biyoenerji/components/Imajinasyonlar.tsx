@@ -9,6 +9,7 @@ import {
   badgeFieldWrapClass,
   formGlassPanelClass,
   listColumnClass,
+  newRecordBtnClass,
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
@@ -344,11 +345,8 @@ export default function Imajinasyonlar() {
     showSoft("ok", "Kayıt silindi.");
   }
 
-  const newRecordBtnClass =
-    "inline-flex shrink-0 items-center justify-center rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-50/95 via-white/90 to-orange-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-amber-950 shadow-[0_6px_20px_-8px_rgba(217,119,6,0.2)] ring-1 ring-amber-100/50 transition hover:border-amber-300/80 active:scale-[0.98] sm:px-4";
-
   return (
-    <section className={`${sectionShellClass} ring-amber-100/35`}>
+    <section className={sectionShellClass}>
       <div className="mb-4 flex flex-col gap-3 border-b border-amber-100/50 pb-4">
         <div>
           <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">İmajinasyonlar</h2>

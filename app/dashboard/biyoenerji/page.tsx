@@ -44,22 +44,25 @@ export default function BiyoenerjiDashboardPage() {
   }, [activeId]);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(145deg,#f5f3ff_0%,#ecfeff_38%,#f0fdf4_72%,#fff7ed_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col px-3 py-5 sm:px-6 sm:py-8">
-        <header className="mb-5 shrink-0 rounded-[26px] border border-white/75 bg-white/72 p-4 shadow-[0_8px_40px_-12px_rgba(15,23,42,0.06)] ring-1 ring-violet-100/50 backdrop-blur-md sm:mb-6 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_38%,#f8fafc_100%)] text-slate-950">
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
+
+      <div className="relative z-10 flex min-h-screen w-full flex-col px-6 py-6 xl:px-10 2xl:px-14">
+        <header className="mb-6 shrink-0 rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="mb-1.5 inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black tracking-[0.14em] text-violet-700 ring-1 ring-violet-100">
+              <p className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
                 MODÜL
               </p>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-[28px]">Biyoenerji</h1>
-              <p className="mt-1.5 max-w-xl text-[13px] font-medium leading-relaxed text-slate-500">
+              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">Biyoenerji</h1>
+              <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
                 Aura, bilinçaltı & sembol dili çalışma alanı
               </p>
             </div>
             <Link
               href="/"
-              className="inline-flex w-fit shrink-0 items-center gap-2 self-start rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-white transition hover:border-violet-200 hover:bg-violet-50/80 hover:text-slate-900"
+              className="inline-flex w-fit shrink-0 items-center gap-2 self-start rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-violet-50"
             >
               <span aria-hidden className="text-violet-500">
                 ←

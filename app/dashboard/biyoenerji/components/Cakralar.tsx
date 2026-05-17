@@ -8,6 +8,7 @@ import {
   ModuleStats,
   formGlassPanelClass,
   listColumnClass,
+  newRecordBtnClass,
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
@@ -405,11 +406,8 @@ export default function Cakralar() {
     showSoft("ok", "Kayıt silindi.");
   }
 
-  const newRecordBtnClass =
-    "inline-flex shrink-0 items-center justify-center rounded-xl border border-orange-200/70 bg-gradient-to-r from-orange-50/95 via-white/90 to-amber-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-orange-950 shadow-[0_6px_20px_-8px_rgba(234,88,12,0.2)] ring-1 ring-orange-100/50 transition hover:border-orange-300/80 active:scale-[0.98] sm:px-4";
-
   return (
-    <section className={`${sectionShellClass} ring-orange-100/35`}>
+    <section className={sectionShellClass}>
       <div className="mb-4 flex flex-col gap-3 border-b border-orange-100/50 pb-4">
         <div>
           <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">Çakralar</h2>

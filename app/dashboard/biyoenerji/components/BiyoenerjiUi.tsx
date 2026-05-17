@@ -18,7 +18,11 @@ const searchToneRing: Record<BiyoenerjiTone, string> = {
 
 /** Premium arama satırı — pastel, yumuşak gölge, hafif cam */
 export function searchInputClass(tone: BiyoenerjiTone) {
-  return `h-10 w-full rounded-xl border border-white/65 bg-white/78 px-3.5 text-[13px] font-medium text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_4px_22px_-10px_rgba(15,23,42,0.06)] backdrop-blur-sm outline-none ring-1 transition duration-200 ease-out hover:bg-white/92 hover:shadow-[0_6px_28px_-10px_rgba(15,23,42,0.08)] ${searchToneRing[tone]}`;
+  const borderFocus =
+    tone === "cyan"
+      ? "border-cyan-200 focus:border-cyan-500 focus:ring-cyan-300/30"
+      : "border-violet-200 focus:border-violet-500 focus:ring-violet-300/30";
+  return `h-14 w-full rounded-2xl border-2 bg-white/90 px-5 text-base font-semibold text-slate-800 shadow-inner outline-none transition focus:ring-4 ${borderFocus}`;
 }
 
 const badgeTone: Record<BiyoenerjiTone, string> = {
@@ -40,42 +44,12 @@ export function badgeFieldWrapClass(tone: BiyoenerjiTone) {
   return `flex min-h-[2.85rem] items-center rounded-full border px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 transition duration-200 ${badgeTone[tone]}`;
 }
 
-const statTone: Record<
-  BiyoenerjiTone,
-  { card: string; accent: string }
-> = {
-  violet: {
-    card: "border-violet-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(109,40,217,0.08)]",
-    accent: "text-violet-700/90",
-  },
-  cyan: {
-    card: "border-cyan-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(8,145,178,0.08)]",
-    accent: "text-cyan-800/85",
-  },
-  fuchsia: {
-    card: "border-fuchsia-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(192,38,211,0.07)]",
-    accent: "text-fuchsia-800/85",
-  },
-  amber: {
-    card: "border-amber-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(217,119,6,0.07)]",
-    accent: "text-amber-900/85",
-  },
-  emerald: {
-    card: "border-emerald-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(5,150,105,0.07)]",
-    accent: "text-emerald-800/85",
-  },
-  orange: {
-    card: "border-orange-100/50 bg-white/75 shadow-[0_4px_24px_-8px_rgba(234,88,12,0.07)]",
-    accent: "text-orange-900/85",
-  },
-};
-
 export function ModuleStats({
   total,
   midLabel,
   midCount,
   lastDate,
-  tone,
+  tone: _tone,
 }: {
   total: number;
   midLabel: string;
@@ -83,7 +57,6 @@ export function ModuleStats({
   lastDate: string;
   tone: BiyoenerjiTone;
 }) {
-  const s = statTone[tone];
   const items = [
     { k: "Toplam kayıt", v: String(total) },
     { k: midLabel, v: String(midCount) },
@@ -94,10 +67,10 @@ export function ModuleStats({
       {items.map((it) => (
         <div
           key={it.k}
-          className={`rounded-2xl border px-3 py-2.5 backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-px hover:shadow-[0_8px_28px_-10px_rgba(15,23,42,0.09)] ${s.card}`}
+          className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md"
         >
-          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">{it.k}</p>
-          <p className={`mt-0.5 truncate text-[15px] font-black tabular-nums tracking-tight ${s.accent}`}>
+          <p className="text-sm font-bold text-slate-500">{it.k}</p>
+          <p className="mt-1 truncate text-3xl font-black tabular-nums tracking-tight text-violet-700">
             {it.v}
           </p>
         </div>
@@ -127,13 +100,13 @@ export function CrudEmptyState({
   }[tone];
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-2xl border border-dashed px-5 py-12 text-center ring-1 transition duration-300 hover:shadow-[0_8px_32px_-12px_rgba(15,23,42,0.06)] ${ring}`}
+      className={`flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border-[3px] border-dashed border-violet-200 bg-white/65 px-5 py-10 text-center ${ring}`}
     >
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90">
         {icon}
       </div>
-      <p className="text-[14px] font-black text-slate-800">{title}</p>
-      <p className="mt-1.5 max-w-[260px] text-[12px] font-medium leading-relaxed text-slate-500">{subtitle}</p>
+      <p className="text-2xl font-black text-slate-950">{title}</p>
+      <p className="mt-2 max-w-sm text-base font-medium text-slate-500">{subtitle}</p>
     </div>
   );
 }
@@ -179,12 +152,15 @@ export function AutoTextarea({
 
 /** Sağ form cam paneli — hafif blur */
 export const formGlassPanelClass =
-  "rounded-2xl border border-white/65 bg-white/50 p-5 shadow-[0_8px_36px_-14px_rgba(15,23,42,0.07)] ring-1 ring-white/70 backdrop-blur-md transition-shadow duration-300 sm:p-6";
+  "flex min-h-[520px] min-w-0 flex-1 flex-col rounded-[30px] border-[3px] border-cyan-300/40 bg-gradient-to-br from-white/85 to-cyan-50/60 p-6 shadow-[0_0_35px_rgba(34,211,238,0.12)]";
 
-/** Liste kolonu — yumuşak kart */
+/** Liste kolonu */
 export const listColumnClass =
-  "flex min-h-[220px] w-full flex-col rounded-2xl border border-white/55 bg-gradient-to-b from-white/92 to-white/55 p-3.5 shadow-[0_4px_28px_-12px_rgba(15,23,42,0.06)] ring-1 ring-white/75 backdrop-blur-sm lg:max-w-[min(100%,380px)] lg:flex-none lg:w-[min(100%,380px)]";
+  "flex min-h-[520px] w-full min-w-0 flex-col rounded-[30px] border-[3px] border-violet-300/40 bg-gradient-to-br from-white/85 to-violet-50/60 p-6 shadow-[0_0_35px_rgba(139,92,246,0.12)] lg:flex-none lg:w-[min(100%,420px)] xl:w-[min(100%,460px)]";
 
 /** Ana bölüm kartı */
 export const sectionShellClass =
-  "rounded-2xl border border-white/80 bg-white/82 p-4 shadow-[0_6px_32px_-14px_rgba(15,23,42,0.055)] ring-1 ring-white/60 backdrop-blur-sm sm:p-5";
+  "rounded-[34px] border-[3px] border-cyan-300/45 bg-white/78 p-8 shadow-[0_0_50px_rgba(34,211,238,0.14)] backdrop-blur-xl";
+
+export const newRecordBtnClass =
+  "inline-flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-6 py-4 font-black text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 hover:-translate-y-1";

@@ -39,7 +39,7 @@ function NavButtons({
 }) {
   return (
     <nav className={className} aria-label="Biyoenerji bölümleri">
-      <ul className="space-y-1">
+      <ul className="space-y-4">
         {items.map((item) => {
           const active = activeId === item.id;
           return (
@@ -50,36 +50,19 @@ function NavButtons({
                   onSelect(item.id);
                   onPick?.();
                 }}
-                className={`group flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-[13px] font-bold transition-all duration-200 ease-out will-change-transform ${
+                className={`flex h-[72px] w-full items-center justify-start gap-4 rounded-[22px] px-6 text-left text-base font-black shadow-sm transition-all duration-300 hover:scale-[1.02] hover:translate-x-2 xl:text-lg ${
                   active
-                    ? "border-violet-200/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(237,233,254,0.85)_45%,rgba(224,242,254,0.55)_100%)] text-violet-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_0_0_1px_rgba(167,139,250,0.12),0_10px_28px_-6px_rgba(109,40,217,0.22)] ring-1 ring-violet-200/50"
-                    : "border-transparent bg-transparent text-slate-600 hover:-translate-y-px hover:border-violet-100/80 hover:bg-white/75 hover:text-slate-900 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_8px_22px_-10px_rgba(15,23,42,0.12)]"
-                } `}
+                    ? "scale-[1.03] bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_10px_30px_rgba(139,92,246,0.30)]"
+                    : "border-2 border-violet-100 bg-white/90 text-slate-700 hover:bg-violet-50"
+                }`}
               >
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[16px] transition-all duration-200 ${
-                    active
-                      ? "bg-white/90 text-violet-700 shadow-inner shadow-violet-100/80 ring-1 ring-violet-100/90"
-                      : "bg-white/50 text-slate-500 shadow-inner shadow-white/60 ring-1 ring-white/80 group-hover:scale-[1.04] group-hover:text-violet-600 group-hover:ring-violet-100/70"
-                  }`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-xl"
                   aria-hidden
                 >
                   {item.icon}
                 </span>
                 <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
-                {active ? (
-                  <span
-                    className="flex h-2 w-2 shrink-0 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(109,40,217,0.55)]"
-                    aria-hidden
-                  />
-                ) : (
-                  <span
-                    className="text-[10px] font-black text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100"
-                    aria-hidden
-                  >
-                    →
-                  </span>
-                )}
               </button>
             </li>
           );
@@ -121,7 +104,7 @@ export default function BiyoenerjiLayout({
   }, []);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 sm:gap-5 lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[320px_1fr]">
       {/* Mobil: üst tetikleyici + drawer */}
       <div className="shrink-0 lg:hidden">
         <div className="flex items-center gap-3 rounded-2xl border border-white/65 bg-white/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_6px_28px_-10px_rgba(15,23,42,0.07)] ring-1 ring-violet-100/45 backdrop-blur-lg">
@@ -185,20 +168,19 @@ export default function BiyoenerjiLayout({
       </div>
 
       {/* Desktop: sabit premium sidebar */}
-      <aside className="hidden w-[min(100%,288px)] shrink-0 lg:block xl:w-[300px]">
-        <div className="sticky top-4 rounded-2xl border border-white/70 bg-[linear-gradient(165deg,rgba(255,255,255,0.92)_0%,rgba(245,243,255,0.88)_38%,rgba(236,253,245,0.55)_72%,rgba(224,242,254,0.42)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_18px_44px_-14px_rgba(15,23,42,0.1)] ring-1 ring-violet-100/55 backdrop-blur-md">
-          <div className="mb-4 flex flex-col gap-3">
+      <aside className="hidden w-[320px] shrink-0 xl:block">
+        <div className="sticky top-4 min-h-[720px] w-[320px] rounded-[34px] border-[3px] border-violet-300/40 bg-gradient-to-b from-white/85 via-violet-50/70 to-cyan-50/70 p-6 shadow-[0_0_45px_rgba(139,92,246,0.14)] backdrop-blur-xl">
+          <div className="mb-6 flex flex-col gap-2">
             <span className="inline-flex w-fit items-center rounded-full bg-gradient-to-r from-violet-100 via-fuchsia-50 to-cyan-50 px-3 py-1.5 text-[9px] font-black tracking-[0.2em] text-violet-800 ring-1 ring-violet-200/45 shadow-inner">
               BİYOENERJİ
             </span>
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-500/80">Çalışma alanı</p>
+            <p className="text-sm font-black tracking-[0.20em] text-violet-700">ÇALIŞMA ALANI</p>
           </div>
           <NavButtons items={items} activeId={activeId} onSelect={onSelect} className="pb-1" />
         </div>
       </aside>
 
-      {/* Sağ içerik — daha ferah */}
-      <div className="min-h-0 min-w-0 flex-1 pb-1 sm:pb-0 lg:py-0.5 xl:pr-1">{children}</div>
+      <div className="min-h-0 min-w-0 w-full pb-1 sm:pb-0">{children}</div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   badgeFieldWrapClass,
   formGlassPanelClass,
   listColumnClass,
+  newRecordBtnClass,
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
@@ -310,20 +311,17 @@ export default function BiyoenerjiSeanslari() {
     showSoft("ok", "Kayıt silindi.");
   }
 
-  const newRecordBtnClass =
-    "inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-200/70 bg-gradient-to-r from-violet-50/95 via-white/90 to-fuchsia-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-violet-900 shadow-[0_6px_20px_-8px_rgba(109,40,217,0.2)] ring-1 ring-violet-100/50 transition hover:border-violet-300/80 hover:shadow-[0_10px_28px_-10px_rgba(109,40,217,0.22)] active:scale-[0.98] sm:px-4";
-
   return (
-    <section className={`${sectionShellClass} ring-violet-100/35`}>
-      <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/50 pb-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className={sectionShellClass}>
+      <div className="mb-6 flex flex-col gap-4 border-b border-violet-100/50 pb-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">Biyoenerji Seansları</h2>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">
+            <h2 className="text-4xl font-black text-slate-950">Biyoenerji Seansları</h2>
+            <p className="mt-2 text-lg font-medium text-slate-600">
               Listeden kayıt seçin; düzenleme ve yeni ekleme geniş panelde açılır.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:max-w-lg sm:flex-row">
+          <div className="flex w-full flex-col gap-3 xl:flex-row">
             <label className="block min-w-0 flex-1">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
                 Başlıkta ara
@@ -372,10 +370,8 @@ export default function BiyoenerjiSeanslari() {
         </div>
       )}
 
-      <div className="flex min-h-[min(68vh,560px)] flex-col gap-4 lg:flex-row lg:gap-6">
-        <div
-          className={`${listColumnClass} order-1 border-violet-100/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(245,243,255,0.38)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_28px_-14px_rgba(109,40,217,0.06)] lg:order-none`}
-        >
+      <div className="flex min-h-[min(68vh,560px)] flex-col gap-6 xl:flex-row">
+        <div className={`${listColumnClass} order-1 xl:order-none`}>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-black uppercase tracking-wide text-violet-600/90">
               Kayıtlar ({filteredRows.length})
@@ -435,9 +431,7 @@ export default function BiyoenerjiSeanslari() {
           </div>
         </div>
 
-        <div
-          className={`${formGlassPanelClass} order-2 min-h-[min(280px,42vh)] min-w-0 flex-1 border-violet-100/35 ring-cyan-100/25 lg:order-none`}
-        >
+        <div className={`${formGlassPanelClass} order-2 xl:order-none`}>
           {selectedRow ? (
             <>
               <div className="mb-1 inline-flex rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
@@ -481,8 +475,8 @@ export default function BiyoenerjiSeanslari() {
               </div>
             </>
           ) : (
-            <div className="flex min-h-[220px] flex-col items-center justify-center px-2 text-center">
-              <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
+            <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-[28px] border-[3px] border-dashed border-cyan-200 bg-white/65 px-4 text-center">
+              <p className="max-w-md text-base font-medium text-slate-500">
                 Soldan bir kayıt seçerek özetini görün veya yeni kayıt oluşturmak için listedeki üstteki düğmeyi kullanın.
               </p>
             </div>

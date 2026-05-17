@@ -9,6 +9,7 @@ import {
   badgeFieldWrapClass,
   formGlassPanelClass,
   listColumnClass,
+  newRecordBtnClass,
   searchInputClass,
   sectionShellClass,
 } from "./BiyoenerjiUi";
@@ -331,11 +332,8 @@ export default function BilincaltiSebepleri() {
     showSoft("ok", "Kayıt silindi.");
   }
 
-  const newRecordBtnClass =
-    "inline-flex shrink-0 items-center justify-center rounded-xl border border-fuchsia-200/70 bg-gradient-to-r from-fuchsia-50/95 via-white/90 to-violet-50/80 px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-fuchsia-950 shadow-[0_6px_20px_-8px_rgba(192,38,211,0.2)] ring-1 ring-fuchsia-100/50 transition hover:border-fuchsia-300/80 active:scale-[0.98] sm:px-4";
-
   return (
-    <section className={`${sectionShellClass} ring-fuchsia-100/35`}>
+    <section className={sectionShellClass}>
       <div className="mb-4 flex flex-col gap-3 border-b border-fuchsia-100/50 pb-4">
         <div>
           <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
