@@ -320,13 +320,13 @@ function detailFileIcon(kind: DetailFileKind): string {
 }
 
 const detailDownloadLinkClass =
-  "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-emerald-900 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
+  "inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-2xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-8 py-4 text-center text-base font-black text-emerald-900 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none";
 
 const detailSecondaryLinkClass =
-  "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-sky-200/90 bg-gradient-to-r from-sky-50 to-violet-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-sky-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
+  "inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-2xl border border-sky-200/90 bg-gradient-to-r from-sky-50 to-violet-50 px-8 py-4 text-center text-base font-black text-sky-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none";
 
 const detailGrowButtonClass =
-  "inline-flex min-h-[2.5rem] flex-1 items-center justify-center rounded-2xl border border-violet-200/90 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-2 text-center text-[11px] font-black uppercase tracking-wide text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none sm:text-[12px]";
+  "inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-2xl border border-violet-200/90 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-8 py-4 text-center text-base font-black text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95 sm:flex-none";
 
 function DetailArchiveFileCard({
   file,
@@ -371,15 +371,15 @@ function DetailArchiveFileCard({
   if (kind === "video") previewLabel = "İzle";
 
   return (
-    <div className="overflow-hidden rounded-3xl border-2 border-violet-100/90 bg-gradient-to-br from-white via-violet-50/25 to-sky-50/20 p-4 shadow-md ring-1 ring-slate-100/70 sm:p-5">
-      <div className="flex gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-violet-100 bg-white text-2xl shadow-inner" aria-hidden>
+    <div className="overflow-hidden rounded-3xl border-2 border-violet-100/90 bg-gradient-to-br from-white via-violet-50/25 to-sky-50/20 p-6 shadow-md ring-1 ring-slate-100/70">
+      <div className="flex gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-violet-100 bg-white text-3xl shadow-inner" aria-hidden>
           {detailFileIcon(kind)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="break-words text-[14px] font-black leading-snug text-slate-900">{fileName}</p>
-          <p className="mt-1 break-all text-[11px] font-semibold text-slate-600">{typeLabel}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-400">Boyut: {sizeLabel}</p>
+          <p className="break-words text-xl font-black leading-snug text-slate-900">{fileName}</p>
+          <p className="mt-2 break-all text-sm font-semibold text-slate-600">{typeLabel}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Boyut: {sizeLabel}</p>
         </div>
       </div>
 
@@ -405,7 +405,7 @@ function DetailArchiveFileCard({
                   <img
                     src={url}
                     alt={fileName}
-                    className="mx-auto max-h-56 w-auto max-w-full object-contain"
+                    className="mx-auto w-full max-h-[520px] rounded-2xl object-contain"
                     onError={() => setImgBroken(true)}
                   />
                 </div>
@@ -448,7 +448,7 @@ function DetailArchiveFileCard({
             <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-black shadow-inner">
               <video
                 controls
-                className="max-h-[min(40vh,22rem)] w-full object-contain"
+                className="max-h-[520px] w-full rounded-2xl object-contain"
                 src={url}
                 preload="metadata"
               />
@@ -1479,7 +1479,7 @@ export default function KisiselArsivPage() {
         >
           <div
             role="presentation"
-            className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm ${savingDetail ? "cursor-wait" : "cursor-pointer"}`}
+            className={`absolute inset-0 bg-slate-950/55 backdrop-blur-md ${savingDetail ? "cursor-wait" : "cursor-pointer"}`}
             onClick={() => {
               if (savingDetail) return;
               closeDetail();
@@ -1489,7 +1489,7 @@ export default function KisiselArsivPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="detail-modal-title"
-            className="relative z-10 flex max-h-[min(92vh,46rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border-2 border-white/90 bg-white shadow-2xl shadow-violet-500/30 ring-1 ring-violet-200/50"
+            className="relative z-10 flex max-h-[88vh] min-h-[720px] w-[92vw] max-w-[1100px] flex-col overflow-hidden rounded-3xl border-2 border-white/90 bg-white shadow-2xl shadow-violet-500/30 ring-1 ring-violet-200/50"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative shrink-0 border-b border-violet-100/90 bg-gradient-to-r from-violet-100/95 via-sky-50/95 to-emerald-100/90 px-5 py-5 sm:px-7 sm:py-6">
@@ -1524,14 +1524,14 @@ export default function KisiselArsivPage() {
               ) : (
                 <h2
                   id="detail-modal-title"
-                  className="pr-12 text-lg font-black leading-snug text-slate-900 sm:text-xl"
+                  className="pr-12 text-3xl font-black leading-snug text-slate-900"
                 >
                   {highlightText(detailRow.title, search)}
                 </h2>
               )}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+            <div className="min-h-0 max-h-[calc(88vh-120px)] flex-1 overflow-y-auto p-8">
               <div className="flex flex-wrap items-end gap-2">
                 {detailEditMode ? (
                   <label className="min-w-0 flex-1 sm:max-w-xs">
@@ -1552,7 +1552,7 @@ export default function KisiselArsivPage() {
                     </select>
                   </label>
                 ) : (
-                  <span className={categoryBadgeClass(detailRow.category)}>
+                  <span className={`${categoryBadgeClass(detailRow.category)} text-base`}>
                     {detailRow.category}
                   </span>
                 )}
@@ -1583,7 +1583,7 @@ export default function KisiselArsivPage() {
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Etiket yok</p>
               )}
 
-              <div className="mt-4 rounded-3xl border border-slate-200/90 bg-slate-50/60 p-4">
+              <div className="mt-4 rounded-3xl border border-slate-200/90 bg-slate-50/60 p-6">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
                   Not
                 </p>
@@ -1592,11 +1592,11 @@ export default function KisiselArsivPage() {
                     value={detailEditNote}
                     onChange={(e) => setDetailEditNote(e.target.value)}
                     rows={4}
-                    className={`${modalFieldClass} mt-2 min-h-[6rem] max-h-48 resize-y`}
+                    className={`${modalFieldClass} mt-2 min-h-[8rem] max-h-64 resize-y text-lg leading-8`}
                     placeholder="Kısa açıklama veya bağlam…"
                   />
                 ) : (
-                  <p className="mt-1 whitespace-pre-wrap text-[14px] font-semibold leading-relaxed text-slate-800">
+                  <p className="mt-2 whitespace-pre-wrap text-lg font-semibold leading-8 text-slate-800">
                     {detailRow.note?.trim() ? detailRow.note : "—"}
                   </p>
                 )}
@@ -1673,14 +1673,14 @@ export default function KisiselArsivPage() {
                   <button
                     type="button"
                     onClick={() => setDetailEditMode(true)}
-                    className="rounded-3xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95"
+                    className="rounded-2xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-8 py-4 text-base font-black text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95"
                   >
                     Düzenle
                   </button>
                   <button
                     type="button"
                     onClick={() => closeDetail()}
-                    className="rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg transition hover:brightness-110"
+                    className="rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-4 text-base font-black text-white shadow-lg transition hover:brightness-110"
                   >
                     Kapat
                   </button>
@@ -1707,7 +1707,7 @@ export default function KisiselArsivPage() {
                     type="button"
                     disabled={savingDetail}
                     onClick={() => closeDetail()}
-                    className="rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-4 text-base font-black text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     Kapat
                   </button>
