@@ -140,14 +140,38 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky") {
+const pageBg =
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_42%,#f8fafc_100%)] text-slate-950";
+const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const uiHeaderCard =
+  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+const uiProfileCard =
+  "rounded-[34px] border-[3px] border-violet-300/45 bg-gradient-to-br from-white/80 via-cyan-50/70 to-violet-50/70 p-6 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
+const uiImageArea =
+  "flex min-h-[260px] items-center justify-center rounded-[28px] border-[3px] border-dashed border-cyan-300 bg-white/70 shadow-inner";
+const uiStatBox =
+  "rounded-2xl border-2 border-cyan-200 bg-white/85 p-4 text-center shadow-md";
+const uiInfoCard =
+  "w-full rounded-[30px] border-[3px] border-cyan-300/45 bg-white/78 p-6 text-left shadow-[0_0_38px_rgba(34,211,238,0.13)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_48px_rgba(139,92,246,0.18)]";
+const uiContentBox =
+  "mt-4 min-h-[130px] rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 text-base leading-7 text-slate-700 shadow-inner";
+const uiEmptyText = "text-slate-400 italic font-medium";
+const uiThumb =
+  "overflow-hidden rounded-2xl border-2 border-cyan-200 shadow-md transition-all duration-300 hover:scale-[1.03]";
+
+function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber") {
   const toneMap = {
-    slate: "bg-slate-50 text-slate-700",
-    cyan: "bg-cyan-50 text-cyan-700",
-    violet: "bg-violet-50 text-violet-700",
-    emerald: "bg-emerald-50 text-emerald-700",
-    rose: "bg-rose-50 text-rose-700",
-    sky: "bg-sky-50 text-sky-700",
+    slate:
+      "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black tracking-wide text-slate-700",
+    cyan: "inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black tracking-wide text-cyan-700",
+    violet:
+      "inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black tracking-wide text-violet-700",
+    emerald:
+      "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black tracking-wide text-emerald-700",
+    rose: "inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-black tracking-wide text-red-600",
+    sky: "inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-black tracking-wide text-sky-700",
+    amber:
+      "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black tracking-wide text-amber-700",
   };
 
   return toneMap[tone];
@@ -215,7 +239,7 @@ function TextBlock({
   title: string;
   badge: string;
   text: string | null | undefined;
-  tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky";
+  tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber";
   editEnabled: boolean;
   onOpenEdit: () => void;
   onOpenRead: () => void;
@@ -225,24 +249,22 @@ function TextBlock({
       <button
         type="button"
         onClick={onOpenEdit}
-        className="w-full rounded-[18px] border border-white bg-white/88 p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.028)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:bg-white hover:ring-cyan-200"
+        className={uiInfoCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[9px] font-black ${toneClass(tone)}`}>
-              {badge}
-            </div>
+            <div className={toneClass(tone)}>{badge}</div>
 
-            <h2 className="truncate text-[16px] font-black text-slate-950">
+            <h2 className="mt-2 truncate text-2xl font-black text-slate-950">
               {title}
             </h2>
 
-            <p className="mt-1 line-clamp-1 text-[11px] font-medium text-slate-400">
+            <p className="mt-2 line-clamp-1 text-base leading-7 text-slate-700">
               {shortPreview(text, 90)}
             </p>
           </div>
 
-          <span className="shrink-0 rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+          <span className="shrink-0 rounded-full border border-cyan-200 bg-white px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
             Düzenle
           </span>
         </div>
@@ -254,21 +276,19 @@ function TextBlock({
     <button
       type="button"
       onClick={onOpenRead}
-      className="w-full rounded-[22px] border border-white bg-white/88 p-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:bg-white hover:ring-2 hover:ring-cyan-100"
+      className={uiInfoCard}
     >
-      <div className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[9px] font-black ${toneClass(tone)}`}>
-        {badge}
-      </div>
+      <div className={toneClass(tone)}>{badge}</div>
 
-      <h2 className="text-[17px] font-black text-slate-950">{title}</h2>
+      <h2 className="mt-2 text-2xl font-black text-slate-950">{title}</h2>
 
-      <div className="mt-3 min-h-[76px] rounded-[16px] border border-slate-100 bg-slate-50/65 p-3 text-[12px] leading-6 text-slate-650">
-        <p className="line-clamp-5 whitespace-pre-wrap">
+      <div className={uiContentBox}>
+        <p className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : ""}`}>
           {shortPreview(text, 420)}
         </p>
       </div>
 
-      <p className="mt-3 text-[10px] font-black text-cyan-600">
+      <p className="mt-4 text-sm font-black text-cyan-700">
         Tam okumak için tıklayın
       </p>
     </button>
@@ -624,8 +644,8 @@ export default function StoneDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] text-slate-500">
-        <div className="rounded-[24px] bg-white/80 px-7 py-5 text-[14px] font-black shadow-[0_18px_45px_rgba(15,23,42,0.06)] ring-1 ring-white">
+      <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
+        <div className={`${uiHeaderCard} text-sm font-black text-slate-600`}>
           Kayıt yükleniyor...
         </div>
       </main>
@@ -634,8 +654,8 @@ export default function StoneDetailPage() {
 
   if (errorMessage && !stone) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)]">
-        <div className="max-w-[500px] rounded-[26px] bg-white/86 p-7 text-center shadow-[0_18px_45px_rgba(15,23,42,0.06)] ring-1 ring-white">
+      <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
+        <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-[48px]">💎</div>
           <h1 className="mt-3 text-[22px] font-black text-slate-950">Kayıt bulunamadı</h1>
           <p className="mt-3 text-[13px] leading-6 text-slate-500">
@@ -644,7 +664,7 @@ export default function StoneDetailPage() {
 
           <Link
             href="/dogaltas/dogaltas-listesi"
-            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-[13px] font-black text-white"
+            className="mt-6 inline-flex rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
           >
             Listeye Dön
           </Link>
@@ -656,11 +676,14 @@ export default function StoneDetailPage() {
   if (!stone) return null;
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1260px] px-6 py-5">
-        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <main className={pageBg}>
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+
+      <div className={pageContent}>
+        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1 inline-flex rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-white">
+            <div className="mb-3 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-cyan-700">
               💎 DOĞALTAŞ DETAY
             </div>
 
@@ -668,17 +691,17 @@ export default function StoneDetailPage() {
               <button
                 type="button"
                 onClick={() => openTextEditor("stone_name", "Taş Adı", "BAŞLIK", false)}
-                className="block max-w-[620px] rounded-2xl bg-white/80 px-4 py-2 text-left text-[32px] font-black tracking-tight shadow-sm ring-1 ring-cyan-100 transition hover:bg-white hover:ring-cyan-200"
+                className="block w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-4 py-2 text-left text-5xl font-black tracking-tight text-slate-950 shadow-md transition hover:border-violet-300 xl:text-6xl"
               >
                 {stone.stone_name}
               </button>
             ) : (
-              <h1 className="text-[32px] font-black tracking-tight">
+              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
                 {stone.stone_name}
               </h1>
             )}
 
-            <p className="mt-2 text-[13px] font-medium text-slate-500">
+            <p className="mt-3 text-lg font-medium text-slate-600">
               Oluşturma: {formatDate(stone.created_at)}
               {stone.updated_at ? ` · Güncelleme: ${formatDate(stone.updated_at)}` : ""}
             </p>
@@ -687,7 +710,7 @@ export default function StoneDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/dogaltas/dogaltas-listesi"
-              className="rounded-2xl bg-white/85 px-5 py-3 text-[13px] font-black text-slate-700 shadow-[0_12px_28px_rgba(15,23,42,0.045)] ring-1 ring-white transition hover:bg-white"
+              className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
             >
               Listeye Dön
             </Link>
@@ -705,11 +728,11 @@ export default function StoneDetailPage() {
                   setSuccessMessage("");
                 }
               }}
-              className={`rounded-2xl px-6 py-3 text-[13px] font-black shadow-[0_14px_30px_rgba(15,23,42,0.11)] transition ${
+              className={
                 editEnabled
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                  : "bg-slate-950 text-white hover:bg-slate-800"
-              }`}
+                  ? "rounded-2xl bg-emerald-600 px-6 py-4 font-black text-white shadow-md hover:bg-emerald-700"
+                  : "rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-md hover:bg-violet-700"
+              }
             >
               {editEnabled ? "Kaydet" : "Düzenle"}
             </button>
@@ -717,7 +740,7 @@ export default function StoneDetailPage() {
             <button
               type="button"
               onClick={() => setShowDeletePopup(true)}
-              className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(225,29,72,0.18)] transition hover:bg-rose-700"
+              className="rounded-2xl bg-red-500 px-6 py-4 font-black text-white shadow-md hover:bg-red-600"
             >
               Sil
             </button>
@@ -725,29 +748,29 @@ export default function StoneDetailPage() {
         </header>
 
         {editEnabled && (
-          <div className="mb-4 rounded-2xl bg-cyan-50 px-5 py-3 text-[12px] font-black text-cyan-700 ring-1 ring-cyan-100">
+          <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/90 px-5 py-3 text-sm font-black text-violet-800 shadow-sm">
             Düzenleme açık: Klasörler küçültüldü. Düzenlemek istediğiniz klasörü seçin.
           </div>
         )}
 
         {(errorMessage || successMessage) && (
           <div
-            className={`mb-4 rounded-2xl px-5 py-3 text-[13px] font-black ring-1 ${
+            className={`rounded-2xl border-2 px-5 py-3 text-sm font-black ${
               errorMessage
-                ? "bg-rose-50 text-rose-700 ring-rose-100"
-                : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
             {errorMessage || successMessage}
           </div>
         )}
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_1fr]">
-          <aside className="space-y-4">
-            <div className="rounded-[26px] border border-white bg-white/86 p-5 text-center shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
+          <aside className="space-y-6">
+            <div className={`${uiProfileCard} text-center`}>
               {imagesWithUrl.length > 0 ? (
                 <>
-                  <div className="relative overflow-hidden rounded-[22px] border border-cyan-100 bg-cyan-50/60">
+                  <div className={`relative overflow-hidden ${uiImageArea}`}>
                     <button
                       type="button"
                       onClick={() =>
@@ -756,7 +779,7 @@ export default function StoneDetailPage() {
                           name: imagesWithUrl[0].name,
                         })
                       }
-                      className="flex w-full min-h-[160px] items-center justify-center p-2"
+                      className="flex w-full items-center justify-center p-2"
                     >
                       <img
                         src={imagesWithUrl[0].url}
@@ -780,7 +803,7 @@ export default function StoneDetailPage() {
                         Sil
                       </button>
                     )}
-                    <h2 className="border-t border-cyan-100/80 bg-white/60 px-2 pb-3 pt-3 text-[18px] font-black text-slate-950">
+                    <h2 className="border-t border-cyan-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
                       {stone.stone_name}
                     </h2>
                   </div>
@@ -794,7 +817,7 @@ export default function StoneDetailPage() {
                             onClick={() =>
                               setPreviewImage({ url: img.url!, name: img.name })
                             }
-                            className="flex h-14 w-14 overflow-hidden rounded-xl ring-1 ring-slate-100 transition hover:ring-cyan-200"
+                            className={`flex h-14 w-14 ${uiThumb}`}
                           >
                             <img
                               src={img.url}
@@ -824,7 +847,7 @@ export default function StoneDetailPage() {
                   )}
                 </>
               ) : (
-                <div className="flex min-h-[190px] items-center justify-center rounded-[22px] border border-dashed border-cyan-200 bg-cyan-50/60">
+                <div className={uiImageArea}>
                   <div>
                     <div className="text-[62px]">💎</div>
                     <h2 className="mt-2 text-[20px] font-black text-slate-950">
@@ -937,12 +960,10 @@ export default function StoneDetailPage() {
             <button
               type="button"
               onClick={() => openCheckboxEditor("chakras", "Çakralar", "ÇAKRA", CHAKRA_OPTIONS)}
-              className={`w-full rounded-[18px] bg-white/82 p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.03)] ring-1 ring-white transition ${
-                editEnabled ? "hover:bg-white hover:ring-cyan-100" : "hover:bg-white"
-              }`}
+              className={uiInfoCard}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[15px] font-black text-slate-950">Çakralar</h3>
+                <h3 className="text-2xl font-black text-slate-950">Çakralar</h3>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
@@ -957,7 +978,7 @@ export default function StoneDetailPage() {
                   (stone.chakras || []).slice(0, editEnabled ? 3 : 99).map((chakra) => (
                     <span
                       key={chakra}
-                      className="rounded-full bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700 ring-1 ring-violet-100"
+                      className={toneClass("violet")}
                     >
                       {chakra}
                     </span>
@@ -969,12 +990,10 @@ export default function StoneDetailPage() {
             <button
               type="button"
               onClick={() => openCheckboxEditor("warning_tags", "Uyarı Etiketleri", "UYARI ETİKETLERİ", WARNING_OPTIONS)}
-              className={`w-full rounded-[18px] bg-white/82 p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.03)] ring-1 ring-white transition ${
-                editEnabled ? "hover:bg-white hover:ring-cyan-100" : "hover:bg-white"
-              }`}
+              className={uiInfoCard}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[15px] font-black text-slate-950">Uyarı Etiketleri</h3>
+                <h3 className="text-2xl font-black text-slate-950">Uyarı Etiketleri</h3>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
@@ -989,7 +1008,7 @@ export default function StoneDetailPage() {
                   (stone.warning_tags || []).slice(0, editEnabled ? 3 : 99).map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700 ring-1 ring-rose-100"
+                      className={toneClass("rose")}
                     >
                       {tag}
                     </span>
@@ -1001,12 +1020,10 @@ export default function StoneDetailPage() {
             <button
               type="button"
               onClick={openAssignmentsEditor}
-              className={`w-full rounded-[24px] bg-white/82 p-4 text-left shadow-[0_18px_45px_rgba(15,23,42,0.035)] ring-1 ring-white transition ${
-                editEnabled ? "hover:bg-white hover:ring-cyan-100" : ""
-              }`}
+              className={uiInfoCard}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[15px] font-black text-slate-950">Atamalar</h3>
+                <h3 className="text-2xl font-black text-slate-950">Atamalar</h3>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Düzenle
@@ -1037,7 +1054,7 @@ export default function StoneDetailPage() {
             </button>
           </aside>
 
-          <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <TextBlock
               title="Kısa Açıklama"
               badge="GENEL BİLGİ"
@@ -1052,7 +1069,7 @@ export default function StoneDetailPage() {
               title="Genel Taş Açıklaması"
               badge="DETAYLI BİLGİ"
               text={stone.general_info}
-              tone="violet"
+              tone="cyan"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
               onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", stone.general_info)}
@@ -1072,7 +1089,7 @@ export default function StoneDetailPage() {
               title="Fiziksel Etkiler"
               badge="BEDENSEL ETKİ"
               text={stone.physical_effects}
-              tone="sky"
+              tone="emerald"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
               onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", stone.physical_effects)}
@@ -1082,7 +1099,7 @@ export default function StoneDetailPage() {
               title="Ruhsal Etkiler"
               badge="RUHSAL ETKİ"
               text={stone.spiritual_effects}
-              tone="emerald"
+              tone="violet"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
               onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", stone.spiritual_effects)}
@@ -1092,32 +1109,32 @@ export default function StoneDetailPage() {
               title="Diğer Etkiler"
               badge="TAMAMLAYICI NOT"
               text={stone.other_effects}
-              tone="slate"
+              tone="amber"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
               onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", stone.other_effects)}
             />
 
-            <TextBlock
-              title="Uyarılar ve Hassasiyetler"
-              badge="KLİNİK NOT"
-              text={stone.warning_text}
-              tone="rose"
-              editEnabled={editEnabled}
-              onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
-              onOpenRead={() => openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", stone.warning_text)}
-            />
+            <div className="lg:col-span-2">
+              <TextBlock
+                title="Uyarılar ve Hassasiyetler"
+                badge="KLİNİK NOT"
+                text={stone.warning_text}
+                tone="rose"
+                editEnabled={editEnabled}
+                onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
+                onOpenRead={() => openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", stone.warning_text)}
+              />
+            </div>
 
-            <section className="rounded-[22px] border border-white bg-white/90 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.03)]">
-              <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black text-emerald-700">
-                KULLANIM ALANLARI
-              </div>
+            <section className={`${uiInfoCard} lg:col-span-2`}>
+              <div className={toneClass("cyan")}>KULLANIM ALANLARI</div>
 
-              <h2 className="text-[17px] font-black text-slate-950">
+              <h2 className="mt-2 text-2xl font-black text-slate-950">
                 Kullanım / Uygulama Notları
               </h2>
 
-              <div className="mt-3 grid grid-cols-1 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {[
                   ["Feng Shui", "feng_shui", stone.feng_shui],
                   ["Meditasyon", "meditation", stone.meditation],
@@ -1136,12 +1153,10 @@ export default function StoneDetailPage() {
                           )
                         : openReader(String(title), "KULLANIM ALANI", String(text || ""))
                     }
-                    className={`rounded-[16px] bg-slate-50/80 p-3 text-left ring-1 ring-slate-100 transition ${
-                      editEnabled ? "hover:bg-white hover:ring-cyan-100" : "hover:bg-white hover:ring-cyan-100"
-                    }`}
+                    className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-[13px] font-black text-slate-800">{title}</h3>
+                      <h3 className="text-base font-black text-slate-950">{title}</h3>
                       {editEnabled ? (
                         <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
                           Düzenle
@@ -1153,7 +1168,7 @@ export default function StoneDetailPage() {
                       )}
                     </div>
 
-                    <p className="mt-1 line-clamp-1 text-[11px] text-slate-400">
+                    <p className={`mt-2 line-clamp-2 text-base leading-7 text-slate-700 ${!String(text || "").trim() ? uiEmptyText : ""}`}>
                       {shortPreview(String(text || ""), 80)}
                     </p>
                   </button>
