@@ -967,7 +967,7 @@ export default function KisiselArsivPage() {
   }
 
   const searchInputClass =
-    "w-full rounded-3xl border border-slate-200/95 bg-white py-3 pl-11 pr-4 text-[14px] font-medium text-slate-900 shadow-inner shadow-slate-100/80 outline-none ring-1 ring-violet-100/40 transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
+    "h-14 w-full rounded-2xl border-2 border-violet-200 bg-white/90 py-0 pl-11 pr-5 text-base font-semibold text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
 
   const modalLabelClass =
     "mb-2 block text-[13px] font-semibold tracking-tight text-slate-800";
@@ -976,10 +976,10 @@ export default function KisiselArsivPage() {
     "w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-[14px] font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
 
   const searchLabelClass =
-    "mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-600";
+    "mb-2 block text-sm font-black tracking-[0.18em] text-slate-600";
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 px-3 py-6 sm:px-5 sm:py-8">
+    <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_40%,#f8fafc_100%)]">
       {toast ? (
         <div
           role="status"
@@ -993,20 +993,10 @@ export default function KisiselArsivPage() {
           {toast.message}
         </div>
       ) : null}
-      <div
-        className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-violet-300/35 blur-3xl sm:-left-32 sm:h-80 sm:w-80"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-20 top-48 h-72 w-72 rounded-full bg-sky-300/30 blur-3xl sm:right-[-5rem] sm:top-36"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute bottom-10 left-1/3 h-56 w-56 rounded-full bg-emerald-300/25 blur-3xl"
-        aria-hidden
-      />
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
 
-      <div className="relative mx-auto flex max-w-5xl flex-col gap-5">
+      <div className="relative z-10 flex w-full flex-col gap-6 px-6 py-6 xl:px-10 2xl:px-14">
         <div>
           <Link
             href="/"
@@ -1016,8 +1006,8 @@ export default function KisiselArsivPage() {
           </Link>
         </div>
 
-        <header className="overflow-hidden rounded-3xl border border-white/70 bg-white/55 shadow-2xl shadow-violet-300/25 ring-1 ring-white/80 backdrop-blur-xl sm:px-8 sm:py-8">
-          <div className="bg-gradient-to-br from-violet-100/50 via-white/40 to-emerald-100/40 px-5 py-6 sm:px-8 sm:py-8">
+        <header className="rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl">
+          <div>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
                 <div
@@ -1027,13 +1017,13 @@ export default function KisiselArsivPage() {
                   📁
                 </div>
                 <div className="min-w-0">
-                  <div className="inline-flex rounded-full bg-gradient-to-r from-violet-200/90 via-sky-100/90 to-emerald-100/90 px-3 py-1 text-[10px] font-black tracking-[0.2em] text-violet-950 ring-1 ring-violet-300/40">
+                  <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
                     ARŞİV
                   </div>
-                  <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                  <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
                     Kişisel Arşiv
                   </h1>
-                  <p className="mt-2 max-w-2xl text-[13px] font-semibold leading-relaxed text-slate-700 sm:text-[14px]">
+                  <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
                     Ses • Video • Belge • Resim • Not • Her türlü kişisel kayıt
                   </p>
                 </div>
@@ -1045,35 +1035,29 @@ export default function KisiselArsivPage() {
                     setInfo(null);
                     setIsCreateModalOpen(true);
                   }}
-                  className="shrink-0 self-start rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-5 py-3.5 text-[12px] font-black uppercase tracking-wide text-white shadow-[0_14px_40px_-8px_rgba(109,40,217,0.55)] ring-2 ring-white/50 transition hover:brightness-110 active:scale-[0.98]"
+                  className="shrink-0 self-start rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-7 py-4 font-black text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 hover:-translate-y-1"
                 >
                   + Yeni Kayıt
                 </button>
               ) : null}
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
-              <div className="rounded-3xl border border-violet-200/60 bg-gradient-to-br from-violet-50/95 to-white/80 px-4 py-3 shadow-lg shadow-violet-200/30 ring-1 ring-violet-100/60">
-                <p className="text-[10px] font-black uppercase tracking-widest text-violet-800/80">
-                  Toplam Kayıt
-                </p>
-                <p className="mt-1 text-2xl font-black tabular-nums text-violet-950">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
+                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Toplam Kayıt</p>
+                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
                   {stats.totalArchives}
                 </p>
               </div>
-              <div className="rounded-3xl border border-sky-200/60 bg-gradient-to-br from-sky-50/95 to-white/80 px-4 py-3 shadow-lg shadow-sky-200/30 ring-1 ring-sky-100/60">
-                <p className="text-[10px] font-black uppercase tracking-widest text-sky-900/75">
-                  Toplam Dosya
-                </p>
-                <p className="mt-1 text-2xl font-black tabular-nums text-sky-950">
+              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
+                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Toplam Dosya</p>
+                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
                   {stats.totalFiles}
                 </p>
               </div>
-              <div className="rounded-3xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/95 to-white/80 px-4 py-3 shadow-lg shadow-emerald-200/25 ring-1 ring-emerald-100/60">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-900/75">
-                  Kategori
-                </p>
-                <p className="mt-1 text-2xl font-black tabular-nums text-emerald-950">
+              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
+                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Kategori</p>
+                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
                   {stats.categoryKinds}
                 </p>
               </div>
@@ -1093,12 +1077,12 @@ export default function KisiselArsivPage() {
           </div>
         ) : null}
 
-        <section className="min-w-0 overflow-hidden rounded-3xl border-2 border-white/90 bg-white/95 shadow-2xl shadow-slate-300/25 ring-1 ring-violet-100/50 backdrop-blur-md">
+        <section className="w-full overflow-hidden rounded-[34px] border-[3px] border-cyan-300/45 bg-white/78 p-8 shadow-[0_0_50px_rgba(34,211,238,0.14)] backdrop-blur-xl">
           <div
-            className="h-1.5 w-full bg-gradient-to-r from-violet-300/90 via-sky-300/85 to-emerald-300/90"
+            className="h-[2px] w-full bg-gradient-to-r from-violet-400/80 via-cyan-400/70 to-emerald-400/60"
             aria-hidden
           />
-          <div className="p-5 sm:p-6">
+          <div className="pt-6">
             <div className="flex flex-col gap-4 sm:gap-5">
               <div className="flex w-full items-center justify-center gap-2.5 px-1 sm:gap-4">
                 <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
@@ -1107,18 +1091,16 @@ export default function KisiselArsivPage() {
                     aria-hidden
                   />
                   <div
-                    className="h-[3px] min-w-[2.5rem] flex-1 max-w-[6rem] rounded-full bg-gradient-to-r from-violet-600 via-violet-500 to-sky-500 opacity-95 shadow-sm sm:max-w-none"
+                    className="h-[2px] min-w-[2.5rem] flex-1 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 opacity-90 shadow-sm"
                     aria-hidden
                   />
                 </div>
-                <h2 className="shrink-0 text-center text-3xl font-black tracking-wide">
-                  <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-sky-500 bg-clip-text text-transparent">
-                    KAYITLAR
-                  </span>
+                <h2 className="shrink-0 bg-gradient-to-r from-violet-500 to-cyan-500 bg-clip-text text-center text-5xl font-black tracking-tight text-transparent">
+                  KAYITLAR
                 </h2>
                 <div className="flex min-w-0 flex-1 items-center justify-start gap-2 sm:gap-2.5">
                   <div
-                    className="h-[3px] min-w-[2.5rem] flex-1 max-w-[6rem] rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 opacity-95 shadow-sm sm:max-w-none"
+                    className="h-[2px] min-w-[2.5rem] flex-1 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 opacity-90 shadow-sm"
                     aria-hidden
                   />
                   <span
@@ -1129,12 +1111,12 @@ export default function KisiselArsivPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <p className="text-[12px] font-semibold leading-relaxed text-slate-600 sm:max-w-xl">
+                <p className="text-base font-medium leading-relaxed text-slate-600">
                   En yeni üstte. Arama başlık, kategori, etiket, not ve dosya adlarında çalışır;
                   birden fazla kelime yazarsanız tüm kelimeler eşleşmelidir. Türkçe harf ve
                   noktalama farkları tolere edilir.
                 </p>
-                <label className="block w-full min-w-0 sm:max-w-xs">
+                <label className="block w-full min-w-0 lg:max-w-md">
                   <span className={searchLabelClass}>Ara</span>
                   <div className="relative">
                     <span
@@ -1155,7 +1137,7 @@ export default function KisiselArsivPage() {
               </div>
             </div>
 
-            <div className="mt-5 space-y-3">
+            <div className="mt-6 w-full space-y-5">
               {loadingList ? (
                 <p className="py-12 text-center text-[14px] font-semibold text-slate-500">
                   Yükleniyor…
@@ -1189,10 +1171,10 @@ export default function KisiselArsivPage() {
                 visibleRows.map((row) => (
                   <article
                     key={row.id}
-                    className="group rounded-3xl border border-slate-200/95 bg-gradient-to-br from-white via-violet-50/25 to-sky-50/30 p-4 shadow-xl shadow-slate-200/50 ring-1 ring-violet-100/40 transition duration-200 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-violet-200/35 sm:p-5"
+                    className="group rounded-[28px] border-[3px] border-violet-200/70 bg-white/85 p-6 shadow-[0_0_35px_rgba(139,92,246,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400 hover:shadow-[0_0_45px_rgba(34,211,238,0.16)]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h3 className="min-w-0 flex-1 text-[15px] font-black leading-snug text-slate-900">
+                      <h3 className="min-w-0 flex-1 text-2xl font-black leading-snug text-slate-950">
                         {highlightText(row.title, search)}
                       </h3>
                       <span
@@ -1201,15 +1183,15 @@ export default function KisiselArsivPage() {
                         {row.category}
                       </span>
                     </div>
-                    <p className="mt-3 text-[13px] font-semibold leading-relaxed text-slate-700">
+                    <p className="mt-3 text-base leading-7 text-slate-700">
                       {notePreview(row.note)}
                     </p>
                     {row.tags?.trim() ? (
-                      <p className="mt-2 text-[11px] font-semibold text-violet-800">
+                      <p className="mt-2 text-sm font-bold text-violet-700">
                         Etiketler: {row.tags}
                       </p>
                     ) : null}
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-slate-500">
                       <time dateTime={row.created_at}>{formatTrDate(row.created_at)}</time>
                       <span className="rounded-full bg-slate-100/95 px-2 py-0.5 text-[10px] font-black text-slate-700">
                         {fileCount(row)} dosya
@@ -1225,7 +1207,7 @@ export default function KisiselArsivPage() {
                           if (detailFileInputRef.current) detailFileInputRef.current.value = "";
                           setDetailId(row.id);
                         }}
-                        className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-[12px] font-black uppercase tracking-wide text-white shadow-md shadow-violet-400/30 transition hover:brightness-110"
+                        className="rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-6 py-3 font-black text-white shadow-md transition-all duration-300 hover:-translate-y-1"
                       >
                         Detay
                       </button>
@@ -1233,7 +1215,7 @@ export default function KisiselArsivPage() {
                         type="button"
                         disabled={deletingId === row.id}
                         onClick={() => setDeleteConfirmRow(row)}
-                        className="rounded-2xl border-2 border-rose-200 bg-rose-50/90 px-4 py-2 text-[12px] font-black uppercase tracking-wide text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-2xl border-2 border-red-200 bg-red-50 px-6 py-3 font-black text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {deletingId === row.id ? "Siliniyor…" : "Sil"}
                       </button>
