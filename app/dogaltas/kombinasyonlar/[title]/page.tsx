@@ -50,6 +50,23 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+const pageBg =
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
+const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const uiHeaderCard =
+  "rounded-[34px] border-[3px] border-violet-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
+const uiDetailCard =
+  "w-full rounded-[34px] border-[3px] border-cyan-300/45 bg-white/78 p-8 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+const uiFieldBox =
+  "rounded-[26px] border-[3px] border-violet-200 bg-gradient-to-br from-white/85 to-violet-50/70 p-6 shadow-[0_0_30px_rgba(139,92,246,0.10)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.16)]";
+const uiFieldLabel = "text-sm font-black uppercase tracking-[0.18em] text-violet-700";
+const uiFieldContent = "mt-4 text-lg font-semibold leading-8 text-slate-800";
+const uiEmptyText = "text-slate-400 italic font-medium";
+const uiDatesBox =
+  "rounded-[26px] border-[3px] border-amber-200 bg-gradient-to-br from-white/85 to-amber-50/70 p-6 shadow-[0_0_30px_rgba(245,158,11,0.12)] lg:col-span-2";
+const uiComboBadge =
+  "inline-flex items-center rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2 text-sm font-black text-white shadow-md";
+
 function FieldBlock({
   label,
   children,
@@ -58,11 +75,9 @@ function FieldBlock({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100/90 bg-slate-50/50 p-4 ring-1 ring-white/60">
-      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-        {label}
-      </div>
-      <div className="text-[14px] leading-7 text-slate-800">{children}</div>
+    <div className={uiFieldBox}>
+      <div className={uiFieldLabel}>{label}</div>
+      <div className={uiFieldContent}>{children}</div>
     </div>
   );
 }
@@ -265,12 +280,12 @@ export default function KombinasyonDetayPage() {
 
   if (!decodedTitle) {
     return (
-      <main className="min-h-screen bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] text-slate-950">
-        <div className="mx-auto max-w-[1260px] px-6 py-10 text-center">
-          <p className="text-[15px] font-bold text-slate-600">Geçersiz başlık.</p>
+      <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
+        <div className={`${uiHeaderCard} w-full text-center`}>
+          <p className="text-lg font-bold text-slate-600">Geçersiz başlık.</p>
           <Link
             href="/dogaltas/kombinasyonlar"
-            className="mt-4 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-[13px] font-black text-white"
+            className="mt-4 inline-flex rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
           >
             Listeye Dön
           </Link>
@@ -280,19 +295,22 @@ export default function KombinasyonDetayPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#edf7ff_0%,#f5f0ff_42%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[960px] px-6 py-5">
-        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <main className={pageBg}>
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+
+      <div className={pageContent}>
+        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1 inline-flex rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-violet-700 ring-1 ring-white">
+            <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
               KOMBİNASYON DETAY
             </div>
 
-            <h1 className="max-w-[720px] text-[30px] font-black leading-tight tracking-tight">
+            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
               {decodedTitle}
             </h1>
 
-            <p className="mt-2 text-[13px] font-medium text-slate-500">
+            <p className="mt-3 text-lg font-medium text-slate-600">
               {total === 0
                 ? "Bu başlık altında henüz kombinasyon yok."
                 : `${total} kombinasyon listeleniyor.`}
@@ -302,7 +320,7 @@ export default function KombinasyonDetayPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/dogaltas/kombinasyonlar"
-              className="rounded-2xl bg-white/85 px-5 py-3 text-[13px] font-black text-slate-700 shadow-[0_12px_28px_rgba(15,23,42,0.045)] ring-1 ring-white transition hover:bg-white"
+              className="rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
             >
               Listeye Dön
             </Link>
@@ -319,7 +337,7 @@ export default function KombinasyonDetayPage() {
                   setShowNewForm(true);
                 }
               }}
-              className="rounded-2xl bg-emerald-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
+              className="rounded-2xl bg-gradient-to-r from-cyan-500 to-violet-600 px-6 py-4 font-black text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 hover:-translate-y-1"
             >
               + Yeni Kombinasyon
             </button>
@@ -327,8 +345,8 @@ export default function KombinasyonDetayPage() {
         </header>
 
         {showNewForm && (
-          <section className="mb-5 rounded-[26px] border border-white bg-white/86 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.04)] ring-1 ring-white/90">
-            <h2 className="text-[17px] font-black text-slate-950">Yeni kombinasyon</h2>
+          <section className={uiDetailCard}>
+            <h2 className="text-xl font-black text-slate-950">Yeni kombinasyon</h2>
 
             <div className="mt-4 grid grid-cols-1 gap-4">
               <label className="block">
@@ -429,19 +447,19 @@ export default function KombinasyonDetayPage() {
         )}
 
         {loading ? (
-          <div className="flex min-h-[240px] items-center justify-center rounded-[26px] bg-white/70 text-[14px] font-bold text-slate-400 ring-1 ring-white">
+          <div className={`${uiDetailCard} flex min-h-[280px] items-center justify-center text-base font-bold text-slate-500`}>
             Yükleniyor...
           </div>
         ) : rows.length === 0 ? (
-          <div className="rounded-[26px] border border-white bg-white/86 p-10 text-center shadow-[0_18px_45px_rgba(15,23,42,0.04)] ring-1 ring-white/90">
-            <div className="text-[44px]">✶</div>
-            <p className="mt-3 text-[15px] font-black text-slate-800">Henüz kayıt yok</p>
-            <p className="mt-2 text-[13px] text-slate-500">
+          <div className={`${uiDetailCard} text-center`}>
+            <div className="text-5xl">✶</div>
+            <p className="mt-3 text-lg font-black text-slate-800">Henüz kayıt yok</p>
+            <p className="mt-2 text-base font-medium text-slate-500">
               Yukarıdan yeni kombinasyon ekleyebilirsiniz.
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {rows.map((row, index) => {
               const isEditing = editingId === row.id;
               const positionLabel = `Kombinasyon ${index + 1} / ${total}`;
@@ -449,19 +467,19 @@ export default function KombinasyonDetayPage() {
               return (
                 <article
                   key={row.id}
-                  className="rounded-[26px] border border-white bg-white/86 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.04)] ring-1 ring-white/90"
+                  className={uiDetailCard}
                 >
-                  <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-3 border-b border-cyan-100 pb-6 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <div className="mb-2 inline-flex rounded-full bg-violet-50 px-3 py-1 text-[10px] font-black tracking-[0.1em] text-violet-700 ring-1 ring-violet-100">
+                      <div className={uiComboBadge}>
                         {positionLabel}
                       </div>
-                      <p className="text-[11px] font-bold text-slate-400">
+                      <p className="mt-2 text-sm font-bold text-slate-500">
                         Sıra #{index + 1} · No {row.combination_no}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                       {isEditing ? (
                         <>
                           <button
@@ -487,7 +505,7 @@ export default function KombinasyonDetayPage() {
                             type="button"
                             onClick={() => startEdit(row)}
                             disabled={deletingId === row.id || !!editingId}
-                            className="rounded-2xl bg-slate-950 px-4 py-2 text-[12px] font-black text-white transition hover:bg-slate-800 disabled:opacity-50"
+                            className="rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-md transition hover:bg-violet-700 disabled:opacity-50"
                           >
                             Düzenle
                           </button>
@@ -501,7 +519,7 @@ export default function KombinasyonDetayPage() {
                             disabled={
                               !!editingId || !!deletingId || deleteConfirmId !== null
                             }
-                            className="rounded-2xl bg-rose-600 px-4 py-2 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.2)] transition hover:bg-rose-700 disabled:opacity-60"
+                            className="rounded-2xl bg-red-500 px-6 py-4 font-black text-white shadow-md transition hover:bg-red-600 disabled:opacity-60"
                           >
                             Sil
                           </button>
@@ -511,7 +529,7 @@ export default function KombinasyonDetayPage() {
                   </div>
 
                   {isEditing && editDraft ? (
-                    <div className="mt-4 grid grid-cols-1 gap-4">
+                    <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                       <label className="block">
                         <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
                           Bilgi kaynağı
@@ -557,56 +575,59 @@ export default function KombinasyonDetayPage() {
                           </label>
                         ))}
                       </div>
-                      <div className="rounded-2xl border border-slate-100/90 bg-slate-50/40 px-4 py-3 text-[12px] font-semibold text-slate-500">
-                        Oluşturma: {formatDate(row.created_at)} · Güncelleme:{" "}
-                        {formatDate(row.updated_at)}
+                      <div className={uiDatesBox}>
+                        <div className={uiFieldLabel}>Tarihler</div>
+                        <p className="text-base font-bold leading-8 text-slate-700">
+                          Oluşturma: {formatDate(row.created_at)}
+                        </p>
+                        <p className="text-base font-bold leading-8 text-slate-700">
+                          Güncelleme: {formatDate(row.updated_at)}
+                        </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                       <FieldBlock label="Bilgi kaynağı">
                         {row.source_note?.trim() ? (
                           <span className="whitespace-pre-wrap">{row.source_note}</span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className={uiEmptyText}>—</span>
                         )}
                       </FieldBlock>
                       <FieldBlock label="Taş kombinasyonu">
                         {row.stone_combination?.trim() ? (
                           <span className="whitespace-pre-wrap">{row.stone_combination}</span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className={uiEmptyText}>—</span>
                         )}
                       </FieldBlock>
                       <FieldBlock label="Diğer notlar 1">
                         {row.note_1?.trim() ? (
                           <span className="whitespace-pre-wrap">{row.note_1}</span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className={uiEmptyText}>—</span>
                         )}
                       </FieldBlock>
                       <FieldBlock label="Diğer notlar 2">
                         {row.note_2?.trim() ? (
                           <span className="whitespace-pre-wrap">{row.note_2}</span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className={uiEmptyText}>—</span>
                         )}
                       </FieldBlock>
                       <FieldBlock label="Diğer notlar 3">
                         {row.note_3?.trim() ? (
                           <span className="whitespace-pre-wrap">{row.note_3}</span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className={uiEmptyText}>—</span>
                         )}
                       </FieldBlock>
-                      <div className="rounded-2xl border border-slate-100/90 bg-slate-50/50 p-4 ring-1 ring-white/60 md:col-span-2">
-                        <div className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          Tarihler
-                        </div>
-                        <p className="text-[13px] font-semibold text-slate-700">
+                      <div className={uiDatesBox}>
+                        <div className={uiFieldLabel}>Tarihler</div>
+                        <p className="text-base font-bold leading-8 text-slate-700">
                           Oluşturma: {formatDate(row.created_at)}
                         </p>
-                        <p className="mt-1 text-[13px] font-semibold text-slate-700">
+                        <p className="text-base font-bold leading-8 text-slate-700">
                           Güncelleme: {formatDate(row.updated_at)}
                         </p>
                       </div>
