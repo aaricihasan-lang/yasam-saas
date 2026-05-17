@@ -196,6 +196,7 @@ export default function DanisanYolculuguPage() {
                 <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-900 lg:text-6xl">
                   Danışan Yolculuğu
                 </h1>
+                <p className="mt-2 text-sm font-bold text-red-600">TEST UI UPDATE</p>
                 <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-600 lg:text-xl">
                   Danışan sürecinizi iki ana klasörde yönetin: kayıtlar ve detaylar ile
                   randevu ve günlük takip.
