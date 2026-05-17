@@ -143,18 +143,39 @@ function relatedStoneCount(value: string | null | undefined) {
   return parseRelatedStones(value).length;
 }
 
-function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "amber" | "sky") {
+const pageBg =
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)]";
+const pageContent = "relative z-10 w-full px-6 py-6 xl:px-10 2xl:px-14";
+const uiHeaderCard =
+  "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/75 p-6 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
+const uiProfileCard =
+  "rounded-[32px] border-[3px] border-amber-300/50 bg-gradient-to-br from-white/80 via-amber-50/70 to-emerald-50/70 p-6 shadow-[0_0_40px_rgba(245,158,11,0.16)] backdrop-blur-xl";
+const uiStatBox =
+  "rounded-2xl border-2 border-emerald-200 bg-white/80 p-4 text-center shadow-md";
+const uiWarningBox =
+  "rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-center font-black text-red-600 shadow-sm";
+const uiInfoCard =
+  "w-full rounded-[28px] border-[3px] border-emerald-300/45 bg-white/75 p-5 text-left shadow-[0_0_35px_rgba(16,185,129,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-400 hover:shadow-[0_0_45px_rgba(245,158,11,0.18)]";
+const uiContentBox =
+  "mt-4 min-h-[120px] rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 text-base leading-7 text-slate-700 shadow-inner";
+const uiEmptyText = "text-slate-400 italic font-medium";
+
+function toneClass(
+  tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "amber" | "sky" | "red" | "purple"
+) {
   const toneMap = {
-    slate: "bg-slate-50 text-slate-700",
-    cyan: "bg-cyan-50 text-cyan-700",
-    violet: "bg-violet-50 text-violet-700",
-    emerald: "bg-emerald-50 text-emerald-700",
-    rose: "bg-rose-50 text-rose-700",
-    amber: "bg-amber-50 text-amber-700",
-    sky: "bg-sky-50 text-sky-700",
+    slate: "bg-slate-100 text-slate-700",
+    cyan: "bg-cyan-100 text-cyan-700",
+    violet: "bg-violet-100 text-violet-700",
+    emerald: "bg-emerald-100 text-emerald-700",
+    rose: "bg-rose-100 text-rose-700",
+    amber: "bg-amber-100 text-amber-700",
+    sky: "bg-sky-100 text-sky-700",
+    red: "bg-red-100 text-red-700",
+    purple: "bg-purple-100 text-purple-700",
   };
 
-  return toneMap[tone];
+  return `inline-flex items-center rounded-full px-3 py-1 text-xs font-black tracking-wide ${toneMap[tone]}`;
 }
 
 function RelatedStonesCard({
@@ -175,30 +196,28 @@ function RelatedStonesCard({
     <button
       type="button"
       onClick={editEnabled ? onEdit : onRead}
-      className="w-full rounded-[22px] border border-white bg-white/88 p-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:bg-white hover:ring-2 hover:ring-cyan-100 xl:col-span-2"
+      className={`${uiInfoCard} lg:col-span-2`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black text-emerald-700">
-            {stones.length} TAŞ
-          </div>
+          <div className={toneClass("emerald")}>{stones.length} TAŞ</div>
 
-          <h2 className="text-[17px] font-black text-slate-950">
+          <h2 className="mt-2 text-xl font-black text-slate-950">
             Bu Minerali İçeren Taşlar
           </h2>
         </div>
 
-        <span className="shrink-0 rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+        <span className="shrink-0 rounded-full border-2 border-emerald-200 bg-white/90 px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">
           {editEnabled ? "Düzenle" : "Oku"}
         </span>
       </div>
 
       {stones.length === 0 ? (
-        <div className="mt-3 min-h-[82px] rounded-[16px] border border-slate-100 bg-slate-50/70 p-3 text-[12px] leading-6 text-slate-600">
-          Henüz bilgi girilmedi.
+        <div className={uiContentBox}>
+          <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
         </div>
       ) : (
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {topStones.map((stone) => {
             const power = relatedPower(stone.percent);
 
@@ -226,7 +245,7 @@ function RelatedStonesCard({
           })}
 
           {stones.length > 6 && (
-            <div className="rounded-2xl bg-cyan-50/70 p-3 text-[12px] font-black text-cyan-700 ring-1 ring-cyan-100">
+            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-3 text-sm font-black text-amber-800 shadow-sm">
               + {stones.length - 6} taş daha var. Tam liste için tıklayın.
             </div>
           )}
@@ -248,7 +267,7 @@ function DetailCard({
   title: string;
   badge: string;
   text: string | null | undefined;
-  tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "amber" | "sky";
+  tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "amber" | "sky" | "red" | "purple";
   editEnabled: boolean;
   onRead: () => void;
   onEdit: () => void;
@@ -257,24 +276,24 @@ function DetailCard({
     <button
       type="button"
       onClick={editEnabled ? onEdit : onRead}
-      className="w-full rounded-[22px] border border-white bg-white/88 p-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:bg-white hover:ring-2 hover:ring-cyan-100"
+      className={uiInfoCard}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[9px] font-black ${toneClass(tone)}`}>
-            {badge}
-          </div>
+          <div className={toneClass(tone)}>{badge}</div>
 
-          <h2 className="text-[17px] font-black text-slate-950">{title}</h2>
+          <h2 className="mt-2 text-xl font-black text-slate-950">{title}</h2>
         </div>
 
-        <span className="shrink-0 rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+        <span className="shrink-0 rounded-full border-2 border-emerald-200 bg-white/90 px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">
           {editEnabled ? "Düzenle" : "Oku"}
         </span>
       </div>
 
-      <div className="mt-3 min-h-[82px] rounded-[16px] border border-slate-100 bg-slate-50/70 p-3 text-[12px] leading-6 text-slate-600">
-        <p className="line-clamp-5 whitespace-pre-wrap">{shortPreview(text)}</p>
+      <div className={uiContentBox}>
+        <p className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : ""}`}>
+          {shortPreview(text)}
+        </p>
       </div>
     </button>
   );
@@ -441,27 +460,25 @@ export default function MineralDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-500">
-        <div className="rounded-[24px] bg-white/80 px-7 py-5 text-[14px] font-black shadow-[0_18px_45px_rgba(15,23,42,0.06)] ring-1 ring-white">
-          Mineral yükleniyor...
-        </div>
+      <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
+        <div className={`${uiHeaderCard} text-sm font-black text-slate-600`}>Mineral yükleniyor...</div>
       </main>
     );
   }
 
   if (errorMessage && !mineral) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)]">
-        <div className="max-w-[500px] rounded-[26px] bg-white/86 p-7 text-center shadow-[0_18px_45px_rgba(15,23,42,0.06)] ring-1 ring-white">
-          <div className="text-[48px]">⚗️</div>
-          <h1 className="mt-3 text-[22px] font-black text-slate-950">Mineral bulunamadı</h1>
-          <p className="mt-3 text-[13px] leading-6 text-slate-500">
+      <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
+        <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
+          <div className="text-5xl">⚗️</div>
+          <h1 className="mt-3 text-2xl font-black text-slate-950">Mineral bulunamadı</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
             {errorMessage || "Bu mineral kaydı görüntülenemedi."}
           </p>
 
           <Link
             href="/dogaltas/mineral-listesi"
-            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-[13px] font-black text-white"
+            className="mt-6 inline-flex rounded-2xl bg-white px-6 py-3 font-black text-slate-800 border-2 border-slate-200 shadow-md hover:bg-slate-50"
           >
             Listeye Dön
           </Link>
@@ -477,40 +494,41 @@ export default function MineralDetailPage() {
   const veryStrongCount = relatedStones.filter((stone) => (stone.percent || 0) >= 30).length;
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1320px] px-5 py-4">
-        <header className="mb-4 flex flex-col gap-3 rounded-[24px] bg-white/76 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.04)] ring-1 ring-white/80 lg:flex-row lg:items-center lg:justify-between">
+    <main className={pageBg}>
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-amber-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
+
+      <div className={pageContent}>
+        <header className={`${uiHeaderCard} mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
-                ⚗️ MİNERAL DETAY
-              </span>
+              <span className={toneClass("emerald")}>⚗️ MİNERAL DETAY</span>
             </div>
 
             {editEnabled ? (
               <button
                 type="button"
                 onClick={() => openEditor("mineral_name", "Mineral Adı", "BAŞLIK", false)}
-                className="rounded-2xl bg-white/80 px-4 py-2 text-left text-[30px] font-black tracking-tight shadow-sm ring-1 ring-cyan-100 transition hover:bg-white hover:ring-cyan-200"
+                className="rounded-2xl border-2 border-amber-200 bg-white/90 px-4 py-2 text-left text-4xl font-black tracking-tight text-slate-950 shadow-md transition hover:border-emerald-300"
               >
                 {mineral.mineral_name}
               </button>
             ) : (
-              <h1 className="text-[30px] font-black tracking-tight">
+              <h1 className="text-4xl font-black tracking-tight text-slate-950">
                 {mineral.mineral_name}
               </h1>
             )}
 
-            <p className="mt-2 text-[12px] font-medium text-slate-500">
+            <p className="mt-2 text-sm font-semibold text-slate-500">
               Oluşturma: {formatDate(mineral.created_at)}
               {mineral.updated_at ? ` · Güncelleme: ${formatDate(mineral.updated_at)}` : ""}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/dogaltas/mineral-listesi"
-              className="rounded-2xl bg-white px-5 py-3 text-[13px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
+              className="rounded-2xl bg-white px-6 py-3 font-black text-slate-800 border-2 border-slate-200 shadow-md hover:bg-slate-50"
             >
               Listeye Dön
             </Link>
@@ -528,11 +546,11 @@ export default function MineralDetailPage() {
                   setSuccessMessage("");
                 }
               }}
-              className={`rounded-2xl px-6 py-3 text-[13px] font-black shadow-[0_14px_30px_rgba(15,23,42,0.11)] transition ${
+              className={
                 editEnabled
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                  : "bg-slate-950 text-white hover:bg-slate-800"
-              }`}
+                  ? "rounded-2xl bg-emerald-600 px-6 py-3 font-black text-white shadow-md hover:bg-emerald-700"
+                  : "rounded-2xl bg-slate-950 px-6 py-3 font-black text-white shadow-md hover:bg-emerald-700"
+              }
             >
               {editEnabled ? "Kaydet" : "Düzenle"}
             </button>
@@ -540,7 +558,7 @@ export default function MineralDetailPage() {
             <button
               type="button"
               onClick={() => setShowDeletePopup(true)}
-              className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(225,29,72,0.18)] transition hover:bg-rose-700"
+              className="rounded-2xl bg-red-500 px-6 py-3 font-black text-white shadow-md hover:bg-red-600"
             >
               Sil
             </button>
@@ -548,80 +566,67 @@ export default function MineralDetailPage() {
         </header>
 
         {editEnabled && (
-          <div className="mb-4 rounded-2xl bg-cyan-50 px-5 py-3 text-[12px] font-black text-cyan-700 ring-1 ring-cyan-100">
+          <div className="mb-6 rounded-2xl border-2 border-amber-200 bg-amber-50/90 px-5 py-3 text-sm font-black text-amber-800 shadow-sm">
             Düzenleme açık: Değiştirmek istediğiniz karta tıklayın.
           </div>
         )}
 
         {(errorMessage || successMessage) && (
           <div
-            className={`mb-4 rounded-2xl px-5 py-3 text-[13px] font-black ring-1 ${
+            className={`mb-6 rounded-2xl border-2 px-5 py-3 text-sm font-black ${
               errorMessage
-                ? "bg-rose-50 text-rose-700 ring-rose-100"
-                : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
             {errorMessage || successMessage}
           </div>
         )}
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]">
-          <aside className="space-y-4">
-            <div className="rounded-[26px] border border-white bg-white/86 p-5 text-center shadow-[0_16px_40px_rgba(15,23,42,0.035)]">
-              <div className="flex min-h-[180px] items-center justify-center rounded-[22px] border border-dashed border-emerald-200 bg-emerald-50/60">
-                <div>
-                  <div className="text-[58px]">⚗️</div>
-                  <h2 className="mt-2 text-[22px] font-black text-slate-950">
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr]">
+          <aside className="space-y-6">
+            <div className={uiProfileCard}>
+              <div className="flex min-h-[200px] items-center justify-center rounded-[24px] border-2 border-dashed border-amber-200/80 bg-white/60">
+                <div className="text-center">
+                  <div className="text-6xl">⚗️</div>
+                  <h2 className="mt-3 text-2xl font-black text-slate-950">
                     {mineral.mineral_name}
                   </h2>
-                  <p className="mt-2 px-3 text-[12px] leading-5 text-slate-500">
+                  <p className="mt-2 px-3 text-sm leading-6 text-slate-500">
                     Mineral bilgi bankası kaydı.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-2xl bg-white p-3 text-center ring-1 ring-slate-100">
-                  <div className="text-[18px] font-black text-slate-950">
-                    {filledCount}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-400">
-                    Dolu Bölüm
-                  </div>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className={uiStatBox}>
+                  <div className="text-2xl font-black text-slate-950">{filledCount}</div>
+                  <div className="mt-1 text-xs font-bold text-slate-500">Dolu Bölüm</div>
                 </div>
 
-                <div className="rounded-2xl bg-white p-3 text-center ring-1 ring-slate-100">
-                  <div className="text-[18px] font-black text-slate-950">
-                    {relatedCount}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-400">
-                    İçeren Taş
-                  </div>
+                <div className={uiStatBox}>
+                  <div className="text-2xl font-black text-slate-950">{relatedCount}</div>
+                  <div className="mt-1 text-xs font-bold text-slate-500">İçeren Taş</div>
                 </div>
 
-                <div className="col-span-2 rounded-2xl bg-rose-50 p-3 text-center ring-1 ring-rose-100">
-                  <div className="text-[18px] font-black text-rose-700">
-                    {veryStrongCount}
-                  </div>
-                  <div className="text-[10px] font-bold text-rose-500">
-                    Çok Güçlü Kaynak
-                  </div>
+                <div className={`col-span-2 ${uiWarningBox}`}>
+                  <div className="text-2xl font-black">{veryStrongCount}</div>
+                  <div className="mt-1 text-xs font-bold">Çok Güçlü Kaynak</div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[24px] bg-white/82 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.035)] ring-1 ring-white">
-              <h3 className="text-[15px] font-black text-slate-950">
-                Kısa Özet
-              </h3>
-
-              <p className="mt-3 rounded-2xl bg-slate-50/80 p-3 text-[12px] leading-6 text-slate-500 ring-1 ring-slate-100">
-                {shortPreview(mineral.general_info, 220)}
-              </p>
+            <div className={uiInfoCard}>
+              <h3 className="text-xl font-black text-slate-950">Kısa Özet</h3>
+              <div className={uiContentBox}>
+                <p className={`whitespace-pre-wrap ${!mineral.general_info?.trim() ? uiEmptyText : ""}`}>
+                  {shortPreview(mineral.general_info, 220)}
+                </p>
+              </div>
             </div>
           </aside>
 
-          <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <RelatedStonesCard
               text={mineral.related_stones}
               editEnabled={editEnabled}
@@ -640,7 +645,7 @@ export default function MineralDetailPage() {
               title="Açıklama / Genel Bilgi"
               badge="GENEL BİLGİ"
               text={mineral.general_info}
-              tone="cyan"
+              tone="emerald"
               editEnabled={editEnabled}
               onRead={() => openReader("Açıklama / Genel Bilgi", "GENEL BİLGİ", mineral.general_info)}
               onEdit={() => openEditor("general_info", "Açıklama / Genel Bilgi", "GENEL BİLGİ")}
@@ -650,7 +655,7 @@ export default function MineralDetailPage() {
               title="Organ Etkileri"
               badge="ORGAN"
               text={mineral.organ_effects}
-              tone="emerald"
+              tone="cyan"
               editEnabled={editEnabled}
               onRead={() => openReader("Organ Etkileri", "ORGAN", mineral.organ_effects)}
               onEdit={() => openEditor("organ_effects", "Organ Etkileri", "ORGAN")}
@@ -670,7 +675,7 @@ export default function MineralDetailPage() {
               title="Fazlalık Belirtileri"
               badge="FAZLALIK"
               text={mineral.excess_symptoms}
-              tone="rose"
+              tone="red"
               editEnabled={editEnabled}
               onRead={() => openReader("Fazlalık Belirtileri", "FAZLALIK", mineral.excess_symptoms)}
               onEdit={() => openEditor("excess_symptoms", "Fazlalık Belirtileri", "FAZLALIK")}
@@ -710,7 +715,7 @@ export default function MineralDetailPage() {
               title="Zihinsel / Ruhsal Etkiler"
               badge="ZİHİNSEL"
               text={mineral.mental_spiritual_effects}
-              tone="slate"
+              tone="purple"
               editEnabled={editEnabled}
               onRead={() => openReader("Zihinsel / Ruhsal Etkiler", "ZİHİNSEL", mineral.mental_spiritual_effects)}
               onEdit={() => openEditor("mental_spiritual_effects", "Zihinsel / Ruhsal Etkiler", "ZİHİNSEL")}
