@@ -44,16 +44,16 @@ export default function NumerolojiBilgiBankasiPage() {
       </div>
 
       <div className="overflow-hidden rounded-[32px] border-2 border-violet-200/80 bg-white/95 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
-        <div className="flex flex-wrap gap-4 border-b border-violet-200/80 bg-gradient-to-r from-violet-50/90 via-amber-50/60 to-sky-50/85 p-5 sm:gap-5 sm:p-6">
+        <div className="flex flex-wrap gap-5 rounded-[32px] border-[3px] border-violet-300/40 bg-white/75 p-5 shadow-[0_0_45px_rgba(139,92,246,0.14)] backdrop-blur-xl">
           {BILGI_TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`min-h-[68px] shrink-0 whitespace-nowrap rounded-2xl px-10 py-5 text-left text-lg font-bold tracking-wide transition ${
+              className={`h-16 shrink-0 whitespace-nowrap rounded-2xl border-2 px-8 text-base font-black tracking-wide shadow-md transition-all duration-300 xl:text-lg ${
                 tab === t.id
-                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg ring-2 ring-violet-300/50"
-                  : "border-2 border-violet-200/70 bg-white/90 text-slate-600 shadow-md ring-1 ring-purple-200 hover:border-violet-300 hover:bg-white hover:text-violet-800"
+                  ? "scale-[1.04] border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_12px_32px_rgba(139,92,246,0.30)]"
+                  : "border-violet-200 bg-white/90 text-slate-700 hover:-translate-y-1 hover:border-violet-400 hover:bg-violet-50"
               }`}
             >
               {t.label}
