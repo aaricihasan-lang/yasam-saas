@@ -5,15 +5,15 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  Archive,
+  ArrowRight,
   Calendar,
-  Compass,
+  FolderArchive,
   Gem,
   Hash,
   Leaf,
   Rocket,
   Sparkles,
-  Users,
+  UsersRound,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -27,10 +27,9 @@ type User = {
 };
 
 type ModuleTheme = {
-  accent: string;
-  border: string;
   iconWrap: string;
-  surface: string;
+  cardBg: string;
+  border: string;
 };
 
 type ModuleCard = {
@@ -128,12 +127,11 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Ana Modül",
     href: "/danisan-yolculugu",
-    Icon: Compass,
+    Icon: UsersRound,
     theme: {
-      accent: "bg-blue-500",
-      border: "border-l-blue-500",
-      iconWrap: "from-blue-500 to-indigo-600",
-      surface: "from-blue-50/90 via-white to-white",
+      iconWrap: "from-blue-600 to-indigo-600",
+      cardBg: "from-blue-100/90 via-sky-50/95 to-white",
+      border: "border-blue-200/70",
     },
   },
   {
@@ -144,10 +142,9 @@ const dashboardModules: ModuleCard[] = [
     href: "/dogaltas",
     Icon: Gem,
     theme: {
-      accent: "bg-teal-500",
-      border: "border-l-teal-500",
       iconWrap: "from-teal-500 to-cyan-600",
-      surface: "from-teal-50/90 via-white to-white",
+      cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
+      border: "border-teal-200/70",
     },
   },
   {
@@ -158,10 +155,9 @@ const dashboardModules: ModuleCard[] = [
     href: "/sifa-rehberi",
     Icon: Leaf,
     theme: {
-      accent: "bg-emerald-500",
-      border: "border-l-emerald-500",
       iconWrap: "from-emerald-500 to-green-600",
-      surface: "from-emerald-50/90 via-white to-white",
+      cardBg: "from-emerald-100/90 via-green-50/95 to-white",
+      border: "border-emerald-200/70",
     },
   },
   {
@@ -172,10 +168,9 @@ const dashboardModules: ModuleCard[] = [
     href: "/enerji-beden",
     Icon: Sparkles,
     theme: {
-      accent: "bg-purple-500",
-      border: "border-l-purple-500",
-      iconWrap: "from-purple-500 to-fuchsia-600",
-      surface: "from-purple-50/90 via-white to-white",
+      iconWrap: "from-violet-500 to-fuchsia-600",
+      cardBg: "from-violet-100/90 via-purple-50/95 to-white",
+      border: "border-violet-200/70",
     },
   },
   {
@@ -184,12 +179,11 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "YENİ",
     href: "/dashboard/kisisel-arsiv",
-    Icon: Archive,
+    Icon: FolderArchive,
     theme: {
-      accent: "bg-orange-500",
-      border: "border-l-orange-500",
       iconWrap: "from-orange-500 to-amber-600",
-      surface: "from-orange-50/90 via-white to-white",
+      cardBg: "from-orange-100/90 via-amber-50/95 to-white",
+      border: "border-orange-200/70",
     },
   },
   {
@@ -200,10 +194,9 @@ const dashboardModules: ModuleCard[] = [
     href: "/numeroloji",
     Icon: Hash,
     theme: {
-      accent: "bg-indigo-500",
-      border: "border-l-indigo-500",
       iconWrap: "from-indigo-500 to-violet-600",
-      surface: "from-indigo-50/90 via-white to-white",
+      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
+      border: "border-indigo-200/70",
     },
   },
 ];
@@ -283,103 +276,149 @@ export default function Home() {
   };
 
   if (user) {
+    const statusCards = [
+      {
+        Icon: UsersRound,
+        title: "Danışan",
+        value: "Aktif",
+        desc: "Kayıt ve takip",
+        iconWrap: "from-violet-500 to-indigo-600",
+      },
+      {
+        Icon: Calendar,
+        title: "Ajanda",
+        value: "Aktif",
+        desc: "Randevu sistemi",
+        iconWrap: "from-sky-500 to-blue-600",
+      },
+      {
+        Icon: Gem,
+        title: "Doğaltaş",
+        value: "Aktif",
+        desc: "Modül hazır",
+        iconWrap: "from-cyan-500 to-teal-600",
+      },
+      {
+        Icon: Rocket,
+        title: "Sistem",
+        value: "Online",
+        desc: "Web bağlantısı",
+        iconWrap: "from-orange-500 to-rose-600",
+      },
+    ] as const;
+
     return (
-      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 text-slate-900 antialiased">
-        <div
-          className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-200/20 blur-[140px]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 h-[500px] w-[500px] bg-purple-300/20 blur-[140px]"
-          aria-hidden
-        />
+      <main className="min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.16),transparent_35%),linear-gradient(135deg,#f8fbff,#eef6ff,#f8f1ff)] text-slate-900 antialiased">
+        <div className="mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 py-4 lg:px-10 lg:py-5 xl:px-14">
+          <header className="relative shrink-0 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-r from-white/90 via-white/75 to-indigo-50/60 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl lg:p-5">
+            <div
+              className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-sky-300/25 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-12 left-1/3 h-28 w-28 rounded-full bg-violet-300/20 blur-3xl"
+              aria-hidden
+            />
 
-        <section className="relative z-10 mx-auto w-full max-w-[1800px] px-3 py-5 md:px-6 lg:px-8">
-          <header className="flex flex-wrap items-start justify-between gap-4 rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl md:p-8">
-            <div>
-              <div className="mb-3 inline-flex rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-bold text-slate-600">
-                {todayText}
+            <div className="relative flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 inline-flex rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                  {todayText}
+                </div>
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 lg:text-4xl">
+                  Hoş geldin, {user.name} ✨
+                </h1>
+                <p className="mt-1 hidden text-sm text-slate-600 sm:block">
+                  Çalışma alanlarını buradan yönetebilir, modüllere hızlıca geçebilirsin.
+                </p>
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
-                Hoş geldin, {user.name} ✨
-              </h1>
-              <p className="mt-2 text-base text-slate-600">
-                Çalışma alanlarını buradan yönetebilir, modüllere hızlıca geçebilirsin.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800"
-            >
-              Çıkış Yap
-            </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="shrink-0 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
+              >
+                Çıkış Yap
+              </button>
+            </div>
           </header>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { Icon: Users, title: "Danışan", value: "Aktif", desc: "Kayıt ve takip" },
-              { Icon: Calendar, title: "Ajanda", value: "Aktif", desc: "Randevu sistemi" },
-              { Icon: Gem, title: "Doğaltaş", value: "Aktif", desc: "Modül hazır" },
-              { Icon: Rocket, title: "Sistem", value: "Online", desc: "Web bağlantısı" },
-            ].map(({ Icon, title, value, desc }) => (
+          <div className="mt-3 grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+            {statusCards.map(({ Icon, title, value, desc, iconWrap }) => (
               <div
                 key={title}
-                className="min-h-[165px] rounded-3xl border border-white/80 bg-white/80 p-8 shadow-[0_12px_32px_rgba(15,23,42,0.05)] backdrop-blur-sm"
+                className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/75 p-3.5 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-sm"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 shadow-md">
-                  <Icon className="h-8 w-8 text-slate-700" strokeWidth={2} />
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${iconWrap} text-white shadow-lg`}
+                >
+                  <Icon className="h-6 w-6" strokeWidth={2.25} />
                 </div>
-                <div className="mt-4 text-xl font-bold text-slate-900">{value}</div>
-                <div className="mt-1 text-base font-semibold text-slate-800">{title}</div>
-                <div className="mt-1 text-base text-slate-500">{desc}</div>
+                <div className="min-w-0">
+                  <div className="text-sm font-black text-slate-900">{value}</div>
+                  <div className="truncate text-xs font-bold text-slate-800">{title}</div>
+                  <div className="truncate text-[11px] text-slate-500">{desc}</div>
+                </div>
               </div>
             ))}
           </div>
 
-          <section className="mt-8 rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl md:p-8">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-slate-900">Modüller</h2>
-              <p className="mt-2 text-base text-slate-600">
+          <section className="mt-3 flex min-h-0 flex-1 flex-col">
+            <div className="mb-2 shrink-0">
+              <h2 className="text-lg font-black tracking-tight text-slate-900 lg:text-xl">
+                Modüller
+              </h2>
+              <p className="text-xs text-slate-600 lg:text-sm">
                 Yaşam Sistemi içindeki ana çalışma alanları.
               </p>
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
               {dashboardModules.map((item) => {
                 const isReady = item.href !== "#";
                 const { Icon, theme } = item;
 
                 const card = (
                   <div
-                    className={`group relative min-h-[230px] overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-br p-8 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all duration-300 ${theme.surface} ${theme.border} border-l-4 ${
+                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
                       isReady
-                        ? "cursor-pointer hover:-translate-y-2 hover:scale-[1.03] hover:shadow-2xl"
+                        ? "cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
                         : "cursor-default opacity-90"
                     }`}
                   >
-                    <div className={`absolute inset-x-8 top-0 h-1 rounded-full ${theme.accent}`} />
 
                     <div className="flex items-start justify-between gap-3">
                       <div
-                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.iconWrap} text-white shadow-md`}
+                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.iconWrap} text-white shadow-lg`}
                       >
-                        <Icon className="h-8 w-8" strokeWidth={2} />
+                        <Icon className="h-7 w-7" strokeWidth={2.25} />
                       </div>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
                         {item.badge}
                       </span>
                     </div>
 
-                    <h3 className="mt-5 text-2xl font-bold text-slate-900">{item.title}</h3>
+                    <h3 className="mt-3 text-xl font-black text-slate-900 lg:text-2xl">
+                      {item.title}
+                    </h3>
 
-                    <p className="mt-2 text-base leading-relaxed text-slate-600">{item.desc}</p>
+                    <p className="mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
+                      {item.desc}
+                    </p>
 
-                    <div className="mt-5">
-                      <span className="inline-flex rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200/80">
                         {item.count}
+                      </span>
+
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105 ${
+                          isReady ? "" : "opacity-50"
+                        }`}
+                        aria-hidden
+                      >
+                        <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                       </span>
                     </div>
                   </div>
@@ -389,17 +428,19 @@ export default function Home() {
                   <Link
                     key={item.title}
                     href={item.href}
-                    className="block text-inherit no-underline"
+                    className="block h-full text-inherit no-underline"
                   >
                     {card}
                   </Link>
                 ) : (
-                  <div key={item.title}>{card}</div>
+                  <div key={item.title} className="h-full">
+                    {card}
+                  </div>
                 );
               })}
             </div>
           </section>
-        </section>
+        </div>
       </main>
     );
   }
