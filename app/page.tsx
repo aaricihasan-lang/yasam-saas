@@ -11,9 +11,11 @@ import {
   Gem,
   Leaf,
   Package,
+  Shield,
   Sparkles,
   UsersRound,
 } from "lucide-react";
+import { isAdminUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 type User = {
@@ -437,6 +439,31 @@ export default function Home() {
           </div>
 
           <section className="mt-3 flex min-h-0 flex-1 flex-col">
+            {isAdminUser(user) ? (
+              <Link
+                href="/admin"
+                className="mb-3 block shrink-0 text-inherit no-underline"
+              >
+                <div className="group flex items-center gap-4 rounded-[24px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-5 py-4 shadow-[0_16px_40px_rgba(136,19,55,0.08)] transition hover:-translate-y-0.5 hover:shadow-lg">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-rose-700 text-white shadow-md">
+                    <Shield className="h-6 w-6" strokeWidth={2.25} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">
+                      Sistem Sahibi
+                    </p>
+                    <p className="text-lg font-black text-slate-900">Admin Paneli</p>
+                    <p className="text-xs font-medium text-slate-600">
+                      Toplu aktarım, kullanıcı ve sistem yönetimi
+                    </p>
+                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105">
+                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                  </span>
+                </div>
+              </Link>
+            ) : null}
+
             <div className="mb-2 shrink-0">
               <h2 className="text-lg font-black tracking-tight text-slate-900 lg:text-xl">
                 Modüller
