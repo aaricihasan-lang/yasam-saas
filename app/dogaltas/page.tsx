@@ -62,8 +62,8 @@ const modules = [
 export default function DogaltasPage() {
   return (
     <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
-      <div className="grid h-full w-full grid-cols-[300px_1fr] overflow-x-hidden">
-        <aside className="flex h-screen w-[300px] min-w-[300px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-5 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+      <div className="grid h-full w-full grid-cols-[430px_1fr] overflow-x-hidden">
+        <aside className="flex h-screen w-[430px] min-w-[430px] max-w-[430px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-6 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-4 flex h-16 items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-md ring-1 ring-slate-100">
               💎
@@ -76,11 +76,11 @@ export default function DogaltasPage() {
             </div>
           </div>
 
-          <div className="mb-3 text-[13px] font-black tracking-[0.22em] text-slate-400">
+          <div className="mb-4 shrink-0 text-[15px] font-black tracking-[0.24em] text-slate-400">
             MODÜLLER
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             {modules.map((item, index) => {
               const isFeatured = index === 0;
 
@@ -88,28 +88,30 @@ export default function DogaltasPage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex h-[74px] shrink-0 items-center gap-4 rounded-[24px] border px-4 shadow-sm transition-all duration-300 hover:scale-[1.03] hover:bg-white/85 hover:shadow-xl ${
+                  className={`group flex h-[92px] w-full shrink-0 cursor-pointer items-center gap-5 rounded-[28px] border px-5 py-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.045] hover:border-cyan-300 hover:bg-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] ${
                     isFeatured
-                      ? "border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-md"
-                      : "border-white/60 bg-white/50"
+                      ? "border-cyan-300 bg-gradient-to-r from-cyan-50 via-white to-blue-50 shadow-[0_18px_55px_rgba(14,165,233,0.18)]"
+                      : "border-white/80 bg-white/70"
                   }`}
                 >
                   <span
-                    className={`flex h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-[22px] text-2xl shadow-lg ring-1 ring-white/80 ${item.iconBg}`}
+                    className={`flex h-16 w-16 min-w-16 shrink-0 items-center justify-center rounded-[24px] shadow-lg ring-1 ring-white/80 ${item.iconBg}`}
                   >
-                    {item.icon}
+                    <span className="flex h-8 w-8 items-center justify-center text-2xl leading-none">
+                      {item.icon}
+                    </span>
                   </span>
 
-                  <span className="flex-1 pr-1">
-                    <span className="block text-[17px] font-black leading-tight text-slate-950">
+                  <span className="min-w-0 flex-1">
+                    <span className="block whitespace-normal text-[20px] font-black leading-tight text-slate-950">
                       {item.title}
                     </span>
-                    <span className="mt-0.5 block text-[13px] font-semibold leading-tight text-slate-600">
+                    <span className="mt-1 block whitespace-normal text-[14px] font-semibold leading-snug text-slate-600">
                       {item.subtitle}
                     </span>
                   </span>
 
-                  <span className="shrink-0 text-xl font-black opacity-80 transition group-hover:translate-x-0.5 group-hover:opacity-100">
+                  <span className="ml-auto shrink-0 text-2xl font-black opacity-80 transition-transform duration-300 group-hover:translate-x-1">
                     ›
                   </span>
                 </Link>
@@ -117,12 +119,12 @@ export default function DogaltasPage() {
             })}
           </nav>
 
-          <div className="mt-4 shrink-0 rounded-3xl bg-white/75 p-5 text-sm font-bold leading-relaxed text-slate-700 shadow-md ring-1 ring-white/80">
+          <div className="mt-4 shrink-0 rounded-[28px] border border-white/80 bg-white/80 p-6 text-[16px] font-black leading-relaxed text-slate-700 shadow-lg">
             ✨ Bilgiyi yönetin, değere dönüştürün.
           </div>
         </aside>
 
-        <section className="relative h-screen min-w-0 overflow-hidden px-8 py-6">
+        <section className="relative h-screen min-w-0 overflow-hidden px-6 py-5">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
             <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl" />
