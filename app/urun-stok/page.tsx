@@ -26,6 +26,7 @@ const hubModules = [
     desc: "Doğal sabun, krem ve bakım ürünleri stok yönetimi.",
     icon: "🧼",
     accent: "from-sky-100 to-blue-50 border-sky-200/80 ring-sky-100",
+    href: "/urun-stok/sabun-krem",
   },
   {
     title: "Tespih / Takı / Aksesuar",
