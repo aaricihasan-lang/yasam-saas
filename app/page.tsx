@@ -10,6 +10,7 @@ import {
   FolderArchive,
   Gem,
   Leaf,
+  Package,
   Sparkles,
   UsersRound,
 } from "lucide-react";
@@ -143,6 +144,19 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-cyan-500 to-teal-500",
       cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
       border: "border-teal-200/70",
+    },
+  },
+  {
+    title: "Ürün & Stok Merkezi",
+    desc: "Tüm ürünler, stok, satış ve fiyatlandırma merkezi",
+    count: "Aktif",
+    badge: "Modül",
+    href: "/urun-stok",
+    Icon: Package,
+    theme: {
+      iconWrap: "from-amber-500 to-orange-500",
+      cardBg: "from-amber-100/90 via-orange-50/95 to-white",
+      border: "border-amber-200/70",
     },
   },
   {
