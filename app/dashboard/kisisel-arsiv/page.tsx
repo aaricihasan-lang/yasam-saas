@@ -39,18 +39,18 @@ const CATEGORIES = [
 ] as const;
 
 const CATEGORY_BADGE: Record<string, string> = {
-  Ses: "border-amber-200/90 bg-amber-50/95 text-amber-950 ring-amber-100/60",
-  Video: "border-violet-200/90 bg-violet-50/95 text-violet-950 ring-violet-100/60",
-  Belgeler: "border-sky-200/90 bg-sky-50/95 text-sky-950 ring-sky-100/60",
-  Resimler: "border-fuchsia-200/90 bg-fuchsia-50/95 text-fuchsia-950 ring-fuchsia-100/60",
-  Sağlık: "border-emerald-200/90 bg-emerald-50/95 text-emerald-950 ring-emerald-100/60",
-  "Okul / Çocuk": "border-cyan-200/90 bg-cyan-50/95 text-cyan-950 ring-cyan-100/60",
-  "Evcil Hayvan": "border-orange-200/90 bg-orange-50/95 text-orange-950 ring-orange-100/60",
-  Araç: "border-slate-300/90 bg-slate-50/95 text-slate-900 ring-slate-100/60",
-  Ev: "border-teal-200/90 bg-teal-50/95 text-teal-950 ring-teal-100/60",
-  Fikirler: "border-indigo-200/90 bg-indigo-50/95 text-indigo-950 ring-indigo-100/60",
-  Toplantı: "border-blue-200/90 bg-blue-50/95 text-blue-950 ring-blue-100/60",
-  Diğer: "border-stone-200/90 bg-stone-50/95 text-stone-900 ring-stone-100/60",
+  Ses: "border-amber-200 bg-amber-50 text-amber-700",
+  Video: "border-violet-200 bg-violet-50 text-violet-700",
+  Belgeler: "border-cyan-200 bg-cyan-50 text-cyan-700",
+  Resimler: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+  Sağlık: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  "Okul / Çocuk": "border-cyan-200 bg-cyan-50 text-cyan-700",
+  "Evcil Hayvan": "border-orange-200 bg-orange-50 text-orange-700",
+  Araç: "border-slate-200 bg-slate-50 text-slate-800",
+  Ev: "border-teal-200 bg-teal-50 text-teal-700",
+  Fikirler: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  Toplantı: "border-blue-200 bg-blue-50 text-blue-700",
+  Diğer: "border-stone-200 bg-stone-50 text-stone-800",
 };
 
 type ArchiveFileRow = {
@@ -159,10 +159,9 @@ function foldTrAsciiPreserveLen(s: string): string {
 }
 
 function categoryBadgeClass(category: string) {
-  return (
-    CATEGORY_BADGE[category] ??
-    "border-slate-200/90 bg-slate-50/95 text-slate-900 ring-slate-100/60"
-  );
+  const tone =
+    CATEGORY_BADGE[category] ?? "border-slate-200 bg-slate-50 text-slate-800";
+  return `shrink-0 rounded-full border px-5 py-2 text-sm font-black uppercase tracking-wide shadow-sm xl:text-base ${tone}`;
 }
 
 function getPublicFileUrl(filePath: string) {
@@ -1000,7 +999,7 @@ export default function KisiselArsivPage() {
         <div>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-3xl border border-white/90 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-800 shadow-lg shadow-violet-200/30 ring-1 ring-violet-100/50 backdrop-blur-md transition hover:border-violet-200 hover:bg-white hover:text-violet-900"
+            className="inline-flex h-14 items-center gap-2 rounded-2xl border-2 border-violet-200 bg-white px-8 text-base font-black text-slate-800 shadow-md transition-all hover:scale-[1.03] hover:bg-violet-50"
           >
             ← Ana panele dön
           </Link>
@@ -1177,9 +1176,7 @@ export default function KisiselArsivPage() {
                       <h3 className="min-w-0 flex-1 text-2xl font-black leading-snug text-slate-950">
                         {highlightText(row.title, search)}
                       </h3>
-                      <span
-                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ring-1 ${categoryBadgeClass(row.category)}`}
-                      >
+                      <span className={categoryBadgeClass(row.category)}>
                         {row.category}
                       </span>
                     </div>
@@ -1187,13 +1184,13 @@ export default function KisiselArsivPage() {
                       {notePreview(row.note)}
                     </p>
                     {row.tags?.trim() ? (
-                      <p className="mt-2 text-sm font-bold text-violet-700">
+                      <p className="mt-2 text-sm font-bold tracking-wide text-violet-700">
                         Etiketler: {row.tags}
                       </p>
                     ) : null}
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-slate-500">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold tracking-wide text-slate-500">
                       <time dateTime={row.created_at}>{formatTrDate(row.created_at)}</time>
-                      <span className="rounded-full bg-slate-100/95 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                      <span className="rounded-full bg-slate-100/95 px-3 py-1 text-sm font-semibold tracking-wide text-slate-700">
                         {fileCount(row)} dosya
                       </span>
                     </div>
@@ -1555,14 +1552,12 @@ export default function KisiselArsivPage() {
                     </select>
                   </label>
                 ) : (
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ring-1 ${categoryBadgeClass(detailRow.category)}`}
-                  >
+                  <span className={categoryBadgeClass(detailRow.category)}>
                     {detailRow.category}
                   </span>
                 )}
                 <time
-                  className="text-[12px] font-bold text-slate-500"
+                  className="text-sm font-semibold tracking-wide text-slate-500"
                   dateTime={detailRow.created_at}
                 >
                   {formatTrDate(detailRow.created_at)}
