@@ -54,18 +54,20 @@ export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): P
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const rect = hedef.getBoundingClientRect();
+    const exportWidth = Math.max(hedef.offsetWidth, hedef.scrollWidth, Math.ceil(rect.width));
+    const exportHeight = Math.max(hedef.offsetHeight, hedef.scrollHeight, Math.ceil(rect.height));
 
-    if (!rect.width || !rect.height || rect.width < 50 || rect.height < 50) {
+    if (!exportWidth || !exportHeight || exportWidth < 50 || exportHeight < 50) {
       throw new Error("Rapor alanı henüz oluşmadı.");
     }
 
     const dataUrl = await toPng(hedef, {
       cacheBust: true,
       skipFonts: false,
-      pixelRatio: 2,
+      pixelRatio: 3,
       backgroundColor: "#12051f",
-      width: Math.ceil(rect.width),
-      height: Math.ceil(rect.height),
+      width: exportWidth,
+      height: exportHeight,
       style: {
         transform: "none",
         filter: "none",

@@ -88,10 +88,10 @@ function gorselDefaults(gorsel: AnalysisGorselData | null) {
 }
 
 const kayitGorselInputClass =
-  "w-full rounded-2xl border border-violet-200/80 bg-white px-4 py-3.5 text-base font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+  "h-14 w-full rounded-2xl border border-violet-200/80 bg-white px-4 text-base leading-7 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
 
 const kayitGorselTextareaClass =
-  "w-full resize-y rounded-2xl border border-violet-200/80 bg-white px-4 py-3.5 text-base font-medium leading-relaxed text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+  "min-h-[130px] w-full resize-y rounded-2xl border border-violet-200/80 bg-white px-4 py-3 text-base leading-7 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
 
 function KayitGorselKontrolPanel({
   gorselTaslariGoster,
@@ -128,9 +128,9 @@ function KayitGorselKontrolPanel({
 }) {
   return (
     <aside className="w-full space-y-4 rounded-[26px] border border-violet-200/70 bg-gradient-to-br from-white/95 via-violet-50/30 to-white/90 p-5 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 sm:p-6 lg:sticky lg:top-3">
-      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-800/90">Görsel rapor ayarları</p>
+      <p className="text-lg font-black tracking-wide text-violet-800">Görsel rapor ayarları</p>
 
-      <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold leading-snug text-slate-800 sm:text-base">
+      <label className="flex cursor-pointer items-start gap-3 text-base leading-7 font-semibold text-slate-800">
         <input
           type="checkbox"
           checked={gorselTaslariGoster}
@@ -141,7 +141,7 @@ function KayitGorselKontrolPanel({
       </label>
 
       <div>
-        <label htmlFor="kayit-noj-uzman" className="mb-2 block text-sm font-bold text-slate-700">
+        <label htmlFor="kayit-noj-uzman" className="mb-2 block text-base font-bold leading-7 text-slate-700">
           Uzman adı
         </label>
         <input
@@ -156,7 +156,7 @@ function KayitGorselKontrolPanel({
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-bileklik" className="mb-2 block text-sm font-bold text-slate-700">
+        <label htmlFor="kayit-noj-tas-bileklik" className="mb-2 block text-base font-bold leading-7 text-slate-700">
           Bileklik taşları
         </label>
         <textarea
@@ -170,7 +170,7 @@ function KayitGorselKontrolPanel({
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-kolye" className="mb-2 block text-sm font-bold text-slate-700">
+        <label htmlFor="kayit-noj-tas-kolye" className="mb-2 block text-base font-bold leading-7 text-slate-700">
           Kolye taşları
         </label>
         <textarea
@@ -184,7 +184,7 @@ function KayitGorselKontrolPanel({
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-kutle" className="mb-2 block text-sm font-bold text-slate-700">
+        <label htmlFor="kayit-noj-tas-kutle" className="mb-2 block text-base font-bold leading-7 text-slate-700">
           Kütle taşları
         </label>
         <textarea
@@ -215,7 +215,7 @@ function KayitGorselKontrolPanel({
           type="button"
           onClick={onKaydet}
           disabled={kayitGorselKaydediliyor || gorselPngHazirlaniyor}
-          className="w-full rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_10px_28px_-8px_rgba(91,33,182,0.45)] ring-1 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-14 w-full rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-base font-black text-white shadow-[0_10px_28px_-8px_rgba(91,33,182,0.45)] ring-1 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {kayitGorselKaydediliyor ? "Kaydediliyor…" : "Ayarları Kaydet"}
         </button>
@@ -223,7 +223,7 @@ function KayitGorselKontrolPanel({
           type="button"
           disabled={gorselPngHazirlaniyor || kayitGorselKaydediliyor}
           onClick={onPngIndir}
-          className="w-full rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-14 w-full rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-base font-black text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
         </button>
@@ -306,7 +306,9 @@ export function NumerolojiKayitDetayPanel({
   }
 
   async function handleGorselPngIndir() {
-    const el = document.getElementById("numeroloji-kayit-gorsel-rapor-png-root");
+    const el =
+      document.querySelector<HTMLElement>("[data-gorsel-rapor-root]") ??
+      document.getElementById("numeroloji-kayit-gorsel-rapor-png-root");
     if (!el) {
       alert("Görsel rapor alanı bulunamadı.");
       return;
@@ -390,11 +392,8 @@ export function NumerolojiKayitDetayPanel({
                 onPngIndir={() => void handleGorselPngIndir()}
               />
             </div>
-            <div className="flex min-w-0 w-full flex-1 justify-center py-1 sm:py-2 lg:justify-start">
-              <div
-                id="numeroloji-kayit-gorsel-rapor-png-root"
-                className="w-full [&_.numeroloji-gorsel-root]:w-full [&_.numeroloji-gorsel-root]:max-w-none"
-              >
+            <div className="min-w-0 w-full flex-1 overflow-x-auto py-1 sm:py-2">
+              <div className="inline-block origin-top-left scale-[0.48] sm:scale-[0.52] lg:scale-[0.55] xl:scale-[0.58]">
                 <GorselRaporInfografik
                   out={out}
                   isimGoster={isimGoster}
