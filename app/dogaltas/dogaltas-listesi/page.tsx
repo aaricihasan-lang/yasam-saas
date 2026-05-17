@@ -61,6 +61,29 @@ function countFilledSections(stone: StoneRecord) {
   ].filter((item) => item && item.trim().length > 0).length;
 }
 
+const pageBg =
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
+const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const uiHeaderCard =
+  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+const uiFilterCard =
+  "rounded-[30px] border-[3px] border-violet-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(139,92,246,0.14)] backdrop-blur-xl";
+const uiTableCard =
+  "w-full min-h-[520px] overflow-hidden rounded-[34px] border-[3px] border-cyan-400/45 bg-white/78 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+const uiSearchInput =
+  "h-14 w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-5 pl-12 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+const uiViewBtn =
+  "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
+const uiStatCard =
+  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-8 py-4 text-center shadow-md";
+const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
+const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
+const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
+const uiBadgeWarning = `${uiBadgeBase} border-red-200 bg-red-50 text-red-600`;
+const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
+const uiDeleteBtn =
+  "rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
+
 export default function DogaltasListesiPage() {
   const [stones, setStones] = useState<StoneRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,25 +185,28 @@ export default function DogaltasListesiPage() {
   ).length;
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1380px] px-5 py-4">
-        <header className="mb-4 flex flex-col gap-3 rounded-[28px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-white/80 lg:flex-row lg:items-center lg:justify-between">
+    <main className={pageBg}>
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+
+      <div className={pageContent}>
+        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+            <div className="mb-3 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-cyan-700">
               💎 DOĞALTAŞ KÜTÜPHANESİ
             </div>
 
-            <h1 className="text-[26px] font-black leading-tight tracking-tight">
+            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
               Doğaltaş Listesi
             </h1>
 
-            <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+            <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
               Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
             </p>
 
             <Link
               href="/"
-              className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-2xl border border-white/60 bg-white/55 px-3.5 py-2 text-[11px] font-black tracking-tight text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:border-cyan-100/80 hover:bg-white/80 hover:text-slate-900 hover:shadow-[0_12px_32px_rgba(8,145,178,0.12)]"
+              className="mt-4 inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-6 font-black text-slate-700 shadow-md transition hover:bg-cyan-50"
             >
               <svg
                 aria-hidden
@@ -194,28 +220,28 @@ export default function DogaltasListesiPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 lg:w-[430px]">
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{stones.length}</div>
-              <div className="text-[10px] font-bold text-slate-400">Kayıt</div>
+          <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{stones.length}</div>
+              <div className="text-xs font-bold text-slate-500">Kayıt</div>
             </div>
 
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{totalImages}</div>
-              <div className="text-[10px] font-bold text-slate-400">Görsel</div>
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{totalImages}</div>
+              <div className="text-xs font-bold text-slate-500">Görsel</div>
             </div>
 
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{totalWarnings}</div>
-              <div className="text-[10px] font-bold text-slate-400">Uyarı</div>
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{totalWarnings}</div>
+              <div className="text-xs font-bold text-slate-500">Uyarı</div>
             </div>
           </div>
         </header>
 
-        <section className="mb-4 rounded-[26px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative w-full xl:max-w-[680px]">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
+        <section className={uiFilterCard}>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-400">
                 ⌕
               </span>
 
@@ -224,18 +250,18 @@ export default function DogaltasListesiPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Taş adı, açıklama, çakra, etki veya uyarı ara..."
-                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white/90 pl-11 pr-4 text-[13px] font-semibold outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                className={uiSearchInput}
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                className={`${uiViewBtn} ${
                   viewMode === "list"
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
+                    ? "bg-slate-950 text-white"
+                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 Liste
@@ -244,10 +270,10 @@ export default function DogaltasListesiPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("card")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
+                className={`${uiViewBtn} ${
                   viewMode === "card"
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white/85 text-slate-600 ring-slate-100 hover:bg-white"
+                    ? "bg-slate-950 text-white"
+                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 Kart
@@ -256,14 +282,14 @@ export default function DogaltasListesiPage() {
               <button
                 type="button"
                 onClick={loadStones}
-                className="rounded-2xl bg-white/85 px-4 py-2 text-[12px] font-black text-slate-700 ring-1 ring-slate-100 transition hover:bg-white"
+                className={`${uiViewBtn} border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
               >
                 Yenile
               </button>
 
               <Link
                 href="/dogaltas/dogaltas-kayit"
-                className="rounded-2xl bg-emerald-600 px-4 py-2 text-[12px] font-black text-white shadow-[0_12px_25px_rgba(16,185,129,0.18)] transition hover:bg-emerald-700"
+                className={`${uiViewBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.25)] hover:from-cyan-600 hover:to-violet-700`}
               >
                 + Yeni Kayıt
               </Link>
@@ -286,14 +312,14 @@ export default function DogaltasListesiPage() {
         </section>
 
         {errorMessage && (
-          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+          <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700">
             {errorMessage}
           </div>
         )}
 
-        <section className="rounded-[28px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+        <section className={uiTableCard}>
           {loading ? (
-            <div className="flex h-[330px] items-center justify-center text-[14px] font-bold text-slate-400">
+            <div className="flex min-h-[520px] items-center justify-center text-base font-bold text-slate-500">
               Kayıtlar yükleniyor...
             </div>
           ) : filteredStones.length === 0 ? (
@@ -309,8 +335,8 @@ export default function DogaltasListesiPage() {
               </p>
             </div>
           ) : viewMode === "list" ? (
-            <div className="overflow-hidden rounded-[24px] bg-white/86 ring-1 ring-slate-100">
-              <div className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+            <div>
+              <div className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
                 <div>Taş</div>
                 <div>Açıklama</div>
                 <div>Etiketler</div>
@@ -319,7 +345,7 @@ export default function DogaltasListesiPage() {
                 <div className="text-right">İşlem</div>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div>
                 {filteredStones.map((stone) => {
                   const imageCount = (stone.images || []).length;
                   const warningCount = (stone.warning_tags || []).length;
@@ -329,7 +355,7 @@ export default function DogaltasListesiPage() {
                   return (
                     <div
                       key={stone.id}
-                      className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-4 py-3 transition hover:bg-cyan-50/45"
+                      className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70"
                     >
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
@@ -352,11 +378,11 @@ export default function DogaltasListesiPage() {
                         </div>
 
                         <div className="min-w-0">
-                          <div className="truncate text-[14px] font-black text-slate-950">
+                          <div className="truncate text-base font-black text-slate-950 xl:text-lg">
                             {stone.stone_name || "İsimsiz taş"}
                           </div>
 
-                          <div className="mt-0.5 text-[10px] font-bold text-slate-400">
+                          <div className="mt-0.5 text-xs font-bold text-cyan-700 hover:text-violet-700 xl:text-sm">
                             Detayı aç →
                           </div>
                         </div>
@@ -364,7 +390,7 @@ export default function DogaltasListesiPage() {
 
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center text-[12px] font-medium leading-5 text-slate-500"
+                        className="flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base"
                       >
                         {safeText(stone.short_description)}
                       </Link>
@@ -377,14 +403,14 @@ export default function DogaltasListesiPage() {
                           {(stone.chakras || []).slice(0, 2).map((chakra) => (
                             <span
                               key={chakra}
-                              className="rounded-full bg-violet-50 px-2 py-1 text-[9px] font-black text-violet-700 ring-1 ring-violet-100"
+                              className={uiBadgeChakra}
                             >
                               {chakra}
                             </span>
                           ))}
 
                           {warningCount > 0 && (
-                            <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-700 ring-1 ring-rose-100">
+                            <span className={uiBadgeWarning}>
                               {warningCount} uyarı
                             </span>
                           )}
@@ -401,12 +427,12 @@ export default function DogaltasListesiPage() {
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
                         className="flex items-center gap-1.5"
                       >
-                        <span className="rounded-full bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-600 ring-1 ring-slate-100">
+                        <span className={uiBadgeSection}>
                           {sectionCount} bölüm
                         </span>
 
                         {imageCount > 0 && (
-                          <span className="rounded-full bg-cyan-50 px-2 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                          <span className={uiBadgeImage}>
                             {imageCount} görsel
                           </span>
                         )}
@@ -414,7 +440,7 @@ export default function DogaltasListesiPage() {
 
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center text-[11px] font-black text-slate-400"
+                        className="flex items-center text-sm font-black text-slate-500 xl:text-base"
                       >
                         {formatDate(stone.created_at)}
                       </Link>
@@ -427,7 +453,7 @@ export default function DogaltasListesiPage() {
                             event.stopPropagation();
                             setStoneToDelete(stone);
                           }}
-                          className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
+                          className={uiDeleteBtn}
                         >
                           Sil
                         </button>
@@ -438,7 +464,7 @@ export default function DogaltasListesiPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
               {filteredStones.map((stone) => {
                 const imageCount = (stone.images || []).length;
                 const sectionCount = countFilledSections(stone);
@@ -447,7 +473,7 @@ export default function DogaltasListesiPage() {
                 return (
                   <div
                     key={stone.id}
-                    className="rounded-[24px] bg-white/86 p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.035)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:bg-white hover:ring-cyan-200"
+                    className="rounded-[28px] border-[3px] border-cyan-300/40 bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-violet-300/50"
                   >
                     <Link
                       href={`/dogaltas/dogaltas-listesi/${stone.id}`}
@@ -472,7 +498,7 @@ export default function DogaltasListesiPage() {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="truncate text-[16px] font-black text-slate-950">
+                            <h3 className="truncate text-base font-black text-slate-950 xl:text-lg">
                               {stone.stone_name || "İsimsiz taş"}
                             </h3>
 
@@ -489,7 +515,7 @@ export default function DogaltasListesiPage() {
                             {(stone.chakras || []).slice(0, 3).map((chakra) => (
                               <span
                                 key={chakra}
-                                className="rounded-full bg-violet-50 px-2 py-1 text-[9px] font-black text-violet-700 ring-1 ring-violet-100"
+                                className={uiBadgeChakra}
                               >
                                 {chakra}
                               </span>
@@ -498,18 +524,18 @@ export default function DogaltasListesiPage() {
                             {(stone.warning_tags || []).slice(0, 2).map((tag) => (
                               <span
                                 key={tag}
-                                className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-700 ring-1 ring-rose-100"
+                                className={uiBadgeWarning}
                               >
                                 {tag}
                               </span>
                             ))}
 
-                            <span className="rounded-full bg-slate-50 px-2 py-1 text-[9px] font-black text-slate-600 ring-1 ring-slate-100">
+                            <span className={uiBadgeSection}>
                               {sectionCount} bölüm
                             </span>
 
                             {imageCount > 0 && (
-                              <span className="rounded-full bg-cyan-50 px-2 py-1 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                              <span className={uiBadgeImage}>
                                 {imageCount} görsel
                               </span>
                             )}
@@ -521,7 +547,7 @@ export default function DogaltasListesiPage() {
                     <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="text-[10px] font-black text-slate-400 transition hover:text-cyan-700"
+                        className="text-xs font-bold text-cyan-700 transition hover:text-violet-700 xl:text-sm"
                       >
                         Detay sayfasında oku →
                       </Link>
@@ -533,7 +559,7 @@ export default function DogaltasListesiPage() {
                           event.stopPropagation();
                           setStoneToDelete(stone);
                         }}
-                        className="shrink-0 rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
+                        className={`shrink-0 ${uiDeleteBtn}`}
                       >
                         Sil
                       </button>
