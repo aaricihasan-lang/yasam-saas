@@ -333,13 +333,34 @@ export default function Home() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={logout}
-                className="shrink-0 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
-              >
-                Çıkış Yap
-              </button>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+                <div
+                  className="rounded-2xl border border-white/70 bg-white/60 px-5 py-4 shadow-lg backdrop-blur-md"
+                  aria-label="Kurum imzası"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md">
+                      <Sparkles className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black leading-tight text-slate-900">
+                        Nunstone & Pera Akademi
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold tracking-wide text-slate-600">
+                        Nuran IŞIK
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
+                >
+                  Çıkış Yap
+                </button>
+              </div>
             </div>
           </header>
 
