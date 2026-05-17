@@ -9,7 +9,9 @@ import {
   ChartColumn,
   Clock3,
   ContactRound,
-  Shield,
+  PieChart,
+  ShieldCheck,
+  TrendingUp,
   UsersRound,
 } from "lucide-react";
 
@@ -20,56 +22,88 @@ const summaryStatCards: {
   value: string;
   Icon: LucideIcon;
   cardBg: string;
-  iconWrap: string;
-  iconColor: string;
+  border: string;
+  iconBox: string;
 }[] = [
   {
     label: "Toplam Danışan",
     value: PLACEHOLDER,
     Icon: UsersRound,
-    cardBg: "bg-gradient-to-br from-violet-50 to-violet-100/80",
-    iconWrap: "bg-violet-100",
-    iconColor: "text-violet-600",
+    cardBg: "bg-gradient-to-br from-violet-50 to-indigo-50",
+    border: "border-violet-200/70",
+    iconBox: "bg-violet-500 text-white",
   },
   {
     label: "Son Kayıt",
     value: PLACEHOLDER,
     Icon: CalendarDays,
-    cardBg: "bg-gradient-to-br from-sky-50 to-blue-50/90",
-    iconWrap: "bg-sky-100",
-    iconColor: "text-sky-600",
+    cardBg: "bg-gradient-to-br from-sky-50 to-blue-50",
+    border: "border-sky-200/70",
+    iconBox: "bg-sky-500 text-white",
   },
   {
-    label: "Bu Ay",
+    label: "Bu Ay Yeni Danışan",
     value: PLACEHOLDER,
     Icon: Clock3,
-    cardBg: "bg-gradient-to-br from-cyan-50 to-teal-50/80",
-    iconWrap: "bg-cyan-100",
-    iconColor: "text-cyan-600",
+    cardBg: "bg-gradient-to-br from-teal-50 to-emerald-50",
+    border: "border-teal-200/70",
+    iconBox: "bg-teal-500 text-white",
   },
   {
-    label: "3 Ay Ortalama",
+    label: "Son 3 Ay Ortalaması",
     value: PLACEHOLDER,
     Icon: ChartColumn,
-    cardBg: "bg-gradient-to-br from-orange-50 to-amber-50/70",
-    iconWrap: "bg-orange-100",
-    iconColor: "text-orange-600",
+    cardBg: "bg-gradient-to-br from-amber-50 to-orange-50",
+    border: "border-amber-200/70",
+    iconBox: "bg-orange-500 text-white",
   },
   {
-    label: "Bu Hafta",
+    label: "Bu Ay Randevu",
     value: PLACEHOLDER,
     Icon: Activity,
-    cardBg: "bg-gradient-to-br from-purple-50 to-violet-50/80",
-    iconWrap: "bg-purple-100",
-    iconColor: "text-purple-600",
+    cardBg: "bg-gradient-to-br from-pink-50 to-rose-50",
+    border: "border-pink-200/70",
+    iconBox: "bg-pink-500 text-white",
   },
   {
     label: "En Yakın Randevu",
     value: PLACEHOLDER,
     Icon: CalendarClock,
-    cardBg: "bg-gradient-to-br from-pink-50 to-rose-50/80",
-    iconWrap: "bg-pink-100",
-    iconColor: "text-pink-600",
+    cardBg: "bg-gradient-to-br from-cyan-50 to-sky-50",
+    border: "border-cyan-200/70",
+    iconBox: "bg-cyan-500 text-white",
+  },
+  {
+    label: "Bu Hafta",
+    value: PLACEHOLDER,
+    Icon: CalendarRange,
+    cardBg: "bg-gradient-to-br from-yellow-50 to-amber-50",
+    border: "border-yellow-200/70",
+    iconBox: "bg-yellow-500 text-white",
+  },
+  {
+    label: "Bu Ay",
+    value: PLACEHOLDER,
+    Icon: CalendarCheck,
+    cardBg: "bg-gradient-to-br from-rose-50 to-pink-50",
+    border: "border-rose-200/70",
+    iconBox: "bg-rose-500 text-white",
+  },
+  {
+    label: "Bu Yıl Toplam",
+    value: PLACEHOLDER,
+    Icon: PieChart,
+    cardBg: "bg-gradient-to-br from-purple-50 to-violet-50",
+    border: "border-purple-200/70",
+    iconBox: "bg-purple-500 text-white",
+  },
+  {
+    label: "Bu Yıl Danışan",
+    value: PLACEHOLDER,
+    Icon: TrendingUp,
+    cardBg: "bg-gradient-to-br from-green-50 to-emerald-50",
+    border: "border-green-200/70",
+    iconBox: "bg-green-500 text-white",
   },
 ];
 
@@ -79,8 +113,8 @@ const journeyFolders: {
   href: string;
   badge: string;
   cardGradient: string;
-  iconWrap: string;
-  iconColor: string;
+  border: string;
+  iconBox: string;
   decorColor: string;
   Icon: LucideIcon;
   DecorIcon: LucideIcon;
@@ -91,8 +125,8 @@ const journeyFolders: {
     href: "/dashboard/clients",
     badge: "Kayıt & Detay",
     cardGradient: "bg-gradient-to-br from-violet-50 via-white to-indigo-50",
-    iconWrap: "bg-violet-100",
-    iconColor: "text-violet-600",
+    border: "border-violet-200/70",
+    iconBox: "bg-gradient-to-br from-violet-500 to-indigo-500 text-white",
     decorColor: "text-violet-500",
     Icon: UsersRound,
     DecorIcon: ContactRound,
@@ -103,42 +137,66 @@ const journeyFolders: {
     href: "/dashboard/ajanda",
     badge: "Takip & Plan",
     cardGradient: "bg-gradient-to-br from-cyan-50 via-white to-teal-50",
-    iconWrap: "bg-cyan-100",
-    iconColor: "text-teal-600",
+    border: "border-cyan-200/70",
+    iconBox: "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
     decorColor: "text-teal-500",
     Icon: CalendarDays,
     DecorIcon: CalendarRange,
   },
 ];
 
+const hoverLift =
+  "transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03]";
+
+function StatWaveDecor() {
+  return (
+    <svg
+      className="pointer-events-none absolute bottom-0 left-0 right-0 h-7 w-full opacity-[0.18]"
+      viewBox="0 0 200 28"
+      preserveAspectRatio="none"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M0 18 C 40 8, 80 24, 120 14 C 160 6, 180 12, 200 10 L 200 28 L 0 28 Z"
+        fill="currentColor"
+        className="text-slate-400"
+      />
+    </svg>
+  );
+}
+
 function SummaryStatCard({
   label,
   value,
   Icon,
   cardBg,
-  iconWrap,
-  iconColor,
+  border,
+  iconBox,
 }: (typeof summaryStatCards)[number]) {
   return (
     <div
-      className={`flex flex-col rounded-3xl border border-white/80 bg-white/80 p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] backdrop-blur-xl ${cardBg}`}
+      className={`relative flex min-h-[118px] flex-col overflow-hidden rounded-[24px] border p-5 shadow-[0_15px_40px_rgba(15,23,42,0.08)] duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_25px_60px_rgba(79,70,229,0.16)] ${border} ${cardBg}`}
     >
       <div
-        className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${iconWrap}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md ${iconBox}`}
       >
-        <Icon className={`h-5 w-5 ${iconColor}`} strokeWidth={2} aria-hidden />
+        <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
       </div>
-      <p className="text-3xl font-black tabular-nums text-slate-900">{value}</p>
-      <p className="mt-2 text-xs text-slate-500">{label}</p>
+      <p className="mt-4 text-3xl font-black tabular-nums leading-none text-slate-900">
+        {value}
+      </p>
+      <p className="relative z-10 mt-2 text-xs text-slate-500">{label}</p>
+      <StatWaveDecor />
     </div>
   );
 }
 
 export default function DanisanYolculuguPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#eef5ff_0%,#f7f4ff_48%,#fff4fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-14">
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-14">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.14),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),radial-gradient(circle_at_72%_88%,rgba(56,189,248,0.10),transparent_34%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]"
         aria-hidden
       />
       <div
@@ -146,7 +204,7 @@ export default function DanisanYolculuguPage() {
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -right-[220px] top-[-140px] h-[680px] w-[680px] rounded-full bg-fuchsia-300/14 blur-[190px]"
+        className="pointer-events-none absolute -right-[220px] top-[-140px] h-[680px] w-[680px] rounded-full bg-pink-300/14 blur-[190px]"
         aria-hidden
       />
       <div
@@ -163,36 +221,7 @@ export default function DanisanYolculuguPage() {
       />
 
       <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]"
-        viewBox="0 0 1440 900"
-        preserveAspectRatio="none"
-        fill="none"
-        aria-hidden
-      >
-        <path
-          d="M0 420 C 200 360, 400 480, 600 400 C 800 320, 1000 440, 1200 380 C 1320 340, 1380 360, 1440 350"
-          stroke="rgb(99,102,241)"
-          strokeWidth="1.5"
-        />
-        <path
-          d="M0 620 C 280 560, 520 680, 760 600 C 980 530, 1180 650, 1440 580"
-          stroke="rgb(217,70,239)"
-          strokeWidth="1.25"
-        />
-      </svg>
-
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(99,102,241,0.45) 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-        }}
-        aria-hidden
-      />
-
-      <svg
-        className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.10]"
+        className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.08]"
         viewBox="0 0 1440 100"
         preserveAspectRatio="none"
         fill="none"
@@ -205,7 +234,7 @@ export default function DanisanYolculuguPage() {
         <defs>
           <linearGradient id="journey-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="rgba(99,102,241,0)" />
-            <stop offset="45%" stopColor="rgba(129,140,248,0.4)" />
+            <stop offset="45%" stopColor="rgba(129,140,248,0.35)" />
             <stop offset="100%" stopColor="rgba(217,70,239,0)" />
           </linearGradient>
         </defs>
@@ -214,15 +243,17 @@ export default function DanisanYolculuguPage() {
       <div className="relative z-10 mx-auto max-w-[1680px]">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-5 py-3 text-base font-bold text-slate-800 shadow-md transition-all hover:-translate-y-1 hover:bg-white/90 hover:shadow-lg"
+          className={`inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-5 py-3 text-base font-bold text-slate-800 shadow-md hover:bg-white/90 hover:shadow-lg ${hoverLift}`}
         >
           <span aria-hidden>←</span>
           Ana Sayfaya Dön
         </Link>
 
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_420px] lg:items-start">
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_minmax(420px,480px)] lg:items-start">
           <div className="min-w-0 space-y-8">
-            <header className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/55 px-8 py-10 shadow-[0_30px_90px_rgba(79,70,229,0.14)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-12">
+            <header
+              className={`relative overflow-hidden rounded-[40px] border border-white/80 bg-white/70 px-8 py-10 shadow-[0_30px_90px_rgba(99,102,241,0.10)] backdrop-blur-xl sm:px-10 sm:py-12 ${hoverLift}`}
+            >
               <CalendarCheck
                 className="pointer-events-none absolute right-6 top-1/2 h-44 w-44 -translate-y-1/2 text-indigo-400 opacity-10"
                 strokeWidth={1.25}
@@ -255,22 +286,19 @@ export default function DanisanYolculuguPage() {
                     <Link
                       key={folder.title}
                       href={folder.href}
-                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border border-white/80 p-10 shadow-[0_28px_75px_rgba(15,23,42,0.10)] ring-1 ring-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_95px_rgba(79,70,229,0.18)] ${folder.cardGradient}`}
+                      className={`group relative flex min-h-[320px] flex-col overflow-hidden rounded-[36px] border p-10 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_90px_rgba(79,70,229,0.18)] ${folder.border} ${folder.cardGradient}`}
                     >
                       <DecorIcon
-                        className={`pointer-events-none absolute -bottom-2 -right-2 h-40 w-40 ${folder.decorColor} opacity-[0.05]`}
+                        className={`pointer-events-none absolute -bottom-2 -right-2 h-44 w-44 ${folder.decorColor} opacity-10`}
                         strokeWidth={1.25}
                         aria-hidden
                       />
                       <div className="relative z-10 flex flex-1 flex-col">
                         <div className="flex items-start justify-between gap-4">
                           <div
-                            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${folder.iconWrap}`}
+                            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl shadow-lg ${folder.iconBox}`}
                           >
-                            <Icon
-                              className={`h-8 w-8 ${folder.iconColor}`}
-                              strokeWidth={2}
-                            />
+                            <Icon className="h-8 w-8" strokeWidth={2} />
                           </div>
                           <span className="rounded-full border border-white/80 bg-white/70 px-4 py-2 text-xs font-bold text-slate-700">
                             {folder.badge}
@@ -295,10 +323,12 @@ export default function DanisanYolculuguPage() {
           </div>
 
           <aside className="lg:sticky lg:top-8">
-            <div className="rounded-[36px] border border-white/80 bg-white/65 p-8 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-2xl font-black text-slate-900">Genel Özet</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Danışan ve randevu süreçlerinizin anonim genel durumu.
+            <div
+              className={`rounded-[36px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl ${hoverLift}`}
+            >
+              <h2 className="text-3xl font-black text-slate-900">Genel Özet</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Danışan ve randevu süreçlerinizin anonim genel görünümü.
               </p>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
@@ -307,10 +337,12 @@ export default function DanisanYolculuguPage() {
                 ))}
               </div>
 
-              <div className="mt-8 rounded-2xl border border-violet-100/80 bg-gradient-to-br from-violet-50/80 to-indigo-50/60 p-5">
+              <div
+                className={`mt-8 rounded-3xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]`}
+              >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm">
-                    <Shield className="h-5 w-5 text-violet-600" strokeWidth={2} />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-md">
+                    <ShieldCheck className="h-5 w-5" strokeWidth={2} />
                   </div>
                   <div>
                     <p className="text-sm font-black text-slate-900">Gizlilik Önceliğimiz</p>
