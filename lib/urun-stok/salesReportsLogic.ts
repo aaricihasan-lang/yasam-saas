@@ -387,6 +387,7 @@ export function summarizeSales(lines: ReportSaleLine[]): SalesSummary {
 }
 
 export type ProductRank = {
+  productKey: string;
   productName: string;
   productSubtitle: string;
   category: ProductCategory;
@@ -400,6 +401,7 @@ function rankProducts(lines: ReportSaleLine[]): ProductRank[] {
   for (const l of lines) {
     const key = `${l.category}:${l.productKey}`;
     const existing = map.get(key) || {
+      productKey: l.productKey,
       productName: l.productName,
       productSubtitle: l.productSubtitle,
       category: l.category,
