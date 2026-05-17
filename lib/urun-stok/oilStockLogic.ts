@@ -427,7 +427,13 @@ export function calcLineAmounts(
   item: OilItem,
   saleQty: number,
   saleUnit: OilInputUnit,
-): { saleBaseQty: number; lineCost: number; lineSale: number } | { error: string } {
+): {
+  saleBaseQty: number;
+  lineCost: number;
+  lineSale: number;
+  costPerBase: number;
+  salePerBase: number;
+} | { error: string } {
   const { amount: saleBaseQty, base } = toCanonical(saleQty, saleUnit);
   if (base !== item.baseUnit) {
     return { error: "Satış birimi ürün ölçü tipi ile uyumlu değil." };
