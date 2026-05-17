@@ -222,77 +222,81 @@ export default function ClientsPage() {
   }
 
   const inputClassName =
-    "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-emerald-300";
+    "h-16 w-full rounded-2xl border-2 border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 
   return (
-    <main className="min-h-screen w-full bg-[linear-gradient(135deg,#eef5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-10 xl:px-14">
-      <div className="mx-auto w-full max-w-[1700px]">
-      <header style={headerStyle}>
-        <div>
-          <div style={topBarStyle}>
-            <Link href="/" style={backButtonStyle}>
+    <main className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.16),transparent_28%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.14),transparent_30%),radial-gradient(circle_at_50%_85%,rgba(45,212,191,0.12),transparent_32%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-6 py-8 pb-12 text-slate-900 antialiased lg:px-10 xl:px-14">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 -top-24 h-[480px] w-[480px] rounded-full bg-indigo-400/14 blur-[150px]" />
+        <div className="absolute -right-20 top-0 h-[420px] w-[420px] rounded-full bg-pink-400/12 blur-[150px]" />
+        <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex w-full max-w-[1760px] flex-1 flex-col">
+      <header className="mb-10 flex flex-wrap items-start justify-between gap-8">
+        <div className="min-w-0 flex-1">
+          <div className="mb-5 flex flex-wrap items-center gap-4">
+            <Link
+              href="/"
+              className="rounded-2xl border border-blue-200 bg-gradient-to-r from-slate-50 to-blue-50 px-6 py-4 font-black text-slate-800 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]"
+            >
               ← Ana Panele Dön
             </Link>
 
-            <button onClick={loadClients} style={refreshButtonStyle}>
+            <button
+              type="button"
+              onClick={loadClients}
+              className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.03]"
+            >
               Yenile
             </button>
           </div>
 
-          <h1 style={titleStyle}>Danışanlar</h1>
+          <h1 className="text-5xl font-black tracking-tight text-slate-950">Danışanlar</h1>
 
-          <p style={subtitleStyle}>
+          <p className="mt-3 max-w-3xl text-base text-slate-600">
             Danışan kayıtları, doğum bilgileri, görüşme tarihleri, kan grubu ve mizaç bilgileri.
           </p>
         </div>
 
-        <div style={headerStatsStyle}>
-          <div style={statCardStyle}>
-            <strong style={statNumberStyle}>{clients.length}</strong>
-            <span style={statLabelStyle}>Danışan</span>
+        <div className="flex flex-wrap gap-4">
+          <div className="min-w-[130px] rounded-2xl border border-white/80 bg-white/80 px-6 py-4 text-center shadow-md backdrop-blur-sm">
+            <strong className="block text-3xl font-black text-slate-950">{clients.length}</strong>
+            <span className="mt-1 block text-sm font-bold uppercase tracking-wide text-slate-500">
+              Danışan
+            </span>
           </div>
 
           <div
-            style={{
-              ...statCardStyle,
-              borderColor: totalExpiredHomework > 0 ? "#fecaca" : "#dbeafe",
-              background: totalExpiredHomework > 0 ? "#fff1f2" : "#eff6ff",
-            }}
+            className={`min-w-[130px] rounded-2xl border px-6 py-4 text-center shadow-md backdrop-blur-sm ${
+              totalExpiredHomework > 0
+                ? "border-red-200/80 bg-red-50/90"
+                : "border-blue-200/80 bg-blue-50/90"
+            }`}
           >
             <strong
-              style={{
-                ...statNumberStyle,
-                color: totalExpiredHomework > 0 ? "#dc2626" : "#2563eb",
-              }}
+              className={`block text-3xl font-black ${
+                totalExpiredHomework > 0 ? "text-red-600" : "text-blue-600"
+              }`}
             >
               {totalExpiredHomework}
             </strong>
-            <span style={statLabelStyle}>Aktif Uyarı</span>
+            <span className="mt-1 block text-sm font-bold uppercase tracking-wide text-slate-500">
+              Aktif Uyarı
+            </span>
           </div>
         </div>
       </header>
 
-      <section
-        style={mainTabsShellStyle}
-        className="transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
-      >
-        <div style={mainTabsBarStyle}>
+      <section className="mb-8 flex gap-3 rounded-[28px] border border-white/80 bg-white/75 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setActiveMainTab("new")}
-            style={{
-              ...mainTabButtonStyle,
-              background:
-                activeMainTab === "new"
-                  ? "linear-gradient(135deg, #16a34a, #22c55e)"
-                  : "white",
-              color: activeMainTab === "new" ? "white" : "#15803d",
-              borderColor: activeMainTab === "new" ? "#16a34a" : "#bbf7d0",
-              boxShadow:
-                activeMainTab === "new"
-                  ? "0 10px 22px rgba(22,163,74,0.18)"
-                  : "none",
-            }}
+            className={`rounded-2xl px-7 py-4 font-black transition-all ${
+              activeMainTab === "new"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"
+                : "border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 hover:scale-[1.03] hover:bg-emerald-100"
+            }`}
           >
             + Yeni Danışan Kaydı
           </button>
@@ -300,38 +304,29 @@ export default function ClientsPage() {
           <button
             type="button"
             onClick={() => setActiveMainTab("list")}
-            style={{
-              ...mainTabButtonStyle,
-              background:
-                activeMainTab === "list"
-                  ? "linear-gradient(135deg, #2563eb, #7c3aed)"
-                  : "white",
-              color: activeMainTab === "list" ? "white" : "#2563eb",
-              borderColor: activeMainTab === "list" ? "#2563eb" : "#dbeafe",
-              boxShadow:
-                activeMainTab === "list"
-                  ? "0 10px 22px rgba(37,99,235,0.18)"
-                  : "none",
-            }}
+            className={`rounded-2xl px-7 py-4 font-black transition-all ${
+              activeMainTab === "list"
+                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
+                : "border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:scale-[1.03] hover:bg-blue-100"
+            }`}
           >
             Danışan Listesi
           </button>
-        </div>
       </section>
 
       {activeMainTab === "new" && (
-        <section className="mb-8 rounded-[32px] border border-emerald-200/70 bg-white/75 p-8 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="mb-6">
-            <span className="inline-flex rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-black text-emerald-800">
+        <section className="mb-8 flex min-h-[520px] flex-col rounded-[36px] border border-emerald-200/80 bg-white/75 p-10 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+          <div className="mb-8">
+            <span className="inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
               Yeni Danışan Kaydı
             </span>
-            <h2 className="mt-3 text-3xl font-black text-slate-950">Danışanı Kaydet</h2>
+            <h2 className="mt-4 text-3xl font-black text-slate-950">Danışanı Kaydet</h2>
             <p className="mt-2 text-base text-slate-600">
               Doğum tarihi girilince burç otomatik hesaplanır.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid flex-1 grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <Field label="Ad">
               <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} />
             </Field>
@@ -403,32 +398,32 @@ export default function ClientsPage() {
             type="button"
             onClick={saveClient}
             disabled={saving}
-            className="mt-6 rounded-2xl bg-emerald-600 px-7 py-4 text-base font-black text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-8 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-8 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
           </button>
 
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[24px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-              <p className="text-sm font-black text-emerald-800">Kayıt güvenliği</p>
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+              <p className="text-base font-black text-emerald-800">Kayıt güvenliği</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Verileriniz güvenli şekilde saklanır.
               </p>
             </div>
-            <div className="rounded-[24px] border border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-              <p className="text-sm font-black text-violet-800">Otomatik burç hesaplama</p>
+            <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+              <p className="text-base font-black text-violet-800">Otomatik burç hesaplama</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Doğum tarihinden burç otomatik belirlenir.
               </p>
             </div>
-            <div className="rounded-[24px] border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-              <p className="text-sm font-black text-cyan-800">Danışan süreci</p>
+            <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+              <p className="text-base font-black text-cyan-800">Danışan süreci</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Kayıt sonrası detay sayfasına geçebilirsiniz.
               </p>
             </div>
-            <div className="rounded-[24px] border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-              <p className="text-sm font-black text-amber-800">Gizlilik</p>
+            <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+              <p className="text-base font-black text-amber-800">Gizlilik</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Kişisel veriler yalnızca yetkili kullanımdadır.
               </p>
