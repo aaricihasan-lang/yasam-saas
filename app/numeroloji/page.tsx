@@ -35,6 +35,18 @@ export default function NumerolojiHubPage() {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6 lg:px-10 lg:pb-8 lg:pt-7 xl:max-w-[1520px] xl:px-12">
+        <div className="mx-auto mt-8 w-full max-w-[1400px] px-6">
+          <Link
+            href="/"
+            className="inline-flex h-14 items-center gap-3 rounded-full border border-violet-200 bg-gradient-to-r from-cyan-50 to-violet-50 px-8 text-base font-black text-slate-700 shadow-[0_8px_30px_rgba(139,92,246,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.03] hover:border-violet-400 hover:shadow-[0_12px_36px_rgba(139,92,246,0.22)] no-underline xl:text-lg"
+          >
+            <span className="text-xl" aria-hidden>
+              ←
+            </span>
+            Ana Panele Dön
+          </Link>
+        </div>
+
         <header className="shrink-0 text-center">
           <p className="text-xs font-black uppercase tracking-[0.4em] text-amber-200/85 sm:text-sm">Yaşam Sistemi</p>
           <h1
