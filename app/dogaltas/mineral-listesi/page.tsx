@@ -75,6 +75,19 @@ function filledCount(mineral: MineralRecord) {
   ].filter((item) => item && item.trim().length > 0).length;
 }
 
+const uiHeaderCard =
+  "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/70 p-6 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
+const uiFilterCard =
+  "rounded-[28px] border-[3px] border-amber-300/40 bg-white/70 p-5 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
+const uiTableCard =
+  "w-full min-h-[520px] overflow-hidden rounded-[32px] border-[3px] border-emerald-400/40 bg-white/75 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
+const uiField =
+  "h-14 rounded-2xl border-2 border-emerald-200 bg-white/90 px-5 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
+const uiActionBtn =
+  "rounded-2xl px-6 py-4 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
+const uiStatCard =
+  "rounded-2xl border-2 border-amber-300/40 bg-white/80 px-8 py-4 text-center shadow-md";
+
 export default function MineralListesiPage() {
   const [minerals, setMinerals] = useState<MineralRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,58 +207,61 @@ export default function MineralListesiPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1420px] px-5 py-4">
-        <header className="mb-4 flex flex-col gap-3 rounded-[24px] bg-white/76 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.04)] ring-1 ring-white/80 lg:flex-row lg:items-center lg:justify-between">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-amber-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
+
+      <div className="relative z-10 w-full px-6 py-6 xl:px-10 2xl:px-14">
+        <header className={`${uiHeaderCard} mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <Link
                 href="/dogaltas"
-                className="rounded-2xl bg-white px-4 py-2 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
+                className="rounded-2xl border border-white/40 bg-white/60 px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400/60"
               >
                 ← Geri
               </Link>
 
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL LİSTESİ
               </span>
             </div>
 
-            <h1 className="text-[26px] font-black tracking-tight">
+            <h1 className="text-4xl font-black tracking-tight text-slate-950">
               Mineral Listesi
             </h1>
 
-            <p className="mt-1 text-[12px] font-medium text-slate-500">
+            <p className="mt-2 text-base font-medium text-slate-600">
               Kayıtlı mineralleri arayın, seçin, detaylandırın veya düzenleyin.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 lg:w-[430px]">
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{minerals.length}</div>
-              <div className="text-[10px] font-bold text-slate-400">Kayıt</div>
+          <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{minerals.length}</div>
+              <div className="text-xs font-bold text-slate-500">Kayıt</div>
             </div>
 
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{selectedIds.length}</div>
-              <div className="text-[10px] font-bold text-slate-400">Seçili</div>
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{selectedIds.length}</div>
+              <div className="text-xs font-bold text-slate-500">Seçili</div>
             </div>
 
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">
+            <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">
                 {filteredMinerals.length}
               </div>
-              <div className="text-[10px] font-bold text-slate-400">Sonuç</div>
+              <div className="text-xs font-bold text-slate-500">Sonuç</div>
             </div>
           </div>
         </header>
 
-        <section className="mb-4 rounded-[24px] bg-white/76 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.035)] ring-1 ring-white/80">
+        <section className={`${uiFilterCard} mb-5`}>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <select
               value={searchType}
               onChange={(event) => setSearchType(event.target.value as SearchType)}
-              className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70 xl:w-[245px]"
+              className={`${uiField} text-sm font-black text-slate-700 xl:w-[260px]`}
             >
               <option value="all">Tüm Alanlarda Ara</option>
               <option value="mineral_name">Mineral Adı</option>
@@ -261,13 +277,13 @@ export default function MineralListesiPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Ara... Mineral adı, detay veya içeren taş..."
-              className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+              className={`${uiField} flex-1 text-sm text-slate-700`}
             />
 
             <button
               type="button"
               onClick={loadMinerals}
-              className="rounded-2xl bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
+              className={`${uiActionBtn} border-2 border-emerald-200/80 bg-white/80 text-slate-700 hover:border-emerald-400`}
             >
               Yenile
             </button>
@@ -275,14 +291,14 @@ export default function MineralListesiPage() {
             <button
               type="button"
               onClick={toggleSelectAll}
-              className="rounded-2xl bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50"
+              className={`${uiActionBtn} border-2 border-amber-200/80 bg-white/80 text-slate-700 hover:border-amber-400`}
             >
               Tümünü Seç
             </button>
 
             <Link
               href="/dogaltas/mineral-bankasi"
-              className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] transition hover:bg-emerald-700"
+              className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
             >
               + Yeni Mineral
             </Link>
@@ -295,13 +311,13 @@ export default function MineralListesiPage() {
           </div>
         )}
 
-        <section className="rounded-[26px] bg-white/78 p-4 shadow-[0_16px_46px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+        <section className={`${uiTableCard} p-4`}>
           {loading ? (
-            <div className="flex h-[340px] items-center justify-center text-[14px] font-black text-slate-400">
+            <div className="flex min-h-[520px] items-center justify-center text-base font-black text-slate-500">
               Mineraller yükleniyor...
             </div>
           ) : filteredMinerals.length === 0 ? (
-            <div className="flex h-[340px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
+            <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
               <div className="text-[54px]">⚗️</div>
               <h2 className="mt-3 text-[20px] font-black text-slate-950">
                 Mineral bulunamadı
@@ -311,8 +327,8 @@ export default function MineralListesiPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-[22px] bg-white ring-1 ring-slate-100">
-              <div className="grid grid-cols-[0.35fr_1fr_0.55fr_1.35fr_0.9fr_0.9fr_0.7fr_0.75fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+            <div className="w-full overflow-hidden rounded-[24px] bg-white/85 ring-1 ring-emerald-100/70">
+              <div className="grid grid-cols-[0.35fr_1fr_0.55fr_1.35fr_0.9fr_0.9fr_0.7fr_0.75fr] gap-3 border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-amber-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700 xl:text-sm">
                 <div>Seç</div>
                 <div>Mineral</div>
                 <div>Taş</div>
@@ -323,7 +339,7 @@ export default function MineralListesiPage() {
                 <div className="text-right">İşlem</div>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-emerald-100">
                 {filteredMinerals.map((mineral) => {
                   const selected = selectedIds.includes(mineral.id);
                   const relatedCount = relatedStoneCount(mineral.related_stones);
@@ -331,8 +347,8 @@ export default function MineralListesiPage() {
                   return (
                     <div
                       key={mineral.id}
-                      className={`grid grid-cols-[0.35fr_1fr_0.55fr_1.35fr_0.9fr_0.9fr_0.7fr_0.75fr] gap-3 px-4 py-3 transition ${
-                        selected ? "bg-cyan-50/70" : "hover:bg-cyan-50/35"
+                      className={`grid grid-cols-[0.35fr_1fr_0.55fr_1.35fr_0.9fr_0.9fr_0.7fr_0.75fr] gap-3 border-b border-emerald-100 px-5 py-5 text-sm transition-colors hover:bg-emerald-50/70 xl:text-base ${
+                        selected ? "bg-emerald-100/60" : ""
                       }`}
                     >
                       <div className="flex items-center">
@@ -341,8 +357,8 @@ export default function MineralListesiPage() {
                           onClick={() => toggleSelected(mineral.id)}
                           className={`flex h-6 w-6 items-center justify-center rounded-lg text-[12px] font-black ring-1 transition ${
                             selected
-                              ? "bg-cyan-600 text-white ring-cyan-600"
-                              : "bg-white text-slate-300 ring-slate-200 hover:ring-cyan-200"
+                              ? "bg-emerald-600 text-white ring-emerald-600"
+                              : "bg-white text-slate-300 ring-emerald-200 hover:ring-emerald-400"
                           }`}
                         >
                           {selected ? "✓" : ""}
@@ -353,10 +369,10 @@ export default function MineralListesiPage() {
                         href={`/dogaltas/mineral-listesi/${mineral.id}`}
                         className="min-w-0"
                       >
-                        <div className="truncate text-[14px] font-black text-slate-950">
+                        <div className="truncate text-base font-black text-slate-950">
                           {mineral.mineral_name}
                         </div>
-                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
+                        <div className="mt-0.5 text-xs font-semibold text-slate-500">
                           {filledCount(mineral)} bölüm · {formatDate(mineral.created_at)}
                         </div>
                       </Link>
@@ -369,28 +385,28 @@ export default function MineralListesiPage() {
 
                       <Link
                         href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                        className="flex items-center text-[12px] leading-5 text-slate-500"
+                        className="flex items-center text-sm leading-6 text-slate-600 xl:text-base"
                       >
                         {preview(mineral.related_stones, 115)}
                       </Link>
 
                       <Link
                         href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                        className="flex items-center text-[12px] leading-5 text-slate-500"
+                        className="flex items-center text-sm leading-6 text-slate-600 xl:text-base"
                       >
                         {preview(mineral.physiology)}
                       </Link>
 
                       <Link
                         href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                        className="flex items-center text-[12px] leading-5 text-slate-500"
+                        className="flex items-center text-sm leading-6 text-slate-600 xl:text-base"
                       >
                         {preview(mineral.deficiency_symptoms)}
                       </Link>
 
                       <Link
                         href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                        className="flex items-center text-[12px] leading-5 text-slate-500"
+                        className="flex items-center text-sm leading-6 text-slate-600 xl:text-base"
                       >
                         {preview(mineral.overdose, 45)}
                       </Link>
@@ -398,7 +414,7 @@ export default function MineralListesiPage() {
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                          className="rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white transition hover:bg-slate-800"
+                          className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-emerald-700"
                         >
                           Detay
                         </Link>
@@ -406,7 +422,7 @@ export default function MineralListesiPage() {
                         <button
                           type="button"
                           onClick={() => setMineralToDelete(mineral)}
-                          className="rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
+                          className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-600 transition hover:bg-red-100"
                         >
                           Sil
                         </button>
