@@ -320,7 +320,7 @@ export default function Home() {
               aria-hidden
             />
 
-            <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 inline-flex rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-600">
                   {todayText}
@@ -333,30 +333,51 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-end lg:w-auto lg:shrink-0 lg:items-center">
                 <div
-                  className="rounded-2xl border border-white/70 bg-white/60 px-5 py-4 shadow-lg backdrop-blur-md"
-                  aria-label="Kurum imzası"
+                  className="relative w-full overflow-hidden rounded-[28px] border border-white/80 bg-white/75 shadow-[0_22px_55px_rgba(79,70,229,0.18)] backdrop-blur-xl sm:w-[360px]"
+                  aria-label="Uzman profil ve marka vitrini"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md">
-                      <Sparkles className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  <div className="flex gap-4 p-5 pb-6">
+                    <div
+                      className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-800 text-3xl font-black text-white shadow-[0_12px_28px_rgba(79,70,229,0.35)] ring-4 ring-white/80"
+                      aria-hidden
+                    >
+                      N
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black leading-tight text-slate-900">
+
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <span className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-800">
+                        Uzman Profil
+                      </span>
+
+                      <p className="mt-2 text-[15px] font-black leading-snug text-slate-900 lg:text-base">
                         Nunstone & Pera Akademi
                       </p>
-                      <p className="mt-0.5 text-xs font-semibold tracking-wide text-slate-600">
-                        Nuran IŞIK
+
+                      <p className="mt-1 text-sm font-bold text-slate-800">Nuran IŞIK</p>
+
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">
+                        Doğaltaş • Enerji • Akademi
                       </p>
+
+                      <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800 ring-1 ring-emerald-200/80">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                        Aktif Uzman
+                      </span>
                     </div>
                   </div>
+
+                  <div
+                    className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-violet-300/90 via-indigo-200/90 to-fuchsia-200/80"
+                    aria-hidden
+                  />
                 </div>
 
                 <button
                   type="button"
                   onClick={logout}
-                  className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
+                  className="shrink-0 self-end rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)] sm:self-center"
                 >
                   Çıkış Yap
                 </button>
