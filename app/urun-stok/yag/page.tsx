@@ -313,7 +313,16 @@ export default function YagUrunStokPage() {
 
   const previewLine = useMemo(() => {
     if (!picked) return null;
-    return calcLineAmounts(picked, toFloat(saleQty, 0), saleUnit);
+    const result = calcLineAmounts(picked, toFloat(saleQty, 0), saleUnit);
+    if ("error" in result) return result;
+    const costPerBase =
+      result.saleBaseQty > 0 ? result.lineCost / result.saleBaseQty : picked.costPerBase;
+    return {
+      saleBaseQty: result.saleBaseQty,
+      costPerBase,
+      lineCost: result.lineCost,
+      lineSale: result.lineSale,
+    };
   }, [picked, saleQty, saleUnit]);
 
   function addToBasket() {
