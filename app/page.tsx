@@ -1,6 +1,15 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import {
+  clearYasamUser,
+  isAdminUser,
+  parseLoginUserRecord,
+  readYasamUser,
+  saveYasamUser,
+  type YasamUser,
+} from "@/lib/auth/yasamUser";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
@@ -15,17 +24,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { isAdminUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
-
-type User = {
-  id: string;
-  tenant_id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-};
 
 type ModuleTheme = {
   iconWrap: string;
@@ -216,23 +215,17 @@ const dashboardModules: ModuleCard[] = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<YasamUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("yasam_user");
-    if (!savedUser) return;
-
     runInEffect(() => {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("yasam_user");
-      }
+      setUser(readYasamUser());
     });
   }, []);
 
@@ -263,17 +256,31 @@ export default function Home() {
       return;
     }
 
-    const loggedUser = data[0];
+    const loggedUser = parseLoginUserRecord(data[0]);
 
-    localStorage.setItem("yasam_user", JSON.stringify(loggedUser));
+    if (!loggedUser) {
+      setMessage(
+        "Giriş başarısız: hesabınızda geçerli bir rol (admin / expert) tanımlı değil. Supabase users kaydını kontrol edin.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    saveYasamUser(loggedUser);
     setUser(loggedUser);
     setLoginModalOpen(false);
+    setEmail("");
+    setPassword("");
     setMessage("");
     setLoading(false);
+
+    if (isAdminUser(loggedUser)) {
+      router.push("/admin");
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem("yasam_user");
+    clearYasamUser();
     setUser(null);
     setEmail("");
     setPassword("");
