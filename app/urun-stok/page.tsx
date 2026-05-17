@@ -45,9 +45,10 @@ const hubModules = [
   },
   {
     title: "Satış Geçmişi",
-    desc: "Tamamlanan satışlar, kâr özeti ve kayıt detayları.",
+    desc: "Satış raporları, kâr analizi ve satın alma karar destek merkezi.",
     icon: "🧾",
     accent: "from-rose-100 to-red-50 border-rose-200/80 ring-rose-100",
+    href: "/urun-stok/satis-gecmisi",
   },
   {
     title: "Stok Hareketleri",
