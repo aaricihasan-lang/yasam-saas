@@ -266,40 +266,115 @@ export default function Home() {
 
   if (user) {
     return (
-      <main className="relative min-h-screen overflow-hidden bg-[#f5f8ff] text-slate-900 antialiased">
+      <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.20),transparent_28%),radial-gradient(circle_at_90%_25%,rgba(56,189,248,0.16),transparent_30%),radial-gradient(circle_at_75%_85%,rgba(217,70,239,0.16),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#eef6ff_45%,#f8f1ff_100%)]"
+          className="pointer-events-none absolute -left-[300px] bottom-[-250px] h-[900px] w-[900px] rounded-full bg-blue-400/20 blur-[180px]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute top-[-220px] left-[-180px] h-[620px] w-[620px] rounded-full bg-indigo-400/20 blur-[170px]"
+          className="pointer-events-none absolute -right-[250px] top-[20%] h-[800px] w-[800px] rounded-full bg-fuchsia-300/18 blur-[180px]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute bottom-[-260px] right-[-180px] h-[700px] w-[700px] rounded-full bg-fuchsia-400/16 blur-[190px]"
+          className="pointer-events-none absolute left-[40%] top-[30%] h-[600px] w-[600px] rounded-full bg-violet-300/10 blur-[170px]"
+          aria-hidden
+        />
+
+        <div
+          className="pointer-events-none absolute left-8 top-10 h-24 w-24 rounded-full bg-white/30 backdrop-blur-sm"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute left-[38%] top-[35%] h-[520px] w-[520px] rounded-full bg-cyan-300/12 blur-[160px]"
+          className="pointer-events-none absolute left-24 top-28 h-16 w-16 rounded-full bg-white/30 backdrop-blur-sm"
           aria-hidden
         />
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.05)_100%)]"
+        <svg
+          className="pointer-events-none absolute bottom-0 left-0 h-[42%] w-[38%] opacity-[0.06] text-indigo-400"
+          viewBox="0 0 420 320"
+          fill="none"
           aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.01]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(15,23,42,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.9) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
+        >
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <line
+              key={`h-${i}`}
+              x1="0"
+              y1={i * 64}
+              x2="420"
+              y2={i * 64}
+              stroke="currentColor"
+              strokeWidth="0.75"
+            />
+          ))}
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <line
+              key={`v-${i}`}
+              x1={i * 70}
+              y1="0"
+              x2={i * 70}
+              y2="320"
+              stroke="currentColor"
+              strokeWidth="0.75"
+            />
+          ))}
+          {[
+            [40, 48],
+            [110, 120],
+            [180, 72],
+            [250, 160],
+            [320, 88],
+            [70, 200],
+            [200, 240],
+            [350, 200],
+          ].map(([cx, cy], i) => (
+            <circle key={`dot-${i}`} cx={cx} cy={cy} r="2.5" fill="currentColor" />
+          ))}
+        </svg>
+
+        <svg
+          className="pointer-events-none absolute bottom-8 right-0 h-[38%] w-[42%] opacity-[0.07] text-violet-400"
+          viewBox="0 0 480 300"
+          fill="none"
           aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute left-1/2 top-8 h-[calc(100%-4rem)] w-[min(1500px,92vw)] -translate-x-1/2 rounded-[40px] bg-white/25 shadow-[0_40px_120px_rgba(15,23,42,0.08)] ring-1 ring-white/40 backdrop-blur-[2px]"
+        >
+          <line x1="60" y1="220" x2="180" y2="140" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="180" y1="140" x2="320" y2="180" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="320" y1="180" x2="420" y2="80" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="180" y1="140" x2="240" y2="260" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="240" y1="260" x2="380" y2="240" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="120" y1="60" x2="180" y2="140" stroke="currentColor" strokeWidth="0.8" />
+          {[
+            [60, 220],
+            [180, 140],
+            [320, 180],
+            [420, 80],
+            [240, 260],
+            [380, 240],
+            [120, 60],
+          ].map(([cx, cy], i) => (
+            <circle key={`node-${i}`} cx={cx} cy={cy} r="3" fill="currentColor" />
+          ))}
+        </svg>
+
+        <svg
+          className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.12]"
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          fill="none"
           aria-hidden
-        />
+        >
+          <path
+            d="M0 95 C 240 40, 480 110, 720 70 C 960 30, 1200 90, 1440 55 L 1440 120 L 0 120 Z"
+            fill="url(#home-bottom-glow)"
+          />
+          <defs>
+            <linearGradient id="home-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(99,102,241,0)" />
+              <stop offset="35%" stopColor="rgba(129,140,248,0.35)" />
+              <stop offset="65%" stopColor="rgba(217,70,239,0.3)" />
+              <stop offset="100%" stopColor="rgba(56,189,248,0)" />
+            </linearGradient>
+          </defs>
+        </svg>
 
         <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
           <div
