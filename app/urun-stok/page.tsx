@@ -49,6 +49,13 @@ const hubModules = [
     icon: "📊",
     accent: "from-slate-100 to-zinc-50 border-slate-200/80 ring-slate-100",
   },
+  {
+    title: "Diğer Ürünler",
+    desc: "Kategoriye sığmayan tüm özel ürünler, farklı satış kalemleri ve serbest ürün stokları.",
+    icon: "🛍️",
+    accent: "from-lime-100 to-yellow-50 border-lime-200/80 ring-lime-100",
+    statusLabel: "YAKINDA",
+  },
 ] as const;
 
 const cardBase =
@@ -104,7 +111,7 @@ export default function UrunStokHubPage() {
             </p>
           </div>
           <span className="rounded-full border border-amber-200/90 bg-amber-50/90 px-5 py-2 text-sm font-black text-amber-900 shadow-sm">
-            8 modül
+            9 modül
           </span>
         </div>
 
@@ -121,7 +128,7 @@ export default function UrunStokHubPage() {
                     {item.icon}
                   </span>
                   <span className="rounded-full border border-slate-200/90 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                    Yakında
+                    {"statusLabel" in item && item.statusLabel ? item.statusLabel : "Yakında"}
                   </span>
                 </div>
                 <h3 className="mt-5 text-xl font-black leading-tight text-slate-900 sm:text-2xl">
