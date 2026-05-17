@@ -276,6 +276,27 @@ function shortPreview(record: HealingGuideRecord, limit = 140) {
   return chunk.length > limit ? `${chunk.slice(0, limit)}…` : chunk;
 }
 
+const pageBg =
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dcfce7_0%,#ecfeff_35%,#f8fafc_100%)] text-slate-950";
+const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const uiHeaderCard =
+  "rounded-[34px] border-[3px] border-emerald-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(16,185,129,0.14)] backdrop-blur-xl";
+const uiStatCard =
+  "rounded-2xl border-2 border-cyan-200 bg-white/90 px-8 py-5 text-center shadow-md";
+const uiFilterCard =
+  "rounded-[30px] border-[3px] border-cyan-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(34,211,238,0.12)] backdrop-blur-xl";
+const uiSearchInput =
+  "h-14 w-full rounded-2xl border-2 border-emerald-200 bg-white/90 pl-12 pr-5 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
+const uiViewBtn =
+  "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-1";
+const uiViewBtnActive = "bg-slate-950 text-white";
+const uiViewBtnIdle = "border-2 border-emerald-200 bg-white text-slate-800";
+const uiNewBtn =
+  "rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-4 font-black text-white shadow-md transition-all duration-300 hover:-translate-y-1";
+const uiContentCard =
+  "w-full rounded-[34px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_50px_rgba(16,185,129,0.14)] backdrop-blur-xl xl:p-8";
+const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
+
 export default function SifaRehberiPage() {
   const [rows, setRows] = useState<HealingGuideRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -510,27 +531,32 @@ export default function SifaRehberiPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1380px] px-5 py-4">
-        <header className="mb-4 flex flex-col gap-3 rounded-[28px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-white/80 lg:flex-row lg:items-center lg:justify-between">
+    <main className={pageBg}>
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+
+      <div className={pageContent}>
+        <header className={`${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+            <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-black text-emerald-700">
               ✶ ŞİFA REHBERİ
             </div>
 
-            <h1 className="text-[26px] font-black leading-tight tracking-tight">Şifa Rehberi</h1>
+            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+              Şifa Rehberi
+            </h1>
 
-            <p className="mt-0.5 text-[12px] font-medium text-slate-500">
+            <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
               Rahatsızlık bazlı bütünsel şifa rehberi — listeleyin, arayın ve yeni kayıt ekleyin.
             </p>
 
             <Link
               href="/"
-              className="mt-3 inline-flex w-fit max-w-full shrink-0 items-center gap-2 rounded-2xl border border-white/60 bg-white/55 px-3.5 py-2 text-[11px] font-black tracking-tight text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:border-cyan-100/80 hover:bg-white/80 hover:text-slate-900 hover:shadow-[0_12px_32px_rgba(8,145,178,0.12)]"
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-emerald-50"
             >
               <svg
                 aria-hidden
-                className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
+                className="h-4 w-4 shrink-0 text-emerald-600"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -540,26 +566,26 @@ export default function SifaRehberiPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 lg:w-[430px]">
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{rows.length}</div>
-              <div className="text-[10px] font-bold text-slate-400">Kayıt</div>
+          <div className="grid w-full grid-cols-3 gap-4 lg:w-auto">
+            <div className={uiStatCard}>
+              <div className="text-3xl font-black">{rows.length}</div>
+              <div className="text-sm font-bold text-slate-500">Kayıt</div>
             </div>
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{categoryCount}</div>
-              <div className="text-[10px] font-bold text-slate-400">Kategori</div>
+            <div className={uiStatCard}>
+              <div className="text-3xl font-black">{categoryCount}</div>
+              <div className="text-sm font-bold text-slate-500">Kategori</div>
             </div>
-            <div className="rounded-2xl bg-white/80 px-3 py-2 text-center ring-1 ring-slate-100">
-              <div className="text-[18px] font-black">{filteredRows.length}</div>
-              <div className="text-[10px] font-bold text-slate-400">Görünen</div>
+            <div className={uiStatCard}>
+              <div className="text-3xl font-black">{filteredRows.length}</div>
+              <div className="text-sm font-bold text-slate-500">Görünen</div>
             </div>
           </div>
         </header>
 
-        <section className="mb-4 rounded-[26px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative min-w-0 w-full xl:max-w-[680px]">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
+        <section className={uiFilterCard}>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="relative min-w-0 w-full flex-1">
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl text-slate-400">
                 ⌕
               </span>
               <input
@@ -567,18 +593,16 @@ export default function SifaRehberiPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="İsim, kategori veya rehber metinlerinde ara..."
-                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white/90 pl-11 pr-4 text-[13px] font-semibold outline-none transition placeholder:text-slate-400 focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
+                className={uiSearchInput}
               />
             </div>
 
-            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
+            <div className="flex w-full shrink-0 flex-wrap items-center gap-3 xl:w-auto xl:justify-end">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
-                  viewMode === "list"
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                className={`${uiViewBtn} ${
+                  viewMode === "list" ? uiViewBtnActive : uiViewBtnIdle
                 }`}
               >
                 Liste
@@ -586,10 +610,8 @@ export default function SifaRehberiPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("card")}
-                className={`rounded-2xl px-4 py-2 text-[12px] font-black ring-1 transition ${
-                  viewMode === "card"
-                    ? "bg-slate-950 text-white ring-slate-950"
-                    : "bg-white/85 text-slate-700 ring-slate-100 hover:bg-white"
+                className={`${uiViewBtn} ${
+                  viewMode === "card" ? uiViewBtnActive : uiViewBtnIdle
                 }`}
               >
                 Kart
@@ -597,7 +619,7 @@ export default function SifaRehberiPage() {
               <button
                 type="button"
                 onClick={loadGuides}
-                className="rounded-2xl bg-white/85 px-4 py-2 text-[12px] font-black text-slate-700 ring-1 ring-slate-100 transition hover:bg-white"
+                className={`${uiViewBtn} ${uiViewBtnIdle}`}
               >
                 Yenile
               </button>
@@ -608,7 +630,7 @@ export default function SifaRehberiPage() {
                   setErrorMessage("");
                   setSuccessMessage("");
                 }}
-                className="rounded-2xl bg-emerald-600 px-4 py-2 text-[12px] font-black text-white shadow-[0_12px_25px_rgba(16,185,129,0.18)] transition hover:bg-emerald-700"
+                className={uiNewBtn}
               >
                 + Yeni Rahatsızlık
               </button>
@@ -805,16 +827,16 @@ export default function SifaRehberiPage() {
           </div>
         )}
 
-        <section className="rounded-[28px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
+        <section className={uiContentCard}>
           {loading ? (
-            <div className="flex h-[280px] items-center justify-center text-[14px] font-bold text-slate-400">
+            <div className="flex min-h-[420px] flex-col items-center justify-center text-base font-bold text-slate-500">
               Kayıtlar yükleniyor...
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
-              <div className="text-[48px]">✶</div>
-              <h3 className="mt-2 text-[18px] font-black text-slate-900">Kayıt bulunamadı</h3>
-              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
+            <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+              <div className="text-6xl">✶</div>
+              <h3 className="mt-4 text-4xl font-black text-slate-900">Kayıt bulunamadı</h3>
+              <p className="mt-3 text-lg text-slate-500">
                 Aramayı değiştirin veya yeni bir rahatsızlık rehberi ekleyin.
               </p>
             </div>
