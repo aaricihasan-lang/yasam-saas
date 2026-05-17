@@ -67,8 +67,26 @@ import {
 } from "@/lib/urun-stok/soapCreamStockLogic";
 
 export const GENERAL_SALES_STORAGE_KEY = "general_sales_history_v1";
+export const STOCK_MOVEMENTS_STORAGE_KEY = "stock_movements_v1";
 
 export type ProductCategory = "dogaltas" | "oil" | "soap_cream" | "accessory" | "other";
+
+export type StockMovementRecord = {
+  id: string;
+  timestamp: string;
+  productName: string;
+  category: ProductCategory;
+  categoryLabel: string;
+  movementType: string;
+  movement_type: string;
+  type: string;
+  qty_delta: number;
+  qty: number;
+  unit: string;
+  note?: string;
+  source: string;
+  reference?: string;
+};
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   dogaltas: "Doğaltaş",
@@ -94,9 +112,12 @@ export type UnifiedProduct = {
   salePerUnit: number;
   profitPct: number;
   unitLabel: string;
+  photoCount: number;
   dogaltasStone?: string;
   dogaltasType?: string;
 };
+
+export type LiveInventoryCounts = Record<ProductCategory, number>;
 
 export type GeneralSaleLine = {
   category: ProductCategory;
@@ -134,8 +155,8 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
   for (const it of loadDogaltasInventory()) {
     const qty = it.adet || 0;
     if (qty <= 0) continue;
-    const { unit, warning } = unitCostAndCurrency(it, usdRate);
-    if (warning || unit <= 0) continue;
+    const { unit } = unitCostAndCurrency(it, usdRate);
+    const costPerUnit = unit > 0 ? unit : it.adet_price || 0;
     out.push({
       category: "dogaltas",
       productId: itemKey(it.name, it.type),
@@ -144,10 +165,11 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
       stockDisplay: `${qty} adet`,
       stockAmount: qty,
       saleMode: "adet",
-      costPerUnit: unit,
-      salePerUnit: unit,
+      costPerUnit,
+      salePerUnit: costPerUnit,
       profitPct: 100,
       unitLabel: "adet",
+      photoCount: it.photos?.length ?? 0,
       dogaltasStone: it.name,
       dogaltasType: it.type,
     });
@@ -170,6 +192,7 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
       salePerUnit: it.salePerBase,
       profitPct: it.profitPct,
       unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
+      photoCount: it.photos?.length ?? 0,
     });
   }
 
@@ -190,6 +213,7 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
       salePerUnit: it.salePerBase,
       profitPct: it.profitPct,
       unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
+      photoCount: it.photos?.length ?? 0,
     });
   }
 
@@ -207,6 +231,7 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
       salePerUnit: it.salePerUnit,
       profitPct: it.profitPct,
       unitLabel: "adet",
+      photoCount: it.photos?.length ?? 0,
     });
   }
 
@@ -227,10 +252,63 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
       salePerUnit: it.salePerBase,
       profitPct: it.profitPct,
       unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
+      photoCount: it.photos?.length ?? 0,
     });
   }
 
   return out;
+}
+
+/** Stoklu ürün sayıları — canlı envanter panellerinden */
+export function countLiveInventoryByCategory(): LiveInventoryCounts {
+  return {
+    dogaltas: loadDogaltasInventory().filter((i) => (i.adet || 0) > 0).length,
+    oil: loadOilInventory().filter((i) => i.stockBase > 0).length,
+    soap_cream: loadSoapCreamInventory().filter((i) => i.stockBase > 0).length,
+    accessory: loadAccessoryInventory().filter((i) => i.stockQty > 0).length,
+    other: loadOtherInventory().filter((i) => i.stockBase > 0).length,
+  };
+}
+
+function loadStockMovements(): StockMovementRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STOCK_MOVEMENTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as StockMovementRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function appendStockMovementsFromSales(basket: GeneralSaleRecord[]): void {
+  if (typeof window === "undefined" || !basket.length) return;
+  const movements: StockMovementRecord[] = [];
+  for (const rec of basket) {
+    for (const ln of rec.lines) {
+      movements.push({
+        id: `${rec.timestamp}-${ln.category}-${ln.productId}-${ln.saleBaseQty}`,
+        timestamp: rec.timestamp,
+        productName: ln.productName,
+        category: ln.category,
+        categoryLabel: CATEGORY_LABELS[ln.category],
+        movementType: "sale",
+        movement_type: "sale",
+        type: "sale",
+        qty_delta: -ln.saleBaseQty,
+        qty: -ln.saleBaseQty,
+        unit: ln.saleUnit,
+        note: rec.name,
+        source: "Merkezi Satış",
+        reference: rec.timestamp,
+      });
+    }
+  }
+  localStorage.setItem(
+    STOCK_MOVEMENTS_STORAGE_KEY,
+    JSON.stringify([...loadStockMovements(), ...movements]),
+  );
 }
 
 export function filterUnifiedProducts(
@@ -595,5 +673,6 @@ export function commitCentralSales(
 
   void usdRate;
   appendGeneralSales(basket);
+  appendStockMovementsFromSales(basket);
   return { ok: true };
 }

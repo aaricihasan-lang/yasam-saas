@@ -9,6 +9,7 @@ import {
   type UnifiedProduct,
   calcUnifiedSale,
   commitCentralSales,
+  countLiveInventoryByCategory,
   filterUnifiedProducts,
   fmtMoney,
   fmtUnifiedUnitCost,
@@ -50,9 +51,26 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setProducts(loadUnifiedProducts(toFloat(usdRate, 0)));
   }, [usdRate]);
 
+  const liveCounts = useMemo(() => countLiveInventoryByCategory(), [products]);
+
   useEffect(() => {
     reloadProducts();
     setHydrated(true);
+  }, [reloadProducts]);
+
+  useEffect(() => {
+    const onRefresh = () => reloadProducts();
+    window.addEventListener("focus", onRefresh);
+    window.addEventListener("storage", onRefresh);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onRefresh);
+      window.removeEventListener("storage", onRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [reloadProducts]);
 
   const [categoryFilter, setCategoryFilter] = useState<ProductCategory | "all">("all");
@@ -137,7 +155,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setBasket([]);
     reloadProducts();
     setPickKey("");
-    setMsg("Satış kaydedildi; stoklar ve satış geçmişleri güncellendi.");
+    setMsg("Satış kaydedildi; stoklar, satış geçmişleri ve stok hareketleri güncellendi.");
   }
 
   if (!hydrated) {
@@ -171,10 +189,34 @@ export default function MerkeziSatisFiyatlandirmaPage() {
           <p className="text-sm font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satış</p>
           <h1 className="mt-3 text-4xl font-black xl:text-5xl">Satış & Fiyatlandırma</h1>
           <p className="mt-4 text-lg text-slate-600">
-            Doğaltaş, yağ, sabun/krem ve tespih/takı ürünlerini tek ekrandan satın; stok ilgili modülden, kayıt merkezi
-            geçmişe yazılır.
+            Bu ekranda ürün eklenmez — tüm modül stok panellerinden canlı okunur. Satışta stok ilgili modülde düşer;
+            kayıt merkezi satış geçmişine, kategori satış geçmişine ve stok hareketlerine yazılır.
           </p>
         </header>
+
+        <section className={`${panelClass} mb-6 !p-5`}>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-fuchsia-800">Canlı ürün kaynakları</h2>
+          <p className="mt-1 text-sm text-slate-600">Satışa hazır stoklu ürün sayıları (anlık)</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
+              <div key={c} className="rounded-2xl border-2 border-fuchsia-100 bg-fuchsia-50/70 px-4 py-3 text-center">
+                <p className="text-xs font-black uppercase text-slate-500">{CATEGORY_LABELS[c]}</p>
+                <p className="mt-1 text-2xl font-black text-fuchsia-900">{liveCounts[c]}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {products.length === 0 ? (
+          <section className={`${panelClass} mb-6 py-12 text-center`}>
+            <p className="text-5xl" aria-hidden>
+              🛒
+            </p>
+            <p className="mx-auto mt-4 max-w-lg text-lg font-semibold text-slate-600">
+              Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+            </p>
+          </section>
+        ) : null}
 
         {msg ? (
           <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-base font-semibold text-amber-900">
@@ -182,6 +224,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
           </p>
         ) : null}
 
+        {products.length > 0 ? (
         <div className="grid w-full gap-6 xl:grid-cols-[1.6fr_1fr]">
           <section className={`${panelClass} space-y-6`}>
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
@@ -202,7 +245,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               </label>
               <label className="block lg:col-span-2">
                 <span className="mb-2 block text-sm font-black">Ürün ara</span>
-                <input className={inputClass} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ad, tür, grup…" />
+                <input className={inputClass} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ad, tür, grup, model…" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-black">Dolar kuru (Doğaltaş $)</span>
@@ -223,15 +266,38 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </label>
 
             {picked ? (
-              <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50/80 px-5 py-4">
-                <p className="text-sm font-black text-fuchsia-800">
-                  {CATEGORY_LABELS[picked.category]} · Birim maliyet
-                </p>
-                <p className="mt-1 text-lg font-black">
-                  {fmtUnifiedUnitCost(picked)}
-                  <span className="mx-2 text-slate-400">·</span>
-                  Satış birimi: {fmtUnifiedUnitCost({ ...picked, costPerUnit: picked.salePerUnit })}
-                </p>
+              <div className="rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-pink-50 px-5 py-5">
+                <p className="text-xs font-black uppercase tracking-wider text-fuchsia-700">Seçili ürün</p>
+                <p className="mt-2 text-2xl font-black text-slate-900">{picked.name}</p>
+                <p className="text-base font-semibold text-slate-600">{picked.subtitle}</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Kategori</p>
+                    <p className="text-base font-black">{CATEGORY_LABELS[picked.category]}</p>
+                  </div>
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Mevcut stok</p>
+                    <p className="text-base font-black">{picked.stockDisplay}</p>
+                  </div>
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Birim</p>
+                    <p className="text-base font-black">{picked.unitLabel}</p>
+                  </div>
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Birim maliyet</p>
+                    <p className="text-base font-black">{fmtUnifiedUnitCost(picked)}</p>
+                  </div>
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Satış fiyatı (birim)</p>
+                    <p className="text-base font-black">
+                      {fmtUnifiedUnitCost({ ...picked, costPerUnit: picked.salePerUnit })}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-fuchsia-100 bg-white/90 px-4 py-3">
+                    <p className="text-xs font-black text-slate-500">Fotoğraf</p>
+                    <p className="text-base font-black">{picked.photoCount} adet</p>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -354,6 +420,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </div>
           </section>
         </div>
+        ) : null}
       </div>
     </main>
   );
