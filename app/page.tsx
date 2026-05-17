@@ -266,21 +266,29 @@ export default function Home() {
 
   if (user) {
     return (
-      <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.14),transparent_35%),linear-gradient(135deg,#f8fbff,#eef5ff,#f6f1ff)] text-slate-900 antialiased">
+      <main className="relative min-h-screen overflow-hidden bg-[#f5f8ff] text-slate-900 antialiased">
         <div
-          className="pointer-events-none absolute left-[-120px] top-[-150px] h-[500px] w-[500px] rounded-full bg-indigo-400/15 blur-[150px]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.20),transparent_28%),radial-gradient(circle_at_90%_25%,rgba(56,189,248,0.16),transparent_30%),radial-gradient(circle_at_75%_85%,rgba(217,70,239,0.16),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#eef6ff_45%,#f8f1ff_100%)]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute right-[-120px] top-[80px] h-[450px] w-[450px] rounded-full bg-cyan-300/15 blur-[150px]"
+          className="pointer-events-none absolute top-[-220px] left-[-180px] h-[620px] w-[620px] rounded-full bg-indigo-400/20 blur-[170px]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute bottom-[-180px] right-[10%] h-[550px] w-[550px] rounded-full bg-fuchsia-400/10 blur-[160px]"
+          className="pointer-events-none absolute bottom-[-260px] right-[-180px] h-[700px] w-[700px] rounded-full bg-fuchsia-400/16 blur-[190px]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          className="pointer-events-none absolute left-[38%] top-[35%] h-[520px] w-[520px] rounded-full bg-cyan-300/12 blur-[160px]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.05)_100%)]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.01]"
           style={{
             backgroundImage:
               "linear-gradient(rgba(15,23,42,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.9) 1px, transparent 1px)",
@@ -288,10 +296,14 @@ export default function Home() {
           }}
           aria-hidden
         />
+        <div
+          className="pointer-events-none absolute left-1/2 top-8 h-[calc(100%-4rem)] w-[min(1500px,92vw)] -translate-x-1/2 rounded-[40px] bg-white/25 shadow-[0_40px_120px_rgba(15,23,42,0.08)] ring-1 ring-white/40 backdrop-blur-[2px]"
+          aria-hidden
+        />
 
         <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
           <div
-            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-8 text-white shadow-[0_28px_70px_rgba(79,70,229,0.30)] sm:px-8 sm:py-9 lg:py-10"
+            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-8 text-white shadow-[0_30px_90px_rgba(79,70,229,0.22)] sm:px-8 sm:py-9 lg:py-10"
             aria-label="Uzman ve kurum profili"
           >
             <div
@@ -352,7 +364,7 @@ export default function Home() {
 
                 const card = (
                   <div
-                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
+                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_22px_55px_rgba(15,23,42,0.10)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
                       isReady
                         ? "cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
                         : "cursor-default opacity-90"
