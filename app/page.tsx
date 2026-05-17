@@ -9,8 +9,8 @@ import {
   Crown,
   Diamond,
   FolderArchive,
+  ChartColumn,
   Gem,
-  Hash,
   Leaf,
   Sparkles,
   Star,
@@ -130,7 +130,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/danisan-yolculugu",
     Icon: UsersRound,
     theme: {
-      iconWrap: "from-blue-600 to-indigo-600",
+      iconWrap: "from-indigo-500 to-blue-600",
       cardBg: "from-blue-100/90 via-sky-50/95 to-white",
       border: "border-blue-200/70",
     },
@@ -143,7 +143,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/dogaltas",
     Icon: Gem,
     theme: {
-      iconWrap: "from-teal-500 to-cyan-600",
+      iconWrap: "from-cyan-500 to-teal-500",
       cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
       border: "border-teal-200/70",
     },
@@ -156,7 +156,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/sifa-rehberi",
     Icon: Leaf,
     theme: {
-      iconWrap: "from-emerald-500 to-green-600",
+      iconWrap: "from-green-500 to-emerald-500",
       cardBg: "from-emerald-100/90 via-green-50/95 to-white",
       border: "border-emerald-200/70",
     },
@@ -169,7 +169,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/enerji-beden",
     Icon: Sparkles,
     theme: {
-      iconWrap: "from-violet-500 to-fuchsia-600",
+      iconWrap: "from-fuchsia-500 to-violet-600",
       cardBg: "from-violet-100/90 via-purple-50/95 to-white",
       border: "border-violet-200/70",
     },
@@ -182,7 +182,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/dashboard/kisisel-arsiv",
     Icon: FolderArchive,
     theme: {
-      iconWrap: "from-orange-500 to-amber-600",
+      iconWrap: "from-orange-500 to-amber-500",
       cardBg: "from-orange-100/90 via-amber-50/95 to-white",
       border: "border-orange-200/70",
     },
@@ -193,9 +193,9 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Plan",
     href: "/numeroloji",
-    Icon: Hash,
+    Icon: ChartColumn,
     theme: {
-      iconWrap: "from-indigo-500 to-violet-600",
+      iconWrap: "from-violet-500 to-indigo-600",
       cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
       border: "border-indigo-200/70",
     },
@@ -377,9 +377,9 @@ export default function Home() {
 
                     <div className="flex items-start justify-between gap-3">
                       <div
-                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.iconWrap} text-white shadow-lg`}
+                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 group-hover:scale-110 ${theme.iconWrap}`}
                       >
-                        <Icon className="h-7 w-7" strokeWidth={2.25} />
+                        <Icon className="h-8 w-8" strokeWidth={2.25} />
                       </div>
 
                       <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
