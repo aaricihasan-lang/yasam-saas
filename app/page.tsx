@@ -7,12 +7,15 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Calendar,
+  Crown,
+  Diamond,
   FolderArchive,
   Gem,
   Hash,
   Leaf,
   Rocket,
   Sparkles,
+  Star,
   UsersRound,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -320,7 +323,7 @@ export default function Home() {
               aria-hidden
             />
 
-            <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-5">
+            <div className="relative flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 inline-flex rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-600">
                   {todayText}
@@ -333,55 +336,13 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-end lg:w-auto lg:shrink-0 lg:items-center">
-                <div
-                  className="relative w-full overflow-hidden rounded-[28px] border border-white/80 bg-white/75 shadow-[0_22px_55px_rgba(79,70,229,0.18)] backdrop-blur-xl sm:w-[360px]"
-                  aria-label="Uzman profil ve marka vitrini"
-                >
-                  <div className="flex gap-4 p-5 pb-6">
-                    <div
-                      className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-800 text-3xl font-black text-white shadow-[0_12px_28px_rgba(79,70,229,0.35)] ring-4 ring-white/80"
-                      aria-hidden
-                    >
-                      N
-                    </div>
-
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <span className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-800">
-                        Uzman Profil
-                      </span>
-
-                      <p className="mt-2 text-[15px] font-black leading-snug text-slate-900 lg:text-base">
-                        Nunstone & Pera Akademi
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold text-slate-800">Nuran IŞIK</p>
-
-                      <p className="mt-1 text-[11px] font-medium text-slate-500">
-                        Doğaltaş • Enerji • Akademi
-                      </p>
-
-                      <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800 ring-1 ring-emerald-200/80">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                        Aktif Uzman
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-violet-300/90 via-indigo-200/90 to-fuchsia-200/80"
-                    aria-hidden
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="shrink-0 self-end rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)] sm:self-center"
-                >
-                  Çıkış Yap
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="shrink-0 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#1e293b] hover:shadow-[0_12px_28px_rgba(15,23,42,0.3)]"
+              >
+                Çıkış Yap
+              </button>
             </div>
           </header>
 
@@ -403,6 +364,76 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div
+            className="relative mt-3 w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-6 text-white shadow-[0_28px_70px_rgba(79,70,229,0.30)] sm:px-8 sm:py-7"
+            aria-label="Uzman ve kurum profili"
+          >
+            <div
+              className="pointer-events-none absolute -right-10 -top-8 h-36 w-36 rounded-full bg-white/10 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute bottom-0 left-1/4 h-24 w-48 rounded-full bg-fuchsia-300/15 blur-2xl"
+              aria-hidden
+            />
+
+            <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div
+                  className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-4 border-yellow-300/80 bg-slate-950/80 text-6xl font-light text-yellow-200 shadow-2xl"
+                  aria-hidden
+                >
+                  H
+                </div>
+
+                <div className="min-w-0">
+                  <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95 backdrop-blur-sm">
+                    UZMAN PROFİLİ
+                  </span>
+
+                  <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl lg:text-4xl">
+                    Bütüncül Yaşam Analiz Platformu
+                  </h2>
+
+                  <p className="mt-2 text-2xl font-black text-yellow-300">Hasan ARICI</p>
+
+                  <p className="mt-1 text-sm font-medium text-white/85">
+                    Doğaltaş • Enerji • Akademi
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:max-w-[720px] xl:flex-1">
+                {[
+                  {
+                    Icon: Crown,
+                    title: "Aktif Uzman",
+                    desc: "Sistem yöneticisi",
+                  },
+                  {
+                    Icon: Diamond,
+                    title: "Premium Panel",
+                    desc: "Tüm modüllere erişim",
+                  },
+                  {
+                    Icon: Star,
+                    title: "Kişisel Marka Alanı",
+                    desc: "Size özel çalışma alanı",
+                  },
+                ].map(({ Icon, title, desc }) => (
+                  <div
+                    key={title}
+                    className="rounded-2xl border border-white/20 bg-white/15 p-4 backdrop-blur-xl sm:p-5"
+                  >
+                    <Icon className="mb-2 h-5 w-5 text-yellow-200" strokeWidth={2} aria-hidden />
+                    <p className="text-sm font-black leading-tight">{title}</p>
+                    <p className="mt-1 text-xs font-medium text-white/75">{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <section className="mt-3 flex min-h-0 flex-1 flex-col">
