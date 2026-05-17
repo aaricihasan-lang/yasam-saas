@@ -99,15 +99,27 @@ export default function DanisanYolculuguPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#eef5ff_0%,#f7f4ff_48%,#fff4fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-14">
       <div
-        className="pointer-events-none absolute -left-[240px] bottom-[-200px] h-[780px] w-[780px] rounded-full bg-blue-300/14 blur-[180px]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.14),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),radial-gradient(circle_at_72%_88%,rgba(56,189,248,0.10),transparent_34%)]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -right-[220px] top-[-140px] h-[680px] w-[680px] rounded-full bg-pink-200/12 blur-[180px]"
+        className="pointer-events-none absolute -left-[240px] bottom-[-200px] h-[780px] w-[780px] rounded-full bg-blue-400/18 blur-[190px]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute left-[36%] top-[22%] h-[560px] w-[560px] rounded-full bg-violet-200/10 blur-[170px]"
+        className="pointer-events-none absolute -right-[220px] top-[-140px] h-[680px] w-[680px] rounded-full bg-fuchsia-300/14 blur-[190px]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute left-[36%] top-[22%] h-[560px] w-[560px] rounded-full bg-violet-300/12 blur-[175px]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute left-10 top-24 h-24 w-24 rounded-full bg-white/35 backdrop-blur-sm"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute left-28 top-40 h-14 w-14 rounded-full bg-white/30 backdrop-blur-sm"
         aria-hidden
       />
 
@@ -140,6 +152,26 @@ export default function DanisanYolculuguPage() {
         aria-hidden
       />
 
+      <svg
+        className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.10]"
+        viewBox="0 0 1440 100"
+        preserveAspectRatio="none"
+        fill="none"
+        aria-hidden
+      >
+        <path
+          d="M0 72 C 280 28, 520 88, 760 48 C 1020 8, 1240 68, 1440 42 L 1440 100 L 0 100 Z"
+          fill="url(#journey-bottom-glow)"
+        />
+        <defs>
+          <linearGradient id="journey-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(99,102,241,0)" />
+            <stop offset="45%" stopColor="rgba(129,140,248,0.4)" />
+            <stop offset="100%" stopColor="rgba(217,70,239,0)" />
+          </linearGradient>
+        </defs>
+      </svg>
+
       <div className="relative z-10 mx-auto max-w-[1680px]">
         <Link
           href="/"
@@ -151,7 +183,7 @@ export default function DanisanYolculuguPage() {
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_420px] lg:items-start">
           <div className="min-w-0 space-y-8">
-            <header className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/65 px-8 py-10 shadow-[0_25px_80px_rgba(99,102,241,0.10)] backdrop-blur-xl sm:px-10 sm:py-12">
+            <header className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/55 px-8 py-10 shadow-[0_30px_90px_rgba(79,70,229,0.14)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-12">
               <CalendarCheck
                 className="pointer-events-none absolute right-6 top-1/2 h-44 w-44 -translate-y-1/2 text-indigo-400 opacity-10"
                 strokeWidth={1.25}
@@ -184,7 +216,7 @@ export default function DanisanYolculuguPage() {
                     <Link
                       key={folder.title}
                       href={folder.href}
-                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border border-white/80 p-10 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_35px_90px_rgba(79,70,229,0.16)] ${folder.cardGradient}`}
+                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border border-white/80 p-10 shadow-[0_28px_75px_rgba(15,23,42,0.10)] ring-1 ring-white/60 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_35px_95px_rgba(79,70,229,0.18)] ${folder.cardGradient}`}
                     >
                       <DecorIcon
                         className={`pointer-events-none absolute -bottom-2 -right-2 h-40 w-40 ${folder.decorColor} opacity-[0.05]`}
@@ -224,7 +256,7 @@ export default function DanisanYolculuguPage() {
           </div>
 
           <aside className="lg:sticky lg:top-8">
-            <div className="rounded-[36px] border border-white/80 bg-white/70 p-8 shadow-[0_25px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            <div className="rounded-[36px] border border-white/80 bg-white/60 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.12)] ring-1 ring-white/60 backdrop-blur-xl">
               <h2 className="text-2xl font-black text-slate-900">Genel Özet</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Danışan ve randevu süreçlerinizin anonim genel durumu.
