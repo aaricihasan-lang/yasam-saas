@@ -40,6 +40,19 @@ import {
   saveOilInventory,
 } from "@/lib/urun-stok/oilStockLogic";
 import {
+  type OtInputUnit,
+  type OtherSaleLine,
+  type OtherSaleRecord,
+  appendOtherSales,
+  calcLineAmounts as calcOtherLine,
+  deductOtherInventory,
+  formatStockDisplay as formatOtherStock,
+  formatVariantLabel as formatOtherVariantLabel,
+  fmtUnitCost as fmtOtherUnitCost,
+  loadOtherInventory,
+  saveOtherInventory,
+} from "@/lib/urun-stok/otherStockLogic";
+import {
   type ScInputUnit,
   type SoapCreamItem,
   type SoapCreamSaleLine,
@@ -55,13 +68,14 @@ import {
 
 export const GENERAL_SALES_STORAGE_KEY = "general_sales_history_v1";
 
-export type ProductCategory = "dogaltas" | "oil" | "soap_cream" | "accessory";
+export type ProductCategory = "dogaltas" | "oil" | "soap_cream" | "accessory" | "other";
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   dogaltas: "Doğaltaş",
   oil: "Yağ",
   soap_cream: "Sabun / Krem",
   accessory: "Tespih / Takı / Aksesuar",
+  other: "Diğer Ürünler",
 };
 
 export type UnifiedProduct = {
@@ -196,6 +210,26 @@ export function loadUnifiedProducts(usdRate = 0): UnifiedProduct[] {
     });
   }
 
+  for (const it of loadOtherInventory()) {
+    if (it.stockBase <= 0) continue;
+    out.push({
+      category: "other",
+      productId: it.id,
+      name: it.name,
+      subtitle: formatOtherVariantLabel(it),
+      stockDisplay: formatOtherStock(it),
+      stockAmount: it.stockBase,
+      saleMode: it.baseUnit === "adet" ? "adet" : "measure",
+      measureType: it.measureType,
+      saleUnits: unitsForMeasureType(it.measureType) as OilInputUnit[],
+      baseUnit: it.baseUnit,
+      costPerUnit: it.costPerBase,
+      salePerUnit: it.salePerBase,
+      profitPct: it.profitPct,
+      unitLabel: it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet",
+    });
+  }
+
   return out;
 }
 
@@ -219,6 +253,7 @@ export function filterUnifiedProducts(
 export function fmtUnifiedUnitCost(p: UnifiedProduct): string {
   if (p.category === "oil") return fmtOilUnitCost(p.costPerUnit, p.baseUnit || "adet");
   if (p.category === "soap_cream") return fmtSoapUnitCost(p.costPerUnit, p.baseUnit || "adet");
+  if (p.category === "other") return fmtOtherUnitCost(p.costPerUnit, p.baseUnit || "adet");
   return `${fmtMoney(p.costPerUnit)} / ${p.unitLabel}`;
 }
 
@@ -286,6 +321,25 @@ export function calcUnifiedSale(
     const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
     return {
       category: "soap_cream",
+      productId: product.productId,
+      productName: product.name,
+      productSubtitle: product.subtitle,
+      saleQty,
+      saleUnit,
+      saleBaseQty: calc.saleBaseQty,
+      lineCost: calc.lineCost,
+      lineSale,
+    };
+  }
+
+  if (product.category === "other") {
+    const item = loadOtherInventory().find((i) => i.id === product.productId);
+    if (!item) return { error: "Ürün stokta bulunamadı." };
+    const calc = calcOtherLine(item, saleQty, saleUnit as OtInputUnit);
+    if ("error" in calc) return calc;
+    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+    return {
+      category: "other",
       productId: product.productId,
       productName: product.name,
       productSubtitle: product.subtitle,
@@ -412,6 +466,33 @@ function toSoapSaleRecord(rec: GeneralSaleRecord): SoapCreamSaleRecord {
   };
 }
 
+function toOtherSaleRecord(rec: GeneralSaleRecord): OtherSaleRecord {
+  const lines: OtherSaleLine[] = rec.lines
+    .filter((l) => l.category === "other")
+    .map((l) => {
+      const item = loadOtherInventory().find((i) => i.id === l.productId);
+      return {
+        productId: l.productId,
+        productName: l.productName,
+        productGroup: item?.productGroup ?? "",
+        saleQty: l.saleQty,
+        saleUnit: l.saleUnit as OtInputUnit,
+        saleBaseQty: l.saleBaseQty,
+        lineCost: l.lineCost,
+        lineSale: l.lineSale,
+      };
+    });
+  return {
+    name: rec.name,
+    lines,
+    total_cost: rec.total_cost,
+    sale_price: rec.sale_price,
+    profit_pct: rec.profit_pct,
+    photos: rec.photos,
+    timestamp: rec.timestamp,
+  };
+}
+
 function toAccessorySaleRecord(rec: GeneralSaleRecord): AccessorySaleRecord {
   const lines: AccessorySaleLine[] = rec.lines
     .filter((l) => l.category === "accessory")
@@ -448,22 +529,26 @@ export function commitCentralSales(
   let oil = loadOilInventory();
   let soap = loadSoapCreamInventory();
   let accessory = loadAccessoryInventory();
+  let other = loadOtherInventory();
 
   const dogaltasBasket: SaleRecord[] = [];
   const oilBasket: OilSaleRecord[] = [];
   const soapBasket: SoapCreamSaleRecord[] = [];
   const accessoryBasket: AccessorySaleRecord[] = [];
+  const otherBasket: OtherSaleRecord[] = [];
 
   for (const rec of basket) {
     const hasDog = rec.lines.some((l) => l.category === "dogaltas");
     const hasOil = rec.lines.some((l) => l.category === "oil");
     const hasSoap = rec.lines.some((l) => l.category === "soap_cream");
     const hasAcc = rec.lines.some((l) => l.category === "accessory");
+    const hasOther = rec.lines.some((l) => l.category === "other");
 
     if (hasDog) dogaltasBasket.push(toDogaltasSaleRecord(rec));
     if (hasOil) oilBasket.push(toOilSaleRecord(rec));
     if (hasSoap) soapBasket.push(toSoapSaleRecord(rec));
     if (hasAcc) accessoryBasket.push(toAccessorySaleRecord(rec));
+    if (hasOther) otherBasket.push(toOtherSaleRecord(rec));
   }
 
   if (dogaltasBasket.length) {
@@ -497,6 +582,15 @@ export function commitCentralSales(
     accessory = deductAccessoryInventory(accessory, deductLines);
     saveAccessoryInventory(accessory);
     appendAccessorySales(accessoryBasket);
+  }
+
+  if (otherBasket.length) {
+    const deductLines = otherBasket.flatMap((r) =>
+      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
+    );
+    other = deductOtherInventory(other, deductLines);
+    saveOtherInventory(other);
+    appendOtherSales(otherBasket);
   }
 
   void usdRate;

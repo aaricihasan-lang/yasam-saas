@@ -59,7 +59,7 @@ const hubModules = [
     desc: "Kategoriye sığmayan tüm özel ürünler, farklı satış kalemleri ve serbest ürün stokları.",
     icon: "🛍️",
     accent: "from-lime-100 to-yellow-50 border-lime-200/80 ring-lime-100",
-    statusLabel: "YAKINDA",
+    href: "/urun-stok/diger",
   },
 ] as const;
 
