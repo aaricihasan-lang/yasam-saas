@@ -225,14 +225,14 @@ export default function ClientsPage() {
     "h-16 w-full rounded-2xl border-2 border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 
   return (
-    <main className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.16),transparent_28%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.14),transparent_30%),radial-gradient(circle_at_50%_85%,rgba(45,212,191,0.12),transparent_32%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-6 py-8 pb-12 text-slate-900 antialiased lg:px-10 xl:px-14">
+    <main className="relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.16),transparent_28%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.14),transparent_30%),radial-gradient(circle_at_50%_85%,rgba(45,212,191,0.12),transparent_32%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-10 xl:px-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-24 h-[480px] w-[480px] rounded-full bg-indigo-400/14 blur-[150px]" />
         <div className="absolute -right-20 top-0 h-[420px] w-[420px] rounded-full bg-pink-400/12 blur-[150px]" />
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1760px] flex-1 flex-col">
+      <div className="relative z-10 mx-auto flex w-full max-w-full flex-1 flex-col xl:max-w-[1760px]">
       <header className="mb-10 flex flex-wrap items-start justify-between gap-8">
         <div className="min-w-0 flex-1">
           <div className="mb-5 flex flex-wrap items-center gap-4">
@@ -315,8 +315,8 @@ export default function ClientsPage() {
       </section>
 
       {activeMainTab === "new" && (
-        <section className="mb-8 flex min-h-[520px] flex-col rounded-[36px] border border-emerald-200/80 bg-white/75 p-10 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
-          <div className="mb-8">
+        <section className="mb-6 max-w-full overflow-visible rounded-[36px] border border-emerald-200/80 bg-white/75 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+          <div className="mb-6">
             <span className="inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
               Yeni Danışan Kaydı
             </span>
@@ -326,7 +326,7 @@ export default function ClientsPage() {
             </p>
           </div>
 
-          <div className="grid flex-1 grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <Field label="Ad">
               <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} />
             </Field>
@@ -344,6 +344,7 @@ export default function ClientsPage() {
                 value={dogum}
                 onChange={setDogum}
                 inputClassName={inputClassName}
+                alignRight
               />
             </Field>
 
@@ -396,31 +397,31 @@ export default function ClientsPage() {
             type="button"
             onClick={saveClient}
             disabled={saving}
-            className="mt-8 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-8 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-8 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
           </button>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
               <p className="text-base font-black text-emerald-800">Kayıt güvenliği</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Verileriniz güvenli şekilde saklanır.
               </p>
             </div>
-            <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+            <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
               <p className="text-base font-black text-violet-800">Otomatik burç hesaplama</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Doğum tarihinden burç otomatik belirlenir.
               </p>
             </div>
-            <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+            <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
               <p className="text-base font-black text-cyan-800">Danışan süreci</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Kayıt sonrası detay sayfasına geçebilirsiniz.
               </p>
             </div>
-            <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
+            <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
               <p className="text-base font-black text-amber-800">Gizlilik</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
                 Kişisel veriler yalnızca yetkili kullanımdadır.
@@ -616,10 +617,12 @@ function PremiumDatePicker({
   value,
   onChange,
   inputClassName,
+  alignRight = false,
 }: {
   value: string;
   onChange: (next: string) => void;
   inputClassName: string;
+  alignRight?: boolean;
 }) {
   const today = todayForInput();
   const parsedToday = parseInputDate(today);
@@ -681,8 +684,12 @@ function PremiumDatePicker({
     cells.push({ day: 0, inMonth: false });
   }
 
+  const popupPositionClass = alignRight
+    ? "absolute bottom-full right-0 left-auto mb-3 origin-bottom-right"
+    : "absolute bottom-full left-0 mb-3 origin-bottom-left";
+
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0 w-full">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -702,7 +709,7 @@ function PremiumDatePicker({
         <div
           role="dialog"
           aria-label="Tarih seçici"
-          className="absolute left-0 top-[calc(100%+10px)] z-50 w-[300px] origin-top-left scale-[1.35] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+          className={`${popupPositionClass} z-50 w-[360px] max-w-[calc(100vw-48px)] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl`}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
@@ -807,7 +814,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-2">
+    <label className="flex min-w-0 flex-col gap-2">
       <span className="text-sm font-black text-slate-700">{label}</span>
       {children}
     </label>
