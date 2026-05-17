@@ -37,7 +37,7 @@ const effectSections = [
     key: "other_effects",
     desc: "Ek bilgiler, gözlemler ve tamamlayıcı notlar.",
     icon: "📝",
-    accent: "emerald",
+    accent: "amber",
   },
 ];
 
@@ -139,11 +139,11 @@ const emptyAssignmentInputs: AssignmentInputs = {
 };
 
 const uiCard =
-  "rounded-[32px] border border-slate-200 bg-white/85 shadow-[0_18px_55px_rgba(15,23,42,0.08)] transition-all duration-300";
+  "rounded-[30px] border-2 border-cyan-500/40 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 shadow-[0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-xl transition-all duration-300 hover:border-violet-500/60";
 const uiInput =
-  "w-full h-16 rounded-2xl border-2 border-slate-200 bg-white px-6 text-[17px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/80";
+  "w-full h-16 rounded-2xl border-2 border-slate-200 bg-white/80 px-6 text-[17px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiTextarea =
-  "w-full min-h-[170px] resize-none rounded-2xl border-2 border-slate-200 bg-white px-6 py-5 text-[17px] leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/80";
+  "w-full min-h-[170px] resize-none rounded-2xl border-2 border-slate-200 bg-white/80 px-6 py-5 text-[17px] leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiLabel = "mb-2 block text-[15px] font-bold text-slate-700";
 const uiPanel =
   "rounded-3xl border border-slate-200 bg-white/80 shadow-md transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1";
@@ -429,7 +429,10 @@ export default function DogaltasKayitPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(186,230,253,0.45),transparent_30%),radial-gradient(circle_at_top_right,rgba(233,213,255,0.45),transparent_35%),radial-gradient(circle_at_bottom,rgba(209,250,229,0.35),transparent_30%),linear-gradient(to_bottom,#f8fbff,#f7f4ff)] pb-32 text-slate-950">
+    <main className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-32 text-slate-950">
+      <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-300/20 blur-[140px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] bg-violet-300/20 blur-[140px]" />
+
       <div className="relative w-full px-6 py-6 xl:px-10 2xl:px-14">
         <header className="mb-5 flex items-center justify-between gap-5">
           <div className="flex items-center gap-4">
@@ -476,8 +479,8 @@ export default function DogaltasKayitPage() {
                   💎
                 </span>
                 <div>
-                <h2 className="text-2xl font-black text-slate-950">Temel Bilgi</h2>
-                <p className="mt-0.5 text-base text-slate-600">
+                <h2 className="text-xl font-black tracking-wide text-slate-950">Temel Bilgi</h2>
+                <p className="mt-0.5 text-slate-500">
                   Masaüstündeki temel kayıt alanının sade web uyarlaması.
                 </p>
                 </div>
@@ -569,8 +572,8 @@ export default function DogaltasKayitPage() {
                 📋
               </span>
               <div>
-                <h2 className="text-2xl font-black text-slate-950">Genel Bilgi</h2>
-                <p className="mt-0.5 text-base text-slate-600">
+                <h2 className="text-xl font-black tracking-wide text-slate-950">Genel Bilgi</h2>
+                <p className="mt-0.5 text-slate-500">
                   Bilgi paneli / tablo / özet mantığının sade web karşılığı.
                 </p>
               </div>
@@ -602,7 +605,13 @@ export default function DogaltasKayitPage() {
             {effectSections.map((section) => (
               <div
                 key={section.title}
-                className={`${uiCard} flex min-h-[220px] flex-col p-5 hover:-translate-y-1`}
+                className={`${uiCard} flex min-h-[220px] flex-col border-l-[6px] p-5 hover:-translate-y-1 ${
+                  section.accent === "cyan"
+                    ? "border-l-cyan-500"
+                    : section.accent === "violet"
+                      ? "border-l-violet-500"
+                      : "border-l-amber-500"
+                }`}
               >
                 <div className="mb-3 flex items-start gap-3">
                   <span
@@ -611,14 +620,14 @@ export default function DogaltasKayitPage() {
                         ? "bg-cyan-50 ring-cyan-100"
                         : section.accent === "violet"
                           ? "bg-violet-50 ring-violet-100"
-                          : "bg-emerald-50 ring-emerald-100"
+                          : "bg-amber-50 ring-amber-100"
                     }`}
                   >
                     {section.icon}
                   </span>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-950">{section.title}</h3>
-                    <p className="mt-0.5 text-base text-slate-600">{section.desc}</p>
+                    <h3 className="text-xl font-black tracking-wide text-slate-950">{section.title}</h3>
+                    <p className="mt-0.5 text-slate-500">{section.desc}</p>
                   </div>
                 </div>
 
@@ -640,8 +649,8 @@ export default function DogaltasKayitPage() {
                   ⚠️
                 </span>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950">Uyarılar</h2>
-                  <p className="mt-0.5 text-base text-slate-600">Klinik ve güvenlik notları.</p>
+                  <h2 className="text-xl font-black tracking-wide text-slate-950">Uyarılar</h2>
+                  <p className="mt-0.5 text-slate-500">Klinik ve güvenlik notları.</p>
                 </div>
               </div>
               <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-black text-rose-700">
@@ -660,7 +669,7 @@ export default function DogaltasKayitPage() {
                   onChange={(event) => updateField("warning_text", event.target.value)}
                   onFocus={() => openLargeEditor("Uyarılar", "warning_text")}
                   placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
-                  className={`${uiTextarea} focus:border-rose-300 focus:ring-rose-100/80`}
+                  className={uiTextarea}
                 />
               </div>
 
@@ -692,8 +701,8 @@ export default function DogaltasKayitPage() {
                 🧘
               </span>
               <div>
-                <h2 className="text-2xl font-black text-slate-950">Kullanım / Uygulama Alanları</h2>
-                <p className="mt-0.5 text-base text-slate-600">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
+                <h2 className="text-xl font-black tracking-wide text-slate-950">Kullanım / Uygulama Alanları</h2>
+                <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
               </div>
             </div>
 
@@ -721,8 +730,8 @@ export default function DogaltasKayitPage() {
                   🔗
                 </span>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950">Atamalar</h2>
-                  <p className="mt-0.5 text-base text-slate-600">Mineral, organ, astroloji ve element alanları.</p>
+                  <h2 className="text-xl font-black tracking-wide text-slate-950">Atamalar</h2>
+                  <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
                 </div>
               </div>
 
@@ -753,8 +762,8 @@ export default function DogaltasKayitPage() {
                   🌀
                 </span>
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950">Çakra Atama</h2>
-                  <p className="mt-0.5 text-base text-slate-600">Desktop’taki checkbox yapısının web karşılığı.</p>
+                  <h2 className="text-xl font-black tracking-wide text-slate-950">Çakra Atama</h2>
+                  <p className="mt-0.5 text-slate-500">Desktop’taki checkbox yapısının web karşılığı.</p>
                 </div>
               </div>
 
