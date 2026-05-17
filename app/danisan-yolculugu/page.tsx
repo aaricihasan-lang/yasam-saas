@@ -29,80 +29,80 @@ const summaryStatCards: {
     label: "Toplam Danışan",
     value: PLACEHOLDER,
     Icon: UsersRound,
-    cardBg: "bg-gradient-to-br from-violet-50 to-indigo-50",
-    border: "border-violet-200/70",
+    cardBg: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
+    border: "border-violet-300/70",
     iconBox: "bg-violet-500 text-white",
   },
   {
     label: "Son Kayıt",
     value: PLACEHOLDER,
     Icon: CalendarDays,
-    cardBg: "bg-gradient-to-br from-sky-50 to-blue-50",
-    border: "border-sky-200/70",
+    cardBg: "bg-gradient-to-br from-sky-100 via-white to-blue-100",
+    border: "border-sky-300/70",
     iconBox: "bg-sky-500 text-white",
   },
   {
     label: "Bu Ay Yeni Danışan",
     value: PLACEHOLDER,
     Icon: Clock3,
-    cardBg: "bg-gradient-to-br from-teal-50 to-emerald-50",
-    border: "border-teal-200/70",
+    cardBg: "bg-gradient-to-br from-teal-100 via-white to-emerald-100",
+    border: "border-teal-300/70",
     iconBox: "bg-teal-500 text-white",
   },
   {
     label: "Son 3 Ay Ortalaması",
     value: PLACEHOLDER,
     Icon: ChartColumn,
-    cardBg: "bg-gradient-to-br from-amber-50 to-orange-50",
-    border: "border-amber-200/70",
+    cardBg: "bg-gradient-to-br from-amber-100 via-white to-orange-100",
+    border: "border-amber-300/70",
     iconBox: "bg-orange-500 text-white",
   },
   {
     label: "Bu Ay Randevu",
     value: PLACEHOLDER,
     Icon: Activity,
-    cardBg: "bg-gradient-to-br from-pink-50 to-rose-50",
-    border: "border-pink-200/70",
+    cardBg: "bg-gradient-to-br from-pink-100 via-white to-rose-100",
+    border: "border-pink-300/70",
     iconBox: "bg-pink-500 text-white",
   },
   {
     label: "En Yakın Randevu",
     value: PLACEHOLDER,
     Icon: CalendarClock,
-    cardBg: "bg-gradient-to-br from-cyan-50 to-sky-50",
-    border: "border-cyan-200/70",
+    cardBg: "bg-gradient-to-br from-cyan-100 via-white to-sky-100",
+    border: "border-cyan-300/70",
     iconBox: "bg-cyan-500 text-white",
   },
   {
     label: "Bu Hafta",
     value: PLACEHOLDER,
     Icon: CalendarRange,
-    cardBg: "bg-gradient-to-br from-yellow-50 to-amber-50",
-    border: "border-yellow-200/70",
+    cardBg: "bg-gradient-to-br from-yellow-100 via-white to-amber-100",
+    border: "border-yellow-300/70",
     iconBox: "bg-yellow-500 text-white",
   },
   {
     label: "Bu Ay",
     value: PLACEHOLDER,
     Icon: CalendarCheck,
-    cardBg: "bg-gradient-to-br from-rose-50 to-pink-50",
-    border: "border-rose-200/70",
+    cardBg: "bg-gradient-to-br from-rose-100 via-white to-pink-100",
+    border: "border-rose-300/70",
     iconBox: "bg-rose-500 text-white",
   },
   {
     label: "Bu Yıl Toplam",
     value: PLACEHOLDER,
     Icon: PieChart,
-    cardBg: "bg-gradient-to-br from-purple-50 to-violet-50",
-    border: "border-purple-200/70",
+    cardBg: "bg-gradient-to-br from-purple-100 via-white to-violet-100",
+    border: "border-purple-300/70",
     iconBox: "bg-purple-500 text-white",
   },
   {
     label: "Bu Yıl Danışan",
     value: PLACEHOLDER,
     Icon: TrendingUp,
-    cardBg: "bg-gradient-to-br from-green-50 to-emerald-50",
-    border: "border-green-200/70",
+    cardBg: "bg-gradient-to-br from-green-100 via-white to-emerald-100",
+    border: "border-green-300/70",
     iconBox: "bg-green-500 text-white",
   },
 ];
@@ -124,8 +124,8 @@ const journeyFolders: {
     desc: "Danışan kayıtları, detaylar ve analiz işlemleri.",
     href: "/dashboard/clients",
     badge: "Kayıt & Detay",
-    cardGradient: "bg-gradient-to-br from-violet-50 via-white to-indigo-50",
-    border: "border-violet-200/70",
+    cardGradient: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
+    border: "border-violet-300/70",
     iconBox: "bg-gradient-to-br from-violet-500 to-indigo-500 text-white",
     decorColor: "text-violet-500",
     Icon: UsersRound,
@@ -136,8 +136,8 @@ const journeyFolders: {
     desc: "Randevular, seans planlama ve günlük takip.",
     href: "/dashboard/ajanda",
     badge: "Takip & Plan",
-    cardGradient: "bg-gradient-to-br from-cyan-50 via-white to-teal-50",
-    border: "border-cyan-200/70",
+    cardGradient: "bg-gradient-to-br from-cyan-100 via-white to-teal-100",
+    border: "border-cyan-300/70",
     iconBox: "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
     decorColor: "text-teal-500",
     Icon: CalendarDays,
@@ -147,24 +147,6 @@ const journeyFolders: {
 
 const hoverLift =
   "transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03]";
-
-function StatWaveDecor() {
-  return (
-    <svg
-      className="pointer-events-none absolute bottom-0 left-0 right-0 h-7 w-full opacity-[0.18]"
-      viewBox="0 0 200 28"
-      preserveAspectRatio="none"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M0 18 C 40 8, 80 24, 120 14 C 160 6, 180 12, 200 10 L 200 28 L 0 28 Z"
-        fill="currentColor"
-        className="text-slate-400"
-      />
-    </svg>
-  );
-}
 
 function SummaryStatCard({
   label,
@@ -176,25 +158,24 @@ function SummaryStatCard({
 }: (typeof summaryStatCards)[number]) {
   return (
     <div
-      className={`relative flex min-h-[118px] flex-col overflow-hidden rounded-[24px] border p-5 shadow-[0_15px_40px_rgba(15,23,42,0.08)] duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_25px_60px_rgba(79,70,229,0.16)] ${border} ${cardBg}`}
+      className={`flex min-h-[112px] flex-col rounded-[22px] border p-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_22px_55px_rgba(79,70,229,0.16)] ${border} ${cardBg}`}
     >
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md ${iconBox}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-md ${iconBox}`}
       >
-        <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+        <Icon className="h-5 w-5" strokeWidth={2.25} aria-hidden />
       </div>
-      <p className="mt-4 text-3xl font-black tabular-nums leading-none text-slate-900">
+      <p className="mt-3 text-3xl font-black tracking-tight text-slate-950 tabular-nums leading-none">
         {value}
       </p>
-      <p className="relative z-10 mt-2 text-xs text-slate-500">{label}</p>
-      <StatWaveDecor />
+      <p className="mt-2 text-[13px] font-bold leading-tight text-slate-700">{label}</p>
     </div>
   );
 }
 
 export default function DanisanYolculuguPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-14">
+    <main className="relative min-h-screen bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-6 text-slate-900 antialiased lg:px-14">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]"
         aria-hidden
@@ -240,7 +221,7 @@ export default function DanisanYolculuguPage() {
         </defs>
       </svg>
 
-      <div className="relative z-10 mx-auto max-w-[1680px]">
+      <div className="relative z-10 mx-auto max-w-[1760px]">
         <Link
           href="/"
           className={`inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-5 py-3 text-base font-bold text-slate-800 shadow-md hover:bg-white/90 hover:shadow-lg ${hoverLift}`}
@@ -249,10 +230,10 @@ export default function DanisanYolculuguPage() {
           Ana Sayfaya Dön
         </Link>
 
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_minmax(420px,480px)] lg:items-start">
-          <div className="min-w-0 space-y-8">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_520px] lg:items-start xl:grid-cols-[1fr_560px]">
+          <div className="min-w-0 space-y-6">
             <header
-              className={`relative overflow-hidden rounded-[40px] border border-white/80 bg-white/70 px-8 py-10 shadow-[0_30px_90px_rgba(99,102,241,0.10)] backdrop-blur-xl sm:px-10 sm:py-12 ${hoverLift}`}
+              className={`relative overflow-hidden rounded-[40px] border border-white/80 bg-white/70 px-8 py-10 shadow-[0_30px_90px_rgba(99,102,241,0.10)] backdrop-blur-xl sm:px-10 ${hoverLift}`}
             >
               <CalendarCheck
                 className="pointer-events-none absolute right-6 top-1/2 h-44 w-44 -translate-y-1/2 text-indigo-400 opacity-10"
@@ -263,10 +244,10 @@ export default function DanisanYolculuguPage() {
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/85">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-3 text-6xl font-black tracking-tight text-slate-900">
+                <h1 className="mt-2 text-5xl font-black tracking-tight text-slate-950 lg:text-6xl">
                   Danışan Yolculuğu
                 </h1>
-                <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-600 lg:text-xl">
+                <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-slate-600 lg:text-lg">
                   Danışan sürecinizi iki ana klasörde yönetin: kayıtlar ve detaylar ile
                   randevu ve günlük takip.
                 </p>
@@ -279,14 +260,14 @@ export default function DanisanYolculuguPage() {
                 Danışan yönetimi için ana klasörlere hızlıca erişin.
               </p>
 
-              <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {journeyFolders.map((folder) => {
                   const { Icon, DecorIcon } = folder;
                   return (
                     <Link
                       key={folder.title}
                       href={folder.href}
-                      className={`group relative flex min-h-[320px] flex-col overflow-hidden rounded-[36px] border p-10 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_90px_rgba(79,70,229,0.18)] ${folder.border} ${folder.cardGradient}`}
+                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border p-9 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_90px_rgba(79,70,229,0.18)] ${folder.border} ${folder.cardGradient}`}
                     >
                       <DecorIcon
                         className={`pointer-events-none absolute -bottom-2 -right-2 h-44 w-44 ${folder.decorColor} opacity-10`}
@@ -322,35 +303,32 @@ export default function DanisanYolculuguPage() {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-8">
+          <aside className="lg:sticky lg:top-6">
             <div
-              className={`rounded-[36px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl ${hoverLift}`}
+              className={`rounded-[36px] border border-white/80 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl ${hoverLift}`}
             >
-              <h2 className="text-3xl font-black text-slate-900">Genel Özet</h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <h2 className="text-3xl font-black text-slate-950">Genel Özet</h2>
+              <p className="mt-1.5 text-sm font-medium leading-relaxed text-slate-600">
                 Danışan ve randevu süreçlerinizin anonim genel görünümü.
               </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {summaryStatCards.map((stat) => (
                   <SummaryStatCard key={stat.label} {...stat} />
                 ))}
               </div>
 
               <div
-                className={`mt-8 rounded-3xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]`}
+                className={`mt-4 flex items-center gap-3 rounded-2xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-sm transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-md">
-                    <ShieldCheck className="h-5 w-5" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-900">Gizlilik Önceliğimiz</p>
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                      Tüm verileriniz güvenli ve gizlidir. Kişisel bilgiler bu ekranda
-                      gösterilmez.
-                    </p>
-                  </div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-md">
+                  <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
+                </div>
+                <div>
+                  <p className="font-black text-slate-950">Gizlilik Önceliğimiz</p>
+                  <p className="mt-0.5 font-medium text-slate-600">
+                    Kişisel bilgiler bu ekranda gösterilmez.
+                  </p>
                 </div>
               </div>
             </div>
