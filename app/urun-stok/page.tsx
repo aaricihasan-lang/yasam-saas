@@ -19,6 +19,7 @@ const hubModules = [
     desc: "Uçucu yağ, sabit yağ ve karışım yağ ürünleri.",
     icon: "🌿",
     accent: "from-emerald-100 to-green-50 border-emerald-200/80 ring-emerald-100",
+    href: "/urun-stok/yag",
   },
   {
     title: "Sabun / Krem Ürünleri",
