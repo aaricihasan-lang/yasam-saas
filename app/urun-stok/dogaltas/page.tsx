@@ -30,10 +30,12 @@ import {
 type TabId = "stock" | "pricing" | "history";
 
 const pageBg =
-  "relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.12),transparent_30%),linear-gradient(160deg,#fffbeb_0%,#f5f3ff_42%,#f0fdfa_100%)] text-slate-950";
+  "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.12),transparent_30%),linear-gradient(160deg,#fffbeb_0%,#f5f3ff_42%,#f0fdfa_100%)] text-slate-950";
+
+const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14";
 
 const panelClass =
-  "rounded-[28px] border-2 border-sky-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "w-full rounded-[28px] border-2 border-sky-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
 
 const inputClass =
   "h-14 w-full rounded-2xl border-2 border-sky-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/40";
@@ -430,7 +432,7 @@ export default function DogaltasUrunStokPage() {
         <div className="absolute right-0 top-20 h-96 w-96 rounded-full bg-violet-200/30 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1500px] px-6 py-8 xl:px-10">
+      <div className={pageShell}>
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/urun-stok"
@@ -446,10 +448,10 @@ export default function DogaltasUrunStokPage() {
           </Link>
         </div>
 
-        <header className={`${panelClass} mb-8 text-center`}>
+        <header className={`${panelClass} mb-8 w-full`}>
           <p className="text-sm font-black uppercase tracking-[0.3em] text-cyan-800">Doğaltaş</p>
           <h1 className="mt-3 text-4xl font-black text-slate-900 xl:text-5xl">Ürün / Stok Yönetimi</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg font-medium text-slate-600">
+          <p className="mt-4 max-w-none text-lg font-medium text-slate-600">
             Mevcut taşlar, satış fiyatlandırma ve satış geçmişi — masaüstü stok mantığıyla.
           </p>
         </header>
@@ -467,10 +469,10 @@ export default function DogaltasUrunStokPage() {
         </div>
 
         {tab === "stock" && (
-          <div className="space-y-6">
-            <section className={panelClass}>
+          <div className="w-full space-y-6">
+            <section className={`${panelClass} w-full`}>
               <h2 className="mb-6 text-xl font-black text-slate-900">Yeni Kayıt Ekle</h2>
-              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                 <label className="block">
                   <span className="mb-2 block text-sm font-black text-slate-700">Taş adı</span>
                   <input
@@ -567,7 +569,7 @@ export default function DogaltasUrunStokPage() {
               ) : null}
             </section>
 
-            <section className={panelClass}>
+            <section className={`${panelClass} w-full`}>
               <div className="mb-6 grid gap-4 md:grid-cols-3">
                 <input
                   className={inputClass}
@@ -664,9 +666,9 @@ export default function DogaltasUrunStokPage() {
         )}
 
         {tab === "pricing" && (
-          <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-            <section className={`${panelClass} space-y-6`}>
-              <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid w-full gap-6 xl:grid-cols-[1.55fr_1fr] 2xl:grid-cols-[1.65fr_1fr]">
+            <section className={`${panelClass} w-full space-y-6`}>
+              <div className="grid w-full gap-4 lg:grid-cols-2 xl:grid-cols-2">
                 <input
                   className={inputClass}
                   placeholder="Taş ara (envanterden)"
@@ -726,8 +728,8 @@ export default function DogaltasUrunStokPage() {
                 />
               </label>
 
-              <div className="flex justify-center">
-                <label className="block w-full max-w-xs">
+              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="block sm:col-span-1 lg:max-w-sm">
                   <span className="mb-2 block text-sm font-black">Güncel Dolar Kuru</span>
                   <input
                     className={inputClass}
@@ -826,7 +828,7 @@ export default function DogaltasUrunStokPage() {
               ) : null}
             </section>
 
-            <section className={panelClass}>
+            <section className={`${panelClass} w-full`}>
               <h2 className="mb-4 text-xl font-black">Sepet</h2>
               <div className="space-y-3">
                 {basket.map((rec, i) => (
@@ -866,7 +868,7 @@ export default function DogaltasUrunStokPage() {
         )}
 
         {tab === "history" && (
-          <section className={panelClass}>
+          <section className={`${panelClass} w-full`}>
             <div className="mb-6 flex flex-wrap gap-6 text-lg font-black">
               <span>Toplam Satış: {fmtMoney(salesSummary.totalSale)}</span>
               <span>Toplam Kâr: {fmtMoney(salesSummary.profit)}</span>
