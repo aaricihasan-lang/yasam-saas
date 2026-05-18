@@ -7,17 +7,6 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
-function newTenantId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 const inputClass =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
 
@@ -59,20 +48,42 @@ export default function RegisterPage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("users").insert({
-      full_name: name,
-      email: mail,
-      password: pass,
-      role: "expert",
-      active: true,
-      tenant_id: newTenantId(),
-    });
+    const tenantId = crypto.randomUUID();
 
-    if (error) {
-      console.error("Kayıt hatası:", error);
+    const { error: tenantError } = await supabase.from("tenants").insert([
+      {
+        id: tenantId,
+        name: `${name}'ın Çalışma Alanı`,
+      },
+    ]);
+
+    if (tenantError) {
+      console.error("Tenant oluşturma hatası:", tenantError);
       showToast({
         title: "İşlem başarısız",
-        message: error.message,
+        message: tenantError.message,
+        type: "error",
+      });
+      setSaving(false);
+      return;
+    }
+
+    const { error: userError } = await supabase.from("users").insert([
+      {
+        full_name: name,
+        email: mail,
+        password: pass,
+        role: "expert",
+        active: true,
+        tenant_id: tenantId,
+      },
+    ]);
+
+    if (userError) {
+      console.error("Kullanıcı kayıt hatası:", userError);
+      showToast({
+        title: "İşlem başarısız",
+        message: userError.message,
         type: "error",
       });
       setSaving(false);
