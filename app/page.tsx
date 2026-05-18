@@ -679,12 +679,12 @@ export default function Home() {
 
       <div className="relative z-10 w-full max-w-none px-6 py-6 md:px-10 xl:px-16 2xl:px-20">
         <header className="sticky top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_20px_60px_rgba(49,46,129,0.12)] backdrop-blur-2xl sm:px-8">
-          <div className="flex min-w-[min(100%,350px)] shrink-0 items-center gap-4 sm:min-w-[350px]">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50 sm:h-16 sm:w-16">
+          <div className="flex min-w-[min(100%,420px)] shrink-0 items-center gap-4 sm:min-w-[420px]">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50">
               ✨
             </div>
             <div>
-              <p className="text-xl font-black tracking-wide text-slate-950">
+              <p className="text-2xl font-black tracking-wide text-slate-950">
                 YAŞAM SİSTEMİ
               </p>
               <p className="mt-1 text-sm font-semibold leading-snug text-slate-600 opacity-80">
@@ -718,11 +718,11 @@ export default function Home() {
 
         <section className="mt-10 grid w-full max-w-none grid-cols-1 items-start gap-16 xl:grid-cols-[1.7fr_1fr] xl:mt-14 xl:gap-24">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-base font-bold text-violet-800 shadow-sm md:text-lg">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm">
               ✨ Profesyonel danışmanlık yönetim sistemi
             </div>
 
-            <h2 className="mt-7 max-w-none text-4xl font-black leading-[0.98] tracking-tight text-slate-950 sm:text-5xl md:text-6xl xl:text-7xl">
+            <h2 className="mt-7 max-w-none text-4xl font-black leading-snug tracking-tight text-slate-950 md:text-5xl xl:text-6xl">
               Profesyonel danışmanlar için{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">
                 bütünsel yönetim ve analiz
@@ -730,7 +730,7 @@ export default function Home() {
               platformu
             </h2>
 
-            <p className="mt-6 max-w-none text-base leading-8 text-slate-600 md:text-lg lg:text-xl lg:leading-9">
+            <p className="mt-6 max-w-none text-lg leading-8 text-slate-600">
               Numeroloji, doğaltaş, biyoenerji, refleksoloji, aromaterapi,
               danışan yönetimi, seans takibi ve analiz sistemleri tek merkezde birleşir.
             </p>
@@ -752,11 +752,11 @@ export default function Home() {
             <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-violet-500/20 via-fuchsia-400/16 to-cyan-400/20 blur-3xl" />
 
             <div className="relative flex flex-col rounded-[32px] border border-white/90 bg-white/80 p-7 shadow-[0_32px_90px_rgba(49,46,129,0.14)] ring-1 ring-violet-100/60 backdrop-blur-2xl sm:p-9">
-              <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-base font-black uppercase tracking-wide text-violet-800">
+              <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-sm font-black uppercase tracking-wide text-violet-800">
                 Çalışma Seçenekleri
               </div>
 
-              <h3 className="mt-5 text-2xl font-black leading-tight text-slate-950 sm:text-3xl lg:text-[2rem]">
+              <h3 className="mt-5 text-xl font-black leading-tight text-slate-950">
                 Size uygun kullanım modeli
               </h3>
 
@@ -767,7 +767,7 @@ export default function Home() {
 
               <div className="mt-auto grid gap-5 pt-8 sm:grid-cols-2">
                 <div className="rounded-[24px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/90 p-6 shadow-[0_12px_40px_rgba(16,185,129,0.08)]">
-                  <div className="text-lg font-black text-emerald-800 md:text-xl">
+                  <div className="text-xl font-black text-emerald-800">
                     💻 Offline Masaüstü
                   </div>
                   <p className="mt-3 text-base font-medium leading-7 text-emerald-800/90 md:text-lg">
@@ -776,7 +776,7 @@ export default function Home() {
                 </div>
 
                 <div className="rounded-[24px] border border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-white to-sky-50/90 p-6 shadow-[0_12px_40px_rgba(14,165,233,0.08)]">
-                  <div className="text-lg font-black text-cyan-800 md:text-xl">
+                  <div className="text-xl font-black text-cyan-800">
                     ☁️ Web & Mobil
                   </div>
                   <p className="mt-3 text-base font-medium leading-7 text-cyan-800/90 md:text-lg">
