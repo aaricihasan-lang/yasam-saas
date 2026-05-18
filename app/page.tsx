@@ -32,6 +32,7 @@ import {
   FolderArchive,
   Gem,
   Leaf,
+  Loader2,
   Package,
   Shield,
   Sparkles,
@@ -295,6 +296,31 @@ function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
   );
 }
 
+function AuthBootScreen() {
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
+      <div className="pointer-events-none absolute -left-32 top-0 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[120px]" />
+      <div className="pointer-events-none absolute right-0 bottom-0 h-[380px] w-[380px] rounded-full bg-cyan-200/20 blur-[110px]" />
+      <div
+        className="relative z-10 flex flex-col items-center gap-5 rounded-[28px] border-2 border-white/80 bg-white/85 px-10 py-12 shadow-[0_24px_60px_rgba(15,23,42,0.1)] backdrop-blur-xl"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="relative flex h-14 w-14 items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-4 border-violet-200/90" />
+          <Loader2
+            className="relative h-8 w-8 animate-spin text-violet-600"
+            aria-hidden
+          />
+        </div>
+        <p className="text-lg font-black text-slate-900">Yaşam Sistemi hazırlanıyor...</p>
+        <p className="text-sm font-medium text-slate-600">Oturum bilgileri kontrol ediliyor</p>
+      </div>
+    </main>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -302,6 +328,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<YasamUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const loginBackdropPressed = useRef(false);
@@ -343,31 +370,35 @@ export default function Home() {
 
   useEffect(() => {
     runInEffect(async () => {
-      const stored = readYasamUser();
-      if (!stored) {
-        setUser(null);
-        return;
+      try {
+        const stored = readYasamUser();
+        if (!stored) {
+          setUser(null);
+          return;
+        }
+        const fresh = await enrichYasamUserProfile(stored);
+        if (!fresh) {
+          clearYasamUser();
+          setUser(null);
+          return;
+        }
+        saveYasamUser(fresh);
+        setUser(fresh);
+      } finally {
+        setAuthLoading(false);
       }
-      const fresh = await enrichYasamUserProfile(stored);
-      if (!fresh) {
-        clearYasamUser();
-        setUser(null);
-        return;
-      }
-      saveYasamUser(fresh);
-      setUser(fresh);
     });
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (authLoading || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("login") === "1") {
       setLoginModalOpen(true);
       setMessage("");
       window.history.replaceState({}, "", "/");
     }
-  }, []);
+  }, [authLoading]);
 
   useEffect(() => {
     if (!loginModalOpen) return;
@@ -454,6 +485,10 @@ export default function Home() {
     setPassword("");
     setMessage("");
   };
+
+  if (authLoading) {
+    return <AuthBootScreen />;
+  }
 
   if (user) {
     const displayName = getYasamUserDisplayName(user);
