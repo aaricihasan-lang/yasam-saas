@@ -32,15 +32,17 @@ type ManagedUser = {
   createdAt?: string;
 };
 
-function mapDbUser(row: Record<string, unknown>): ManagedUser | null {
-  const role = normalizeRole(row.role);
-  if (role !== "admin" && role !== "expert") return null;
+function mapDbUser(row: Record<string, unknown>): ManagedUser {
+  const roleRaw = normalizeRole(row.role);
+  const role: ManagedUserRole = roleRaw === "admin" ? "admin" : "expert";
   const id = row.id != null ? String(row.id).trim() : "";
-  if (!id) return null;
+  const fullName = String(row.full_name ?? row.name ?? "").trim();
+  const email = String(row.email ?? "").trim();
+
   return {
-    id,
-    fullName: String(row.full_name ?? "").trim(),
-    email: String(row.email ?? "").trim(),
+    id: id || email,
+    fullName: fullName || email || "İsimsiz kullanıcı",
+    email,
     role,
     active: row.active === false ? false : Boolean(row.active ?? true),
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
@@ -159,7 +161,7 @@ export default function AdminUsersPage() {
   const [allowed, setAllowed] = useState(false);
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [listLoading, setListLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -180,20 +182,24 @@ export default function AdminUsersPage() {
       .select("*")
       .order("created_at", { ascending: false });
 
+    console.log("USERS:", data);
+    console.log("ERROR:", error);
+
     if (error) {
       console.error("Kullanıcı listesi hatası:", error);
       showToast({
         title: "İşlem başarısız",
-        message: "Kullanıcılar yüklenemedi: " + error.message,
+        message: error.message,
         type: "error",
       });
+      setUsers([]);
       setListLoading(false);
       return;
     }
 
-    const mapped = (data ?? [])
-      .map((row) => mapDbUser(row as Record<string, unknown>))
-      .filter((u): u is ManagedUser => u != null);
+    const mapped = (data ?? []).map((row) =>
+      mapDbUser(row as Record<string, unknown>),
+    );
 
     setUsers(mapped);
     setListLoading(false);
@@ -560,7 +566,7 @@ export default function AdminUsersPage() {
             <div className={`${panelClass} border-slate-200/80`}>
               <PastelLoader label="Kullanıcılar yükleniyor…" />
             </div>
-          ) : users.length === 0 ? (
+          ) : !listLoading && users.length === 0 ? (
             <div className={`${panelClass} border-dashed border-slate-300 text-center`}>
               <p className="text-base font-black text-slate-800">Henüz kullanıcı yok</p>
               <p className="mt-2 text-sm font-medium text-slate-600">
