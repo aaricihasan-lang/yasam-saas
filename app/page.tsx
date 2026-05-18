@@ -858,11 +858,11 @@ export default function Home() {
 
       {loginModalOpen && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md"
           onClick={() => setLoginModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-[420px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl"
+            className="relative w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:max-w-[560px] md:p-10"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="pointer-events-none absolute right-[-70px] top-[-80px] h-[180px] w-[180px] rounded-full bg-violet-200/70 blur-3xl" />
@@ -874,11 +874,11 @@ export default function Home() {
                   Uzman Paneli
                 </div>
 
-                <h3 className="mt-4 text-3xl font-black text-slate-950">
+                <h3 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">
                   Giriş Yap
                 </h3>
 
-                <p className="mt-2 text-sm leading-7 text-slate-500">
+                <p className="mt-2 text-base leading-7 text-slate-500 md:text-lg">
                   Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz.
                 </p>
               </div>
@@ -894,7 +894,7 @@ export default function Home() {
 
             <div className="relative z-10 mt-6 space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-black text-slate-700">
+                <label className="mb-2 block text-base font-semibold text-slate-700">
                   E-Posta
                 </label>
 
@@ -903,13 +903,13 @@ export default function Home() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="uzman@test.com"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-black text-slate-700">
+                <label className="mb-2 block text-base font-semibold text-slate-700">
                   Şifre
                 </label>
 
@@ -918,7 +918,7 @@ export default function Home() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       handleLogin();
@@ -951,7 +951,7 @@ export default function Home() {
               type="button"
               onClick={handleLogin}
               disabled={loading}
-              className="relative z-10 mt-6 flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 py-3.5 text-sm font-black text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+              className="relative z-10 mt-6 flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? "Giriş Yapılıyor..." : "Uzman Paneline Gir →"}
             </button>
