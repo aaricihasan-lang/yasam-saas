@@ -27,7 +27,23 @@ import {
   normalizeRole,
   readYasamUser,
 } from "@/lib/auth/yasamUser";
+import {
+  buildMembershipDisplay,
+  buildMembershipUpdatePayload,
+  filterMembershipPayloadForRow,
+  inferPackagePlanFromSnapshot,
+  parseMembershipFromRow,
+  type MembershipDisplay,
+  type MembershipSnapshot,
+  type PackagePlanUi,
+} from "@/lib/auth/membership";
 import { supabase } from "@/lib/supabase";
+
+const PACKAGE_PLAN_OPTIONS: { value: PackagePlanUi; label: string }[] = [
+  { value: "trial", label: "Deneme" },
+  { value: "pro", label: "Pro" },
+  { value: "premium", label: "Premium" },
+];
 
 type ManagedUserRole = "admin" | "expert";
 
@@ -140,214 +156,6 @@ function formatCreatedAt(iso?: string): string {
   });
 }
 
-type PackagePlanOption = "baslangic" | "pro" | "premium" | "ozel";
-type SubscriptionStatusOption = "trial" | "active" | "expired" | "suspended";
-
-type UserSubscriptionDisplay = {
-  packageLabel: string;
-  statusLabel: string;
-  startDateLabel: string;
-  endDateLabel: string;
-  remainingDaysLabel: string;
-};
-
-type UserSubscriptionInfo = {
-  display: UserSubscriptionDisplay;
-  rawPlan?: string;
-  rawStatus?: string;
-  startIso?: string;
-  endIso?: string;
-};
-
-const PACKAGE_PLAN_OPTIONS: { value: PackagePlanOption; label: string }[] = [
-  { value: "baslangic", label: "Başlangıç" },
-  { value: "pro", label: "Pro" },
-  { value: "premium", label: "Premium" },
-  { value: "ozel", label: "Özel" },
-];
-
-const SUBSCRIPTION_STATUS_OPTIONS: {
-  value: SubscriptionStatusOption;
-  label: string;
-}[] = [
-  { value: "trial", label: "Deneme" },
-  { value: "active", label: "Aktif" },
-  { value: "expired", label: "Süresi Dolmuş" },
-  { value: "suspended", label: "Askıda" },
-];
-
-const PACKAGE_LABEL_BY_TOKEN: Record<string, string> = {
-  baslangic: "Başlangıç",
-  starter: "Başlangıç",
-  start: "Başlangıç",
-  beginning: "Başlangıç",
-  pro: "Pro",
-  premium: "Premium",
-  ozel: "Özel",
-  özel: "Özel",
-  custom: "Özel",
-  special: "Özel",
-};
-
-const STATUS_LABEL_BY_TOKEN: Record<string, string> = {
-  trial: "Deneme",
-  deneme: "Deneme",
-  active: "Aktif",
-  aktif: "Aktif",
-  expired: "Süresi Dolmuş",
-  suresi_dolmus: "Süresi Dolmuş",
-  passive: "Süresi Dolmuş",
-  suspended: "Askıda",
-  askida: "Askıda",
-  askıda: "Askıda",
-};
-
-function pickRowString(
-  row: Record<string, unknown>,
-  keys: string[],
-): string | undefined {
-  for (const key of keys) {
-    const value = row[key];
-    if (value != null && String(value).trim() !== "") {
-      return String(value).trim();
-    }
-  }
-  return undefined;
-}
-
-function normalizeSubscriptionToken(value?: string): string {
-  if (!value) return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/\s+/g, "_");
-}
-
-function formatSubscriptionDate(iso?: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function isoToDateInputValue(iso?: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function computeRemainingDaysLabel(endIso?: string): string {
-  if (!endIso) return "-";
-  const end = new Date(endIso);
-  if (Number.isNaN(end.getTime())) return "-";
-  const diffMs = end.getTime() - Date.now();
-  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (days < 0) return "0";
-  return String(days);
-}
-
-function resolvePackageLabel(raw?: string): string {
-  if (!raw) return "Tanımsız";
-  const token = normalizeSubscriptionToken(raw);
-  return PACKAGE_LABEL_BY_TOKEN[token] ?? raw;
-}
-
-function resolveStatusLabel(raw?: string): string {
-  if (!raw) return "Tanımsız";
-  const token = normalizeSubscriptionToken(raw);
-  return STATUS_LABEL_BY_TOKEN[token] ?? raw;
-}
-
-function parseUserSubscription(row: Record<string, unknown>): UserSubscriptionInfo {
-  const rawPlan = pickRowString(row, [
-    "plan",
-    "package",
-    "package_plan",
-    "subscription_plan",
-    "membership_plan",
-  ]);
-  const rawStatus = pickRowString(row, [
-    "subscription_status",
-    "membership_status",
-    "package_status",
-  ]);
-  const startIso = pickRowString(row, [
-    "subscription_start_at",
-    "membership_start_at",
-    "trial_started_at",
-    "starts_at",
-    "start_date",
-  ]);
-  const endIso = pickRowString(row, [
-    "subscription_end_at",
-    "trial_ends_at",
-    "membership_end_at",
-    "ends_at",
-    "end_date",
-  ]);
-
-  return {
-    display: {
-      packageLabel: resolvePackageLabel(rawPlan),
-      statusLabel: resolveStatusLabel(rawStatus),
-      startDateLabel: formatSubscriptionDate(startIso),
-      endDateLabel: formatSubscriptionDate(endIso),
-      remainingDaysLabel: computeRemainingDaysLabel(endIso),
-    },
-    rawPlan,
-    rawStatus,
-    startIso,
-    endIso,
-  };
-}
-
-function inferPackagePlanOption(raw?: string): PackagePlanOption | "" {
-  const token = normalizeSubscriptionToken(raw);
-  if (!token) return "";
-  if (token === "pro") return "pro";
-  if (token === "premium") return "premium";
-  if (token === "ozel" || token === "custom" || token === "special" || token === "özel") {
-    return "ozel";
-  }
-  if (
-    token === "baslangic" ||
-    token === "starter" ||
-    token === "start" ||
-    token === "beginning"
-  ) {
-    return "baslangic";
-  }
-  return "";
-}
-
-function inferSubscriptionStatusOption(raw?: string): SubscriptionStatusOption | "" {
-  const token = normalizeSubscriptionToken(raw);
-  if (!token) return "";
-  if (token === "trial" || token === "deneme") return "trial";
-  if (token === "active" || token === "aktif") return "active";
-  if (token === "expired" || token === "suresi_dolmus" || token === "passive") {
-    return "expired";
-  }
-  if (token === "suspended" || token === "askida" || token === "askıda") {
-    return "suspended";
-  }
-  return "";
-}
-
 type ManagedUser = {
   id: string;
   fullName: string;
@@ -356,7 +164,9 @@ type ManagedUser = {
   active: boolean;
   approvalStatus: ApprovalStatusUi;
   modulePermissions: AdminModulePermissions;
-  subscription: UserSubscriptionInfo;
+  membership: MembershipSnapshot;
+  membershipDisplay: MembershipDisplay;
+  adminLevel?: string;
   createdAt?: string;
 };
 
@@ -372,6 +182,7 @@ function mapDbUser(row: Record<string, unknown>): ManagedUser {
   const id = row.id != null ? String(row.id).trim() : "";
   const fullName = String(row.full_name ?? row.name ?? "").trim();
   const email = String(row.email ?? "").trim();
+  const membership = parseMembershipFromRow(row);
 
   return {
     id: id || email,
@@ -381,9 +192,21 @@ function mapDbUser(row: Record<string, unknown>): ManagedUser {
     active: row.active === true,
     approvalStatus: mapApprovalStatus(row.approval_status),
     modulePermissions: parseAdminModulePermissions(row.module_permissions),
-    subscription: parseUserSubscription(row),
+    membership,
+    membershipDisplay: buildMembershipDisplay(membership),
+    adminLevel:
+      row.admin_level != null ? String(row.admin_level).trim() : undefined,
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
   };
+}
+
+function rowHasMembershipColumns(row: Record<string, unknown>): boolean {
+  return (
+    "package_type" in row ||
+    "membership_status" in row ||
+    "trial_ends_at" in row ||
+    "plan" in row
+  );
 }
 
 function sortUsersForAdmin(list: ManagedUser[]): ManagedUser[] {
@@ -609,18 +432,18 @@ function ModulePermissionSwitches({
 }
 
 function PackageSubscriptionSection({
-  subscription,
+  display,
   onEdit,
+  disabled,
 }: {
-  subscription: UserSubscriptionInfo;
+  display: MembershipDisplay;
   onEdit: () => void;
+  disabled?: boolean;
 }) {
-  const { display } = subscription;
   const fields = [
     { label: "Paket", value: display.packageLabel },
     { label: "Durum", value: display.statusLabel },
-    { label: "Başlangıç Tarihi", value: display.startDateLabel },
-    { label: "Bitiş Tarihi", value: display.endDateLabel },
+    { label: "Deneme Bitiş Tarihi", value: display.trialEndLabel },
     { label: "Kalan Gün", value: display.remainingDaysLabel },
   ];
 
@@ -634,14 +457,15 @@ function PackageSubscriptionSection({
           <div>
             <p className="text-sm font-black text-amber-950">Paket / Üyelik</p>
             <p className="mt-0.5 text-xs font-medium text-amber-900/80">
-              Üyelik planı ve süre bilgileri (önizleme)
+              Deneme, Pro ve Premium paket yönetimi
             </p>
           </div>
         </div>
         <button
           type="button"
           onClick={onEdit}
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-amber-300/90 bg-white/90 px-4 text-xs font-black text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-50"
+          disabled={disabled}
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-amber-300/90 bg-white/90 px-4 text-xs font-black text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden />
           Paket Düzenle
@@ -661,15 +485,17 @@ function PackageSubscriptionSection({
           </div>
         ))}
       </div>
+      {display.durationNote && display.durationNote !== "—" ? (
+        <p className="mt-3 rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 text-xs font-bold text-amber-950">
+          {display.durationNote}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 type PackageEditDraft = {
-  packagePlan: PackagePlanOption | "";
-  status: SubscriptionStatusOption | "";
-  startDate: string;
-  endDate: string;
+  packagePlan: PackagePlanUi | "";
 };
 
 function PackageEditModal({
@@ -677,13 +503,17 @@ function PackageEditModal({
   draft,
   onDraftChange,
   onClose,
-  onPreviewSave,
+  onSave,
+  saving,
+  canPersist,
 }: {
   user: ManagedUser;
   draft: PackageEditDraft;
   onDraftChange: (next: PackageEditDraft) => void;
   onClose: () => void;
-  onPreviewSave: () => void;
+  onSave: () => void;
+  saving: boolean;
+  canPersist: boolean;
 }) {
   return (
     <div
@@ -724,19 +554,25 @@ function PackageEditModal({
         </div>
 
         <p className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-950">
-          Bu aşamada yalnızca arayüz önizlemesi — veritabanına kayıt yapılmaz.
+          {draft.packagePlan === "trial"
+            ? "Deneme: 3 gün süreyle trial_started_at / trial_ends_at atanır."
+            : draft.packagePlan === "pro" || draft.packagePlan === "premium"
+              ? "Pro / Premium: süresiz aktif (membership_ends_at boş)."
+              : "Paket seçin; durum ve tarihler otomatik atanır."}
+          {!canPersist
+            ? " Veritabanında paket kolonları bulunamadı — kayıt yapılamaz."
+            : ""}
         </p>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
+        <div className="mt-5">
+          <label className="block">
             <span className={labelClass}>Paket</span>
             <select
               className={inputClass}
               value={draft.packagePlan}
               onChange={(e) =>
                 onDraftChange({
-                  ...draft,
-                  packagePlan: e.target.value as PackagePlanOption | "",
+                  packagePlan: e.target.value as PackagePlanUi | "",
                 })
               }
             >
@@ -748,57 +584,23 @@ function PackageEditModal({
               ))}
             </select>
           </label>
-          <label className="block sm:col-span-2">
-            <span className={labelClass}>Durum</span>
-            <select
-              className={inputClass}
-              value={draft.status}
-              onChange={(e) =>
-                onDraftChange({
-                  ...draft,
-                  status: e.target.value as SubscriptionStatusOption | "",
-                })
-              }
-            >
-              <option value="">Seçiniz</option>
-              {SUBSCRIPTION_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className={labelClass}>Başlangıç Tarihi</span>
-            <input
-              type="date"
-              className={inputClass}
-              value={draft.startDate}
-              onChange={(e) =>
-                onDraftChange({ ...draft, startDate: e.target.value })
-              }
-            />
-          </label>
-          <label className="block">
-            <span className={labelClass}>Bitiş Tarihi</span>
-            <input
-              type="date"
-              className={inputClass}
-              value={draft.endDate}
-              onChange={(e) =>
-                onDraftChange({ ...draft, endDate: e.target.value })
-              }
-            />
-          </label>
         </div>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            onClick={onPreviewSave}
+            onClick={onSave}
+            disabled={saving || !draft.packagePlan || !canPersist}
             className={`${saveBtnClass} sm:flex-1`}
           >
-            Önizleme Kaydet
+            {saving ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                Kaydediliyor…
+              </span>
+            ) : (
+              "Kaydet"
+            )}
           </button>
           <button
             type="button"
@@ -863,10 +665,15 @@ export default function AdminUsersPage() {
   const [packageEditUser, setPackageEditUser] = useState<ManagedUser | null>(null);
   const [packageEditDraft, setPackageEditDraft] = useState<PackageEditDraft>({
     packagePlan: "",
-    status: "",
-    startDate: "",
-    endDate: "",
   });
+  const [savingPackageUserId, setSavingPackageUserId] = useState<string | null>(
+    null,
+  );
+  const [canPersistMembership, setCanPersistMembership] = useState(true);
+  const [membershipSampleRow, setMembershipSampleRow] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   const filteredUsers = useMemo(
     () =>
@@ -910,9 +717,10 @@ export default function AdminUsersPage() {
 
     const rows = data ?? [];
     if (rows.length > 0 && rows[0] && typeof rows[0] === "object") {
-      setCanPersistModulePermissions(
-        "module_permissions" in (rows[0] as Record<string, unknown>),
-      );
+      const sample = rows[0] as Record<string, unknown>;
+      setCanPersistModulePermissions("module_permissions" in sample);
+      setMembershipSampleRow(sample);
+      setCanPersistMembership(rowHasMembershipColumns(sample));
     }
 
     const mapped = rows.map((row) =>
@@ -943,64 +751,72 @@ export default function AdminUsersPage() {
   function openPackageEdit(user: ManagedUser) {
     setPackageEditUser(user);
     setPackageEditDraft({
-      packagePlan: inferPackagePlanOption(user.subscription.rawPlan),
-      status: inferSubscriptionStatusOption(user.subscription.rawStatus),
-      startDate: isoToDateInputValue(user.subscription.startIso),
-      endDate: isoToDateInputValue(user.subscription.endIso),
+      packagePlan: inferPackagePlanFromSnapshot(user.membership),
     });
   }
 
   function closePackageEdit() {
     setPackageEditUser(null);
+    setPackageEditDraft({ packagePlan: "" });
   }
 
-  function handlePackagePreviewSave() {
-    if (!packageEditUser) return;
+  async function savePackageMembership() {
+    if (!packageEditUser || !packageEditDraft.packagePlan) return;
+    if (!canPersistMembership) {
+      showToast({
+        title: "Kayıt yapılamadı",
+        message: "Veritabanında paket kolonları bulunamadı.",
+        type: "error",
+      });
+      return;
+    }
 
-    const planLabel = packageEditDraft.packagePlan
-      ? PACKAGE_PLAN_OPTIONS.find((o) => o.value === packageEditDraft.packagePlan)
-          ?.label ?? "Tanımsız"
-      : "Tanımsız";
-    const statusLabel = packageEditDraft.status
-      ? SUBSCRIPTION_STATUS_OPTIONS.find((o) => o.value === packageEditDraft.status)
-          ?.label ?? "Tanımsız"
-      : "Tanımsız";
-    const startIso = packageEditDraft.startDate
-      ? new Date(`${packageEditDraft.startDate}T12:00:00`).toISOString()
-      : undefined;
-    const endIso = packageEditDraft.endDate
-      ? new Date(`${packageEditDraft.endDate}T12:00:00`).toISOString()
-      : undefined;
+    const rawPayload = buildMembershipUpdatePayload(packageEditDraft.packagePlan);
+    const payload = filterMembershipPayloadForRow(
+      rawPayload,
+      membershipSampleRow,
+    );
+
+    setSavingPackageUserId(packageEditUser.id);
+    const { error } = await supabase
+      .from("users")
+      .update(payload)
+      .eq("id", packageEditUser.id);
+
+    setSavingPackageUserId(null);
+
+    if (error) {
+      console.error("Paket kaydı hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      return;
+    }
+
+    const mergedRow = {
+      ...(membershipSampleRow ?? {}),
+      ...payload,
+      id: packageEditUser.id,
+    } as Record<string, unknown>;
+    const membership = parseMembershipFromRow(mergedRow);
 
     setUsers((prev) =>
       prev.map((u) =>
         u.id === packageEditUser.id
           ? {
               ...u,
-              subscription: {
-                ...u.subscription,
-                rawPlan: packageEditDraft.packagePlan || undefined,
-                rawStatus: packageEditDraft.status || undefined,
-                startIso,
-                endIso,
-                display: {
-                  packageLabel: planLabel,
-                  statusLabel: statusLabel,
-                  startDateLabel: startIso
-                    ? formatSubscriptionDate(startIso)
-                    : "—",
-                  endDateLabel: endIso ? formatSubscriptionDate(endIso) : "—",
-                  remainingDaysLabel: computeRemainingDaysLabel(endIso),
-                },
-              },
+              membership,
+              membershipDisplay: buildMembershipDisplay(membership),
             }
           : u,
       ),
     );
 
     showToast({
-      title: "Önizleme güncellendi",
-      message: "Paket bilgileri yalnızca bu oturumda görünür; veritabanına kaydedilmedi.",
+      title: "Paket kaydedildi",
+      message: `${packageEditUser.fullName} için üyelik güncellendi.`,
       type: "success",
     });
     closePackageEdit();
@@ -1712,6 +1528,15 @@ export default function AdminUsersPage() {
                             Bu sizin admin hesabınız — pasif yapma ve silme devre dışı.
                           </p>
                         ) : null}
+                        {user.adminLevel ? (
+                          <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs font-bold text-slate-800">
+                            Admin yetki seviyesi (salt okunur):{" "}
+                            <span className="text-violet-900">{user.adminLevel}</span>
+                            <span className="mt-1 block font-medium text-slate-600">
+                              İleride owner_admin / limited_admin ayrımı eklenecek.
+                            </span>
+                          </p>
+                        ) : null}
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {user.role === "expert" ? (
@@ -1795,12 +1620,15 @@ export default function AdminUsersPage() {
                       Üye Profilini İzle
                     </Link>
 
-                    <div className="mt-6">
-                      <PackageSubscriptionSection
-                        subscription={user.subscription}
-                        onEdit={() => openPackageEdit(user)}
-                      />
-                    </div>
+                    {user.role === "expert" ? (
+                      <div className="mt-6">
+                        <PackageSubscriptionSection
+                          display={user.membershipDisplay}
+                          onEdit={() => openPackageEdit(user)}
+                          disabled={savingPackageUserId === user.id}
+                        />
+                      </div>
+                    ) : null}
 
                     <div className="mt-6 border-t border-violet-100/90 pt-6">
                     <ModulePermissionSwitches
@@ -1872,7 +1700,9 @@ export default function AdminUsersPage() {
           draft={packageEditDraft}
           onDraftChange={setPackageEditDraft}
           onClose={closePackageEdit}
-          onPreviewSave={handlePackagePreviewSave}
+          onSave={savePackageMembership}
+          saving={savingPackageUserId === packageEditUser.id}
+          canPersist={canPersistMembership}
         />
       ) : null}
     </main>

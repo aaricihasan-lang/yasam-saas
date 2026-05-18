@@ -23,6 +23,9 @@ type ModuleRouteGuardProps = {
 export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   const pathname = usePathname();
   const [decision, setDecision] = useState<RouteModuleGuardDecision>("skip");
+  const [denyReason, setDenyReason] = useState<"permission" | "membership">(
+    "permission",
+  );
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -45,7 +48,9 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
 
       if (cancelled) return;
 
-      setDecision(evaluateRouteModuleGuard(path, user));
+      const next = evaluateRouteModuleGuard(path, user);
+      setDecision(next);
+      setDenyReason(next === "deny_membership" ? "membership" : "permission");
       setChecking(false);
     }
 
@@ -64,8 +69,8 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     );
   }
 
-  if (decision === "deny") {
-    return <ModuleAccessDenied />;
+  if (decision === "deny" || decision === "deny_membership") {
+    return <ModuleAccessDenied reason={denyReason} />;
   }
 
   return <>{children}</>;

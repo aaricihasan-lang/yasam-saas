@@ -1,5 +1,6 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
+import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import { supabase } from "@/lib/supabase";
 import {
   parseModulePermissions,
@@ -21,11 +22,17 @@ export type YasamUser = {
   role: UserRole;
   status?: string;
   plan?: string;
+  package_type?: string;
   subscription_status?: SubscriptionStatus;
+  membership_status?: string;
+  trial_started_at?: string;
   trial_ends_at?: string;
+  membership_started_at?: string;
+  membership_ends_at?: string | null;
   approval_status?: ApprovalStatus;
   active?: boolean;
   module_permissions?: ModulePermissions;
+  admin_level?: string;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
@@ -73,12 +80,28 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
     role,
     status: r.status != null ? String(r.status) : undefined,
     plan: r.plan != null ? String(r.plan).trim() : undefined,
+    package_type:
+      r.package_type != null ? String(r.package_type).trim().toLowerCase() : undefined,
     subscription_status:
       r.subscription_status != null
         ? String(r.subscription_status).trim().toLowerCase()
         : undefined,
+    membership_status:
+      r.membership_status != null
+        ? String(r.membership_status).trim().toLowerCase()
+        : undefined,
+    trial_started_at:
+      r.trial_started_at != null ? String(r.trial_started_at).trim() : undefined,
     trial_ends_at:
       r.trial_ends_at != null ? String(r.trial_ends_at).trim() : undefined,
+    membership_started_at:
+      r.membership_started_at != null
+        ? String(r.membership_started_at).trim()
+        : undefined,
+    membership_ends_at:
+      r.membership_ends_at != null ? String(r.membership_ends_at).trim() : null,
+    admin_level:
+      r.admin_level != null ? String(r.admin_level).trim() : undefined,
     approval_status: resolveApprovalStatus(r),
     active:
       parseActiveFlag(r.active) ??
@@ -151,11 +174,11 @@ export function isTrialSubscriptionActive(trialEndsAt: string | undefined): bool
   return end.getTime() > Date.now();
 }
 
-/** Ana panel modüllerine tam erişim (admin her zaman; uzman onay+aktif) */
+/** Ana panel modüllerine tam erişim (admin her zaman; uzman onay+aktif+üyelik) */
 export function hasFullPanelAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
   if (isAdminUser(user)) return true;
-  return isExpertAccountReady(user);
+  return hasExpertMembershipAccess(user);
 }
 
 export { LOCKED_SUBSCRIPTION_TOAST };
@@ -210,7 +233,7 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
 }
 
 const USER_REFRESH_SELECT =
-  "id, email, full_name, name, role, active, approval_status, module_permissions, subscription_status, trial_ends_at, plan, tenant_id, status";
+  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status";
 
 /** users tablosundan güncel kayıt (localStorage yerine kaynak doğruluk) */
 export async function refreshYasamUserFromDb(

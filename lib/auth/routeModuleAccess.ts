@@ -1,10 +1,15 @@
+import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   hasAnyModulePermissionFlag,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { isAdminUser, type YasamUser } from "@/lib/auth/yasamUser";
 
-export type RouteModuleGuardDecision = "skip" | "allow" | "deny";
+export type RouteModuleGuardDecision =
+  | "skip"
+  | "allow"
+  | "deny"
+  | "deny_membership";
 
 type RouteModuleRule = {
   prefix: string;
@@ -111,6 +116,8 @@ export function evaluateRouteModuleGuard(
 
   const rule = findRouteModuleRule(path);
   if (!rule) return "allow";
+
+  if (!hasExpertMembershipAccess(user)) return "deny_membership";
 
   return hasAnyModulePermissionFlag(user, rule.keys) ? "allow" : "deny";
 }

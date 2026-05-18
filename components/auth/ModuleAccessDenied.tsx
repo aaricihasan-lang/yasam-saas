@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
 
-export default function ModuleAccessDenied() {
+type ModuleAccessDeniedProps = {
+  reason?: "permission" | "membership";
+};
+
+export default function ModuleAccessDenied({
+  reason = "permission",
+}: ModuleAccessDeniedProps) {
+  const isMembership = reason === "membership";
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#fff1f2_100%)] px-6 py-12 text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[120px]" />
@@ -18,12 +25,22 @@ export default function ModuleAccessDenied() {
           Erişim kısıtlı
         </p>
         <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
-          Yetkiniz Bulunmuyor
+          {isMembership ? "Üyelik Süresi Doldu" : "Yetkiniz Bulunmuyor"}
         </h1>
         <p className="mt-4 text-base font-medium leading-relaxed text-slate-600 md:text-lg">
-          Bu modül hesabınızda aktif değil.
-          <br />
-          Lütfen yöneticiniz ile görüşün.
+          {isMembership ? (
+            <>
+              Deneme süreniz sona erdi veya üyeliğiniz aktif değil.
+              <br />
+              Modüllere erişim için yöneticiniz ile görüşün.
+            </>
+          ) : (
+            <>
+              Bu modül hesabınızda aktif değil.
+              <br />
+              Lütfen yöneticiniz ile görüşün.
+            </>
+          )}
         </p>
 
         <Link
