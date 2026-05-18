@@ -636,7 +636,7 @@ export default function Home() {
             <button
               type="button"
               onClick={logout}
-              className="absolute right-4 top-4 z-10 rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md transition hover:bg-white/20 sm:right-6 sm:top-5"
+              className="absolute right-4 top-4 z-10 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-base font-bold text-white backdrop-blur-md transition hover:bg-white/20 sm:right-6 sm:top-5"
             >
               Çıkış Yap
             </button>
@@ -692,10 +692,10 @@ export default function Home() {
             ) : null}
 
             <div className="mb-2 shrink-0">
-              <h2 className="text-lg font-black tracking-tight text-slate-900 lg:text-xl">
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
                 Modüller
               </h2>
-              <p className="text-xs text-slate-600 lg:text-sm">
+              <p className="text-base font-medium text-slate-600 md:text-lg">
                 Yaşam Sistemi içindeki ana çalışma alanları.
               </p>
             </div>
@@ -735,7 +735,7 @@ export default function Home() {
                     }`}
                   >
                     {isLocked ? (
-                      <span className="absolute left-4 top-4 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-700 shadow-sm ring-1 ring-red-100">
+                      <span className="absolute left-4 top-4 z-10 rounded-full border border-red-200/90 bg-red-50 px-2.5 py-1 text-sm font-bold text-red-700 shadow-sm ring-1 ring-red-100">
                         {lockReason === "permission"
                           ? "🔒 Yetki yok"
                           : "🔒 Üyelik gerekli"}
@@ -749,16 +749,16 @@ export default function Home() {
                         <Icon className="h-8 w-8" strokeWidth={2.25} />
                       </div>
 
-                      <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+                      <span className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
                         {item.badge}
                       </span>
                     </div>
 
-                    <h3 className="mt-3 text-xl font-black text-slate-900 lg:text-2xl">
+                    <h3 className="mt-3 text-2xl font-black text-slate-900 md:text-3xl">
                       {item.title}
                     </h3>
 
-                    <p className="mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
+                    <p className="mt-1 line-clamp-2 flex-1 text-base leading-relaxed text-slate-700 md:text-lg">
                       {item.desc}
                     </p>
 
