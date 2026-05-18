@@ -797,6 +797,25 @@ export default function Home() {
                     }
                   }}
                 />
+
+                <div className="mt-2.5 flex items-center justify-between gap-4">
+                  <Link
+                    href="/register"
+                    onClick={() => setLoginModalOpen(false)}
+                    className="text-[12px] font-semibold tracking-wide text-violet-700/90 no-underline underline-offset-2 transition hover:text-violet-900 hover:underline"
+                  >
+                    Kayıt Ol
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMessage("Şifre sıfırlama özelliği yakında eklenecek.")
+                    }
+                    className="bg-transparent p-0 text-[12px] font-semibold tracking-wide text-violet-600/85 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                  >
+                    Şifremi Unuttum
+                  </button>
+                </div>
               </div>
             </div>
 
