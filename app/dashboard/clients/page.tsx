@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 type Client = {
@@ -24,8 +25,6 @@ type HomeworkAlert = {
   status: string | null;
   alert_dismissed_at?: string | null;
 };
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 function todayForInput() {
   return new Date().toISOString().slice(0, 10);
@@ -64,6 +63,12 @@ function burcHesapla(date: string) {
 export default function ClientsPage() {
   const router = useRouter();
   const { showToast } = useToast();
+
+  const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  const tenantId = sessionUser?.tenant_id?.trim() || null;
+  const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [homeworkAlerts, setHomeworkAlerts] = useState<Record<string, number>>({});
@@ -107,16 +112,45 @@ export default function ClientsPage() {
   }, [clients, search, filterBurc, filterKan, filterMizac]);
 
   useEffect(() => {
-    loadClients();
+    setSessionUser(readYasamUser());
+    setSessionChecked(true);
   }, []);
 
-  async function loadHomeworkAlerts() {
+  useEffect(() => {
+    if (!sessionChecked) return;
+    if (!tenantId) {
+      setLoading(false);
+      setClients([]);
+      setHomeworkAlerts({});
+      showToast({
+        title: "Oturum uyarısı",
+        message: !sessionUser
+          ? "Oturum bulunamadı. Lütfen tekrar giriş yapın."
+          : "Hesabınızda çalışma alanı (tenant) bilgisi yok. Liste ve kayıt yapılamaz.",
+        type: "warning",
+      });
+      return;
+    }
+    loadClients();
+  }, [sessionChecked, tenantId]);
+
+  function showTenantWarning() {
+    showToast({
+      title: "Oturum uyarısı",
+      message: !sessionUser
+        ? "Oturum bulunamadı. Lütfen tekrar giriş yapın."
+        : "Hesabınızda çalışma alanı (tenant) bilgisi yok. İşlem yapılamaz.",
+      type: "warning",
+    });
+  }
+
+  async function loadHomeworkAlerts(activeTenantId: string) {
     const today = todayForInput();
 
     const { data, error } = await supabase
       .from("client_homeworks")
       .select("client_id,end_date,status,alert_dismissed_at")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", activeTenantId)
       .eq("status", "devam")
       .is("alert_dismissed_at", null)
       .not("end_date", "is", null)
@@ -139,11 +173,20 @@ export default function ClientsPage() {
   }
 
   async function loadClients() {
+    const user = readYasamUser();
+    const activeTenantId = user?.tenant_id?.trim();
+    if (!user || !activeTenantId) {
+      setLoading(false);
+      showTenantWarning();
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase
       .from("clients")
       .select("*")
+      .eq("tenant_id", activeTenantId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -158,12 +201,19 @@ export default function ClientsPage() {
     }
 
     setClients(data || []);
-    await loadHomeworkAlerts();
+    await loadHomeworkAlerts(activeTenantId);
 
     setLoading(false);
   }
 
   async function saveClient() {
+    const user = readYasamUser();
+    const activeTenantId = user?.tenant_id?.trim();
+    if (!user || !activeTenantId) {
+      showTenantWarning();
+      return;
+    }
+
     if (!ad.trim() || !soyad.trim()) {
       showToast({
         title: "İşlem başarısız",
@@ -176,7 +226,7 @@ export default function ClientsPage() {
     setSaving(true);
 
     const { error } = await supabase.from("clients").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: activeTenantId,
       ad: ad.trim(),
       soyad: soyad.trim(),
       telefon: telefon.trim(),
@@ -313,6 +363,14 @@ export default function ClientsPage() {
             Danışan Listesi
           </button>
       </section>
+
+      {tenantMissing ? (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
+          {!sessionUser
+            ? "Oturum bulunamadı. Danışan listesi ve kayıt için lütfen tekrar giriş yapın."
+            : "Çalışma alanı (tenant) bilgisi bulunamadı. Danışan verileri yüklenemez ve kayıt yapılamaz."}
+        </div>
+      ) : null}
 
       {activeMainTab === "new" && (
         <section className="mb-6 max-w-full overflow-visible rounded-[36px] border border-emerald-200/80 bg-white/75 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl">
