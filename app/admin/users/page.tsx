@@ -2,19 +2,50 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { Pencil, KeyRound, Shield, Trash2, UserCheck, UserX } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  INITIAL_MOCK_USERS,
-  newMockUserId,
-  type ManagedUser,
-  type ManagedUserRole,
-} from "@/lib/admin/mockUsers";
+  KeyRound,
+  Loader2,
+  Pencil,
+  Shield,
+  Trash2,
+  UserCheck,
+  UserX,
+} from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   clearYasamUser,
   isAdminUser,
+  normalizeRole,
   readYasamUser,
 } from "@/lib/auth/yasamUser";
+import { supabase } from "@/lib/supabase";
+
+type ManagedUserRole = "admin" | "expert";
+
+type ManagedUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: ManagedUserRole;
+  active: boolean;
+  createdAt?: string;
+};
+
+function mapDbUser(row: Record<string, unknown>): ManagedUser | null {
+  const role = normalizeRole(row.role);
+  if (role !== "admin" && role !== "expert") return null;
+  const id = row.id != null ? String(row.id).trim() : "";
+  if (!id) return null;
+  return {
+    id,
+    fullName: String(row.full_name ?? "").trim(),
+    email: String(row.email ?? "").trim(),
+    role,
+    active: row.active === false ? false : Boolean(row.active ?? true),
+    createdAt: row.created_at != null ? String(row.created_at) : undefined,
+  };
+}
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -29,6 +60,23 @@ const navBtn =
 
 const saveBtnClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-100 via-fuchsia-100 to-rose-100 px-8 text-base font-black text-violet-950 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50";
+
+function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center gap-4 py-16"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="relative flex h-14 w-14 items-center justify-center">
+        <div className="absolute inset-0 rounded-full border-4 border-violet-200/90" />
+        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-violet-500 border-r-fuchsia-400" />
+        <Loader2 className="relative h-7 w-7 animate-spin text-violet-600" aria-hidden />
+      </div>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
+    </div>
+  );
+}
 
 function UsersTopNav({ onLogout }: { onLogout: () => void }) {
   return (
@@ -106,12 +154,18 @@ const emptyForm: EmptyForm = {
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
 
-  const [users, setUsers] = useState<ManagedUser[]>(INITIAL_MOCK_USERS);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [actionUserId, setActionUserId] = useState<string | null>(null);
+
   const [form, setForm] = useState<EmptyForm>(emptyForm);
-  const [formMsg, setFormMsg] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EmptyForm>(emptyForm);
@@ -119,47 +173,97 @@ export default function AdminUsersPage() {
   const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
+  const loadUsers = useCallback(async () => {
+    setListLoading(true);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Kullanıcı listesi hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Kullanıcılar yüklenemedi: " + error.message,
+        type: "error",
+      });
+      setListLoading(false);
+      return;
+    }
+
+    const mapped = (data ?? [])
+      .map((row) => mapDbUser(row as Record<string, unknown>))
+      .filter((u): u is ManagedUser => u != null);
+
+    setUsers(mapped);
+    setListLoading(false);
+  }, [showToast]);
+
   useEffect(() => {
     const user = readYasamUser();
     setAllowed(isAdminUser(user));
     setSessionChecked(true);
   }, []);
 
+  useEffect(() => {
+    if (!sessionChecked || !allowed) return;
+    loadUsers();
+  }, [sessionChecked, allowed, loadUsers]);
+
   function handleLogout() {
     clearYasamUser();
     router.push("/");
   }
 
-  const sortedUsers = useMemo(
-    () => [...users].sort((a, b) => a.fullName.localeCompare(b.fullName, "tr")),
-    [users],
-  );
-
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    setFormMsg(null);
     const fullName = form.fullName.trim();
     const email = form.email.trim().toLowerCase();
     if (!fullName || !email || !form.password.trim()) {
-      setFormMsg("Ad soyad, e-posta ve şifre zorunludur.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Ad soyad, e-posta ve şifre zorunludur.",
+        type: "error",
+      });
       return;
     }
     if (users.some((u) => u.email.toLowerCase() === email)) {
-      setFormMsg("Bu e-posta adresi zaten kayıtlı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Bu e-posta adresi zaten kayıtlı.",
+        type: "error",
+      });
       return;
     }
-    setUsers((list) => [
-      ...list,
-      {
-        id: newMockUserId(),
-        fullName,
-        email,
-        role: form.role,
-        active: form.active,
-      },
-    ]);
+
+    setCreating(true);
+    const { error } = await supabase.from("users").insert({
+      full_name: fullName,
+      email,
+      password: form.password.trim(),
+      role: form.role,
+      active: form.active,
+    });
+
+    if (error) {
+      console.error("Kullanıcı ekleme hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Kayıt hatası: " + error.message,
+        type: "error",
+      });
+      setCreating(false);
+      return;
+    }
+
     setForm(emptyForm);
-    setFormMsg("Kullanıcı eklendi (sahte veri).");
+    setCreating(false);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı eklendi.",
+      type: "success",
+    });
+    await loadUsers();
   }
 
   function startEdit(user: ManagedUser) {
@@ -174,51 +278,152 @@ export default function AdminUsersPage() {
     setPasswordUserId(null);
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!editingId) return;
     const fullName = editForm.fullName.trim();
     const email = editForm.email.trim().toLowerCase();
     if (!fullName || !email) {
-      setFormMsg("Düzenleme: ad ve e-posta zorunludur.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Düzenleme: ad ve e-posta zorunludur.",
+        type: "error",
+      });
       return;
     }
     if (users.some((u) => u.id !== editingId && u.email.toLowerCase() === email)) {
-      setFormMsg("Bu e-posta başka bir kullanıcıda kayıtlı.");
+      showToast({
+        title: "İşlem başarısız",
+        message: "Bu e-posta başka bir kullanıcıda kayıtlı.",
+        type: "error",
+      });
       return;
     }
-    setUsers((list) =>
-      list.map((u) =>
-        u.id === editingId
-          ? { ...u, fullName, email, role: editForm.role, active: editForm.active }
-          : u,
-      ),
-    );
+
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("users")
+      .update({
+        full_name: fullName,
+        email,
+        role: editForm.role,
+        active: editForm.active,
+      })
+      .eq("id", editingId);
+
+    if (error) {
+      console.error("Kullanıcı güncelleme hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Güncelleme hatası: " + error.message,
+        type: "error",
+      });
+      setSavingEdit(false);
+      return;
+    }
+
     setEditingId(null);
-    setFormMsg("Kullanıcı güncellendi.");
+    setSavingEdit(false);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı güncellendi.",
+      type: "success",
+    });
+    await loadUsers();
   }
 
-  function savePassword() {
-    if (!passwordUserId || !newPassword.trim()) return;
+  async function savePassword() {
+    if (!passwordUserId || !newPassword.trim()) {
+      showToast({
+        title: "İşlem başarısız",
+        message: "Yeni şifre giriniz.",
+        type: "error",
+      });
+      return;
+    }
+
+    setSavingPassword(true);
+    const { error } = await supabase
+      .from("users")
+      .update({ password: newPassword.trim() })
+      .eq("id", passwordUserId);
+
+    if (error) {
+      console.error("Şifre güncelleme hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Şifre güncellenemedi: " + error.message,
+        type: "error",
+      });
+      setSavingPassword(false);
+      return;
+    }
+
     setPasswordUserId(null);
     setNewPassword("");
-    setFormMsg("Şifre güncellendi (sahte — Supabase bağlantısı sonra).");
+    setSavingPassword(false);
+    showToast({
+      title: "Başarılı",
+      message: "Şifre güncellendi.",
+      type: "success",
+    });
   }
 
-  function toggleActive(id: string) {
-    setUsers((list) =>
-      list.map((u) => (u.id === id ? { ...u, active: !u.active } : u)),
-    );
+  async function toggleActive(user: ManagedUser) {
+    const nextActive = !user.active;
+    setActionUserId(user.id);
+    const { error } = await supabase
+      .from("users")
+      .update({ active: nextActive })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Durum güncelleme hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Durum güncellenemedi: " + error.message,
+        type: "error",
+      });
+      setActionUserId(null);
+      return;
+    }
+
+    setActionUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: nextActive ? "Kullanıcı aktif yapıldı." : "Kullanıcı pasif yapıldı.",
+      type: "success",
+    });
+    await loadUsers();
   }
 
-  function softDelete(id: string) {
-    setUsers((list) => list.map((u) => (u.id === id ? { ...u, active: false } : u)));
-    setFormMsg("Kullanıcı silinmedi; pasif yapıldı.");
+  async function softDelete(id: string) {
+    setActionUserId(id);
+    const { error } = await supabase.from("users").update({ active: false }).eq("id", id);
+
+    if (error) {
+      console.error("Pasif yapma hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: "İşlem başarısız: " + error.message,
+        type: "error",
+      });
+      setActionUserId(null);
+      return;
+    }
+
+    setActionUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı silinmedi; pasif yapıldı.",
+      type: "success",
+    });
+    await loadUsers();
   }
 
   if (!sessionChecked) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#f0fdfa_100%)]">
-        <p className="text-lg font-semibold text-slate-600">Yükleniyor…</p>
+        <PastelLoader label="Oturum kontrol ediliyor…" />
       </main>
     );
   }
@@ -264,16 +469,10 @@ export default function AdminUsersPage() {
           </Link>
         </header>
 
-        {formMsg ? (
-          <p className="mb-6 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">
-            {formMsg}
-          </p>
-        ) : null}
-
         <section className={`${panelClass} mb-8 border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80`}>
           <h2 className="text-2xl font-black text-indigo-950">+ Yeni Uzman Ekle</h2>
           <p className="mt-1 text-sm font-medium text-slate-600">
-            Kayıt Supabase users tablosuna ileride bağlanacak.
+            Kayıtlar Supabase users tablosuna kaydedilir.
           </p>
 
           <form onSubmit={handleCreate} className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -341,8 +540,15 @@ export default function AdminUsersPage() {
               </span>
             </label>
             <div className="sm:col-span-2">
-              <button type="submit" className={saveBtnClass}>
-                Kaydet
+              <button type="submit" disabled={creating} className={saveBtnClass}>
+                {creating ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                    Kaydediliyor…
+                  </span>
+                ) : (
+                  "Kaydet"
+                )}
               </button>
             </div>
           </form>
@@ -350,8 +556,20 @@ export default function AdminUsersPage() {
 
         <section>
           <h2 className="mb-4 text-xl font-black text-slate-900 sm:text-2xl">Kullanıcı Listesi</h2>
+          {listLoading ? (
+            <div className={`${panelClass} border-slate-200/80`}>
+              <PastelLoader label="Kullanıcılar yükleniyor…" />
+            </div>
+          ) : users.length === 0 ? (
+            <div className={`${panelClass} border-dashed border-slate-300 text-center`}>
+              <p className="text-base font-black text-slate-800">Henüz kullanıcı yok</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Yukarıdaki formdan yeni uzman ekleyebilirsiniz.
+              </p>
+            </div>
+          ) : (
           <div className="space-y-4">
-            {sortedUsers.map((user) => {
+            {users.map((user) => {
               const isEditing = editingId === user.id;
               return (
                 <article
@@ -420,8 +638,20 @@ export default function AdminUsersPage() {
                         </button>
                       </label>
                       <div className="flex flex-wrap gap-2 sm:col-span-2">
-                        <button type="button" onClick={saveEdit} className={saveBtnClass}>
-                          Kaydet
+                        <button
+                          type="button"
+                          onClick={saveEdit}
+                          disabled={savingEdit}
+                          className={saveBtnClass}
+                        >
+                          {savingEdit ? (
+                            <span className="inline-flex items-center gap-2">
+                              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                              Kaydediliyor…
+                            </span>
+                          ) : (
+                            "Kaydet"
+                          )}
                         </button>
                         <button
                           type="button"
@@ -465,8 +695,9 @@ export default function AdminUsersPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toggleActive(user.id)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-950 transition hover:bg-emerald-100"
+                          disabled={actionUserId === user.id}
+                          onClick={() => toggleActive(user)}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-950 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {user.active ? (
                             <UserX className="h-4 w-4" />
@@ -477,8 +708,9 @@ export default function AdminUsersPage() {
                         </button>
                         <button
                           type="button"
+                          disabled={actionUserId === user.id}
                           onClick={() => softDelete(user.id)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-950 transition hover:bg-rose-100"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-950 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                           title="Kayıt silinmez, pasif yapılır"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -502,9 +734,17 @@ export default function AdminUsersPage() {
                         <button
                           type="button"
                           onClick={savePassword}
-                          className="inline-flex h-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-400 bg-amber-100 px-6 font-black text-amber-950"
+                          disabled={savingPassword}
+                          className="inline-flex h-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-400 bg-amber-100 px-6 font-black text-amber-950 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Onayla
+                          {savingPassword ? (
+                            <span className="inline-flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                              Kaydediliyor…
+                            </span>
+                          ) : (
+                            "Onayla"
+                          )}
                         </button>
                         <button
                           type="button"
@@ -520,6 +760,7 @@ export default function AdminUsersPage() {
               );
             })}
           </div>
+          )}
         </section>
       </div>
     </main>
