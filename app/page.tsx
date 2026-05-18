@@ -670,7 +670,7 @@ export default function Home() {
   }
 
   return (
-    <main className="relative w-full min-h-screen overflow-x-hidden bg-[linear-gradient(155deg,#f5f0ff_0%,#eaf4ff_38%,#fffbf5_72%,#fff5f8_100%)] text-slate-950">
+    <main className="relative w-full min-h-screen bg-[linear-gradient(155deg,#f3eeff_0%,#e8f4ff_40%,#fff9f0_75%,#fff5f8_100%)] text-slate-950">
       <div
         className="pointer-events-none absolute -left-24 -top-16 h-[640px] w-[640px] rounded-full bg-violet-400/22 blur-[140px]"
         aria-hidden
@@ -684,24 +684,24 @@ export default function Home() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1800px] px-6 py-6 md:px-10 xl:px-16 2xl:px-24">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/70 bg-white/60 px-6 py-4 shadow-[0_24px_70px_rgba(49,46,129,0.1)] backdrop-blur-2xl md:px-8">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
+        <header className="sticky top-4 z-50 flex min-h-[76px] flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/75 px-5 py-4 shadow-[0_20px_60px_rgba(49,46,129,0.12)] backdrop-blur-2xl sm:min-h-[84px] sm:px-7 sm:py-5">
+          <div className="flex min-w-0 shrink-0 items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50 sm:h-16 sm:w-16">
               ✨
             </div>
-            <div>
-              <p className="text-lg font-black tracking-[0.18em] text-slate-950 lg:text-xl">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black tracking-wide text-slate-950 md:text-xl">
                 YAŞAM SİSTEMİ
               </p>
-              <p className="mt-0.5 text-sm font-semibold text-slate-500">
+              <p className="mt-1 hidden text-sm font-semibold leading-snug text-slate-600 sm:block md:text-[15px]">
                 Profesyonel bütünsel yönetim platformu
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="hidden rounded-2xl border border-cyan-100 bg-cyan-50/90 px-4 py-2.5 text-sm font-bold text-cyan-800 sm:inline-flex">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="hidden rounded-2xl border border-cyan-200/80 bg-cyan-50/95 px-4 py-2.5 text-sm font-bold text-cyan-900 lg:inline-flex">
               ☁️ Web & Mobil Destek
             </span>
             <button
@@ -710,26 +710,26 @@ export default function Home() {
                 setMessage("");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border-2 border-violet-200 bg-white px-6 text-sm font-bold text-violet-900 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 lg:h-14 lg:px-8 lg:text-base"
+              className="inline-flex h-12 items-center justify-center rounded-2xl border-2 border-violet-300/90 bg-white px-7 text-base font-bold text-violet-950 shadow-[0_8px_24px_rgba(91,33,182,0.12)] ring-1 ring-violet-100 transition hover:border-violet-400 hover:bg-violet-50/80 md:h-14 md:px-8"
             >
               Giriş Yap
             </button>
             <Link
               href="/register"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-900 via-violet-800 to-indigo-700 px-6 text-sm font-bold text-white shadow-lg shadow-violet-300/40 no-underline transition hover:-translate-y-0.5 hover:shadow-xl lg:h-14 lg:px-8 lg:text-base"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-base font-bold text-white shadow-[0_12px_36px_rgba(109,40,217,0.45)] no-underline ring-2 ring-violet-300/40 transition hover:-translate-y-0.5 hover:shadow-[0_16px_44px_rgba(109,40,217,0.5)] md:h-14 md:px-10 md:text-lg"
             >
               Kayıt Ol
             </Link>
           </div>
         </header>
 
-        <section className="mt-10 grid min-h-[560px] grid-cols-1 items-center gap-10 lg:grid-cols-[1.25fr_0.75fr] xl:mt-14 xl:gap-16">
-          <div className="lg:pr-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm">
+        <section className="mt-10 grid grid-cols-1 items-start gap-10 lg:grid-cols-[1.25fr_0.75fr] xl:mt-14 xl:gap-14">
+          <div className="lg:pr-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm md:text-base">
               ✨ Profesyonel danışmanlık yönetim sistemi
             </div>
 
-            <h2 className="mt-7 max-w-[980px] text-5xl font-black leading-[0.95] tracking-tight text-slate-950 md:text-6xl xl:text-7xl">
+            <h2 className="mt-7 max-w-[980px] text-4xl font-black leading-[0.98] tracking-tight text-slate-950 sm:text-5xl md:text-6xl xl:text-7xl">
               Profesyonel danışmanlar için{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">
                 bütünsel yönetim ve analiz
@@ -737,31 +737,12 @@ export default function Home() {
               platformu
             </h2>
 
-            <p className="mt-6 max-w-[900px] text-lg leading-8 text-slate-600 xl:text-xl">
+            <p className="mt-6 max-w-[900px] text-base leading-8 text-slate-600 md:text-lg">
               Numeroloji, doğaltaş, biyoenerji, refleksoloji, aromaterapi,
               danışan yönetimi, seans takibi ve analiz sistemleri tek merkezde birleşir.
             </p>
 
-            <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  setMessage("");
-                  setLoginModalOpen(true);
-                }}
-                className="inline-flex h-14 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-indigo-800 px-9 text-base font-bold text-white shadow-xl shadow-violet-300/35 transition-all hover:-translate-y-0.5 hover:shadow-2xl lg:h-[58px] lg:px-10 lg:text-lg"
-              >
-                Sisteme Giriş Yap
-              </button>
-              <Link
-                href="/register"
-                className="inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-200 bg-white/90 px-9 text-base font-bold text-violet-900 no-underline shadow-sm transition-all hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 lg:h-[58px] lg:px-10 lg:text-lg"
-              >
-                Ücretsiz Kayıt Ol
-              </Link>
-            </div>
-
-            <ul className="mt-9 flex flex-wrap gap-3 text-sm font-bold text-slate-700 md:text-base">
+            <ul className="mt-8 flex flex-wrap gap-3 text-sm font-bold text-slate-700 md:text-base">
               <li className="rounded-2xl border border-white/90 bg-white/75 px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
                 🔒 Güvenli veri yapısı
               </li>
@@ -774,11 +755,11 @@ export default function Home() {
             </ul>
           </div>
 
-          <div className="relative w-full lg:min-h-[480px]">
+          <div className="relative w-full">
             <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-violet-500/20 via-fuchsia-400/16 to-cyan-400/20 blur-3xl" />
 
-            <div className="relative flex min-h-[420px] flex-col rounded-[32px] border border-white/80 bg-gradient-to-br from-white/95 via-white/88 to-violet-50/40 p-7 shadow-[0_32px_90px_rgba(49,46,129,0.14)] backdrop-blur-2xl sm:min-h-[460px] sm:p-9 lg:min-h-[500px]">
-              <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-violet-800">
+            <div className="relative flex flex-col rounded-[32px] border border-white/90 bg-white/80 p-7 shadow-[0_32px_90px_rgba(49,46,129,0.14)] ring-1 ring-violet-100/60 backdrop-blur-2xl sm:p-9">
+              <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-sm font-black uppercase tracking-wide text-violet-800">
                 Çalışma Seçenekleri
               </div>
 
@@ -786,26 +767,26 @@ export default function Home() {
                 Size uygun kullanım modeli
               </h3>
 
-              <p className="mt-4 max-w-[520px] text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+              <p className="mt-4 max-w-[520px] text-base leading-7 text-slate-600 md:text-lg md:leading-8">
                 Masaüstü ya da web/mobil çalışma modelini seçebilirsiniz. Her iki
                 yapı da profesyonel danışman akışına uyumludur.
               </p>
 
               <div className="mt-auto grid gap-5 pt-8 sm:grid-cols-2">
                 <div className="rounded-[24px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/90 p-6 shadow-[0_12px_40px_rgba(16,185,129,0.08)]">
-                  <div className="text-base font-black text-emerald-800 lg:text-lg">
+                  <div className="text-lg font-black text-emerald-800 md:text-xl">
                     💻 Offline Masaüstü
                   </div>
-                  <p className="mt-3 text-sm font-medium leading-7 text-emerald-800/85 lg:text-base">
+                  <p className="mt-3 text-sm font-medium leading-7 text-emerald-800/90 md:text-base">
                     İnternetsiz kullanım, lokal veri, gizlilik odaklı çalışma.
                   </p>
                 </div>
 
                 <div className="rounded-[24px] border border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-white to-sky-50/90 p-6 shadow-[0_12px_40px_rgba(14,165,233,0.08)]">
-                  <div className="text-base font-black text-cyan-800 lg:text-lg">
+                  <div className="text-lg font-black text-cyan-800 md:text-xl">
                     ☁️ Web & Mobil
                   </div>
-                  <p className="mt-3 text-sm font-medium leading-7 text-cyan-800/85 lg:text-base">
+                  <p className="mt-3 text-sm font-medium leading-7 text-cyan-800/90 md:text-base">
                     Telefon, tablet ve bilgisayardan erişilebilir çalışma alanı.
                   </p>
                 </div>
@@ -817,7 +798,7 @@ export default function Home() {
 
         <section className="mt-16 xl:mt-20">
           <div className="mb-8">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-700">
               Modüller
             </p>
             <h3 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
@@ -828,21 +809,21 @@ export default function Home() {
           {landingModules.map((item) => (
             <div
               key={item.title}
-              className="group relative flex min-h-[210px] flex-col rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-white via-white to-violet-50/30 p-7 shadow-[0_18px_50px_rgba(15,23,42,0.07)] transition-all duration-300 hover:-translate-y-1 hover:border-violet-200/80 hover:shadow-xl"
+              className="group relative flex min-h-[210px] flex-col rounded-[28px] border border-slate-200/80 bg-white/85 p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-violet-200/80 hover:shadow-xl"
             >
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-3xl text-white shadow-lg shadow-violet-300/40 transition group-hover:scale-105">
                 {item.icon}
               </div>
 
-              <h3 className="mt-6 text-xl font-black leading-snug text-slate-950">
+              <h3 className="mt-6 text-lg font-black leading-snug text-slate-950 md:text-xl">
                 {item.title}
               </h3>
 
-              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600 lg:text-base">
+              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600 md:text-base">
                 {item.desc}
               </p>
 
-              <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700/80 transition group-hover:gap-2.5 group-hover:text-violet-800">
+              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold uppercase tracking-wider text-violet-700/80 transition group-hover:gap-2.5 group-hover:text-violet-800">
                 Keşfet
                 <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
               </span>
@@ -851,7 +832,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-14 w-full overflow-hidden rounded-[32px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_28px_80px_rgba(30,27,75,0.4)] xl:mt-16">
+        <section className="mt-14 w-full rounded-[32px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_28px_80px_rgba(30,27,75,0.4)] xl:mt-16">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {featureItems.map((item, index) => (
             <div
@@ -867,8 +848,8 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="text-lg font-black text-white">{item.title}</h4>
-                <p className="mt-2.5 text-sm leading-7 text-indigo-100/95 lg:text-base">
+                <h4 className="text-lg font-black text-white md:text-xl">{item.title}</h4>
+                <p className="mt-2.5 text-sm leading-7 text-indigo-100/95 md:text-base">
                   {item.desc}
                 </p>
               </div>
@@ -877,7 +858,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-12 border-t border-slate-200/60 py-10 text-center text-sm font-semibold text-slate-500">
+        <footer className="mt-12 border-t border-slate-200/60 py-10 text-center text-base font-semibold text-slate-500">
           © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
         </footer>
       </div>
