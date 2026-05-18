@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Shield } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Eye, Home, Loader2, Shield, Users } from "lucide-react";
 import {
   clearYasamUser,
   isAdminUser,
@@ -95,6 +95,60 @@ const panelClass =
 const navBtn =
   "inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[60px]";
 
+function approvalLabel(status: ProfileUser["approvalStatus"]): string {
+  if (status === "approved") return "Onaylı";
+  if (status === "rejected") return "Reddedildi";
+  return "Onay Bekliyor";
+}
+
+function ProfileField({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/90 bg-white/80 px-5 py-4 shadow-sm">
+      <p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
+      {children ?? (
+        <p className="mt-2 text-lg font-black text-slate-900 md:text-xl">{value}</p>
+      )}
+    </div>
+  );
+}
+
+function ModulePermissionCard({
+  label,
+  enabled,
+}: {
+  label: string;
+  enabled: boolean;
+}) {
+  return (
+    <div
+      className={`flex min-h-[88px] flex-col justify-between rounded-2xl border-2 px-5 py-4 ${
+        enabled
+          ? "border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/80"
+          : "border-slate-200/90 bg-gradient-to-br from-slate-50/95 via-white to-slate-100/80"
+      }`}
+    >
+      <p className="text-base font-black text-slate-900 md:text-lg">{label}</p>
+      <span
+        className={`mt-3 inline-flex w-fit rounded-full px-4 py-1.5 text-sm font-black ${
+          enabled
+            ? "bg-emerald-500 text-white shadow-sm"
+            : "bg-slate-300 text-slate-800"
+        }`}
+      >
+        {enabled ? "Açık" : "Kapalı"}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminUserProfileViewPage() {
   const router = useRouter();
   const params = useParams();
@@ -178,10 +232,6 @@ export default function AdminUserProfileViewPage() {
     );
   }
 
-  const openModules = ADMIN_MODULE_UI_KEYS.filter(
-    (key) => profile?.modulePermissions[key],
-  ).map((key) => ADMIN_MODULE_UI_LABELS[key]);
-
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/20 blur-[140px]" />
@@ -189,140 +239,163 @@ export default function AdminUserProfileViewPage() {
 
       <div className="relative z-10 mx-auto w-full max-w-[1500px] px-6 py-6 md:px-10 md:py-8 xl:px-16">
         <nav
-          className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
+          className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-violet-100/90 via-indigo-100/85 to-rose-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
           aria-label="Üst navigasyon"
         >
           <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:items-stretch lg:gap-4">
             <Link
               href="/admin/users"
-              className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 hover:border-violet-400 no-underline`}
+              className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 hover:border-violet-400 hover:from-violet-100 hover:to-indigo-100 no-underline`}
             >
-              <ArrowLeft className="h-5 w-5" aria-hidden />
-              Üye Yönetimine Dön
+              <Users className="h-5 w-5 shrink-0" aria-hidden />
+              Admin Kullanıcı Yönetimine Dön
             </Link>
             <Link
-              href="/admin"
-              className={`${navBtn} border-sky-300/80 bg-gradient-to-r from-sky-50 to-cyan-50 text-sky-950 hover:border-sky-400 no-underline`}
+              href="/"
+              className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline`}
             >
-              Admin Merkezi
+              <Home className="h-5 w-5 shrink-0" aria-hidden />
+              Ana Panele Dön
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400`}
+              className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100`}
             >
               Çıkış Yap
             </button>
           </div>
         </nav>
 
-        <header className={`${panelClass} mb-8 border-cyan-200/80 bg-gradient-to-br from-cyan-50/90 via-white to-violet-50/70`}>
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-800">
-            Salt okunur · Admin izleme
-          </p>
-          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
-            Üye Profil İzleme
-          </h1>
-          <p className="mt-2 text-base font-medium text-slate-600">
-            {profile?.fullName ?? "Üye profili"}
-          </p>
+        <header
+          className={`${panelClass} mb-6 border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/70`}
+        >
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg">
+              <Eye className="h-7 w-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-violet-700">
+                Salt okunur · Admin izleme
+              </p>
+              <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
+                Üye Profil İzleme
+              </h1>
+              <p className="mt-3 max-w-3xl text-base font-medium leading-relaxed text-slate-600 md:text-lg">
+                Bu ekran yalnızca görüntüleme amaçlıdır. Admin, üyenin verilerini
+                buradan değiştiremez.
+              </p>
+            </div>
+          </div>
         </header>
 
-        <div className={`${panelClass} mb-8 border-amber-200/80 bg-amber-50/70`}>
-          <p className="text-sm font-bold leading-relaxed text-amber-950">
-            Bu ekran yalnızca admin görüntüleme alanıdır. Üyenin danışan, analiz,
-            taş, refleksoloji veya diğer modül kayıtları burada düzenlenemez.
+        <div
+          className={`${panelClass} mb-8 border-amber-300/80 bg-gradient-to-r from-amber-50/95 via-orange-50/80 to-amber-50/90`}
+          role="note"
+        >
+          <p className="text-base font-bold leading-relaxed text-amber-950 md:text-lg">
+            Bu sayfa sadece izleme ekranıdır. Üyenin danışan, analiz, taş,
+            refleksoloji veya diğer kayıtları burada düzenlenemez.
           </p>
         </div>
 
         {loading ? (
-          <div className={`${panelClass} flex flex-col items-center justify-center py-16`}>
-            <Loader2 className="h-10 w-10 animate-spin text-violet-600" aria-hidden />
-            <p className="mt-4 text-sm font-bold text-slate-600">Profil yükleniyor…</p>
+          <div className={`${panelClass} flex flex-col items-center justify-center py-20`}>
+            <Loader2 className="h-12 w-12 animate-spin text-violet-600" aria-hidden />
+            <p className="mt-4 text-base font-bold text-slate-600">Profil yükleniyor…</p>
           </div>
         ) : notFound || !profile ? (
           <div className={`${panelClass} text-center`}>
-            <p className="text-lg font-black text-slate-900">Üye bulunamadı</p>
+            <p className="text-xl font-black text-slate-900">Üye bulunamadı</p>
+            <p className="mt-2 text-base text-slate-600">
+              Kayıt silinmiş veya geçersiz bir bağlantı kullanılmış olabilir.
+            </p>
             <Link
               href="/admin/users"
-              className="mt-4 inline-block font-black text-violet-700 no-underline"
+              className={`${navBtn} mt-6 inline-flex max-w-md border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline`}
             >
-              Listeye dön
+              <Users className="h-5 w-5 shrink-0" aria-hidden />
+              Admin Kullanıcı Yönetimine Dön
             </Link>
           </div>
         ) : (
-          <div className={`${panelClass} border-slate-200/80`}>
-            <dl className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Ad Soyad
-                </dt>
-                <dd className="mt-1 text-lg font-black text-slate-900">{profile.fullName}</dd>
+          <div className="space-y-8">
+            <section
+              className={`${panelClass} border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-violet-50/40`}
+              aria-labelledby="profile-summary-heading"
+            >
+              <h2
+                id="profile-summary-heading"
+                className="text-2xl font-black text-slate-950 md:text-3xl"
+              >
+                Profil Özeti
+              </h2>
+              <p className="mt-1 text-base font-medium text-slate-600">
+                {profile.fullName} · {profile.email}
+              </p>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <ProfileField label="Ad Soyad" value={profile.fullName} />
+                <ProfileField label="E-posta" value={profile.email} />
+                <ProfileField
+                  label="Rol"
+                  value={profile.role === "admin" ? "Admin" : "Uzman"}
+                />
+                <ProfileField label="Onay Durumu">
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-4 py-1.5 text-sm font-black ${
+                      profile.approvalStatus === "approved"
+                        ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
+                        : profile.approvalStatus === "rejected"
+                          ? "bg-rose-100 text-rose-900 ring-1 ring-rose-200"
+                          : "bg-amber-100 text-amber-900 ring-1 ring-amber-200"
+                    }`}
+                  >
+                    {approvalLabel(profile.approvalStatus)}
+                  </span>
+                </ProfileField>
+                <ProfileField label="Aktif / Pasif">
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-4 py-1.5 text-sm font-black ${
+                      profile.active
+                        ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
+                        : "bg-slate-200 text-slate-800 ring-1 ring-slate-300"
+                    }`}
+                  >
+                    {profile.active ? "Aktif" : "Pasif"}
+                  </span>
+                </ProfileField>
+                <ProfileField
+                  label="Kayıt Tarihi"
+                  value={formatCreatedAt(profile.createdAt)}
+                />
               </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  E-posta
-                </dt>
-                <dd className="mt-1 text-lg font-semibold text-slate-800">{profile.email}</dd>
+            </section>
+
+            <section
+              className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/50`}
+              aria-labelledby="module-permissions-heading"
+            >
+              <h2
+                id="module-permissions-heading"
+                className="text-2xl font-black text-slate-950 md:text-3xl"
+              >
+                Modül İzinleri
+              </h2>
+              <p className="mt-2 text-base font-medium text-slate-600 md:text-lg">
+                Üyenin ana panelinde görebileceği modüller (salt okunur).
+              </p>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {ADMIN_MODULE_UI_KEYS.map((key) => (
+                  <ModulePermissionCard
+                    key={key}
+                    label={ADMIN_MODULE_UI_LABELS[key]}
+                    enabled={profile.modulePermissions[key]}
+                  />
+                ))}
               </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">Rol</dt>
-                <dd className="mt-1 text-lg font-black capitalize text-slate-900">
-                  {profile.role}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Onay Durumu
-                </dt>
-                <dd className="mt-1 text-lg font-black text-slate-900">
-                  {profile.approvalStatus === "approved"
-                    ? "Onaylı"
-                    : profile.approvalStatus === "rejected"
-                      ? "Reddedildi"
-                      : "Onay Bekliyor"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Aktif / Pasif
-                </dt>
-                <dd className="mt-1 text-lg font-black text-slate-900">
-                  {profile.active ? "Aktif" : "Pasif"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Kayıt Tarihi
-                </dt>
-                <dd className="mt-1 text-lg font-semibold text-slate-800">
-                  {formatCreatedAt(profile.createdAt)}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Açık Modüller
-                </dt>
-                <dd className="mt-2">
-                  {openModules.length === 0 ? (
-                    <p className="text-sm font-semibold text-slate-600">
-                      Henüz açık modül yok.
-                    </p>
-                  ) : (
-                    <ul className="flex flex-wrap gap-2">
-                      {openModules.map((label) => (
-                        <li
-                          key={label}
-                          className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-900 ring-1 ring-emerald-200"
-                        >
-                          {label}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </dd>
-              </div>
-            </dl>
+            </section>
           </div>
         )}
       </div>
