@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -16,7 +17,54 @@ import {
   AlertTriangle,
   CloudUpload,
 } from "lucide-react";
-import { isAdminUser, readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
+import {
+  clearYasamUser,
+  isAdminUser,
+  readYasamUser,
+  type YasamUser,
+} from "@/lib/auth/yasamUser";
+
+const navBtn =
+  "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
+
+function AdminTopNav({ onLogout }: { onLogout: () => void }) {
+  return (
+    <nav
+      className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
+      aria-label="Admin üst navigasyon"
+    >
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4">
+        <Link
+          href="/"
+          className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline lg:justify-self-start`}
+        >
+          <span className="text-xl" aria-hidden>
+            🏠
+          </span>
+          Ana Panele Dön
+        </Link>
+
+        <p className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-violet-200/60 bg-white/60 px-4 py-2 text-center text-base font-black text-violet-950 sm:text-lg lg:min-w-[280px]">
+          <span className="text-xl" aria-hidden>
+            👑
+          </span>
+          Admin Yönetim Merkezi
+        </p>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100 lg:justify-self-end`}
+        >
+          <span className="text-xl" aria-hidden>
+            🚪
+          </span>
+          Çıkış Yap
+        </button>
+      </div>
+    </nav>
+  );
+}
 
 type AdminCard = {
   title: string;
@@ -170,6 +218,7 @@ function AdminToolCard({ item }: { item: AdminCard }) {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const [user, setUser] = useState<YasamUser | null>(null);
   const [checked, setChecked] = useState(false);
 
@@ -177,6 +226,11 @@ export default function AdminPage() {
     setUser(readYasamUser());
     setChecked(true);
   }, []);
+
+  function handleLogout() {
+    clearYasamUser();
+    router.push("/");
+  }
 
   const allowed = isAdminUser(user);
 
@@ -218,16 +272,8 @@ export default function AdminPage() {
       <div className="pointer-events-none absolute -right-24 top-24 h-[480px] w-[480px] rounded-full bg-rose-200/20 blur-[130px]" />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-[400px] w-[400px] rounded-full bg-cyan-200/20 blur-[120px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-6 py-8 lg:px-10 xl:px-14">
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-white/80 bg-white/70 px-5 text-sm font-black text-slate-800 shadow-sm backdrop-blur-md transition hover:bg-white no-underline"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Üye Paneli
-          </Link>
-        </div>
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14">
+        <AdminTopNav onLogout={handleLogout} />
 
         <header className="relative mb-10 overflow-hidden rounded-[32px] border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-rose-800 px-8 py-10 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)] sm:px-10">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(251,207,232,0.15),transparent_50%)]" />
