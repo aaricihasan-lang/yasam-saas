@@ -79,11 +79,11 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
         : undefined,
     trial_ends_at:
       r.trial_ends_at != null ? String(r.trial_ends_at).trim() : undefined,
-    approval_status:
-      r.approval_status != null
-        ? String(r.approval_status).trim().toLowerCase()
-        : undefined,
-    active: parseActiveFlag(r.active),
+    approval_status: resolveApprovalStatus(r),
+    active:
+      parseActiveFlag(r.active) ??
+      parseActiveFlag(r.is_active) ??
+      parseActiveFlag(r.isActive),
     module_permissions: parseModulePermissions(r.module_permissions),
   };
 }
@@ -102,20 +102,41 @@ export function normalizeApprovalStatus(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+/** Admin paneli ile aynı standart: users.active + users.approval_status */
+export function resolveApprovalStatus(
+  row: Record<string, unknown>,
+): ApprovalStatus | undefined {
+  if (row.approval_status != null && String(row.approval_status).trim() !== "") {
+    return normalizeApprovalStatus(row.approval_status) as ApprovalStatus;
+  }
+  if (row.is_approved === true || row.approved === true) return "approved";
+  if (row.is_approved === false || row.approved === false) return "pending";
+  const status = normalizeApprovalStatus(row.status);
+  if (status === "approved" || status === "pending" || status === "rejected") {
+    return status as ApprovalStatus;
+  }
+  return undefined;
+}
+
+/** Uzman: aktif + onaylı (admin paneli ile uyumlu) */
+export function isExpertAccountReady(user: YasamUser): boolean {
+  if (user.active !== true) return false;
+  const approval = normalizeApprovalStatus(user.approval_status);
+  if (approval === "rejected") return false;
+  if (approval === "approved") return true;
+  if (!approval) return true;
+  return false;
+}
+
 /** Admin hariç giriş: active ve onay kontrolü */
 export function canLoginYasamUser(
   user: YasamUser,
 ): { allowed: true } | { allowed: false; message: string } {
   if (isAdminUser(user)) return { allowed: true };
-  if (user.active !== true) {
+  if (!isExpertAccountReady(user)) {
     return { allowed: false, message: PENDING_APPROVAL_MESSAGE };
   }
-  const approval = normalizeApprovalStatus(user.approval_status);
-  if (approval === "approved") return { allowed: true };
-  if (!approval && user.active === true) {
-    return { allowed: true };
-  }
-  return { allowed: false, message: PENDING_APPROVAL_MESSAGE };
+  return { allowed: true };
 }
 
 export function normalizeSubscriptionStatus(value: unknown): string {
@@ -130,18 +151,11 @@ export function isTrialSubscriptionActive(trialEndsAt: string | undefined): bool
   return end.getTime() > Date.now();
 }
 
-/** Ana panel modüllerine tam erişim (admin her zaman açık) */
+/** Ana panel modüllerine tam erişim (admin her zaman; uzman onay+aktif) */
 export function hasFullPanelAccess(user: YasamUser | null | undefined): boolean {
   if (!user) return false;
   if (isAdminUser(user)) return true;
-
-  const status = normalizeSubscriptionStatus(user.subscription_status);
-
-  if (status === "active") return true;
-  if (status === "passive") return false;
-  if (status === "trial") return isTrialSubscriptionActive(user.trial_ends_at);
-
-  return false;
+  return isExpertAccountReady(user);
 }
 
 export { LOCKED_SUBSCRIPTION_TOAST };
@@ -195,51 +209,42 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "expert";
 }
 
-/** login_user RPC eksik alanları users tablosundan tamamlar */
-export async function enrichYasamUserProfile(user: YasamUser): Promise<YasamUser> {
+const USER_REFRESH_SELECT =
+  "id, email, full_name, name, role, active, approval_status, module_permissions, subscription_status, trial_ends_at, plan, tenant_id, status";
+
+/** users tablosundan güncel kayıt (localStorage yerine kaynak doğruluk) */
+export async function refreshYasamUserFromDb(
+  user: YasamUser,
+): Promise<YasamUser | null> {
+  if (!user.id) return null;
+
   const { data, error } = await supabase
     .from("users")
-    .select(
-      "full_name, approval_status, active, module_permissions, subscription_status, trial_ends_at, plan",
-    )
+    .select(USER_REFRESH_SELECT)
     .eq("id", user.id)
     .maybeSingle();
 
   if (error) {
-    console.error("Kullanıcı profili yüklenemedi:", error);
-    return user;
+    console.error("Kullanıcı kaydı yenilenemedi:", error);
+    return null;
   }
 
-  if (!data) return user;
+  if (!data) return null;
 
   const row = data as Record<string, unknown>;
-  const fullNameDb =
-    row.full_name != null ? String(row.full_name).trim() : "";
-
-  return {
+  const refreshed = parseLoginUserRecord({
     ...user,
-    full_name: user.full_name?.trim() || fullNameDb || user.full_name,
-    approval_status:
-      row.approval_status != null
-        ? String(row.approval_status).trim().toLowerCase()
-        : user.approval_status,
-    active:
-      parseActiveFlag(row.active) !== undefined
-        ? parseActiveFlag(row.active)
-        : user.active,
-    module_permissions: parseModulePermissions(
-      row.module_permissions ?? user.module_permissions,
-    ),
-    subscription_status:
-      row.subscription_status != null
-        ? String(row.subscription_status).trim().toLowerCase()
-        : user.subscription_status,
-    trial_ends_at:
-      row.trial_ends_at != null
-        ? String(row.trial_ends_at).trim()
-        : user.trial_ends_at,
-    plan: row.plan != null ? String(row.plan).trim() : user.plan,
-  };
+    ...row,
+    module_permissions: row.module_permissions ?? user.module_permissions,
+  });
+
+  return refreshed;
+}
+
+/** login_user RPC sonrası users tablosundan güncel alanları yükler */
+export async function enrichYasamUserProfile(user: YasamUser): Promise<YasamUser> {
+  const fresh = await refreshYasamUserFromDb(user);
+  return fresh ?? user;
 }
 
 /** @deprecated enrichYasamUserProfile kullanın */

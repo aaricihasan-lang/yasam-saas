@@ -348,19 +348,14 @@ export default function Home() {
         setUser(null);
         return;
       }
-      const enriched = await enrichYasamUserProfile(stored);
-      const changed =
-        enriched.full_name !== stored.full_name ||
-        enriched.approval_status !== stored.approval_status ||
-        enriched.active !== stored.active ||
-        JSON.stringify(enriched.module_permissions) !==
-          JSON.stringify(stored.module_permissions);
-      if (changed) {
-        saveYasamUser(enriched);
-        setUser(enriched);
+      const fresh = await enrichYasamUserProfile(stored);
+      if (!fresh) {
+        clearYasamUser();
+        setUser(null);
         return;
       }
-      setUser(stored);
+      saveYasamUser(fresh);
+      setUser(fresh);
     });
   }, []);
 
@@ -424,7 +419,13 @@ export default function Home() {
       return;
     }
 
-    loggedUser = await enrichYasamUserProfile(loggedUser);
+    const freshUser = await enrichYasamUserProfile(loggedUser);
+    if (!freshUser) {
+      setMessage("Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.");
+      setLoading(false);
+      return;
+    }
+    loggedUser = freshUser;
 
     const loginCheck = canLoginYasamUser(loggedUser);
     if (!loginCheck.allowed) {
