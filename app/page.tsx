@@ -14,10 +14,13 @@ import {
   saveYasamUser,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
   hasModulePermission,
+  isPremiumExpertUser,
   LOCKED_PERMISSION_TOAST,
+  PREMIUM_HOME_MODULE_KEYS,
   type ModuleLockReason,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
@@ -267,7 +270,14 @@ function isExpertDashboardModuleVisible(
   user: YasamUser,
   item: ModuleCard,
 ): boolean {
+  if (!hasExpertMembershipAccess(user)) return false;
+
   const key = item.permissionKey;
+
+  if (isPremiumExpertUser(user)) {
+    return PREMIUM_HOME_MODULE_KEYS.includes(key);
+  }
+
   if (hasModulePermission(user, key)) return true;
 
   const row = getRawPermissionRow(user);
@@ -281,6 +291,11 @@ function isExpertDashboardModuleVisible(
   }
 
   return false;
+}
+
+function isExpertMembershipExpired(user: YasamUser): boolean {
+  if (isAdminUser(user)) return false;
+  return !hasExpertMembershipAccess(user);
 }
 
 function expertHasAnyGrantedModule(user: YasamUser): boolean {
@@ -495,8 +510,11 @@ export default function Home() {
     const avatarInitial = displayName.charAt(0).toLocaleUpperCase("tr-TR") || "U";
     const panelAccess = hasFullPanelAccess(user);
     const visibleDashboardModules = getVisibleDashboardModules(user);
+    const membershipExpired = isExpertMembershipExpired(user);
     const expertModulesEmpty =
-      !isAdminUser(user) && !expertHasAnyGrantedModule(user);
+      !isAdminUser(user) &&
+      !membershipExpired &&
+      !expertHasAnyGrantedModule(user);
 
     function handleLockedModuleClick(reason: ModuleLockReason) {
       showToast({
@@ -700,7 +718,17 @@ export default function Home() {
               </p>
             </div>
 
-            {expertModulesEmpty ? (
+            {membershipExpired ? (
+              <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-10 text-center shadow-sm">
+                <p className="text-lg font-black text-rose-950">
+                  Üyelik süreniz doldu
+                </p>
+                <p className="mt-2 max-w-md text-sm font-medium text-rose-900/90">
+                  Deneme veya üyelik süreniz sona erdi. Modüllere erişim için
+                  yönetici ile iletişime geçin.
+                </p>
+              </div>
+            ) : expertModulesEmpty ? (
               <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-10 text-center shadow-sm">
                 <p className="text-lg font-black text-slate-900">
                   Henüz modül izniniz tanımlanmamış

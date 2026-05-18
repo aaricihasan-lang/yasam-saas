@@ -66,6 +66,60 @@ export const EXTENDED_MODULE_PERMISSION_ALIASES = [
 export const LOCKED_PERMISSION_TOAST =
   "Bu modül hesabınız için aktif değil. Yönetici ile iletişime geçin.";
 
+/** Premium uzman — admin hariç otomatik açık modül anahtarları (UI + DB alias) */
+export const PREMIUM_EXPERT_MODULE_KEYS = [
+  "clients",
+  "appointments",
+  "numerology",
+  "stones",
+  "reflexology",
+  "energy_body",
+  "aromatherapy",
+  "personal_archive",
+  "danisan_yonetimi",
+  "ajanda",
+  "numeroloji",
+  "dogaltas",
+  "refleksoloji",
+  "biyoenerji",
+  "aromaterapi",
+  "kisisel_arsiv",
+] as const;
+
+const PREMIUM_EXPERT_MODULE_KEY_SET = new Set<string>(PREMIUM_EXPERT_MODULE_KEYS);
+
+/** Ana panelde Premium ile gösterilecek kartlar (stok/şifa rehberi hariç) */
+export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
+  "clients",
+  "stones",
+  "energy_body",
+  "personal_archive",
+  "numerology",
+];
+
+export function isPremiumExpertUser(
+  user: YasamUser | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isAdminRole(user)) return false;
+  const pkg = String(user.package_type ?? user.plan ?? "")
+    .trim()
+    .toLowerCase();
+  return pkg === "premium";
+}
+
+export function isPremiumModuleAccessKey(key: string): boolean {
+  return PREMIUM_EXPERT_MODULE_KEY_SET.has(key);
+}
+
+export function buildPremiumModulePermissionsPayload(): Record<string, boolean> {
+  const payload: Record<string, boolean> = {};
+  for (const key of PREMIUM_EXPERT_MODULE_KEYS) {
+    payload[key] = true;
+  }
+  return payload;
+}
+
 export function parseModulePermissions(raw: unknown): ModulePermissions {
   const perms = { ...DEFAULT_MODULE_PERMISSIONS };
   if (!raw || typeof raw !== "object") return perms;
@@ -100,6 +154,9 @@ export function hasAnyModulePermissionFlag(
 ): boolean {
   if (!user) return false;
   if (isAdminRole(user)) return true;
+  if (isPremiumExpertUser(user)) {
+    return keys.some((key) => isPremiumModuleAccessKey(key));
+  }
   const flags = getModulePermissionFlags(user);
   return keys.some((key) => flags[key] === true);
 }
@@ -110,6 +167,9 @@ export function hasModulePermission(
 ): boolean {
   if (!user) return false;
   if (isAdminRole(user)) return true;
+  if (isPremiumExpertUser(user)) {
+    return isPremiumModuleAccessKey(key);
+  }
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   return Boolean(perms[key]);
 }

@@ -37,6 +37,7 @@ import {
   type MembershipSnapshot,
   type PackagePlanUi,
 } from "@/lib/auth/membership";
+import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
 
 const PACKAGE_PLAN_OPTIONS: { value: PackagePlanUi; label: string }[] = [
@@ -129,6 +130,17 @@ const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   personal_archive: false,
 };
 
+const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
+  danisan_yonetimi: "clients",
+  ajanda: "appointments",
+  numeroloji: "numerology",
+  dogaltas: "stones",
+  refleksoloji: "reflexology",
+  biyoenerji: "energy_body",
+  aromaterapi: "aromatherapy",
+  kisisel_arsiv: "personal_archive",
+};
+
 function parseAdminModulePermissions(raw: unknown): AdminModulePermissions {
   const perms = { ...DEFAULT_ADMIN_MODULE_PERMISSIONS };
   if (!raw || typeof raw !== "object") return perms;
@@ -136,7 +148,18 @@ function parseAdminModulePermissions(raw: unknown): AdminModulePermissions {
   for (const key of ADMIN_MODULE_UI_KEYS) {
     if (typeof row[key] === "boolean") perms[key] = row[key];
   }
+  for (const [alias, uiKey] of Object.entries(ADMIN_MODULE_TR_ALIAS_TO_UI)) {
+    if (row[alias] === true) perms[uiKey] = true;
+  }
   return perms;
+}
+
+function isUserPremiumPackage(user: ManagedUser): boolean {
+  return user.membership.packageType === "premium";
+}
+
+function premiumAdminModulePermissions(): AdminModulePermissions {
+  return parseAdminModulePermissions(buildPremiumModulePermissionsPayload());
 }
 
 function adminPermissionsToPayload(
@@ -379,6 +402,17 @@ function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
   );
 }
 
+function PremiumModuleNotice() {
+  return (
+    <div className="rounded-2xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 via-teal-50/80 to-white p-4 md:p-5">
+      <p className="text-sm font-black text-emerald-950">Modül İzinleri</p>
+      <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-900/95">
+        Premium üyelik: Admin yetkisi hariç tüm modüller otomatik açıktır.
+      </p>
+    </div>
+  );
+}
+
 function ModulePermissionSwitches({
   value,
   onChange,
@@ -391,7 +425,7 @@ function ModulePermissionSwitches({
   readOnlyHint?: string;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
+    <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
       <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
       <p className="mt-1 text-xs font-medium text-slate-600">
         {readOnlyHint ??
@@ -776,11 +810,19 @@ export default function AdminUsersPage() {
       rawPayload,
       membershipSampleRow,
     );
+    const updatePayload: Record<string, unknown> = { ...payload };
+
+    if (
+      packageEditDraft.packagePlan === "premium" &&
+      canPersistModulePermissions
+    ) {
+      updatePayload.module_permissions = buildPremiumModulePermissionsPayload();
+    }
 
     setSavingPackageUserId(packageEditUser.id);
     const { error } = await supabase
       .from("users")
-      .update(payload)
+      .update(updatePayload)
       .eq("id", packageEditUser.id);
 
     setSavingPackageUserId(null);
@@ -797,10 +839,14 @@ export default function AdminUsersPage() {
 
     const mergedRow = {
       ...(membershipSampleRow ?? {}),
-      ...payload,
+      ...updatePayload,
       id: packageEditUser.id,
     } as Record<string, unknown>;
     const membership = parseMembershipFromRow(mergedRow);
+    const nextModulePermissions =
+      packageEditDraft.packagePlan === "premium"
+        ? premiumAdminModulePermissions()
+        : packageEditUser.modulePermissions;
 
     setUsers((prev) =>
       prev.map((u) =>
@@ -809,6 +855,7 @@ export default function AdminUsersPage() {
               ...u,
               membership,
               membershipDisplay: buildMembershipDisplay(membership),
+              modulePermissions: nextModulePermissions,
             }
           : u,
       ),
@@ -1109,6 +1156,9 @@ export default function AdminUsersPage() {
     userId: string,
     next: AdminModulePermissions,
   ) {
+    const target = users.find((u) => u.id === userId);
+    if (target && isUserPremiumPackage(target)) return;
+
     setUsers((prev) =>
       prev.map((u) =>
         u.id === userId ? { ...u, modulePermissions: next } : u,
@@ -1631,21 +1681,27 @@ export default function AdminUsersPage() {
                     ) : null}
 
                     <div className="mt-6 border-t border-violet-100/90 pt-6">
-                    <ModulePermissionSwitches
-                      value={user.modulePermissions}
-                      onChange={(next) => saveUserModulePermissions(user.id, next)}
-                      disabled={
-                        !canPersistModulePermissions ||
-                        savingModulesUserId === user.id
-                      }
-                      readOnlyHint={
-                        canPersistModulePermissions
-                          ? savingModulesUserId === user.id
-                            ? "Modül izinleri kaydediliyor…"
-                            : undefined
-                          : "Modül izinleri yalnızca önizleme modunda (veritabanı kolonu yok)."
-                      }
-                    />
+                    {user.role === "expert" && isUserPremiumPackage(user) ? (
+                      <PremiumModuleNotice />
+                    ) : (
+                      <ModulePermissionSwitches
+                        value={user.modulePermissions}
+                        onChange={(next) =>
+                          saveUserModulePermissions(user.id, next)
+                        }
+                        disabled={
+                          !canPersistModulePermissions ||
+                          savingModulesUserId === user.id
+                        }
+                        readOnlyHint={
+                          canPersistModulePermissions
+                            ? savingModulesUserId === user.id
+                              ? "Modül izinleri kaydediliyor…"
+                              : undefined
+                            : "Modül izinleri yalnızca önizleme modunda (veritabanı kolonu yok)."
+                        }
+                      />
+                    )}
                     </div>
                     </>
                   )}
