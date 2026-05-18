@@ -48,6 +48,12 @@ export default function RegisterPage() {
 
     setSaving(true);
 
+    const now = new Date();
+    const trialStartedAt = now.toISOString();
+    const trialEnds = new Date(now);
+    trialEnds.setDate(trialEnds.getDate() + 7);
+    const trialEndsAt = trialEnds.toISOString();
+
     const tenantId = crypto.randomUUID();
 
     const slug = name
@@ -87,6 +93,10 @@ export default function RegisterPage() {
         role: "expert",
         active: true,
         tenant_id: tenantId,
+        plan: "trial",
+        subscription_status: "trial",
+        trial_started_at: trialStartedAt,
+        trial_ends_at: trialEndsAt,
       },
     ]);
 

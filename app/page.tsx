@@ -3,12 +3,15 @@
 import { runInEffect } from "@/lib/runInEffect";
 import {
   clearYasamUser,
+  hasFullPanelAccess,
   isAdminUser,
+  LOCKED_SUBSCRIPTION_TOAST,
   parseLoginUserRecord,
   readYasamUser,
   saveYasamUser,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -216,6 +219,7 @@ const dashboardModules: ModuleCard[] = [
 
 export default function Home() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -298,6 +302,16 @@ export default function Home() {
   };
 
   if (user) {
+    const panelAccess = hasFullPanelAccess(user);
+
+    function handleLockedModuleClick() {
+      showToast({
+        title: "Üyelik gerekli",
+        message: LOCKED_SUBSCRIPTION_TOAST,
+        type: "warning",
+      });
+    }
+
     return (
       <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
         <div
@@ -492,46 +506,72 @@ export default function Home() {
 
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
               {dashboardModules.map((item) => {
-                const isReady = item.href !== "#";
+                const hasHref = item.href !== "#";
+                const isLocked = hasHref && !panelAccess;
+                const isOpen = hasHref && panelAccess;
                 const { Icon, theme } = item;
 
                 const card = (
                   <div
                     className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_22px_55px_rgba(15,23,42,0.10)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
-                      isReady
+                      isOpen
                         ? "cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
-                        : "cursor-default opacity-90"
+                        : isLocked
+                          ? "cursor-not-allowed border-amber-200/90 opacity-[0.88] saturate-[0.85]"
+                          : "cursor-default opacity-90"
                     }`}
                   >
-
-                    <div className="flex items-start justify-between gap-3">
+                    {isLocked ? (
                       <div
-                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 group-hover:scale-110 ${theme.iconWrap}`}
+                        className="pointer-events-none absolute inset-0 rounded-[28px] bg-gradient-to-br from-amber-50/40 via-white/20 to-rose-50/30"
+                        aria-hidden
+                      />
+                    ) : null}
+
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div
+                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 ${isOpen ? "group-hover:scale-110" : ""} ${theme.iconWrap} ${isLocked ? "opacity-80" : ""}`}
                       >
                         <Icon className="h-8 w-8" strokeWidth={2.25} />
                       </div>
 
-                      <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-                        {item.badge}
+                      <span
+                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold shadow-sm ${
+                          isLocked
+                            ? "border-amber-200/90 bg-amber-50 text-amber-900 ring-1 ring-amber-100"
+                            : "border-white/80 bg-white/90 text-slate-600"
+                        }`}
+                      >
+                        {isLocked ? "Üyelik gerekli" : item.badge}
                       </span>
                     </div>
 
-                    <h3 className="mt-3 text-xl font-black text-slate-900 lg:text-2xl">
+                    <h3
+                      className={`relative mt-3 text-xl font-black lg:text-2xl ${isLocked ? "text-slate-700" : "text-slate-900"}`}
+                    >
                       {item.title}
                     </h3>
 
-                    <p className="mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
+                    <p className="relative mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
                       {item.desc}
                     </p>
 
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200/80">
-                        {item.count}
+                    <div className="relative mt-3 flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                          isLocked
+                            ? "bg-amber-100 text-amber-900 ring-amber-200/80"
+                            : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
+                        }`}
+                      >
+                        {isLocked ? "Kilitli" : item.count}
                       </span>
 
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105 ${
-                          isReady ? "" : "opacity-50"
+                        className={`flex h-9 w-9 items-center justify-center rounded-full shadow-md transition ${
+                          isOpen
+                            ? "bg-slate-900 text-white group-hover:scale-105"
+                            : "bg-slate-300 text-slate-500"
                         }`}
                         aria-hidden
                       >
@@ -541,16 +581,36 @@ export default function Home() {
                   </div>
                 );
 
-                return isReady ? (
-                  <Link
+                if (isOpen) {
+                  return (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="block h-full text-inherit no-underline"
+                    >
+                      {card}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div
                     key={item.title}
-                    href={item.href}
-                    className="block h-full text-inherit no-underline"
+                    className="h-full"
+                    role={isLocked ? "button" : undefined}
+                    tabIndex={isLocked ? 0 : undefined}
+                    onClick={isLocked ? handleLockedModuleClick : undefined}
+                    onKeyDown={
+                      isLocked
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleLockedModuleClick();
+                            }
+                          }
+                        : undefined
+                    }
                   >
-                    {card}
-                  </Link>
-                ) : (
-                  <div key={item.title} className="h-full">
                     {card}
                   </div>
                 );

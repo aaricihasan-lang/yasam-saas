@@ -2,6 +2,8 @@
 
 export type UserRole = "admin" | "expert";
 
+export type SubscriptionStatus = "active" | "trial" | "passive" | string;
+
 export type YasamUser = {
   id: string;
   tenant_id?: string;
@@ -9,7 +11,13 @@ export type YasamUser = {
   email?: string;
   role: UserRole;
   status?: string;
+  plan?: string;
+  subscription_status?: SubscriptionStatus;
+  trial_ends_at?: string;
 };
+
+const LOCKED_SUBSCRIPTION_TOAST =
+  "Üyeliğiniz aktif değil. Lütfen yönetici ile iletişime geçin.";
 
 const STORAGE_KEY = "yasam_user";
 
@@ -37,8 +45,44 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
     email: r.email != null ? String(r.email) : undefined,
     role,
     status: r.status != null ? String(r.status) : undefined,
+    plan: r.plan != null ? String(r.plan).trim() : undefined,
+    subscription_status:
+      r.subscription_status != null
+        ? String(r.subscription_status).trim().toLowerCase()
+        : undefined,
+    trial_ends_at:
+      r.trial_ends_at != null ? String(r.trial_ends_at).trim() : undefined,
   };
 }
+
+export function normalizeSubscriptionStatus(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** Deneme süresi geçerli mi (trial_ends_at şu anki zamandan sonra) */
+export function isTrialSubscriptionActive(trialEndsAt: string | undefined): boolean {
+  if (!trialEndsAt) return false;
+  const end = new Date(trialEndsAt);
+  if (Number.isNaN(end.getTime())) return false;
+  return end.getTime() > Date.now();
+}
+
+/** Ana panel modüllerine tam erişim (admin her zaman açık) */
+export function hasFullPanelAccess(user: YasamUser | null | undefined): boolean {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+
+  const status = normalizeSubscriptionStatus(user.subscription_status);
+
+  if (!status) return true;
+  if (status === "active") return true;
+  if (status === "passive") return false;
+  if (status === "trial") return isTrialSubscriptionActive(user.trial_ends_at);
+
+  return false;
+}
+
+export { LOCKED_SUBSCRIPTION_TOAST };
 
 export function readYasamUser(): YasamUser | null {
   if (typeof window === "undefined") return null;
