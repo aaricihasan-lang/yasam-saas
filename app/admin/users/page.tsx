@@ -2,24 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
+  Eye,
   KeyRound,
   Loader2,
   Pencil,
+  Plus,
   Shield,
   Trash2,
   UserCheck,
   UserX,
+  Users,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  DEFAULT_MODULE_PERMISSIONS,
-  MODULE_PERMISSION_KEYS,
-  MODULE_PERMISSION_LABELS,
-  parseModulePermissions,
-  type ModulePermissions,
-} from "@/lib/auth/modulePermissions";
 import {
   clearYasamUser,
   isAdminUser,
@@ -33,6 +30,70 @@ type ManagedUserRole = "admin" | "expert";
 
 type ApprovalStatusUi = "pending" | "approved" | "rejected";
 
+const ADMIN_MODULE_UI_KEYS = [
+  "clients",
+  "appointments",
+  "numerology",
+  "stones",
+  "reflexology",
+  "energy_body",
+  "aromatherapy",
+  "personal_archive",
+] as const;
+
+type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
+
+export type AdminModulePermissions = Record<AdminModuleUiKey, boolean>;
+
+const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
+  clients: "Danışan Yönetimi",
+  appointments: "Ajanda",
+  numerology: "Numeroloji",
+  stones: "Doğaltaş",
+  reflexology: "Refleksoloji",
+  energy_body: "Biyoenerji",
+  aromatherapy: "Aromaterapi",
+  personal_archive: "Kişisel Arşiv",
+};
+
+const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
+  clients: false,
+  appointments: false,
+  numerology: false,
+  stones: false,
+  reflexology: false,
+  energy_body: false,
+  aromatherapy: false,
+  personal_archive: false,
+};
+
+function parseAdminModulePermissions(raw: unknown): AdminModulePermissions {
+  const perms = { ...DEFAULT_ADMIN_MODULE_PERMISSIONS };
+  if (!raw || typeof raw !== "object") return perms;
+  const row = raw as Record<string, unknown>;
+  for (const key of ADMIN_MODULE_UI_KEYS) {
+    if (typeof row[key] === "boolean") perms[key] = row[key];
+  }
+  return perms;
+}
+
+function adminPermissionsToPayload(
+  perms: AdminModulePermissions,
+): Record<string, boolean> {
+  return { ...perms };
+}
+
+function formatCreatedAt(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 type ManagedUser = {
   id: string;
   fullName: string;
@@ -40,7 +101,7 @@ type ManagedUser = {
   role: ManagedUserRole;
   active: boolean;
   approvalStatus: ApprovalStatusUi;
-  modulePermissions: ModulePermissions;
+  modulePermissions: AdminModulePermissions;
   createdAt?: string;
 };
 
@@ -64,7 +125,7 @@ function mapDbUser(row: Record<string, unknown>): ManagedUser {
     role,
     active: row.active === true,
     approvalStatus: mapApprovalStatus(row.approval_status),
-    modulePermissions: parseModulePermissions(row.module_permissions),
+    modulePermissions: parseAdminModulePermissions(row.module_permissions),
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
   };
 }
@@ -97,6 +158,9 @@ const navBtn =
 const saveBtnClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-100 via-fuchsia-100 to-rose-100 px-8 text-base font-black text-violet-950 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50";
 
+const actionBtn =
+  "inline-flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50";
+
 function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
   return (
     <div
@@ -117,29 +181,70 @@ function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
 function UsersTopNav({ onLogout }: { onLogout: () => void }) {
   return (
     <nav
-      className="sticky top-0 z-50 mb-8 grid gap-3 sm:grid-cols-2"
+      className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
       aria-label="Üst navigasyon"
     >
-      <Link
-        href="/"
-        className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline`}
-      >
-        <span className="text-xl" aria-hidden>
-          🏠
-        </span>
-        Ana Panele Dön
-      </Link>
-      <button
-        type="button"
-        onClick={onLogout}
-        className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100`}
-      >
-        <span className="text-xl" aria-hidden>
-          🚪
-        </span>
-        Çıkış Yap
-      </button>
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-stretch lg:gap-4">
+        <Link
+          href="/"
+          className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline lg:justify-self-start`}
+        >
+          <span className="text-xl" aria-hidden>
+            🏠
+          </span>
+          Ana Panele Dön
+        </Link>
+
+        <Link
+          href="/admin"
+          className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 hover:border-violet-400 hover:from-violet-100 hover:to-indigo-100 no-underline lg:justify-self-center`}
+        >
+          <span className="text-xl" aria-hidden>
+            👑
+          </span>
+          Admin Yönetim Merkezi
+        </Link>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100 lg:justify-self-end`}
+        >
+          <span className="text-xl" aria-hidden>
+            🚪
+          </span>
+          Çıkış Yap
+        </button>
+      </div>
     </nav>
+  );
+}
+
+function SummaryStatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "violet" | "amber" | "emerald" | "slate";
+}) {
+  const tones = {
+    violet: "border-violet-200/90 bg-gradient-to-br from-violet-50/95 via-white to-fuchsia-50/80",
+    amber: "border-amber-200/90 bg-gradient-to-br from-amber-50/95 via-white to-orange-50/70",
+    emerald:
+      "border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/70",
+    slate: "border-slate-200/90 bg-gradient-to-br from-slate-50/95 via-white to-slate-100/80",
+  };
+  return (
+    <div
+      className={`rounded-[24px] border-2 p-5 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6 ${tones[tone]}`}
+    >
+      <p className="text-sm font-black uppercase tracking-wide text-slate-600">
+        {label}
+      </p>
+      <p className="mt-2 text-4xl font-black tabular-nums text-slate-950">{value}</p>
+    </div>
   );
 }
 
@@ -153,7 +258,7 @@ function RoleBadge({ role }: { role: ManagedUserRole }) {
           : "bg-sky-100 text-sky-900 ring-1 ring-sky-200"
       }`}
     >
-      {isAdmin ? "Admin" : "Uzman"}
+      {isAdmin ? "admin" : "expert"}
     </span>
   );
 }
@@ -195,31 +300,39 @@ function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
 function ModulePermissionSwitches({
   value,
   onChange,
+  disabled = false,
+  readOnlyHint,
 }: {
-  value: ModulePermissions;
-  onChange: (next: ModulePermissions) => void;
+  value: AdminModulePermissions;
+  onChange: (next: AdminModulePermissions) => void;
+  disabled?: boolean;
+  readOnlyHint?: string;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4">
+    <div className="mt-4 rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
       <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
       <p className="mt-1 text-xs font-medium text-slate-600">
-        Açık modüller uzmanın ana panelinde görünür.
+        {readOnlyHint ??
+          "Açık modüller uzmanın ana panelinde görünür."}
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {MODULE_PERMISSION_KEYS.map((key) => (
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {ADMIN_MODULE_UI_KEYS.map((key) => (
           <label
             key={key}
-            className="flex items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/90 px-3 py-2.5"
+            className={`flex items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/90 px-3 py-2.5 ${
+              disabled ? "opacity-70" : ""
+            }`}
           >
             <span className="text-xs font-bold text-slate-800">
-              {MODULE_PERMISSION_LABELS[key]}
+              {ADMIN_MODULE_UI_LABELS[key]}
             </span>
             <button
               type="button"
               role="switch"
               aria-checked={value[key]}
+              disabled={disabled}
               onClick={() => onChange({ ...value, [key]: !value[key] })}
-              className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+              className={`relative h-8 w-14 shrink-0 rounded-full transition disabled:cursor-not-allowed ${
                 value[key] ? "bg-emerald-500" : "bg-slate-300"
               }`}
             >
@@ -242,7 +355,7 @@ type EmptyForm = {
   password: string;
   role: ManagedUserRole;
   active: boolean;
-  modulePermissions: ModulePermissions;
+  modulePermissions: AdminModulePermissions;
 };
 
 const emptyForm: EmptyForm = {
@@ -251,7 +364,7 @@ const emptyForm: EmptyForm = {
   password: "",
   role: "expert",
   active: true,
-  modulePermissions: { ...DEFAULT_MODULE_PERMISSIONS },
+  modulePermissions: { ...DEFAULT_ADMIN_MODULE_PERMISSIONS },
 };
 
 export default function AdminUsersPage() {
@@ -274,6 +387,24 @@ export default function AdminUsersPage() {
 
   const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
+  const [canPersistModulePermissions, setCanPersistModulePermissions] =
+    useState(true);
+  const [savingModulesUserId, setSavingModulesUserId] = useState<string | null>(
+    null,
+  );
+
+  const stats = useMemo(() => {
+    const pending = users.filter((u) => u.approvalStatus === "pending").length;
+    const active = users.filter(
+      (u) => u.active && u.approvalStatus === "approved",
+    ).length;
+    const passive = users.filter(
+      (u) => !u.active || u.approvalStatus === "rejected",
+    ).length;
+    return { total: users.length, pending, active, passive };
+  }, [users]);
 
   const loadUsers = useCallback(async () => {
     setListLoading(true);
@@ -281,9 +412,6 @@ export default function AdminUsersPage() {
       .from("users")
       .select("*")
       .order("created_at", { ascending: false });
-
-    console.log("USERS:", data);
-    console.log("ERROR:", error);
 
     if (error) {
       console.error("Kullanıcı listesi hatası:", error);
@@ -297,7 +425,14 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const mapped = (data ?? []).map((row) =>
+    const rows = data ?? [];
+    if (rows.length > 0 && rows[0] && typeof rows[0] === "object") {
+      setCanPersistModulePermissions(
+        "module_permissions" in (rows[0] as Record<string, unknown>),
+      );
+    }
+
+    const mapped = rows.map((row) =>
       mapDbUser(row as Record<string, unknown>),
     );
 
@@ -308,6 +443,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const user = readYasamUser();
     setAllowed(isAdminUser(user));
+    setCurrentAdminId(user?.id ?? null);
     setSessionChecked(true);
   }, []);
 
@@ -343,15 +479,21 @@ export default function AdminUsersPage() {
     }
 
     setCreating(true);
-    const { error } = await supabase.from("users").insert({
+    const insertPayload: Record<string, unknown> = {
       full_name: fullName,
       email,
       password: form.password.trim(),
       role: form.role,
       active: form.active,
       approval_status: form.active ? "approved" : "pending",
-      module_permissions: form.modulePermissions,
-    });
+    };
+    if (canPersistModulePermissions) {
+      insertPayload.module_permissions = adminPermissionsToPayload(
+        form.modulePermissions,
+      );
+    }
+
+    const { error } = await supabase.from("users").insert(insertPayload);
 
     if (error) {
       console.error("Kullanıcı ekleme hatası:", error);
@@ -365,6 +507,7 @@ export default function AdminUsersPage() {
     }
 
     setForm(emptyForm);
+    setFormOpen(false);
     setCreating(false);
     showToast({
       title: "Başarılı",
@@ -409,15 +552,21 @@ export default function AdminUsersPage() {
     }
 
     setSavingEdit(true);
+    const updatePayload: Record<string, unknown> = {
+      full_name: fullName,
+      email,
+      role: editForm.role,
+      active: editForm.active,
+    };
+    if (canPersistModulePermissions) {
+      updatePayload.module_permissions = adminPermissionsToPayload(
+        editForm.modulePermissions,
+      );
+    }
+
     const { error } = await supabase
       .from("users")
-      .update({
-        full_name: fullName,
-        email,
-        role: editForm.role,
-        active: editForm.active,
-        module_permissions: editForm.modulePermissions,
-      })
+      .update(updatePayload)
       .eq("id", editingId);
 
     if (error) {
@@ -591,6 +740,49 @@ export default function AdminUsersPage() {
     await loadUsers();
   }
 
+  async function saveUserModulePermissions(
+    userId: string,
+    next: AdminModulePermissions,
+  ) {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, modulePermissions: next } : u,
+      ),
+    );
+
+    if (!canPersistModulePermissions) return;
+
+    setSavingModulesUserId(userId);
+    const { error } = await supabase
+      .from("users")
+      .update({ module_permissions: adminPermissionsToPayload(next) })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Modül izinleri güncelleme hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      await loadUsers();
+      setSavingModulesUserId(null);
+      return;
+    }
+
+    setSavingModulesUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: "Modül izinleri güncellendi.",
+      type: "success",
+    });
+  }
+
+  function isCurrentAdminUser(user: ManagedUser): boolean {
+    if (!currentAdminId) return false;
+    return user.id === currentAdminId;
+  }
+
   async function softDelete(id: string) {
     setActionUserId(id);
     const { error } = await supabase.from("users").update({ active: false }).eq("id", id);
@@ -643,35 +835,64 @@ export default function AdminUsersPage() {
       <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/20 blur-[140px]" />
       <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-rose-200/15 blur-[120px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-[1500px] px-6 py-6 md:px-10 md:py-8 xl:px-16">
         <UsersTopNav onLogout={handleLogout} />
 
-        <header className="mb-8">
+        <header className={`${panelClass} mb-8 border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/70`}>
           <p className="text-xs font-black uppercase tracking-[0.28em] text-violet-700">
             Admin · Üye Yönetimi
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-[2.75rem]">
             Kullanıcı / Üye Yönetimi
           </h1>
-          <p className="mt-2 text-base font-medium text-slate-600 sm:text-lg">
-            Sistemdeki uzmanları ve üyeleri yönetin
+          <p className="mt-3 max-w-3xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+            Uzman hesapları, onay süreçleri, modül erişimleri ve profil izleme
+            işlemleri bu ekrandan yönetilir.
           </p>
-          <Link
-            href="/admin"
-            className="mt-4 inline-flex text-sm font-black text-violet-700 no-underline hover:text-violet-900"
-          >
-            ← Admin Yönetim Merkezi
-          </Link>
         </header>
 
-        <section className={`${panelClass} mb-8 border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80`}>
-          <h2 className="text-2xl font-black text-indigo-950">+ Yeni Uzman Ekle</h2>
-          <p className="mt-1 text-sm font-medium text-slate-600">
-            Kayıtlar Supabase users tablosuna kaydedilir.
-          </p>
+        <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryStatCard label="Toplam Üye" value={stats.total} tone="violet" />
+          <SummaryStatCard
+            label="Onay Bekleyen"
+            value={stats.pending}
+            tone="amber"
+          />
+          <SummaryStatCard label="Aktif Üye" value={stats.active} tone="emerald" />
+          <SummaryStatCard
+            label="Pasif / Askıda"
+            value={stats.passive}
+            tone="slate"
+          />
+        </section>
 
-          <form onSubmit={handleCreate} className="mt-6 grid gap-5 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
+        <section className={`${panelClass} mb-8 border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-indigo-950 sm:text-2xl">
+                Yeni Uzman Ekle
+              </h2>
+              <p className="mt-1 text-sm font-medium text-slate-600">
+                Kayıtlar Supabase users tablosuna kaydedilir.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormOpen((open) => !open)}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-violet-300 bg-violet-50 px-5 text-sm font-black text-violet-950 transition hover:bg-violet-100"
+            >
+              {formOpen ? (
+                <ChevronDown className="h-5 w-5 rotate-180" aria-hidden />
+              ) : (
+                <Plus className="h-5 w-5" aria-hidden />
+              )}
+              {formOpen ? "Formu Kapat" : "+ Yeni Uzman Ekle"}
+            </button>
+          </div>
+
+          {formOpen ? (
+          <form onSubmit={handleCreate} className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="block sm:col-span-2 lg:col-span-3">
               <span className={labelClass}>Ad Soyad</span>
               <input
                 className={inputClass}
@@ -734,8 +955,8 @@ export default function AdminUsersPage() {
                 {form.active ? "Aktif" : "Pasif"}
               </span>
             </label>
-            <div className="sm:col-span-2">
-              <button type="submit" disabled={creating} className={saveBtnClass}>
+            <div className="lg:col-span-3">
+              <button type="submit" disabled={creating} className={`${saveBtnClass} sm:max-w-xs`}>
                 {creating ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
@@ -747,10 +968,14 @@ export default function AdminUsersPage() {
               </button>
             </div>
           </form>
+          ) : null}
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-black text-slate-900 sm:text-2xl">Kullanıcı Listesi</h2>
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Users className="h-6 w-6 text-violet-600" aria-hidden />
+            Kullanıcı Listesi
+          </h2>
           {listLoading ? (
             <div className={`${panelClass} border-slate-200/80`}>
               <PastelLoader label="Kullanıcılar yükleniyor…" />
@@ -766,6 +991,7 @@ export default function AdminUsersPage() {
           <div className="space-y-4">
             {users.map((user) => {
               const isEditing = editingId === user.id;
+              const isSelf = isCurrentAdminUser(user);
               return (
                 <article
                   key={user.id}
@@ -838,6 +1064,12 @@ export default function AdminUsersPage() {
                           onChange={(modulePermissions) =>
                             setEditForm((f) => ({ ...f, modulePermissions }))
                           }
+                          disabled={!canPersistModulePermissions}
+                          readOnlyHint={
+                            canPersistModulePermissions
+                              ? undefined
+                              : "Modül izinleri veritabanında henüz kaydedilemiyor (yalnızca önizleme)."
+                          }
                         />
                       </div>
                       <div className="flex flex-wrap gap-2 sm:col-span-2">
@@ -866,17 +1098,26 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-xl font-black text-slate-900">{user.fullName}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-600">{user.email}</p>
+                    <>
+                    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xl font-black text-slate-900 md:text-2xl">{user.fullName}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-600 md:text-base">{user.email}</p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                          Kayıt: {formatCreatedAt(user.createdAt)}
+                        </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <RoleBadge role={user.role} />
                           <ApprovalBadge status={user.approvalStatus} />
                           <StatusBadge active={user.active} />
                         </div>
+                        {isSelf ? (
+                          <p className="mt-3 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
+                            Bu sizin admin hesabınız — pasif yapma ve silme devre dışı.
+                          </p>
+                        ) : null}
                       </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+                      <div className="flex w-full flex-col gap-2 sm:grid sm:grid-cols-2 xl:max-w-[520px]">
                         {user.role === "expert" ? (
                           <>
                             <button
@@ -896,14 +1137,6 @@ export default function AdminUsersPage() {
                             >
                               <UserX className="h-4 w-4" />
                               Reddet
-                            </button>
-                            <button
-                              type="button"
-                              disabled={actionUserId === user.id}
-                              onClick={() => deactivateUser(user)}
-                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Pasif Yap
                             </button>
                           </>
                         ) : null}
@@ -929,9 +1162,10 @@ export default function AdminUsersPage() {
                         </button>
                         <button
                           type="button"
-                          disabled={actionUserId === user.id}
+                          disabled={isSelf || actionUserId === user.id}
                           onClick={() => toggleActive(user)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-950 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          title={isSelf ? "Kendi hesabınızı pasif yapamazsınız" : undefined}
+                          className={`${actionBtn} border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100`}
                         >
                           {user.active ? (
                             <UserX className="h-4 w-4" />
@@ -940,18 +1174,46 @@ export default function AdminUsersPage() {
                           )}
                           {user.active ? "Pasif Yap" : "Aktif Yap"}
                         </button>
+                        <Link
+                          href={`/admin/users/${encodeURIComponent(user.id)}`}
+                          className={`${actionBtn} border-cyan-200 bg-cyan-50 text-cyan-950 hover:bg-cyan-100 no-underline sm:col-span-2`}
+                        >
+                          <Eye className="h-4 w-4 shrink-0" />
+                          Üye Profilini İzle
+                        </Link>
                         <button
                           type="button"
-                          disabled={actionUserId === user.id}
+                          disabled={isSelf || actionUserId === user.id}
                           onClick={() => softDelete(user.id)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-950 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                          title="Kayıt silinmez, pasif yapılır"
+                          className={`${actionBtn} border-rose-200 bg-rose-50 text-rose-950 hover:bg-rose-100 sm:col-span-2`}
+                          title={
+                            isSelf
+                              ? "Kendi hesabınızı silemezsiniz"
+                              : "Kayıt silinmez, pasif yapılır"
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                           Sil
                         </button>
                       </div>
                     </div>
+
+                    <ModulePermissionSwitches
+                      value={user.modulePermissions}
+                      onChange={(next) => saveUserModulePermissions(user.id, next)}
+                      disabled={
+                        !canPersistModulePermissions ||
+                        savingModulesUserId === user.id
+                      }
+                      readOnlyHint={
+                        canPersistModulePermissions
+                          ? savingModulesUserId === user.id
+                            ? "Modül izinleri kaydediliyor…"
+                            : undefined
+                          : "Modül izinleri yalnızca önizleme modunda (veritabanı kolonu yok)."
+                      }
+                    />
+                    </>
                   )}
 
                   {passwordUserId === user.id ? (
