@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import {
   clearYasamUser,
+  enrichYasamUserFullName,
   getYasamUserDisplayName,
   hasFullPanelAccess,
   isAdminUser,
@@ -229,8 +230,21 @@ export default function Home() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
-    runInEffect(() => {
-      setUser(readYasamUser());
+    runInEffect(async () => {
+      const stored = readYasamUser();
+      if (!stored) {
+        setUser(null);
+        return;
+      }
+      if (!stored.full_name?.trim()) {
+        const enriched = await enrichYasamUserFullName(stored);
+        if (enriched.full_name) {
+          saveYasamUser(enriched);
+          setUser(enriched);
+          return;
+        }
+      }
+      setUser(stored);
     });
   }, []);
 
@@ -271,7 +285,7 @@ export default function Home() {
       return;
     }
 
-    const loggedUser = parseLoginUserRecord(data[0]);
+    let loggedUser = parseLoginUserRecord(data[0]);
 
     if (!loggedUser) {
       setMessage(
@@ -280,6 +294,8 @@ export default function Home() {
       setLoading(false);
       return;
     }
+
+    loggedUser = await enrichYasamUserFullName(loggedUser);
 
     saveYasamUser(loggedUser);
     setUser(loggedUser);

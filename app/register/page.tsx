@@ -87,7 +87,7 @@ export default function RegisterPage() {
 
     const { error: userError } = await supabase.from("users").insert([
       {
-        full_name: name,
+        full_name: fullName.trim(),
         email: mail,
         password: pass,
         role: "expert",

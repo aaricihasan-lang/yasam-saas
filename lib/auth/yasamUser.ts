@@ -1,5 +1,7 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
+import { supabase } from "@/lib/supabase";
+
 export type UserRole = "admin" | "expert";
 
 export type SubscriptionStatus = "active" | "trial" | "passive" | string;
@@ -39,12 +41,22 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
   if (role !== "admin" && role !== "expert") return null;
   const id = r.id != null ? String(r.id).trim() : "";
   if (!id) return null;
+
+  const fullNameFromRow =
+    r.full_name ?? r.fullName ?? null;
+  const nameRaw = r.name != null ? String(r.name).trim() : "";
+  const fullName =
+    fullNameFromRow != null
+      ? String(fullNameFromRow).trim()
+      : nameRaw && !nameRaw.includes("@")
+        ? nameRaw
+        : undefined;
+
   return {
     id,
     tenant_id: r.tenant_id != null ? String(r.tenant_id) : undefined,
-    full_name:
-      r.full_name != null ? String(r.full_name).trim() : undefined,
-    name: r.name != null ? String(r.name).trim() : undefined,
+    full_name: fullName || undefined,
+    name: nameRaw || undefined,
     email: r.email != null ? String(r.email).trim() : undefined,
     role,
     status: r.status != null ? String(r.status) : undefined,
@@ -133,4 +145,29 @@ export function getYasamUserDisplayName(
 
 export function isExpertUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "expert";
+}
+
+/** login_user RPC full_name döndürmezse users tablosundan tamamlar */
+export async function enrichYasamUserFullName(
+  user: YasamUser,
+): Promise<YasamUser> {
+  const existing = user.full_name?.trim();
+  if (existing) return { ...user, full_name: existing };
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("full_name yüklenemedi:", error);
+    return user;
+  }
+
+  const fromDb =
+    data?.full_name != null ? String(data.full_name).trim() : "";
+  if (!fromDb) return user;
+
+  return { ...user, full_name: fromDb };
 }
