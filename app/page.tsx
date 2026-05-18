@@ -2,8 +2,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import {
+  canLoginYasamUser,
   clearYasamUser,
-  enrichYasamUserFullName,
+  enrichYasamUserProfile,
   getYasamUserDisplayName,
   hasFullPanelAccess,
   isAdminUser,
@@ -13,6 +14,12 @@ import {
   saveYasamUser,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import {
+  getModuleLockReason,
+  LOCKED_PERMISSION_TOAST,
+  type ModuleLockReason,
+  type ModulePermissionKey,
+} from "@/lib/auth/modulePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -43,6 +50,7 @@ type ModuleCard = {
   count: string;
   badge: string;
   href: string;
+  permissionKey: ModulePermissionKey;
   Icon: LucideIcon;
   theme: ModuleTheme;
 };
@@ -132,6 +140,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Ana Modül",
     href: "/danisan-yolculugu",
+    permissionKey: "clients",
     Icon: UsersRound,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -145,6 +154,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/dogaltas",
+    permissionKey: "stones",
     Icon: Gem,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -158,6 +168,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/urun-stok",
+    permissionKey: "stock",
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -171,6 +182,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/sifa-rehberi",
+    permissionKey: "healing",
     Icon: Leaf,
     theme: {
       iconWrap: "from-green-500 to-emerald-500",
@@ -184,6 +196,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/enerji-beden",
+    permissionKey: "energy_body",
     Icon: Sparkles,
     theme: {
       iconWrap: "from-fuchsia-500 to-violet-600",
@@ -197,6 +210,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "YENİ",
     href: "/dashboard/kisisel-arsiv",
+    permissionKey: "personal_archive",
     Icon: FolderArchive,
     theme: {
       iconWrap: "from-orange-500 to-amber-500",
@@ -210,6 +224,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Plan",
     href: "/numeroloji",
+    permissionKey: "numerology",
     Icon: ChartColumn,
     theme: {
       iconWrap: "from-violet-500 to-indigo-600",
@@ -236,13 +251,17 @@ export default function Home() {
         setUser(null);
         return;
       }
-      if (!stored.full_name?.trim()) {
-        const enriched = await enrichYasamUserFullName(stored);
-        if (enriched.full_name) {
-          saveYasamUser(enriched);
-          setUser(enriched);
-          return;
-        }
+      const enriched = await enrichYasamUserProfile(stored);
+      const changed =
+        enriched.full_name !== stored.full_name ||
+        enriched.approval_status !== stored.approval_status ||
+        enriched.active !== stored.active ||
+        JSON.stringify(enriched.module_permissions) !==
+          JSON.stringify(stored.module_permissions);
+      if (changed) {
+        saveYasamUser(enriched);
+        setUser(enriched);
+        return;
       }
       setUser(stored);
     });
@@ -295,7 +314,14 @@ export default function Home() {
       return;
     }
 
-    loggedUser = await enrichYasamUserFullName(loggedUser);
+    loggedUser = await enrichYasamUserProfile(loggedUser);
+
+    const loginCheck = canLoginYasamUser(loggedUser);
+    if (!loginCheck.allowed) {
+      setMessage(loginCheck.message);
+      setLoading(false);
+      return;
+    }
 
     saveYasamUser(loggedUser);
     setUser(loggedUser);
@@ -323,9 +349,12 @@ export default function Home() {
     const avatarInitial = displayName.charAt(0).toLocaleUpperCase("tr-TR") || "U";
     const panelAccess = hasFullPanelAccess(user);
 
-    function handleLockedModuleClick() {
+    function handleLockedModuleClick(reason: ModuleLockReason) {
       showToast({
-        message: LOCKED_SUBSCRIPTION_TOAST,
+        message:
+          reason === "permission"
+            ? LOCKED_PERMISSION_TOAST
+            : LOCKED_SUBSCRIPTION_TOAST,
         type: "warning",
       });
     }
@@ -525,8 +554,14 @@ export default function Home() {
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
               {dashboardModules.map((item) => {
                 const hasHref = item.href !== "#";
-                const isLocked = hasHref && !panelAccess;
-                const isOpen = hasHref && panelAccess;
+                const lockReason = getModuleLockReason(
+                  user,
+                  item.permissionKey,
+                  hasHref,
+                  panelAccess,
+                );
+                const isLocked = lockReason !== null;
+                const isOpen = hasHref && !isLocked;
                 const { Icon, theme } = item;
 
                 const card = (
@@ -541,7 +576,9 @@ export default function Home() {
                   >
                     {isLocked ? (
                       <span className="absolute left-4 top-4 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-700 shadow-sm ring-1 ring-red-100">
-                        🔒 Üyelik gerekli
+                        {lockReason === "permission"
+                          ? "🔒 Yetki yok"
+                          : "🔒 Üyelik gerekli"}
                       </span>
                     ) : null}
 
@@ -573,7 +610,11 @@ export default function Home() {
                             : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
                         }`}
                       >
-                        {isLocked ? "Pasif Üyelik" : item.count}
+                        {isLocked
+                          ? lockReason === "permission"
+                            ? "Yetki yok"
+                            : "Pasif Üyelik"
+                          : item.count}
                       </span>
 
                       <span
@@ -606,13 +647,17 @@ export default function Home() {
                     className="h-full"
                     role={isLocked ? "button" : undefined}
                     tabIndex={isLocked ? 0 : undefined}
-                    onClick={isLocked ? handleLockedModuleClick : undefined}
+                    onClick={
+                      isLocked && lockReason
+                        ? () => handleLockedModuleClick(lockReason)
+                        : undefined
+                    }
                     onKeyDown={
-                      isLocked
+                      isLocked && lockReason
                         ? (e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              handleLockedModuleClick();
+                              handleLockedModuleClick(lockReason);
                             }
                           }
                         : undefined

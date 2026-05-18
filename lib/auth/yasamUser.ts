@@ -1,10 +1,16 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
 import { supabase } from "@/lib/supabase";
+import {
+  parseModulePermissions,
+  type ModulePermissions,
+} from "@/lib/auth/modulePermissions";
 
 export type UserRole = "admin" | "expert";
 
 export type SubscriptionStatus = "active" | "trial" | "passive" | string;
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | string;
 
 export type YasamUser = {
   id: string;
@@ -17,10 +23,16 @@ export type YasamUser = {
   plan?: string;
   subscription_status?: SubscriptionStatus;
   trial_ends_at?: string;
+  approval_status?: ApprovalStatus;
+  active?: boolean;
+  module_permissions?: ModulePermissions;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
   "Üyeliğiniz aktif değil. Yönetici ile iletişime geçin.";
+
+export const PENDING_APPROVAL_MESSAGE =
+  "Hesabınız yönetici onayı bekliyor.";
 
 const STORAGE_KEY = "yasam_user";
 
@@ -67,7 +79,43 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
         : undefined,
     trial_ends_at:
       r.trial_ends_at != null ? String(r.trial_ends_at).trim() : undefined,
+    approval_status:
+      r.approval_status != null
+        ? String(r.approval_status).trim().toLowerCase()
+        : undefined,
+    active: parseActiveFlag(r.active),
+    module_permissions: parseModulePermissions(r.module_permissions),
   };
+}
+
+function parseActiveFlag(value: unknown): boolean | undefined {
+  if (value === true || value === 1 || value === "true" || value === "t") {
+    return true;
+  }
+  if (value === false || value === 0 || value === "false" || value === "f") {
+    return false;
+  }
+  return undefined;
+}
+
+export function normalizeApprovalStatus(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** Admin hariç giriş: active ve onay kontrolü */
+export function canLoginYasamUser(
+  user: YasamUser,
+): { allowed: true } | { allowed: false; message: string } {
+  if (isAdminUser(user)) return { allowed: true };
+  if (user.active !== true) {
+    return { allowed: false, message: PENDING_APPROVAL_MESSAGE };
+  }
+  const approval = normalizeApprovalStatus(user.approval_status);
+  if (approval === "approved") return { allowed: true };
+  if (!approval && user.active === true) {
+    return { allowed: true };
+  }
+  return { allowed: false, message: PENDING_APPROVAL_MESSAGE };
 }
 
 export function normalizeSubscriptionStatus(value: unknown): string {
@@ -147,27 +195,56 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "expert";
 }
 
-/** login_user RPC full_name döndürmezse users tablosundan tamamlar */
-export async function enrichYasamUserFullName(
-  user: YasamUser,
-): Promise<YasamUser> {
-  const existing = user.full_name?.trim();
-  if (existing) return { ...user, full_name: existing };
-
+/** login_user RPC eksik alanları users tablosundan tamamlar */
+export async function enrichYasamUserProfile(user: YasamUser): Promise<YasamUser> {
   const { data, error } = await supabase
     .from("users")
-    .select("full_name")
+    .select(
+      "full_name, approval_status, active, module_permissions, subscription_status, trial_ends_at, plan",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
   if (error) {
-    console.error("full_name yüklenemedi:", error);
+    console.error("Kullanıcı profili yüklenemedi:", error);
     return user;
   }
 
-  const fromDb =
-    data?.full_name != null ? String(data.full_name).trim() : "";
-  if (!fromDb) return user;
+  if (!data) return user;
 
-  return { ...user, full_name: fromDb };
+  const row = data as Record<string, unknown>;
+  const fullNameDb =
+    row.full_name != null ? String(row.full_name).trim() : "";
+
+  return {
+    ...user,
+    full_name: user.full_name?.trim() || fullNameDb || user.full_name,
+    approval_status:
+      row.approval_status != null
+        ? String(row.approval_status).trim().toLowerCase()
+        : user.approval_status,
+    active:
+      parseActiveFlag(row.active) !== undefined
+        ? parseActiveFlag(row.active)
+        : user.active,
+    module_permissions: parseModulePermissions(
+      row.module_permissions ?? user.module_permissions,
+    ),
+    subscription_status:
+      row.subscription_status != null
+        ? String(row.subscription_status).trim().toLowerCase()
+        : user.subscription_status,
+    trial_ends_at:
+      row.trial_ends_at != null
+        ? String(row.trial_ends_at).trim()
+        : user.trial_ends_at,
+    plan: row.plan != null ? String(row.plan).trim() : user.plan,
+  };
+}
+
+/** @deprecated enrichYasamUserProfile kullanın */
+export async function enrichYasamUserFullName(
+  user: YasamUser,
+): Promise<YasamUser> {
+  return enrichYasamUserProfile(user);
 }

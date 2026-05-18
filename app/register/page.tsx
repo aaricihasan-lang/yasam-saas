@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
 
 const inputClass =
@@ -91,7 +92,9 @@ export default function RegisterPage() {
         email: mail,
         password: pass,
         role: "expert",
-        active: true,
+        active: false,
+        approval_status: "pending",
+        module_permissions: DEFAULT_MODULE_PERMISSIONS,
         tenant_id: tenantId,
         plan: "trial",
         subscription_status: "trial",
@@ -113,7 +116,8 @@ export default function RegisterPage() {
 
     showToast({
       title: "Başarılı",
-      message: "Hesabınız oluşturuldu",
+      message:
+        "Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.",
       type: "success",
     });
 
@@ -144,7 +148,8 @@ export default function RegisterPage() {
             </div>
             <h1 className="mt-4 text-3xl font-black text-slate-950">Kayıt Ol</h1>
             <p className="mt-2 text-sm leading-7 text-slate-500">
-              Uzman hesabınızı oluşturun ve panele giriş yapın.
+              Uzman hesabınızı oluşturun. Yönetici onayından sonra giriş
+              yapabilirsiniz.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">

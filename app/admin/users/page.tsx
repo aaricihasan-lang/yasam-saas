@@ -14,8 +14,16 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
+  DEFAULT_MODULE_PERMISSIONS,
+  MODULE_PERMISSION_KEYS,
+  MODULE_PERMISSION_LABELS,
+  parseModulePermissions,
+  type ModulePermissions,
+} from "@/lib/auth/modulePermissions";
+import {
   clearYasamUser,
   isAdminUser,
+  normalizeApprovalStatus,
   normalizeRole,
   readYasamUser,
 } from "@/lib/auth/yasamUser";
@@ -23,14 +31,24 @@ import { supabase } from "@/lib/supabase";
 
 type ManagedUserRole = "admin" | "expert";
 
+type ApprovalStatusUi = "pending" | "approved" | "rejected";
+
 type ManagedUser = {
   id: string;
   fullName: string;
   email: string;
   role: ManagedUserRole;
   active: boolean;
+  approvalStatus: ApprovalStatusUi;
+  modulePermissions: ModulePermissions;
   createdAt?: string;
 };
+
+function mapApprovalStatus(value: unknown): ApprovalStatusUi {
+  const s = normalizeApprovalStatus(value);
+  if (s === "approved" || s === "rejected") return s;
+  return "pending";
+}
 
 function mapDbUser(row: Record<string, unknown>): ManagedUser {
   const roleRaw = normalizeRole(row.role);
@@ -44,9 +62,25 @@ function mapDbUser(row: Record<string, unknown>): ManagedUser {
     fullName: fullName || email || "İsimsiz kullanıcı",
     email,
     role,
-    active: row.active === false ? false : Boolean(row.active ?? true),
+    active: row.active === true,
+    approvalStatus: mapApprovalStatus(row.approval_status),
+    modulePermissions: parseModulePermissions(row.module_permissions),
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
   };
+}
+
+function sortUsersForAdmin(list: ManagedUser[]): ManagedUser[] {
+  const order: Record<ApprovalStatusUi, number> = {
+    pending: 0,
+    approved: 1,
+    rejected: 2,
+  };
+  return [...list].sort((a, b) => {
+    const byApproval = order[a.approvalStatus] - order[b.approvalStatus];
+    if (byApproval !== 0) return byApproval;
+    if (!a.createdAt || !b.createdAt) return 0;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
 const panelClass =
@@ -138,12 +172,77 @@ function StatusBadge({ active }: { active: boolean }) {
   );
 }
 
+function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
+  const styles =
+    status === "approved"
+      ? "bg-emerald-100 text-emerald-900 ring-emerald-200"
+      : status === "rejected"
+        ? "bg-rose-100 text-rose-900 ring-rose-200"
+        : "bg-amber-100 text-amber-900 ring-amber-200";
+  const label =
+    status === "approved"
+      ? "Onaylı"
+      : status === "rejected"
+        ? "Reddedildi"
+        : "Onay Bekliyor";
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${styles}`}>
+      {label}
+    </span>
+  );
+}
+
+function ModulePermissionSwitches({
+  value,
+  onChange,
+}: {
+  value: ModulePermissions;
+  onChange: (next: ModulePermissions) => void;
+}) {
+  return (
+    <div className="mt-4 rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4">
+      <p className="text-sm font-black text-violet-950">Modül İzinleri</p>
+      <p className="mt-1 text-xs font-medium text-slate-600">
+        Açık modüller uzmanın ana panelinde görünür.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {MODULE_PERMISSION_KEYS.map((key) => (
+          <label
+            key={key}
+            className="flex items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/90 px-3 py-2.5"
+          >
+            <span className="text-xs font-bold text-slate-800">
+              {MODULE_PERMISSION_LABELS[key]}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={value[key]}
+              onClick={() => onChange({ ...value, [key]: !value[key] })}
+              className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+                value[key] ? "bg-emerald-500" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${
+                  value[key] ? "left-7" : "left-1"
+                }`}
+              />
+            </button>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type EmptyForm = {
   fullName: string;
   email: string;
   password: string;
   role: ManagedUserRole;
   active: boolean;
+  modulePermissions: ModulePermissions;
 };
 
 const emptyForm: EmptyForm = {
@@ -152,6 +251,7 @@ const emptyForm: EmptyForm = {
   password: "",
   role: "expert",
   active: true,
+  modulePermissions: { ...DEFAULT_MODULE_PERMISSIONS },
 };
 
 export default function AdminUsersPage() {
@@ -201,7 +301,7 @@ export default function AdminUsersPage() {
       mapDbUser(row as Record<string, unknown>),
     );
 
-    setUsers(mapped);
+    setUsers(sortUsersForAdmin(mapped));
     setListLoading(false);
   }, [showToast]);
 
@@ -249,6 +349,8 @@ export default function AdminUsersPage() {
       password: form.password.trim(),
       role: form.role,
       active: form.active,
+      approval_status: form.active ? "approved" : "pending",
+      module_permissions: form.modulePermissions,
     });
 
     if (error) {
@@ -280,6 +382,7 @@ export default function AdminUsersPage() {
       password: "",
       role: user.role,
       active: user.active,
+      modulePermissions: { ...user.modulePermissions },
     });
     setPasswordUserId(null);
   }
@@ -313,6 +416,7 @@ export default function AdminUsersPage() {
         email,
         role: editForm.role,
         active: editForm.active,
+        module_permissions: editForm.modulePermissions,
       })
       .eq("id", editingId);
 
@@ -372,6 +476,91 @@ export default function AdminUsersPage() {
       message: "Şifre güncellendi.",
       type: "success",
     });
+  }
+
+  async function approveUser(user: ManagedUser) {
+    setActionUserId(user.id);
+    const { error } = await supabase
+      .from("users")
+      .update({
+        approval_status: "approved",
+        active: true,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      setActionUserId(null);
+      return;
+    }
+
+    setActionUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı onaylandı.",
+      type: "success",
+    });
+    await loadUsers();
+  }
+
+  async function rejectUser(user: ManagedUser) {
+    setActionUserId(user.id);
+    const { error } = await supabase
+      .from("users")
+      .update({
+        approval_status: "rejected",
+        active: false,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      setActionUserId(null);
+      return;
+    }
+
+    setActionUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı reddedildi.",
+      type: "success",
+    });
+    await loadUsers();
+  }
+
+  async function deactivateUser(user: ManagedUser) {
+    setActionUserId(user.id);
+    const { error } = await supabase
+      .from("users")
+      .update({ active: false })
+      .eq("id", user.id);
+
+    if (error) {
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      setActionUserId(null);
+      return;
+    }
+
+    setActionUserId(null);
+    showToast({
+      title: "Başarılı",
+      message: "Kullanıcı pasif yapıldı.",
+      type: "success",
+    });
+    await loadUsers();
   }
 
   async function toggleActive(user: ManagedUser) {
@@ -643,6 +832,14 @@ export default function AdminUsersPage() {
                           />
                         </button>
                       </label>
+                      <div className="sm:col-span-2">
+                        <ModulePermissionSwitches
+                          value={editForm.modulePermissions}
+                          onChange={(modulePermissions) =>
+                            setEditForm((f) => ({ ...f, modulePermissions }))
+                          }
+                        />
+                      </div>
                       <div className="flex flex-wrap gap-2 sm:col-span-2">
                         <button
                           type="button"
@@ -675,10 +872,41 @@ export default function AdminUsersPage() {
                         <p className="mt-1 text-sm font-semibold text-slate-600">{user.email}</p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <RoleBadge role={user.role} />
+                          <ApprovalBadge status={user.approvalStatus} />
                           <StatusBadge active={user.active} />
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+                        {user.role === "expert" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={actionUserId === user.id}
+                              onClick={() => approveUser(user)}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-950 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              Onayla
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionUserId === user.id}
+                              onClick={() => rejectUser(user)}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-950 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <UserX className="h-4 w-4" />
+                              Reddet
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionUserId === user.id}
+                              onClick={() => deactivateUser(user)}
+                              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Pasif Yap
+                            </button>
+                          </>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => {
