@@ -670,14 +670,14 @@ export default function Home() {
   }
 
   return (
-    <main className="relative w-full min-h-screen overflow-x-hidden bg-[linear-gradient(155deg,#f3eeff_0%,#e8f4ff_40%,#fff9f0_75%,#fff5f8_100%)] text-slate-950">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(155deg,#f3eeff_0%,#e8f4ff_40%,#fff9f0_75%,#fff5f8_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-20 top-0 h-[520px] w-[520px] rounded-full bg-violet-400/22 blur-[120px]" />
         <div className="absolute right-0 top-[12%] h-[480px] w-[480px] rounded-full bg-sky-300/28 blur-[110px]" />
         <div className="absolute bottom-0 left-1/4 h-[420px] w-[420px] -translate-x-1/4 rounded-full bg-rose-200/18 blur-[100px]" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-8 py-6 xl:px-12">
+      <div className="relative z-10 w-full max-w-none px-6 py-6 md:px-10 xl:px-16 2xl:px-20">
         <header className="sticky top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_20px_60px_rgba(49,46,129,0.12)] backdrop-blur-2xl sm:px-8">
           <div className="flex min-w-[min(100%,350px)] shrink-0 items-center gap-4 sm:min-w-[350px]">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50 sm:h-16 sm:w-16">
@@ -716,7 +716,7 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="mt-10 grid grid-cols-1 items-start gap-16 xl:grid-cols-[1.7fr_1fr] xl:mt-14 xl:gap-24">
+        <section className="mt-10 grid w-full max-w-none grid-cols-1 items-start gap-16 xl:grid-cols-[1.7fr_1fr] xl:mt-14 xl:gap-24">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-base font-bold text-violet-800 shadow-sm md:text-lg">
               ✨ Profesyonel danışmanlık yönetim sistemi
@@ -789,7 +789,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-16 xl:mt-20">
+        <section className="mt-16 w-full max-w-none xl:mt-20">
           <div className="mb-8">
             <p className="text-base font-black uppercase tracking-[0.18em] text-violet-700">
               Modüller
@@ -825,7 +825,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-14 w-full rounded-[32px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_28px_80px_rgba(30,27,75,0.4)] xl:mt-16">
+        <section className="mt-14 w-full max-w-none rounded-[32px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_28px_80px_rgba(30,27,75,0.4)] xl:mt-16">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {featureItems.map((item, index) => (
             <div
