@@ -50,10 +50,21 @@ export default function RegisterPage() {
 
     const tenantId = crypto.randomUUID();
 
+    const slug = name
+      .toLowerCase()
+      .replaceAll(" ", "-")
+      .replaceAll("ı", "i")
+      .replaceAll("ğ", "g")
+      .replaceAll("ü", "u")
+      .replaceAll("ş", "s")
+      .replaceAll("ö", "o")
+      .replaceAll("ç", "c");
+
     const { error: tenantError } = await supabase.from("tenants").insert([
       {
         id: tenantId,
-        name: `${name}'ın Çalışma Alanı`,
+        name: `${name} Çalışma Alanı`,
+        slug: `${slug}-${Date.now()}`,
       },
     ]);
 
