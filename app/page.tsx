@@ -306,7 +306,6 @@ export default function Home() {
 
     function handleLockedModuleClick() {
       showToast({
-        title: "Üyelik gerekli",
         message: LOCKED_SUBSCRIPTION_TOAST,
         type: "warning",
       });
@@ -517,61 +516,50 @@ export default function Home() {
                       isOpen
                         ? "cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
                         : isLocked
-                          ? "cursor-not-allowed border-amber-200/90 opacity-[0.88] saturate-[0.85]"
+                          ? "cursor-not-allowed"
                           : "cursor-default opacity-90"
                     }`}
                   >
                     {isLocked ? (
-                      <div
-                        className="pointer-events-none absolute inset-0 rounded-[28px] bg-gradient-to-br from-amber-50/40 via-white/20 to-rose-50/30"
-                        aria-hidden
-                      />
+                      <span className="absolute left-4 top-4 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[9px] font-bold text-red-700 shadow-sm ring-1 ring-red-100">
+                        🔒 Üyelik gerekli
+                      </span>
                     ) : null}
 
-                    <div className="relative flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
                       <div
-                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 ${isOpen ? "group-hover:scale-110" : ""} ${theme.iconWrap} ${isLocked ? "opacity-80" : ""}`}
+                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 group-hover:scale-110 ${theme.iconWrap}`}
                       >
                         <Icon className="h-8 w-8" strokeWidth={2.25} />
                       </div>
 
-                      <span
-                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold shadow-sm ${
-                          isLocked
-                            ? "border-amber-200/90 bg-amber-50 text-amber-900 ring-1 ring-amber-100"
-                            : "border-white/80 bg-white/90 text-slate-600"
-                        }`}
-                      >
-                        {isLocked ? "Üyelik gerekli" : item.badge}
+                      <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+                        {item.badge}
                       </span>
                     </div>
 
-                    <h3
-                      className={`relative mt-3 text-xl font-black lg:text-2xl ${isLocked ? "text-slate-700" : "text-slate-900"}`}
-                    >
+                    <h3 className="mt-3 text-xl font-black text-slate-900 lg:text-2xl">
                       {item.title}
                     </h3>
 
-                    <p className="relative mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
+                    <p className="mt-1 line-clamp-2 flex-1 text-sm leading-relaxed text-slate-700 lg:text-base">
                       {item.desc}
                     </p>
 
-                    <div className="relative mt-3 flex items-center justify-between gap-2">
+                    <div className="mt-3 flex items-center justify-between gap-2">
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${
                           isLocked
-                            ? "bg-amber-100 text-amber-900 ring-amber-200/80"
+                            ? "bg-rose-100 text-rose-800 ring-rose-200/80"
                             : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
                         }`}
                       >
-                        {isLocked ? "Kilitli" : item.count}
+                        {isLocked ? "Pasif Üyelik" : item.count}
                       </span>
 
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full shadow-md transition ${
-                          isOpen
-                            ? "bg-slate-900 text-white group-hover:scale-105"
-                            : "bg-slate-300 text-slate-500"
+                        className={`flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105 ${
+                          isOpen ? "" : "opacity-50"
                         }`}
                         aria-hidden
                       >

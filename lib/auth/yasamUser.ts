@@ -17,7 +17,7 @@ export type YasamUser = {
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
-  "Üyeliğiniz aktif değil. Lütfen yönetici ile iletişime geçin.";
+  "Üyeliğiniz aktif değil. Yönetici ile iletişime geçin.";
 
 const STORAGE_KEY = "yasam_user";
 
@@ -74,7 +74,6 @@ export function hasFullPanelAccess(user: YasamUser | null | undefined): boolean 
 
   const status = normalizeSubscriptionStatus(user.subscription_status);
 
-  if (!status) return true;
   if (status === "active") return true;
   if (status === "passive") return false;
   if (status === "trial") return isTrialSubscriptionActive(user.trial_ends_at);
