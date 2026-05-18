@@ -229,6 +229,16 @@ export default function Home() {
     });
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") === "1") {
+      setLoginModalOpen(true);
+      setMessage("");
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
+
   const handleLogin = async () => {
     if (!email || !password) {
       setMessage("Email ve şifre giriniz.");
@@ -656,6 +666,13 @@ export default function Home() {
               >
                 Uzman Paneline Gir →
               </button>
+
+              <Link
+                href="/register"
+                className="mt-2 flex w-full items-center justify-center rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-black text-violet-900 no-underline transition hover:-translate-y-0.5 hover:bg-violet-100"
+              >
+                Kayıt Ol
+              </Link>
             </div>
           </div>
         </section>
