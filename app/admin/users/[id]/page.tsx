@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Banknote,
   Home,
   KeyRound,
   Loader2,
@@ -20,15 +21,21 @@ import {
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
   adminPermissionsToPayload,
+  buildPaymentUpdatePayload,
   formatCreatedAt,
   isUserPremiumPackage,
   mapDbUser,
   PACKAGE_PLAN_OPTIONS,
+  PAYMENT_STATUS_SELECT_OPTIONS,
+  paymentSnapshotToEditDraft,
   rowHasMembershipColumns,
+  rowHasPaymentColumns,
   type AdminModulePermissions,
   type ApprovalStatusUi,
   type ManagedUser,
   type ManagedUserRole,
+  type PaymentEditDraft,
+  type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
   buildMembershipUpdatePayload,
@@ -237,6 +244,9 @@ export default function AdminUserDetailPage() {
     string,
     unknown
   > | null>(null);
+  const [paymentDraft, setPaymentDraft] = useState<PaymentEditDraft | null>(null);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [canPersistPayment, setCanPersistPayment] = useState(true);
 
   const loadUser = useCallback(async () => {
     if (!userId) {
@@ -264,9 +274,11 @@ export default function AdminUserDetailPage() {
     setMembershipSampleRow(row);
     setCanPersistModulePermissions("module_permissions" in row);
     setCanPersistMembership(rowHasMembershipColumns(row));
+    setCanPersistPayment(rowHasPaymentColumns(row));
 
     const mapped = mapDbUser(row);
     setUser(mapped);
+    setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setPackagePlan(inferPackagePlanFromSnapshot(mapped.membership));
     setNotFound(false);
     setLoading(false);
@@ -489,6 +501,44 @@ export default function AdminUserDetailPage() {
     await loadUser();
   }
 
+  async function savePayment() {
+    if (!user || !paymentDraft) return;
+    if (!canPersistPayment) {
+      showToast({
+        title: "Kayıt yapılamadı",
+        message: "Veritabanında ödeme kolonları bulunamadı.",
+        type: "error",
+      });
+      return;
+    }
+
+    setSavingPayment(true);
+    const payload = buildPaymentUpdatePayload(paymentDraft);
+    const { error } = await supabase
+      .from("users")
+      .update(payload)
+      .eq("id", user.id);
+
+    setSavingPayment(false);
+
+    if (error) {
+      console.error("Ödeme kaydı hatası:", error);
+      showToast({
+        title: "İşlem başarısız",
+        message: error.message,
+        type: "error",
+      });
+      return;
+    }
+
+    showToast({
+      title: "Başarılı",
+      message: "Ödeme bilgileri güncellendi.",
+      type: "success",
+    });
+    await loadUser();
+  }
+
   async function saveModulePermissions(next: AdminModulePermissions) {
     if (!user || isUserPremiumPackage(user)) return;
 
@@ -610,6 +660,21 @@ export default function AdminUserDetailPage() {
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 ring-1 ring-amber-200">
                   Paket: {user.membershipDisplay.packageLabel}
                 </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${
+                    user.payment.status === "paid"
+                      ? "bg-emerald-100 text-emerald-900 ring-emerald-200"
+                      : user.payment.status === "pending"
+                        ? "bg-amber-100 text-amber-900 ring-amber-200"
+                        : user.payment.status === "overdue"
+                          ? "bg-rose-100 text-rose-900 ring-rose-200"
+                          : user.payment.status === "exempt"
+                            ? "bg-sky-100 text-sky-900 ring-sky-200"
+                            : "bg-slate-100 text-slate-700 ring-slate-200"
+                  }`}
+                >
+                  Ödeme: {user.payment.statusLabel}
+                </span>
               </div>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div>
@@ -644,6 +709,155 @@ export default function AdminUserDetailPage() {
                 </p>
               ) : null}
             </section>
+
+            {paymentDraft ? (
+              <section
+                className={`${panelClass} border-teal-200/80 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/50`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md">
+                    <Banknote className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-teal-950">Ödeme Takibi</h2>
+                    <p className="mt-1 text-xs font-medium text-teal-900/80">
+                      Ödeme durumu ve tarihler Supabase users tablosuna kaydedilir.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
+                    <span className={labelClass}>Ödeme Durumu</span>
+                    <select
+                      className={inputClass}
+                      value={
+                        paymentDraft.status === "unknown"
+                          ? "pending"
+                          : paymentDraft.status
+                      }
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d
+                            ? {
+                                ...d,
+                                status: e.target.value as Exclude<
+                                  PaymentStatusUi,
+                                  "unknown"
+                                >,
+                              }
+                            : d,
+                        )
+                      }
+                    >
+                      {PAYMENT_STATUS_SELECT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>Son Ödeme Tarihi</span>
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={paymentDraft.lastPaymentDate}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, lastPaymentDate: e.target.value } : d,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>Sonraki Ödeme Tarihi</span>
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={paymentDraft.nextPaymentDate}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, nextPaymentDate: e.target.value } : d,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>Ödenen Tutar</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className={inputClass}
+                      placeholder="örn. 1500"
+                      value={paymentDraft.paidAmount}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, paidAmount: e.target.value } : d,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className={labelClass}>Ödeme Notu</span>
+                    <textarea
+                      className={`${inputClass} min-h-[100px] resize-y py-3`}
+                      rows={3}
+                      value={paymentDraft.note}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, note: e.target.value } : d,
+                        )
+                      }
+                      placeholder="Havale referansı, fatura no vb."
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
+                    <p className="text-[11px] font-black uppercase text-slate-500">
+                      Mevcut son ödeme
+                    </p>
+                    <p className="mt-1 font-black text-slate-900">
+                      {user.payment.lastPaymentLabel}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
+                    <p className="text-[11px] font-black uppercase text-slate-500">
+                      Mevcut sonraki ödeme
+                    </p>
+                    <p className="mt-1 font-black text-slate-900">
+                      {user.payment.nextPaymentLabel}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
+                    <p className="text-[11px] font-black uppercase text-slate-500">
+                      Mevcut tutar
+                    </p>
+                    <p className="mt-1 font-black text-slate-900">
+                      {user.payment.paidAmountLabel}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={savePayment}
+                  disabled={savingPayment || !canPersistPayment}
+                  className={`${saveBtnClass} mt-5 sm:max-w-xs`}
+                >
+                  {savingPayment ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                      Kaydediliyor…
+                    </span>
+                  ) : (
+                    "Ödemeyi Kaydet"
+                  )}
+                </button>
+              </section>
+            ) : null}
 
             <section className={`${panelClass} border-indigo-200/80`}>
               <h2 className="text-xl font-black text-slate-950">İşlemler</h2>

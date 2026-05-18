@@ -20,6 +20,7 @@ import {
   type ApprovalStatusUi,
   type ManagedUser,
   type ManagedUserRole,
+  type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
   clearYasamUser,
@@ -34,7 +35,10 @@ type UserListFilter =
   | "active"
   | "passive"
   | "admin"
-  | "expert";
+  | "expert"
+  | "payment_pending"
+  | "payment_overdue"
+  | "payment_paid";
 
 const USER_LIST_FILTERS: { key: UserListFilter; label: string }[] = [
   { key: "all", label: "Tümü" },
@@ -43,6 +47,9 @@ const USER_LIST_FILTERS: { key: UserListFilter; label: string }[] = [
   { key: "passive", label: "Pasif" },
   { key: "admin", label: "Admin" },
   { key: "expert", label: "Uzman" },
+  { key: "payment_pending", label: "Ödeme Bekleyen" },
+  { key: "payment_overdue", label: "Geciken Ödeme" },
+  { key: "payment_paid", label: "Ödendi" },
 ];
 
 function matchesUserSearch(user: ManagedUser, query: string): boolean {
@@ -66,6 +73,12 @@ function matchesUserListFilter(user: ManagedUser, filter: UserListFilter): boole
       return user.role === "admin";
     case "expert":
       return user.role === "expert";
+    case "payment_pending":
+      return user.payment.status === "pending";
+    case "payment_overdue":
+      return user.payment.status === "overdue";
+    case "payment_paid":
+      return user.payment.status === "paid";
     default:
       return true;
   }
@@ -206,6 +219,24 @@ function PackageBadge({ label }: { label: string }) {
   );
 }
 
+const PAYMENT_BADGE_STYLES: Record<PaymentStatusUi, string> = {
+  paid: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  pending: "bg-amber-100 text-amber-900 ring-amber-200",
+  overdue: "bg-rose-100 text-rose-900 ring-rose-200",
+  exempt: "bg-sky-100 text-sky-900 ring-sky-200",
+  unknown: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+function PaymentBadge({ status, label }: { status: PaymentStatusUi; label: string }) {
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${PAYMENT_BADGE_STYLES[status]}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function CompactUserRow({ user }: { user: ManagedUser }) {
   return (
     <article
@@ -223,6 +254,10 @@ function CompactUserRow({ user }: { user: ManagedUser }) {
           <ApprovalBadge status={user.approvalStatus} />
           <StatusBadge active={user.active} />
           <PackageBadge label={user.membershipDisplay.packageLabel} />
+          <PaymentBadge
+            status={user.payment.status}
+            label={user.payment.statusLabel}
+          />
         </div>
         <p className="mt-2 text-xs font-semibold text-slate-500">
           Kayıt: {formatCreatedAt(user.createdAt)}
