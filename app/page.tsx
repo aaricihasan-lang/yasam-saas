@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import {
   clearYasamUser,
+  getYasamUserDisplayName,
   hasFullPanelAccess,
   isAdminUser,
   LOCKED_SUBSCRIPTION_TOAST,
@@ -302,6 +303,8 @@ export default function Home() {
   };
 
   if (user) {
+    const displayName = getYasamUserDisplayName(user);
+    const avatarInitial = displayName.charAt(0).toLocaleUpperCase("tr-TR") || "U";
     const panelAccess = hasFullPanelAccess(user);
 
     function handleLockedModuleClick() {
@@ -449,7 +452,7 @@ export default function Home() {
                   className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-7xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-36 sm:w-36 sm:text-8xl"
                   aria-hidden
                 >
-                  H
+                  {avatarInitial}
                 </div>
 
                 <div className="min-w-0">
@@ -458,7 +461,7 @@ export default function Home() {
                   </h1>
 
                   <p className="mt-2 text-3xl font-black tracking-tight text-yellow-300 sm:text-4xl lg:text-[2.75rem]">
-                    Hasan ARICI
+                    {displayName}
                   </p>
 
                   <p className="mt-2 text-sm font-medium text-white/90 sm:text-base">

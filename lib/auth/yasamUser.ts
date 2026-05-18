@@ -7,6 +7,7 @@ export type SubscriptionStatus = "active" | "trial" | "passive" | string;
 export type YasamUser = {
   id: string;
   tenant_id?: string;
+  full_name?: string;
   name?: string;
   email?: string;
   role: UserRole;
@@ -41,8 +42,10 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
   return {
     id,
     tenant_id: r.tenant_id != null ? String(r.tenant_id) : undefined,
-    name: r.name != null ? String(r.name) : undefined,
-    email: r.email != null ? String(r.email) : undefined,
+    full_name:
+      r.full_name != null ? String(r.full_name).trim() : undefined,
+    name: r.name != null ? String(r.name).trim() : undefined,
+    email: r.email != null ? String(r.email).trim() : undefined,
     role,
     status: r.status != null ? String(r.status) : undefined,
     plan: r.plan != null ? String(r.plan).trim() : undefined,
@@ -112,6 +115,20 @@ export function clearYasamUser(): void {
 
 export function isAdminUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "admin";
+}
+
+/** Hero / panel başlığı: full_name → name → email → varsayılan */
+export function getYasamUserDisplayName(
+  user: YasamUser | null | undefined,
+): string {
+  if (!user) return "Uzman Paneli";
+  const fullName = user.full_name?.trim();
+  if (fullName) return fullName;
+  const name = user.name?.trim();
+  if (name) return name;
+  const email = user.email?.trim();
+  if (email) return email;
+  return "Uzman Paneli";
 }
 
 export function isExpertUser(user: YasamUser | null | undefined): boolean {
