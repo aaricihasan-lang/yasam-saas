@@ -69,7 +69,7 @@ function AdminTopNav({ onLogout }: { onLogout: () => void }) {
 type AdminCard = {
   title: string;
   desc: string;
-  badge: string;
+  badge?: string;
   href?: string;
   Icon: LucideIcon;
   theme: {
@@ -83,7 +83,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Kullanıcı / Üye Yönetimi",
     desc: "Üye hesapları, roller ve erişim kontrolü.",
-    badge: "Yakında",
+    href: "/admin/users",
     Icon: Users,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -197,9 +197,11 @@ function AdminToolCard({ item }: { item: AdminCard }) {
           >
             <Icon className="h-7 w-7" strokeWidth={2.25} />
           </div>
-          <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-            {item.badge}
-          </span>
+          {item.badge ? (
+            <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+              {item.badge}
+            </span>
+          ) : null}
         </div>
         <h3 className="mt-4 text-xl font-black text-slate-900">{item.title}</h3>
         <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{item.desc}</p>
