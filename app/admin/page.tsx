@@ -12,6 +12,7 @@ import {
   Package,
   Settings,
   Shield,
+  ShieldCheck,
   Upload,
   Users,
   AlertTriangle,
@@ -89,6 +90,17 @@ const adminCards: AdminCard[] = [
       iconWrap: "from-indigo-500 to-blue-600",
       cardBg: "from-blue-100/90 via-sky-50/95 to-white",
       border: "border-blue-200/70",
+    },
+  },
+  {
+    title: "Tenant Güvenlik Kontrolü",
+    desc: "Modül tablolarında tenant_id ayrımı ve kayıt özeti.",
+    href: "/admin/tenant-kontrol",
+    Icon: ShieldCheck,
+    theme: {
+      iconWrap: "from-teal-500 to-emerald-600",
+      cardBg: "from-teal-100/90 via-emerald-50/95 to-white",
+      border: "border-teal-200/70",
     },
   },
   {
