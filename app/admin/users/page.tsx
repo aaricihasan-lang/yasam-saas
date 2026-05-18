@@ -10,6 +10,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Search,
   Shield,
   Trash2,
   UserCheck,
@@ -29,6 +30,49 @@ import { supabase } from "@/lib/supabase";
 type ManagedUserRole = "admin" | "expert";
 
 type ApprovalStatusUi = "pending" | "approved" | "rejected";
+
+type UserListFilter =
+  | "all"
+  | "pending"
+  | "active"
+  | "passive"
+  | "admin"
+  | "expert";
+
+const USER_LIST_FILTERS: { key: UserListFilter; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "pending", label: "Onay Bekleyen" },
+  { key: "active", label: "Aktif" },
+  { key: "passive", label: "Pasif" },
+  { key: "admin", label: "Admin" },
+  { key: "expert", label: "Uzman" },
+];
+
+function matchesUserSearch(user: ManagedUser, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = `${user.fullName} ${user.email} ${user.role}`.toLowerCase();
+  return haystack.includes(q);
+}
+
+function matchesUserListFilter(user: ManagedUser, filter: UserListFilter): boolean {
+  switch (filter) {
+    case "all":
+      return true;
+    case "pending":
+      return user.approvalStatus === "pending";
+    case "active":
+      return user.active && user.approvalStatus === "approved";
+    case "passive":
+      return !user.active;
+    case "admin":
+      return user.role === "admin";
+    case "expert":
+      return user.role === "expert";
+    default:
+      return true;
+  }
+}
 
 const ADMIN_MODULE_UI_KEYS = [
   "clients",
@@ -160,6 +204,9 @@ const saveBtnClass =
 
 const actionBtn =
   "inline-flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50";
+
+const profileViewBtn =
+  "flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-sky-300/80 bg-gradient-to-r from-sky-50/95 via-cyan-50/80 to-blue-50/90 text-sm font-black text-sky-950 shadow-[0_12px_40px_rgba(14,165,233,0.2)] backdrop-blur-md transition hover:border-sky-400 hover:from-sky-100 hover:to-cyan-100 no-underline";
 
 function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
   return (
@@ -315,15 +362,15 @@ function ModulePermissionSwitches({
         {readOnlyHint ??
           "Açık modüller uzmanın ana panelinde görünür."}
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {ADMIN_MODULE_UI_KEYS.map((key) => (
           <label
             key={key}
-            className={`flex items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/90 px-3 py-2.5 ${
+            className={`flex h-16 items-center justify-between gap-4 rounded-xl border border-white/80 bg-white/90 px-4 ${
               disabled ? "opacity-70" : ""
             }`}
           >
-            <span className="text-xs font-bold text-slate-800">
+            <span className="text-sm font-bold text-slate-800">
               {ADMIN_MODULE_UI_LABELS[key]}
             </span>
             <button
@@ -332,13 +379,13 @@ function ModulePermissionSwitches({
               aria-checked={value[key]}
               disabled={disabled}
               onClick={() => onChange({ ...value, [key]: !value[key] })}
-              className={`relative h-8 w-14 shrink-0 rounded-full transition disabled:cursor-not-allowed ${
+              className={`relative h-10 w-[4.5rem] shrink-0 rounded-full transition disabled:cursor-not-allowed ${
                 value[key] ? "bg-emerald-500" : "bg-slate-300"
               }`}
             >
               <span
-                className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${
-                  value[key] ? "left-7" : "left-1"
+                className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow-md transition ${
+                  value[key] ? "left-[calc(100%-2.25rem)]" : "left-1"
                 }`}
               />
             </button>
@@ -393,6 +440,18 @@ export default function AdminUsersPage() {
     useState(true);
   const [savingModulesUserId, setSavingModulesUserId] = useState<string | null>(
     null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [listFilter, setListFilter] = useState<UserListFilter>("all");
+
+  const filteredUsers = useMemo(
+    () =>
+      users.filter(
+        (user) =>
+          matchesUserSearch(user, searchQuery) &&
+          matchesUserListFilter(user, listFilter),
+      ),
+    [users, searchQuery, listFilter],
   );
 
   const stats = useMemo(() => {
@@ -972,9 +1031,49 @@ export default function AdminUsersPage() {
         </section>
 
         <section>
+          <div className={`${panelClass} mb-6 border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/50`}>
+            <label className="relative block">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Kullanıcı adı, e-posta veya rol ara..."
+                className="h-14 w-full rounded-2xl border-2 border-indigo-100 bg-white/95 py-3 pl-12 pr-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+              />
+            </label>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {USER_LIST_FILTERS.map(({ key, label }) => {
+                const active = listFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setListFilter(key)}
+                    className={`rounded-full border-2 px-4 py-2 text-sm font-black transition ${
+                      active
+                        ? "border-violet-400 bg-violet-100 text-violet-950 shadow-sm"
+                        : "border-slate-200 bg-white/90 text-slate-700 hover:border-violet-200 hover:bg-violet-50/80"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <h2 className="mb-4 flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
             <Users className="h-6 w-6 text-violet-600" aria-hidden />
             Kullanıcı Listesi
+            {!listLoading && users.length > 0 ? (
+              <span className="text-base font-bold text-slate-500">
+                ({filteredUsers.length}/{users.length})
+              </span>
+            ) : null}
           </h2>
           {listLoading ? (
             <div className={`${panelClass} border-slate-200/80`}>
@@ -987,15 +1086,22 @@ export default function AdminUsersPage() {
                 Yukarıdaki formdan yeni uzman ekleyebilirsiniz.
               </p>
             </div>
+          ) : !listLoading && filteredUsers.length === 0 ? (
+            <div className={`${panelClass} border-dashed border-slate-300 text-center`}>
+              <p className="text-base font-black text-slate-800">Sonuç bulunamadı</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">
+                Arama veya filtreyi değiştirerek tekrar deneyin.
+              </p>
+            </div>
           ) : (
-          <div className="space-y-4">
-            {users.map((user) => {
+          <div className="space-y-5">
+            {filteredUsers.map((user) => {
               const isEditing = editingId === user.id;
               const isSelf = isCurrentAdminUser(user);
               return (
                 <article
                   key={user.id}
-                  className={`${panelClass} border-slate-200/80 ${
+                  className={`${panelClass} min-h-[300px] border-slate-200/80 py-8 md:min-h-[320px] md:py-10 ${
                     !user.active ? "opacity-80" : ""
                   }`}
                 >
@@ -1099,14 +1205,14 @@ export default function AdminUsersPage() {
                     </div>
                   ) : (
                     <>
-                    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="min-w-0 flex-1">
+                    <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1fr_minmax(360px,440px)] lg:items-start lg:gap-10">
+                      <div className="min-w-0">
                         <p className="text-xl font-black text-slate-900 md:text-2xl">{user.fullName}</p>
                         <p className="mt-1 text-sm font-semibold text-slate-600 md:text-base">{user.email}</p>
                         <p className="mt-2 text-xs font-semibold text-slate-500">
                           Kayıt: {formatCreatedAt(user.createdAt)}
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-4 flex flex-wrap gap-2">
                           <RoleBadge role={user.role} />
                           <ApprovalBadge status={user.approvalStatus} />
                           <StatusBadge active={user.active} />
@@ -1117,7 +1223,7 @@ export default function AdminUsersPage() {
                           </p>
                         ) : null}
                       </div>
-                      <div className="flex w-full flex-col gap-2 sm:grid sm:grid-cols-2 xl:max-w-[520px]">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {user.role === "expert" ? (
                           <>
                             <button
@@ -1174,13 +1280,6 @@ export default function AdminUsersPage() {
                           )}
                           {user.active ? "Pasif Yap" : "Aktif Yap"}
                         </button>
-                        <Link
-                          href={`/admin/users/${encodeURIComponent(user.id)}`}
-                          className={`${actionBtn} border-cyan-200 bg-cyan-50 text-cyan-950 hover:bg-cyan-100 no-underline sm:col-span-2`}
-                        >
-                          <Eye className="h-4 w-4 shrink-0" />
-                          Üye Profilini İzle
-                        </Link>
                         <button
                           type="button"
                           disabled={isSelf || actionUserId === user.id}
@@ -1198,6 +1297,15 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
 
+                    <Link
+                      href={`/admin/users/${encodeURIComponent(user.id)}`}
+                      className={`${profileViewBtn} mt-6`}
+                    >
+                      <Eye className="h-5 w-5 shrink-0" aria-hidden />
+                      Üye Profilini İzle
+                    </Link>
+
+                    <div className="mt-6 border-t border-violet-100/90 pt-6">
                     <ModulePermissionSwitches
                       value={user.modulePermissions}
                       onChange={(next) => saveUserModulePermissions(user.id, next)}
@@ -1213,6 +1321,7 @@ export default function AdminUsersPage() {
                           : "Modül izinleri yalnızca önizleme modunda (veritabanı kolonu yok)."
                       }
                     />
+                    </div>
                     </>
                   )}
 
