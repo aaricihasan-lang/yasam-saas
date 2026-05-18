@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import DashboardNotifications from "@/shared/DashboardNotifications";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
@@ -34,7 +35,7 @@ export default function RootLayout({
         <ToastProvider>
           <ConfirmProvider>
             <DashboardNotifications />
-            {children}
+            <ModuleRouteGuard>{children}</ModuleRouteGuard>
           </ConfirmProvider>
         </ToastProvider>
       </body>

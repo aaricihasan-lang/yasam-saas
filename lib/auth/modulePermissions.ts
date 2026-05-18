@@ -49,6 +49,20 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   personal_archive: false,
 };
 
+/** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
+export const EXTENDED_MODULE_PERMISSION_ALIASES = [
+  "reflexology",
+  "aromatherapy",
+  "numeroloji",
+  "dogaltas",
+  "refleksoloji",
+  "biyoenerji",
+  "aromaterapi",
+  "danisan_yonetimi",
+  "ajanda",
+  "kisisel_arsiv",
+] as const;
+
 export const LOCKED_PERMISSION_TOAST =
   "Bu modül hesabınız için aktif değil. Yönetici ile iletişime geçin.";
 
@@ -59,7 +73,35 @@ export function parseModulePermissions(raw: unknown): ModulePermissions {
   for (const key of MODULE_PERMISSION_KEYS) {
     if (typeof row[key] === "boolean") perms[key] = row[key];
   }
+  const extended = perms as ModulePermissions & Record<string, boolean>;
+  for (const key of EXTENDED_MODULE_PERMISSION_ALIASES) {
+    if (typeof row[key] === "boolean") extended[key] = row[key];
+  }
   return perms;
+}
+
+export function getModulePermissionFlags(
+  user: YasamUser | null | undefined,
+): Record<string, boolean> {
+  const flags: Record<string, boolean> = {
+    ...(DEFAULT_MODULE_PERMISSIONS as Record<string, boolean>),
+  };
+  const perms = user?.module_permissions;
+  if (!perms || typeof perms !== "object") return flags;
+  for (const [key, value] of Object.entries(perms)) {
+    if (typeof value === "boolean") flags[key] = value;
+  }
+  return flags;
+}
+
+export function hasAnyModulePermissionFlag(
+  user: YasamUser | null | undefined,
+  keys: string[],
+): boolean {
+  if (!user) return false;
+  if (isAdminRole(user)) return true;
+  const flags = getModulePermissionFlags(user);
+  return keys.some((key) => flags[key] === true);
 }
 
 export function hasModulePermission(
