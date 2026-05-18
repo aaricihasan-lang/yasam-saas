@@ -22,7 +22,7 @@ import {
 } from "@/lib/auth/modulePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -238,6 +238,42 @@ export default function Home() {
   const [user, setUser] = useState<YasamUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const loginBackdropPressed = useRef(false);
+
+  const closeLoginModal = () => {
+    setLoginModalOpen(false);
+  };
+
+  const handleLoginBackdropMouseDown = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (event.target === event.currentTarget) {
+      loginBackdropPressed.current = true;
+    }
+  };
+
+  const handleLoginBackdropMouseUp = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (
+      loginBackdropPressed.current &&
+      event.target === event.currentTarget
+    ) {
+      closeLoginModal();
+    }
+    loginBackdropPressed.current = false;
+  };
+
+  const handleLoginBackdropMouseLeave = () => {
+    loginBackdropPressed.current = false;
+  };
+
+  const handleLoginModalPointerEvent = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.stopPropagation();
+    loginBackdropPressed.current = false;
+  };
 
   useEffect(() => {
     runInEffect(async () => {
@@ -271,6 +307,19 @@ export default function Home() {
       window.history.replaceState({}, "", "/");
     }
   }, []);
+
+  useEffect(() => {
+    if (!loginModalOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeLoginModal();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [loginModalOpen]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -857,13 +906,22 @@ export default function Home() {
       </div>
 
       {loginModalOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md"
-          onClick={() => setLoginModalOpen(false)}
-        >
+        <div className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center p-4">
           <div
-            className="relative w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:max-w-[560px] md:p-10"
-            onClick={(event) => event.stopPropagation()}
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-md"
+            aria-hidden
+            onMouseDown={handleLoginBackdropMouseDown}
+            onMouseUp={handleLoginBackdropMouseUp}
+            onMouseLeave={handleLoginBackdropMouseLeave}
+          />
+          <div
+            className="relative z-10 w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:max-w-[560px] md:p-10"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="login-modal-title"
+            onClick={handleLoginModalPointerEvent}
+            onMouseDown={handleLoginModalPointerEvent}
+            onMouseUp={handleLoginModalPointerEvent}
           >
             <div className="pointer-events-none absolute right-[-70px] top-[-80px] h-[180px] w-[180px] rounded-full bg-violet-200/70 blur-3xl" />
             <div className="pointer-events-none absolute bottom-[-80px] left-[-80px] h-[180px] w-[180px] rounded-full bg-cyan-200/50 blur-3xl" />
@@ -874,7 +932,10 @@ export default function Home() {
                   Uzman Paneli
                 </div>
 
-                <h3 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">
+                <h3
+                  id="login-modal-title"
+                  className="mt-4 text-3xl font-black text-slate-950 md:text-4xl"
+                >
                   Giriş Yap
                 </h3>
 
@@ -885,7 +946,7 @@ export default function Home() {
 
               <button
                 type="button"
-                onClick={() => setLoginModalOpen(false)}
+                onClick={closeLoginModal}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-slate-500 shadow-sm transition hover:bg-slate-50"
               >
                 ×
