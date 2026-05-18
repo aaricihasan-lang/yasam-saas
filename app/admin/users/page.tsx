@@ -8,6 +8,7 @@ import {
   Eye,
   KeyRound,
   Loader2,
+  Package,
   Pencil,
   Plus,
   Search,
@@ -16,6 +17,7 @@ import {
   UserCheck,
   UserX,
   Users,
+  X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -138,6 +140,214 @@ function formatCreatedAt(iso?: string): string {
   });
 }
 
+type PackagePlanOption = "baslangic" | "pro" | "premium" | "ozel";
+type SubscriptionStatusOption = "trial" | "active" | "expired" | "suspended";
+
+type UserSubscriptionDisplay = {
+  packageLabel: string;
+  statusLabel: string;
+  startDateLabel: string;
+  endDateLabel: string;
+  remainingDaysLabel: string;
+};
+
+type UserSubscriptionInfo = {
+  display: UserSubscriptionDisplay;
+  rawPlan?: string;
+  rawStatus?: string;
+  startIso?: string;
+  endIso?: string;
+};
+
+const PACKAGE_PLAN_OPTIONS: { value: PackagePlanOption; label: string }[] = [
+  { value: "baslangic", label: "Başlangıç" },
+  { value: "pro", label: "Pro" },
+  { value: "premium", label: "Premium" },
+  { value: "ozel", label: "Özel" },
+];
+
+const SUBSCRIPTION_STATUS_OPTIONS: {
+  value: SubscriptionStatusOption;
+  label: string;
+}[] = [
+  { value: "trial", label: "Deneme" },
+  { value: "active", label: "Aktif" },
+  { value: "expired", label: "Süresi Dolmuş" },
+  { value: "suspended", label: "Askıda" },
+];
+
+const PACKAGE_LABEL_BY_TOKEN: Record<string, string> = {
+  baslangic: "Başlangıç",
+  starter: "Başlangıç",
+  start: "Başlangıç",
+  beginning: "Başlangıç",
+  pro: "Pro",
+  premium: "Premium",
+  ozel: "Özel",
+  özel: "Özel",
+  custom: "Özel",
+  special: "Özel",
+};
+
+const STATUS_LABEL_BY_TOKEN: Record<string, string> = {
+  trial: "Deneme",
+  deneme: "Deneme",
+  active: "Aktif",
+  aktif: "Aktif",
+  expired: "Süresi Dolmuş",
+  suresi_dolmus: "Süresi Dolmuş",
+  passive: "Süresi Dolmuş",
+  suspended: "Askıda",
+  askida: "Askıda",
+  askıda: "Askıda",
+};
+
+function pickRowString(
+  row: Record<string, unknown>,
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return undefined;
+}
+
+function normalizeSubscriptionToken(value?: string): string {
+  if (!value) return "";
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/\s+/g, "_");
+}
+
+function formatSubscriptionDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function isoToDateInputValue(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function computeRemainingDaysLabel(endIso?: string): string {
+  if (!endIso) return "-";
+  const end = new Date(endIso);
+  if (Number.isNaN(end.getTime())) return "-";
+  const diffMs = end.getTime() - Date.now();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (days < 0) return "0";
+  return String(days);
+}
+
+function resolvePackageLabel(raw?: string): string {
+  if (!raw) return "Tanımsız";
+  const token = normalizeSubscriptionToken(raw);
+  return PACKAGE_LABEL_BY_TOKEN[token] ?? raw;
+}
+
+function resolveStatusLabel(raw?: string): string {
+  if (!raw) return "Tanımsız";
+  const token = normalizeSubscriptionToken(raw);
+  return STATUS_LABEL_BY_TOKEN[token] ?? raw;
+}
+
+function parseUserSubscription(row: Record<string, unknown>): UserSubscriptionInfo {
+  const rawPlan = pickRowString(row, [
+    "plan",
+    "package",
+    "package_plan",
+    "subscription_plan",
+    "membership_plan",
+  ]);
+  const rawStatus = pickRowString(row, [
+    "subscription_status",
+    "membership_status",
+    "package_status",
+  ]);
+  const startIso = pickRowString(row, [
+    "subscription_start_at",
+    "membership_start_at",
+    "trial_started_at",
+    "starts_at",
+    "start_date",
+  ]);
+  const endIso = pickRowString(row, [
+    "subscription_end_at",
+    "trial_ends_at",
+    "membership_end_at",
+    "ends_at",
+    "end_date",
+  ]);
+
+  return {
+    display: {
+      packageLabel: resolvePackageLabel(rawPlan),
+      statusLabel: resolveStatusLabel(rawStatus),
+      startDateLabel: formatSubscriptionDate(startIso),
+      endDateLabel: formatSubscriptionDate(endIso),
+      remainingDaysLabel: computeRemainingDaysLabel(endIso),
+    },
+    rawPlan,
+    rawStatus,
+    startIso,
+    endIso,
+  };
+}
+
+function inferPackagePlanOption(raw?: string): PackagePlanOption | "" {
+  const token = normalizeSubscriptionToken(raw);
+  if (!token) return "";
+  if (token === "pro") return "pro";
+  if (token === "premium") return "premium";
+  if (token === "ozel" || token === "custom" || token === "special" || token === "özel") {
+    return "ozel";
+  }
+  if (
+    token === "baslangic" ||
+    token === "starter" ||
+    token === "start" ||
+    token === "beginning"
+  ) {
+    return "baslangic";
+  }
+  return "";
+}
+
+function inferSubscriptionStatusOption(raw?: string): SubscriptionStatusOption | "" {
+  const token = normalizeSubscriptionToken(raw);
+  if (!token) return "";
+  if (token === "trial" || token === "deneme") return "trial";
+  if (token === "active" || token === "aktif") return "active";
+  if (token === "expired" || token === "suresi_dolmus" || token === "passive") {
+    return "expired";
+  }
+  if (token === "suspended" || token === "askida" || token === "askıda") {
+    return "suspended";
+  }
+  return "";
+}
+
 type ManagedUser = {
   id: string;
   fullName: string;
@@ -146,6 +356,7 @@ type ManagedUser = {
   active: boolean;
   approvalStatus: ApprovalStatusUi;
   modulePermissions: AdminModulePermissions;
+  subscription: UserSubscriptionInfo;
   createdAt?: string;
 };
 
@@ -170,6 +381,7 @@ function mapDbUser(row: Record<string, unknown>): ManagedUser {
     active: row.active === true,
     approvalStatus: mapApprovalStatus(row.approval_status),
     modulePermissions: parseAdminModulePermissions(row.module_permissions),
+    subscription: parseUserSubscription(row),
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
   };
 }
@@ -396,6 +608,211 @@ function ModulePermissionSwitches({
   );
 }
 
+function PackageSubscriptionSection({
+  subscription,
+  onEdit,
+}: {
+  subscription: UserSubscriptionInfo;
+  onEdit: () => void;
+}) {
+  const { display } = subscription;
+  const fields = [
+    { label: "Paket", value: display.packageLabel },
+    { label: "Durum", value: display.statusLabel },
+    { label: "Başlangıç Tarihi", value: display.startDateLabel },
+    { label: "Bitiş Tarihi", value: display.endDateLabel },
+    { label: "Kalan Gün", value: display.remainingDaysLabel },
+  ];
+
+  return (
+    <div className="rounded-2xl border-2 border-amber-200/90 bg-gradient-to-br from-amber-50/95 via-orange-50/70 to-rose-50/60 p-4 shadow-sm md:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+            <Package className="h-5 w-5" aria-hidden />
+          </div>
+          <div>
+            <p className="text-sm font-black text-amber-950">Paket / Üyelik</p>
+            <p className="mt-0.5 text-xs font-medium text-amber-900/80">
+              Üyelik planı ve süre bilgileri (önizleme)
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-amber-300/90 bg-white/90 px-4 text-xs font-black text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-50"
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden />
+          Paket Düzenle
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {fields.map((field) => (
+          <div
+            key={field.label}
+            className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 shadow-sm"
+          >
+            <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+              {field.label}
+            </p>
+            <p className="mt-1 text-base font-black text-slate-900">{field.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type PackageEditDraft = {
+  packagePlan: PackagePlanOption | "";
+  status: SubscriptionStatusOption | "";
+  startDate: string;
+  endDate: string;
+};
+
+function PackageEditModal({
+  user,
+  draft,
+  onDraftChange,
+  onClose,
+  onPreviewSave,
+}: {
+  user: ManagedUser;
+  draft: PackageEditDraft;
+  onDraftChange: (next: PackageEditDraft) => void;
+  onClose: () => void;
+  onPreviewSave: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="package-edit-title"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-lg rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-amber-50/95 via-white to-orange-50/80 p-6 shadow-[0_24px_64px_rgba(15,23,42,0.2)] sm:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
+          aria-label="Kapat"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="flex items-start gap-3 pr-10">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+            <Package className="h-6 w-6" aria-hidden />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-800">
+              Paket / Üyelik Yönetimi
+            </p>
+            <h2 id="package-edit-title" className="mt-1 text-xl font-black text-slate-950">
+              Paket Düzenle
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              {user.fullName} · {user.email}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-950">
+          Bu aşamada yalnızca arayüz önizlemesi — veritabanına kayıt yapılmaz.
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className={labelClass}>Paket</span>
+            <select
+              className={inputClass}
+              value={draft.packagePlan}
+              onChange={(e) =>
+                onDraftChange({
+                  ...draft,
+                  packagePlan: e.target.value as PackagePlanOption | "",
+                })
+              }
+            >
+              <option value="">Seçiniz</option>
+              {PACKAGE_PLAN_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className={labelClass}>Durum</span>
+            <select
+              className={inputClass}
+              value={draft.status}
+              onChange={(e) =>
+                onDraftChange({
+                  ...draft,
+                  status: e.target.value as SubscriptionStatusOption | "",
+                })
+              }
+            >
+              <option value="">Seçiniz</option>
+              {SUBSCRIPTION_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className={labelClass}>Başlangıç Tarihi</span>
+            <input
+              type="date"
+              className={inputClass}
+              value={draft.startDate}
+              onChange={(e) =>
+                onDraftChange({ ...draft, startDate: e.target.value })
+              }
+            />
+          </label>
+          <label className="block">
+            <span className={labelClass}>Bitiş Tarihi</span>
+            <input
+              type="date"
+              className={inputClass}
+              value={draft.endDate}
+              onChange={(e) =>
+                onDraftChange({ ...draft, endDate: e.target.value })
+              }
+            />
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onPreviewSave}
+            className={`${saveBtnClass} sm:flex-1`}
+          >
+            Önizleme Kaydet
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-14 flex-1 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white px-6 font-black text-slate-800"
+          >
+            İptal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type EmptyForm = {
   fullName: string;
   email: string;
@@ -443,6 +860,13 @@ export default function AdminUsersPage() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [listFilter, setListFilter] = useState<UserListFilter>("all");
+  const [packageEditUser, setPackageEditUser] = useState<ManagedUser | null>(null);
+  const [packageEditDraft, setPackageEditDraft] = useState<PackageEditDraft>({
+    packagePlan: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  });
 
   const filteredUsers = useMemo(
     () =>
@@ -514,6 +938,72 @@ export default function AdminUsersPage() {
   function handleLogout() {
     clearYasamUser();
     router.push("/");
+  }
+
+  function openPackageEdit(user: ManagedUser) {
+    setPackageEditUser(user);
+    setPackageEditDraft({
+      packagePlan: inferPackagePlanOption(user.subscription.rawPlan),
+      status: inferSubscriptionStatusOption(user.subscription.rawStatus),
+      startDate: isoToDateInputValue(user.subscription.startIso),
+      endDate: isoToDateInputValue(user.subscription.endIso),
+    });
+  }
+
+  function closePackageEdit() {
+    setPackageEditUser(null);
+  }
+
+  function handlePackagePreviewSave() {
+    if (!packageEditUser) return;
+
+    const planLabel = packageEditDraft.packagePlan
+      ? PACKAGE_PLAN_OPTIONS.find((o) => o.value === packageEditDraft.packagePlan)
+          ?.label ?? "Tanımsız"
+      : "Tanımsız";
+    const statusLabel = packageEditDraft.status
+      ? SUBSCRIPTION_STATUS_OPTIONS.find((o) => o.value === packageEditDraft.status)
+          ?.label ?? "Tanımsız"
+      : "Tanımsız";
+    const startIso = packageEditDraft.startDate
+      ? new Date(`${packageEditDraft.startDate}T12:00:00`).toISOString()
+      : undefined;
+    const endIso = packageEditDraft.endDate
+      ? new Date(`${packageEditDraft.endDate}T12:00:00`).toISOString()
+      : undefined;
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === packageEditUser.id
+          ? {
+              ...u,
+              subscription: {
+                ...u.subscription,
+                rawPlan: packageEditDraft.packagePlan || undefined,
+                rawStatus: packageEditDraft.status || undefined,
+                startIso,
+                endIso,
+                display: {
+                  packageLabel: planLabel,
+                  statusLabel: statusLabel,
+                  startDateLabel: startIso
+                    ? formatSubscriptionDate(startIso)
+                    : "—",
+                  endDateLabel: endIso ? formatSubscriptionDate(endIso) : "—",
+                  remainingDaysLabel: computeRemainingDaysLabel(endIso),
+                },
+              },
+            }
+          : u,
+      ),
+    );
+
+    showToast({
+      title: "Önizleme güncellendi",
+      message: "Paket bilgileri yalnızca bu oturumda görünür; veritabanına kaydedilmedi.",
+      type: "success",
+    });
+    closePackageEdit();
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -1305,6 +1795,13 @@ export default function AdminUsersPage() {
                       Üye Profilini İzle
                     </Link>
 
+                    <div className="mt-6">
+                      <PackageSubscriptionSection
+                        subscription={user.subscription}
+                        onEdit={() => openPackageEdit(user)}
+                      />
+                    </div>
+
                     <div className="mt-6 border-t border-violet-100/90 pt-6">
                     <ModulePermissionSwitches
                       value={user.modulePermissions}
@@ -1368,6 +1865,16 @@ export default function AdminUsersPage() {
           )}
         </section>
       </div>
+
+      {packageEditUser ? (
+        <PackageEditModal
+          user={packageEditUser}
+          draft={packageEditDraft}
+          onDraftChange={setPackageEditDraft}
+          onClose={closePackageEdit}
+          onPreviewSave={handlePackagePreviewSave}
+        />
+      ) : null}
     </main>
   );
 }
