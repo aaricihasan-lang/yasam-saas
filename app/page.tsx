@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth/yasamUser";
 import {
   getModuleLockReason,
+  hasModulePermission,
   LOCKED_PERMISSION_TOAST,
   type ModuleLockReason,
   type ModulePermissionKey,
@@ -229,6 +230,71 @@ const dashboardModules: ModuleCard[] = [
   },
 ];
 
+/** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
+const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
+  clients: ["danisan_yonetimi"],
+  appointments: ["ajanda"],
+  numerology: ["numeroloji"],
+  stones: ["dogaltas"],
+  stock: [],
+  healing: [],
+  energy_body: [
+    "biyoenerji",
+    "reflexology",
+    "refleksoloji",
+    "aromatherapy",
+    "aromaterapi",
+  ],
+  personal_archive: ["kisisel_arsiv"],
+};
+
+function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {
+  const raw = user.module_permissions;
+  if (!raw || typeof raw !== "object") return null;
+  return raw as Record<string, unknown>;
+}
+
+function permissionFlagIsTrue(
+  row: Record<string, unknown> | null,
+  key: string,
+): boolean {
+  if (!row) return false;
+  return row[key] === true;
+}
+
+function isExpertDashboardModuleVisible(
+  user: YasamUser,
+  item: ModuleCard,
+): boolean {
+  const key = item.permissionKey;
+  if (hasModulePermission(user, key)) return true;
+
+  const row = getRawPermissionRow(user);
+  for (const alias of EXPERT_PERMISSION_ALIAS_KEYS[key]) {
+    if (permissionFlagIsTrue(row, alias)) return true;
+  }
+
+  if (key === "clients") {
+    if (hasModulePermission(user, "appointments")) return true;
+    if (permissionFlagIsTrue(row, "ajanda")) return true;
+  }
+
+  return false;
+}
+
+function expertHasAnyGrantedModule(user: YasamUser): boolean {
+  return dashboardModules.some((item) =>
+    isExpertDashboardModuleVisible(user, item),
+  );
+}
+
+function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
+  if (isAdminUser(user)) return dashboardModules;
+  return dashboardModules.filter((item) =>
+    isExpertDashboardModuleVisible(user, item),
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -392,6 +458,9 @@ export default function Home() {
     const displayName = getYasamUserDisplayName(user);
     const avatarInitial = displayName.charAt(0).toLocaleUpperCase("tr-TR") || "U";
     const panelAccess = hasFullPanelAccess(user);
+    const visibleDashboardModules = getVisibleDashboardModules(user);
+    const expertModulesEmpty =
+      !isAdminUser(user) && !expertHasAnyGrantedModule(user);
 
     function handleLockedModuleClick(reason: ModuleLockReason) {
       showToast({
@@ -595,8 +664,19 @@ export default function Home() {
               </p>
             </div>
 
+            {expertModulesEmpty ? (
+              <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-10 text-center shadow-sm">
+                <p className="text-lg font-black text-slate-900">
+                  Henüz modül izniniz tanımlanmamış
+                </p>
+                <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
+                  Hesabınıza atanmış bir modül bulunmuyor. Erişim için yönetici ile
+                  iletişime geçin.
+                </p>
+              </div>
+            ) : (
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
-              {dashboardModules.map((item) => {
+              {visibleDashboardModules.map((item) => {
                 const hasHref = item.href !== "#";
                 const lockReason = getModuleLockReason(
                   user,
@@ -712,6 +792,7 @@ export default function Home() {
                 );
               })}
             </div>
+            )}
           </section>
         </div>
       </main>
