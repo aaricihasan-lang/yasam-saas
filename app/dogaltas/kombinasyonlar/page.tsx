@@ -8,37 +8,26 @@ import { supabase } from "@/lib/supabase";
 type CombinationRecord = {
   id: string;
   tenant_id: string;
-  title: string;
-  combination_no: number;
-  source_note: string | null;
-  stone_combination: string | null;
-  note_1: string | null;
-  note_2: string | null;
-  note_3: string | null;
+  source_id: string;
+  issue: string;
+  description: string | null;
+  variant_index: number;
+  source: string | null;
+  stones_text: string | null;
+  notes_text: string | null;
+  notes_text_2: string | null;
+  notes_text_3: string | null;
   created_at: string;
-  updated_at: string | null;
 };
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
-const emptyForm = {
-  title: "",
-  source_note: "",
-  stone_combination: "",
-  note_1: "",
-  note_2: "",
-  note_3: "",
-};
+const COMBINATIONS_SELECT =
+  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
 
 function previewText(rows: CombinationRecord[], limit = 140) {
   for (const row of rows) {
-    const chunk = [
-      row.stone_combination,
-      row.source_note,
-      row.note_1,
-      row.note_2,
-      row.note_3,
-    ]
+    const chunk = [row.stones_text, row.notes_text, row.notes_text_2, row.notes_text_3, row.source]
       .find((v) => v && v.trim().length > 0)
       ?.replace(/\s+/g, " ")
       .trim();
@@ -51,10 +40,18 @@ function previewText(rows: CombinationRecord[], limit = 140) {
   return "Henüz önizleme metni yok.";
 }
 
-function firstSourceNoteInGroup(rows: CombinationRecord[]) {
+function firstSourceInGroup(rows: CombinationRecord[]) {
   for (const row of rows) {
-    const note = row.source_note?.trim();
+    const note = row.source?.trim();
     if (note) return note;
+  }
+  return null;
+}
+
+function groupDescription(rows: CombinationRecord[]) {
+  for (const row of rows) {
+    const desc = row.description?.trim();
+    if (desc) return desc;
   }
   return null;
 }
@@ -64,7 +61,7 @@ function latestDisplayTimestamp(rows: CombinationRecord[]) {
   let chosen: string | null = null;
 
   for (const row of rows) {
-    const raw = row.updated_at || row.created_at;
+    const raw = row.created_at;
     if (!raw) continue;
     const t = new Date(raw).getTime();
     if (!Number.isNaN(t) && t >= best) {
@@ -84,6 +81,13 @@ function formatListCardDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function rowSearchText(row: CombinationRecord) {
+  return [row.issue, row.description, row.stones_text, row.notes_text]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
+}
+
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] text-slate-950";
 const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
@@ -95,42 +99,43 @@ const uiFilterCard =
   "rounded-[30px] border-[3px] border-cyan-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(34,211,238,0.14)] backdrop-blur-xl";
 const uiSearchInput =
   "h-14 w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-5 pl-12 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+const uiCategorySelect =
+  "h-14 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-white/90 px-4 font-bold text-slate-800 shadow-inner outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
 const uiViewBtn =
   "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-1";
 const uiComboCard =
   "flex flex-col rounded-[32px] border-[3px] border-cyan-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.15)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-violet-400 hover:shadow-[0_0_55px_rgba(139,92,246,0.18)]";
 const uiComboBadge =
   "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 font-black text-white shadow-md";
+const uiCategoryPill =
+  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900";
 const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-violet-700";
 
 export default function KombinasyonlarPage() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
   async function loadCombinations() {
     setLoading(true);
     setErrorMessage("");
-    setSuccessMessage("");
 
     const { data, error } = await supabase
-      .from("stone_combinations")
-      .select("*")
+      .from("combinations")
+      .select(COMBINATIONS_SELECT)
       .eq("tenant_id", TENANT_ID)
-      .order("title", { ascending: true })
-      .order("combination_no", { ascending: true });
+      .order("issue", { ascending: true })
+      .order("variant_index", { ascending: true });
 
     setLoading(false);
 
     if (error) {
       setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+      setRows([]);
       return;
     }
 
@@ -143,111 +148,53 @@ export default function KombinasyonlarPage() {
     });
   }, []);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of rows) {
+      const desc = row.description?.trim();
+      if (desc) set.add(desc);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase("tr-TR");
-    if (!keyword) return rows;
+    const category = categoryFilter.trim();
 
     return rows.filter((row) => {
-      const text = [
-        row.title,
-        row.source_note,
-        row.stone_combination,
-        row.note_1,
-        row.note_2,
-        row.note_3,
-      ]
-        .join(" ")
-        .toLocaleLowerCase("tr-TR");
-
-      return text.includes(keyword);
+      if (category && (row.description?.trim() || "") !== category) return false;
+      if (!keyword) return true;
+      return rowSearchText(row).includes(keyword);
     });
-  }, [rows, search]);
+  }, [rows, search, categoryFilter]);
 
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
 
     for (const row of filteredRows) {
-      const key = row.title?.trim() || "İsimsiz";
+      const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
     }
 
     return Array.from(map.entries())
-      .map(([title, groupRows]) => ({
-        title,
-        rows: [...groupRows].sort((a, b) => a.combination_no - b.combination_no),
+      .map(([issue, groupRows]) => ({
+        issue,
+        rows: [...groupRows].sort((a, b) => a.variant_index - b.variant_index),
       }))
-      .sort((a, b) => a.title.localeCompare(b.title, "tr-TR"));
+      .sort((a, b) => a.issue.localeCompare(b.issue, "tr-TR"));
   }, [filteredRows]);
 
-  const uniqueTitles = useMemo(() => {
+  const uniqueIssues = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => set.add(r.title?.trim() || "İsimsiz"));
+    rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz"));
     return set.size;
   }, [rows]);
 
-  function resetForm() {
-    setForm(() => ({ ...emptyForm }));
-  }
-
-  async function handleSaveNew() {
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      setErrorMessage("Rahatsızlık / Konu başlığı zorunludur.");
-      setSuccessMessage("");
-      return;
-    }
-
-    setSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { data: maxRows, error: maxError } = await supabase
-      .from("stone_combinations")
-      .select("combination_no")
-      .eq("tenant_id", TENANT_ID)
-      .eq("title", titleTrim)
-      .order("combination_no", { ascending: false })
-      .limit(1);
-
-    if (maxError) {
-      setSaving(false);
-      setErrorMessage(`Sıra numarası alınamadı: ${maxError.message}`);
-      return;
-    }
-
-    const maxNo = maxRows?.[0]?.combination_no;
-    const nextNo =
-      typeof maxNo === "number" && !Number.isNaN(maxNo) ? maxNo + 1 : 1;
-
-    const now = new Date().toISOString();
-
-    const { error: insertError } = await supabase.from("stone_combinations").insert({
-      tenant_id: TENANT_ID,
-      title: titleTrim,
-      combination_no: nextNo,
-      source_note: form.source_note.trim() || null,
-      stone_combination: form.stone_combination.trim() || null,
-      note_1: form.note_1.trim() || null,
-      note_2: form.note_2.trim() || null,
-      note_3: form.note_3.trim() || null,
-      updated_at: now,
-    });
-
-    setSaving(false);
-
-    if (insertError) {
-      setErrorMessage(`Kayıt eklenemedi: ${insertError.message}`);
-      return;
-    }
-
-    resetForm();
-    setShowForm(false);
-    setSuccessMessage("Kombinasyon kaydedildi.");
-    await loadCombinations();
-    resetForm();
-  }
+  const hasFilters = Boolean(search.trim() || categoryFilter.trim());
+  const isEmptyDatabase = !loading && !errorMessage && rows.length === 0;
+  const isEmptyFiltered = !loading && !errorMessage && rows.length > 0 && groups.length === 0;
 
   return (
     <main className={pageBg}>
@@ -288,12 +235,12 @@ export default function KombinasyonlarPage() {
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
             <div className={uiStatCard}>
               <div className="text-3xl font-black text-slate-950">{rows.length}</div>
-              <div className="text-sm font-bold text-slate-500">Kombinasyon</div>
+              <div className="text-sm font-bold text-slate-500">Variant</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-3xl font-black text-slate-950">{uniqueTitles}</div>
-              <div className="text-sm font-bold text-slate-500">Başlık</div>
+              <div className="text-3xl font-black text-slate-950">{uniqueIssues}</div>
+              <div className="text-sm font-bold text-slate-500">Sorun / Issue</div>
             </div>
 
             <div className={uiStatCard}>
@@ -305,7 +252,7 @@ export default function KombinasyonlarPage() {
 
         <section className={uiFilterCard}>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative min-w-0 w-full">
+            <div className="relative min-w-0 w-full flex-1">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
                 ⌕
               </span>
@@ -314,10 +261,24 @@ export default function KombinasyonlarPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Başlık, kaynak, taş kombinasyonu veya notlarda ara..."
+                placeholder="Issue, açıklama, taş metni veya notlarda ara..."
                 className={uiSearchInput}
               />
             </div>
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className={uiCategorySelect}
+              aria-label="Kategori filtresi"
+            >
+              <option value="">Tüm kategoriler</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
 
             <div className="flex w-full shrink-0 flex-wrap items-center gap-3 xl:w-auto xl:justify-end">
               <button
@@ -351,26 +312,14 @@ export default function KombinasyonlarPage() {
               >
                 Yenile
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm((v) => !v);
-                  setErrorMessage("");
-                  setSuccessMessage("");
-                }}
-                className={`${uiViewBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.25)] hover:from-cyan-600 hover:to-violet-700`}
-              >
-                + Yeni Kombinasyon
-              </button>
             </div>
           </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
-              {search.trim()
-                ? `${filteredRows.length} kayıt · ${groups.length} grup`
-                : `${rows.length} kayıt · ${groups.length} grup`}
+              {hasFilters
+                ? `${filteredRows.length} variant · ${groups.length} grup`
+                : `${rows.length} variant · ${groups.length} grup`}
             </p>
 
             {loading && (
@@ -381,167 +330,62 @@ export default function KombinasyonlarPage() {
           </div>
         </section>
 
-        {showForm && (
-          <section className="mb-4 rounded-[26px] border border-white/80 bg-white/86 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90">
-            <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-[17px] font-black text-slate-950">Yeni kombinasyon</h2>
-                <p className="text-[12px] font-medium text-slate-500">
-                  Aynı başlık altında sıra numarası otomatik artar.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                  setErrorMessage("");
-                  setSuccessMessage("");
-                }}
-                className="rounded-2xl bg-slate-100 px-4 py-2 text-[12px] font-black text-slate-600 transition hover:bg-slate-200"
-              >
-                Kapat
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="block md:col-span-2">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Rahatsızlık / Konu başlığı
-                </span>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white px-4 text-[13px] font-semibold outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                  placeholder="Örn. Omuz Ağrısı"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Bilgi kaynağı
-                </span>
-                <input
-                  value={form.source_note}
-                  onChange={(e) => setForm({ ...form, source_note: e.target.value })}
-                  className="h-11 w-full rounded-2xl border border-slate-200/80 bg-white px-4 text-[13px] font-semibold outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                  placeholder="Kaynak veya referans"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Taş kombinasyonu
-                </span>
-                <textarea
-                  value={form.stone_combination}
-                  onChange={(e) => setForm({ ...form, stone_combination: e.target.value })}
-                  rows={4}
-                  className="w-full resize-none rounded-2xl border border-slate-200/80 bg-white p-4 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                  placeholder="Taşlar ve kullanım şekli..."
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Diğer notlar 1
-                </span>
-                <textarea
-                  value={form.note_1}
-                  onChange={(e) => setForm({ ...form, note_1: e.target.value })}
-                  rows={3}
-                  className="w-full resize-none rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Diğer notlar 2
-                </span>
-                <textarea
-                  value={form.note_2}
-                  onChange={(e) => setForm({ ...form, note_2: e.target.value })}
-                  rows={3}
-                  className="w-full resize-none rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Diğer notlar 3
-                </span>
-                <textarea
-                  value={form.note_3}
-                  onChange={(e) => setForm({ ...form, note_3: e.target.value })}
-                  rows={3}
-                  className="w-full resize-none rounded-2xl border border-slate-200/80 bg-white p-3 text-[13px] leading-6 outline-none transition focus:border-cyan-200 focus:ring-4 focus:ring-cyan-100/70"
-                />
-              </label>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveNew}
-                disabled={saving}
-                className="rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 disabled:opacity-60"
-              >
-                {saving ? "Kaydediliyor..." : "Kaydet"}
-              </button>
-            </div>
-          </section>
-        )}
-
-        {errorMessage && (
+        {errorMessage ? (
           <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
             {errorMessage}
           </div>
-        )}
-
-        {successMessage && !errorMessage && (
-          <div className="mb-4 rounded-2xl bg-emerald-50 px-5 py-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
-            {successMessage}
-          </div>
-        )}
+        ) : null}
 
         <section className="rounded-[28px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
           {loading ? (
             <div className="flex h-[280px] items-center justify-center text-[14px] font-bold text-slate-400">
               Kayıtlar yükleniyor...
             </div>
-          ) : groups.length === 0 ? (
+          ) : isEmptyDatabase ? (
             <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
               <div className="text-[48px]">✶</div>
-              <h3 className="mt-2 text-[18px] font-black text-slate-900">Kayıt bulunamadı</h3>
+              <h3 className="mt-2 text-[18px] font-black text-slate-900">Henüz kombinasyon kaydı yok</h3>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
-                Arama kriterinizi değiştirin veya yeni bir kombinasyon ekleyin.
+                Admin panelinden JSON aktarımı yapıldığında kayıtlar burada listelenir.
+              </p>
+            </div>
+          ) : isEmptyFiltered ? (
+            <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
+              <div className="text-[48px]">✶</div>
+              <h3 className="mt-2 text-[18px] font-black text-slate-900">Sonuç bulunamadı</h3>
+              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
+                Arama veya kategori filtresini değiştirin.
               </p>
             </div>
           ) : viewMode === "list" ? (
             <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
-              <div className="min-w-[720px]">
-                <div className="grid grid-cols-[1.25fr_0.62fr_1.15fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  <div>Başlık</div>
-                  <div>Kombinasyon sayısı</div>
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div>Issue</div>
+                  <div>Kategori</div>
+                  <div>Kombinasyon</div>
                   <div>Kaynak</div>
-                  <div>Son güncelleme</div>
+                  <div>Son kayıt</div>
                   <div className="text-right">İşlem</div>
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  {groups.map(({ title, rows: groupRows }) => {
-                    const sourceLine = firstSourceNoteInGroup(groupRows);
+                  {groups.map(({ issue, rows: groupRows }) => {
+                    const sourceLine = firstSourceInGroup(groupRows);
+                    const category = groupDescription(groupRows);
                     const ts = latestDisplayTimestamp(groupRows);
                     const count = groupRows.length;
 
                     return (
                       <div
-                        key={title}
-                        className="grid grid-cols-[1.25fr_0.62fr_1.15fr_0.78fr_0.62fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                        key={issue}
+                        className="grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
                       >
                         <div className="min-w-0 font-black text-slate-950">
-                          <span className="block truncate">{title}</span>
+                          <span className="block truncate">{issue}</span>
+                        </div>
+                        <div className="min-w-0 font-semibold text-violet-800">
+                          <span className="line-clamp-2 block">{category || "—"}</span>
                         </div>
                         <div className="font-bold text-slate-600">{count}</div>
                         <div className="min-w-0 text-slate-600">
@@ -556,10 +400,10 @@ export default function KombinasyonlarPage() {
                         </div>
                         <div className="flex justify-end">
                           <Link
-                            href={`/dogaltas/kombinasyonlar/${encodeURIComponent(title)}`}
+                            href={`/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`}
                             className={`${uiComboBtn} !mt-0 px-4 py-3 text-sm`}
                           >
-                            Kombinasyonları Gör →
+                            Detay →
                           </Link>
                         </div>
                       </div>
@@ -570,63 +414,58 @@ export default function KombinasyonlarPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {groups.map(({ title, rows: groupRows }) => {
-                const sourceLine = firstSourceNoteInGroup(groupRows);
+              {groups.map(({ issue, rows: groupRows }) => {
+                const sourceLine = firstSourceInGroup(groupRows);
+                const category = groupDescription(groupRows);
                 const ts = latestDisplayTimestamp(groupRows);
                 const count = groupRows.length;
 
                 return (
-                <article
-                  key={title}
-                  className={uiComboCard}
-                >
-                  <div className="flex gap-3">
-                    <div
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
-                      aria-hidden
-                    >
-                      ✦
-                    </div>
-
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className={uiComboBadge}>
-                          {count} kombinasyon
-                        </span>
+                  <article key={issue} className={uiComboCard}>
+                    <div className="flex gap-3">
+                      <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
+                        aria-hidden
+                      >
+                        ✦
                       </div>
 
-                      <h2 className="mt-3 text-3xl font-black text-slate-950">{title}</h2>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className={uiComboBadge}>{count} kombinasyon</span>
+                          {category ? <span className={uiCategoryPill}>{category}</span> : null}
+                        </div>
 
-                      <p className="mt-2 line-clamp-2 text-sm font-bold text-cyan-700">
-                        {sourceLine ? (
-                          <>
-                            <span>Kaynak: </span>
-                            {sourceLine}
-                          </>
-                        ) : (
-                          <span className="text-slate-400">Kaynak belirtilmedi</span>
-                        )}
-                      </p>
+                        <h2 className="mt-3 text-3xl font-black text-slate-950">{issue}</h2>
 
-                      <p className="mt-3 flex-1 text-base leading-7 text-slate-700">
-                        {previewText(groupRows)}
-                      </p>
+                        <p className="mt-2 line-clamp-2 text-sm font-bold text-cyan-700">
+                          {sourceLine ? (
+                            <>
+                              <span>Kaynak: </span>
+                              {sourceLine}
+                            </>
+                          ) : (
+                            <span className="text-slate-400">Kaynak belirtilmedi</span>
+                          )}
+                        </p>
 
-                      <p className="mt-2 text-sm font-medium text-slate-500">
-                        {ts
-                          ? `Son güncelleme: ${formatListCardDate(ts)}`
-                          : "Son güncelleme: —"}
-                      </p>
+                        <p className="mt-3 flex-1 text-base leading-7 text-slate-700">
+                          {previewText(groupRows)}
+                        </p>
 
-                      <Link
-                        href={`/dogaltas/kombinasyonlar/${encodeURIComponent(title)}`}
-                        className={uiComboBtn}
-                      >
-                        Kombinasyonları Gör →
-                      </Link>
+                        <p className="mt-2 text-sm font-medium text-slate-500">
+                          {ts ? `Son kayıt: ${formatListCardDate(ts)}` : "Son kayıt: —"}
+                        </p>
+
+                        <Link
+                          href={`/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`}
+                          className={uiComboBtn}
+                        >
+                          Kombinasyonları Gör →
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </article>
+                  </article>
                 );
               })}
             </div>
