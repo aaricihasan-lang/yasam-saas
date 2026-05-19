@@ -5,27 +5,24 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+const MINERALS_LIST_SELECT =
+  "id,source_id,name,aciklama,kategori,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,created_at";
 
-const MINERALS_SELECT =
-  "id,tenant_id,source_id,name,aciklama,organ_etkileri,fiziksel,zihinsel,cakralar,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,kategori,created_at";
+const UNCATEGORIZED_LABEL = "Kategorisiz";
 
 type MineralRecord = {
   id: string;
-  tenant_id: string;
   source_id: string;
   name: string;
   aciklama: string | null;
-  organ_etkileri: string[] | null;
+  kategori: string | null;
   fiziksel: string[] | null;
   zihinsel: string[] | null;
-  cakralar: string[] | null;
   fizyoloji: string[] | null;
   eksiklik_belirtileri: string[] | null;
   fazlalik_belirtileri: string[] | null;
   doz_asimi: string[] | null;
   iceren_taslar: string[] | null;
-  kategori: string | null;
   created_at: string;
 };
 
@@ -45,10 +42,8 @@ function ensureStringArray(value: unknown): string[] {
 function normalizeMineral(row: MineralRecord): MineralRecord {
   return {
     ...row,
-    organ_etkileri: ensureStringArray(row.organ_etkileri),
     fiziksel: ensureStringArray(row.fiziksel),
     zihinsel: ensureStringArray(row.zihinsel),
-    cakralar: ensureStringArray(row.cakralar),
     fizyoloji: ensureStringArray(row.fizyoloji),
     eksiklik_belirtileri: ensureStringArray(row.eksiklik_belirtileri),
     fazlalik_belirtileri: ensureStringArray(row.fazlalik_belirtileri),
@@ -57,17 +52,13 @@ function normalizeMineral(row: MineralRecord): MineralRecord {
   };
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+function getCategoryLabel(kategori: string | null | undefined) {
+  const trimmed = kategori?.trim();
+  return trimmed || UNCATEGORIZED_LABEL;
 }
 
-function previewText(value: string | null | undefined, limit = 100) {
-  if (!value || !value.trim()) return "—";
+function previewText(value: string | null | undefined, limit = 120) {
+  if (!value || !value.trim()) return "Açıklama henüz girilmedi.";
   const clean = value.replace(/\s+/g, " ").trim();
   return clean.length > limit ? `${clean.slice(0, limit)}…` : clean;
 }
@@ -76,13 +67,9 @@ function mineralSearchBlob(mineral: MineralRecord) {
   return [
     mineral.name,
     mineral.aciklama,
-    mineral.kategori,
-    ...ensureStringArray(mineral.organ_etkileri),
     ...ensureStringArray(mineral.fiziksel),
     ...ensureStringArray(mineral.zihinsel),
     ...ensureStringArray(mineral.fizyoloji),
-    ...ensureStringArray(mineral.eksiklik_belirtileri),
-    ...ensureStringArray(mineral.doz_asimi),
     ...ensureStringArray(mineral.iceren_taslar),
   ]
     .filter(Boolean)
@@ -94,16 +81,20 @@ const uiHeaderCard =
   "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/70 px-6 py-10 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
 const uiFilterCard =
   "rounded-[28px] border-[3px] border-amber-300/40 bg-white/70 p-5 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
-const uiTableCard =
-  "w-full min-h-[520px] overflow-hidden rounded-[32px] border-[3px] border-emerald-400/40 bg-white/75 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
+const uiContentCard =
+  "w-full min-h-[520px] rounded-[32px] border-[3px] border-emerald-400/40 bg-white/75 p-4 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
 const uiField =
   "h-14 rounded-2xl border-2 border-emerald-200 bg-white/90 px-5 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 const uiActionBtn =
   "rounded-2xl px-6 py-4 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
   "rounded-2xl border-2 border-amber-300/40 bg-white/80 px-8 py-4 text-center shadow-md";
+const uiMineralCard =
+  "flex h-full flex-col rounded-[32px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-amber-400 hover:shadow-[0_0_55px_rgba(245,158,11,0.18)]";
 const uiCategoryPill =
   "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
+const uiComboBtn =
+  "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-emerald-700";
 
 export default function MineralListesiPage() {
   const [minerals, setMinerals] = useState<MineralRecord[]>([]);
@@ -118,14 +109,13 @@ export default function MineralListesiPage() {
 
     const { data, error } = await supabase
       .from("minerals")
-      .select(MINERALS_SELECT)
-      .eq("tenant_id", TENANT_ID)
+      .select(MINERALS_LIST_SELECT)
       .order("name", { ascending: true });
 
     setLoading(false);
 
     if (error) {
-      setErrorMessage(`Mineraller alınamadı: ${error.message}`);
+      setErrorMessage(`Mineral kayıtları okunamadı: ${error.message}`);
       setMinerals([]);
       return;
     }
@@ -142,10 +132,13 @@ export default function MineralListesiPage() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const mineral of minerals) {
-      const cat = mineral.kategori?.trim();
-      if (cat) set.add(cat);
+      set.add(getCategoryLabel(mineral.kategori));
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
+    return Array.from(set).sort((a, b) => {
+      if (a === UNCATEGORIZED_LABEL) return 1;
+      if (b === UNCATEGORIZED_LABEL) return -1;
+      return a.localeCompare(b, "tr-TR");
+    });
   }, [minerals]);
 
   const filteredMinerals = useMemo(() => {
@@ -153,7 +146,7 @@ export default function MineralListesiPage() {
     const category = categoryFilter.trim();
 
     return minerals.filter((mineral) => {
-      if (category && (mineral.kategori?.trim() || "") !== category) return false;
+      if (category && getCategoryLabel(mineral.kategori) !== category) return false;
       if (!keyword) return true;
       return mineralSearchBlob(mineral).includes(keyword);
     });
@@ -178,30 +171,26 @@ export default function MineralListesiPage() {
               >
                 ← Geri
               </Link>
-
               <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-5 py-2 text-sm font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL LİSTESİ
               </span>
             </div>
-
             <h1 className="text-6xl font-black tracking-tight text-slate-950 xl:text-7xl">
               Mineral Listesi
             </h1>
-
             <p className="mt-3 text-xl font-medium text-slate-600">
-              Supabase mineral bankasından kayıtları arayın ve detaylandırın.
+              public.minerals tablosundan mineral kayıtları.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
             <div className={uiStatCard}>
               <div className="text-2xl font-black text-slate-950">{minerals.length}</div>
-              <div className="text-xs font-bold text-slate-500">Toplam</div>
+              <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
-
             <div className={uiStatCard}>
               <div className="text-2xl font-black text-slate-950">{filteredMinerals.length}</div>
-              <div className="text-xs font-bold text-slate-500">Sonuç</div>
+              <div className="text-xs font-bold text-slate-500">Görünen sonuç</div>
             </div>
           </div>
         </header>
@@ -211,10 +200,9 @@ export default function MineralListesiPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Mineral adı, açıklama veya içerikte ara..."
+              placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
               className={`${uiField} flex-1 text-sm text-slate-700`}
             />
-
             <select
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
@@ -228,7 +216,6 @@ export default function MineralListesiPage() {
                 </option>
               ))}
             </select>
-
             <button
               type="button"
               onClick={loadMinerals}
@@ -236,7 +223,6 @@ export default function MineralListesiPage() {
             >
               Yenile
             </button>
-
             <Link
               href="/dogaltas/mineral-bankasi"
               className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
@@ -247,12 +233,15 @@ export default function MineralListesiPage() {
         </section>
 
         {errorMessage ? (
-          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+          <div
+            className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100"
+            role="alert"
+          >
             {errorMessage}
           </div>
         ) : null}
 
-        <section className={`${uiTableCard} p-4`}>
+        <section className={uiContentCard}>
           {loading ? (
             <div className="flex min-h-[520px] items-center justify-center text-base font-black text-slate-500">
               Mineraller yükleniyor...
@@ -260,12 +249,9 @@ export default function MineralListesiPage() {
           ) : isEmptyDatabase ? (
             <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
               <div className="text-[54px]">⚗️</div>
-              <h2 className="mt-3 text-[20px] font-black text-slate-950">
-                Henüz mineral kaydı yok
-              </h2>
+              <h2 className="mt-3 text-[20px] font-black text-slate-950">Henüz mineral kaydı yok</h2>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
-                Admin panelinden JSON aktarımı yapıldığında veya yeni mineral eklendiğinde kayıtlar
-                burada listelenir.
+                Supabase minerals tablosunda henüz kayıt bulunmuyor.
               </p>
             </div>
           ) : isEmptyFiltered ? (
@@ -277,66 +263,41 @@ export default function MineralListesiPage() {
               </p>
             </div>
           ) : (
-            <div className="w-full overflow-hidden rounded-[24px] bg-white/85 ring-1 ring-emerald-100/70">
-              <div className="grid grid-cols-[1.1fr_0.9fr_1.4fr_0.55fr_0.7fr] gap-3 border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-amber-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700 xl:text-sm">
-                <div>Mineral</div>
-                <div>Kategori</div>
-                <div>Açıklama özeti</div>
-                <div>Taş</div>
-                <div className="text-right">İşlem</div>
-              </div>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {filteredMinerals.map((mineral) => {
+                const categoryLabel = getCategoryLabel(mineral.kategori);
+                const showCategoryPill = categoryLabel !== UNCATEGORIZED_LABEL;
 
-              <div className="divide-y divide-emerald-100">
-                {filteredMinerals.map((mineral) => {
-                  const stoneCount = ensureStringArray(mineral.iceren_taslar).length;
-
-                  return (
-                    <div
-                      key={mineral.id}
-                      className="grid grid-cols-[1.1fr_0.9fr_1.4fr_0.55fr_0.7fr] gap-3 px-5 py-5 text-sm transition-colors hover:bg-emerald-50/70 xl:text-base"
-                    >
-                      <Link href={`/dogaltas/mineral-listesi/${mineral.id}`} className="min-w-0">
-                        <div className="truncate text-base font-black text-slate-950">
-                          {mineral.name}
-                        </div>
-                        <div className="mt-0.5 text-xs font-semibold text-slate-500">
-                          {formatDate(mineral.created_at)}
-                        </div>
-                      </Link>
-
-                      <div className="flex min-w-0 items-center">
-                        {mineral.kategori?.trim() ? (
-                          <span className={uiCategoryPill}>{mineral.kategori}</span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </div>
-
-                      <Link
-                        href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                        className="flex items-center text-sm leading-6 text-slate-600 xl:text-base"
+                return (
+                  <article key={mineral.id} className={uiMineralCard}>
+                    <div className="flex gap-3">
+                      <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#d1fae5_0%,#fef3c7_48%,#fde68a_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(16,185,129,0.12)] ring-1 ring-white/90"
+                        aria-hidden
                       >
-                        {previewText(mineral.aciklama, 120)}
-                      </Link>
-
-                      <div className="flex items-center">
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
-                          {stoneCount}
-                        </span>
+                        ⚗️
                       </div>
-
-                      <div className="flex items-center justify-end">
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        {showCategoryPill ? (
+                          <span className={`${uiCategoryPill} mb-2 w-fit`}>{categoryLabel}</span>
+                        ) : (
+                          <span className="mb-2 text-xs font-bold text-slate-400">{categoryLabel}</span>
+                        )}
+                        <h2 className="text-2xl font-black text-slate-950">{mineral.name}</h2>
+                        <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
+                          {previewText(mineral.aciklama)}
+                        </p>
                         <Link
                           href={`/dogaltas/mineral-listesi/${mineral.id}`}
-                          className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-emerald-700"
+                          className={uiComboBtn}
                         >
-                          Detay
+                          Detayı Gör →
                         </Link>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

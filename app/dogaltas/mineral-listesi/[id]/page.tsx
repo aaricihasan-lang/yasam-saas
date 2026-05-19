@@ -6,28 +6,42 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
-
-const MINERALS_SELECT =
-  "id,tenant_id,source_id,name,aciklama,organ_etkileri,fiziksel,zihinsel,cakralar,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,kategori,created_at";
+const MINERALS_DETAIL_SELECT =
+  "id,source_id,name,aciklama,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,kategori,created_at";
 
 type MineralRecord = {
   id: string;
-  tenant_id: string;
   source_id: string;
   name: string;
   aciklama: string | null;
-  organ_etkileri: string[] | null;
+  fiziksel: string[];
+  zihinsel: string[];
+  fizyoloji: string[];
+  eksiklik_belirtileri: string[];
+  fazlalik_belirtileri: string[];
+  doz_asimi: string[];
+  iceren_taslar: string[];
+  kategori: string | null;
+  created_at: string;
+};
+
+type MineralRow = Omit<
+  MineralRecord,
+  | "fiziksel"
+  | "zihinsel"
+  | "fizyoloji"
+  | "eksiklik_belirtileri"
+  | "fazlalik_belirtileri"
+  | "doz_asimi"
+  | "iceren_taslar"
+> & {
   fiziksel: string[] | null;
   zihinsel: string[] | null;
-  cakralar: string[] | null;
   fizyoloji: string[] | null;
   eksiklik_belirtileri: string[] | null;
   fazlalik_belirtileri: string[] | null;
   doz_asimi: string[] | null;
   iceren_taslar: string[] | null;
-  kategori: string | null;
-  created_at: string;
 };
 
 function ensureStringArray(value: unknown): string[] {
@@ -43,13 +57,11 @@ function ensureStringArray(value: unknown): string[] {
   return [];
 }
 
-function normalizeMineral(row: MineralRecord): MineralRecord {
+function normalizeMineral(row: MineralRow): MineralRecord {
   return {
     ...row,
-    organ_etkileri: ensureStringArray(row.organ_etkileri),
     fiziksel: ensureStringArray(row.fiziksel),
     zihinsel: ensureStringArray(row.zihinsel),
-    cakralar: ensureStringArray(row.cakralar),
     fizyoloji: ensureStringArray(row.fizyoloji),
     eksiklik_belirtileri: ensureStringArray(row.eksiklik_belirtileri),
     fazlalik_belirtileri: ensureStringArray(row.fazlalik_belirtileri),
@@ -80,7 +92,6 @@ const uiStatBox =
   "rounded-2xl border-2 border-emerald-200 bg-white/80 p-4 text-center shadow-md";
 const uiInfoCard =
   "w-full rounded-[28px] border-[3px] border-emerald-300/45 bg-white/75 p-5 shadow-[0_0_35px_rgba(16,185,129,0.12)] backdrop-blur-xl";
-const uiFieldLabel = "text-sm font-black uppercase tracking-[0.18em] text-violet-700";
 const uiContentBox =
   "mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 text-base leading-7 text-slate-700 shadow-inner";
 const uiEmptyText = "text-slate-400 italic font-medium";
@@ -88,7 +99,7 @@ const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-4 py-1.5 text-sm font-black text-cyan-900";
 
 function toneClass(
-  tone: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple"
+  tone: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red"
 ) {
   const map = {
     emerald: "bg-emerald-100 text-emerald-700",
@@ -98,6 +109,7 @@ function toneClass(
     rose: "bg-rose-100 text-rose-700",
     sky: "bg-sky-100 text-sky-700",
     purple: "bg-purple-100 text-purple-700",
+    red: "bg-red-100 text-red-700",
   };
   return `inline-flex items-center rounded-full px-3 py-1 text-xs font-black tracking-wide ${map[tone]}`;
 }
@@ -111,7 +123,7 @@ function TextSectionCard({
   title: string;
   badge: string;
   text: string | null | undefined;
-  tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple";
+  tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red";
 }) {
   return (
     <article className={uiInfoCard}>
@@ -137,7 +149,7 @@ function ListSectionCard({
   title: string;
   badge: string;
   items: string[];
-  tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple";
+  tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red";
 }) {
   return (
     <article className={uiInfoCard}>
@@ -170,22 +182,25 @@ export default function MineralDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const loadMineral = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setErrorMessage("Geçersiz mineral kimliği.");
+      return;
+    }
 
     setLoading(true);
     setErrorMessage("");
 
     const { data, error } = await supabase
       .from("minerals")
-      .select(MINERALS_SELECT)
-      .eq("tenant_id", TENANT_ID)
+      .select(MINERALS_DETAIL_SELECT)
       .eq("id", id)
       .maybeSingle();
 
     setLoading(false);
 
     if (error) {
-      setErrorMessage(`Mineral alınamadı: ${error.message}`);
+      setErrorMessage(`Mineral kayıtları okunamadı: ${error.message}`);
       setMineral(null);
       return;
     }
@@ -196,7 +211,7 @@ export default function MineralDetailPage() {
       return;
     }
 
-    setMineral(normalizeMineral(data as MineralRecord));
+    setMineral(normalizeMineral(data as MineralRow));
   }, [id]);
 
   useEffect(() => {
@@ -209,12 +224,13 @@ export default function MineralDetailPage() {
     if (!mineral) return 0;
     let count = 0;
     if (mineral.aciklama?.trim()) count += 1;
-    if (ensureStringArray(mineral.fiziksel).length) count += 1;
-    if (ensureStringArray(mineral.zihinsel).length) count += 1;
-    if (ensureStringArray(mineral.fizyoloji).length) count += 1;
-    if (ensureStringArray(mineral.eksiklik_belirtileri).length) count += 1;
-    if (ensureStringArray(mineral.doz_asimi).length) count += 1;
-    if (ensureStringArray(mineral.iceren_taslar).length) count += 1;
+    if (mineral.fiziksel.length) count += 1;
+    if (mineral.zihinsel.length) count += 1;
+    if (mineral.fizyoloji.length) count += 1;
+    if (mineral.eksiklik_belirtileri.length) count += 1;
+    if (mineral.fazlalik_belirtileri.length) count += 1;
+    if (mineral.doz_asimi.length) count += 1;
+    if (mineral.iceren_taslar.length) count += 1;
     return count;
   }, [mineral]);
 
@@ -233,8 +249,10 @@ export default function MineralDetailPage() {
       <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
         <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-5xl">⚗️</div>
-          <h1 className="mt-3 text-2xl font-black text-slate-950">Mineral bulunamadı</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500">{errorMessage}</p>
+          <h1 className="mt-3 text-2xl font-black text-slate-950">Mineral yüklenemedi</h1>
+          <p className="mt-3 text-sm leading-6 text-rose-700 font-semibold" role="alert">
+            {errorMessage}
+          </p>
           <Link
             href="/dogaltas/mineral-listesi"
             className="mt-6 inline-flex rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 font-black text-slate-800 shadow-md hover:bg-slate-50"
@@ -247,8 +265,6 @@ export default function MineralDetailPage() {
   }
 
   if (!mineral) return null;
-
-  const stones = ensureStringArray(mineral.iceren_taslar);
 
   return (
     <main className={pageBg}>
@@ -268,7 +284,7 @@ export default function MineralDetailPage() {
               </p>
             ) : null}
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Kayıt: {formatDate(mineral.created_at)} · Kaynak ID: {mineral.source_id}
+              Kayıt: {formatDate(mineral.created_at)} · Kaynak: {mineral.source_id}
             </p>
           </div>
 
@@ -304,7 +320,9 @@ export default function MineralDetailPage() {
                   <div className="mt-1 text-xs font-bold text-slate-500">Dolu bölüm</div>
                 </div>
                 <div className={uiStatBox}>
-                  <div className="text-2xl font-black text-slate-950">{stones.length}</div>
+                  <div className="text-2xl font-black text-slate-950">
+                    {mineral.iceren_taslar.length}
+                  </div>
                   <div className="mt-1 text-xs font-bold text-slate-500">İçeren taş</div>
                 </div>
               </div>
@@ -312,26 +330,27 @@ export default function MineralDetailPage() {
           </aside>
 
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <TextSectionCard
-              title="Açıklama"
-              badge="AÇIKLAMA"
-              text={mineral.aciklama}
-              tone="emerald"
-            />
-            <ListSectionCard title="Fiziksel" badge="FİZİKSEL" items={ensureStringArray(mineral.fiziksel)} tone="sky" />
-            <ListSectionCard title="Zihinsel" badge="ZİHİNSEL" items={ensureStringArray(mineral.zihinsel)} tone="purple" />
-            <ListSectionCard title="Fizyoloji" badge="FİZYOLOJİ" items={ensureStringArray(mineral.fizyoloji)} tone="violet" />
+            <TextSectionCard title="Açıklama" badge="AÇIKLAMA" text={mineral.aciklama} tone="emerald" />
+            <ListSectionCard title="Fiziksel" badge="FİZİKSEL" items={mineral.fiziksel} tone="sky" />
+            <ListSectionCard title="Zihinsel" badge="ZİHİNSEL" items={mineral.zihinsel} tone="purple" />
+            <ListSectionCard title="Fizyoloji" badge="FİZYOLOJİ" items={mineral.fizyoloji} tone="violet" />
             <ListSectionCard
               title="Eksiklik belirtileri"
               badge="EKSİKLİK"
-              items={ensureStringArray(mineral.eksiklik_belirtileri)}
+              items={mineral.eksiklik_belirtileri}
               tone="amber"
             />
-            <ListSectionCard title="Doz aşımı" badge="DOZ" items={ensureStringArray(mineral.doz_asimi)} tone="rose" />
+            <ListSectionCard
+              title="Fazlalık belirtileri"
+              badge="FAZLALIK"
+              items={mineral.fazlalik_belirtileri}
+              tone="red"
+            />
+            <ListSectionCard title="Doz aşımı" badge="DOZ" items={mineral.doz_asimi} tone="rose" />
             <ListSectionCard
               title="İçeren taşlar"
-              badge={`${stones.length} TAŞ`}
-              items={stones}
+              badge={`${mineral.iceren_taslar.length} TAŞ`}
+              items={mineral.iceren_taslar}
               tone="cyan"
             />
           </section>
