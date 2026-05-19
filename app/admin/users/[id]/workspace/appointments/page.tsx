@@ -449,6 +449,7 @@ export default function AdminWorkspaceAppointmentsPage() {
                               "Durum",
                               "Notlar",
                               "Oluşturulma Tarihi",
+                              "İşlem",
                             ].map((col) => (
                               <th
                                 key={col}
@@ -491,6 +492,15 @@ export default function AdminWorkspaceAppointmentsPage() {
                                 </td>
                                 <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
                                   {formatCreatedAt(item.created_at)}
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-3">
+                                  <Link
+                                    href={`/admin/users/${userId}/workspace/appointments/${item.id}`}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border-2 border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-950 transition hover:border-sky-300 hover:bg-sky-100 no-underline"
+                                  >
+                                    <span aria-hidden>👁</span>
+                                    Detay Gör
+                                  </Link>
                                 </td>
                               </tr>
                             );
