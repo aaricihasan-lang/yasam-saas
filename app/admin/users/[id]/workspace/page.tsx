@@ -208,6 +208,11 @@ export default function AdminUserWorkspacePage() {
       return;
     }
 
+    if (key === "energy_body") {
+      router.push(`/admin/users/${userId}/workspace/bioenergy`);
+      return;
+    }
+
     showToast({
       title: "Yakında",
       message: "Salt okunur görüntüleme hazırlanıyor.",
@@ -387,7 +392,8 @@ export default function AdminUserWorkspacePage() {
                                 key === "appointments" ||
                                 key === "numerology" ||
                                 key === "stones" ||
-                                key === "personal_archive"
+                                key === "personal_archive" ||
+                                key === "energy_body"
                               ? "Salt okunur listeyi aç"
                               : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
