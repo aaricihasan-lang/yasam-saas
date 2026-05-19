@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
-import { AlertTriangle, CheckCircle2, FileJson, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileJson, Gem, Loader2, Upload } from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 const YASAM_USER_STORAGE_KEY = "yasam_user";
+
+const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const TENANT_ID_MISSING_MESSAGE =
   "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.";
@@ -901,6 +903,393 @@ function recordsHaveNonUrlImages(records: StoneJsonRecord[]): boolean {
   });
 }
 
+type CombinationJsonVariant = {
+  source?: unknown;
+  stones_text?: unknown;
+  notes_text?: unknown;
+  notes_text_2?: unknown;
+  notes_text_3?: unknown;
+};
+
+type CombinationJsonIssue = {
+  id?: unknown;
+  issue?: unknown;
+  description?: unknown;
+  variants?: unknown;
+};
+
+type CombinationInsertRow = {
+  tenant_id: string;
+  source_id: string;
+  issue: string;
+  description: string | null;
+  variant_index: number;
+  source: string | null;
+  stones_text: string | null;
+  notes_text: string | null;
+  notes_text_2: string | null;
+  notes_text_3: string | null;
+};
+
+type CombinationImportFailure = {
+  issue: string;
+  message: string;
+};
+
+const KOMBINASYON_BATCH_SIZE = 250;
+const KOMBINASYON_PREVIEW_ISSUE_LIMIT = 5;
+const KOMBINASYON_FAILED_PREVIEW_LIMIT = 20;
+
+function combinationText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function combinationNullableText(value: unknown): string | null {
+  const text = combinationText(value);
+  return text || null;
+}
+
+function parseCombinationJsonIssues(text: string): {
+  issues: CombinationJsonIssue[];
+  error: string | null;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { issues: [], error: "Geçersiz JSON dosyası." };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { issues: [], error: "JSON kökü bir dizi olmalıdır." };
+  }
+
+  const issues = parsed.filter((item) => item && typeof item === "object") as CombinationJsonIssue[];
+  if (issues.length === 0) {
+    return { issues: [], error: "JSON içinde işlenebilir kayıt bulunamadı." };
+  }
+
+  return { issues, error: null };
+}
+
+function flattenCombinationIssuesToRows(issues: CombinationJsonIssue[]): CombinationInsertRow[] {
+  const rows: CombinationInsertRow[] = [];
+
+  for (const item of issues) {
+    const issueTitle = combinationText(item.issue);
+    if (!issueTitle) continue;
+
+    const sourceId = combinationText(item.id);
+    if (!sourceId) continue;
+
+    const description = combinationNullableText(item.description);
+    const variants = Array.isArray(item.variants) ? item.variants : [];
+
+    variants.forEach((variant, index) => {
+      if (!variant || typeof variant !== "object") return;
+      const v = variant as CombinationJsonVariant;
+
+      rows.push({
+        tenant_id: TENANT_ID,
+        source_id: sourceId,
+        issue: issueTitle,
+        description,
+        variant_index: index + 1,
+        source: combinationNullableText(v.source),
+        stones_text: combinationNullableText(v.stones_text),
+        notes_text: combinationNullableText(v.notes_text),
+        notes_text_2: combinationNullableText(v.notes_text_2),
+        notes_text_3: combinationNullableText(v.notes_text_3),
+      });
+    });
+  }
+
+  return rows;
+}
+
+function countCombinationVariants(issues: CombinationJsonIssue[]): number {
+  return issues.reduce((total, item) => {
+    const variants = Array.isArray(item.variants) ? item.variants : [];
+    return total + variants.length;
+  }, 0);
+}
+
+async function importCombinationRows(rows: CombinationInsertRow[]): Promise<{
+  successCount: number;
+  failedCount: number;
+  failures: CombinationImportFailure[];
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: CombinationImportFailure[] = [];
+
+  for (let offset = 0; offset < rows.length; offset += KOMBINASYON_BATCH_SIZE) {
+    const batch = rows.slice(offset, offset + KOMBINASYON_BATCH_SIZE);
+    const { error } = await supabase.from("combinations").insert(batch);
+
+    if (!error) {
+      successCount += batch.length;
+      continue;
+    }
+
+    for (const row of batch) {
+      const { error: singleError } = await supabase.from("combinations").insert(row);
+      if (singleError) {
+        failedCount += 1;
+        if (failures.length < KOMBINASYON_FAILED_PREVIEW_LIMIT) {
+          failures.push({ issue: row.issue, message: singleError.message });
+        }
+      } else {
+        successCount += 1;
+      }
+    }
+  }
+
+  return { successCount, failedCount, failures };
+}
+
+function KombinasyonJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [issues, setIssues] = useState<CombinationJsonIssue[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    successCount: number;
+    failedCount: number;
+    totalProcessed: number;
+    failures: CombinationImportFailure[];
+  } | null>(null);
+
+  const issueCount = issues.length;
+  const variantCount = useMemo(() => countCombinationVariants(issues), [issues]);
+
+  const previewIssues = useMemo(
+    () => issues.slice(0, KOMBINASYON_PREVIEW_ISSUE_LIMIT),
+    [issues],
+  );
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setIssues([]);
+    setFileName(null);
+    setImportReport(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { issues: parsed, error } = parseCombinationJsonIssues(text);
+      if (error) {
+        setParseError(error);
+        setIssues([]);
+        setFileName(file.name);
+        return;
+      }
+      setIssues(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setParseError("Dosya okunamadı.");
+    };
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleFullImport = useCallback(async () => {
+    const rows = flattenCombinationIssuesToRows(issues);
+    if (rows.length === 0) {
+      setParseError("Aktarılacak variant kaydı bulunamadı (id, issue ve variants zorunlu).");
+      return;
+    }
+
+    setImporting(true);
+    setImportReport(null);
+    setParseError(null);
+
+    const { successCount, failedCount, failures } = await importCombinationRows(rows);
+
+    setImporting(false);
+    const totalProcessed = successCount + failedCount;
+    setImportReport({
+      successCount,
+      failedCount,
+      totalProcessed,
+      failures,
+    });
+
+    if (failedCount === 0) {
+      showToast({
+        type: "success",
+        message: `${successCount} kombinasyon kaydı başarıyla yüklendi.`,
+      });
+    } else if (successCount > 0) {
+      showToast({
+        type: "warning",
+        message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
+      });
+    } else {
+      showToast({
+        type: "error",
+        message: "Hiçbir kayıt yüklenemedi.",
+      });
+    }
+  }, [issues, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/40 via-white to-fuchsia-50/50 p-6 shadow-xl sm:p-8"
+      aria-label="Kombinasyon JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Gem className="h-6 w-6 text-violet-700" aria-hidden />
+            Kombinasyon JSON
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
+            Issue ve variants içeren JSON dosyasını seçin; özet görüntüleyip tüm kayıtları
+            combinations tablosuna aktarın.
+          </p>
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Bu işlem mevcut kombinasyon kayıtlarını silmez. Aynı JSON tekrar yüklenirse kayıtlar
+            çoğalabilir.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white px-5 py-3 text-sm font-bold text-violet-950 shadow-md transition hover:scale-[1.02] hover:border-violet-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+          </label>
+          {issues.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || variantCount === 0}
+              onClick={() => void handleFullImport()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-400 bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  Yükleniyor...
+                </>
+              ) : (
+                "Tamamını Yükle"
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          Dosya: <span className="font-mono text-violet-900">{fileName}</span>
+          {issues.length > 0 ? (
+            <span className="ml-2 text-emerald-700">
+              · {issueCount} issue · {variantCount} variant
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+
+      {parseError ? (
+        <p
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+          role="alert"
+        >
+          {parseError}
+        </p>
+      ) : null}
+
+      {issues.length > 0 ? (
+        <div className="mt-8 space-y-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Özet</h3>
+            <p className="mt-1 text-sm text-slate-600">JSON dosyasından okunan toplam sayılar.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2">
+              <StatBox label="Toplam issue / sorun" value={issueCount} />
+              <StatBox label="Toplam variants / kombinasyon" value={variantCount} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Önizleme</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              İlk {KOMBINASYON_PREVIEW_ISSUE_LIMIT} issue kaydı (variants sayısı ile).
+            </p>
+            <div className="mt-4 space-y-3">
+              {previewIssues.map((item, index) => {
+                const issueTitle = combinationText(item.issue) || "—";
+                const variants = Array.isArray(item.variants) ? item.variants : [];
+                const firstVariant = variants[0] as CombinationJsonVariant | undefined;
+                const previewLine = firstVariant
+                  ? combinationText(firstVariant.stones_text) ||
+                    combinationText(firstVariant.notes_text) ||
+                    "—"
+                  : "—";
+
+                return (
+                  <div
+                    key={`${combinationText(item.id) || issueTitle}-${index}`}
+                    className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
+                  >
+                    <p className="text-sm font-black text-slate-900">{issueTitle}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {combinationNullableText(item.description) ?? "Açıklama yok"} ·{" "}
+                      {variants.length} variant
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {importReport ? (
+        <div className="mt-8 rounded-2xl border border-violet-200 bg-violet-50/90 p-5">
+          <h3 className="text-lg font-black text-violet-950">Yükleme raporu</h3>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox label="Başarılı" value={importReport.successCount} />
+            <StatBox label="Başarısız" value={importReport.failedCount} />
+            <StatBox label="Toplam işlenen" value={importReport.totalProcessed} />
+          </div>
+          {importReport.failures.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-sm font-black text-rose-950">
+                Başarısız kayıtlar (en fazla {KOMBINASYON_FAILED_PREVIEW_LIMIT})
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {importReport.failures.map((row, index) => (
+                  <li
+                    key={`${row.issue}-${index}`}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-rose-950">{row.issue}</span>
+                    <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DogaltasJsonTab() {
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -1458,7 +1847,7 @@ function DogaltasJsonTab() {
 }
 
 export default function TopluVeriPage() {
-  const [activeTab, setActiveTab] = useState<"dogaltas">("dogaltas");
+  const [activeTab, setActiveTab] = useState<"dogaltas" | "kombinasyon">("dogaltas");
 
   return (
     <AdminModuleLayout
@@ -1493,9 +1882,21 @@ export default function TopluVeriPage() {
         >
           Doğaltaş JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("kombinasyon")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "kombinasyon"
+              ? "border-violet-400 bg-violet-100 text-violet-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          💎 Kombinasyon JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
+      {activeTab === "kombinasyon" ? <KombinasyonJsonTab /> : null}
     </AdminModuleLayout>
   );
 }
