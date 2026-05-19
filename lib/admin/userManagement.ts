@@ -392,6 +392,15 @@ export function isUserPremiumPackage(user: ManagedUser): boolean {
   return user.membership.packageType === "premium";
 }
 
+export function isExpertModuleEnabled(
+  user: ManagedUser,
+  key: AdminModuleUiKey,
+): boolean {
+  if (user.role !== "expert") return false;
+  if (isUserPremiumPackage(user)) return true;
+  return Boolean(user.modulePermissions[key]);
+}
+
 export function premiumAdminModulePermissions(): AdminModulePermissions {
   return parseAdminModulePermissions(buildPremiumModulePermissionsPayload());
 }

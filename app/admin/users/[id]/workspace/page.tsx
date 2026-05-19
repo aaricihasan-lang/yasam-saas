@@ -21,7 +21,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ADMIN_MODULE_UI_LABELS,
-  isUserPremiumPackage,
+  isExpertModuleEnabled,
   mapDbUser,
   type AdminModuleUiKey,
   type ManagedUser,
@@ -118,12 +118,6 @@ const WORKSPACE_MODULES: WorkspaceModuleMeta[] = [
   },
 ];
 
-function isExpertModuleEnabled(user: ManagedUser, key: AdminModuleUiKey): boolean {
-  if (user.role !== "expert") return false;
-  if (isUserPremiumPackage(user)) return true;
-  return Boolean(user.modulePermissions[key]);
-}
-
 export default function AdminUserWorkspacePage() {
   const router = useRouter();
   const params = useParams();
@@ -186,6 +180,11 @@ export default function AdminUserWorkspacePage() {
         message: `${ADMIN_MODULE_UI_LABELS[key]} bu uzman için aktif değil.`,
         type: "info",
       });
+      return;
+    }
+
+    if (key === "clients") {
+      router.push(`/admin/users/${userId}/workspace/clients`);
       return;
     }
 
@@ -364,7 +363,9 @@ export default function AdminUserWorkspacePage() {
                         </span>
                         <p className="mt-2 text-[11px] font-bold text-violet-800/80">
                           {enabled
-                            ? "Salt okunur görüntüleme hazırlanıyor"
+                            ? key === "clients"
+                              ? "Salt okunur listeyi aç"
+                              : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
                         </p>
                       </button>
