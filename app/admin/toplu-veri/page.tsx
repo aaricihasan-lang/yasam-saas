@@ -66,9 +66,8 @@ type MigrationRiskReport = {
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 const WARNING_RATIO_THRESHOLD = 0.2;
-const IMPORT_PROGRESS_STEP = 20;
-/** İlk test aşaması — tam import kapalı; stabil olunca kaldırılacak */
-const TEST_IMPORT_LIMIT = 10;
+const BATCH_SIZE = 25;
+const EFFECT_WARNING_PREVIEW_LIMIT = 10;
 
 type ImportFailedRow = {
   index: number;
@@ -80,10 +79,6 @@ type ImportRow = {
   payload: StoneInsertPayload;
   stoneName: string;
 };
-
-function getTestImportItems(parsedItems: StoneJsonRecord[]): StoneJsonRecord[] {
-  return parsedItems.slice(0, TEST_IMPORT_LIMIT);
-}
 
 const IGNORE_TOP_LEVEL_KEYS = new Set([
   "id",
@@ -873,15 +868,8 @@ function DogaltasJsonTab() {
 
   const hasNonUrlImages = useMemo(() => recordsHaveNonUrlImages(records), [records]);
 
-  const testImportItems = useMemo(() => getTestImportItems(records), [records]);
-
-  const testImportableCount = useMemo(
-    () => testImportItems.filter(hasStoneName).length,
-    [testImportItems],
-  );
-
   const firstTenEffectWarnings = useMemo(() => {
-    const subset = records.slice(0, TEST_IMPORT_LIMIT);
+    const subset = records.slice(0, EFFECT_WARNING_PREVIEW_LIMIT);
     const missingPhysical: string[] = [];
     const missingSpiritual: string[] = [];
 
@@ -919,9 +907,11 @@ function DogaltasJsonTab() {
       return;
     }
 
-    const importItems = getTestImportItems(records);
+    const testMode = false;
+    const recordsToImport = testMode ? records.slice(0, 10) : records;
+
     const importRows: ImportRow[] = [];
-    importItems.forEach((record, index) => {
+    recordsToImport.forEach((record, index) => {
       const payload = mapJsonRecordToStonePayload(record, tenantId, index);
       if (payload) {
         importRows.push({ payload, stoneName: payload.stone_name });
@@ -945,24 +935,26 @@ function DogaltasJsonTab() {
     let successCount = 0;
     const failed: ImportFailedRow[] = [];
 
-    for (let i = 0; i < importRows.length; i += 1) {
-      const row = importRows[i];
-      const { error } = await supabase.from("stones").insert(row.payload);
+    for (let i = 0; i < importRows.length; i += BATCH_SIZE) {
+      const chunk = importRows.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase
+        .from("stones")
+        .insert(chunk.map((row) => row.payload));
 
       if (error) {
-        failed.push({
-          index: i + 1,
-          stoneName: row.stoneName,
-          message: error.message,
+        chunk.forEach((row, chunkIndex) => {
+          failed.push({
+            index: i + chunkIndex + 1,
+            stoneName: row.stoneName,
+            message: error.message,
+          });
         });
       } else {
-        successCount += 1;
+        successCount += chunk.length;
       }
 
-      const done = i + 1;
-      if (done % IMPORT_PROGRESS_STEP === 0 || done === importRows.length) {
-        setImportProgress(done);
-      }
+      const done = Math.min(i + BATCH_SIZE, importRows.length);
+      setImportProgress(done);
     }
 
     setImporting(false);
@@ -970,7 +962,7 @@ function DogaltasJsonTab() {
     setImportFailedRows(failed);
 
     if (successCount > 0 && failed.length === 0) {
-      const toastMessage = `${successCount} kayıt aktarıldı. Tenant: ${tenantId}`;
+      const toastMessage = `${successCount} kayıt başarıyla aktarıldı`;
       setImportSuccess(toastMessage);
       showToast({ type: "success", message: toastMessage });
     } else if (successCount > 0) {
@@ -1009,19 +1001,14 @@ function DogaltasJsonTab() {
             />
           </label>
           {records.length > 0 ? (
-            <>
-              <button
-                type="button"
-                disabled={importing || testImportableCount === 0}
-                onClick={() => void handleSupabaseImportClick()}
-                className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Supabase&apos;e Aktar
-              </button>
-              <p className="rounded-lg border border-amber-300/90 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950 shadow-sm">
-                Test modu aktif: İlk 10 kayıt aktarılacak
-              </p>
-            </>
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleSupabaseImportClick()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Supabase&apos;e Aktar
+            </button>
           ) : null}
         </div>
       </div>
@@ -1034,7 +1021,7 @@ function DogaltasJsonTab() {
               Aktarılıyor…
             </span>
             <span className="tabular-nums">
-              {importProgress}/{importTotal}
+              Aktarıldı: {importProgress}/{importTotal}
             </span>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-violet-200">
@@ -1179,7 +1166,7 @@ function DogaltasJsonTab() {
               firstTenEffectWarnings.missingSpiritual.length > 0 ? (
                 <div className="mt-4 rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
-                    İlk {TEST_IMPORT_LIMIT} kayıt — etki uyarıları
+                    İlk {EFFECT_WARNING_PREVIEW_LIMIT} kayıt — etki uyarıları
                   </p>
                   {firstTenEffectWarnings.missingPhysical.length > 0 ? (
                     <div className="mt-2">
@@ -1306,11 +1293,6 @@ function DogaltasJsonTab() {
                 </p>
               </div>
 
-              <p className="mt-4 rounded-xl border border-amber-300/90 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-950">
-                Test modu aktif: Yalnızca ilk {TEST_IMPORT_LIMIT} kayıt aktarılacak (
-                {testImportableCount} isimli taş). Tam import şimdilik kapalı.
-              </p>
-
               {hasNonUrlImages ? (
                 <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950">
                   Resimlerin bir kısmı web URL formatında değil.
@@ -1332,7 +1314,7 @@ function DogaltasJsonTab() {
                 </button>
                 <button
                   type="button"
-                  disabled={testImportableCount === 0}
+                  disabled={importableCount === 0}
                   onClick={() => void runSupabaseImport()}
                   className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
                 >
