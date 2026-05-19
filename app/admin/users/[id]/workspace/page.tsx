@@ -188,6 +188,11 @@ export default function AdminUserWorkspacePage() {
       return;
     }
 
+    if (key === "appointments") {
+      router.push(`/admin/users/${userId}/workspace/appointments`);
+      return;
+    }
+
     showToast({
       title: "Yakında",
       message: "Salt okunur görüntüleme hazırlanıyor.",
@@ -363,7 +368,7 @@ export default function AdminUserWorkspacePage() {
                         </span>
                         <p className="mt-2 text-[11px] font-bold text-violet-800/80">
                           {enabled
-                            ? key === "clients"
+                            ? key === "clients" || key === "appointments"
                               ? "Salt okunur listeyi aç"
                               : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
