@@ -399,64 +399,6 @@ export default function DogaltasListesiPage() {
           </div>
         )}
 
-        {!loading && loadDebug && (
-          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/90 px-5 py-3 text-xs font-bold text-amber-950">
-            <p className="font-black uppercase tracking-wide text-amber-800">
-              Sorgu tanılama (geçici)
-            </p>
-            <ul className="mt-2 space-y-1 font-mono text-[11px] sm:text-xs">
-              <li>
-                Aktif kullanıcı tenant_id:{" "}
-                <span className="text-slate-800">
-                  {loadDebug.activeUserTenantId ?? "—"}
-                </span>
-              </li>
-              <li>
-                Sorgu tenant_id:{" "}
-                <span className="text-slate-800">
-                  {loadDebug.queryTenantId ?? "—"}
-                </span>
-              </li>
-              <li>
-                Gelen kayıt sayısı:{" "}
-                <span className="text-slate-800">{loadDebug.returnedCount}</span>
-              </li>
-              {loadDebug.tableTotalVisible != null && (
-                <li>
-                  Tabloda görünen toplam (filtresiz):{" "}
-                  <span className="text-slate-800">{loadDebug.tableTotalVisible}</span>
-                </li>
-              )}
-              {loadDebug.sampleTenantIds.length > 0 && (
-                <li>
-                  Örnek stones.tenant_id:{" "}
-                  <span className="break-all text-slate-800">
-                    {loadDebug.sampleTenantIds.join(" · ")}
-                  </span>
-                </li>
-              )}
-            </ul>
-            {loadDebug.returnedCount === 0 &&
-              loadDebug.queryTenantId &&
-              !search.trim() &&
-              loadDebug.tableTotalVisible != null &&
-              loadDebug.tableTotalVisible > 0 && (
-                <p className="mt-2 text-[11px] leading-5 text-amber-900 sm:text-xs">
-                  Tabloda {loadDebug.tableTotalVisible} kayıt görünüyor ancak hiçbiri
-                  sorgu tenant_id ile eşleşmiyor. Import tenant_id ile aktif kullanıcı
-                  tenant_id aynı olmalı.
-                </p>
-              )}
-            {loadDebug.returnedCount === 0 &&
-              loadDebug.tableTotalVisible === 0 && (
-                <p className="mt-2 text-[11px] leading-5 text-amber-900 sm:text-xs">
-                  İstemci stones tablosunu boş görüyor (RLS / anon anahtar veya
-                  tenant_id eksik). Supabase panelindeki kayıt sayısı ile karşılaştırın.
-                </p>
-              )}
-          </div>
-        )}
-
         <section className={uiTableCard}>
           {loading ? (
             <div className="flex min-h-[520px] items-center justify-center text-base font-bold text-slate-500">
