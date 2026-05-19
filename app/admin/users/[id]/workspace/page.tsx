@@ -203,6 +203,11 @@ export default function AdminUserWorkspacePage() {
       return;
     }
 
+    if (key === "personal_archive") {
+      router.push(`/admin/users/${userId}/workspace/archive`);
+      return;
+    }
+
     showToast({
       title: "Yakında",
       message: "Salt okunur görüntüleme hazırlanıyor.",
@@ -381,7 +386,8 @@ export default function AdminUserWorkspacePage() {
                             ? key === "clients" ||
                                 key === "appointments" ||
                                 key === "numerology" ||
-                                key === "stones"
+                                key === "stones" ||
+                                key === "personal_archive"
                               ? "Salt okunur listeyi aç"
                               : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
