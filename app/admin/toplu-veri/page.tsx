@@ -24,6 +24,26 @@ type CompatibilityStats = {
   withImagePaths: number;
 };
 
+type MigrationRiskLevel = "low" | "medium" | "high";
+
+type MigrationRiskReport = {
+  level: MigrationRiskLevel;
+  label: string;
+  emoji: string;
+  reasons: string[];
+  windowsPathCount: number;
+  recordsWithWindowsPaths: number;
+  invalidExtensionCount: number;
+  recordsWithInvalidExtension: number;
+  unknownAssignmentFields: string[];
+  recordsWithoutRealUrl: number;
+  lowWarningRatio: boolean;
+};
+
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+
+const WARNING_RATIO_THRESHOLD = 0.2;
+
 const IGNORE_TOP_LEVEL_KEYS = new Set([
   "id",
   "_id",
@@ -212,14 +232,69 @@ function assignmentHasValue(record: StoneJsonRecord, key: string): boolean {
   return formatAssignmentValue(record, key) !== "—";
 }
 
-function formatImagePaths(record: StoneJsonRecord): string {
+function getImagePathList(record: StoneJsonRecord): string[] {
   const paths = record.image_paths;
-  if (!Array.isArray(paths) || paths.length === 0) return "—";
-  return paths.map((p) => String(p)).join(", ");
+  if (!Array.isArray(paths)) return [];
+  return paths.map((p) => String(p).trim()).filter(Boolean);
+}
+
+function formatImagePaths(record: StoneJsonRecord): string {
+  const paths = getImagePathList(record);
+  if (paths.length === 0) return "—";
+  return paths.join(", ");
 }
 
 function hasImagePaths(record: StoneJsonRecord): boolean {
-  return formatImagePaths(record) !== "—";
+  return getImagePathList(record).length > 0;
+}
+
+function isWindowsLocalPath(path: string): boolean {
+  const trimmed = path.trim();
+  return /^[CD]:[\\/]/i.test(trimmed);
+}
+
+function isRealUrl(path: string): boolean {
+  try {
+    const url = new URL(path.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getImageExtension(path: string): string | null {
+  const withoutQuery = path.split("?")[0]?.split("#")[0] ?? path;
+  const match = withoutQuery.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function pathHasInvalidExtension(path: string): boolean {
+  if (isRealUrl(path)) {
+    const ext = getImageExtension(path);
+    if (!ext) return false;
+    return !ALLOWED_IMAGE_EXTENSIONS.has(ext);
+  }
+  const ext = getImageExtension(path);
+  if (!ext) return true;
+  return !ALLOWED_IMAGE_EXTENSIONS.has(ext);
+}
+
+function recordImagePathsLackRealUrl(record: StoneJsonRecord): boolean {
+  const paths = getImagePathList(record);
+  if (paths.length === 0) return false;
+  return paths.some((p) => !isRealUrl(p));
+}
+
+function collectUnknownAssignmentFields(records: StoneJsonRecord[]): string[] {
+  const unknown = new Set<string>();
+  for (const record of records) {
+    const assignments = getAssignments(record);
+    if (!assignments) continue;
+    for (const key of Object.keys(assignments)) {
+      if (!KNOWN_ASSIGNMENT_KEYS.has(key)) unknown.add(key);
+    }
+  }
+  return Array.from(unknown).sort();
 }
 
 function hasStoneName(record: StoneJsonRecord): boolean {
@@ -304,6 +379,172 @@ function computeCompatibilityStats(records: StoneJsonRecord[]): CompatibilitySta
   };
 }
 
+function computeMigrationRisk(
+  records: StoneJsonRecord[],
+  stats: CompatibilityStats,
+): MigrationRiskReport {
+  const reasons: string[] = [];
+  let score = 0;
+
+  let windowsPathCount = 0;
+  let recordsWithWindowsPaths = 0;
+  let invalidExtensionCount = 0;
+  let recordsWithInvalidExtension = 0;
+  let recordsWithoutRealUrl = 0;
+
+  for (const record of records) {
+    const paths = getImagePathList(record);
+    let hasWindows = false;
+    let hasInvalidExt = false;
+
+    for (const path of paths) {
+      if (isWindowsLocalPath(path)) {
+        windowsPathCount += 1;
+        hasWindows = true;
+      }
+      if (pathHasInvalidExtension(path)) {
+        invalidExtensionCount += 1;
+        hasInvalidExt = true;
+      }
+    }
+
+    if (hasWindows) recordsWithWindowsPaths += 1;
+    if (hasInvalidExt) recordsWithInvalidExtension += 1;
+    if (recordImagePathsLackRealUrl(record)) recordsWithoutRealUrl += 1;
+  }
+
+  const unknownAssignmentFields = collectUnknownAssignmentFields(records);
+  const warningRatio = stats.total > 0 ? stats.withWarning / stats.total : 0;
+  const lowWarningRatio = stats.total > 0 && warningRatio < WARNING_RATIO_THRESHOLD;
+
+  if (windowsPathCount > 0) {
+    score += windowsPathCount >= 5 || recordsWithWindowsPaths >= 3 ? 3 : 2;
+    reasons.push(
+      `${windowsPathCount} görsel yolu yerel Windows dizini (C:\\ veya D:\\) · ${recordsWithWindowsPaths} kayıt`,
+    );
+  }
+
+  if (invalidExtensionCount > 0) {
+    score += invalidExtensionCount >= 5 ? 3 : 2;
+    reasons.push(
+      `${invalidExtensionCount} görselde izin verilmeyen uzantı (yalnızca jpg, jpeg, png, webp) · ${recordsWithInvalidExtension} kayıt`,
+    );
+  }
+
+  if (unknownAssignmentFields.length > 0) {
+    score += 2;
+    reasons.push(
+      `assignments içinde web tarafında kullanılmayan alanlar: ${unknownAssignmentFields.join(", ")}`,
+    );
+  }
+
+  if (recordsWithoutRealUrl > 0) {
+    const ratio = recordsWithoutRealUrl / stats.total;
+    score += ratio >= 0.5 ? 3 : ratio >= 0.2 ? 2 : 1;
+    reasons.push(
+      `${recordsWithoutRealUrl} kayıtta image_paths gerçek http(s) URL içermiyor`,
+    );
+  }
+
+  if (lowWarningRatio) {
+    score += 1;
+    reasons.push(
+      `Uyarı metni olan kayıt oranı düşük (${stats.withWarning}/${stats.total}, eşik %${WARNING_RATIO_THRESHOLD * 100})`,
+    );
+  }
+
+  let level: MigrationRiskLevel = "low";
+  let label = "Düşük";
+  let emoji = "🟢";
+
+  if (score >= 5) {
+    level = "high";
+    label = "Yüksek";
+    emoji = "🔴";
+  } else if (score >= 2) {
+    level = "medium";
+    label = "Orta";
+    emoji = "🟡";
+  }
+
+  if (reasons.length === 0) {
+    reasons.push("Göç öncesi kritik risk sinyali tespit edilmedi.");
+  }
+
+  return {
+    level,
+    label,
+    emoji,
+    reasons,
+    windowsPathCount,
+    recordsWithWindowsPaths,
+    invalidExtensionCount,
+    recordsWithInvalidExtension,
+    unknownAssignmentFields,
+    recordsWithoutRealUrl,
+    lowWarningRatio,
+  };
+}
+
+const migrationRiskStyles: Record<
+  MigrationRiskLevel,
+  { box: string; badge: string }
+> = {
+  low: {
+    box: "border-emerald-300 bg-emerald-50/95",
+    badge: "bg-emerald-100 text-emerald-950",
+  },
+  medium: {
+    box: "border-amber-300 bg-amber-50/95",
+    badge: "bg-amber-100 text-amber-950",
+  },
+  high: {
+    box: "border-rose-300 bg-rose-50/95",
+    badge: "bg-rose-100 text-rose-950",
+  },
+};
+
+function MigrationRiskPanel({ report }: { report: MigrationRiskReport }) {
+  const styles = migrationRiskStyles[report.level];
+
+  return (
+    <div className={`rounded-2xl border-2 p-5 shadow-sm ${styles.box}`}>
+      <h3 className="text-lg font-black text-slate-900">Göç Risk Kontrolü</h3>
+      <p className="mt-3 text-sm font-semibold text-slate-600">Göç Riski:</p>
+      <p className="mt-1 flex items-center gap-2 text-2xl font-black text-slate-900">
+        <span aria-hidden>{report.emoji}</span>
+        <span className={`rounded-xl px-3 py-1 text-lg ${styles.badge}`}>{report.label}</span>
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <p className="rounded-lg border border-white/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700">
+          Windows yolu: {report.windowsPathCount} yol · {report.recordsWithWindowsPaths} kayıt
+        </p>
+        <p className="rounded-lg border border-white/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700">
+          Geçersiz uzantı: {report.invalidExtensionCount} yol ·{" "}
+          {report.recordsWithInvalidExtension} kayıt
+        </p>
+        <p className="rounded-lg border border-white/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700">
+          Gerçek URL olmayan kayıt: {report.recordsWithoutRealUrl}
+        </p>
+        <p className="rounded-lg border border-white/80 bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700">
+          Bilinmeyen assignments alanı: {report.unknownAssignmentFields.length}
+          {report.unknownAssignmentFields.length > 0
+            ? ` (${report.unknownAssignmentFields.join(", ")})`
+            : ""}
+        </p>
+      </div>
+
+      <p className="mt-4 text-sm font-bold text-slate-800">Nedenler</p>
+      <ul className="mt-2 list-inside list-disc space-y-1.5 text-sm font-medium text-slate-700">
+        {report.reasons.map((reason) => (
+          <li key={reason}>{reason}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function StatBox({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white/90 px-4 py-3 shadow-sm">
@@ -324,6 +565,11 @@ function DogaltasJsonTab() {
     () => (records.length > 0 ? computeCompatibilityStats(records) : null),
     [records],
   );
+
+  const migrationRisk = useMemo(() => {
+    if (!stats || records.length === 0) return null;
+    return computeMigrationRisk(records, stats);
+  }, [records, stats]);
 
   const unmappedPaths = useMemo(() => {
     const paths = new Set<string>();
@@ -487,6 +733,8 @@ function DogaltasJsonTab() {
               </div>
             ) : null}
           </div>
+
+          {migrationRisk ? <MigrationRiskPanel report={migrationRisk} /> : null}
 
           {previewRecords.length > 0 ? (
             <div>
