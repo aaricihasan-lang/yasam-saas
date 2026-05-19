@@ -16,6 +16,7 @@ import {
   UserCheck,
   Users,
   UserX,
+  X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -53,7 +54,9 @@ import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissio
 import {
   clearYasamUser,
   isAdminUser,
+  parseLoginUserRecord,
   readYasamUser,
+  type YasamUser,
 } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
@@ -73,6 +76,31 @@ const saveBtnClass =
 
 const actionBtn =
   "inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50";
+
+const OWNER_FALLBACK_EMAIL = "admin@yasamsistemi.com";
+const DELETE_CONFIRM_PHRASE = "SİLMEYİ ONAYLIYORUM";
+
+const deleteModalOverlay =
+  "fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm";
+
+const deleteModalPanel =
+  "relative w-full max-w-lg rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-rose-50/95 via-white to-violet-50/80 p-6 shadow-[0_24px_64px_rgba(15,23,42,0.22)] sm:p-8";
+
+function normalizeAdminLevel(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function isOwnerAdmin(admin: YasamUser | null | undefined): boolean {
+  if (!admin || !isAdminUser(admin)) return false;
+  if (normalizeAdminLevel(admin.admin_level) === "owner") return true;
+  const email = String(admin.email ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizeAdminLevel(admin.admin_level) && email === OWNER_FALLBACK_EMAIL) {
+    return true;
+  }
+  return false;
+}
 
 const pageContainerClass =
   "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
@@ -365,7 +393,13 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [user, setUser] = useState<ManagedUser | null>(null);
-  const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
+  const [currentAdminUser, setCurrentAdminUser] = useState<YasamUser | null>(null);
+  const [deleteModalStep, setDeleteModalStep] = useState<null | "confirm" | "verify">(
+    null,
+  );
+  const [deleteAdminPassword, setDeleteAdminPassword] = useState("");
+  const [deleteConfirmPhrase, setDeleteConfirmPhrase] = useState("");
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -463,7 +497,7 @@ export default function AdminUserDetailPage() {
   useEffect(() => {
     const session = readYasamUser();
     setAllowed(isAdminUser(session));
-    setCurrentAdminId(session?.id ?? null);
+    setCurrentAdminUser(session);
     setSessionChecked(true);
   }, []);
 
@@ -477,8 +511,88 @@ export default function AdminUserDetailPage() {
     router.push("/");
   }
 
+  const currentAdminId = currentAdminUser?.id ?? null;
+  const canDeleteAsOwner = isOwnerAdmin(currentAdminUser);
+
   function isSelf(): boolean {
     return Boolean(user && currentAdminId && user.id === currentAdminId);
+  }
+
+  function closeDeleteModals() {
+    setDeleteModalStep(null);
+    setDeleteAdminPassword("");
+    setDeleteConfirmPhrase("");
+    setDeleteSubmitting(false);
+  }
+
+  function openDeleteConfirmModal() {
+    if (!user || isSelf() || !canDeleteAsOwner) return;
+    setDeleteModalStep("confirm");
+  }
+
+  async function executeVerifiedDelete() {
+    if (!user || isSelf() || !canDeleteAsOwner) return;
+
+    if (!deleteAdminPassword.trim()) {
+      showToast({
+        title: "İşlem başarısız",
+        message: "Admin şifresi giriniz.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (deleteConfirmPhrase.trim() !== DELETE_CONFIRM_PHRASE) {
+      showToast({
+        title: "İşlem başarısız",
+        message: `Onay metni tam olarak "${DELETE_CONFIRM_PHRASE}" olmalıdır.`,
+        type: "error",
+      });
+      return;
+    }
+
+    const adminEmail = String(currentAdminUser?.email ?? "").trim().toLowerCase();
+    if (!adminEmail) {
+      showToast({
+        title: "İşlem başarısız",
+        message: "Oturum e-postası bulunamadı.",
+        type: "error",
+      });
+      return;
+    }
+
+    setDeleteSubmitting(true);
+
+    const { data, error: loginError } = await supabase.rpc("login_user", {
+      p_email: adminEmail,
+      p_password: deleteAdminPassword.trim(),
+    });
+
+    if (loginError || !data?.length || !parseLoginUserRecord(data[0])) {
+      setDeleteSubmitting(false);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Admin şifresi doğrulanamadı.",
+        type: "error",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ active: false })
+      .eq("id", user.id);
+
+    setDeleteSubmitting(false);
+
+    if (error) {
+      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+      return;
+    }
+
+    closeDeleteModals();
+    showToast({ title: "Başarılı", message: "Kullanıcı silindi.", type: "success" });
+    router.push("/admin/users");
   }
 
   function openEdit() {
@@ -617,26 +731,6 @@ export default function AdminUserDetailPage() {
     showToast({
       title: "Başarılı",
       message: nextActive ? "Kullanıcı aktif yapıldı." : "Kullanıcı pasif yapıldı.",
-      type: "success",
-    });
-    await loadUser();
-  }
-
-  async function softDelete() {
-    if (!user || isSelf()) return;
-    setActionUserId(user.id);
-    const { error } = await supabase
-      .from("users")
-      .update({ active: false })
-      .eq("id", user.id);
-    setActionUserId(null);
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
-      return;
-    }
-    showToast({
-      title: "Başarılı",
-      message: "Kullanıcı silinmedi; pasif yapıldı.",
       type: "success",
     });
     await loadUser();
@@ -1146,15 +1240,35 @@ export default function AdminUserDetailPage() {
                   <Pencil className="h-4 w-4" />
                   Düzenle
                 </button>
-                <button
-                  type="button"
-                  disabled={isSelf() || actionUserId === user.id}
-                  onClick={softDelete}
-                  className={`${actionBtn} border-rose-200 bg-rose-50 text-rose-950`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Sil
-                </button>
+                {isSelf() ? (
+                  <p className="w-full rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs font-bold text-violet-900">
+                    Kendi admin hesabınızı silemezsiniz.
+                  </p>
+                ) : canDeleteAsOwner ? (
+                  <button
+                    type="button"
+                    disabled={deleteSubmitting}
+                    onClick={openDeleteConfirmModal}
+                    className={`${actionBtn} border-rose-200 bg-rose-50 text-rose-950 hover:bg-rose-100`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Sil
+                  </button>
+                ) : (
+                  <div className="flex w-full flex-col gap-1 sm:w-auto">
+                    <button
+                      type="button"
+                      disabled
+                      className={`${actionBtn} border-rose-200/60 bg-rose-50/50 text-rose-400`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Sil
+                    </button>
+                    <p className="text-xs font-bold text-slate-500">
+                      Silme yetkisi yalnızca ana admine aittir.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {passwordOpen ? (
@@ -1385,6 +1499,147 @@ export default function AdminUserDetailPage() {
           </div>
         )}
       </div>
+
+      {deleteModalStep === "confirm" ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={closeDeleteModals}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2
+              id="delete-confirm-title"
+              className="pr-8 text-xl font-black text-rose-950 sm:text-2xl"
+            >
+              Kullanıcıyı silmek üzeresiniz
+            </h2>
+            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+              Bu işlem geri alınamaz. Kullanıcı ve ona bağlı veriler kalıcı olarak
+              silinebilir. Devam etmek istediğinizden emin misiniz?
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteModals}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteAdminPassword("");
+                  setDeleteConfirmPhrase("");
+                  setDeleteModalStep("verify");
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700"
+              >
+                Evet, devam et
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteModalStep === "verify" ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-verify-title"
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={closeDeleteModals}
+              disabled={deleteSubmitting}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2
+              id="delete-verify-title"
+              className="pr-8 text-xl font-black text-rose-950 sm:text-2xl"
+            >
+              Admin doğrulaması gerekli
+            </h2>
+            <p className="mt-3 text-sm font-medium text-slate-700">
+              Silme işlemini tamamlamak için ana admin şifresini girin.
+            </p>
+            <div className="mt-6 space-y-4">
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                  Admin şifresi
+                </span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deleteAdminPassword}
+                  onChange={(e) => setDeleteAdminPassword(e.target.value)}
+                  disabled={deleteSubmitting}
+                  className="mt-1.5 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
+                  placeholder="Şifrenizi girin"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                  Onay metni
+                </span>
+                <p className="mt-0.5 text-xs font-bold text-rose-800">
+                  Yazın: <span className="font-black">{DELETE_CONFIRM_PHRASE}</span>
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmPhrase}
+                  onChange={(e) => setDeleteConfirmPhrase(e.target.value)}
+                  disabled={deleteSubmitting}
+                  className="mt-1.5 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
+                  placeholder={DELETE_CONFIRM_PHRASE}
+                />
+              </label>
+            </div>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteModalStep("confirm")}
+                disabled={deleteSubmitting}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Geri
+              </button>
+              <button
+                type="button"
+                onClick={() => void executeVerifiedDelete()}
+                disabled={
+                  deleteSubmitting ||
+                  !deleteAdminPassword.trim() ||
+                  deleteConfirmPhrase.trim() !== DELETE_CONFIRM_PHRASE
+                }
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleteSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Siliniyor…
+                  </>
+                ) : (
+                  "Kullanıcıyı sil"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
