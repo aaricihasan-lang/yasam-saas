@@ -28,9 +28,6 @@ import {
 const navBtn =
   "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
 
-const cardLinkClass =
-  "relative z-10 flex min-h-[168px] h-full w-full cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 text-inherit no-underline shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl";
-
 function AdminTopNav({ onLogout }: { onLogout: () => void }) {
   return (
     <nav
@@ -196,10 +193,53 @@ const adminCards: AdminCard[] = [
   },
 ];
 
-function AdminToolCardContent({ item }: { item: AdminCard }) {
+type AdminToolCardProps = {
+  title: string;
+  description: string;
+  href: string;
+  badge?: string;
+  Icon: LucideIcon;
+  theme: AdminCard["theme"];
+};
+
+function AdminToolCard({
+  title,
+  description,
+  href,
+  badge,
+  Icon,
+  theme,
+}: AdminToolCardProps) {
+  return (
+    <Link href={href} className="relative z-10 block h-full no-underline">
+      <div
+        className={`flex h-full min-h-[168px] cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl ${theme.cardBg} ${theme.border}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
+          >
+            <Icon className="h-7 w-7" strokeWidth={2.25} aria-hidden />
+          </div>
+          {badge ? (
+            <span className="pointer-events-none rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        <h3 className="mt-4 text-xl font-black text-slate-900">{title}</h3>
+        <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{description}</p>
+      </div>
+    </Link>
+  );
+}
+
+function AdminToolCardInactive({ item }: { item: AdminCard }) {
   const { Icon, theme } = item;
   return (
-    <>
+    <div
+      className={`relative z-10 flex h-full min-h-[168px] cursor-default flex-col rounded-[28px] border bg-gradient-to-br p-6 opacity-95 shadow-[0_20px_50px_rgba(15,23,42,0.08)] ${theme.cardBg} ${theme.border}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div
           className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
@@ -207,37 +247,13 @@ function AdminToolCardContent({ item }: { item: AdminCard }) {
           <Icon className="h-7 w-7" strokeWidth={2.25} aria-hidden />
         </div>
         {item.badge ? (
-          <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+          <span className="pointer-events-none rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
             {item.badge}
           </span>
         ) : null}
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">{item.title}</h3>
       <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{item.desc}</p>
-    </>
-  );
-}
-
-function AdminToolCard({ item }: { item: AdminCard }) {
-  const { theme } = item;
-  const href = item.href?.trim();
-
-  const inactiveClass = `relative z-10 flex min-h-[168px] h-full w-full cursor-default flex-col rounded-[28px] border bg-gradient-to-br p-6 opacity-95 shadow-[0_20px_50px_rgba(15,23,42,0.08)] ${theme.cardBg} ${theme.border}`;
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className={`${cardLinkClass} ${theme.cardBg} ${theme.border}`}
-      >
-        <AdminToolCardContent item={item} />
-      </Link>
-    );
-  }
-
-  return (
-    <div className={inactiveClass}>
-      <AdminToolCardContent item={item} />
     </div>
   );
 }
@@ -333,10 +349,24 @@ export default function AdminPage() {
             Bu alan yalnızca admin rolü ile görünür. Uzman panelinde listelenmez.
           </p>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {adminCards.map((item) => (
-              <AdminToolCard key={item.title} item={item} />
-            ))}
+          <div className="relative z-30 mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {adminCards.map((item) => {
+              const href = item.href?.trim();
+              if (href) {
+                return (
+                  <AdminToolCard
+                    key={item.title}
+                    title={item.title}
+                    description={item.desc}
+                    href={href}
+                    badge={item.badge}
+                    Icon={item.Icon}
+                    theme={item.theme}
+                  />
+                );
+              }
+              return <AdminToolCardInactive key={item.title} item={item} />;
+            })}
           </div>
         </section>
       </div>
