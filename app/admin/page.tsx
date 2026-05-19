@@ -139,7 +139,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Sistem Sağlığı",
     desc: "Bağlantı, performans ve servis durumu özeti.",
-    badge: "Yakında",
+    href: "/admin/sistem-sagligi",
     Icon: Activity,
     theme: {
       iconWrap: "from-emerald-500 to-green-600",
