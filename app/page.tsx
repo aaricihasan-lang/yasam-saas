@@ -32,12 +32,15 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   ChartColumn,
+  Check,
   FolderArchive,
   Gem,
   Leaf,
   Loader2,
+  Lock,
   Package,
   Shield,
+  ShieldCheck,
   Sparkles,
   UsersRound,
 } from "lucide-react";
@@ -103,6 +106,14 @@ const landingModules: LandingModule[] = [
     desc: "Danışan kayıtları, notlar, analizler ve randevu sistemi.",
     icon: "👥",
   },
+];
+
+const trustPrinciples: string[] = [
+  "Özel notlarınız yalnızca size aittir",
+  "Danışan içerikleriniz üçüncü kişiler tarafından görüntülenmez",
+  "Sistem sahibi dahil hiçbir yönetici özel çalışma içeriklerini okuyamaz",
+  "Admin paneli yalnızca üyelik, ödeme, modül ve sistem yönetimi içindir",
+  "Verileriniz güvenli altyapıda korunur",
 ];
 
 const featureItems: FeatureItem[] = [
@@ -1042,6 +1053,97 @@ export default function Home() {
               </div>
             </div>
           ))}
+          </div>
+        </section>
+
+        <section
+          className="relative mt-14 w-full max-w-none overflow-hidden rounded-[36px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-6 shadow-[0_28px_90px_rgba(79,70,229,0.12)] ring-1 ring-violet-200/50 backdrop-blur-2xl sm:p-10 xl:mt-16 xl:p-12"
+          aria-labelledby="trust-principles-heading"
+        >
+          <div
+            className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-violet-400/25 blur-[90px]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -left-12 bottom-0 h-56 w-56 rounded-full bg-cyan-300/30 blur-[80px]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-300/20 blur-[70px]"
+            aria-hidden
+          />
+
+          <div className="relative z-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-12 xl:gap-16">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-800/90 md:text-base">
+                🔒 Güven İlkemiz
+              </p>
+              <h3
+                id="trust-principles-heading"
+                className="mt-4 text-2xl font-black leading-snug text-slate-950 sm:text-3xl xl:text-4xl"
+              >
+                Yaşam Sistemi yalnızca bir yazılım değil, uzmanların yıllarca
+                oluşturduğu emek ve bilgi birikimini koruyan güvenli bir çalışma
+                alanıdır.
+              </h3>
+
+              <ul className="mt-8 space-y-4">
+                {trustPrinciples.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-start gap-4 rounded-[22px] border border-white/80 bg-white/65 px-5 py-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:border-violet-200/80 hover:bg-white/85"
+                  >
+                    <span
+                      className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-emerald-600 text-white shadow-md"
+                      aria-hidden
+                    >
+                      <Check className="h-5 w-5" strokeWidth={2.75} />
+                    </span>
+                    <span className="text-base font-bold leading-relaxed text-slate-800 md:text-lg md:leading-8">
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-8 border-t border-violet-200/60 pt-6 text-sm font-semibold italic text-slate-600 md:text-base">
+                &ldquo;Güven bizim için özellik değil, sistemin temelidir.&rdquo;
+              </p>
+            </div>
+
+            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+              <div
+                className="absolute inset-4 rounded-[32px] bg-gradient-to-br from-violet-500/25 via-indigo-400/20 to-emerald-400/25 blur-2xl"
+                aria-hidden
+              />
+              <div className="relative flex aspect-square max-h-[420px] flex-col items-center justify-center rounded-[32px] border border-white/80 bg-gradient-to-br from-white/75 via-violet-50/80 to-cyan-50/70 p-8 shadow-[0_24px_70px_rgba(91,33,182,0.15)] backdrop-blur-xl sm:max-h-none sm:min-h-[360px] lg:min-h-[400px]">
+                <div className="relative flex h-44 w-44 items-center justify-center sm:h-52 sm:w-52">
+                  <div
+                    className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-br from-violet-400/30 via-indigo-300/25 to-emerald-400/30"
+                    aria-hidden
+                  />
+                  <div
+                    className="absolute inset-6 rounded-full border-2 border-dashed border-violet-300/50"
+                    aria-hidden
+                  />
+                  <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-[0_20px_50px_rgba(79,70,229,0.35)] ring-4 ring-white/50 sm:h-32 sm:w-32">
+                    <ShieldCheck className="h-14 w-14 sm:h-16 sm:w-16" strokeWidth={1.75} />
+                  </div>
+                  <div className="absolute -left-2 top-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-violet-700 shadow-lg backdrop-blur-sm sm:h-16 sm:w-16">
+                    <Lock className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.25} />
+                  </div>
+                  <div className="absolute -right-1 bottom-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-emerald-700 shadow-lg backdrop-blur-sm sm:h-16 sm:w-16">
+                    <Shield className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.25} />
+                  </div>
+                </div>
+                <p className="mt-6 text-center text-sm font-black uppercase tracking-[0.2em] text-violet-800/90">
+                  Gizlilik · Güven · Saygı
+                </p>
+                <p className="mt-2 max-w-[240px] text-center text-base font-semibold leading-relaxed text-slate-600">
+                  Uzman emeğiniz ve danışan mahremiyetiniz önceliğimizdir.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
