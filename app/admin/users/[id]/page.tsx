@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Banknote,
   ChevronDown,
+  Eye,
   Home,
   KeyRound,
   Loader2,
@@ -998,6 +999,25 @@ export default function AdminUserDetailPage() {
                   Bu sizin admin hesabınız — pasif yapma ve silme devre dışı.
                 </p>
               ) : null}
+            </section>
+
+            <section
+              className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/95 via-white to-violet-50/70`}
+            >
+              <Link
+                href={`/admin/users/${user.id}/workspace`}
+                className="group flex w-full flex-col gap-3 rounded-[24px] border-2 border-indigo-300/90 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-6 py-6 text-left text-white shadow-[0_16px_40px_rgba(79,70,229,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_48px_rgba(79,70,229,0.42)] no-underline sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-7"
+              >
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-2 ring-white/30">
+                  <Eye className="h-7 w-7" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xl font-black sm:text-2xl">Uzman Panelini Görüntüle</p>
+                  <p className="mt-1 text-sm font-semibold text-indigo-100/95 sm:text-base">
+                    Bu üyeye ait çalışma alanını salt okunur olarak açar.
+                  </p>
+                </div>
+              </Link>
             </section>
 
             {paymentDraft ? (
