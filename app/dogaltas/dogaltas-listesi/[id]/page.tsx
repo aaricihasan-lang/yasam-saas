@@ -111,6 +111,126 @@ type ActiveReader = {
   text: string;
 };
 
+type StoneImageItem = {
+  id: string;
+  name: string;
+  url?: string;
+  file_path?: string;
+  displayable: boolean;
+};
+
+function isWebImageUrl(value: string | undefined): boolean {
+  if (!value?.trim()) return false;
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeAssignments(raw: unknown): Record<string, string[][]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+  const result: Record<string, string[][]> = {};
+
+  Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      const rows = value
+        .map((row) => {
+          if (Array.isArray(row)) {
+            return row.map((cell) => String(cell ?? "").trim()).filter(Boolean);
+          }
+          if (typeof row === "string" && row.trim()) return [row.trim()];
+          return [];
+        })
+        .filter((row) => row.length > 0);
+      if (rows.length > 0) result[key] = rows;
+      return;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      result[key] = [[value.trim()]];
+    }
+  });
+
+  return result;
+}
+
+function normalizeImages(raw: unknown): StoneImageItem[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((item, index) => {
+    if (typeof item === "string") {
+      const path = item.trim();
+      return {
+        id: `legacy-${index}`,
+        name: path.split(/[/\\]/).pop() || `Görsel ${index + 1}`,
+        file_path: path || undefined,
+        displayable: false,
+      };
+    }
+
+    if (!item || typeof item !== "object") {
+      return {
+        id: `unknown-${index}`,
+        name: `Görsel ${index + 1}`,
+        displayable: false,
+      };
+    }
+
+    const record = item as Record<string, unknown>;
+    const url = typeof record.url === "string" ? record.url.trim() : "";
+    const filePath =
+      typeof record.file_path === "string" ? record.file_path.trim() : "";
+    const displayable = isWebImageUrl(url);
+
+    return {
+      id: String(record.id ?? `img-${index}`),
+      name: String(
+        record.name ?? filePath.split(/[/\\]/).pop() ?? url ?? `Görsel ${index + 1}`,
+      ),
+      url: displayable ? url : undefined,
+      file_path: filePath || undefined,
+      displayable,
+    };
+  });
+}
+
+function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRecord | null {
+  if (!data || data.id == null) return null;
+
+  const stringField = (value: unknown) =>
+    typeof value === "string" ? value : value != null ? String(value) : "";
+
+  return {
+    id: String(data.id),
+    tenant_id: stringField(data.tenant_id),
+    stone_name: stringField(data.stone_name) || "İsimsiz Taş",
+    short_description: stringField(data.short_description),
+    general_info: stringField(data.general_info),
+    source_note: stringField(data.source_note),
+    physical_effects: stringField(data.physical_effects),
+    spiritual_effects: stringField(data.spiritual_effects),
+    other_effects: stringField(data.other_effects),
+    warning_text: stringField(data.warning_text),
+    warning_tags: Array.isArray(data.warning_tags)
+      ? data.warning_tags.map((tag) => String(tag)).filter(Boolean)
+      : [],
+    feng_shui: stringField(data.feng_shui),
+    meditation: stringField(data.meditation),
+    care: stringField(data.care),
+    application: stringField(data.application),
+    chakras: Array.isArray(data.chakras)
+      ? data.chakras.map((chakra) => String(chakra)).filter(Boolean)
+      : [],
+    assignments: normalizeAssignments(data.assignments),
+    images: normalizeImages(data.images),
+    created_at: stringField(data.created_at) || new Date().toISOString(),
+    updated_at: data.updated_at != null ? stringField(data.updated_at) : null,
+  };
+}
+
 function safeFileName(fileName: string) {
   return fileName
     .replaceAll("ı", "i")
@@ -183,8 +303,17 @@ function shortPreview(text: string | null | undefined, limit = 180) {
   return clean.length > limit ? `${clean.slice(0, limit)}...` : clean;
 }
 
-function rowsToText(rows: string[][] | undefined) {
-  return (rows || []).map((row) => row.join(" / ")).join("\n");
+function rowsToText(rows: string[][] | unknown) {
+  if (!Array.isArray(rows)) return "";
+
+  return rows
+    .map((row) => {
+      if (Array.isArray(row)) return row.map((cell) => String(cell ?? "")).join(" / ");
+      if (typeof row === "string") return row;
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function textToRows(text: string) {
@@ -201,17 +330,16 @@ function textToRows(text: string) {
 }
 
 function assignmentsToValues(assignments: Record<string, string[][]> | null | undefined) {
+  const safeAssignments = normalizeAssignments(assignments);
   const result: Record<string, string> = {};
 
   ASSIGNMENT_SECTIONS.forEach((section) => {
-    result[section] = rowsToText(assignments?.[section]);
+    result[section] = rowsToText(safeAssignments[section]);
   });
 
-  if (assignments) {
-    Object.entries(assignments).forEach(([key, rows]) => {
-      if (!(key in result)) result[key] = rowsToText(rows);
-    });
-  }
+  Object.entries(safeAssignments).forEach(([key, rows]) => {
+    if (!(key in result)) result[key] = rowsToText(rows);
+  });
 
   return result;
 }
@@ -331,6 +459,12 @@ export default function StoneDetailPage() {
     setSuccessMessage("");
   }
 
+  function commitStoneRecord(raw: Record<string, unknown> | null | undefined) {
+    const safe = toSafeStone(raw);
+    setStone(safe);
+    return safe;
+  }
+
   async function loadStone() {
     if (!id) return;
 
@@ -338,31 +472,37 @@ export default function StoneDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const { data, error } = await supabase
-      .from("stones")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from("stones")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
 
-    console.log("Taş ID:", id);
-    console.log("Bulunan:", data);
-    console.log("Hata:", error);
+      setLoading(false);
 
-    setLoading(false);
+      if (error) {
+        setStone(null);
+        setErrorMessage(`Kayıt okunurken hata oluştu\n${error.message}`);
+        return;
+      }
 
-    if (error) {
-      setErrorMessage(`Kayıt alınamadı: ${error.message}`);
+      if (!data) {
+        setStone(null);
+        setErrorMessage(`Kayıt bulunamadı.\nID: ${id}`);
+        return;
+      }
+
+      const safe = commitStoneRecord(data as Record<string, unknown>);
+      if (!safe) {
+        setErrorMessage(`Kayıt okunurken hata oluştu\nGeçersiz kayıt verisi`);
+      }
+    } catch (err) {
+      setLoading(false);
       setStone(null);
-      return;
+      const message = err instanceof Error ? err.message : String(err);
+      setErrorMessage(`Kayıt okunurken hata oluştu\n${message}`);
     }
-
-    if (!data) {
-      setStone(null);
-      setErrorMessage(`Kayıt bulunamadı.\nID: ${id}`);
-      return;
-    }
-
-    setStone(data as StoneRecord);
   }
 
   useEffect(() => {
@@ -482,7 +622,7 @@ export default function StoneDetailPage() {
       .eq("tenant_id", TENANT_ID)
       .eq("id", stone.id)
       .select("*")
-      .single();
+      .maybeSingle();
 
     setSaving(false);
 
@@ -491,7 +631,12 @@ export default function StoneDetailPage() {
       return;
     }
 
-    setStone(data as StoneRecord);
+    if (!data) {
+      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+      return;
+    }
+
+    commitStoneRecord(data as Record<string, unknown>);
     setActiveEditor(null);
   }
 
@@ -570,7 +715,7 @@ export default function StoneDetailPage() {
       .eq("tenant_id", TENANT_ID)
       .eq("id", currentStone.id)
       .select("*")
-      .single();
+      .maybeSingle();
 
     setImageBusy(false);
 
@@ -579,7 +724,12 @@ export default function StoneDetailPage() {
       return;
     }
 
-    setStone(data as StoneRecord);
+    if (!data) {
+      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+      return;
+    }
+
+    commitStoneRecord(data as Record<string, unknown>);
   }
 
   async function handleDeleteImage(image: {
@@ -624,7 +774,7 @@ export default function StoneDetailPage() {
       .eq("tenant_id", TENANT_ID)
       .eq("id", currentStone.id)
       .select("*")
-      .single();
+      .maybeSingle();
 
     setImageBusy(false);
 
@@ -633,24 +783,44 @@ export default function StoneDetailPage() {
       return;
     }
 
+    if (!data) {
+      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+      return;
+    }
+
     if (previewImage?.url && image.url && previewImage.url === image.url) {
       setPreviewImage(null);
     }
 
-    setStone(data as StoneRecord);
+    commitStoneRecord(data as Record<string, unknown>);
   }
 
-  const images = stone?.images || [];
+  const safeStone = useMemo(
+    () => (stone ? toSafeStone(stone as unknown as Record<string, unknown>) : null),
+    [stone],
+  );
+
+  const images = useMemo(
+    () => normalizeImages(safeStone?.images),
+    [safeStone?.images],
+  );
 
   const imagesWithUrl = useMemo(
-    () => images.filter((img) => img.url && String(img.url).trim()),
-    [images]
+    () => images.filter((img) => img.displayable && img.url),
+    [images],
+  );
+
+  const imagesNotWebFormat = useMemo(
+    () => images.filter((img) => !img.displayable),
+    [images],
   );
 
   const hasAssignments = useMemo(() => {
-    if (!stone?.assignments) return false;
-    return Object.values(stone.assignments).some((rows) => rows.length > 0);
-  }, [stone]);
+    if (!safeStone?.assignments) return false;
+    return Object.values(safeStone.assignments).some(
+      (rows) => Array.isArray(rows) && rows.length > 0,
+    );
+  }, [safeStone]);
 
   if (loading) {
     return (
@@ -663,13 +833,19 @@ export default function StoneDetailPage() {
   }
 
   if (errorMessage && !stone) {
+    const isReadError = errorMessage.startsWith("Kayıt okunurken hata oluştu");
+
     return (
       <main className={`flex min-h-screen items-center justify-center px-6 ${pageBg}`}>
         <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-[48px]">💎</div>
-          <h1 className="mt-3 text-[22px] font-black text-slate-950">Kayıt bulunamadı</h1>
+          <h1 className="mt-3 text-[22px] font-black text-slate-950">
+            {isReadError ? "Kayıt okunurken hata oluştu" : "Kayıt bulunamadı"}
+          </h1>
           <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-500">
-            {errorMessage || "Bu doğaltaş kaydı görüntülenemedi."}
+            {isReadError
+              ? errorMessage.replace(/^Kayıt okunurken hata oluştu\n?/, "")
+              : errorMessage || "Bu doğaltaş kaydı görüntülenemedi."}
           </p>
 
           <Link
@@ -683,7 +859,7 @@ export default function StoneDetailPage() {
     );
   }
 
-  if (!stone) return null;
+  if (!safeStone) return null;
 
   return (
     <main className={pageBg}>
@@ -703,17 +879,19 @@ export default function StoneDetailPage() {
                 onClick={() => openTextEditor("stone_name", "Taş Adı", "BAŞLIK", false)}
                 className="block w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-4 py-2 text-left text-5xl font-black tracking-tight text-slate-950 shadow-md transition hover:border-violet-300 xl:text-6xl"
               >
-                {stone.stone_name}
+                {safeStone.stone_name}
               </button>
             ) : (
               <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
-                {stone.stone_name}
+                {safeStone.stone_name}
               </h1>
             )}
 
             <p className="mt-3 text-lg font-medium text-slate-600">
-              Oluşturma: {formatDate(stone.created_at)}
-              {stone.updated_at ? ` · Güncelleme: ${formatDate(stone.updated_at)}` : ""}
+              Oluşturma: {formatDate(safeStone.created_at)}
+              {safeStone.updated_at
+                ? ` · Güncelleme: ${formatDate(safeStone.updated_at)}`
+                : ""}
             </p>
           </div>
 
@@ -814,7 +992,7 @@ export default function StoneDetailPage() {
                       </button>
                     )}
                     <h2 className="border-t border-cyan-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
-                      {stone.stone_name}
+                      {safeStone.stone_name}
                     </h2>
                   </div>
 
@@ -861,7 +1039,7 @@ export default function StoneDetailPage() {
                   <div>
                     <div className="text-[62px]">💎</div>
                     <h2 className="mt-2 text-[20px] font-black text-slate-950">
-                      {stone.stone_name}
+                      {safeStone.stone_name}
                     </h2>
                     <p className="mt-2 px-3 text-[12px] leading-5 text-slate-500">
                       Gerçek görsel için Supabase Storage bağlantısı gerekli.
@@ -870,21 +1048,20 @@ export default function StoneDetailPage() {
                 </div>
               )}
 
-              {imagesWithUrl.length === 0 && (
-                <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-left text-[11px] font-bold leading-5 text-amber-700 ring-1 ring-amber-100">
-                  Şu an eski kayıtta yalnızca resim adı saklandı. Fotoğrafın kendisi veritabanına yüklenmediği için burada görüntülenemez.
-                </div>
-              )}
-
-              {imagesWithUrl.length === 0 && images.length > 0 && (
+              {imagesNotWebFormat.length > 0 && (
                 <div className="mt-4 space-y-2 text-left">
-                  <p className="text-[12px] font-black text-slate-700">Kayıtlı Resim Adları</p>
-                  {images.map((image) => (
+                  <p className="text-[12px] font-black text-slate-700">
+                    Web&apos;de gösterilemeyen görseller
+                  </p>
+                  {imagesNotWebFormat.map((image) => (
                     <div
                       key={image.id}
-                      className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
+                      className="rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
                     >
-                      <span className="min-w-0 truncate">{image.name}</span>
+                      <span className="block min-w-0 truncate">{image.name}</span>
+                      <span className="mt-1 block text-[10px] font-semibold text-amber-700">
+                        Görsel yolu web formatında değil
+                      </span>
                       {editEnabled && (
                         <button
                           type="button"
@@ -894,7 +1071,7 @@ export default function StoneDetailPage() {
                             event.stopPropagation();
                             void handleDeleteImage(image);
                           }}
-                          className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                          className="mt-2 shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
                         >
                           Sil
                         </button>
@@ -904,42 +1081,6 @@ export default function StoneDetailPage() {
                 </div>
               )}
 
-              {imagesWithUrl.length > 0 &&
-                images.some((img) => !img.url?.trim()) && (
-                  <>
-                    <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-left text-[11px] font-bold leading-5 text-amber-700 ring-1 ring-amber-100">
-                      Şu an eski kayıtta yalnızca resim adı saklandı. Fotoğrafın kendisi veritabanına yüklenmediği için burada görüntülenemez.
-                    </div>
-
-                    <div className="mt-4 space-y-2 text-left">
-                      <p className="text-[12px] font-black text-slate-700">Kayıtlı Resim Adları</p>
-                      {images
-                        .filter((img) => !img.url?.trim())
-                        .map((image) => (
-                          <div
-                            key={image.id}
-                            className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-slate-500 ring-1 ring-slate-100"
-                          >
-                            <span className="min-w-0 truncate">{image.name}</span>
-                            {editEnabled && (
-                              <button
-                                type="button"
-                                disabled={imageBusy}
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  void handleDeleteImage(image);
-                                }}
-                                className="shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
-                              >
-                                Sil
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  </>
-                )}
               {editEnabled && (
                 <div className="mt-4">
                   <input
@@ -982,10 +1123,10 @@ export default function StoneDetailPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {(stone.chakras || []).length === 0 ? (
+                {safeStone.chakras.length === 0 ? (
                   <span className="text-[13px] text-slate-400">-</span>
                 ) : (
-                  (stone.chakras || []).slice(0, editEnabled ? 3 : 99).map((chakra) => (
+                  safeStone.chakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
                     <span
                       key={chakra}
                       className={toneClass("violet")}
@@ -1012,10 +1153,10 @@ export default function StoneDetailPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {(stone.warning_tags || []).length === 0 ? (
+                {safeStone.warning_tags.length === 0 ? (
                   <span className="text-[13px] text-slate-400">-</span>
                 ) : (
-                  (stone.warning_tags || []).slice(0, editEnabled ? 3 : 99).map((tag) => (
+                  safeStone.warning_tags.slice(0, editEnabled ? 3 : 99).map((tag) => (
                     <span
                       key={tag}
                       className={toneClass("rose")}
@@ -1042,21 +1183,33 @@ export default function StoneDetailPage() {
               </div>
 
               <div className="mt-3 space-y-3">
-                {hasAssignments && stone.assignments ? (
-                  Object.entries(stone.assignments).map(([title, rows]) =>
-                    rows.length > 0 ? (
+                {hasAssignments ? (
+                  Object.entries(safeStone.assignments).map(([title, rows]) => {
+                    const safeRows = Array.isArray(rows) ? rows : [];
+                    if (safeRows.length === 0) return null;
+
+                    return (
                       <div key={title} className="rounded-2xl bg-slate-50/70 p-3">
                         <p className="text-[12px] font-black text-slate-700">{title}</p>
                         <div className="mt-1 space-y-1">
-                          {rows.slice(0, editEnabled ? 2 : 99).map((row, index) => (
-                            <p key={`${title}-${index}`} className="text-[12px] leading-5 text-slate-500">
-                              • {row.join(" / ")}
-                            </p>
-                          ))}
+                          {safeRows.slice(0, editEnabled ? 2 : 99).map((row, index) => {
+                            const cells = Array.isArray(row)
+                              ? row.map((cell) => String(cell ?? ""))
+                              : [String(row ?? "")];
+
+                            return (
+                              <p
+                                key={`${title}-${index}`}
+                                className="text-[12px] leading-5 text-slate-500"
+                              >
+                                • {cells.filter(Boolean).join(" / ")}
+                              </p>
+                            );
+                          })}
                         </div>
                       </div>
-                    ) : null
-                  )
+                    );
+                  })
                 ) : (
                   <span className="text-[13px] text-slate-400">-</span>
                 )}
@@ -1068,72 +1221,74 @@ export default function StoneDetailPage() {
             <TextBlock
               title="Kısa Açıklama"
               badge="GENEL BİLGİ"
-              text={stone.short_description}
+              text={safeStone.short_description}
               tone="cyan"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("short_description", "Kısa Açıklama", "GENEL BİLGİ")}
-              onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", stone.short_description)}
+              onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
             />
 
             <TextBlock
               title="Genel Taş Açıklaması"
               badge="DETAYLI BİLGİ"
-              text={stone.general_info}
+              text={safeStone.general_info}
               tone="cyan"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
-              onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", stone.general_info)}
+              onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
             />
 
             <TextBlock
               title="Kaynak Notu"
               badge="KAYNAK"
-              text={stone.source_note}
+              text={safeStone.source_note}
               tone="slate"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
-              onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", stone.source_note)}
+              onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
             />
 
             <TextBlock
               title="Fiziksel Etkiler"
               badge="BEDENSEL ETKİ"
-              text={stone.physical_effects}
+              text={safeStone.physical_effects}
               tone="emerald"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
-              onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", stone.physical_effects)}
+              onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
             />
 
             <TextBlock
               title="Ruhsal Etkiler"
               badge="RUHSAL ETKİ"
-              text={stone.spiritual_effects}
+              text={safeStone.spiritual_effects}
               tone="violet"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
-              onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", stone.spiritual_effects)}
+              onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
             />
 
             <TextBlock
               title="Diğer Etkiler"
               badge="TAMAMLAYICI NOT"
-              text={stone.other_effects}
+              text={safeStone.other_effects}
               tone="amber"
               editEnabled={editEnabled}
               onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
-              onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", stone.other_effects)}
+              onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
             />
 
             <div className="lg:col-span-2">
               <TextBlock
                 title="Uyarılar ve Hassasiyetler"
                 badge="KLİNİK NOT"
-                text={stone.warning_text}
+                text={safeStone.warning_text}
                 tone="rose"
                 editEnabled={editEnabled}
                 onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
-                onOpenRead={() => openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", stone.warning_text)}
+                onOpenRead={() =>
+                  openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
+                }
               />
             </div>
 
@@ -1146,10 +1301,10 @@ export default function StoneDetailPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {[
-                  ["Feng Shui", "feng_shui", stone.feng_shui],
-                  ["Meditasyon", "meditation", stone.meditation],
-                  ["Bakım", "care", stone.care],
-                  ["Uygulama", "application", stone.application],
+                  ["Feng Shui", "feng_shui", safeStone.feng_shui],
+                  ["Meditasyon", "meditation", safeStone.meditation],
+                  ["Bakım", "care", safeStone.care],
+                  ["Uygulama", "application", safeStone.application],
                 ].map(([title, key, text]) => (
                   <button
                     key={title}
@@ -1203,7 +1358,7 @@ export default function StoneDetailPage() {
                 </h2>
 
                 <p className="mt-1 text-[12px] font-bold text-slate-400">
-                  {stone.stone_name} kaydı okunuyor.
+                  {safeStone.stone_name} kaydı okunuyor.
                 </p>
               </div>
 
@@ -1237,7 +1392,7 @@ export default function StoneDetailPage() {
                 </h2>
 
                 <p className="mt-1 text-[12px] font-bold text-slate-400">
-                  {stone.stone_name} kaydı düzenleniyor.
+                  {safeStone.stone_name} kaydı düzenleniyor.
                 </p>
               </div>
 
@@ -1359,7 +1514,7 @@ export default function StoneDetailPage() {
             </h2>
 
             <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-              <b>{stone.stone_name || "İsimsiz taş"}</b> kaydını silmek istediğinizden emin misiniz?
+              <b>{safeStone.stone_name}</b> kaydını silmek istediğinizden emin misiniz?
             </p>
 
             <p className="mt-2 text-[12px] font-bold text-rose-600">
