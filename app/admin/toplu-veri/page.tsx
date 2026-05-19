@@ -63,7 +63,18 @@ type MigrationRiskReport = {
   lowWarningRatio: boolean;
 };
 
-const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "bmp",
+  "tif",
+  "tiff",
+]);
+
+const STONE_PHOTOS_BUCKET = "stone-photos";
 
 const WARNING_RATIO_THRESHOLD = 0.2;
 const BATCH_SIZE = 25;
@@ -364,9 +375,15 @@ type StoneInsertPayload = {
   application: string | null;
   chakras: string[] | null;
   assignments: Record<string, unknown> | null;
-  images: { id: string; name: string; url: string; file_path?: string }[];
+  images: { id: string; name: string; url: string }[];
   warning_tags: string[] | null;
   updated_at: string;
+  image_upload_failed?: boolean;
+};
+
+type LocalImageUploadResult = {
+  image?: { id: string; name: string; url: string };
+  failed: boolean;
 };
 
 function mapJsonChakras(record: StoneJsonRecord): string[] | null {
@@ -402,6 +419,96 @@ function mapJsonImages(
     };
     return isRealUrl(path) ? base : { ...base, file_path: path };
   });
+}
+
+async function uploadLocalImagePath(
+  localPath: string,
+  tenantId: string,
+  imageId: string,
+  imageBasePath: string,
+): Promise<LocalImageUploadResult> {
+  if (isRealUrl(localPath)) {
+    const name = localPath.split(/[/\\]/).pop() ?? "gorsel";
+    return {
+      image: { id: imageId, name, url: localPath.trim() },
+      failed: false,
+    };
+  }
+
+  try {
+    const response = await fetch("/api/admin/toplu-veri/upload-local-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        localPath,
+        tenantId,
+        basePath: imageBasePath || undefined,
+      }),
+    });
+
+    const result = (await response.json()) as {
+      ok?: boolean;
+      url?: string;
+      name?: string;
+      error?: string;
+    };
+
+    if (result.ok && result.url) {
+      return {
+        image: {
+          id: imageId,
+          name: result.name ?? localPath.split(/[/\\]/).pop() ?? "gorsel",
+          url: result.url,
+        },
+        failed: false,
+      };
+    }
+
+    return { failed: true };
+  } catch {
+    return { failed: true };
+  }
+}
+
+async function buildStonePayloadWithImages(
+  record: StoneJsonRecord,
+  tenantId: string,
+  recordIndex: number,
+  imageBasePath: string,
+): Promise<StoneInsertPayload | null> {
+  const base = mapJsonRecordToStonePayload(record, tenantId, recordIndex);
+  if (!base) return null;
+
+  const paths = getImagePathList(record);
+  if (paths.length === 0) {
+    return base;
+  }
+
+  const images: StoneInsertPayload["images"] = [];
+  let imageUploadFailed = false;
+
+  for (let imageIndex = 0; imageIndex < paths.length; imageIndex += 1) {
+    const localPath = paths[imageIndex];
+    const imageId = `json-import-${recordIndex}-${imageIndex}`;
+    const uploadResult = await uploadLocalImagePath(
+      localPath,
+      tenantId,
+      imageId,
+      imageBasePath,
+    );
+
+    if (uploadResult.image) {
+      images.push(uploadResult.image);
+    } else if (!isRealUrl(localPath)) {
+      imageUploadFailed = true;
+    }
+  }
+
+  return {
+    ...base,
+    images,
+    ...(imageUploadFailed ? { image_upload_failed: true } : {}),
+  };
 }
 
 function mapJsonRecordToStonePayload(
@@ -806,6 +913,7 @@ function DogaltasJsonTab() {
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importFailedRows, setImportFailedRows] = useState<ImportFailedRow[]>([]);
+  const [imageBasePath, setImageBasePath] = useState("");
 
   const previewRecords = useMemo(() => records.slice(0, 3), [records]);
 
@@ -911,12 +1019,18 @@ function DogaltasJsonTab() {
     const recordsToImport = testMode ? records.slice(0, 10) : records;
 
     const importRows: ImportRow[] = [];
-    recordsToImport.forEach((record, index) => {
-      const payload = mapJsonRecordToStonePayload(record, tenantId, index);
+    for (let index = 0; index < recordsToImport.length; index += 1) {
+      const record = recordsToImport[index];
+      const payload = await buildStonePayloadWithImages(
+        record,
+        tenantId,
+        index,
+        imageBasePath.trim(),
+      );
       if (payload) {
         importRows.push({ payload, stoneName: payload.stone_name });
       }
-    });
+    }
 
     if (importRows.length === 0) {
       setImportError("Aktarılacak geçerli taş kaydı bulunamadı (isim zorunlu).");
@@ -972,7 +1086,7 @@ function DogaltasJsonTab() {
     } else {
       setImportError("Hiçbir kayıt aktarılamadı. Başarısız kayıtları listeden inceleyin.");
     }
-  }, [records, showToast]);
+  }, [records, showToast, imageBasePath]);
 
   return (
     <section
@@ -987,6 +1101,20 @@ function DogaltasJsonTab() {
           </h2>
           <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
             JSON yükleyin; alan eşleştirmesi, göç riski ve Supabase aktarımı bu ekrandan yapılır.
+          </p>
+          <label className="mt-3 block max-w-2xl text-sm font-semibold text-slate-700">
+            Yerel görsel kök klasörü (opsiyonel — göreli yollar için)
+            <input
+              type="text"
+              value={imageBasePath}
+              onChange={(event) => setImageBasePath(event.target.value)}
+              placeholder="Örn: C:\clean_app veya D:\taslar"
+              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-inner outline-none focus:border-cyan-400"
+            />
+          </label>
+          <p className="mt-1 max-w-2xl text-xs font-medium text-slate-500">
+            Yerel dosya bulunursa {STONE_PHOTOS_BUCKET} deposuna yüklenir; aksi halde taş aktarılır ve{" "}
+            <code className="rounded bg-slate-100 px-1">image_upload_failed</code> işaretlenir.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
