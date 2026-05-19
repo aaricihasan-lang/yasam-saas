@@ -389,6 +389,7 @@ export default function AdminUserDetailPage() {
   const [canPersistPayment, setCanPersistPayment] = useState(true);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
 
   const loadPaymentHistory = useCallback(async (uid: string) => {
     setHistoryLoading(true);
@@ -1027,26 +1028,38 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={savePayment}
-                  disabled={savingPayment || !canPersistPayment}
-                  className={`${saveBtnClass} mt-5 sm:max-w-xs`}
-                >
-                  {savingPayment ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                      Kaydediliyor…
-                    </span>
-                  ) : (
-                    "Ödemeyi Kaydet"
-                  )}
-                </button>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <button
+                    type="button"
+                    onClick={savePayment}
+                    disabled={savingPayment || !canPersistPayment}
+                    className={`${saveBtnClass} sm:min-w-[200px] sm:flex-1 sm:max-w-xs`}
+                  >
+                    {savingPayment ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                        Kaydediliyor…
+                      </span>
+                    ) : (
+                      "Ödemeyi Kaydet"
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentHistory((open) => !open)}
+                    className="inline-flex h-14 min-w-[200px] items-center justify-center rounded-2xl border-2 border-teal-300/90 bg-gradient-to-r from-teal-50 to-emerald-50 px-8 text-base font-black text-teal-950 shadow-sm transition hover:border-teal-400 hover:from-teal-100 sm:flex-1 sm:max-w-xs"
+                    aria-expanded={showPaymentHistory}
+                  >
+                    {showPaymentHistory ? "Geçmişi Gizle" : "Geçmiş Ödemeler"}
+                  </button>
+                </div>
 
-                <PaymentHistorySection
-                  entries={paymentHistory}
-                  loading={historyLoading}
-                />
+                {showPaymentHistory ? (
+                  <PaymentHistorySection
+                    entries={paymentHistory}
+                    loading={historyLoading}
+                  />
+                ) : null}
               </section>
             ) : null}
 
