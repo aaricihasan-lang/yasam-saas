@@ -20,7 +20,9 @@ type CompatibilityStats = {
   total: number;
   withName: number;
   withPhysical: number;
+  withoutPhysical: number;
   withSpiritual: number;
+  withoutSpiritual: number;
   withGeneral: number;
   withWarning: number;
   withChakras: number;
@@ -83,12 +85,22 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "effects",
   "assignments",
   "image_paths",
+  "physical_effects",
+  "spiritual_effects",
+  "physical",
+  "spiritual",
+  "bedensel_etkiler",
+  "bedensel",
+  "ruhsal_etkiler",
+  "ruhsal",
 ]);
 
 const KNOWN_EFFECT_KEYS = new Set([
   "general",
   "physical",
   "spiritual",
+  "bedensel",
+  "ruhsal",
   "other",
   "warnings",
   "feng_shui",
@@ -119,16 +131,16 @@ const FIELD_MAPPINGS: FieldMappingRow[] = [
     hasValue: (r) => effectHasNotes(r, "general"),
   },
   {
-    jsonField: "effects.physical[].note",
+    jsonField: "physical / bedensel / physical_effects",
     webField: "physical_effects",
-    sample: (r) => truncate(joinEffectNotes(r, "physical")),
-    hasValue: (r) => effectHasNotes(r, "physical"),
+    sample: (r) => truncate(formatResolvedEffectText(extractPhysicalEffectsText(r))),
+    hasValue: hasPhysicalEffects,
   },
   {
-    jsonField: "effects.spiritual[].note",
+    jsonField: "spiritual / ruhsal / spiritual_effects",
     webField: "spiritual_effects",
-    sample: (r) => truncate(joinEffectNotes(r, "spiritual")),
-    hasValue: (r) => effectHasNotes(r, "spiritual"),
+    sample: (r) => truncate(formatResolvedEffectText(extractSpiritualEffectsText(r))),
+    hasValue: hasSpiritualEffects,
   },
   {
     jsonField: "effects.other[].note",
@@ -233,6 +245,96 @@ function effectNotesToText(record: StoneJsonRecord, effectKey: string): string |
   return text === "—" ? null : text;
 }
 
+function normalizeEffectText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return "";
+}
+
+function extractEffectBlockNotes(block: unknown): string {
+  const asString = normalizeEffectText(block);
+  if (asString) return asString;
+  if (!Array.isArray(block)) return "";
+
+  const notes = block
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const note = (item as { note?: unknown }).note;
+        return note != null ? String(note).trim() : "";
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  return notes.length > 0 ? notes.join(" · ") : "";
+}
+
+function pickFirstNonEmptyText(...candidates: string[]): string {
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function getEffectsObject(record: StoneJsonRecord): Record<string, unknown> | null {
+  const effects = record.effects;
+  if (!effects || typeof effects !== "object") return null;
+  return effects as Record<string, unknown>;
+}
+
+function extractPhysicalEffectsText(record: StoneJsonRecord): string {
+  const effects = getEffectsObject(record);
+  return pickFirstNonEmptyText(
+    extractEffectBlockNotes(effects?.physical),
+    extractEffectBlockNotes(effects?.bedensel),
+    normalizeEffectText(record.physical_effects),
+    normalizeEffectText(record.physical),
+    normalizeEffectText(record.bedensel_etkiler),
+    normalizeEffectText(record.bedensel),
+  );
+}
+
+function extractSpiritualEffectsText(record: StoneJsonRecord): string {
+  const effects = getEffectsObject(record);
+  return pickFirstNonEmptyText(
+    extractEffectBlockNotes(effects?.spiritual),
+    extractEffectBlockNotes(effects?.ruhsal),
+    normalizeEffectText(record.spiritual_effects),
+    normalizeEffectText(record.spiritual),
+    normalizeEffectText(record.ruhsal_etkiler),
+    normalizeEffectText(record.ruhsal),
+  );
+}
+
+function formatResolvedEffectText(text: string): string {
+  return text.trim() ? text : "—";
+}
+
+function hasPhysicalEffects(record: StoneJsonRecord): boolean {
+  return extractPhysicalEffectsText(record).length > 0;
+}
+
+function hasSpiritualEffects(record: StoneJsonRecord): boolean {
+  return extractSpiritualEffectsText(record).length > 0;
+}
+
+function physicalEffectsToText(record: StoneJsonRecord): string | null {
+  const text = extractPhysicalEffectsText(record);
+  return text || null;
+}
+
+function spiritualEffectsToText(record: StoneJsonRecord): string | null {
+  const text = extractSpiritualEffectsText(record);
+  return text || null;
+}
+
+function getStoneDisplayName(record: StoneJsonRecord): string {
+  return String(record.stone_name ?? record.name ?? "İsimsiz kayıt").trim();
+}
+
 type StoneInsertPayload = {
   tenant_id: string;
   stone_name: string;
@@ -303,8 +405,8 @@ function mapJsonRecordToStonePayload(
     short_description: null,
     source_note: null,
     general_info: effectNotesToText(record, "general"),
-    physical_effects: effectNotesToText(record, "physical"),
-    spiritual_effects: effectNotesToText(record, "spiritual"),
+    physical_effects: physicalEffectsToText(record),
+    spiritual_effects: spiritualEffectsToText(record),
     other_effects: effectNotesToText(record, "other"),
     warning_text: effectNotesToText(record, "warnings"),
     feng_shui: effectNotesToText(record, "feng_shui"),
@@ -479,11 +581,17 @@ function parseStoneJsonPayload(
 }
 
 function computeCompatibilityStats(records: StoneJsonRecord[]): CompatibilityStats {
+  const total = records.length;
+  const withPhysical = records.filter(hasPhysicalEffects).length;
+  const withSpiritual = records.filter(hasSpiritualEffects).length;
+
   return {
-    total: records.length,
+    total,
     withName: records.filter(hasStoneName).length,
-    withPhysical: records.filter((r) => effectHasNotes(r, "physical")).length,
-    withSpiritual: records.filter((r) => effectHasNotes(r, "spiritual")).length,
+    withPhysical,
+    withoutPhysical: total - withPhysical,
+    withSpiritual,
+    withoutSpiritual: total - withSpiritual,
     withGeneral: records.filter((r) => effectHasNotes(r, "general")).length,
     withWarning: records.filter((r) => effectHasNotes(r, "warnings")).length,
     withChakras: records.filter((r) => assignmentHasValue(r, "chakras")).length,
@@ -754,6 +862,21 @@ function DogaltasJsonTab() {
     [testImportItems],
   );
 
+  const firstTenEffectWarnings = useMemo(() => {
+    const subset = records.slice(0, TEST_IMPORT_LIMIT);
+    const missingPhysical: string[] = [];
+    const missingSpiritual: string[] = [];
+
+    for (const record of subset) {
+      if (!hasStoneName(record)) continue;
+      const name = getStoneDisplayName(record);
+      if (!hasPhysicalEffects(record)) missingPhysical.push(name);
+      if (!hasSpiritualEffects(record)) missingSpiritual.push(name);
+    }
+
+    return { missingPhysical, missingSpiritual };
+  }, [records]);
+
   const handleSupabaseImportClick = useCallback(() => {
     setImportSuccess(null);
     setImportError(null);
@@ -1013,16 +1136,49 @@ function DogaltasJsonTab() {
             <h3 className="text-lg font-black text-slate-900">Kontrol sonucu</h3>
             <p className="mt-1 text-sm text-slate-600">Tüm JSON kayıtları üzerinden sayım.</p>
             {stats ? (
+              <>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
                 <StatBox label="Kayıt bulundu" value={stats.total} />
                 <StatBox label="İsim var" value={stats.withName} />
-                <StatBox label="Fiziksel etki" value={stats.withPhysical} />
-                <StatBox label="Ruhsal etki" value={stats.withSpiritual} />
+                <StatBox label="Fiziksel etki bulunan" value={stats.withPhysical} />
+                <StatBox label="Fiziksel etki bulunamayan" value={stats.withoutPhysical} />
+                <StatBox label="Ruhsal etki bulunan" value={stats.withSpiritual} />
+                <StatBox label="Ruhsal etki bulunamayan" value={stats.withoutSpiritual} />
                 <StatBox label="Genel bilgi" value={stats.withGeneral} />
-                <StatBox label="Uyarı" value={stats.withWarning} />
+                <StatBox label="Uyarı (opsiyonel)" value={stats.withWarning} />
                 <StatBox label="Çakra" value={stats.withChakras} />
                 <StatBox label="Görsel yolu" value={stats.withImagePaths} />
               </div>
+
+              {firstTenEffectWarnings.missingPhysical.length > 0 ||
+              firstTenEffectWarnings.missingSpiritual.length > 0 ? (
+                <div className="mt-4 rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
+                    İlk {TEST_IMPORT_LIMIT} kayıt — etki uyarıları
+                  </p>
+                  {firstTenEffectWarnings.missingPhysical.length > 0 ? (
+                    <div className="mt-2">
+                      <p className="text-xs font-semibold text-amber-950">
+                        Fiziksel etki bulunamayan taşlar:
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-amber-900">
+                        {firstTenEffectWarnings.missingPhysical.join(" · ")}
+                      </p>
+                    </div>
+                  ) : null}
+                  {firstTenEffectWarnings.missingSpiritual.length > 0 ? (
+                    <div className="mt-2">
+                      <p className="text-xs font-semibold text-amber-950">
+                        Ruhsal etki bulunamayan taşlar:
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-amber-900">
+                        {firstTenEffectWarnings.missingSpiritual.join(" · ")}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              </>
             ) : null}
           </div>
 
