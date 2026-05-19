@@ -1411,6 +1411,13 @@ function flattenMineralItemsToRows(items: MineralJsonItem[]): MineralInsertRow[]
   return rows;
 }
 
+function mineralInsertSucceeded(
+  data: { id: string }[] | null,
+  expectedCount: number,
+): boolean {
+  return Boolean(data && data.length === expectedCount);
+}
+
 async function importMineralRows(rows: MineralInsertRow[]): Promise<{
   successCount: number;
   failedCount: number;
@@ -1420,22 +1427,38 @@ async function importMineralRows(rows: MineralInsertRow[]): Promise<{
   let failedCount = 0;
   const failures: MineralImportFailure[] = [];
 
+  const recordFailure = (name: string, message: string) => {
+    failedCount += 1;
+    if (failures.length < MINERAL_FAILED_PREVIEW_LIMIT) {
+      failures.push({ name, message });
+    }
+  };
+
   for (let offset = 0; offset < rows.length; offset += MINERAL_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + MINERAL_BATCH_SIZE);
-    const { error } = await supabase.from("minerals").insert(batch);
+    const { data, error } = await supabase.from("minerals").insert(batch).select("id");
 
-    if (!error) {
-      successCount += batch.length;
+    if (!error && mineralInsertSucceeded(data, batch.length)) {
+      successCount += data!.length;
       continue;
     }
 
+    const batchMessage =
+      error?.message ??
+      "Toplu ekleme tamamlanamadı (public.minerals tablosuna kayıt doğrulanamadı).";
+
     for (const row of batch) {
-      const { error: singleError } = await supabase.from("minerals").insert(row);
-      if (singleError) {
-        failedCount += 1;
-        if (failures.length < MINERAL_FAILED_PREVIEW_LIMIT) {
-          failures.push({ name: row.name, message: singleError.message });
-        }
+      const { data: rowData, error: singleError } = await supabase
+        .from("minerals")
+        .insert(row)
+        .select("id");
+
+      if (singleError || !mineralInsertSucceeded(rowData, 1)) {
+        recordFailure(
+          row.name,
+          singleError?.message ??
+            batchMessage,
+        );
       } else {
         successCount += 1;
       }
@@ -1514,10 +1537,10 @@ function MineralJsonTab() {
       failures,
     });
 
-    if (failedCount === 0) {
+    if (successCount > 0 && failedCount === 0) {
       showToast({
         type: "success",
-        message: `${successCount} mineral kaydı başarıyla yüklendi.`,
+        message: `${successCount} mineral kaydı public.minerals tablosuna yazıldı.`,
       });
     } else if (successCount > 0) {
       showToast({
@@ -1525,9 +1548,12 @@ function MineralJsonTab() {
         message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
       });
     } else {
+      const detail = failures[0]?.message;
       showToast({
         type: "error",
-        message: "Hiçbir kayıt yüklenemedi.",
+        message: detail
+          ? `Hiçbir kayıt yüklenemedi: ${detail}`
+          : "Hiçbir kayıt public.minerals tablosuna yazılamadı.",
       });
     }
   }, [items, showToast]);
