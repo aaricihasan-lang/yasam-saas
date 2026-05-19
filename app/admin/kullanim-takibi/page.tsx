@@ -9,6 +9,8 @@ import { supabase } from "@/lib/supabase";
 
 const LEGACY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
+const INSIGHT_PLACEHOLDER = "Veri hazırlanıyor";
+
 const navLinkClass =
   "inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-bold shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg md:h-16 md:w-auto md:px-8 md:text-lg";
 
@@ -42,6 +44,13 @@ type UserRow = {
   active: boolean;
   approvalStatus: string;
   tenantId: string | null;
+  createdAt: string | null;
+};
+
+type InsightMetrics = {
+  supabaseConnected: boolean;
+  newMembersThisMonth: number | null;
+  newClientsThisMonth: number | null;
 };
 
 type ModuleMetrics = {
@@ -56,6 +65,7 @@ type UsageSnapshot = {
   numerology: ModuleMetrics;
   stones: ModuleMetrics;
   archives: ModuleMetrics;
+  insight: InsightMetrics;
 };
 
 function SummaryStatCard({
@@ -80,6 +90,80 @@ function SummaryStatCard({
       ) : null}
     </article>
   );
+}
+
+function InsightStatCard({
+  label,
+  value,
+  tone,
+  sublabel,
+}: {
+  label: string;
+  value: number | string;
+  tone: StatTone;
+  sublabel?: string;
+}) {
+  return (
+    <article
+      className={`rounded-[28px] border-2 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl sm:p-7 ${statToneClass[tone]}`}
+    >
+      <p className="text-sm font-black uppercase tracking-wide opacity-80 sm:text-base">{label}</p>
+      <p className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-[2.25rem]">{value}</p>
+      {sublabel ? (
+        <p className="mt-2 text-sm font-semibold opacity-75 sm:text-base">{sublabel}</p>
+      ) : null}
+    </article>
+  );
+}
+
+function getMonthStartIso(): string {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  return start.toISOString();
+}
+
+function isOnOrAfterMonthStart(iso: string | null | undefined, monthStartIso: string): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() >= new Date(monthStartIso).getTime();
+}
+
+async function fetchCountSince(
+  table: string,
+  sinceIso: string,
+): Promise<{ count: number | null; error: string | null }> {
+  const { count, error } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", sinceIso);
+
+  if (error) return { count: null, error: error.message };
+  return { count: count ?? 0, error: null };
+}
+
+async function checkSupabaseConnection(): Promise<boolean> {
+  const urlOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
+  const keyOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim());
+  if (!urlOk || !keyOk) return false;
+
+  const { error } = await supabase
+    .from("users")
+    .select("id", { count: "exact", head: true });
+  return !error;
+}
+
+function pickBusiestModule(snapshot: UsageSnapshot): string {
+  const ranked = [
+    { label: "Danışan", total: snapshot.clients.total },
+    { label: "Numeroloji", total: snapshot.numerology.total },
+    { label: "Doğaltaş", total: snapshot.stones.total },
+    { label: "Kişisel Arşiv", total: snapshot.archives.total },
+  ].sort((a, b) => b.total - a.total);
+
+  const top = ranked[0];
+  if (!top || top.total <= 0) return INSIGHT_PLACEHOLDER;
+  return `${top.label} (${top.total})`;
 }
 
 function shortTenantId(id: string): string {
@@ -165,6 +249,7 @@ function mapUserRow(row: Record<string, unknown>): UserRow {
       row.tenant_id != null && String(row.tenant_id).trim() !== ""
         ? String(row.tenant_id).trim()
         : null,
+    createdAt: row.created_at != null ? String(row.created_at) : null,
   };
 }
 
@@ -270,13 +355,18 @@ export default function KullanimTakibiPage() {
     setLoading(true);
     setLoadError(null);
 
-    const [usersRes, clients, numerology, stones, archives] = await Promise.all([
-      supabase.from("users").select("role, active, approval_status, tenant_id"),
-      loadModuleMetrics("clients"),
-      loadModuleMetrics("numerology_analyses"),
-      loadModuleMetrics("stones"),
-      loadModuleMetrics("personal_archives"),
-    ]);
+    const monthStart = getMonthStartIso();
+
+    const [usersRes, clients, numerology, stones, archives, supabaseConnected, clientsMonth] =
+      await Promise.all([
+        supabase.from("users").select("role, active, approval_status, tenant_id, created_at"),
+        loadModuleMetrics("clients"),
+        loadModuleMetrics("numerology_analyses"),
+        loadModuleMetrics("stones"),
+        loadModuleMetrics("personal_archives"),
+        checkSupabaseConnection(),
+        fetchCountSince("clients", monthStart),
+      ]);
 
     const errors: string[] = [];
     if (usersRes.error) errors.push(`users: ${usersRes.error.message}`);
@@ -284,6 +374,13 @@ export default function KullanimTakibiPage() {
     const users = (usersRes.data ?? []).map((row) =>
       mapUserRow(row as Record<string, unknown>),
     );
+
+    const newMembersThisMonth = usersRes.error
+      ? null
+      : users.filter((u) => isOnOrAfterMonthStart(u.createdAt, monthStart)).length;
+
+    const newClientsThisMonth =
+      clientsMonth.error != null ? null : clientsMonth.count;
 
     if (errors.length > 0) {
       setLoadError(errors.join(" · "));
@@ -298,6 +395,11 @@ export default function KullanimTakibiPage() {
       numerology,
       stones,
       archives,
+      insight: {
+        supabaseConnected,
+        newMembersThisMonth,
+        newClientsThisMonth,
+      },
     });
     setLoading(false);
   }, []);
@@ -336,6 +438,21 @@ export default function KullanimTakibiPage() {
       snapshot.stones.total +
       snapshot.archives.total
     );
+  }, [snapshot]);
+
+  const busiestModuleLabel = useMemo(
+    () => (snapshot ? pickBusiestModule(snapshot) : INSIGHT_PLACEHOLDER),
+    [snapshot],
+  );
+
+  const systemStatusLabel = useMemo(() => {
+    if (!snapshot) return INSIGHT_PLACEHOLDER;
+    return snapshot.insight.supabaseConnected ? "🟢 Sağlıklı" : "🔴 Kontrol gerekli";
+  }, [snapshot]);
+
+  const supabaseStatusLabel = useMemo(() => {
+    if (!snapshot) return INSIGHT_PLACEHOLDER;
+    return snapshot.insight.supabaseConnected ? "🟢 Bağlı" : "🔴 Kopuk";
   }, [snapshot]);
 
   if (!checked) {
@@ -425,6 +542,74 @@ export default function KullanimTakibiPage() {
           </section>
         ) : snapshot && userStats ? (
           <>
+            <section
+              aria-label="Canlı kullanım ve sistem özeti"
+              className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
+            >
+              <InsightStatCard
+                label="Bugün aktif kullanıcı"
+                value={INSIGHT_PLACEHOLDER}
+                tone="fuchsia"
+                sublabel="Oturum izleme henüz bağlanmadı"
+              />
+              <InsightStatCard
+                label="Son 24 saat giriş"
+                value={INSIGHT_PLACEHOLDER}
+                tone="violet"
+                sublabel="Giriş günlüğü henüz bağlanmadı"
+              />
+              <InsightStatCard
+                label="Bu ay yeni üye"
+                value={
+                  snapshot.insight.newMembersThisMonth != null
+                    ? snapshot.insight.newMembersThisMonth
+                    : INSIGHT_PLACEHOLDER
+                }
+                tone="indigo"
+                sublabel="users · created_at"
+              />
+              <InsightStatCard
+                label="Bu ay yeni danışan"
+                value={
+                  snapshot.insight.newClientsThisMonth != null
+                    ? snapshot.insight.newClientsThisMonth
+                    : INSIGHT_PLACEHOLDER
+                }
+                tone="cyan"
+                sublabel="clients · created_at"
+              />
+              <InsightStatCard
+                label="En yoğun modül"
+                value={busiestModuleLabel}
+                tone="emerald"
+                sublabel="Kayıt sayısına göre"
+              />
+              <InsightStatCard
+                label="Sistem durumu"
+                value={systemStatusLabel}
+                tone="emerald"
+                sublabel="Platform erişilebilirliği"
+              />
+              <InsightStatCard
+                label="Supabase bağlantı durumu"
+                value={supabaseStatusLabel}
+                tone="slate"
+                sublabel="Head sorgusu kontrolü"
+              />
+              <InsightStatCard
+                label="Son deploy"
+                value={INSIGHT_PLACEHOLDER}
+                tone="amber"
+                sublabel="Deploy kaydı henüz bağlanmadı"
+              />
+              <InsightStatCard
+                label="Son yedek"
+                value={INSIGHT_PLACEHOLDER}
+                tone="rose"
+                sublabel="Yedekleme altyapısı henüz bağlanmadı"
+              />
+            </section>
+
             <section
               aria-label="Kullanıcı ve kayıt özeti"
               className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
