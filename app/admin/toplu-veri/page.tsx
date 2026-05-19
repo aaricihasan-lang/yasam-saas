@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { AlertTriangle, CheckCircle2, FileJson, Loader2, Upload } from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
@@ -46,6 +45,18 @@ type MigrationRiskReport = {
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 const WARNING_RATIO_THRESHOLD = 0.2;
+const IMPORT_PROGRESS_STEP = 20;
+
+type ImportFailedRow = {
+  index: number;
+  stoneName: string;
+  message: string;
+};
+
+type ImportRow = {
+  payload: StoneInsertPayload;
+  stoneName: string;
+};
 
 const IGNORE_TOP_LEVEL_KEYS = new Set([
   "id",
@@ -648,8 +659,14 @@ function StatBox({ label, value }: { label: string; value: number }) {
   );
 }
 
+function recordsHaveNonUrlImages(records: StoneJsonRecord[]): boolean {
+  return records.some((record) => {
+    const paths = getImagePathList(record);
+    return paths.length > 0 && paths.some((path) => !isRealUrl(path));
+  });
+}
+
 function DogaltasJsonTab() {
-  const { confirm } = useConfirm();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [records, setRecords] = useState<StoneJsonRecord[]>([]);
@@ -659,6 +676,7 @@ function DogaltasJsonTab() {
   const [importTotal, setImportTotal] = useState(0);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importFailedRows, setImportFailedRows] = useState<ImportFailedRow[]>([]);
 
   const previewRecords = useMemo(() => records.slice(0, 3), [records]);
 
@@ -719,23 +737,15 @@ function DogaltasJsonTab() {
     [records],
   );
 
-  const handleSupabaseImportClick = useCallback(async () => {
+  const hasNonUrlImages = useMemo(() => recordsHaveNonUrlImages(records), [records]);
+
+  const handleSupabaseImportClick = useCallback(() => {
     setImportSuccess(null);
     setImportError(null);
-
+    setImportFailedRows([]);
     if (records.length === 0) return;
-
-    const ok = await confirm({
-      title: "Supabase aktarımı",
-      message: `${importableCount} taş sisteme aktarılacak`,
-      confirmText: "Devam",
-      cancelText: "Vazgeç",
-      tone: "warning",
-    });
-
-    if (!ok) return;
     setImportSummaryOpen(true);
-  }, [confirm, importableCount, records.length]);
+  }, [records.length]);
 
   const runSupabaseImport = useCallback(async () => {
     const user = readYasamUser();
@@ -746,13 +756,15 @@ function DogaltasJsonTab() {
       return;
     }
 
-    const payloads: StoneInsertPayload[] = [];
+    const importRows: ImportRow[] = [];
     records.forEach((record, index) => {
       const payload = mapJsonRecordToStonePayload(record, tenantId, index);
-      if (payload) payloads.push(payload);
+      if (payload) {
+        importRows.push({ payload, stoneName: payload.stone_name });
+      }
     });
 
-    if (payloads.length === 0) {
+    if (importRows.length === 0) {
       setImportError("Aktarılacak geçerli taş kaydı bulunamadı (isim zorunlu).");
       setImportSummaryOpen(false);
       return;
@@ -761,36 +773,42 @@ function DogaltasJsonTab() {
     setImportSummaryOpen(false);
     setImporting(true);
     setImportProgress(0);
-    setImportTotal(payloads.length);
+    setImportTotal(importRows.length);
     setImportError(null);
     setImportSuccess(null);
+    setImportFailedRows([]);
 
     let successCount = 0;
-    let lastError: string | null = null;
+    const failed: ImportFailedRow[] = [];
 
-    for (let i = 0; i < payloads.length; i += 1) {
-      const { error } = await supabase.from("stones").insert(payloads[i]);
+    for (let i = 0; i < importRows.length; i += 1) {
+      const row = importRows[i];
+      const { error } = await supabase.from("stones").insert(row.payload);
+
       if (error) {
-        lastError = error.message;
-        setImportProgress(i);
-        break;
+        failed.push({
+          index: i + 1,
+          stoneName: row.stoneName,
+          message: error.message,
+        });
+      } else {
+        successCount += 1;
       }
-      successCount += 1;
-      setImportProgress(i + 1);
+
+      const done = i + 1;
+      if (done % IMPORT_PROGRESS_STEP === 0 || done === importRows.length) {
+        setImportProgress(done);
+      }
     }
 
     setImporting(false);
+    setImportProgress(importRows.length);
+    setImportFailedRows(failed);
+    setImportSuccess(`${successCount} başarılı / ${failed.length} başarısız`);
 
-    if (lastError) {
-      setImportError(
-        successCount > 0
-          ? `${successCount} kayıt aktarıldı; hata (${successCount + 1}. kayıt): ${lastError}`
-          : `Aktarım başarısız: ${lastError}`,
-      );
-      return;
+    if (successCount === 0 && failed.length > 0) {
+      setImportError("Hiçbir kayıt aktarılamadı. Başarısız kayıtları listeden inceleyin.");
     }
-
-    setImportSuccess(`${successCount} taş başarıyla aktarıldı`);
   }, [records]);
 
   return (
@@ -864,6 +882,27 @@ function DogaltasJsonTab() {
         <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900">
           {importError}
         </p>
+      ) : null}
+
+      {importFailedRows.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50/90 p-4">
+          <p className="text-sm font-black text-rose-950">
+            Başarısız kayıtlar ({importFailedRows.length})
+          </p>
+          <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+            {importFailedRows.map((row) => (
+              <li
+                key={`${row.index}-${row.stoneName}`}
+                className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+              >
+                <span className="font-bold text-rose-950">
+                  {row.index}. {row.stoneName}
+                </span>
+                <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {fileName ? (
@@ -1031,35 +1070,58 @@ function DogaltasJsonTab() {
 
       {importSummaryOpen && stats && migrationRisk ? (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl">
+          <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl">
             <div className="bg-gradient-to-r from-violet-600 to-purple-700 px-6 py-5 text-white">
-              <p className="text-lg font-black">Import öncesi özet</p>
-              <p className="mt-1 text-sm text-white/85">Aktarım başlamadan önce kontrol edin</p>
+              <p className="text-lg font-black">Son güvenlik kontrolü</p>
+              <p className="mt-1 text-sm text-white/85">Aktarım öncesi özet</p>
             </div>
-            <div className="space-y-3 px-6 py-6">
-              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
-                Taş: {importableCount}
-              </p>
-              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
-                Görsel: {stats.withImagePaths}
-              </p>
-              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
-                Risk: {migrationRisk.emoji} {migrationRisk.label}
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-2 gap-2 text-sm font-bold text-slate-800">
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Toplam taş: {importableCount}
+                </p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Genel bilgi: {stats.withGeneral}
+                </p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Fiziksel etki: {stats.withPhysical}
+                </p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Ruhsal etki: {stats.withSpiritual}
+                </p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Görseller: {stats.withImagePaths}
+                </p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  Göç riski: {migrationRisk.emoji} {migrationRisk.label}
+                </p>
+              </div>
+
+              {hasNonUrlImages ? (
+                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950">
+                  Resimlerin bir kısmı web URL formatında değil.
+                  <span className="mt-1 block font-bold">Taş verileri aktarılsın mı?</span>
+                </p>
+              ) : (
+                <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                  Taş verileri aktarılsın mı?
+                </p>
+              )}
+
+              <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setImportSummaryOpen(false)}
                   className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700"
                 >
-                  Vazgeç
+                  İptal
                 </button>
                 <button
                   type="button"
                   onClick={() => void runSupabaseImport()}
                   className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-lg"
                 >
-                  Aktarımı Başlat
+                  Devam Et
                 </button>
               </div>
             </div>
