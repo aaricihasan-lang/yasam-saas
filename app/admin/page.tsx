@@ -106,7 +106,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Toplu Veri Aktarımı",
     desc: "JSON ve toplu veri içe aktarma merkezi.",
-    badge: "Yakında",
+    href: "/admin/toplu-veri",
     Icon: Upload,
     theme: {
       iconWrap: "from-violet-500 to-purple-600",
@@ -117,7 +117,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Doğaltaş JSON Import",
     desc: "Taş veritabanı toplu JSON aktarımı (yalnızca admin).",
-    badge: "Yakında",
+    href: "/admin/dogaltas-import",
     Icon: FileJson,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -128,7 +128,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Ürün & Stok Sistem Araçları",
     desc: "Merkezi stok, satış ve envanter yönetim araçları.",
-    badge: "Yakında",
+    href: "/admin/stok-merkezi",
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -150,7 +150,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Kullanım Takibi",
     desc: "Modül kullanımı ve oturum istatistikleri.",
-    badge: "Yakında",
+    href: "/admin/kullanim-takibi",
     Icon: Database,
     theme: {
       iconWrap: "from-fuchsia-500 to-pink-600",
@@ -161,7 +161,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Yedekleme Merkezi",
     desc: "Veri yedekleme ve geri yükleme işlemleri.",
-    badge: "Yakında",
+    href: "/admin/yedekleme",
     Icon: CloudUpload,
     theme: {
       iconWrap: "from-sky-500 to-cyan-600",
@@ -172,7 +172,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Hata Kayıtları",
     desc: "Sistem hataları ve kritik olay günlükleri.",
-    badge: "Yakında",
+    href: "/admin/hata-kayitlari",
     Icon: AlertTriangle,
     theme: {
       iconWrap: "from-rose-500 to-red-600",
