@@ -58,6 +58,21 @@ type ImportRow = {
   stoneName: string;
 };
 
+type ImportScope = "10" | "25" | "all";
+
+function getRecordsForImportScope(
+  records: StoneJsonRecord[],
+  scope: ImportScope,
+): StoneJsonRecord[] {
+  if (scope === "10") return records.slice(0, 10);
+  if (scope === "25") return records.slice(0, 25);
+  return records;
+}
+
+function countImportableInScope(records: StoneJsonRecord[], scope: ImportScope): number {
+  return getRecordsForImportScope(records, scope).filter(hasStoneName).length;
+}
+
 const IGNORE_TOP_LEVEL_KEYS = new Set([
   "id",
   "_id",
@@ -677,6 +692,7 @@ function DogaltasJsonTab() {
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importFailedRows, setImportFailedRows] = useState<ImportFailedRow[]>([]);
+  const [importScope, setImportScope] = useState<ImportScope>("10");
 
   const previewRecords = useMemo(() => records.slice(0, 3), [records]);
 
@@ -739,10 +755,16 @@ function DogaltasJsonTab() {
 
   const hasNonUrlImages = useMemo(() => recordsHaveNonUrlImages(records), [records]);
 
+  const scopedImportCount = useMemo(
+    () => countImportableInScope(records, importScope),
+    [records, importScope],
+  );
+
   const handleSupabaseImportClick = useCallback(() => {
     setImportSuccess(null);
     setImportError(null);
     setImportFailedRows([]);
+    setImportScope("10");
     if (records.length === 0) return;
     setImportSummaryOpen(true);
   }, [records.length]);
@@ -756,8 +778,9 @@ function DogaltasJsonTab() {
       return;
     }
 
+    const scopedRecords = getRecordsForImportScope(records, importScope);
     const importRows: ImportRow[] = [];
-    records.forEach((record, index) => {
+    scopedRecords.forEach((record, index) => {
       const payload = mapJsonRecordToStonePayload(record, tenantId, index);
       if (payload) {
         importRows.push({ payload, stoneName: payload.stone_name });
@@ -809,7 +832,7 @@ function DogaltasJsonTab() {
     if (successCount === 0 && failed.length > 0) {
       setImportError("Hiçbir kayıt aktarılamadı. Başarısız kayıtları listeden inceleyin.");
     }
-  }, [records]);
+  }, [records, importScope]);
 
   return (
     <section
@@ -1097,6 +1120,53 @@ function DogaltasJsonTab() {
                 </p>
               </div>
 
+              <fieldset className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                <legend className="px-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Aktarım kapsamı
+                </legend>
+                <div className="mt-2 space-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+                    <input
+                      type="radio"
+                      name="import-scope"
+                      value="10"
+                      checked={importScope === "10"}
+                      onChange={() => setImportScope("10")}
+                      className="h-4 w-4 accent-violet-600"
+                    />
+                    İlk 10 kayıt
+                    <span className="text-slate-500">({Math.min(10, countImportableInScope(records, "10"))} taş)</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+                    <input
+                      type="radio"
+                      name="import-scope"
+                      value="25"
+                      checked={importScope === "25"}
+                      onChange={() => setImportScope("25")}
+                      className="h-4 w-4 accent-violet-600"
+                    />
+                    İlk 25 kayıt
+                    <span className="text-slate-500">({Math.min(25, countImportableInScope(records, "25"))} taş)</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+                    <input
+                      type="radio"
+                      name="import-scope"
+                      value="all"
+                      checked={importScope === "all"}
+                      onChange={() => setImportScope("all")}
+                      className="h-4 w-4 accent-violet-600"
+                    />
+                    Tüm kayıtlar
+                    <span className="text-slate-500">({importableCount})</span>
+                  </label>
+                </div>
+                <p className="mt-2 text-xs font-medium text-violet-800">
+                  Seçili kapsamda aktarılacak: {scopedImportCount} taş
+                </p>
+              </fieldset>
+
               {hasNonUrlImages ? (
                 <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950">
                   Resimlerin bir kısmı web URL formatında değil.
@@ -1118,8 +1188,9 @@ function DogaltasJsonTab() {
                 </button>
                 <button
                   type="button"
+                  disabled={scopedImportCount === 0}
                   onClick={() => void runSupabaseImport()}
-                  className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-lg"
+                  className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Devam Et
                 </button>
