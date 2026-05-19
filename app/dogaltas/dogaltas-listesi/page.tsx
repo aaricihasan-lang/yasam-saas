@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 type StoneRecord = {
@@ -28,7 +29,22 @@ type StoneRecord = {
   updated_at: string | null;
 };
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
+const STONES_SELECT =
+  "id, tenant_id, stone_name, short_description, general_info, physical_effects, spiritual_effects, warning_text, chakras, images, created_at, updated_at";
+
+function getActiveTenantIdFromLocalStorage(): string | null {
+  const user = readYasamUser();
+  const tenantId = user?.tenant_id?.trim();
+  return tenantId || null;
+}
+
+type StonesLoadDebug = {
+  activeUserTenantId: string | null;
+  queryTenantId: string | null;
+  returnedCount: number;
+  tableTotalVisible: number | null;
+  sampleTenantIds: string[];
+};
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
@@ -92,21 +108,79 @@ export default function DogaltasListesiPage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
+  const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
+  const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
 
   async function loadStones() {
     setLoading(true);
     setErrorMessage("");
 
+    const activeUserTenantId = getActiveTenantIdFromLocalStorage();
+    const tenantIdForQuery = activeUserTenantId;
+
+    if (!tenantIdForQuery) {
+      setLoading(false);
+      setQueryTenantId(null);
+      setStones([]);
+      setLoadDebug({
+        activeUserTenantId: null,
+        queryTenantId: null,
+        returnedCount: 0,
+        tableTotalVisible: null,
+        sampleTenantIds: [],
+      });
+      setErrorMessage(
+        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
+      );
+      return;
+    }
+
+    setQueryTenantId(tenantIdForQuery);
+
     const { data, error } = await supabase
       .from("stones")
-      .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .select(STONES_SELECT)
+      .eq("tenant_id", tenantIdForQuery)
       .order("created_at", { ascending: false });
+
+    const returnedCount = data?.length ?? 0;
+
+    let tableTotalVisible: number | null = null;
+    let sampleTenantIds: string[] = [];
+
+    if (!error && returnedCount === 0) {
+      const { count } = await supabase
+        .from("stones")
+        .select("id", { count: "exact", head: true });
+      tableTotalVisible = count ?? 0;
+
+      const { data: tenantRows } = await supabase
+        .from("stones")
+        .select("tenant_id")
+        .limit(50);
+
+      sampleTenantIds = [
+        ...new Set(
+          (tenantRows ?? [])
+            .map((row) => String(row.tenant_id ?? "").trim())
+            .filter(Boolean),
+        ),
+      ].slice(0, 5);
+    }
+
+    setLoadDebug({
+      activeUserTenantId,
+      queryTenantId: tenantIdForQuery,
+      returnedCount,
+      tableTotalVisible,
+      sampleTenantIds,
+    });
 
     setLoading(false);
 
     if (error) {
       setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+      setStones([]);
       return;
     }
 
@@ -119,10 +193,18 @@ export default function DogaltasListesiPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
+    const tenantId = queryTenantId ?? getActiveTenantIdFromLocalStorage();
+    if (!tenantId) {
+      setErrorMessage(
+        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
+      );
+      return;
+    }
+
     const { error } = await supabase
       .from("stones")
       .delete()
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("id", stoneToDelete.id);
 
     setDeleteLoading(false);
@@ -317,6 +399,64 @@ export default function DogaltasListesiPage() {
           </div>
         )}
 
+        {!loading && loadDebug && (
+          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/90 px-5 py-3 text-xs font-bold text-amber-950">
+            <p className="font-black uppercase tracking-wide text-amber-800">
+              Sorgu tanılama (geçici)
+            </p>
+            <ul className="mt-2 space-y-1 font-mono text-[11px] sm:text-xs">
+              <li>
+                Aktif kullanıcı tenant_id:{" "}
+                <span className="text-slate-800">
+                  {loadDebug.activeUserTenantId ?? "—"}
+                </span>
+              </li>
+              <li>
+                Sorgu tenant_id:{" "}
+                <span className="text-slate-800">
+                  {loadDebug.queryTenantId ?? "—"}
+                </span>
+              </li>
+              <li>
+                Gelen kayıt sayısı:{" "}
+                <span className="text-slate-800">{loadDebug.returnedCount}</span>
+              </li>
+              {loadDebug.tableTotalVisible != null && (
+                <li>
+                  Tabloda görünen toplam (filtresiz):{" "}
+                  <span className="text-slate-800">{loadDebug.tableTotalVisible}</span>
+                </li>
+              )}
+              {loadDebug.sampleTenantIds.length > 0 && (
+                <li>
+                  Örnek stones.tenant_id:{" "}
+                  <span className="break-all text-slate-800">
+                    {loadDebug.sampleTenantIds.join(" · ")}
+                  </span>
+                </li>
+              )}
+            </ul>
+            {loadDebug.returnedCount === 0 &&
+              loadDebug.queryTenantId &&
+              !search.trim() &&
+              loadDebug.tableTotalVisible != null &&
+              loadDebug.tableTotalVisible > 0 && (
+                <p className="mt-2 text-[11px] leading-5 text-amber-900 sm:text-xs">
+                  Tabloda {loadDebug.tableTotalVisible} kayıt görünüyor ancak hiçbiri
+                  sorgu tenant_id ile eşleşmiyor. Import tenant_id ile aktif kullanıcı
+                  tenant_id aynı olmalı.
+                </p>
+              )}
+            {loadDebug.returnedCount === 0 &&
+              loadDebug.tableTotalVisible === 0 && (
+                <p className="mt-2 text-[11px] leading-5 text-amber-900 sm:text-xs">
+                  İstemci stones tablosunu boş görüyor (RLS / anon anahtar veya
+                  tenant_id eksik). Supabase panelindeki kayıt sayısı ile karşılaştırın.
+                </p>
+              )}
+          </div>
+        )}
+
         <section className={uiTableCard}>
           {loading ? (
             <div className="flex min-h-[520px] items-center justify-center text-base font-bold text-slate-500">
@@ -326,13 +466,57 @@ export default function DogaltasListesiPage() {
             <div className="flex h-[330px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
               <div className="text-[54px]">💎</div>
 
-              <h3 className="mt-3 text-[18px] font-black text-slate-900">
-                Kayıt bulunamadı
-              </h3>
-
-              <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-slate-500">
-                Arama yaptıysanız farklı bir kelime deneyin. Henüz kayıt yoksa yeni doğaltaş kaydı oluşturun.
-              </p>
+              {stones.length === 0 && !search.trim() ? (
+                <>
+                  <h3 className="mt-3 text-[18px] font-black text-slate-900">
+                    Supabase sorgusu çalıştı ama 0 kayıt döndü
+                  </h3>
+                  <p className="mt-2 max-w-[480px] text-[13px] leading-6 text-slate-500">
+                    Tablo: <b>stones</b> · Filtre: aktif kullanıcı{" "}
+                    <code className="rounded bg-slate-100 px-1">tenant_id</code>
+                  </p>
+                  {loadDebug && (
+                    <ul className="mt-4 max-w-[480px] space-y-1 text-left font-mono text-[11px] text-slate-600 sm:text-xs">
+                      <li>
+                        Aktif kullanıcı tenant_id:{" "}
+                        {loadDebug.activeUserTenantId ?? "—"}
+                      </li>
+                      <li>Sorgu tenant_id: {loadDebug.queryTenantId ?? "—"}</li>
+                      <li>Gelen kayıt sayısı: {loadDebug.returnedCount}</li>
+                      {loadDebug.tableTotalVisible != null && (
+                        <li>
+                          Tabloda görünen toplam (filtresiz):{" "}
+                          {loadDebug.tableTotalVisible}
+                        </li>
+                      )}
+                      {loadDebug.sampleTenantIds.length > 0 && (
+                        <li>
+                          Örnek stones.tenant_id:{" "}
+                          {loadDebug.sampleTenantIds.join(" · ")}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                  {loadDebug?.queryTenantId &&
+                    loadDebug.tableTotalVisible != null &&
+                    loadDebug.tableTotalVisible > 0 && (
+                    <p className="mt-3 max-w-[480px] text-[12px] leading-5 text-amber-800">
+                      Import tenant_id ile aktif kullanıcı tenant_id farklı.
+                      Supabase&apos;deki stones.tenant_id örnekleri yukarıda;
+                      sorgu tenant_id ile eşleşmeli.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h3 className="mt-3 text-[18px] font-black text-slate-900">
+                    Arama sonucu bulunamadı
+                  </h3>
+                  <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-slate-500">
+                    Farklı bir kelime deneyin veya aramayı temizleyin.
+                  </p>
+                </>
+              )}
             </div>
           ) : viewMode === "list" ? (
             <div>
