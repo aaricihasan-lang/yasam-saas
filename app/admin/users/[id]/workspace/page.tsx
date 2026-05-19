@@ -213,6 +213,11 @@ export default function AdminUserWorkspacePage() {
       return;
     }
 
+    if (key === "reflexology") {
+      router.push(`/admin/users/${userId}/workspace/reflexology`);
+      return;
+    }
+
     showToast({
       title: "Yakında",
       message: "Salt okunur görüntüleme hazırlanıyor.",
@@ -393,7 +398,8 @@ export default function AdminUserWorkspacePage() {
                                 key === "numerology" ||
                                 key === "stones" ||
                                 key === "personal_archive" ||
-                                key === "energy_body"
+                                key === "energy_body" ||
+                                key === "reflexology"
                               ? "Salt okunur listeyi aç"
                               : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
