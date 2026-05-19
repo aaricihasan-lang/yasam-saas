@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Banknote,
+  ChevronDown,
   Home,
   KeyRound,
   Loader2,
@@ -389,7 +390,15 @@ export default function AdminUserDetailPage() {
   const [canPersistPayment, setCanPersistPayment] = useState(true);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+
+  function togglePaymentPanel() {
+    setShowPaymentPanel((open) => {
+      if (open) setShowPaymentHistory(false);
+      return !open;
+    });
+  }
 
   const loadPaymentHistory = useCallback(async (uid: string) => {
     setHistoryLoading(true);
@@ -899,21 +908,36 @@ export default function AdminUserDetailPage() {
 
             {paymentDraft ? (
               <section
-                className={`${panelClass} border-teal-200/80 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/50`}
+                className={`${panelClass} border-teal-200/80 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/50 py-4 sm:py-5`}
               >
-                <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={togglePaymentPanel}
+                  className="flex w-full items-center gap-4 rounded-2xl border-2 border-teal-200/90 bg-white/80 px-4 py-4 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50/60 sm:px-5"
+                  aria-expanded={showPaymentPanel}
+                >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md">
                     <Banknote className="h-5 w-5" aria-hidden />
                   </div>
-                  <div>
-                    <h2 className="text-xl font-black text-teal-950">Ödeme Takibi</h2>
-                    <p className="mt-1 text-xs font-medium text-teal-900/80">
-                      Kayıt users tablosuna yazılır ve ödeme geçmişine eklenir.
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-black text-teal-950 sm:text-xl">
+                      Ödeme Takibi
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-teal-900/75">
+                      Ödeme durumu, tutar ve ödeme geçmişini yönet
                     </p>
                   </div>
-                </div>
+                  <ChevronDown
+                    className={`h-6 w-6 shrink-0 text-teal-700 transition-transform ${
+                      showPaymentPanel ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
+                </button>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {showPaymentPanel ? (
+                  <div className="mt-5 border-t border-teal-200/70 pt-5">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
                     <span className={labelClass}>Ödeme Durumu</span>
                     <select
@@ -1059,6 +1083,8 @@ export default function AdminUserDetailPage() {
                     entries={paymentHistory}
                     loading={historyLoading}
                   />
+                ) : null}
+                  </div>
                 ) : null}
               </section>
             ) : null}
