@@ -800,13 +800,6 @@ export default function StoneDetailPage() {
     [stone],
   );
 
-  const hasAssignments = useMemo(() => {
-    if (!safeStone?.assignments) return false;
-    return Object.values(safeStone.assignments).some(
-      (rows) => Array.isArray(rows) && rows.length > 0,
-    );
-  }, [safeStone]);
-
   if (loading) {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
@@ -849,6 +842,15 @@ export default function StoneDetailPage() {
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
   const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
+
+  const safeAssignments: Record<string, string[][]> =
+    safeStone.assignments &&
+    typeof safeStone.assignments === "object" &&
+    !Array.isArray(safeStone.assignments)
+      ? safeStone.assignments
+      : {};
+
+  const hasAssignments = Object.keys(safeAssignments).length > 0;
 
   const images = normalizeImages(safeImages);
   const imagesWithUrl = images.filter((img) => img.displayable && img.url);
@@ -1177,7 +1179,7 @@ export default function StoneDetailPage() {
 
               <div className="mt-3 space-y-3">
                 {hasAssignments ? (
-                  Object.entries(safeStone.assignments).map(([title, rows]) => {
+                  Object.entries(safeAssignments).map(([title, rows]) => {
                     const safeRows = Array.isArray(rows) ? rows : [];
                     if (safeRows.length === 0) return null;
 
