@@ -800,21 +800,6 @@ export default function StoneDetailPage() {
     [stone],
   );
 
-  const images = useMemo(
-    () => normalizeImages(safeStone?.images),
-    [safeStone?.images],
-  );
-
-  const imagesWithUrl = useMemo(
-    () => images.filter((img) => img.displayable && img.url),
-    [images],
-  );
-
-  const imagesNotWebFormat = useMemo(
-    () => images.filter((img) => !img.displayable),
-    [images],
-  );
-
   const hasAssignments = useMemo(() => {
     if (!safeStone?.assignments) return false;
     return Object.values(safeStone.assignments).some(
@@ -860,6 +845,14 @@ export default function StoneDetailPage() {
   }
 
   if (!safeStone) return null;
+
+  const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
+  const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
+  const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
+
+  const images = normalizeImages(safeImages);
+  const imagesWithUrl = images.filter((img) => img.displayable && img.url);
+  const imagesNotWebFormat = images.filter((img) => !img.displayable);
 
   return (
     <main className={pageBg}>
@@ -1123,10 +1116,10 @@ export default function StoneDetailPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {safeStone.chakras.length === 0 ? (
+                {safeChakras.length === 0 ? (
                   <span className="text-[13px] text-slate-400">-</span>
                 ) : (
-                  safeStone.chakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
+                  safeChakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
                     <span
                       key={chakra}
                       className={toneClass("violet")}
@@ -1153,10 +1146,10 @@ export default function StoneDetailPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {safeStone.warning_tags.length === 0 ? (
+                {safeWarningTags.length === 0 ? (
                   <span className="text-[13px] text-slate-400">-</span>
                 ) : (
-                  safeStone.warning_tags.slice(0, editEnabled ? 3 : 99).map((tag) => (
+                  safeWarningTags.slice(0, editEnabled ? 3 : 99).map((tag) => (
                     <span
                       key={tag}
                       className={toneClass("rose")}
