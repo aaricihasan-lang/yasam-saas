@@ -4,8 +4,26 @@ import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { AlertTriangle, CheckCircle2, FileJson, Loader2, Upload } from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
 import { useToast } from "@/components/ui/ToastProvider";
-import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+
+const YASAM_USER_STORAGE_KEY = "yasam_user";
+
+const TENANT_ID_MISSING_MESSAGE =
+  "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.";
+
+function getActiveTenantIdFromLocalStorage(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const user = JSON.parse(
+      localStorage.getItem(YASAM_USER_STORAGE_KEY) || "{}",
+    ) as { tenant_id?: unknown };
+    const tenantId =
+      user.tenant_id != null ? String(user.tenant_id).trim() : "";
+    return tenantId || null;
+  } catch {
+    return null;
+  }
+}
 
 type StoneJsonRecord = Record<string, unknown>;
 
@@ -881,15 +899,22 @@ function DogaltasJsonTab() {
     setImportSuccess(null);
     setImportError(null);
     setImportFailedRows([]);
+
     if (records.length === 0) return;
+
+    const tenantId = getActiveTenantIdFromLocalStorage();
+    if (!tenantId) {
+      setImportError(TENANT_ID_MISSING_MESSAGE);
+      return;
+    }
+
     setImportSummaryOpen(true);
   }, [records.length]);
 
   const runSupabaseImport = useCallback(async () => {
-    const user = readYasamUser();
-    const tenantId = user?.tenant_id?.trim();
+    const tenantId = getActiveTenantIdFromLocalStorage();
     if (!tenantId) {
-      setImportError("Aktif kullanıcıda tenant_id bulunamadı. Oturumu kontrol edin.");
+      setImportError(TENANT_ID_MISSING_MESSAGE);
       setImportSummaryOpen(false);
       return;
     }
@@ -945,11 +970,11 @@ function DogaltasJsonTab() {
     setImportFailedRows(failed);
 
     if (successCount > 0 && failed.length === 0) {
-      const toastMessage = `${successCount} kayıt başarıyla aktarıldı`;
+      const toastMessage = `${successCount} kayıt aktarıldı. Tenant: ${tenantId}`;
       setImportSuccess(toastMessage);
       showToast({ type: "success", message: toastMessage });
     } else if (successCount > 0) {
-      const summary = `${successCount} başarılı / ${failed.length} başarısız`;
+      const summary = `${successCount} başarılı / ${failed.length} başarısız · Tenant: ${tenantId}`;
       setImportSuccess(summary);
       showToast({ type: "warning", message: summary });
     } else {
