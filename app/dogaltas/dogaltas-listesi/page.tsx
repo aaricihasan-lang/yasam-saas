@@ -2,7 +2,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
@@ -99,8 +101,14 @@ const uiBadgeWarning = `${uiBadgeBase} border-red-200 bg-red-50 text-red-600`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiDeleteBtn =
   "rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
+const uiSelectActionBtn =
+  "rounded-2xl px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+const uiRowCheckbox =
+  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
 export default function DogaltasListesiPage() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [stones, setStones] = useState<StoneRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -108,6 +116,7 @@ export default function DogaltasListesiPage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
 
@@ -217,8 +226,31 @@ export default function DogaltasListesiPage() {
     setStones((current) =>
       current.filter((stone) => stone.id !== stoneToDelete.id)
     );
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(stoneToDelete.id);
+      return next;
+    });
     setStoneToDelete(null);
   }
+
+  const selectedCount = selectedIds.size;
+
+  const toggleStoneSelection = useCallback((stoneId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(stoneId)) {
+        next.delete(stoneId);
+      } else {
+        next.add(stoneId);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -254,6 +286,56 @@ export default function DogaltasListesiPage() {
       return text.includes(keyword);
     });
   }, [stones, search]);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
+  }, [filteredStones]);
+
+  const deleteSelectedStones = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirm({
+      title: "Seçili kayıtları sil",
+      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
+      tone: "danger",
+      confirmText: "Evet, sil",
+      cancelText: "Vazgeç",
+    });
+
+    if (!confirmed) return;
+
+    const tenantId = queryTenantId ?? getActiveTenantIdFromLocalStorage();
+    if (!tenantId) {
+      setErrorMessage(
+        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
+      );
+      return;
+    }
+
+    const ids = Array.from(selectedIds);
+    setDeleteLoading(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("stones")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids);
+
+    setDeleteLoading(false);
+
+    if (error) {
+      setErrorMessage(`Seçili kayıtlar silinemedi: ${error.message}`);
+      return;
+    }
+
+    showToast({
+      type: "success",
+      message: `${ids.length} kayıt başarıyla silindi.`,
+    });
+    setSelectedIds(new Set());
+    await loadStones();
+  }, [confirm, queryTenantId, selectedIds, showToast]);
 
   const totalImages = stones.reduce(
     (total, stone) => total + (stone.images || []).length,
@@ -391,6 +473,38 @@ export default function DogaltasListesiPage() {
               </span>
             )}
           </div>
+
+          {!loading && filteredStones.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-800 shadow-sm">
+                Seçili: {selectedCount}
+              </span>
+              <button
+                type="button"
+                disabled={deleteLoading}
+                onClick={selectAllFiltered}
+                className={`${uiSelectActionBtn} border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-950 hover:from-cyan-100 hover:to-cyan-200`}
+              >
+                Tümünü Seç
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading || selectedCount === 0}
+                onClick={clearSelection}
+                className={`${uiSelectActionBtn} border-2 border-violet-200 bg-gradient-to-r from-violet-50 to-violet-100 text-violet-950 hover:from-violet-100 hover:to-violet-200`}
+              >
+                Seçimi Temizle
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading || selectedCount === 0}
+                onClick={() => void deleteSelectedStones()}
+                className={`${uiSelectActionBtn} border-2 border-rose-200 bg-gradient-to-r from-rose-50 to-rose-100 text-rose-800 hover:from-rose-100 hover:to-rose-200`}
+              >
+                {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
+              </button>
+            </div>
+          ) : null}
         </section>
 
         {errorMessage && (
@@ -462,7 +576,8 @@ export default function DogaltasListesiPage() {
             </div>
           ) : viewMode === "list" ? (
             <div>
-              <div className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+              <div className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+                <div className="w-8" aria-hidden />
                 <div>Taş</div>
                 <div>Açıklama</div>
                 <div>Etiketler</div>
@@ -477,12 +592,25 @@ export default function DogaltasListesiPage() {
                   const warningCount = (stone.warning_tags || []).length;
                   const sectionCount = countFilledSections(stone);
                   const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
+                  const isSelected = selectedIds.has(stone.id);
 
                   return (
                     <div
                       key={stone.id}
-                      className="grid grid-cols-[1.3fr_1.8fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70"
+                      className={`grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 ${
+                        isSelected ? "bg-violet-50/60" : ""
+                      }`}
                     >
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleStoneSelection(stone.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                          className={uiRowCheckbox}
+                        />
+                      </div>
                       <Link
                         href={`/dogaltas/dogaltas-listesi/${stone.id}`}
                         className="flex min-w-0 items-center gap-3"
@@ -595,12 +723,30 @@ export default function DogaltasListesiPage() {
                 const imageCount = (stone.images || []).length;
                 const sectionCount = countFilledSections(stone);
                 const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
+                const isSelected = selectedIds.has(stone.id);
 
                 return (
                   <div
                     key={stone.id}
-                    className="rounded-[28px] border-[3px] border-cyan-300/40 bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-violet-300/50"
+                    className={`rounded-[28px] border-[3px] bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 ${
+                      isSelected
+                        ? "border-violet-400/70 bg-violet-50/50"
+                        : "border-cyan-300/40 hover:border-violet-300/50"
+                    }`}
                   >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleStoneSelection(stone.id)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                        className={uiRowCheckbox}
+                      />
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Seç
+                      </span>
+                    </div>
                     <Link
                       href={`/dogaltas/dogaltas-listesi/${stone.id}`}
                       className="group block"
