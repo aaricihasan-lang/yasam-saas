@@ -341,14 +341,24 @@ export default function StoneDetailPage() {
     const { data, error } = await supabase
       .from("stones")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
       .eq("id", id)
-      .single();
+      .maybeSingle();
+
+    console.log("Taş ID:", id);
+    console.log("Bulunan:", data);
+    console.log("Hata:", error);
 
     setLoading(false);
 
     if (error) {
       setErrorMessage(`Kayıt alınamadı: ${error.message}`);
+      setStone(null);
+      return;
+    }
+
+    if (!data) {
+      setStone(null);
+      setErrorMessage(`Kayıt bulunamadı.\nID: ${id}`);
       return;
     }
 
@@ -658,7 +668,7 @@ export default function StoneDetailPage() {
         <div className={`${uiHeaderCard} w-full max-w-lg text-center`}>
           <div className="text-[48px]">💎</div>
           <h1 className="mt-3 text-[22px] font-black text-slate-950">Kayıt bulunamadı</h1>
-          <p className="mt-3 text-[13px] leading-6 text-slate-500">
+          <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-500">
             {errorMessage || "Bu doğaltaş kaydı görüntülenemedi."}
           </p>
 
