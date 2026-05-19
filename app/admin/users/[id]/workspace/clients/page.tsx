@@ -370,6 +370,7 @@ export default function AdminWorkspaceClientsPage() {
                               "Kan Grubu",
                               "Mizaç",
                               "Kayıt Tarihi",
+                              "İşlem",
                             ].map((col) => (
                               <th
                                 key={col}
@@ -409,6 +410,15 @@ export default function AdminWorkspaceClientsPage() {
                               </td>
                               <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
                                 {formatCreatedAt(client.created_at ?? undefined)}
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <Link
+                                  href={`/admin/users/${userId}/workspace/clients/${client.id}`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-950 transition hover:border-violet-300 hover:bg-violet-100 no-underline"
+                                >
+                                  <span aria-hidden>👁</span>
+                                  Detay Gör
+                                </Link>
                               </td>
                             </tr>
                           ))}
