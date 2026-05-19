@@ -110,8 +110,8 @@ const landingModules: LandingModule[] = [
 
 const trustPrinciples: string[] = [
   "Özel notlarınız yalnızca size aittir",
-  "Danışan içerikleriniz üçüncü kişiler tarafından görüntülenmez",
-  "Sistem sahibi dahil hiçbir yönetici özel çalışma içeriklerini okuyamaz",
+  "Özel notlarınız, analizleriniz ve tüm çalışma içerikleriniz yalnızca size aittir",
+  "Sistem sahibi dahil hiçbir yönetici özel çalışma verilerinize erişemez veya içeriklerinizi inceleyemez",
   "Admin paneli yalnızca üyelik, ödeme, modül ve sistem yönetimi içindir",
   "Verileriniz güvenli altyapıda korunur",
 ];
