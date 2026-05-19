@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Archive, ArrowLeft, Loader2 } from "lucide-react";
+import { Archive, ArrowLeft, Home, Loader2 } from "lucide-react";
 import {
+  formatCreatedAt,
   isExpertModuleEnabled,
   mapDbUser,
   type ManagedUser,
@@ -15,8 +16,8 @@ import { supabase } from "@/lib/supabase";
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
 
-const navLinkClass =
-  "inline-flex items-center gap-2 rounded-xl border-2 border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-900 transition hover:border-slate-400 hover:bg-slate-200 no-underline";
+const navBtn =
+  "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-900 transition hover:border-slate-400 hover:bg-slate-200 no-underline";
 
 const pageContainerClass =
   "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
@@ -29,11 +30,11 @@ const CATEGORY_BADGE: Record<string, string> = {
   Diğer: "border-stone-200 bg-stone-50 text-stone-800",
 };
 
-const linkBtnClass =
-  "inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border-2 border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-black text-emerald-900 no-underline transition hover:border-emerald-300 hover:bg-emerald-100";
-
-const secondaryLinkClass =
+const openLinkClass =
   "inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border-2 border-sky-200 bg-sky-50 px-5 py-2.5 text-sm font-black text-sky-950 no-underline transition hover:border-sky-300 hover:bg-sky-100";
+
+const downloadLinkClass =
+  "inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border-2 border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-black text-emerald-900 no-underline transition hover:border-emerald-300 hover:bg-emerald-100";
 
 type ArchiveFileRow = {
   id: string;
@@ -54,7 +55,7 @@ type ArchiveRecord = {
   tags: string | null;
   note: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 };
 
 function categoryBadgeClass(category: string): string {
@@ -80,6 +81,13 @@ function getFileExtensionLower(file: ArchiveFileRow): string {
   const n = file.file_name ?? "";
   const i = n.lastIndexOf(".");
   return i >= 0 ? n.slice(i + 1).toLowerCase() : "";
+}
+
+function fileTypeLabel(file: ArchiveFileRow): string {
+  const t = file.file_type?.trim();
+  if (t) return t;
+  const ext = getFileExtensionLower(file);
+  return ext ? ext.toUpperCase() : "Bilinmeyen";
 }
 
 function isImageFile(file: ArchiveFileRow): boolean {
@@ -125,6 +133,10 @@ function isOfficeFile(file: ArchiveFileRow): boolean {
   return ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
 }
 
+function isDocumentFile(file: ArchiveFileRow): boolean {
+  return isPdfFile(file) || isOfficeFile(file);
+}
+
 function formatFileSize(bytes: number | null | undefined): string {
   if (bytes == null || Number.isNaN(Number(bytes))) return "—";
   const b = Number(bytes);
@@ -146,52 +158,55 @@ function ReadonlyArchiveFileCard({
   onImageClick,
 }: {
   file: ArchiveFileRow;
-  onImageClick: (url: string) => void;
+  onImageClick: (url: string, name: string) => void;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
   const url = getPublicFileUrl(file.file_path);
   const fileName = file.file_name?.trim() || "Dosya";
+  const openLabel = isDocumentFile(file) ? "Dosyayı Aç" : "Önizle / Aç";
 
   return (
     <article className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        {isImageFile(file) && !imgBroken ? (
+          <button
+            type="button"
+            onClick={() => onImageClick(url, fileName)}
+            className="shrink-0 overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
+            title="Büyüt"
+          >
+            <img
+              src={url}
+              alt={fileName}
+              className="h-24 w-24 object-cover sm:h-28 sm:w-28"
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgBroken(true)}
+            />
+          </button>
+        ) : null}
+
         <div className="min-w-0 flex-1">
           <p className="break-words text-base font-black text-slate-900">{fileName}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {file.file_type || "—"} · {formatFileSize(file.file_size)}
+          <p className="mt-1 text-xs font-semibold text-slate-600">
+            Tip: {fileTypeLabel(file)}
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <a href={url} target="_blank" rel="noreferrer" className={secondaryLinkClass}>
-            Yeni sekmede aç
-          </a>
-          <a href={url} download={fileName} className={linkBtnClass}>
-            İndir
-          </a>
+          <p className="text-xs font-semibold text-slate-500">
+            Boyut: {formatFileSize(file.file_size)}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={url} target="_blank" rel="noreferrer" className={openLinkClass}>
+              {openLabel}
+            </a>
+            <a href={url} download={fileName} className={downloadLinkClass}>
+              İndir
+            </a>
+          </div>
         </div>
       </div>
 
-      {isImageFile(file) ? (
-        <div className="mt-4">
-          {!imgBroken ? (
-            <button
-              type="button"
-              onClick={() => onImageClick(url)}
-              className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-white"
-            >
-              <img
-                src={url}
-                alt={fileName}
-                className="mx-auto max-h-[400px] w-full object-contain"
-                loading="lazy"
-                decoding="async"
-                onError={() => setImgBroken(true)}
-              />
-            </button>
-          ) : (
-            <p className="text-sm font-medium text-slate-500">Görsel yüklenemedi.</p>
-          )}
-        </div>
+      {isImageFile(file) && imgBroken ? (
+        <p className="mt-3 text-sm font-medium text-slate-500">Görsel önizlemesi yüklenemedi.</p>
       ) : null}
 
       {isAudioFile(file) ? (
@@ -200,8 +215,7 @@ function ReadonlyArchiveFileCard({
             <audio controls className="w-full" src={url} preload="metadata" />
           ) : (
             <p className="text-sm font-medium text-slate-600">
-              Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı
-              indirin.
+              Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirin.
             </p>
           )}
         </div>
@@ -211,7 +225,7 @@ function ReadonlyArchiveFileCard({
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-black">
           <video
             controls
-            className="max-h-[400px] w-full object-contain"
+            className="max-h-[360px] w-full object-contain"
             src={url}
             preload="metadata"
           />
@@ -220,14 +234,14 @@ function ReadonlyArchiveFileCard({
 
       {isPdfFile(file) ? (
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-          <iframe title={fileName} src={url} className="h-[420px] w-full bg-white" />
+          <iframe title={fileName} src={url} className="h-[360px] w-full bg-white" />
         </div>
       ) : null}
 
       {isOfficeFile(file) ? (
         <p className="mt-4 text-sm font-medium text-slate-600">
-          Office belgesi tarayıcıda önizlenemeyebilir. Görüntülemek veya
-          düzenlemek için indirin.
+          Word/Office belgesi tarayıcıda önizlenemeyebilir. Görüntülemek için Dosyayı Aç
+          veya İndir kullanın.
         </p>
       ) : null}
     </article>
@@ -247,7 +261,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
   const [expert, setExpert] = useState<ManagedUser | null>(null);
   const [archive, setArchive] = useState<ArchiveRecord | null>(null);
   const [files, setFiles] = useState<ArchiveFileRow[]>([]);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
 
   const loadDetail = useCallback(async () => {
     if (!expertUserId || !archiveId) {
@@ -318,7 +332,17 @@ export default function AdminWorkspaceArchiveDetailPage() {
       return;
     }
 
-    setArchive(archiveRow as ArchiveRecord);
+    const row = archiveRow as Record<string, unknown>;
+    setArchive({
+      id: String(row.id ?? ""),
+      tenant_id: String(row.tenant_id ?? ""),
+      title: String(row.title ?? ""),
+      category: String(row.category ?? ""),
+      tags: row.tags != null ? String(row.tags) : null,
+      note: row.note != null ? String(row.note) : null,
+      created_at: row.created_at != null ? String(row.created_at) : "",
+      updated_at: row.updated_at != null ? String(row.updated_at) : null,
+    });
     setFiles((filesRaw ?? []) as ArchiveFileRow[]);
     setModuleDisabled(false);
     setNotFound(false);
@@ -358,26 +382,35 @@ export default function AdminWorkspaceArchiveDetailPage() {
   }
 
   const tagList = archive ? parseTagsList(archive.tags) : [];
+  const showUpdatedAt =
+    archive?.updated_at?.trim() &&
+    archive.updated_at !== archive.created_at;
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className={pageContainerClass}>
-        <nav className="mb-6 flex flex-wrap gap-3" aria-label="Üst navigasyon">
-          <Link
-            href={`/admin/users/${expertUserId}/workspace/archive`}
-            className={navLinkClass}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Arşiv Listesine Dön
-          </Link>
-          <Link href={`/admin/users/${expertUserId}/workspace`} className={navLinkClass}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Workspace
-          </Link>
-          <Link href={`/admin/users/${expertUserId}`} className={navLinkClass}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Kullanıcı Detayı
-          </Link>
+        <nav
+          className="sticky top-0 z-50 mb-6 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-violet-100/90 via-indigo-100/85 to-slate-100/90 p-3 shadow-lg backdrop-blur-xl sm:p-4"
+          aria-label="Üst navigasyon"
+        >
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Link href={`/admin/users/${expertUserId}/workspace/archive`} className={navBtn}>
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              Arşiv Listesine Dön
+            </Link>
+            <Link href={`/admin/users/${expertUserId}/workspace`} className={navBtn}>
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              Uzman Workspace
+            </Link>
+            <Link href={`/admin/users/${expertUserId}`} className={navBtn}>
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              Kullanıcı Detayı
+            </Link>
+            <Link href="/" className={navBtn}>
+              <Home className="h-4 w-4 shrink-0" aria-hidden />
+              Ana Panele Dön
+            </Link>
+          </div>
         </nav>
 
         {loading ? (
@@ -388,17 +421,24 @@ export default function AdminWorkspaceArchiveDetailPage() {
         ) : moduleDisabled ? (
           <section
             className={`${panelClass} border-rose-200/80 bg-gradient-to-r from-rose-50/95 via-orange-50/80 to-rose-50/90`}
+            role="alert"
           >
             <p className="text-base font-black text-rose-950">
               Bu modül kullanıcıda aktif değil.
             </p>
+            <p className="mt-2 text-sm font-medium text-rose-900/80">
+              Kişisel Arşiv modülü bu uzman için kapalı.
+            </p>
+            <Link href={`/admin/users/${expertUserId}/workspace`} className={`${navBtn} mt-5 inline-flex`}>
+              Uzman Workspace
+            </Link>
           </section>
         ) : notFound || !archive ? (
           <section className={`${panelClass} text-center`}>
             <p className="text-xl font-black">Kayıt bulunamadı</p>
             <Link
               href={`/admin/users/${expertUserId}/workspace/archive`}
-              className={`${navLinkClass} mt-6 inline-flex`}
+              className={`${navBtn} mt-6 inline-flex`}
             >
               Arşiv listesine dön
             </Link>
@@ -416,27 +456,39 @@ export default function AdminWorkspaceArchiveDetailPage() {
                   <p className="text-xs font-black uppercase tracking-[0.28em] text-slate-600">
                     Salt okunur izleme
                   </p>
-                  <h1 className="mt-1 text-3xl font-black text-slate-950">
-                    {archive.title || "Kişisel Arşiv Detayı"}
-                  </h1>
                   {expert ? (
                     <p className="mt-2 text-xs font-bold text-indigo-900">
                       Uzman: {expert.fullName} · {expert.email}
                     </p>
                   ) : null}
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <span className={categoryBadgeClass(archive.category)}>
-                      {archive.category}
-                    </span>
-                  </div>
                 </div>
               </div>
             </header>
 
+            <section className={`${panelClass} border-slate-200/80`}>
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Başlık
+              </h2>
+              <p className="mt-2 text-2xl font-black text-slate-950">{archive.title || "—"}</p>
+            </section>
+
+            <section className={`${panelClass} border-slate-200/80`}>
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Kategori
+              </h2>
+              <div className="mt-3">
+                <span className={categoryBadgeClass(archive.category)}>
+                  {archive.category || "—"}
+                </span>
+              </div>
+            </section>
+
             <section className={`${panelClass} border-indigo-200/80`}>
-              <h2 className="text-lg font-black text-slate-950">Etiketler</h2>
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Etiketler
+              </h2>
               {tagList.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {tagList.map((tag) => (
                     <span
                       key={tag}
@@ -447,17 +499,41 @@ export default function AdminWorkspaceArchiveDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm font-medium text-slate-500">Etiket yok</p>
+                <p className="mt-3 text-sm font-medium text-slate-500">—</p>
               )}
             </section>
 
             <section className={`${panelClass} border-slate-200/80`}>
-              <h2 className="text-lg font-black text-slate-950">Notlar</h2>
-              <div className="mt-4 rounded-2xl border-2 border-slate-100 bg-slate-50/80 p-4">
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Notlar
+              </h2>
+              <div className="mt-3 rounded-2xl border-2 border-slate-100 bg-slate-50/80 p-4">
                 <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-700">
                   {archive.note?.trim() || "—"}
                 </p>
               </div>
+            </section>
+
+            <section className={`${panelClass} border-slate-200/80`}>
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Tarihler
+              </h2>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <dt className="text-xs font-black text-slate-500">Kayıt tarihi</dt>
+                  <dd className="mt-1 text-sm font-bold text-slate-900">
+                    {formatCreatedAt(archive.created_at)}
+                  </dd>
+                </div>
+                {showUpdatedAt ? (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                    <dt className="text-xs font-black text-slate-500">Güncelleme tarihi</dt>
+                    <dd className="mt-1 text-sm font-bold text-slate-900">
+                      {formatCreatedAt(archive.updated_at!)}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
             </section>
 
             <section className={`${panelClass} border-cyan-200/80`}>
@@ -475,7 +551,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
                     <li key={file.id} className="list-none">
                       <ReadonlyArchiveFileCard
                         file={file}
-                        onImageClick={setLightboxUrl}
+                        onImageClick={(url, name) => setLightbox({ url, name })}
                       />
                     </li>
                   ))}
@@ -485,23 +561,34 @@ export default function AdminWorkspaceArchiveDetailPage() {
           </div>
         )}
 
-        {lightboxUrl ? (
+        {lightbox ? (
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4"
             role="dialog"
             aria-modal="true"
             aria-label="Görsel önizleme"
-            onClick={() => setLightboxUrl(null)}
+            onClick={() => setLightbox(null)}
           >
             <div
               className="max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={lightboxUrl}
-                alt="Önizleme"
-                className="max-h-[85vh] w-full object-contain"
+                src={lightbox.url}
+                alt={lightbox.name}
+                className="max-h-[80vh] w-full object-contain"
               />
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3">
+                <p className="text-sm font-bold text-slate-800">{lightbox.name}</p>
+                <a
+                  href={lightbox.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={openLinkClass}
+                >
+                  Yeni sekmede aç
+                </a>
+              </div>
             </div>
           </div>
         ) : null}
