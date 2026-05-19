@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertOctagon,
+  Home,
   Loader2,
+  LogOut,
   RefreshCw,
   Shield,
   ShieldAlert,
@@ -73,10 +75,10 @@ type AuditSnapshot = {
 };
 
 const panelClass =
-  "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "rounded-[32px] border-2 border-white/80 bg-white/70 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl";
 
 const navBtn =
-  "inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[60px]";
+  "inline-flex h-16 w-full items-center justify-center gap-3 rounded-3xl border-2 px-8 text-lg font-bold shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg";
 
 function shortTenantId(id: string): string {
   if (id.length <= 20) return id;
@@ -279,14 +281,12 @@ async function runFullAudit(): Promise<AuditSnapshot> {
 
 function TenantTopNav({ onLogout }: { onLogout: () => void }) {
   return (
-    <nav className="sticky top-0 z-50 mb-8 grid gap-3 sm:grid-cols-2" aria-label="Üst navigasyon">
+    <nav className="sticky top-0 z-50 mb-10 grid gap-4 sm:grid-cols-2" aria-label="Üst navigasyon">
       <Link
         href="/"
         className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline`}
       >
-        <span className="text-xl" aria-hidden>
-          🏠
-        </span>
+        <Home className="h-7 w-7 shrink-0" strokeWidth={2.25} aria-hidden />
         Ana Panele Dön
       </Link>
       <button
@@ -294,9 +294,7 @@ function TenantTopNav({ onLogout }: { onLogout: () => void }) {
         onClick={onLogout}
         className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100`}
       >
-        <span className="text-xl" aria-hidden>
-          🚪
-        </span>
+        <LogOut className="h-7 w-7 shrink-0" strokeWidth={2.25} aria-hidden />
         Çıkış Yap
       </button>
     </nav>
@@ -325,28 +323,76 @@ function RiskBadge({ risk }: { risk: RiskStatus }) {
   const { badge, icon: Icon } = riskStyles[risk];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black ${badge}`}
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${badge}`}
     >
-      <Icon className="h-3.5 w-3.5" />
+      <Icon className="h-4 w-4" />
       {risk}
     </span>
   );
 }
 
+function RiskStatCards({
+  safeCount,
+  reviewCount,
+  riskCount,
+}: {
+  safeCount: number;
+  reviewCount: number;
+  riskCount: number;
+}) {
+  const items = [
+    {
+      count: safeCount,
+      label: "Güvenli kontrol",
+      card: "border-emerald-200/80 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/80",
+      number: "text-emerald-950",
+      text: "text-emerald-800",
+    },
+    {
+      count: reviewCount,
+      label: "Kontrol gerekli",
+      card: "border-amber-200/80 bg-gradient-to-br from-amber-50/95 via-white to-orange-50/80",
+      number: "text-amber-950",
+      text: "text-amber-900",
+    },
+    {
+      count: riskCount,
+      label: "Veri karışma riski",
+      card: "border-rose-200/80 bg-gradient-to-br from-rose-50/95 via-white to-orange-50/80",
+      number: "text-rose-950",
+      text: "text-rose-900",
+    },
+  ] as const;
+
+  return (
+    <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className={`flex min-h-[110px] flex-col justify-center rounded-[28px] border-2 p-6 shadow-lg ${item.card}`}
+        >
+          <p className={`text-4xl font-black ${item.number}`}>{item.count}</p>
+          <p className={`mt-2 text-base font-semibold ${item.text}`}>{item.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RiskLegend() {
   return (
-    <div
-      className={`${panelClass} mb-6 border-slate-200/80 bg-gradient-to-r from-white/95 via-violet-50/40 to-white/95 py-4`}
+    <section
+      className={`${panelClass} mb-8 border-slate-200/80 bg-white/70 backdrop-blur-xl`}
     >
-      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+      <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
         Risk durumları
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-3">
         <RiskBadge risk="Güvenli" />
         <RiskBadge risk="Kontrol Gerekli" />
         <RiskBadge risk="Veri Karışma Riski" />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -354,7 +400,7 @@ function LegacyBanner({ usages }: { usages: LegacyTableUsage[] }) {
   const inUse = usages.length > 0;
   return (
     <section
-      className={`${panelClass} mb-6 ${
+      className={`${panelClass} mb-8 backdrop-blur-xl ${
         inUse
           ? "border-rose-300/80 bg-gradient-to-br from-rose-50/95 via-white to-orange-50/80"
           : "border-emerald-200/80 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/80"
@@ -362,24 +408,24 @@ function LegacyBanner({ usages }: { usages: LegacyTableUsage[] }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide text-slate-600">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-600">
             Eski sabit tenant
           </p>
-          <p className="mt-1 font-mono text-sm font-bold text-slate-800">{LEGACY_TENANT_ID}</p>
+          <p className="mt-2 font-mono text-base font-bold text-slate-800">{LEGACY_TENANT_ID}</p>
         </div>
         <RiskBadge risk={inUse ? "Veri Karışma Riski" : "Güvenli"} />
       </div>
 
       {inUse ? (
         <div className="mt-4">
-          <p className="text-sm font-bold text-rose-900">
+          <p className="text-base font-bold text-rose-900">
             Bu eski demo tenant hâlâ kullanılıyor. Veriler karışık olabilir.
           </p>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-4 space-y-3">
             {usages.map((u) => (
               <li
                 key={u.table}
-                className="flex items-center justify-between rounded-xl border border-rose-200/80 bg-white/80 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-2xl border border-rose-200/80 bg-white/80 px-4 py-3 text-base"
               >
                 <span className="font-mono font-bold text-slate-800">{u.table}</span>
                 <span className="font-black text-rose-800">{u.count} kayıt</span>
@@ -388,7 +434,7 @@ function LegacyBanner({ usages }: { usages: LegacyTableUsage[] }) {
           </ul>
         </div>
       ) : (
-        <p className="mt-3 text-sm font-semibold text-emerald-800">
+        <p className="mt-4 text-base font-semibold text-emerald-800">
           Kontrol edilen tablolarda eski sabit tenant kullanılmıyor.
         </p>
       )}
@@ -399,7 +445,7 @@ function LegacyBanner({ usages }: { usages: LegacyTableUsage[] }) {
 function TenantSummaryCard({ summary }: { summary: TenantSummary }) {
   return (
     <article
-      className={`${panelClass} border bg-gradient-to-br ${
+      className={`rounded-[32px] border-2 bg-white/70 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl min-h-[220px] bg-gradient-to-br ${
         summary.isLegacy
           ? "border-rose-300/80 from-rose-50/90 via-white to-orange-50/70"
           : "border-violet-200/80 from-violet-50/90 via-white to-indigo-50/70"
@@ -407,35 +453,35 @@ function TenantSummaryCard({ summary }: { summary: TenantSummary }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
             Tenant
           </p>
-          <p className="mt-1 truncate font-mono text-sm font-bold text-slate-900" title={summary.tenantId}>
+          <p className="mt-2 truncate font-mono text-base font-bold text-slate-900" title={summary.tenantId}>
             {shortTenantId(summary.tenantId)}
           </p>
           {summary.tenantName ? (
-            <p className="mt-1 text-sm font-semibold text-violet-800">{summary.tenantName}</p>
+            <p className="mt-2 text-base font-semibold text-violet-800">{summary.tenantName}</p>
           ) : null}
         </div>
         {summary.isLegacy ? (
-          <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800 ring-1 ring-rose-200">
+          <span className="shrink-0 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 px-4 py-1.5 text-sm font-bold text-white shadow-md">
             Eski
           </span>
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/80 px-2 py-3 text-center">
-          <p className="text-lg font-black text-indigo-950">{summary.userCount}</p>
-          <p className="text-[10px] font-bold uppercase text-indigo-700">Kullanıcı</p>
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 px-3 py-4 text-center">
+          <p className="text-3xl font-black text-indigo-950">{summary.userCount}</p>
+          <p className="mt-1 text-sm font-bold uppercase text-indigo-700">Kullanıcı</p>
         </div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50/80 px-2 py-3 text-center">
-          <p className="text-lg font-black text-blue-950">{summary.clientCount}</p>
-          <p className="text-[10px] font-bold uppercase text-blue-700">Danışan</p>
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-4 text-center">
+          <p className="text-3xl font-black text-blue-950">{summary.clientCount}</p>
+          <p className="mt-1 text-sm font-bold uppercase text-blue-700">Danışan</p>
         </div>
-        <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-2 py-3 text-center">
-          <p className="text-lg font-black text-amber-950">{summary.analysisCount}</p>
-          <p className="text-[10px] font-bold uppercase text-amber-700">Analiz</p>
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-3 py-4 text-center">
+          <p className="text-3xl font-black text-amber-950">{summary.analysisCount}</p>
+          <p className="mt-1 text-sm font-bold uppercase text-amber-700">Analiz</p>
         </div>
       </div>
     </article>
@@ -475,35 +521,35 @@ function AuditCard({ audit }: { audit: TableAudit }) {
 
   return (
     <article
-      className={`${panelClass} border bg-gradient-to-br ${theme.border} ${theme.bg}`}
+      className={`${panelClass} flex min-h-[420px] flex-col border bg-gradient-to-br ${theme.border} ${theme.bg}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.icon}`}
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.icon}`}
         >
-          <Shield className="h-6 w-6" strokeWidth={2.25} />
+          <Shield className="h-7 w-7" strokeWidth={2.25} />
         </div>
         <RiskBadge risk={audit.risk} />
       </div>
 
-      <h3 className="mt-4 font-mono text-lg font-black text-slate-900">{audit.table}</h3>
+      <h3 className="mt-5 font-mono text-3xl font-bold text-slate-900">{audit.table}</h3>
 
-      <dl className="mt-4 space-y-2.5 text-sm">
-        <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+      <dl className="mt-6 flex-1 space-y-0 text-base">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 py-3.5">
           <dt className="font-semibold text-slate-600">Toplam kayıt</dt>
           <dd className="font-black text-slate-900">{audit.total.toLocaleString("tr-TR")}</dd>
         </div>
-        <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 py-3.5">
           <dt className="font-semibold text-slate-600">tenant_id alanı</dt>
           <dd className="font-black text-slate-900">
             {audit.hasTenantField ? "Var" : "Yok / okunamadı"}
           </dd>
         </div>
-        <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 py-3.5">
           <dt className="font-semibold text-slate-600">Farklı tenant</dt>
           <dd className="font-black text-slate-900">{audit.distinctTenants}</dd>
         </div>
-        <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 py-3.5">
           <dt className="font-semibold text-slate-600">Eski tenant kayıt</dt>
           <dd
             className={`font-black ${audit.legacyTenantRows > 0 ? "text-rose-700" : "text-emerald-700"}`}
@@ -512,7 +558,7 @@ function AuditCard({ audit }: { audit: TableAudit }) {
           </dd>
         </div>
         {audit.total > 0 ? (
-          <div className="flex justify-between gap-3">
+          <div className="flex items-center justify-between gap-4 py-3.5">
             <dt className="font-semibold text-slate-600">Boş tenant_id</dt>
             <dd
               className={`font-black ${audit.nullTenantRows > 0 ? "text-amber-700" : "text-emerald-700"}`}
@@ -524,23 +570,28 @@ function AuditCard({ audit }: { audit: TableAudit }) {
       </dl>
 
       {audit.tenantList.length > 0 ? (
-        <div className="mt-4">
-          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+        <div className="mt-6">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
             Tenant listesi
           </p>
-          <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-white/70 p-2">
+          <ul className="mt-3 flex max-h-48 flex-wrap gap-2 overflow-y-auto">
             {audit.tenantList.map((t) => (
               <li
                 key={t.id}
-                className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs ${
-                  t.isLegacy ? "bg-rose-50 ring-1 ring-rose-100" : "bg-slate-50"
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-md ring-1 ${
+                  t.isLegacy
+                    ? "bg-gradient-to-r from-rose-100 to-orange-100 text-rose-900 ring-rose-200/80"
+                    : "bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-900 ring-violet-200/80"
                 }`}
+                title={t.id}
               >
-                <span className="min-w-0 truncate font-mono font-semibold text-slate-800" title={t.id}>
+                <span className="max-w-[140px] truncate font-mono">
                   {shortTenantId(t.id)}
-                  {t.isLegacy ? " (eski)" : ""}
+                  {t.isLegacy ? " · eski" : ""}
                 </span>
-                <span className="shrink-0 font-black text-slate-700">{t.count}</span>
+                <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-black text-slate-800 shadow-sm">
+                  {t.count}
+                </span>
               </li>
             ))}
           </ul>
@@ -548,7 +599,7 @@ function AuditCard({ audit }: { audit: TableAudit }) {
       ) : null}
 
       {audit.error ? (
-        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
           {audit.error}
         </p>
       ) : null}
@@ -642,27 +693,27 @@ export default function TenantKontrolPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/20 blur-[140px]" />
       <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-teal-200/15 blur-[120px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <div className="relative z-10 w-full min-h-screen px-8 py-8 xl:px-10 2xl:px-14">
         <TenantTopNav onLogout={handleLogout} />
 
-        <header className="mb-8">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-teal-700">
+        <header className="mb-10">
+          <p className="text-sm font-black uppercase tracking-[0.4em] text-teal-700">
             Admin · Güvenlik
           </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+          <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-950">
             Tenant Güvenlik Kontrolü
           </h1>
-          <p className="mt-2 text-base font-medium text-slate-600 sm:text-lg">
+          <p className="mt-3 text-lg font-medium text-slate-600">
             Tenant ayrımı, eski demo tenant kullanımı ve kayıt dağılımı
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-4">
             <Link
               href="/admin"
-              className="text-sm font-black text-violet-700 no-underline hover:text-violet-900"
+              className="text-base font-bold text-violet-700 no-underline hover:text-violet-900"
             >
               ← Admin Yönetim Merkezi
             </Link>
@@ -670,9 +721,9 @@ export default function TenantKontrolPage() {
               type="button"
               onClick={() => void runAudit()}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-2 text-sm font-black text-violet-900 transition hover:bg-violet-100 disabled:opacity-50"
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-violet-200 bg-violet-50 px-5 text-base font-bold text-violet-900 transition hover:bg-violet-100 disabled:opacity-50"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
               Yenile
             </button>
           </div>
@@ -682,23 +733,17 @@ export default function TenantKontrolPage() {
           <div className={`${panelClass} border-slate-200/80`}>
             <div className="flex flex-col items-center justify-center gap-4 py-16">
               <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
-              <p className="text-sm font-bold text-slate-600">Tablolar taranıyor…</p>
+              <p className="text-base font-bold text-slate-600">Tablolar taranıyor…</p>
             </div>
           </div>
         ) : snapshot ? (
           <>
             {!loading && audits.length > 0 ? (
-              <div className="mb-6 flex flex-wrap gap-3">
-                <span className="rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-black text-emerald-900 ring-1 ring-emerald-200">
-                  Güvenli: {safeCount}
-                </span>
-                <span className="rounded-full bg-amber-100 px-4 py-1.5 text-sm font-black text-amber-950 ring-1 ring-amber-200">
-                  Kontrol gerekli: {reviewCount}
-                </span>
-                <span className="rounded-full bg-rose-100 px-4 py-1.5 text-sm font-black text-rose-950 ring-1 ring-rose-200">
-                  Veri karışma: {riskCount}
-                </span>
-              </div>
+              <RiskStatCards
+                safeCount={safeCount}
+                reviewCount={reviewCount}
+                riskCount={riskCount}
+              />
             ) : null}
 
             <RiskLegend />
@@ -706,12 +751,12 @@ export default function TenantKontrolPage() {
             <LegacyBanner usages={snapshot.legacyUsages} />
 
             {snapshot.tenantSummaries.length > 0 ? (
-              <section className="mb-8">
-                <h2 className="text-lg font-black text-slate-900">Tenant özeti</h2>
-                <p className="mt-1 text-sm text-slate-600">
+              <section className="mb-10">
+                <h2 className="text-xl font-black text-slate-900">Tenant özeti</h2>
+                <p className="mt-2 text-base text-slate-600">
                   Kullanıcı, danışan ve numeroloji analiz sayıları tenant bazında
                 </p>
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                   {snapshot.tenantSummaries.map((summary) => (
                     <TenantSummaryCard key={summary.tenantId} summary={summary} />
                   ))}
@@ -720,8 +765,11 @@ export default function TenantKontrolPage() {
             ) : null}
 
             <section>
-              <h2 className="mb-4 text-lg font-black text-slate-900">Tablo denetimi</h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <h2 className="text-xl font-black text-slate-900">Tablo denetimi</h2>
+              <p className="mt-2 text-base text-slate-600">
+                Tablo bazında tenant dağılımı ve risk durumu
+              </p>
+              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {audits.map((audit) => (
                   <AuditCard key={audit.table} audit={audit} />
                 ))}
