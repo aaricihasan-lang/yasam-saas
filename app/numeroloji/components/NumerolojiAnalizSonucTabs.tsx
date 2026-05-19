@@ -113,7 +113,7 @@ function CakraEnerjiDaireleri({
   );
 }
 
-function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
+export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   return (
     <section className="col-span-full min-w-0 w-full rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 p-7 shadow-[0_0_32px_rgba(139,92,246,0.10)]">
       <h3 className="text-lg font-black tracking-wide text-slate-950">Çakra Sütunu & Çakra Omurgası</h3>

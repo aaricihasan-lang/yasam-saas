@@ -193,6 +193,11 @@ export default function AdminUserWorkspacePage() {
       return;
     }
 
+    if (key === "numerology") {
+      router.push(`/admin/users/${userId}/workspace/numerology`);
+      return;
+    }
+
     showToast({
       title: "Yakında",
       message: "Salt okunur görüntüleme hazırlanıyor.",
@@ -368,7 +373,9 @@ export default function AdminUserWorkspacePage() {
                         </span>
                         <p className="mt-2 text-[11px] font-bold text-violet-800/80">
                           {enabled
-                            ? key === "clients" || key === "appointments"
+                            ? key === "clients" ||
+                                key === "appointments" ||
+                                key === "numerology"
                               ? "Salt okunur listeyi aç"
                               : "Salt okunur görüntüleme hazırlanıyor"
                             : "Modül kapalı"}
