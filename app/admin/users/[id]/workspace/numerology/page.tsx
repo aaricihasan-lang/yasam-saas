@@ -11,6 +11,7 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { listNumerologyAnalyses } from "@/app/numeroloji/helpers/numerolojiKayit";
 import { extractMotorFromAnalysisJson } from "@/app/numeroloji/utils/analysisJson";
 import { nrDisplay } from "@/app/numeroloji/utils/numerolojiPlainMetin";
 import { supabase } from "@/lib/supabase";
@@ -63,17 +64,20 @@ export default function AdminWorkspaceNumerologyPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [expert, setExpert] = useState<ManagedUser | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [records, setRecords] = useState<NumerologyListRow[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [recordsError, setRecordsError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  const moduleEnabled = expert ? isExpertModuleEnabled(expert, "numerology") : false;
+
   const filteredRecords = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase("tr-TR");
+    const q = search.trim().toLowerCase();
     if (!q) return records;
 
     return records.filter((row) => {
-      const ad = row.name.toLocaleLowerCase("tr-TR");
-      const soyad = row.surname.toLocaleLowerCase("tr-TR");
+      const ad = row.name.toLowerCase();
+      const soyad = row.surname.toLowerCase();
       return ad.includes(q) || soyad.includes(q);
     });
   }, [records, search]);
@@ -86,7 +90,7 @@ export default function AdminWorkspaceNumerologyPage() {
     }
 
     setLoading(true);
-    setLoadError(null);
+    setRecordsError(null);
 
     const { data: userRow, error: userError } = await supabase
       .from("users")
@@ -95,7 +99,9 @@ export default function AdminWorkspaceNumerologyPage() {
       .maybeSingle();
 
     if (userError || !userRow) {
+      console.error("Uzman yükleme hatası:", userError);
       setExpert(null);
+      setTenantId(null);
       setNotFound(true);
       setLoading(false);
       return;
@@ -107,35 +113,51 @@ export default function AdminWorkspaceNumerologyPage() {
       row.tenant_id != null ? String(row.tenant_id).trim() : "";
 
     setExpert(mapped);
+    setTenantId(activeTenantId || null);
     setNotFound(false);
+
+    console.log("selectedUser", mapped);
+    console.log("tenantId", activeTenantId || null);
 
     if (!isExpertModuleEnabled(mapped, "numerology")) {
       setRecords([]);
+      console.log("numerology count", 0);
       setLoading(false);
       return;
     }
 
     if (!activeTenantId) {
       setRecords([]);
-      setLoadError("Uzman hesabında çalışma alanı (tenant) bilgisi bulunamadı.");
+      setRecordsError("Uzman hesabında çalışma alanı (tenant) bilgisi bulunamadı.");
+      console.log("numerology count", 0);
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("numerology_records")
-      .select("*")
-      .eq("tenant_id", activeTenantId)
-      .order("created_at", { ascending: false });
+    const { data, error } = await listNumerologyAnalyses(activeTenantId);
 
     if (error) {
+      console.error("Numeroloji listesi hatası:", error);
       setRecords([]);
-      setLoadError(error.message);
+      setRecordsError(error);
+      console.log("numerology count", 0);
       setLoading(false);
       return;
     }
 
-    setRecords((data ?? []).map((item) => mapNumerologyRow(item as Record<string, unknown>)));
+    const sorted = [...(data ?? [])].sort((a, b) => {
+      const ta = new Date(a.created_at).getTime();
+      const tb = new Date(b.created_at).getTime();
+      return tb - ta;
+    });
+
+    const mappedRecords = sorted.map((item) =>
+      mapNumerologyRow(item as unknown as Record<string, unknown>),
+    );
+
+    console.log("numerology count", mappedRecords.length);
+
+    setRecords(mappedRecords);
     setLoading(false);
   }, [userId]);
 
@@ -149,8 +171,6 @@ export default function AdminWorkspaceNumerologyPage() {
     if (!sessionChecked || !allowed) return;
     void loadExpertAndRecords();
   }, [sessionChecked, allowed, loadExpertAndRecords]);
-
-  const moduleEnabled = expert ? isExpertModuleEnabled(expert, "numerology") : false;
 
   if (!sessionChecked) {
     return (
@@ -253,6 +273,9 @@ export default function AdminWorkspaceNumerologyPage() {
                 <p className="text-base font-black text-rose-950">
                   Bu modül kullanıcıda aktif değil.
                 </p>
+                <p className="mt-2 text-sm font-medium text-rose-900/80">
+                  Numeroloji modülü bu uzman için kapalı. Liste görüntülenemez.
+                </p>
                 <Link
                   href={`/admin/users/${userId}/workspace`}
                   className={`${navBtn} mt-5 inline-flex max-w-md border-violet-300 bg-violet-50 text-violet-950`}
@@ -298,13 +321,13 @@ export default function AdminWorkspaceNumerologyPage() {
                     {search.trim() ? " (filtrelenmiş)" : ""}
                   </p>
 
-                  {loadError ? (
+                  {recordsError ? (
                     <p className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-900">
-                      {loadError}
+                      {recordsError}
                     </p>
                   ) : null}
 
-                  {!loadError && filteredRecords.length === 0 ? (
+                  {!recordsError && filteredRecords.length === 0 ? (
                     <p className="mt-8 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm font-bold text-slate-600">
                       {records.length === 0
                         ? "Bu uzmana ait numeroloji kaydı bulunamadı."
