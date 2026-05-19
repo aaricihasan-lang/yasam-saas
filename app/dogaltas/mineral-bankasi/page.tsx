@@ -7,84 +7,92 @@ import { supabase } from "@/lib/supabase";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type MineralForm = {
-  mineral_name: string;
-  general_info: string;
-  organ_effects: string;
-  deficiency_symptoms: string;
-  excess_symptoms: string;
-  overdose: string;
-  physiology: string;
-  physical_effects: string;
-  mental_spiritual_effects: string;
-  related_stones: string;
+  name: string;
+  kategori: string;
+  aciklama: string;
+  organ_etkileri: string;
+  fiziksel: string;
+  zihinsel: string;
+  cakralar: string;
+  fizyoloji: string;
+  eksiklik_belirtileri: string;
+  fazlalik_belirtileri: string;
+  doz_asimi: string;
+  iceren_taslar: string;
 };
 
 type MineralSection = {
-  key: keyof Omit<MineralForm, "mineral_name">;
+  key: keyof Omit<MineralForm, "name" | "kategori">;
   label: string;
   placeholder: string;
 };
 
 const mineralSections: MineralSection[] = [
   {
-    key: "general_info",
-    label: "Açıklama / Genel Bilgi",
-    placeholder: "Mineralin genel tanımı, temel görevi, sistemdeki yeri...",
+    key: "aciklama",
+    label: "Açıklama",
+    placeholder: "Mineralin genel tanımı ve temel görevi...",
   },
   {
-    key: "organ_effects",
-    label: "Organ Etkileri",
-    placeholder: "Satır satır organ etkilerini yazın...",
+    key: "fiziksel",
+    label: "Fiziksel",
+    placeholder: "Her satıra bir fiziksel etki yazın...",
   },
   {
-    key: "deficiency_symptoms",
-    label: "Eksiklik Belirtileri",
-    placeholder: "Eksiklikte görülebilecek belirtiler...",
+    key: "zihinsel",
+    label: "Zihinsel",
+    placeholder: "Her satıra bir zihinsel etki yazın...",
   },
   {
-    key: "excess_symptoms",
-    label: "Fazlalık Belirtileri",
-    placeholder: "Fazlalıkta görülebilecek belirtiler...",
-  },
-  {
-    key: "overdose",
-    label: "Doz Aşımı",
-    placeholder: "Aşırı alım / toksisite / dikkat notları...",
-  },
-  {
-    key: "physiology",
+    key: "fizyoloji",
     label: "Fizyoloji",
-    placeholder: "Mineralin fizyolojik mekanizması...",
+    placeholder: "Fizyolojik etkiler (satır satır)...",
   },
   {
-    key: "physical_effects",
-    label: "Fiziksel Etkiler",
-    placeholder: "Bedensel etkiler, desteklediği sistemler...",
+    key: "eksiklik_belirtileri",
+    label: "Eksiklik belirtileri",
+    placeholder: "Eksiklik belirtileri (satır satır)...",
   },
   {
-    key: "mental_spiritual_effects",
-    label: "Zihinsel / Ruhsal Etkiler",
-    placeholder: "Zihinsel, duygusal veya ruhsal düzeyde etkiler...",
+    key: "doz_asimi",
+    label: "Doz aşımı",
+    placeholder: "Doz aşımı / toksisite notları (satır satır)...",
   },
   {
-    key: "related_stones",
-    label: "Bu Minerali İçeren Taşlar",
-    placeholder:
-      "Word’den listeyi buraya yapıştırın.\nÖrn: SAFİR (%50), YAKUT (%47), TOPAZ (%29), Ametist (Binde 1)\n\nBu Alanı Kaydet dediğinizde %1 ve üzeri taşlar büyükten küçüğe otomatik sıralanır.",
+    key: "iceren_taslar",
+    label: "İçeren taşlar",
+    placeholder: "Her satıra bir taş adı yazın...",
+  },
+  {
+    key: "organ_etkileri",
+    label: "Organ etkileri",
+    placeholder: "Organ etkileri (satır satır)...",
+  },
+  {
+    key: "cakralar",
+    label: "Çakralar",
+    placeholder: "Çakra ilişkileri (satır satır)...",
+  },
+  {
+    key: "fazlalik_belirtileri",
+    label: "Fazlalık belirtileri",
+    placeholder: "Fazlalık belirtileri (satır satır)...",
   },
 ];
 
 const emptyForm: MineralForm = {
-  mineral_name: "",
-  general_info: "",
-  organ_effects: "",
-  deficiency_symptoms: "",
-  excess_symptoms: "",
-  overdose: "",
-  physiology: "",
-  physical_effects: "",
-  mental_spiritual_effects: "",
-  related_stones: "",
+  name: "",
+  kategori: "",
+  aciklama: "",
+  organ_etkileri: "",
+  fiziksel: "",
+  zihinsel: "",
+  cakralar: "",
+  fizyoloji: "",
+  eksiklik_belirtileri: "",
+  fazlalik_belirtileri: "",
+  doz_asimi: "",
+  iceren_taslar: "",
 };
 
 const uiCard =
@@ -92,103 +100,27 @@ const uiCard =
 const uiInput =
   "w-full rounded-2xl border-2 border-emerald-200 bg-white/90 px-5 py-4 text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 
-function normalizePercent(value: string) {
-  return Number(value.replace(",", ".").replace("%", "").trim());
+function linesToArray(text: string) {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
-function parseRatio(rawRatio: string) {
-  const text = rawRatio.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
-
-  const percentMatch = text.match(/%+\s*([0-9]+(?:[,.][0-9]+)?)/);
-  if (percentMatch) {
-    return normalizePercent(percentMatch[1]);
-  }
-
-  const millionMatch = text.match(/milyonda\s*([0-9]+(?:[,.][0-9]+)?)/);
-  if (millionMatch) {
-    return normalizePercent(millionMatch[1]) / 10000;
-  }
-
-  const hundredThousandMatch = text.match(/yüz\s*binde\s*([0-9]+(?:[,.][0-9]+)?)/);
-  if (hundredThousandMatch) {
-    return normalizePercent(hundredThousandMatch[1]) / 1000;
-  }
-
-  const tenThousandMatch = text.match(/on\s*binde\s*([0-9]+(?:[,.][0-9]+)?)/);
-  if (tenThousandMatch) {
-    return normalizePercent(tenThousandMatch[1]) / 100;
-  }
-
-  const thousandMatch = text.match(/binde\s*([0-9]+(?:[,.][0-9]+)?)/);
-  if (thousandMatch) {
-    return normalizePercent(thousandMatch[1]) / 10;
-  }
-
-  return null;
-}
-
-function formatPercent(value: number) {
-  return `%${String(Number(value.toFixed(2))).replace(".", ",")}`;
-}
-
-function smartSortRelatedStones(input: string) {
-  const cleaned = input
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/;+/, ",")
-    .trim();
-
-  const regex =
-    /([^,()]+?)\s*\(([^)]*(?:%|binde|milyonda)[^)]*)\)/gi;
-
-  const results: { name: string; percent: number }[] = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(cleaned)) !== null) {
-    const name = match[1]
-      .replace(/[-–—]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const percent = parseRatio(match[2]);
-
-    if (!name || percent === null || Number.isNaN(percent)) continue;
-    if (percent < 1) continue;
-
-    results.push({
-      name,
-      percent,
-    });
-  }
-
-  const uniqueMap = new Map<string, { name: string; percent: number }>();
-
-  results.forEach((item) => {
-    const key = item.name.toLocaleLowerCase("tr-TR");
-    const current = uniqueMap.get(key);
-
-    if (!current || item.percent > current.percent) {
-      uniqueMap.set(key, item);
-    }
-  });
-
-  const sorted = Array.from(uniqueMap.values()).sort(
-    (a, b) => b.percent - a.percent || a.name.localeCompare(b.name, "tr")
+function slugifySourceId(name: string) {
+  return (
+    name
+      .toLocaleLowerCase("tr-TR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "mineral"
   );
-
-  if (sorted.length === 0) {
-    return input.trim();
-  }
-
-  return sorted
-    .map((item, index) => `${index + 1}. ${item.name} — ${formatPercent(item.percent)}`)
-    .join("\n");
 }
 
 export default function MineralBankasiPage() {
   const [form, setForm] = useState<MineralForm>(emptyForm);
-  const [activeSection, setActiveSection] =
-    useState<MineralSection["key"]>("general_info");
+  const [activeSection, setActiveSection] = useState<MineralSection["key"]>("aciklama");
   const [expandedEditor, setExpandedEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -196,7 +128,7 @@ export default function MineralBankasiPage() {
 
   const activeSectionInfo = useMemo(
     () => mineralSections.find((section) => section.key === activeSection)!,
-    [activeSection]
+    [activeSection],
   );
 
   function updateField<K extends keyof MineralForm>(key: K, value: MineralForm[K]) {
@@ -208,29 +140,15 @@ export default function MineralBankasiPage() {
 
   function resetForm() {
     setForm(emptyForm);
-    setActiveSection("general_info");
+    setActiveSection("aciklama");
     setExpandedEditor(false);
     setMessage("");
     setErrorMessage("");
   }
 
   function closeSectionEditor() {
-    if (activeSection === "related_stones") {
-      const sortedText = smartSortRelatedStones(form.related_stones);
-
-      setForm((current) => ({
-        ...current,
-        related_stones: sortedText,
-      }));
-
-      setExpandedEditor(false);
-      setMessage("Bu Minerali İçeren Taşlar alanı %1 ve üzeri olacak şekilde büyükten küçüğe sıralandı. Genel kayıt için ana Kaydet butonuna basın.");
-      setErrorMessage("");
-      return;
-    }
-
     setExpandedEditor(false);
-    setMessage(`${activeSectionInfo.label} alanı geçici olarak kaydedildi. Genel kayıt için ana Kaydet butonuna basın.`);
+    setMessage(`${activeSectionInfo.label} alanı kaydedildi. Genel kayıt için Kaydet butonuna basın.`);
     setErrorMessage("");
   }
 
@@ -238,31 +156,29 @@ export default function MineralBankasiPage() {
     setMessage("");
     setErrorMessage("");
 
-    if (!form.mineral_name.trim()) {
+    const nameTrim = form.name.trim();
+    if (!nameTrim) {
       setErrorMessage("Mineral adı boş bırakılamaz.");
       return;
     }
 
     setSaving(true);
 
-    const relatedStonesValue =
-      form.related_stones.trim() ? smartSortRelatedStones(form.related_stones) : "";
-
     const payload = {
       tenant_id: TENANT_ID,
-      mineral_name: form.mineral_name.trim(),
-      general_info: form.general_info.trim() || null,
-      organ_effects: form.organ_effects.trim() || null,
-      deficiency_symptoms: form.deficiency_symptoms.trim() || null,
-      excess_symptoms: form.excess_symptoms.trim() || null,
-      overdose: form.overdose.trim() || null,
-      physiology: form.physiology.trim() || null,
-      physical_effects: form.physical_effects.trim() || null,
-      mental_spiritual_effects: form.mental_spiritual_effects.trim() || null,
-      related_stones: relatedStonesValue || null,
-      stone_count: 0,
-      proportional: 0,
-      updated_at: new Date().toISOString(),
+      source_id: slugifySourceId(nameTrim),
+      name: nameTrim,
+      aciklama: form.aciklama.trim() || null,
+      organ_etkileri: linesToArray(form.organ_etkileri),
+      fiziksel: linesToArray(form.fiziksel),
+      zihinsel: linesToArray(form.zihinsel),
+      cakralar: linesToArray(form.cakralar),
+      fizyoloji: linesToArray(form.fizyoloji),
+      eksiklik_belirtileri: linesToArray(form.eksiklik_belirtileri),
+      fazlalik_belirtileri: linesToArray(form.fazlalik_belirtileri),
+      doz_asimi: linesToArray(form.doz_asimi),
+      iceren_taslar: linesToArray(form.iceren_taslar),
+      kategori: form.kategori.trim() || "",
     };
 
     const { error } = await supabase.from("minerals").insert(payload);
@@ -274,10 +190,8 @@ export default function MineralBankasiPage() {
       return;
     }
 
-    setMessage(`${form.mineral_name.trim()} başarıyla kaydedildi.`);
-    setForm(emptyForm);
-    setActiveSection("general_info");
-    setExpandedEditor(false);
+    setMessage(`${nameTrim} başarıyla kaydedildi.`);
+    resetForm();
   }
 
   return (
@@ -306,7 +220,7 @@ export default function MineralBankasiPage() {
             </h1>
 
             <p className="mt-2 text-base text-slate-600">
-              Mineral adı girin, bölüm seçin, metin alanına tıklayınca geniş ekranda yazın.
+              Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır.
             </p>
           </div>
 
@@ -349,24 +263,35 @@ export default function MineralBankasiPage() {
           </div>
         )}
 
-        <section className={`${uiCard} mb-4 p-5`}>
-          <label className="mb-2 block text-xs font-black tracking-[0.16em] text-emerald-800">
-            MİNERAL ADI
+        <section className={`${uiCard} mb-4 grid grid-cols-1 gap-4 p-5 md:grid-cols-2`}>
+          <label className="block md:col-span-2">
+            <span className="mb-2 block text-xs font-black tracking-[0.16em] text-emerald-800">
+              MİNERAL ADI
+            </span>
+            <input
+              value={form.name}
+              onChange={(event) => updateField("name", event.target.value)}
+              placeholder="Örn: KROM"
+              className={`${uiInput} text-lg font-black`}
+            />
           </label>
 
-          <input
-            value={form.mineral_name}
-            onChange={(event) => updateField("mineral_name", event.target.value)}
-            placeholder="Örn: Bakır"
-            className={`${uiInput} text-lg font-black`}
-          />
+          <label className="block md:col-span-2">
+            <span className="mb-2 block text-xs font-black tracking-[0.16em] text-emerald-800">
+              KATEGORİ
+            </span>
+            <input
+              value={form.kategori}
+              onChange={(event) => updateField("kategori", event.target.value)}
+              placeholder="Örn: İz mineral"
+              className={uiInput}
+            />
+          </label>
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]">
           <aside className={`${uiCard} p-4`}>
-            <h2 className="mb-3 px-2 text-lg font-black text-slate-950">
-              Kayıt Bölümleri
-            </h2>
+            <h2 className="mb-3 px-2 text-lg font-black text-slate-950">Kayıt Bölümleri</h2>
 
             <div className="grid grid-cols-1 gap-2">
               {mineralSections.map((section) => {
@@ -388,11 +313,8 @@ export default function MineralBankasiPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-black">
-                        {section.label}
-                      </span>
-
-                      {filled && (
+                      <span className="text-sm font-black">{section.label}</span>
+                      {filled ? (
                         <span
                           className={`rounded-full px-2 py-0.5 text-[9px] font-black ring-1 ${
                             active
@@ -402,7 +324,7 @@ export default function MineralBankasiPage() {
                         >
                           dolu
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -410,20 +332,14 @@ export default function MineralBankasiPage() {
             </div>
           </aside>
 
-          <section
-            className={`${uiCard} min-h-[600px] bg-gradient-to-br from-white/70 to-emerald-50 p-5`}
-          >
+          <section className={`${uiCard} min-h-[600px] bg-gradient-to-br from-white/70 to-emerald-50 p-5`}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <div className="mb-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-800 ring-1 ring-emerald-100">
                   AKTİF BÖLÜM
                 </div>
-
-                <h2 className="text-2xl font-black text-slate-950">
-                  {activeSectionInfo.label}
-                </h2>
+                <h2 className="text-2xl font-black text-slate-950">{activeSectionInfo.label}</h2>
               </div>
-
               <span className="rounded-full border border-emerald-200/80 bg-white/70 px-3 py-1 text-sm font-black text-slate-600 shadow-sm">
                 {form[activeSection].length} karakter
               </span>
@@ -440,7 +356,6 @@ export default function MineralBankasiPage() {
                   : activeSectionInfo.placeholder}
                 {form[activeSection].length > 420 ? "..." : ""}
               </p>
-
               <div className="mt-3 flex justify-end">
                 <span className="rounded-full bg-gradient-to-r from-emerald-500 to-amber-500 px-4 py-1.5 text-xs font-black text-white shadow-md">
                   Yazmak için tıkla
@@ -451,26 +366,16 @@ export default function MineralBankasiPage() {
         </section>
       </div>
 
-      {expandedEditor && (
+      {expandedEditor ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 px-5 py-5 backdrop-blur-sm">
           <div className={`${uiCard} w-full max-w-[980px] bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}>
             <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="mb-1 inline-flex rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
-                  {activeSection === "related_stones" ? "AKILLI TAŞ SIRALAMA" : "MİNERAL METNİ"}
-                </div>
-
-                <h2 className="text-[24px] font-black text-slate-950">
-                  {activeSectionInfo.label}
-                </h2>
-
+                <h2 className="text-[24px] font-black text-slate-950">{activeSectionInfo.label}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-600">
-                  {activeSection === "related_stones"
-                    ? "%1 ve üzeri taşlar büyükten küçüğe otomatik sıralanır."
-                    : `${form.mineral_name.trim() || "Yeni mineral"} kaydı düzenleniyor.`}
+                  {form.name.trim() || "Yeni mineral"} · Satır satır liste alanları desteklenir.
                 </p>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -479,17 +384,15 @@ export default function MineralBankasiPage() {
                 >
                   Kapat
                 </button>
-
                 <button
                   type="button"
                   onClick={closeSectionEditor}
                   className="rounded-2xl bg-gradient-to-r from-emerald-500 to-amber-500 px-6 py-3 text-[13px] font-black text-white shadow-lg transition hover:brightness-110"
                 >
-                  {activeSection === "related_stones" ? "Sırala ve Kaydet" : "Bu Alanı Kaydet"}
+                  Bu Alanı Kaydet
                 </button>
               </div>
             </header>
-
             <textarea
               value={form[activeSection]}
               onChange={(event) => updateField(activeSection, event.target.value)}
@@ -499,7 +402,7 @@ export default function MineralBankasiPage() {
             />
           </div>
         </div>
-      )}
+      ) : null}
     </main>
   );
 }
