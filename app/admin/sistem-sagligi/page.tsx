@@ -43,16 +43,16 @@ const demoCardThemes = [
 ] as const;
 
 const demoCards = [
-  { title: "Toplam Kullanıcı" },
-  { title: "Aktif Uzman" },
-  { title: "Pasif / Bekleyen Kullanıcı" },
-  { title: "Toplam Danışan" },
-  { title: "Toplam Numeroloji Analizi" },
-  { title: "Toplam Doğaltaş Kaydı" },
-  { title: "Kişisel Arşiv Kayıtları" },
-  { title: "Son Hata Kaydı" },
-  { title: "Son Yedek Tarihi" },
-  { title: "Sistem Durumu" },
+  { title: "Toplam Kullanıcı", href: "/admin/sistem-sagligi/kullanicilar" },
+  { title: "Aktif Uzman", href: "/admin/sistem-sagligi/uzmanlar" },
+  { title: "Pasif / Bekleyen Kullanıcı", href: "/admin/sistem-sagligi/bekleyenler" },
+  { title: "Toplam Danışan", href: "/admin/sistem-sagligi/danisanlar" },
+  { title: "Toplam Numeroloji Analizi", href: "/admin/sistem-sagligi/numeroloji" },
+  { title: "Toplam Doğaltaş Kaydı", href: "/admin/sistem-sagligi/dogaltas" },
+  { title: "Kişisel Arşiv Kayıtları", href: "/admin/sistem-sagligi/arsiv" },
+  { title: "Son Hata Kaydı", href: "/admin/sistem-sagligi/hatalar" },
+  { title: "Son Yedek Tarihi", href: "/admin/sistem-sagligi/yedekler" },
+  { title: "Sistem Durumu", href: "/admin/sistem-sagligi/durum" },
 ] as const;
 
 function AdminNavButtons({ className = "" }: { className?: string }) {
@@ -163,18 +163,24 @@ export default function SistemSagligiPage() {
             {demoCards.map((card, index) => {
               const theme = demoCardThemes[index % demoCardThemes.length];
               return (
-                <article
+                <Link
                   key={card.title}
-                  className={`flex min-h-[168px] cursor-default flex-col rounded-3xl border-2 bg-gradient-to-br p-6 shadow-lg sm:min-h-[180px] sm:p-7 ${theme.cardBg} ${theme.border}`}
+                  href={card.href}
+                  className="block h-full no-underline"
                 >
-                  <span className="w-fit rounded-full border border-white/90 bg-white/80 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
-                    Demo
-                  </span>
-                  <h3 className="mt-4 text-lg font-black text-slate-900 sm:text-xl">{card.title}</h3>
-                  <p className={`mt-3 flex-1 text-base font-bold leading-relaxed ${theme.valueText}`}>
-                    {ADMIN_DEMO_VALUE}
-                  </p>
-                </article>
+                  <article
+                    className={`flex h-full min-h-[168px] cursor-pointer flex-col rounded-3xl border-2 bg-gradient-to-br p-6 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl sm:min-h-[180px] sm:p-7 ${theme.cardBg} ${theme.border}`}
+                  >
+                    <span className="w-fit rounded-full border border-white/90 bg-white/80 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
+                      Demo
+                    </span>
+                    <h3 className="mt-4 text-lg font-black text-slate-900 sm:text-xl">{card.title}</h3>
+                    <p className={`mt-3 flex-1 text-base font-bold leading-relaxed ${theme.valueText}`}>
+                      {ADMIN_DEMO_VALUE}
+                    </p>
+                    <p className="mt-4 text-sm font-bold text-slate-600">Detayları gör →</p>
+                  </article>
+                </Link>
               );
             })}
           </div>
