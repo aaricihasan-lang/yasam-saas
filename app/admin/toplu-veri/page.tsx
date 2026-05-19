@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
-import { AlertTriangle, CheckCircle2, FileJson, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileJson, Loader2, Upload } from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { supabase } from "@/lib/supabase";
 
 type StoneJsonRecord = Record<string, unknown>;
 
@@ -205,6 +208,97 @@ function joinEffectNotes(record: StoneJsonRecord, effectKey: string): string {
 
 function effectHasNotes(record: StoneJsonRecord, effectKey: string): boolean {
   return joinEffectNotes(record, effectKey) !== "—";
+}
+
+function effectNotesToText(record: StoneJsonRecord, effectKey: string): string | null {
+  const text = joinEffectNotes(record, effectKey);
+  return text === "—" ? null : text;
+}
+
+type StoneInsertPayload = {
+  tenant_id: string;
+  stone_name: string;
+  short_description: string | null;
+  source_note: string | null;
+  general_info: string | null;
+  physical_effects: string | null;
+  spiritual_effects: string | null;
+  other_effects: string | null;
+  warning_text: string | null;
+  feng_shui: string | null;
+  meditation: string | null;
+  care: string | null;
+  application: string | null;
+  chakras: string[] | null;
+  assignments: Record<string, unknown> | null;
+  images: { id: string; name: string; url: string; file_path?: string }[];
+  warning_tags: string[] | null;
+  updated_at: string;
+};
+
+function mapJsonChakras(record: StoneJsonRecord): string[] | null {
+  const assignments = getAssignments(record);
+  if (!assignments) return null;
+  const ch = assignments.chakras;
+  if (Array.isArray(ch)) {
+    const list = ch.map((item) => String(item).trim()).filter(Boolean);
+    return list.length > 0 ? list : null;
+  }
+  if (typeof ch === "string" && ch.trim()) return [ch.trim()];
+  return null;
+}
+
+function mapJsonAssignments(record: StoneJsonRecord): Record<string, unknown> | null {
+  const assignments = getAssignments(record);
+  if (!assignments || Object.keys(assignments).length === 0) return null;
+  return { ...assignments };
+}
+
+function mapJsonImages(
+  record: StoneJsonRecord,
+  recordIndex: number,
+): StoneInsertPayload["images"] {
+  const paths = getImagePathList(record);
+  return paths.map((path, imageIndex) => {
+    const name = path.split(/[/\\]/).pop() ?? `gorsel-${imageIndex + 1}`;
+    const url = isRealUrl(path) ? path : "";
+    const base = {
+      id: `json-import-${recordIndex}-${imageIndex}`,
+      name,
+      url,
+    };
+    return isRealUrl(path) ? base : { ...base, file_path: path };
+  });
+}
+
+function mapJsonRecordToStonePayload(
+  record: StoneJsonRecord,
+  tenantId: string,
+  recordIndex: number,
+): StoneInsertPayload | null {
+  const stoneName = String(record.stone_name ?? record.name ?? "").trim();
+  if (!stoneName) return null;
+
+  return {
+    tenant_id: tenantId,
+    stone_name: stoneName,
+    short_description: null,
+    source_note: null,
+    general_info: effectNotesToText(record, "general"),
+    physical_effects: effectNotesToText(record, "physical"),
+    spiritual_effects: effectNotesToText(record, "spiritual"),
+    other_effects: effectNotesToText(record, "other"),
+    warning_text: effectNotesToText(record, "warnings"),
+    feng_shui: effectNotesToText(record, "feng_shui"),
+    meditation: effectNotesToText(record, "meditasyon"),
+    care: effectNotesToText(record, "bakim"),
+    application: effectNotesToText(record, "uygulama"),
+    chakras: mapJsonChakras(record),
+    assignments: mapJsonAssignments(record),
+    images: mapJsonImages(record, recordIndex),
+    warning_tags: null,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function getAssignments(record: StoneJsonRecord): Record<string, unknown> | null {
@@ -555,9 +649,16 @@ function StatBox({ label, value }: { label: string; value: number }) {
 }
 
 function DogaltasJsonTab() {
+  const { confirm } = useConfirm();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [records, setRecords] = useState<StoneJsonRecord[]>([]);
+  const [importSummaryOpen, setImportSummaryOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const previewRecords = useMemo(() => records.slice(0, 3), [records]);
 
@@ -613,6 +714,85 @@ function DogaltasJsonTab() {
     event.target.value = "";
   }, []);
 
+  const importableCount = useMemo(
+    () => records.filter((r) => hasStoneName(r)).length,
+    [records],
+  );
+
+  const handleSupabaseImportClick = useCallback(async () => {
+    setImportSuccess(null);
+    setImportError(null);
+
+    if (records.length === 0) return;
+
+    const ok = await confirm({
+      title: "Supabase aktarımı",
+      message: `${importableCount} taş sisteme aktarılacak`,
+      confirmText: "Devam",
+      cancelText: "Vazgeç",
+      tone: "warning",
+    });
+
+    if (!ok) return;
+    setImportSummaryOpen(true);
+  }, [confirm, importableCount, records.length]);
+
+  const runSupabaseImport = useCallback(async () => {
+    const user = readYasamUser();
+    const tenantId = user?.tenant_id?.trim();
+    if (!tenantId) {
+      setImportError("Aktif kullanıcıda tenant_id bulunamadı. Oturumu kontrol edin.");
+      setImportSummaryOpen(false);
+      return;
+    }
+
+    const payloads: StoneInsertPayload[] = [];
+    records.forEach((record, index) => {
+      const payload = mapJsonRecordToStonePayload(record, tenantId, index);
+      if (payload) payloads.push(payload);
+    });
+
+    if (payloads.length === 0) {
+      setImportError("Aktarılacak geçerli taş kaydı bulunamadı (isim zorunlu).");
+      setImportSummaryOpen(false);
+      return;
+    }
+
+    setImportSummaryOpen(false);
+    setImporting(true);
+    setImportProgress(0);
+    setImportTotal(payloads.length);
+    setImportError(null);
+    setImportSuccess(null);
+
+    let successCount = 0;
+    let lastError: string | null = null;
+
+    for (let i = 0; i < payloads.length; i += 1) {
+      const { error } = await supabase.from("stones").insert(payloads[i]);
+      if (error) {
+        lastError = error.message;
+        setImportProgress(i);
+        break;
+      }
+      successCount += 1;
+      setImportProgress(i + 1);
+    }
+
+    setImporting(false);
+
+    if (lastError) {
+      setImportError(
+        successCount > 0
+          ? `${successCount} kayıt aktarıldı; hata (${successCount + 1}. kayıt): ${lastError}`
+          : `Aktarım başarısız: ${lastError}`,
+      );
+      return;
+    }
+
+    setImportSuccess(`${successCount} taş başarıyla aktarıldı`);
+  }, [records]);
+
   return (
     <section
       className="rounded-3xl border-2 border-cyan-200/80 bg-gradient-to-br from-cyan-50/40 via-white to-teal-50/50 p-6 shadow-xl sm:p-8"
@@ -625,21 +805,66 @@ function DogaltasJsonTab() {
             Doğaltaş JSON
           </h2>
           <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
-            JSON yükleyin; alan eşleştirmesi ve uyumluluk kontrolü yapılır. Supabase insert
-            şimdilik kapalıdır.
+            JSON yükleyin; alan eşleştirmesi, göç riski ve Supabase aktarımı bu ekrandan yapılır.
           </p>
         </div>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-cyan-300 bg-white px-5 py-3 text-sm font-bold text-cyan-950 shadow-md transition hover:scale-[1.02] hover:border-cyan-400">
-          <Upload className="h-5 w-5" aria-hidden />
-          JSON dosyası seç
-          <input
-            type="file"
-            accept=".json,application/json"
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-cyan-300 bg-white px-5 py-3 text-sm font-bold text-cyan-950 shadow-md transition hover:scale-[1.02] hover:border-cyan-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+            />
+          </label>
+          {records.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleSupabaseImportClick()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Supabase&apos;e Aktar
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {importing ? (
+        <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/90 p-4" role="status">
+          <div className="flex items-center justify-between gap-3 text-sm font-bold text-violet-950">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              Aktarılıyor…
+            </span>
+            <span className="tabular-nums">
+              {importProgress}/{importTotal}
+            </span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-violet-200">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-600 to-purple-600 transition-all duration-300"
+              style={{
+                width: importTotal > 0 ? `${(importProgress / importTotal) * 100}%` : "0%",
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {importSuccess ? (
+        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+          {importSuccess}
+        </p>
+      ) : null}
+
+      {importError ? (
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900">
+          {importError}
+        </p>
+      ) : null}
 
       {fileName ? (
         <p className="mt-4 text-sm font-semibold text-slate-700">
@@ -803,6 +1028,44 @@ function DogaltasJsonTab() {
           Doğaltaş JSON dosyası yükleyin; eşleştirme önizlemesi burada görünecek.
         </p>
       )}
+
+      {importSummaryOpen && stats && migrationRisk ? (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl">
+            <div className="bg-gradient-to-r from-violet-600 to-purple-700 px-6 py-5 text-white">
+              <p className="text-lg font-black">Import öncesi özet</p>
+              <p className="mt-1 text-sm text-white/85">Aktarım başlamadan önce kontrol edin</p>
+            </div>
+            <div className="space-y-3 px-6 py-6">
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
+                Taş: {importableCount}
+              </p>
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
+                Görsel: {stats.withImagePaths}
+              </p>
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
+                Risk: {migrationRisk.emoji} {migrationRisk.label}
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setImportSummaryOpen(false)}
+                  className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runSupabaseImport()}
+                  className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-lg"
+                >
+                  Aktarımı Başlat
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -820,7 +1083,7 @@ export default function TopluVeriPage() {
         headerLabelClass: "text-violet-200/90",
         iconWrap: "from-violet-500 to-purple-600",
       }}
-      preparingNote="Doğaltaş JSON sekmesinde alan eşleştirme ve uyumluluk kontrolü aktif. Supabase insert henüz yapılmaz."
+      preparingNote="Doğaltaş JSON sekmesinde alan eşleştirme, göç riski ve Supabase aktarımı kullanılabilir."
       demoSectionTitle="Diğer aktarım kuyrukları"
       demoSectionDesc="Aşağıdaki kartlar diğer toplu veri kanalları için demo önizlemedir."
       demoCards={[
