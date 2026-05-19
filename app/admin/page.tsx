@@ -28,6 +28,9 @@ import {
 const navBtn =
   "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
 
+const cardLinkClass =
+  "relative z-10 flex min-h-[168px] h-full w-full cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 text-inherit no-underline shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl";
+
 function AdminTopNav({ onLogout }: { onLogout: () => void }) {
   return (
     <nav
@@ -193,42 +196,50 @@ const adminCards: AdminCard[] = [
   },
 ];
 
-function AdminToolCard({ item }: { item: AdminCard }) {
+function AdminToolCardContent({ item }: { item: AdminCard }) {
   const { Icon, theme } = item;
-  const isReady = Boolean(item.href);
-
-  const card = (
-    <div
-        className={`group relative flex min-h-[168px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
-          isReady ? "cursor-pointer hover:-translate-y-1 hover:shadow-xl" : "cursor-default"
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
-          >
-            <Icon className="h-7 w-7" strokeWidth={2.25} />
-          </div>
-          {item.badge ? (
-            <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-              {item.badge}
-            </span>
-          ) : null}
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
+        >
+          <Icon className="h-7 w-7" strokeWidth={2.25} aria-hidden />
         </div>
-        <h3 className="mt-4 text-xl font-black text-slate-900">{item.title}</h3>
-        <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{item.desc}</p>
+        {item.badge ? (
+          <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+            {item.badge}
+          </span>
+        ) : null}
       </div>
+      <h3 className="mt-4 text-xl font-black text-slate-900">{item.title}</h3>
+      <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{item.desc}</p>
+    </>
   );
+}
 
-  if (isReady) {
+function AdminToolCard({ item }: { item: AdminCard }) {
+  const { theme } = item;
+  const href = item.href?.trim();
+
+  const inactiveClass = `relative z-10 flex min-h-[168px] h-full w-full cursor-default flex-col rounded-[28px] border bg-gradient-to-br p-6 opacity-95 shadow-[0_20px_50px_rgba(15,23,42,0.08)] ${theme.cardBg} ${theme.border}`;
+
+  if (href) {
     return (
-      <Link href={item.href!} className="block no-underline">
-        {card}
+      <Link
+        href={href}
+        className={`${cardLinkClass} ${theme.cardBg} ${theme.border}`}
+      >
+        <AdminToolCardContent item={item} />
       </Link>
     );
   }
 
-  return card;
+  return (
+    <div className={inactiveClass}>
+      <AdminToolCardContent item={item} />
+    </div>
+  );
 }
 
 export default function AdminPage() {
@@ -289,7 +300,7 @@ export default function AdminPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14">
         <AdminTopNav onLogout={handleLogout} />
 
-        <header className="relative mb-10 overflow-hidden rounded-[32px] border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-rose-800 px-8 py-10 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)] sm:px-10">
+        <header className="relative z-10 mb-10 overflow-hidden rounded-[32px] border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-rose-800 px-8 py-10 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)] sm:px-10">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(251,207,232,0.15),transparent_50%)]" />
           <div className="relative flex flex-wrap items-start gap-6">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
@@ -316,7 +327,7 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <section>
+        <section className="relative z-20">
           <h2 className="text-lg font-black text-slate-900 lg:text-xl">Yönetim araçları</h2>
           <p className="mt-1 text-sm text-slate-600">
             Bu alan yalnızca admin rolü ile görünür. Uzman panelinde listelenmez.
