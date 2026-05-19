@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Database, Home, Loader2, Shield } from "lucide-react";
 import { normalizeApprovalStatus, normalizeRole } from "@/lib/auth/yasamUser";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
@@ -68,50 +68,95 @@ type UsageSnapshot = {
   insight: InsightMetrics;
 };
 
-function SummaryStatCard({
+const metricCardBase =
+  "flex h-full min-h-[170px] flex-col rounded-2xl border p-5 shadow-sm sm:p-6";
+
+function MetricCard({
   label,
   value,
   tone,
   sublabel,
+  interactive = false,
 }: {
   label: string;
   value: number | string;
   tone: StatTone;
   sublabel?: string;
+  interactive?: boolean;
 }) {
   return (
     <article
-      className={`rounded-[28px] border-2 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] sm:p-7 ${statToneClass[tone]}`}
+      className={`${metricCardBase} ${statToneClass[tone]} ${
+        interactive
+          ? "transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-md"
+          : ""
+      }`}
     >
-      <p className="text-sm font-black uppercase tracking-wide opacity-80 sm:text-base">{label}</p>
-      <p className="mt-3 text-4xl font-black tabular-nums sm:text-5xl">{value}</p>
-      {sublabel ? (
-        <p className="mt-2 text-sm font-semibold opacity-75 sm:text-base">{sublabel}</p>
-      ) : null}
+      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</p>
+      <div className="flex flex-1 items-center py-2">
+        <p className="text-3xl font-semibold leading-tight tabular-nums tracking-tight sm:text-4xl">
+          {value}
+        </p>
+      </div>
+      <p className="text-sm font-medium leading-snug opacity-75">
+        {sublabel ?? "\u00a0"}
+      </p>
     </article>
   );
 }
 
-function InsightStatCard({
-  label,
-  value,
-  tone,
-  sublabel,
+function CategorySection({
+  title,
+  children,
 }: {
-  label: string;
-  value: number | string;
-  tone: StatTone;
-  sublabel?: string;
+  title: string;
+  children: ReactNode;
 }) {
   return (
+    <section className="mb-8 w-full">
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {title}
+      </h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function ModuleDistributionCard({
+  label,
+  total,
+  sharePercent,
+  tone,
+  tenantCount,
+}: {
+  label: string;
+  total: number;
+  sharePercent: number;
+  tone: StatTone;
+  tenantCount: number;
+}) {
+  const barWidth = Math.max(4, Math.min(100, sharePercent));
+
+  return (
     <article
-      className={`rounded-[28px] border-2 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl sm:p-7 ${statToneClass[tone]}`}
+      className={`${metricCardBase} ${statToneClass[tone]} transition-all duration-300 hover:scale-[1.01] hover:shadow-md`}
     >
-      <p className="text-sm font-black uppercase tracking-wide opacity-80 sm:text-base">{label}</p>
-      <p className="mt-3 text-3xl font-black leading-tight sm:text-4xl lg:text-[2.25rem]">{value}</p>
-      {sublabel ? (
-        <p className="mt-2 text-sm font-semibold opacity-75 sm:text-base">{sublabel}</p>
-      ) : null}
+      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</p>
+      <div className="flex flex-1 flex-col justify-center py-2">
+        <p className="text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">{total}</p>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/10">
+          <div
+            className="h-full rounded-full bg-current opacity-50 transition-all duration-500"
+            style={{ width: `${barWidth}%` }}
+            aria-hidden
+          />
+        </div>
+      </div>
+      <p className="text-sm font-medium opacity-75">
+        %{sharePercent.toFixed(0)} pay · {tenantCount} tenant
+      </p>
     </article>
   );
 }
@@ -151,19 +196,6 @@ async function checkSupabaseConnection(): Promise<boolean> {
     .from("users")
     .select("id", { count: "exact", head: true });
   return !error;
-}
-
-function pickBusiestModule(snapshot: UsageSnapshot): string {
-  const ranked = [
-    { label: "Danışan", total: snapshot.clients.total },
-    { label: "Numeroloji", total: snapshot.numerology.total },
-    { label: "Doğaltaş", total: snapshot.stones.total },
-    { label: "Kişisel Arşiv", total: snapshot.archives.total },
-  ].sort((a, b) => b.total - a.total);
-
-  const top = ranked[0];
-  if (!top || top.total <= 0) return INSIGHT_PLACEHOLDER;
-  return `${top.label} (${top.total})`;
 }
 
 function shortTenantId(id: string): string {
@@ -340,8 +372,8 @@ function buildTenantUsageTable(
 const MODULE_CARDS = [
   { key: "clients" as const, label: "Danışan", tone: "indigo" as const },
   { key: "numerology" as const, label: "Numeroloji", tone: "violet" as const },
-  { key: "stones" as const, label: "Doğaltaş", tone: "cyan" as const },
-  { key: "archives" as const, label: "Kişisel Arşiv", tone: "amber" as const },
+  { key: "stones" as const, label: "Taş", tone: "cyan" as const },
+  { key: "archives" as const, label: "Arşiv", tone: "amber" as const },
 ];
 
 export default function KullanimTakibiPage() {
@@ -440,11 +472,6 @@ export default function KullanimTakibiPage() {
     );
   }, [snapshot]);
 
-  const busiestModuleLabel = useMemo(
-    () => (snapshot ? pickBusiestModule(snapshot) : INSIGHT_PLACEHOLDER),
-    [snapshot],
-  );
-
   const systemStatusLabel = useMemo(() => {
     if (!snapshot) return INSIGHT_PLACEHOLDER;
     return snapshot.insight.supabaseConnected ? "🟢 Sağlıklı" : "🔴 Kontrol gerekli";
@@ -454,6 +481,19 @@ export default function KullanimTakibiPage() {
     if (!snapshot) return INSIGHT_PLACEHOLDER;
     return snapshot.insight.supabaseConnected ? "🟢 Bağlı" : "🔴 Kopuk";
   }, [snapshot]);
+
+  const moduleSharePercents = useMemo(() => {
+    if (!snapshot || totalModuleRecords <= 0) {
+      return { clients: 0, numerology: 0, stones: 0, archives: 0 };
+    }
+    const pct = (n: number) => (n / totalModuleRecords) * 100;
+    return {
+      clients: pct(snapshot.clients.total),
+      numerology: pct(snapshot.numerology.total),
+      stones: pct(snapshot.stones.total),
+      archives: pct(snapshot.archives.total),
+    };
+  }, [snapshot, totalModuleRecords]);
 
   if (!checked) {
     return (
@@ -480,7 +520,7 @@ export default function KullanimTakibiPage() {
       <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-fuchsia-300/20 blur-[140px]" />
       <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-pink-200/20 blur-[120px]" />
 
-      <div className="relative z-10 w-full min-h-screen px-4 py-6 sm:px-6 sm:py-8 xl:px-10 2xl:px-14">
+      <div className="relative z-10 w-full min-h-screen px-6 py-6 xl:px-8">
         <nav
           className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
           aria-label="Üst navigasyon"
@@ -501,19 +541,17 @@ export default function KullanimTakibiPage() {
           </Link>
         </nav>
 
-        <header className="relative mb-8 overflow-hidden rounded-[32px] border-2 border-white/80 bg-gradient-to-r from-slate-900 via-fuchsia-900 to-pink-800 px-6 py-8 text-white shadow-[0_28px_80px_rgba(192,38,211,0.2)] sm:px-10 sm:py-10">
-          <div className="relative flex flex-wrap items-start gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg ring-1 ring-white/25">
-              <Database className="h-8 w-8 text-white" strokeWidth={2} />
+        <header className="relative mb-6 max-h-[220px] overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-r from-slate-900 via-fuchsia-900 to-pink-800 px-6 py-8 text-white shadow-lg">
+          <div className="relative flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+              <Database className="h-6 w-6 text-white" strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black uppercase tracking-[0.35em] text-fuchsia-200/90">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-fuchsia-200/90">
                 Admin · İzleme
               </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                Kullanım Takibi
-              </h1>
-              <p className="mt-3 max-w-4xl text-base font-medium text-white/90 sm:text-lg">
+              <h1 className="mt-1 text-5xl font-semibold tracking-tight">Kullanım Takibi</h1>
+              <p className="mt-2 text-lg font-medium text-white/85">
                 Platform genelinde kullanıcı, modül ve kayıt yoğunluğu
               </p>
             </div>
@@ -542,99 +580,79 @@ export default function KullanimTakibiPage() {
           </section>
         ) : snapshot && userStats ? (
           <>
-            <section
-              aria-label="Canlı kullanım ve sistem özeti"
-              className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
-            >
-              <InsightStatCard
-                label="Bugün aktif kullanıcı"
-                value={INSIGHT_PLACEHOLDER}
-                tone="fuchsia"
-                sublabel="Oturum izleme henüz bağlanmadı"
-              />
-              <InsightStatCard
-                label="Son 24 saat giriş"
-                value={INSIGHT_PLACEHOLDER}
-                tone="violet"
-                sublabel="Giriş günlüğü henüz bağlanmadı"
-              />
-              <InsightStatCard
-                label="Bu ay yeni üye"
-                value={
-                  snapshot.insight.newMembersThisMonth != null
-                    ? snapshot.insight.newMembersThisMonth
-                    : INSIGHT_PLACEHOLDER
-                }
-                tone="indigo"
-                sublabel="users · created_at"
-              />
-              <InsightStatCard
-                label="Bu ay yeni danışan"
-                value={
-                  snapshot.insight.newClientsThisMonth != null
-                    ? snapshot.insight.newClientsThisMonth
-                    : INSIGHT_PLACEHOLDER
-                }
-                tone="cyan"
-                sublabel="clients · created_at"
-              />
-              <InsightStatCard
-                label="En yoğun modül"
-                value={busiestModuleLabel}
-                tone="emerald"
-                sublabel="Kayıt sayısına göre"
-              />
-              <InsightStatCard
+            <CategorySection title="Sistem">
+              <MetricCard
                 label="Sistem durumu"
                 value={systemStatusLabel}
                 tone="emerald"
                 sublabel="Platform erişilebilirliği"
               />
-              <InsightStatCard
-                label="Supabase bağlantı durumu"
+              <MetricCard
+                label="Supabase"
                 value={supabaseStatusLabel}
                 tone="slate"
                 sublabel="Head sorgusu kontrolü"
               />
-              <InsightStatCard
+              <MetricCard
                 label="Son deploy"
                 value={INSIGHT_PLACEHOLDER}
                 tone="amber"
                 sublabel="Deploy kaydı henüz bağlanmadı"
               />
-              <InsightStatCard
+              <MetricCard
                 label="Son yedek"
                 value={INSIGHT_PLACEHOLDER}
                 tone="rose"
                 sublabel="Yedekleme altyapısı henüz bağlanmadı"
               />
-            </section>
+            </CategorySection>
 
-            <section
-              aria-label="Kullanıcı ve kayıt özeti"
-              className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-            >
-              <SummaryStatCard label="Toplam kullanıcı" value={userStats.total} tone="indigo" />
-              <SummaryStatCard label="Admin" value={userStats.adminCount} tone="violet" />
-              <SummaryStatCard label="Uzman" value={userStats.expertCount} tone="fuchsia" />
-              <SummaryStatCard label="Aktif kullanıcı" value={userStats.activeCount} tone="emerald" />
-              <SummaryStatCard label="Pasif kullanıcı" value={userStats.passiveCount} tone="slate" />
-              <SummaryStatCard label="Bekleyen kullanıcı" value={userStats.pendingCount} tone="amber" />
-              <SummaryStatCard
-                label="Toplam danışan"
-                value={snapshot.clients.total}
-                tone="cyan"
-                sublabel={`${snapshot.clients.distinctTenants} tenant`}
+            <CategorySection title="Kullanıcı">
+              <MetricCard
+                label="Toplam kullanıcı"
+                value={userStats.total}
+                tone="indigo"
+                sublabel="Tüm kayıtlı hesaplar"
               />
-              <SummaryStatCard
-                label="Toplam modül kaydı"
-                value={totalModuleRecords}
-                tone="rose"
-                sublabel="Danışan + analiz + taş + arşiv"
+              <MetricCard label="Admin" value={userStats.adminCount} tone="violet" sublabel="Yönetici rolü" />
+              <MetricCard label="Uzman" value={userStats.expertCount} tone="fuchsia" sublabel="Uzman rolü" />
+              <MetricCard
+                label="Aktif"
+                value={userStats.activeCount}
+                tone="emerald"
+                sublabel="Onaylı ve aktif"
               />
-            </section>
+              <MetricCard
+                label="Pasif"
+                value={userStats.passiveCount}
+                tone="slate"
+                sublabel="Pasif veya reddedilmiş"
+              />
+              <MetricCard
+                label="Bekleyen"
+                value={userStats.pendingCount}
+                tone="amber"
+                sublabel="Onay bekliyor"
+              />
+            </CategorySection>
 
-            <section className="mt-10 w-full" aria-label="Tenant bazlı kullanım özeti">
+            <CategorySection title="İçerik">
+              {MODULE_CARDS.map(({ key, label, tone }) => {
+                const mod = snapshot[key];
+                return (
+                  <ModuleDistributionCard
+                    key={key}
+                    label={label}
+                    total={mod.total}
+                    sharePercent={moduleSharePercents[key]}
+                    tone={tone}
+                    tenantCount={mod.distinctTenants}
+                  />
+                );
+              })}
+            </CategorySection>
+
+            <section className="w-full" aria-label="Tenant bazlı kullanım özeti">
               <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 sm:text-3xl">
@@ -649,11 +667,11 @@ export default function KullanimTakibiPage() {
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-[28px] border-2 border-white/90 bg-white/95 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                <div className="overflow-x-auto">
+              <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg">
+                <div className="max-h-[min(70vh,640px)] overflow-auto">
                   <table className="w-full min-w-[920px] border-collapse text-left">
-                    <thead>
-                      <tr className="border-b-2 border-slate-200/90 bg-gradient-to-r from-slate-50 via-fuchsia-50/80 to-pink-50/80">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-slate-200/90 bg-white/95 backdrop-blur-sm shadow-sm">
                         {[
                           "Tenant ID",
                           "Kullanıcı",
@@ -686,7 +704,7 @@ export default function KullanimTakibiPage() {
                         tenantUsageRows.map((row) => (
                           <tr
                             key={row.tenantId}
-                            className="border-b border-slate-100/90 hover:bg-fuchsia-50/30"
+                            className="border-b border-slate-100/90 transition-colors hover:bg-white/60"
                           >
                             <td className="px-4 py-4 sm:px-5">
                               <p className="font-mono text-sm font-bold text-slate-800 sm:text-base">
@@ -722,34 +740,6 @@ export default function KullanimTakibiPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </section>
-
-            <section className="mt-10" aria-label="Modül bazlı kayıt dağılımı">
-              <h2 className="text-2xl font-black text-slate-900 sm:text-3xl">
-                Modül Bazlı Kayıt Dağılımı
-              </h2>
-              <p className="mt-1 text-base font-medium text-slate-600 sm:text-lg">
-                Her modül için toplam kayıt ve tenant sayısı
-              </p>
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {MODULE_CARDS.map(({ key, label, tone }) => {
-                  const mod = snapshot[key];
-                  return (
-                    <article
-                      key={key}
-                      className={`rounded-[28px] border-2 p-6 shadow-lg sm:p-7 ${statToneClass[tone]}`}
-                    >
-                      <p className="text-lg font-black sm:text-xl">{label}</p>
-                      <p className="mt-4 text-4xl font-black tabular-nums sm:text-5xl">
-                        {mod.total}
-                      </p>
-                      <p className="mt-3 text-sm font-bold opacity-80 sm:text-base">
-                        {mod.distinctTenants} tenant · sayısal özet
-                      </p>
-                    </article>
-                  );
-                })}
               </div>
             </section>
           </>
