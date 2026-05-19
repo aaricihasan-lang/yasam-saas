@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
-import { AlertTriangle, CheckCircle2, FileJson, Gem, Loader2, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileJson,
+  FlaskConical,
+  Gem,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
@@ -1290,6 +1298,388 @@ function KombinasyonJsonTab() {
   );
 }
 
+type MineralJsonItem = {
+  id?: unknown;
+  name?: unknown;
+  aciklama?: unknown;
+  organ_etkileri?: unknown;
+  fiziksel?: unknown;
+  zihinsel?: unknown;
+  cakralar?: unknown;
+  fizyoloji?: unknown;
+  eksiklik_belirtileri?: unknown;
+  fazlalik_belirtileri?: unknown;
+  doz_asimi?: unknown;
+  iceren_taslar?: unknown;
+  kategori?: unknown;
+};
+
+type MineralInsertRow = {
+  tenant_id: string;
+  source_id: string;
+  name: string;
+  aciklama: string | null;
+  organ_etkileri: string[];
+  fiziksel: string[];
+  zihinsel: string[];
+  cakralar: string[];
+  fizyoloji: string[];
+  eksiklik_belirtileri: string[];
+  fazlalik_belirtileri: string[];
+  doz_asimi: string[];
+  iceren_taslar: string[];
+  kategori: string;
+};
+
+type MineralImportFailure = {
+  name: string;
+  message: string;
+};
+
+const MINERAL_BATCH_SIZE = 250;
+const MINERAL_PREVIEW_LIMIT = 5;
+const MINERAL_FAILED_PREVIEW_LIMIT = 20;
+
+function mineralText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function mineralNullableText(value: unknown): string | null {
+  const text = mineralText(value);
+  return text || null;
+}
+
+function mineralStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => mineralText(item)).filter(Boolean);
+}
+
+function parseMineralJsonItems(text: string): {
+  items: MineralJsonItem[];
+  error: string | null;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { items: [], error: "Geçersiz JSON dosyası." };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { items: [], error: "JSON kökü bir dizi olmalıdır." };
+  }
+
+  const items = parsed.filter((item) => item && typeof item === "object") as MineralJsonItem[];
+  if (items.length === 0) {
+    return { items: [], error: "JSON içinde işlenebilir mineral kaydı bulunamadı." };
+  }
+
+  return { items, error: null };
+}
+
+function mapMineralItemToInsertRow(item: MineralJsonItem): MineralInsertRow | null {
+  const sourceId = mineralText(item.id);
+  const name = mineralText(item.name);
+  if (!sourceId || !name) return null;
+
+  return {
+    tenant_id: TENANT_ID,
+    source_id: sourceId,
+    name,
+    aciklama: mineralNullableText(item.aciklama),
+    organ_etkileri: mineralStringArray(item.organ_etkileri),
+    fiziksel: mineralStringArray(item.fiziksel),
+    zihinsel: mineralStringArray(item.zihinsel),
+    cakralar: mineralStringArray(item.cakralar),
+    fizyoloji: mineralStringArray(item.fizyoloji),
+    eksiklik_belirtileri: mineralStringArray(item.eksiklik_belirtileri),
+    fazlalik_belirtileri: mineralStringArray(item.fazlalik_belirtileri),
+    doz_asimi: mineralStringArray(item.doz_asimi),
+    iceren_taslar: mineralStringArray(item.iceren_taslar),
+    kategori: mineralText(item.kategori) || "",
+  };
+}
+
+function flattenMineralItemsToRows(items: MineralJsonItem[]): MineralInsertRow[] {
+  const rows: MineralInsertRow[] = [];
+  for (const item of items) {
+    const row = mapMineralItemToInsertRow(item);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+async function importMineralRows(rows: MineralInsertRow[]): Promise<{
+  successCount: number;
+  failedCount: number;
+  failures: MineralImportFailure[];
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: MineralImportFailure[] = [];
+
+  for (let offset = 0; offset < rows.length; offset += MINERAL_BATCH_SIZE) {
+    const batch = rows.slice(offset, offset + MINERAL_BATCH_SIZE);
+    const { error } = await supabase.from("minerals").insert(batch);
+
+    if (!error) {
+      successCount += batch.length;
+      continue;
+    }
+
+    for (const row of batch) {
+      const { error: singleError } = await supabase.from("minerals").insert(row);
+      if (singleError) {
+        failedCount += 1;
+        if (failures.length < MINERAL_FAILED_PREVIEW_LIMIT) {
+          failures.push({ name: row.name, message: singleError.message });
+        }
+      } else {
+        successCount += 1;
+      }
+    }
+  }
+
+  return { successCount, failedCount, failures };
+}
+
+function MineralJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [items, setItems] = useState<MineralJsonItem[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    successCount: number;
+    failedCount: number;
+    totalProcessed: number;
+    failures: MineralImportFailure[];
+  } | null>(null);
+
+  const mineralCount = items.length;
+  const importableCount = useMemo(() => flattenMineralItemsToRows(items).length, [items]);
+
+  const previewItems = useMemo(() => items.slice(0, MINERAL_PREVIEW_LIMIT), [items]);
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setItems([]);
+    setFileName(null);
+    setImportReport(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { items: parsed, error } = parseMineralJsonItems(text);
+      if (error) {
+        setParseError(error);
+        setItems([]);
+        setFileName(file.name);
+        return;
+      }
+      setItems(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setParseError("Dosya okunamadı.");
+    };
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleFullImport = useCallback(async () => {
+    const rows = flattenMineralItemsToRows(items);
+    if (rows.length === 0) {
+      setParseError("Aktarılacak mineral kaydı bulunamadı (id ve name zorunlu).");
+      return;
+    }
+
+    setImporting(true);
+    setImportReport(null);
+    setParseError(null);
+
+    const { successCount, failedCount, failures } = await importMineralRows(rows);
+
+    setImporting(false);
+    const totalProcessed = successCount + failedCount;
+    setImportReport({
+      successCount,
+      failedCount,
+      totalProcessed,
+      failures,
+    });
+
+    if (failedCount === 0) {
+      showToast({
+        type: "success",
+        message: `${successCount} mineral kaydı başarıyla yüklendi.`,
+      });
+    } else if (successCount > 0) {
+      showToast({
+        type: "warning",
+        message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
+      });
+    } else {
+      showToast({
+        type: "error",
+        message: "Hiçbir kayıt yüklenemedi.",
+      });
+    }
+  }, [items, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-emerald-200/80 bg-gradient-to-br from-emerald-50/40 via-white to-amber-50/50 p-6 shadow-xl sm:p-8"
+      aria-label="Mineral JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <FlaskConical className="h-6 w-6 text-emerald-700" aria-hidden />
+            Mineral JSON
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
+            Mineral listesi JSON dosyasını seçin; özet görüntüleyip tüm kayıtları minerals
+            tablosuna aktarın.
+          </p>
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Bu işlem mevcut mineral kayıtlarını silmez. Aynı JSON tekrar yüklenirse kayıtlar
+            çoğalabilir.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-emerald-300 bg-white px-5 py-3 text-sm font-bold text-emerald-950 shadow-md transition hover:scale-[1.02] hover:border-emerald-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+          </label>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleFullImport()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-emerald-600 to-amber-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  Yükleniyor...
+                </>
+              ) : (
+                "Tamamını Yükle"
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          Dosya: <span className="font-mono text-emerald-900">{fileName}</span>
+          {items.length > 0 ? (
+            <span className="ml-2 text-emerald-700">· {mineralCount} mineral</span>
+          ) : null}
+        </p>
+      ) : null}
+
+      {parseError ? (
+        <p
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+          role="alert"
+        >
+          {parseError}
+        </p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="mt-8 space-y-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Özet</h3>
+            <p className="mt-1 text-sm text-slate-600">JSON dosyasından okunan toplam sayı.</p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatBox label="Toplam mineral" value={mineralCount} />
+              <StatBox label="Aktarılabilir kayıt" value={importableCount} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Önizleme</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              İlk {MINERAL_PREVIEW_LIMIT} mineral kaydı.
+            </p>
+            <div className="mt-4 space-y-3">
+              {previewItems.map((item, index) => {
+                const name = mineralText(item.name) || "—";
+                const sourceId = mineralText(item.id) || "—";
+                const category = mineralText(item.kategori);
+                const previewLine =
+                  mineralNullableText(item.aciklama) ||
+                  mineralStringArray(item.fiziksel)[0] ||
+                  mineralStringArray(item.organ_etkileri)[0] ||
+                  "—";
+
+                return (
+                  <div
+                    key={`${sourceId}-${index}`}
+                    className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
+                  >
+                    <p className="text-sm font-black text-slate-900">{name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {sourceId}
+                      {category ? ` · ${category}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {importReport ? (
+        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5">
+          <h3 className="text-lg font-black text-emerald-950">Yükleme raporu</h3>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox label="Başarılı" value={importReport.successCount} />
+            <StatBox label="Başarısız" value={importReport.failedCount} />
+            <StatBox label="Toplam işlenen" value={importReport.totalProcessed} />
+          </div>
+          {importReport.failures.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-sm font-black text-rose-950">
+                Başarısız kayıtlar (en fazla {MINERAL_FAILED_PREVIEW_LIMIT})
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {importReport.failures.map((row, index) => (
+                  <li
+                    key={`${row.name}-${index}`}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-rose-950">{row.name}</span>
+                    <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DogaltasJsonTab() {
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -1847,7 +2237,9 @@ function DogaltasJsonTab() {
 }
 
 export default function TopluVeriPage() {
-  const [activeTab, setActiveTab] = useState<"dogaltas" | "kombinasyon">("dogaltas");
+  const [activeTab, setActiveTab] = useState<"dogaltas" | "kombinasyon" | "mineral">(
+    "dogaltas",
+  );
 
   return (
     <AdminModuleLayout
@@ -1893,10 +2285,22 @@ export default function TopluVeriPage() {
         >
           💎 Kombinasyon JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("mineral")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "mineral"
+              ? "border-emerald-400 bg-emerald-100 text-emerald-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          🧪 Mineral JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
       {activeTab === "kombinasyon" ? <KombinasyonJsonTab /> : null}
+      {activeTab === "mineral" ? <MineralJsonTab /> : null}
     </AdminModuleLayout>
   );
 }
