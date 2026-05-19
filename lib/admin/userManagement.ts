@@ -220,6 +220,74 @@ export const PAYMENT_UPDATE_KEYS = [
   "payment_note",
 ] as const;
 
+export type PaymentHistoryEntry = {
+  id: string;
+  userId: string;
+  status: PaymentStatusUi;
+  statusLabel: string;
+  paymentDateLabel: string;
+  nextPaymentDateLabel: string;
+  amountLabel: string;
+  note?: string;
+  createdAtLabel: string;
+};
+
+export function formatDateTimeTr(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function mapPaymentHistoryRow(
+  row: Record<string, unknown>,
+): PaymentHistoryEntry {
+  const statusValue = row.payment_status;
+  const status =
+    statusValue == null || String(statusValue).trim() === ""
+      ? "unknown"
+      : parsePaymentStatus(String(statusValue));
+
+  const paymentDate = pickPaymentString(row, ["payment_date", "last_payment_date"]);
+  const nextPaymentDate = pickPaymentString(row, ["next_payment_date"]);
+  const { label: amountLabel } = formatPaidAmount(row.paid_amount);
+  const note = pickPaymentString(row, ["payment_note"]);
+  const createdAt =
+    row.created_at != null ? String(row.created_at) : undefined;
+
+  return {
+    id: row.id != null ? String(row.id) : "",
+    userId: row.user_id != null ? String(row.user_id) : "",
+    status,
+    statusLabel: PAYMENT_STATUS_LABELS[status],
+    paymentDateLabel: formatPaymentDate(paymentDate),
+    nextPaymentDateLabel: formatPaymentDate(nextPaymentDate),
+    amountLabel,
+    note,
+    createdAtLabel: formatDateTimeTr(createdAt),
+  };
+}
+
+export function buildPaymentHistoryInsertPayload(
+  userId: string,
+  usersPayload: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    user_id: userId,
+    payment_status: usersPayload.payment_status,
+    payment_date: usersPayload.last_payment_date ?? null,
+    next_payment_date: usersPayload.next_payment_date ?? null,
+    paid_amount: usersPayload.paid_amount ?? null,
+    payment_note: usersPayload.payment_note ?? null,
+  };
+}
+
 export function buildPaymentUpdatePayload(
   draft: PaymentEditDraft,
 ): Record<string, unknown> {

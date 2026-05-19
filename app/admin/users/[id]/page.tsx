@@ -21,11 +21,14 @@ import {
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
   adminPermissionsToPayload,
+  buildPaymentHistoryInsertPayload,
   buildPaymentUpdatePayload,
   formatCreatedAt,
   isUserPremiumPackage,
   mapDbUser,
+  mapPaymentHistoryRow,
   PACKAGE_PLAN_OPTIONS,
+  PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_SELECT_OPTIONS,
   paymentSnapshotToEditDraft,
   rowHasMembershipColumns,
@@ -35,6 +38,7 @@ import {
   type ManagedUser,
   type ManagedUserRole,
   type PaymentEditDraft,
+  type PaymentHistoryEntry,
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
@@ -68,6 +72,142 @@ const saveBtnClass =
 
 const actionBtn =
   "inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50";
+
+const pageContainerClass =
+  "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
+
+const PAYMENT_BADGE_STYLES: Record<PaymentStatusUi, string> = {
+  paid: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  pending: "bg-amber-100 text-amber-900 ring-amber-200",
+  overdue: "bg-rose-100 text-rose-900 ring-rose-200",
+  exempt: "bg-sky-100 text-sky-900 ring-sky-200",
+  unknown: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+function PaymentStatusBadge({ status }: { status: PaymentStatusUi }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-sm font-black ring-1 ${PAYMENT_BADGE_STYLES[status]}`}
+    >
+      {PAYMENT_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function PaymentHistorySection({
+  entries,
+  loading,
+}: {
+  entries: PaymentHistoryEntry[];
+  loading: boolean;
+}) {
+  return (
+    <div className="mt-8 border-t border-teal-200/80 pt-8">
+      <h3 className="text-xl font-black text-teal-950 md:text-2xl">Geçmiş Ödemeler</h3>
+      <p className="mt-1 text-sm font-medium text-teal-900/75">
+        Kayıt zamanına göre en yeni üstte listelenir.
+      </p>
+
+      {loading ? (
+        <div className="mt-6 flex items-center justify-center gap-3 py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" aria-hidden />
+          <span className="text-base font-bold text-slate-600">Geçmiş yükleniyor…</span>
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="mt-6 rounded-2xl border-2 border-dashed border-teal-200/90 bg-white/70 px-6 py-10 text-center text-base font-bold text-slate-600">
+          Henüz ödeme geçmişi yok.
+        </p>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-2xl border-2 border-teal-100/90 bg-gradient-to-br from-white/95 via-teal-50/30 to-emerald-50/40 shadow-sm">
+          <div className="hidden md:block">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-teal-100 bg-teal-50/80">
+                  {[
+                    "Ödeme Tarihi",
+                    "Sonraki Ödeme",
+                    "Tutar",
+                    "Durum",
+                    "Not",
+                    "Kayıt Zamanı",
+                  ].map((head) => (
+                    <th
+                      key={head}
+                      className="px-4 py-4 text-xs font-black uppercase tracking-wide text-teal-900"
+                    >
+                      {head}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr
+                    key={entry.id || `${entry.createdAtLabel}-${entry.paymentDateLabel}`}
+                    className="border-b border-teal-50/90 last:border-0"
+                  >
+                    <td className="px-4 py-4 text-base font-bold text-slate-900">
+                      {entry.paymentDateLabel}
+                    </td>
+                    <td className="px-4 py-4 text-base font-bold text-slate-900">
+                      {entry.nextPaymentDateLabel}
+                    </td>
+                    <td className="px-4 py-4 text-base font-black text-slate-900">
+                      {entry.amountLabel}
+                    </td>
+                    <td className="px-4 py-4">
+                      <PaymentStatusBadge status={entry.status} />
+                    </td>
+                    <td className="max-w-[200px] px-4 py-4 text-sm font-medium text-slate-700">
+                      {entry.note?.trim() ? entry.note : "—"}
+                    </td>
+                    <td className="px-4 py-4 text-sm font-bold text-slate-600">
+                      {entry.createdAtLabel}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid gap-3 p-3 md:hidden">
+            {entries.map((entry) => (
+              <article
+                key={entry.id || `${entry.createdAtLabel}-mobile`}
+                className="rounded-xl border border-teal-100/90 bg-white/90 p-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-lg font-black text-slate-900">{entry.amountLabel}</p>
+                  <PaymentStatusBadge status={entry.status} />
+                </div>
+                <dl className="mt-3 grid gap-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-bold text-slate-500">Ödeme</dt>
+                    <dd className="font-bold text-slate-900">{entry.paymentDateLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-bold text-slate-500">Sonraki</dt>
+                    <dd className="font-bold text-slate-900">{entry.nextPaymentDateLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-bold text-slate-500">Kayıt</dt>
+                    <dd className="font-bold text-slate-700">{entry.createdAtLabel}</dd>
+                  </div>
+                  {entry.note ? (
+                    <div>
+                      <dt className="font-bold text-slate-500">Not</dt>
+                      <dd className="mt-1 font-medium text-slate-800">{entry.note}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type EditForm = {
   fullName: string;
@@ -247,6 +387,31 @@ export default function AdminUserDetailPage() {
   const [paymentDraft, setPaymentDraft] = useState<PaymentEditDraft | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [canPersistPayment, setCanPersistPayment] = useState(true);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadPaymentHistory = useCallback(async (uid: string) => {
+    setHistoryLoading(true);
+    const { data, error } = await supabase
+      .from("user_payment_history")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+
+    setHistoryLoading(false);
+
+    if (error) {
+      console.error("Ödeme geçmişi yükleme hatası:", error);
+      setPaymentHistory([]);
+      return;
+    }
+
+    setPaymentHistory(
+      (data ?? []).map((row) =>
+        mapPaymentHistoryRow(row as Record<string, unknown>),
+      ),
+    );
+  }, []);
 
   const loadUser = useCallback(async () => {
     if (!userId) {
@@ -282,7 +447,8 @@ export default function AdminUserDetailPage() {
     setPackagePlan(inferPackagePlanFromSnapshot(mapped.membership));
     setNotFound(false);
     setLoading(false);
-  }, [userId]);
+    await loadPaymentHistory(mapped.id);
+  }, [userId, loadPaymentHistory]);
 
   useEffect(() => {
     const session = readYasamUser();
@@ -514,20 +680,40 @@ export default function AdminUserDetailPage() {
 
     setSavingPayment(true);
     const payload = buildPaymentUpdatePayload(paymentDraft);
-    const { error } = await supabase
+
+    const { error: userUpdateError } = await supabase
       .from("users")
       .update(payload)
       .eq("id", user.id);
 
-    setSavingPayment(false);
-
-    if (error) {
-      console.error("Ödeme kaydı hatası:", error);
+    if (userUpdateError) {
+      setSavingPayment(false);
+      console.error("Ödeme kaydı hatası:", userUpdateError);
       showToast({
         title: "İşlem başarısız",
-        message: error.message,
+        message: userUpdateError.message,
         type: "error",
       });
+      return;
+    }
+
+    const historyPayload = buildPaymentHistoryInsertPayload(user.id, payload);
+    const { error: historyError } = await supabase
+      .from("user_payment_history")
+      .insert(historyPayload);
+
+    setSavingPayment(false);
+
+    if (historyError) {
+      console.error("Ödeme geçmişi ekleme hatası:", historyError);
+      showToast({
+        title: "Kısmi kayıt",
+        message:
+          "Kullanıcı ödeme alanları güncellendi; geçmiş kaydı eklenemedi: " +
+          historyError.message,
+        type: "warning",
+      });
+      await loadUser();
       return;
     }
 
@@ -589,7 +775,7 @@ export default function AdminUserDetailPage() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
-      <div className="relative z-10 mx-auto w-full max-w-[1100px] px-6 py-6 md:px-10 md:py-8">
+      <div className={pageContainerClass}>
         <nav
           className="sticky top-0 z-50 mb-6 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-violet-100/90 via-indigo-100/85 to-rose-100/90 p-3 shadow-lg backdrop-blur-xl sm:p-4"
           aria-label="Üst navigasyon"
@@ -721,7 +907,7 @@ export default function AdminUserDetailPage() {
                   <div>
                     <h2 className="text-xl font-black text-teal-950">Ödeme Takibi</h2>
                     <p className="mt-1 text-xs font-medium text-teal-900/80">
-                      Ödeme durumu ve tarihler Supabase users tablosuna kaydedilir.
+                      Kayıt users tablosuna yazılır ve ödeme geçmişine eklenir.
                     </p>
                   </div>
                 </div>
@@ -856,6 +1042,11 @@ export default function AdminUserDetailPage() {
                     "Ödemeyi Kaydet"
                   )}
                 </button>
+
+                <PaymentHistorySection
+                  entries={paymentHistory}
+                  loading={historyLoading}
+                />
               </section>
             ) : null}
 
