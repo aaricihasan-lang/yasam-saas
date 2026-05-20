@@ -3735,29 +3735,47 @@ function reflexologyOrgans(value: unknown): string {
 }
 
 function extractReflexologyProtocolJsonFields(item: ReflexologyProtocolJsonItem) {
+  const organsValue = item.organlar ?? item.organs;
+
   return {
-    source_uid: reflexologyText(item.uid) || reflexologyText(item.id),
+    source_uid: reflexologyText(item.id) || reflexologyText(item.uid),
     title:
+      reflexologyText(item.hedef) ||
       reflexologyText(item.title) ||
       reflexologyText(item.name) ||
       reflexologyText(item.baslik) ||
       reflexologyText(item.protokol_adi) ||
       "",
     target_problem:
+      reflexologyText(item.hedef) ||
       reflexologyText(item.target) ||
       reflexologyText(item.problem) ||
-      reflexologyText(item.hedef) ||
       reflexologyText(item.sorun) ||
       reflexologyText(item.target_problem) ||
       "",
-    organs: reflexologyOrgans(item.organs),
+    organs: reflexologyOrgans(organsValue),
     application_notes:
+      reflexologyText(item.aciklama) ||
       reflexologyText(item.notes) ||
       reflexologyText(item.application_notes) ||
-      reflexologyText(item.aciklama) ||
       reflexologyText(item.uygulama_notu) ||
       "",
   };
+}
+
+function isReflexologyProtocolTransferable(item: ReflexologyProtocolJsonItem): boolean {
+  const title =
+    reflexologyText(item.hedef) ||
+    reflexologyText(item.title) ||
+    reflexologyText(item.name) ||
+    reflexologyText(item.baslik) ||
+    reflexologyText(item.protokol_adi);
+  const notes =
+    reflexologyText(item.aciklama) ||
+    reflexologyText(item.notes) ||
+    reflexologyText(item.application_notes) ||
+    reflexologyText(item.uygulama_notu);
+  return Boolean(title || notes);
 }
 
 function parseReflexologyProtocolJsonItems(text: string): {
@@ -3805,8 +3823,9 @@ function parseReflexologyProtocolJsonItems(text: string): {
 function mapReflexologyProtocolItemToInsertRow(
   item: ReflexologyProtocolJsonItem,
 ): ReflexologyProtocolInsertRow | null {
+  if (!isReflexologyProtocolTransferable(item)) return null;
+
   const fields = extractReflexologyProtocolJsonFields(item);
-  if (!fields.source_uid || !fields.title) return null;
 
   return {
     tenant_id: TENANT_ID,
@@ -3903,7 +3922,7 @@ function RefleksolojiProtokollerJsonTab() {
 
   const recordCount = items.length;
   const importableCount = useMemo(
-    () => flattenReflexologyProtocolItemsToRows(items).length,
+    () => items.filter(isReflexologyProtocolTransferable).length,
     [items],
   );
 
@@ -3944,7 +3963,7 @@ function RefleksolojiProtokollerJsonTab() {
   const handleFullImport = useCallback(async () => {
     const rows = flattenReflexologyProtocolItemsToRows(items);
     if (rows.length === 0) {
-      setParseError("Aktarılacak kayıt bulunamadı (uid/id ve title zorunlu).");
+      setParseError("Aktarılacak kayıt bulunamadı (hedef veya aciklama zorunlu).");
       return;
     }
 
@@ -4072,25 +4091,18 @@ function RefleksolojiProtokollerJsonTab() {
             <div className="mt-4 space-y-3">
               {previewItems.map((item, index) => {
                 const fields = extractReflexologyProtocolJsonFields(item);
-                const sourceUid = fields.source_uid || "—";
-                const title = fields.title || "—";
-                const previewLine =
-                  fields.target_problem ||
-                  fields.organs ||
-                  fields.application_notes ||
-                  "—";
+                const hedefTitle = reflexologyText(item.hedef) || fields.title || "—";
+                const recordId = reflexologyText(item.id) || fields.source_uid || "—";
+                const aciklamaPreview = reflexologyText(item.aciklama) || fields.application_notes || "—";
 
                 return (
                   <div
-                    key={`${sourceUid}-${index}`}
+                    key={`${recordId}-${index}`}
                     className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
                   >
-                    <p className="text-sm font-black text-slate-900">{title}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      {sourceUid}
-                      {fields.organs ? ` · ${fields.organs}` : ""}
-                    </p>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                    <p className="text-sm font-black text-slate-900">{hedefTitle}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">{recordId}</p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{aciklamaPreview}</p>
                   </div>
                 );
               })}
