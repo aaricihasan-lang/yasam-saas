@@ -1,35 +1,47 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SavedProtocol } from "@/app/refleksoloji/protokol-haritasi/types";
-import { loadProtocolsFromStorage } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
-import { deleteProtocolById } from "../lib/protocolActions";
+import { supabase } from "@/lib/supabase";
+import type { ReflexologyProtocolRecord } from "../types";
 
 export function useProtocolList() {
-  const [protocols, setProtocols] = useState<SavedProtocol[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [protocols, setProtocols] = useState<ReflexologyProtocolRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    try {
-      setProtocols(loadProtocolsFromStorage());
-    } catch {
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setLoadErrorMessage(null);
+
+    const { data, error } = await supabase
+      .from("reflexology_protocols")
+      .select("*")
+      .order("title");
+
+    setLoading(false);
+
+    if (error) {
+      setLoadErrorMessage(`Protokoller okunamadı: ${error.message}`);
       setProtocols([]);
+      return;
     }
+
+    setProtocols((data || []) as ReflexologyProtocolRecord[]);
   }, []);
 
   useEffect(() => {
-    refresh();
-    setHydrated(true);
+    void refresh();
   }, [refresh]);
 
   const deleteProtocol = useCallback(
-    (id: string) => {
-      const ok = deleteProtocolById(id);
-      if (ok) refresh();
-      return ok;
+    async (id: string) => {
+      const { error } = await supabase.from("reflexology_protocols").delete().eq("id", id);
+      if (error) return false;
+      await refresh();
+      return true;
     },
     [refresh],
   );
 
-  return { protocols, hydrated, refresh, deleteProtocol };
+  return { protocols, loading, loadErrorMessage, refresh, deleteProtocol };
 }

@@ -12,7 +12,7 @@ import { ProtocolListCard } from "./ProtocolListCard";
 
 export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
-  const { protocols, hydrated, deleteProtocol } = useProtocolList();
+  const { protocols, loading, loadErrorMessage, deleteProtocol } = useProtocolList();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -21,7 +21,7 @@ export function KayitliProtokollerLayout() {
     return protocols.filter((p) => protocolMatchesSearch(p, q));
   }, [protocols, search]);
 
-  const handleDelete = async (id: string, title: string) => {
+  const handleDelete = async (id: string) => {
     const ok = await confirm({
       message: "Bu protokol silinsin mi? Bu işlem geri alınamaz.",
       confirmText: "Sil",
@@ -32,7 +32,7 @@ export function KayitliProtokollerLayout() {
     deleteProtocol(id);
   };
 
-  if (!hydrated) {
+  if (loading) {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
         <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
@@ -65,7 +65,7 @@ export function KayitliProtokollerLayout() {
                 Kayıtlı Protokoller
               </h1>
               <p className="mt-1 max-w-3xl text-base font-medium text-slate-600 sm:text-lg">
-                Protokol Haritası&apos;ndan oluşturulan protokoller burada listelenir.
+                Supabase protokol kütüphanesinden {protocols.length} kayıt listeleniyor.
               </p>
             </header>
           </div>
@@ -78,23 +78,32 @@ export function KayitliProtokollerLayout() {
           </Link>
         </div>
 
+        {loadErrorMessage ? (
+          <p
+            className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-base font-semibold text-rose-900"
+            role="alert"
+          >
+            {loadErrorMessage}
+          </p>
+        ) : null}
+
         {protocols.length > 0 ? (
           <div className="mt-6">
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Hedef, açıklama veya organ adına göre ara..."
+              placeholder="Başlık, hedef, organ veya nota göre ara..."
               className="w-full max-w-xl rounded-xl border border-violet-200/90 bg-white/90 px-4 py-3 text-base font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2"
             />
           </div>
         ) : null}
 
-        {protocols.length === 0 ? (
+        {!loadErrorMessage && protocols.length === 0 ? (
           <section className="mt-8 flex flex-col items-center justify-center rounded-[28px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-20 text-center shadow-sm ring-1 ring-violet-100/60">
-            <p className="text-2xl font-bold text-violet-900">Henüz kayıtlı protokol yok.</p>
+            <p className="text-2xl font-bold text-violet-900">Henüz protokol yok</p>
             <p className="mt-3 max-w-lg text-base font-medium text-slate-600">
-              Yeni protokol oluşturmak için Protokol Haritası sayfasını kullanın.
+              Toplu veri aktarımı veya Protokol Haritası ile yeni kayıt ekleyebilirsiniz.
             </p>
             <Link
               href="/refleksoloji/protokol-haritasi"
@@ -103,21 +112,21 @@ export function KayitliProtokollerLayout() {
               + Yeni Protokol Oluştur
             </Link>
           </section>
-        ) : filtered.length === 0 ? (
+        ) : !loadErrorMessage && filtered.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-violet-100 bg-white/80 px-6 py-10 text-center text-base font-medium text-slate-600">
             Aramanızla eşleşen protokol bulunamadı.
           </p>
-        ) : (
+        ) : !loadErrorMessage ? (
           <section className="mt-6 grid grid-cols-1 gap-5 pb-10 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((protocol) => (
               <ProtocolListCard
                 key={protocol.id}
                 protocol={protocol}
-                onDelete={() => void handleDelete(protocol.id, protocol.title)}
+                onDelete={() => void handleDelete(protocol.id)}
               />
             ))}
           </section>
-        )}
+        ) : null}
       </div>
     </main>
   );
