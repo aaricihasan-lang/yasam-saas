@@ -18,48 +18,41 @@ import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
-type BioImaginationRecord = {
+type BioenergyImaginationRecord = {
   id: string;
   tenant_id: string;
+  source_id: string;
   title: string | null;
   category: string | null;
-  purpose: string | null;
-  preparation: string | null;
-  imagination_text: string | null;
-  duration: string | null;
-  warning: string | null;
+  text: string | null;
+  notes: string | null;
   source: string | null;
-  note: string | null;
   created_at: string;
 };
 
 type BioImaginationForm = {
   title: string;
   category: string;
-  purpose: string;
-  preparation: string;
-  imagination_text: string;
-  duration: string;
-  warning: string;
+  text: string;
+  notes: string;
   source: string;
-  note: string;
 };
 
 const emptyForm: BioImaginationForm = {
   title: "",
   category: "",
-  purpose: "",
-  preparation: "",
-  imagination_text: "",
-  duration: "",
-  warning: "",
+  text: "",
+  notes: "",
   source: "",
-  note: "",
 };
 
 function trimOrNull(v: string) {
   const t = v.trim();
   return t.length > 0 ? t : null;
+}
+
+function trimOrEmpty(v: string) {
+  return v.trim();
 }
 
 function formatDate(iso: string) {
@@ -76,20 +69,27 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
+function slugifySourceId(value: string) {
+  const slug = value
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug || String(Date.now());
 }
 
 export default function Imajinasyonlar() {
-  const [rows, setRows] = useState<BioImaginationRecord[]>([]);
+  const [rows, setRows] = useState<BioenergyImaginationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTitle, setSearchTitle] = useState("");
   const [searchCategory, setSearchCategory] = useState("");
-  const [searchPurpose, setSearchPurpose] = useState("");
-  const [searchImagination, setSearchImagination] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [searchNotes, setSearchNotes] = useState("");
+  const [searchSource, setSearchSource] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<BioImaginationForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -119,23 +119,23 @@ export default function Imajinasyonlar() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
-      .from("bio_imaginations")
+      .from("bioenergy_imaginations")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .order("created_at", { ascending: false });
+      .order("title");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      setLoadError(true);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as BioImaginationRecord[]);
-  }, [showSoft]);
+    setRows((data || []) as BioenergyImaginationRecord[]);
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -146,21 +146,23 @@ export default function Imajinasyonlar() {
   const filteredRows = useMemo(() => {
     const t = searchTitle.trim().toLocaleLowerCase("tr-TR");
     const c = searchCategory.trim().toLocaleLowerCase("tr-TR");
-    const p = searchPurpose.trim().toLocaleLowerCase("tr-TR");
-    const m = searchImagination.trim().toLocaleLowerCase("tr-TR");
+    const x = searchText.trim().toLocaleLowerCase("tr-TR");
+    const n = searchNotes.trim().toLocaleLowerCase("tr-TR");
+    const s = searchSource.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((row) => {
       const titleOk =
         !t || (row.title ?? "").toLocaleLowerCase("tr-TR").includes(t);
       const categoryOk =
         !c || (row.category ?? "").toLocaleLowerCase("tr-TR").includes(c);
-      const purposeOk =
-        !p || (row.purpose ?? "").toLocaleLowerCase("tr-TR").includes(p);
-      const imaginationOk =
-        !m ||
-        (row.imagination_text ?? "").toLocaleLowerCase("tr-TR").includes(m);
-      return titleOk && categoryOk && purposeOk && imaginationOk;
+      const textOk =
+        !x || (row.text ?? "").toLocaleLowerCase("tr-TR").includes(x);
+      const notesOk =
+        !n || (row.notes ?? "").toLocaleLowerCase("tr-TR").includes(n);
+      const sourceOk =
+        !s || (row.source ?? "").toLocaleLowerCase("tr-TR").includes(s);
+      return titleOk && categoryOk && textOk && notesOk && sourceOk;
     });
-  }, [rows, searchTitle, searchCategory, searchPurpose, searchImagination]);
+  }, [rows, searchTitle, searchCategory, searchText, searchNotes, searchSource]);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
@@ -169,32 +171,26 @@ export default function Imajinasyonlar() {
 
   const moduleStats = useMemo(() => {
     const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
+    const newest = rows.reduce<string | null>((acc, row) => {
+      if (!row.created_at) return acc;
+      if (!acc || row.created_at > acc) return row.created_at;
+      return acc;
+    }, null);
+    const last = newest ? formatDate(newest) : "—";
     return { total: rows.length, cats: cats.size, last };
   }, [rows]);
 
-  const hasSearch = Boolean(
-    searchTitle.trim() ||
-      searchCategory.trim() ||
-      searchPurpose.trim() ||
-      searchImagination.trim(),
-  );
-
-  function fillFormFromRow(row: BioImaginationRecord) {
+  function fillFormFromRow(row: BioenergyImaginationRecord) {
     setForm({
       title: row.title ?? "",
       category: row.category ?? "",
-      purpose: row.purpose ?? "",
-      preparation: row.preparation ?? "",
-      imagination_text: row.imagination_text ?? "",
-      duration: row.duration ?? "",
-      warning: row.warning ?? "",
+      text: row.text ?? "",
+      notes: row.notes ?? "",
       source: row.source ?? "",
-      note: row.note ?? "",
     });
   }
 
-  function selectRow(row: BioImaginationRecord) {
+  function selectRow(row: BioenergyImaginationRecord) {
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -246,17 +242,14 @@ export default function Imajinasyonlar() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("bio_imaginations").insert({
+    const { error } = await supabase.from("bioenergy_imaginations").insert({
       tenant_id: TENANT_ID,
+      source_id: slugifySourceId(titleTrim),
       title: titleTrim,
-      category: trimOrNull(form.category),
-      purpose: trimOrNull(form.purpose),
-      preparation: trimOrNull(form.preparation),
-      imagination_text: trimOrNull(form.imagination_text),
-      duration: trimOrNull(form.duration),
-      warning: trimOrNull(form.warning),
+      category: trimOrNull(form.category) || "Genel",
+      text: trimOrEmpty(form.text),
+      notes: trimOrEmpty(form.notes),
       source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
     });
 
     setSaving(false);
@@ -285,20 +278,15 @@ export default function Imajinasyonlar() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("bio_imaginations")
+      .from("bioenergy_imaginations")
       .update({
         title: titleTrim,
-        category: trimOrNull(form.category),
-        purpose: trimOrNull(form.purpose),
-        preparation: trimOrNull(form.preparation),
-        imagination_text: trimOrNull(form.imagination_text),
-        duration: trimOrNull(form.duration),
-        warning: trimOrNull(form.warning),
+        category: trimOrNull(form.category) || "Genel",
+        text: trimOrEmpty(form.text),
+        notes: trimOrEmpty(form.notes),
         source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
       })
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
 
@@ -327,10 +315,9 @@ export default function Imajinasyonlar() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("bio_imaginations")
+      .from("bioenergy_imaginations")
       .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
@@ -354,7 +341,7 @@ export default function Imajinasyonlar() {
             Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
           </p>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-5">
           <label className="block min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
               Başlık
@@ -379,24 +366,35 @@ export default function Imajinasyonlar() {
           </label>
           <label className="block min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
-              Amaç
+              Metin
             </span>
             <input
               type="search"
-              value={searchPurpose}
-              onChange={(e) => setSearchPurpose(e.target.value)}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
               className={searchInputClass("fuchsia")}
             />
           </label>
-          <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
+          <label className="block min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-              İmajinasyon metni
+              Notlar
             </span>
             <input
               type="search"
-              value={searchImagination}
-              onChange={(e) => setSearchImagination(e.target.value)}
+              value={searchNotes}
+              onChange={(e) => setSearchNotes(e.target.value)}
               className={searchInputClass("cyan")}
+            />
+          </label>
+          <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-emerald-600/75">
+              Kaynak
+            </span>
+            <input
+              type="search"
+              value={searchSource}
+              onChange={(e) => setSearchSource(e.target.value)}
+              className={searchInputClass("emerald")}
             />
           </label>
         </div>
@@ -408,6 +406,12 @@ export default function Imajinasyonlar() {
           tone="amber"
         />
       </div>
+
+      {loadError ? (
+        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+          Hata: veri alınamadı
+        </div>
+      ) : null}
 
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -444,17 +448,17 @@ export default function Imajinasyonlar() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : filteredRows.length === 0 ? (
+            ) : loadError ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="✧"
                 title="Liste boş"
-                subtitle={
-                  hasSearch
-                    ? "Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                }
+                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 tone="amber"
               />
+            ) : filteredRows.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+                Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin.
+              </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
@@ -473,12 +477,13 @@ export default function Imajinasyonlar() {
                       {row.title?.trim() || "—"}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
                       {row.category?.trim() ? (
                         <span className="rounded-full bg-gradient-to-r from-amber-100/90 to-orange-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950/90 shadow-inner ring-1 ring-amber-200/45">
                           {row.category}
                         </span>
-                      ) : null}
+                      ) : (
+                        <span>—</span>
+                      )}
                     </div>
                   </button>
                 );
@@ -498,27 +503,40 @@ export default function Imajinasyonlar() {
               <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
                 {selectedRow.title?.trim() || "—"}
               </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>{formatDate(selectedRow.created_at)}</span>
-                {selectedRow.category?.trim() ? (
-                  <span className="rounded-full bg-gradient-to-r from-amber-100/90 to-orange-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950/90 ring-1 ring-amber-200/45">
-                    {selectedRow.category}
-                  </span>
-                ) : null}
-                {selectedRow.duration?.trim() ? (
-                  <span className="rounded-full border border-teal-100/80 bg-teal-50/80 px-2 py-0.5 text-[10px] font-black text-teal-950/90">
-                    Süre: {selectedRow.duration}
-                  </span>
-                ) : null}
-                {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-emerald-100/80 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-black text-emerald-950/90">
-                    Kaynak: {selectedRow.source}
-                  </span>
-                ) : null}
+              <div className="mt-4 space-y-3 text-[12px] leading-relaxed">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-700/75">
+                    Kategori
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.category?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
+                    Metin
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap font-semibold text-slate-600">
+                    {selectedRow.text?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
+                    Notlar
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap font-semibold text-slate-600">
+                    {selectedRow.notes?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-600/75">
+                    Kaynak
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.source?.trim() || "—"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.imagination_text ?? selectedRow.purpose)}
-              </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
                 <button
                   type="button"
@@ -623,68 +641,29 @@ export default function Imajinasyonlar() {
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                Amaç
-              </span>
-            }
-            modalTitle="Amaç"
-            value={form.purpose}
-            onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
-                Hazırlık
-              </span>
-            }
-            modalTitle="Hazırlık"
-            value={form.preparation}
-            onChange={(v) => setForm((f) => ({ ...f, preparation: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                İmajinasyon Metni
+                Metin
               </span>
             }
-            modalTitle="İmajinasyon Metni"
-            value={form.imagination_text}
-            onChange={(v) => setForm((f) => ({ ...f, imagination_text: v }))}
+            modalTitle="Metin"
+            value={form.text}
+            onChange={(v) => setForm((f) => ({ ...f, text: v }))}
             minRows={5}
             className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
             disabled={saving}
           />
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-500/85" />
-              Süre
-            </span>
-            <input
-              value={form.duration}
-              onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-teal-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
-            />
-          </label>
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
-                Uyarı
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                Notlar
               </span>
             }
-            modalTitle="Uyarı"
-            value={form.warning}
-            onChange={(v) => setForm((f) => ({ ...f, warning: v }))}
-            minRows={2}
-            className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-red-100/50 transition"
+            modalTitle="Notlar"
+            value={form.notes}
+            onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+            minRows={3}
+            className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
             disabled={saving}
           />
           <label className="block">
@@ -698,20 +677,6 @@ export default function Imajinasyonlar() {
               className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
             />
           </label>
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
-              </span>
-            }
-            modalTitle="Not"
-            value={form.note}
-            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
-            disabled={saving}
-          />
         </div>
       </BiyoenerjiCrudFormModal>
 
