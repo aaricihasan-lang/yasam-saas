@@ -18,45 +18,35 @@ import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
-type SubconsciousCauseRecord = {
+type BioenergySubconsciousRecord = {
   id: string;
   tenant_id: string;
-  illness_name: string | null;
+  source_uid: string;
+  title: string | null;
   category: string | null;
-  subconscious_reason: string | null;
-  emotional_pattern: string | null;
-  affirmation: string | null;
-  healing_note: string | null;
-  source: string | null;
-  note: string | null;
+  content: string | null;
+  note_text: string | null;
   created_at: string;
 };
 
 type SubconsciousCauseForm = {
-  illness_name: string;
+  source_uid: string;
+  title: string;
   category: string;
-  subconscious_reason: string;
-  emotional_pattern: string;
-  affirmation: string;
-  healing_note: string;
-  source: string;
-  note: string;
+  content: string;
+  note_text: string;
 };
 
 const emptyForm: SubconsciousCauseForm = {
-  illness_name: "",
+  source_uid: "",
+  title: "",
   category: "",
-  subconscious_reason: "",
-  emotional_pattern: "",
-  affirmation: "",
-  healing_note: "",
-  source: "",
-  note: "",
+  content: "",
+  note_text: "",
 };
 
-function trimOrNull(v: string) {
-  const t = v.trim();
-  return t.length > 0 ? t : null;
+function trimOrEmpty(v: string) {
+  return v.trim();
 }
 
 function formatDate(iso: string) {
@@ -73,19 +63,30 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
+function slugifySourceUid(value: string) {
+  const slug = value
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug || String(Date.now());
+}
+
+function subconsciousSearchBlob(row: BioenergySubconsciousRecord) {
+  return [row.title, row.category, row.content, row.note_text]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
 }
 
 export default function BilincaltiSebepleri() {
-  const [rows, setRows] = useState<SubconsciousCauseRecord[]>([]);
+  const [rows, setRows] = useState<BioenergySubconsciousRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchIllness, setSearchIllness] = useState("");
-  const [searchCategory, setSearchCategory] = useState("");
-  const [searchReason, setSearchReason] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SubconsciousCauseForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -115,23 +116,23 @@ export default function BilincaltiSebepleri() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setLoadErrorMessage(null);
     setInfoError("");
     const { data, error } = await supabase
-      .from("subconscious_causes")
+      .from("bioenergy_subconscious_causes")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .order("created_at", { ascending: false });
+      .order("title");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      setLoadErrorMessage(`Bilinçaltı sebepleri okunamadı: ${error.message}`);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as SubconsciousCauseRecord[]);
-  }, [showSoft]);
+    setRows((data || []) as BioenergySubconsciousRecord[]);
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -140,20 +141,10 @@ export default function BilincaltiSebepleri() {
   }, [loadRecords]);
 
   const filteredRows = useMemo(() => {
-    const i = searchIllness.trim().toLocaleLowerCase("tr-TR");
-    const c = searchCategory.trim().toLocaleLowerCase("tr-TR");
-    const r = searchReason.trim().toLocaleLowerCase("tr-TR");
-    return rows.filter((row) => {
-      const illnessOk =
-        !i || (row.illness_name ?? "").toLocaleLowerCase("tr-TR").includes(i);
-      const categoryOk =
-        !c || (row.category ?? "").toLocaleLowerCase("tr-TR").includes(c);
-      const reasonOk =
-        !r ||
-        (row.subconscious_reason ?? "").toLocaleLowerCase("tr-TR").includes(r);
-      return illnessOk && categoryOk && reasonOk;
-    });
-  }, [rows, searchIllness, searchCategory, searchReason]);
+    const q = searchQuery.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return rows;
+    return rows.filter((row) => subconsciousSearchBlob(row).includes(q));
+  }, [rows, searchQuery]);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((x) => x.id === selectedId) ?? null : null),
@@ -162,28 +153,26 @@ export default function BilincaltiSebepleri() {
 
   const moduleStats = useMemo(() => {
     const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
+    const newest = rows.reduce<string | null>((acc, row) => {
+      if (!row.created_at) return acc;
+      if (!acc || row.created_at > acc) return row.created_at;
+      return acc;
+    }, null);
+    const last = newest ? formatDate(newest) : "—";
     return { total: rows.length, cats: cats.size, last };
   }, [rows]);
 
-  const hasSearch = Boolean(
-    searchIllness.trim() || searchCategory.trim() || searchReason.trim(),
-  );
-
-  function fillFormFromRow(row: SubconsciousCauseRecord) {
+  function fillFormFromRow(row: BioenergySubconsciousRecord) {
     setForm({
-      illness_name: row.illness_name ?? "",
+      source_uid: row.source_uid ?? "",
+      title: row.title ?? "",
       category: row.category ?? "",
-      subconscious_reason: row.subconscious_reason ?? "",
-      emotional_pattern: row.emotional_pattern ?? "",
-      affirmation: row.affirmation ?? "",
-      healing_note: row.healing_note ?? "",
-      source: row.source ?? "",
-      note: row.note ?? "",
+      content: row.content ?? "",
+      note_text: row.note_text ?? "",
     });
   }
 
-  function selectRow(row: SubconsciousCauseRecord) {
+  function selectRow(row: BioenergySubconsciousRecord) {
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -227,24 +216,22 @@ export default function BilincaltiSebepleri() {
   }
 
   async function handleKaydet() {
-    const nameTrim = form.illness_name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Hastalık adı zorunludur.");
+    const titleTrim = form.title.trim();
+    const uidTrim = form.source_uid.trim();
+    if (!titleTrim) {
+      showSoft("err", "Başlık zorunludur.");
       return;
     }
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("subconscious_causes").insert({
+    const { error } = await supabase.from("bioenergy_subconscious_causes").insert({
       tenant_id: TENANT_ID,
-      illness_name: nameTrim,
-      category: trimOrNull(form.category),
-      subconscious_reason: trimOrNull(form.subconscious_reason),
-      emotional_pattern: trimOrNull(form.emotional_pattern),
-      affirmation: trimOrNull(form.affirmation),
-      healing_note: trimOrNull(form.healing_note),
-      source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
+      source_uid: uidTrim || slugifySourceUid(titleTrim),
+      title: titleTrim,
+      category: trimOrEmpty(form.category),
+      content: trimOrEmpty(form.content),
+      note_text: trimOrEmpty(form.note_text),
     });
 
     setSaving(false);
@@ -264,28 +251,24 @@ export default function BilincaltiSebepleri() {
       showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
       return;
     }
-    const nameTrim = form.illness_name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Hastalık adı zorunludur.");
+    const titleTrim = form.title.trim();
+    if (!titleTrim) {
+      showSoft("err", "Başlık zorunludur.");
       return;
     }
 
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("subconscious_causes")
+      .from("bioenergy_subconscious_causes")
       .update({
-        illness_name: nameTrim,
-        category: trimOrNull(form.category),
-        subconscious_reason: trimOrNull(form.subconscious_reason),
-        emotional_pattern: trimOrNull(form.emotional_pattern),
-        affirmation: trimOrNull(form.affirmation),
-        healing_note: trimOrNull(form.healing_note),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
+        source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
+        title: titleTrim,
+        category: trimOrEmpty(form.category),
+        content: trimOrEmpty(form.content),
+        note_text: trimOrEmpty(form.note_text),
       })
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
 
@@ -314,10 +297,9 @@ export default function BilincaltiSebepleri() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("subconscious_causes")
+      .from("bioenergy_subconscious_causes")
       .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
@@ -343,38 +325,16 @@ export default function BilincaltiSebepleri() {
             Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
           </p>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Hastalık adı
-            </span>
-            <input
-              type="search"
-              value={searchIllness}
-              onChange={(e) => setSearchIllness(e.target.value)}
-              className={searchInputClass("violet")}
-            />
-          </label>
+        <div className="grid w-full grid-cols-1 gap-2 sm:gap-3">
           <label className="block min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
-              Kategori
+              Ara (başlık, kategori, içerik, not)
             </span>
             <input
               type="search"
-              value={searchCategory}
-              onChange={(e) => setSearchCategory(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className={searchInputClass("fuchsia")}
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-              Bilinçaltı sebep
-            </span>
-            <input
-              type="search"
-              value={searchReason}
-              onChange={(e) => setSearchReason(e.target.value)}
-              className={searchInputClass("cyan")}
             />
           </label>
         </div>
@@ -386,6 +346,12 @@ export default function BilincaltiSebepleri() {
           tone="fuchsia"
         />
       </div>
+
+      {loadErrorMessage ? (
+        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+          {loadErrorMessage}
+        </div>
+      ) : null}
 
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -422,17 +388,17 @@ export default function BilincaltiSebepleri() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : filteredRows.length === 0 ? (
+            ) : loadErrorMessage ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="◐"
                 title="Liste boş"
-                subtitle={
-                  hasSearch
-                    ? "Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                }
+                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 tone="fuchsia"
               />
+            ) : filteredRows.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+                Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin.
+              </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
@@ -448,15 +414,16 @@ export default function BilincaltiSebepleri() {
                     }`}
                   >
                     <div className="line-clamp-2 text-[13px] font-black leading-snug text-slate-900">
-                      {row.illness_name?.trim() || "—"}
+                      {row.title?.trim() || "—"}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
                       {row.category?.trim() ? (
                         <span className="rounded-full bg-gradient-to-r from-fuchsia-100/90 to-violet-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-fuchsia-950/90 shadow-inner ring-1 ring-fuchsia-200/45">
                           {row.category}
                         </span>
-                      ) : null}
+                      ) : (
+                        <span>—</span>
+                      )}
                     </div>
                   </button>
                 );
@@ -474,24 +441,34 @@ export default function BilincaltiSebepleri() {
                 SEÇİLİ KAYIT
               </div>
               <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
-                {selectedRow.illness_name?.trim() || "—"}
+                {selectedRow.title?.trim() || "—"}
               </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>{formatDate(selectedRow.created_at)}</span>
-                {selectedRow.category?.trim() ? (
-                  <span className="rounded-full bg-gradient-to-r from-fuchsia-100/90 to-violet-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-fuchsia-950/90 ring-1 ring-fuchsia-200/45">
-                    {selectedRow.category}
-                  </span>
-                ) : null}
-                {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
-                    Kaynak: {selectedRow.source}
-                  </span>
-                ) : null}
+              <div className="mt-4 space-y-3 text-[12px] leading-relaxed">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-fuchsia-700/75">
+                    Kategori
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.category?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-violet-600/75">
+                    İçerik
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap font-semibold text-slate-600">
+                    {selectedRow.content?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
+                    Not
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap font-semibold text-slate-600">
+                    {selectedRow.note_text?.trim() || "—"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.subconscious_reason)}
-              </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
                 <button
                   type="button"
@@ -571,12 +548,24 @@ export default function BilincaltiSebepleri() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
-              Hastalık adı
+              Kaynak uid
             </span>
             <input
-              value={form.illness_name}
-              onChange={(e) => setForm((f) => ({ ...f, illness_name: e.target.value }))}
+              value={form.source_uid}
+              onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
+              placeholder="JSON uid ile eşleşir"
               className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/90" />
+              Başlık
+            </span>
+            <input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="h-12 w-full rounded-xl border border-fuchsia-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-fuchsia-200/90 focus:ring-2 focus:ring-fuchsia-100/55"
             />
           </label>
           <label className="block">
@@ -597,69 +586,16 @@ export default function BilincaltiSebepleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                Bilinçaltı sebep
+                İçerik
               </span>
             }
-            modalTitle="Bilinçaltı sebep"
-            value={form.subconscious_reason}
-            onChange={(v) => setForm((f) => ({ ...f, subconscious_reason: v }))}
-            minRows={4}
+            modalTitle="İçerik"
+            value={form.content}
+            onChange={(v) => setForm((f) => ({ ...f, content: v }))}
+            minRows={5}
             className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
             disabled={saving}
           />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/85" />
-                Duygusal örüntü
-              </span>
-            }
-            modalTitle="Duygusal örüntü"
-            value={form.emotional_pattern}
-            onChange={(v) => setForm((f) => ({ ...f, emotional_pattern: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                Afirmasyon
-              </span>
-            }
-            modalTitle="Afirmasyon"
-            value={form.affirmation}
-            onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                İyileşme notu
-              </span>
-            }
-            modalTitle="İyileşme notu"
-            value={form.healing_note}
-            onChange={(v) => setForm((f) => ({ ...f, healing_note: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
-            disabled={saving}
-          />
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-              Kaynak
-            </span>
-            <input
-              value={form.source}
-              onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
-            />
-          </label>
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
@@ -668,8 +604,8 @@ export default function BilincaltiSebepleri() {
               </span>
             }
             modalTitle="Not"
-            value={form.note}
-            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+            value={form.note_text}
+            onChange={(v) => setForm((f) => ({ ...f, note_text: v }))}
             minRows={3}
             className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
             disabled={saving}
