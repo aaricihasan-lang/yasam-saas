@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Gem,
   Loader2,
+  Sparkles,
   Upload,
 } from "lucide-react";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
@@ -1706,6 +1707,396 @@ function MineralJsonTab() {
   );
 }
 
+type BioenergySymbolJsonItem = {
+  symbol?: unknown;
+  title?: unknown;
+  category?: unknown;
+  meaning?: unknown;
+  source?: unknown;
+};
+
+type BioenergySymbolInsertRow = {
+  tenant_id: string;
+  symbol: string;
+  title: string;
+  category: string;
+  meaning: string;
+  source: string;
+};
+
+type BioenergySymbolImportFailure = {
+  symbol: string;
+  title: string;
+  message: string;
+};
+
+const SYMBOL_BATCH_SIZE = 250;
+const SYMBOL_PREVIEW_LIMIT = 5;
+const SYMBOL_FAILED_PREVIEW_LIMIT = 20;
+
+function symbolText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function parseBioenergySymbolJsonItems(text: string): {
+  items: BioenergySymbolJsonItem[];
+  error: string | null;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { items: [], error: "Geçersiz JSON dosyası." };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { items: [], error: "JSON kökü bir dizi olmalıdır." };
+  }
+
+  const items = parsed.filter(
+    (item) => item && typeof item === "object",
+  ) as BioenergySymbolJsonItem[];
+  if (items.length === 0) {
+    return { items: [], error: "JSON içinde işlenebilir sembol kaydı bulunamadı." };
+  }
+
+  return { items, error: null };
+}
+
+function mapBioenergySymbolItemToInsertRow(
+  item: BioenergySymbolJsonItem,
+): BioenergySymbolInsertRow | null {
+  const symbol = symbolText(item.symbol);
+  const title = symbolText(item.title);
+  if (!symbol || !title) return null;
+
+  return {
+    tenant_id: TENANT_ID,
+    symbol,
+    title,
+    category: symbolText(item.category) || "Genel",
+    meaning: symbolText(item.meaning),
+    source: symbolText(item.source),
+  };
+}
+
+function flattenBioenergySymbolItemsToRows(
+  items: BioenergySymbolJsonItem[],
+): BioenergySymbolInsertRow[] {
+  const rows: BioenergySymbolInsertRow[] = [];
+  for (const item of items) {
+    const row = mapBioenergySymbolItemToInsertRow(item);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function bioenergySymbolInsertSucceeded(
+  data: { id: string }[] | null,
+  expectedCount: number,
+): boolean {
+  return Boolean(data && data.length === expectedCount);
+}
+
+async function importBioenergySymbolRows(rows: BioenergySymbolInsertRow[]): Promise<{
+  successCount: number;
+  failedCount: number;
+  failures: BioenergySymbolImportFailure[];
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: BioenergySymbolImportFailure[] = [];
+
+  const recordFailure = (symbol: string, title: string, message: string) => {
+    failedCount += 1;
+    if (failures.length < SYMBOL_FAILED_PREVIEW_LIMIT) {
+      failures.push({ symbol, title, message });
+    }
+  };
+
+  for (let offset = 0; offset < rows.length; offset += SYMBOL_BATCH_SIZE) {
+    const batch = rows.slice(offset, offset + SYMBOL_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("bioenergy_symbols")
+      .insert(batch)
+      .select("id");
+
+    if (!error && bioenergySymbolInsertSucceeded(data, batch.length)) {
+      successCount += data!.length;
+      continue;
+    }
+
+    const batchMessage =
+      error?.message ??
+      "Toplu ekleme tamamlanamadı (public.bioenergy_symbols tablosuna kayıt doğrulanamadı).";
+
+    for (const row of batch) {
+      const { data: rowData, error: singleError } = await supabase
+        .from("bioenergy_symbols")
+        .insert(row)
+        .select("id");
+
+      if (singleError || !bioenergySymbolInsertSucceeded(rowData, 1)) {
+        recordFailure(
+          row.symbol,
+          row.title,
+          singleError?.message ?? batchMessage,
+        );
+      } else {
+        successCount += 1;
+      }
+    }
+  }
+
+  return { successCount, failedCount, failures };
+}
+
+function SembolDiliJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [items, setItems] = useState<BioenergySymbolJsonItem[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    successCount: number;
+    failedCount: number;
+    totalProcessed: number;
+    failures: BioenergySymbolImportFailure[];
+  } | null>(null);
+
+  const symbolCount = items.length;
+  const importableCount = useMemo(
+    () => flattenBioenergySymbolItemsToRows(items).length,
+    [items],
+  );
+
+  const previewItems = useMemo(() => items.slice(0, SYMBOL_PREVIEW_LIMIT), [items]);
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setItems([]);
+    setFileName(null);
+    setImportReport(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { items: parsed, error } = parseBioenergySymbolJsonItems(text);
+      if (error) {
+        setParseError(error);
+        setItems([]);
+        setFileName(file.name);
+        return;
+      }
+      setItems(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setParseError("Dosya okunamadı.");
+    };
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleFullImport = useCallback(async () => {
+    const rows = flattenBioenergySymbolItemsToRows(items);
+    if (rows.length === 0) {
+      setParseError("Aktarılacak sembol kaydı bulunamadı (symbol ve title zorunlu).");
+      return;
+    }
+
+    setImporting(true);
+    setImportReport(null);
+    setParseError(null);
+
+    const { successCount, failedCount, failures } = await importBioenergySymbolRows(rows);
+
+    setImporting(false);
+    const totalProcessed = successCount + failedCount;
+    setImportReport({
+      successCount,
+      failedCount,
+      totalProcessed,
+      failures,
+    });
+
+    if (successCount > 0 && failedCount === 0) {
+      showToast({
+        type: "success",
+        message: `${successCount} sembol kaydı public.bioenergy_symbols tablosuna yazıldı.`,
+      });
+    } else if (successCount > 0) {
+      showToast({
+        type: "warning",
+        message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
+      });
+    } else {
+      const detail = failures[0]?.message;
+      showToast({
+        type: "error",
+        message: detail
+          ? `Hiçbir kayıt yüklenemedi: ${detail}`
+          : "Hiçbir kayıt public.bioenergy_symbols tablosuna yazılamadı.",
+      });
+    }
+  }, [items, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-fuchsia-200/80 bg-gradient-to-br from-fuchsia-50/40 via-white to-violet-50/50 p-6 shadow-xl sm:p-8"
+      aria-label="Sembol Dili JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Sparkles className="h-6 w-6 text-fuchsia-700" aria-hidden />
+            Sembol Dili JSON
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
+            Biyoenerji Sembol Dili JSON dosyasını seçin; özet görüntüleyip tüm kayıtları
+            bioenergy_symbols tablosuna aktarın.
+          </p>
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Bu işlem mevcut sembol kayıtlarını silmez. Aynı JSON tekrar yüklenirse kayıtlar
+            çoğalabilir.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-fuchsia-300 bg-white px-5 py-3 text-sm font-bold text-fuchsia-950 shadow-md transition hover:scale-[1.02] hover:border-fuchsia-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+          </label>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleFullImport()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  Yükleniyor...
+                </>
+              ) : (
+                "Tamamını Yükle"
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          Dosya: <span className="font-mono text-fuchsia-900">{fileName}</span>
+          {items.length > 0 ? (
+            <span className="ml-2 text-fuchsia-700">· {symbolCount} sembol</span>
+          ) : null}
+        </p>
+      ) : null}
+
+      {parseError ? (
+        <p
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+          role="alert"
+        >
+          {parseError}
+        </p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="mt-8 space-y-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Özet</h3>
+            <p className="mt-1 text-sm text-slate-600">JSON dosyasından okunan toplam sayı.</p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatBox label="Toplam sembol" value={symbolCount} />
+              <StatBox label="Aktarılabilir kayıt" value={importableCount} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Önizleme</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              İlk {SYMBOL_PREVIEW_LIMIT} sembol kaydı.
+            </p>
+            <div className="mt-4 space-y-3">
+              {previewItems.map((item, index) => {
+                const symbol = symbolText(item.symbol) || "—";
+                const title = symbolText(item.title) || "—";
+                const category = symbolText(item.category) || "Genel";
+                const meaning = symbolText(item.meaning);
+                const source = symbolText(item.source);
+
+                return (
+                  <div
+                    key={`${symbol}-${index}`}
+                    className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
+                  >
+                    <p className="text-sm font-black text-slate-900">{title}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {symbol}
+                      {category ? ` · ${category}` : ""}
+                      {source ? ` · ${source}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                      {meaning || "—"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {importReport ? (
+        <div className="mt-8 rounded-2xl border border-fuchsia-200 bg-fuchsia-50/90 p-5">
+          <h3 className="text-lg font-black text-fuchsia-950">Yükleme raporu</h3>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox label="Başarılı" value={importReport.successCount} />
+            <StatBox label="Başarısız" value={importReport.failedCount} />
+            <StatBox label="Toplam işlenen" value={importReport.totalProcessed} />
+          </div>
+          {importReport.failures.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-sm font-black text-rose-950">
+                Başarısız kayıtlar (en fazla {SYMBOL_FAILED_PREVIEW_LIMIT})
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {importReport.failures.map((row, index) => (
+                  <li
+                    key={`${row.symbol}-${index}`}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-rose-950">
+                      {row.symbol}
+                      {row.title ? ` · ${row.title}` : ""}
+                    </span>
+                    <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DogaltasJsonTab() {
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -2263,9 +2654,9 @@ function DogaltasJsonTab() {
 }
 
 export default function TopluVeriPage() {
-  const [activeTab, setActiveTab] = useState<"dogaltas" | "kombinasyon" | "mineral">(
-    "dogaltas",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "dogaltas" | "kombinasyon" | "mineral" | "sembol"
+  >("dogaltas");
 
   return (
     <AdminModuleLayout
@@ -2322,11 +2713,23 @@ export default function TopluVeriPage() {
         >
           🧪 Mineral JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("sembol")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "sembol"
+              ? "border-fuchsia-400 bg-fuchsia-100 text-fuchsia-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          🔮 Sembol Dili JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
       {activeTab === "kombinasyon" ? <KombinasyonJsonTab /> : null}
       {activeTab === "mineral" ? <MineralJsonTab /> : null}
+      {activeTab === "sembol" ? <SembolDiliJsonTab /> : null}
     </AdminModuleLayout>
   );
 }
