@@ -2,13 +2,93 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  Fragment,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { supabase } from "@/lib/supabase";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const STONE_BUCKET = "stone-photos";
+const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
+  let norm = "";
+  const indexMap: number[] = [];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const charNorm = normalizeTrSearch(text[i] ?? "");
+    for (let j = 0; j < charNorm.length; j += 1) {
+      norm += charNorm[j];
+      indexMap.push(i);
+    }
+  }
+
+  return { norm, indexMap };
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  const queryNorm = normalizeTrSearch(trimmedQuery);
+  if (!queryNorm) return text;
+
+  const { norm, indexMap } = buildNormIndexMap(text);
+  const nodes: ReactNode[] = [];
+  let lastEnd = 0;
+  let searchFrom = 0;
+
+  while (searchFrom <= norm.length - queryNorm.length) {
+    const idx = norm.indexOf(queryNorm, searchFrom);
+    if (idx < 0) break;
+
+    const startOrig = indexMap[idx] ?? 0;
+    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
+
+    if (startOrig > lastEnd) {
+      nodes.push(
+        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
+      );
+    }
+
+    nodes.push(
+      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
+        {text.slice(startOrig, endOrig)}
+      </mark>,
+    );
+
+    lastEnd = endOrig;
+    searchFrom = idx + queryNorm.length;
+  }
+
+  if (lastEnd < text.length) {
+    nodes.push(<Fragment key={`p-end`}>{text.slice(lastEnd)}</Fragment>);
+  }
+
+  return nodes.length > 0 ? nodes : text;
+}
 
 const CHAKRA_OPTIONS = [
   "Kök Çakra",
@@ -361,6 +441,7 @@ function TextBlock({
   text,
   tone = "slate",
   editEnabled,
+  highlightQuery = "",
   onOpenEdit,
   onOpenRead,
 }: {
@@ -369,6 +450,7 @@ function TextBlock({
   text: string | null | undefined;
   tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber";
   editEnabled: boolean;
+  highlightQuery?: string;
   onOpenEdit: () => void;
   onOpenRead: () => void;
 }) {
@@ -412,7 +494,9 @@ function TextBlock({
 
       <div className={uiContentBox}>
         <p className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : ""}`}>
-          {shortPreview(text, 420)}
+          {text?.trim()
+            ? renderHighlightedText(shortPreview(text, 420), highlightQuery)
+            : shortPreview(text, 420)}
         </p>
       </div>
 
@@ -423,10 +507,15 @@ function TextBlock({
   );
 }
 
-export default function StoneDetailPage() {
+function StoneDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params?.id;
+  const highlightQuery = searchParams.get("q")?.trim() ?? "";
+  const listBackHref = highlightQuery
+    ? `/dogaltas?q=${encodeURIComponent(highlightQuery)}`
+    : "/dogaltas/dogaltas-listesi";
   const { confirm } = useConfirm();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -827,10 +916,10 @@ export default function StoneDetailPage() {
           </p>
 
           <Link
-            href="/dogaltas/dogaltas-listesi"
+            href={listBackHref}
             className="mt-6 inline-flex rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
           >
-            Listeye Dön
+            {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
           </Link>
         </div>
       </main>
@@ -878,7 +967,7 @@ export default function StoneDetailPage() {
               </button>
             ) : (
               <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
-                {safeStone.stone_name}
+                {renderHighlightedText(safeStone.stone_name, highlightQuery)}
               </h1>
             )}
 
@@ -892,10 +981,10 @@ export default function StoneDetailPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href="/dogaltas/dogaltas-listesi"
+              href={listBackHref}
               className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
             >
-              Listeye Dön
+              {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
 
             <button
@@ -987,7 +1076,7 @@ export default function StoneDetailPage() {
                       </button>
                     )}
                     <h2 className="border-t border-cyan-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
-                      {safeStone.stone_name}
+                      {renderHighlightedText(safeStone.stone_name, highlightQuery)}
                     </h2>
                   </div>
 
@@ -1219,6 +1308,7 @@ export default function StoneDetailPage() {
               text={safeStone.short_description}
               tone="cyan"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("short_description", "Kısa Açıklama", "GENEL BİLGİ")}
               onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
             />
@@ -1229,6 +1319,7 @@ export default function StoneDetailPage() {
               text={safeStone.general_info}
               tone="cyan"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
               onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
             />
@@ -1239,6 +1330,7 @@ export default function StoneDetailPage() {
               text={safeStone.source_note}
               tone="slate"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
               onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
             />
@@ -1249,6 +1341,7 @@ export default function StoneDetailPage() {
               text={safeStone.physical_effects}
               tone="emerald"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
               onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
             />
@@ -1259,6 +1352,7 @@ export default function StoneDetailPage() {
               text={safeStone.spiritual_effects}
               tone="violet"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
               onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
             />
@@ -1269,6 +1363,7 @@ export default function StoneDetailPage() {
               text={safeStone.other_effects}
               tone="amber"
               editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
               onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
               onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
             />
@@ -1280,6 +1375,7 @@ export default function StoneDetailPage() {
                 text={safeStone.warning_text}
                 tone="rose"
                 editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
                 onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
                 onOpenRead={() =>
                   openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
@@ -1329,7 +1425,9 @@ export default function StoneDetailPage() {
                     </div>
 
                     <p className={`mt-2 line-clamp-2 text-base leading-7 text-slate-700 ${!String(text || "").trim() ? uiEmptyText : ""}`}>
-                      {shortPreview(String(text || ""), 80)}
+                      {String(text || "").trim()
+                        ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
+                        : shortPreview(String(text || ""), 80)}
                     </p>
                   </button>
                 ))}
@@ -1367,7 +1465,9 @@ export default function StoneDetailPage() {
             </header>
 
             <div className="max-h-[62vh] overflow-y-auto rounded-[24px] bg-slate-50/80 p-5 text-[15px] leading-8 text-slate-700 ring-1 ring-slate-100">
-              <div className="whitespace-pre-wrap">{activeReader.text}</div>
+              <div className="whitespace-pre-wrap">
+                {renderHighlightedText(activeReader.text, highlightQuery)}
+              </div>
             </div>
           </div>
         </div>
@@ -1563,5 +1663,21 @@ export default function StoneDetailPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function StoneDetailPageFallback() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-500">
+      <p className="text-sm font-black text-slate-600">Kayıt yükleniyor...</p>
+    </main>
+  );
+}
+
+export default function StoneDetailRoutePage() {
+  return (
+    <Suspense fallback={<StoneDetailPageFallback />}>
+      <StoneDetailPage />
+    </Suspense>
   );
 }

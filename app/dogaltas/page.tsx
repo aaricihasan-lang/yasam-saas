@@ -1,9 +1,196 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { runInEffect } from "@/lib/runInEffect";
 import { supabase } from "@/lib/supabase";
+
+const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
+
+const STONES_SEARCH_SELECT =
+  "id, stone_name, short_description, general_info, physical_effects, spiritual_effects, other_effects, warning_text, warning_tags, chakras, assignments";
+
+type StoneSearchRecord = {
+  id: string;
+  stone_name: string;
+  short_description: string | null;
+  general_info: string | null;
+  physical_effects: string | null;
+  spiritual_effects: string | null;
+  other_effects: string | null;
+  warning_text: string | null;
+  warning_tags: string[] | null;
+  chakras: string[] | null;
+  assignments: Record<string, unknown> | null;
+};
+
+type StoneSearchFieldHit = {
+  label: string;
+  text: string;
+};
+
+type StoneSearchResult = {
+  id: string;
+  stone_name: string;
+  short_description: string;
+  matchedField: string;
+  snippet: string;
+};
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function readViewedStoneIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((id) => String(id)));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function markViewedStoneId(id: string) {
+  const viewed = readViewedStoneIds();
+  viewed.add(id);
+  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
+}
+
+function assignmentsToSearchText(assignments: Record<string, unknown> | null): string {
+  if (!assignments || typeof assignments !== "object") return "";
+
+  const parts: string[] = [];
+  for (const value of Object.values(assignments)) {
+    if (Array.isArray(value)) {
+      for (const row of value) {
+        if (Array.isArray(row)) {
+          parts.push(row.map((cell) => String(cell ?? "")).join(" "));
+        } else if (typeof row === "string") {
+          parts.push(row);
+        }
+      }
+    } else if (typeof value === "string") {
+      parts.push(value);
+    }
+  }
+  return parts.filter(Boolean).join(" ");
+}
+
+function buildStoneSearchFields(stone: StoneSearchRecord): StoneSearchFieldHit[] {
+  const fields: StoneSearchFieldHit[] = [
+    { label: "Taş adı", text: stone.stone_name },
+    { label: "Kısa açıklama", text: stone.short_description ?? "" },
+    { label: "Genel bilgi", text: stone.general_info ?? "" },
+    { label: "Fiziksel etkiler", text: stone.physical_effects ?? "" },
+    { label: "Ruhsal etkiler", text: stone.spiritual_effects ?? "" },
+    { label: "Diğer etkiler", text: stone.other_effects ?? "" },
+    { label: "Uyarı", text: stone.warning_text ?? "" },
+  ];
+
+  if (stone.chakras?.length) {
+    fields.push({ label: "Çakra", text: stone.chakras.join(", ") });
+  }
+  if (stone.warning_tags?.length) {
+    fields.push({ label: "Etiket", text: stone.warning_tags.join(", ") });
+  }
+
+  const assignmentText = assignmentsToSearchText(stone.assignments);
+  if (assignmentText) {
+    fields.push({ label: "Atamalar", text: assignmentText });
+  }
+
+  return fields;
+}
+
+function extractSnippet(text: string, query: string, maxLen = 140): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+
+  const norm = normalizeTrSearch(clean);
+  const qNorm = normalizeTrSearch(query);
+  const idx = norm.indexOf(qNorm);
+  if (idx < 0) return clean.length > maxLen ? `${clean.slice(0, maxLen)}…` : clean;
+
+  const start = Math.max(0, idx - 36);
+  const end = Math.min(clean.length, idx + query.length + 56);
+  let snippet = clean.slice(start, end).trim();
+  if (start > 0) snippet = `…${snippet}`;
+  if (end < clean.length) snippet = `${snippet}…`;
+  return snippet;
+}
+
+function searchStones(records: StoneSearchRecord[], query: string): StoneSearchResult[] {
+  const qNorm = normalizeTrSearch(query.trim());
+  if (!qNorm) return [];
+
+  const results: StoneSearchResult[] = [];
+
+  for (const stone of records) {
+    const fields = buildStoneSearchFields(stone);
+    const hit = fields.find((field) => normalizeTrSearch(field.text).includes(qNorm));
+    if (!hit) continue;
+
+    results.push({
+      id: stone.id,
+      stone_name: stone.stone_name?.trim() || "İsimsiz taş",
+      short_description:
+        stone.short_description?.trim() || "Kısa açıklama eklenmemiş.",
+      matchedField: hit.label,
+      snippet: extractSnippet(hit.text, query) || hit.text.slice(0, 140),
+    });
+  }
+
+  return results.sort((a, b) =>
+    a.stone_name.localeCompare(b.stone_name, "tr-TR"),
+  );
+}
+
+function mapStoneSearchRecord(row: Record<string, unknown>): StoneSearchRecord {
+  return {
+    id: String(row.id ?? ""),
+    stone_name: String(row.stone_name ?? ""),
+    short_description:
+      row.short_description != null ? String(row.short_description) : null,
+    general_info: row.general_info != null ? String(row.general_info) : null,
+    physical_effects:
+      row.physical_effects != null ? String(row.physical_effects) : null,
+    spiritual_effects:
+      row.spiritual_effects != null ? String(row.spiritual_effects) : null,
+    other_effects: row.other_effects != null ? String(row.other_effects) : null,
+    warning_text: row.warning_text != null ? String(row.warning_text) : null,
+    warning_tags: Array.isArray(row.warning_tags)
+      ? row.warning_tags.map((tag) => String(tag))
+      : null,
+    chakras: Array.isArray(row.chakras) ? row.chakras.map((c) => String(c)) : null,
+    assignments:
+      row.assignments && typeof row.assignments === "object"
+        ? (row.assignments as Record<string, unknown>)
+        : null,
+  };
+}
 
 const modules = [
   {
@@ -162,9 +349,21 @@ async function fetchTableCount(table: string): Promise<number | null> {
   return count ?? 0;
 }
 
-export default function DogaltasPage() {
+function DogaltasPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() ?? "";
+
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState(urlQuery);
+  const [activeQuery, setActiveQuery] = useState(urlQuery);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [stonesForSearch, setStonesForSearch] = useState<StoneSearchRecord[] | null>(
+    null,
+  );
+  const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [stonesCount, setStonesCount] = useState<number | null>(null);
   const [mineralsCount, setMineralsCount] = useState<number | null>(null);
   const [combinationsCount, setCombinationsCount] = useState<number | null>(null);
@@ -227,6 +426,101 @@ export default function DogaltasPage() {
       void loadAnalytics();
     });
   }, [loadAnalytics]);
+
+  useEffect(() => {
+    setSearchInput(urlQuery);
+    setActiveQuery(urlQuery);
+  }, [urlQuery]);
+
+  useEffect(() => {
+    const refreshViewed = () => setViewedStoneIds(readViewedStoneIds());
+    refreshViewed();
+    window.addEventListener("focus", refreshViewed);
+    return () => window.removeEventListener("focus", refreshViewed);
+  }, []);
+
+  const ensureStonesForSearch = useCallback(async () => {
+    if (stonesForSearch !== null) return stonesForSearch;
+
+    const { data, error } = await supabase.from("stones").select(STONES_SEARCH_SELECT);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const mapped = (data ?? []).map((row) =>
+      mapStoneSearchRecord(row as Record<string, unknown>),
+    );
+    setStonesForSearch(mapped);
+    return mapped;
+  }, [stonesForSearch]);
+
+  const runSearch = useCallback(
+    async (rawQuery: string) => {
+      const trimmed = rawQuery.trim();
+      const params = new URLSearchParams();
+      if (trimmed) params.set("q", trimmed);
+      router.replace(trimmed ? `/dogaltas?${params.toString()}` : "/dogaltas", {
+        scroll: false,
+      });
+      setActiveQuery(trimmed);
+
+      if (!trimmed) {
+        setSearchError(null);
+        setSearchLoading(false);
+        return;
+      }
+
+      setSearchLoading(true);
+      setSearchError(null);
+
+      try {
+        await ensureStonesForSearch();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Arama verisi okunamadı.";
+        setSearchError(`Taş kayıtları okunamadı: ${message}`);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [ensureStonesForSearch, router],
+  );
+
+  useEffect(() => {
+    if (!activeQuery.trim()) return;
+    runInEffect(() => {
+      void (async () => {
+        setSearchLoading(true);
+        setSearchError(null);
+        try {
+          await ensureStonesForSearch();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Arama verisi okunamadı.";
+          setSearchError(`Taş kayıtları okunamadı: ${message}`);
+        } finally {
+          setSearchLoading(false);
+        }
+      })();
+    });
+  }, [activeQuery, ensureStonesForSearch]);
+
+  const searchResults = useMemo(() => {
+    if (!activeQuery.trim() || !stonesForSearch) return [];
+    return searchStones(stonesForSearch, activeQuery);
+  }, [activeQuery, stonesForSearch]);
+
+  const handleSearchSubmit = useCallback(
+    (event?: FormEvent) => {
+      event?.preventDefault();
+      void runSearch(searchInput);
+    },
+    [runSearch, searchInput],
+  );
+
+  const handleResultNavigate = useCallback((stoneId: string) => {
+    markViewedStoneId(stoneId);
+    setViewedStoneIds(readViewedStoneIds());
+  }, []);
 
   const stockValueDisplay = useMemo(() => {
     if (loading) return "Yükleniyor...";
@@ -305,7 +599,7 @@ export default function DogaltasPage() {
             <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl" />
           </div>
 
-          <div className="relative flex h-full w-full max-w-none flex-col gap-3 overflow-hidden">
+          <div className="relative flex h-full w-full max-w-none flex-col gap-3 overflow-y-auto">
             <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[30px] border border-white/80 bg-white/65 px-8 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex min-w-0 flex-1 items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center text-3xl leading-none">
@@ -332,28 +626,128 @@ export default function DogaltasPage() {
               </Link>
             </header>
 
-            <div className="w-full shrink-0 rounded-[26px] border border-white/80 bg-white/75 p-3 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <form
+              className="w-full shrink-0 rounded-[26px] border border-white/80 bg-white/75 p-3 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+              onSubmit={handleSearchSubmit}
+            >
               <div className="flex gap-3">
                 <div className="relative min-w-0 flex-1">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base text-slate-400">
                     ⌕
                   </span>
                   <input
-                    type="text"
-                    placeholder="Taş, mineral veya anahtar kelime ara..."
+                    type="search"
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="Taş adı veya içerikte ara (ör. mide, şifa)..."
                     className="h-14 w-full rounded-2xl border border-slate-200/70 bg-white/90 pl-11 pr-4 text-base font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
                   />
                 </div>
                 <button
-                  type="button"
-                  className="h-14 shrink-0 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-7 text-sm font-black text-white shadow-lg transition-all hover:scale-[1.02]"
+                  type="submit"
+                  disabled={searchLoading}
+                  className="h-14 shrink-0 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-7 text-sm font-black text-white shadow-lg transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Ara
+                  {searchLoading ? "Aranıyor..." : "Ara"}
                 </button>
               </div>
-            </div>
+            </form>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white/70 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            {activeQuery.trim() ? (
+              <section className="shrink-0 rounded-[26px] border border-cyan-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-black text-slate-900">
+                    Arama Sonuçları
+                    {!searchLoading && stonesForSearch
+                      ? ` · ${searchResults.length} kayıt`
+                      : ""}
+                  </h2>
+                  {activeQuery ? (
+                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800 ring-1 ring-cyan-200">
+                      “{activeQuery}”
+                    </span>
+                  ) : null}
+                </div>
+
+                {searchError ? (
+                  <p
+                    className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+                    role="alert"
+                  >
+                    {searchError}
+                  </p>
+                ) : null}
+
+                {searchLoading ? (
+                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                    Yükleniyor...
+                  </p>
+                ) : searchResults.length === 0 && !searchError ? (
+                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                    Bu arama için sonuç bulunamadı.
+                  </p>
+                ) : (
+                  <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
+                    {searchResults.map((result) => {
+                      const isViewed = viewedStoneIds.has(result.id);
+                      const detailHref = `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
+
+                      return (
+                        <article
+                          key={result.id}
+                          className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
+                            isViewed
+                              ? "border-rose-200/90 ring-1 ring-rose-100"
+                              : "border-slate-200/80"
+                          }`}
+                        >
+                          {isViewed ? (
+                            <span
+                              className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                              aria-hidden
+                            />
+                          ) : null}
+
+                          <div className={isViewed ? "pl-2" : ""}>
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <h3 className="text-lg font-black text-slate-950">
+                                {result.stone_name}
+                              </h3>
+                              {isViewed ? (
+                                <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                                  Bakıldı
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600">
+                              {result.short_description}
+                            </p>
+
+                            <p className="mt-2 text-xs font-bold text-violet-700">
+                              Eşleşme: {result.matchedField}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
+                              {result.snippet}
+                            </p>
+
+                            <Link
+                              href={detailHref}
+                              onClick={() => handleResultNavigate(result.id)}
+                              className="mt-3 inline-flex rounded-xl border border-cyan-300/80 bg-cyan-50 px-4 py-2 text-sm font-black text-cyan-950 transition hover:bg-cyan-100"
+                            >
+                              Detaya Git
+                            </Link>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            ) : null}
+
+            <div className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white/70 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <div className="mb-4 flex shrink-0 items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base">
                   📊
@@ -453,5 +847,21 @@ export default function DogaltasPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function DogaltasPageFallback() {
+  return (
+    <main className="flex h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)]">
+      <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
+    </main>
+  );
+}
+
+export default function DogaltasPage() {
+  return (
+    <Suspense fallback={<DogaltasPageFallback />}>
+      <DogaltasPageContent />
+    </Suspense>
   );
 }
