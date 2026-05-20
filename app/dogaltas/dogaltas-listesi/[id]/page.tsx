@@ -19,6 +19,9 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+const SEARCH_MATCH_BADGE_CLASS =
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+const SEARCH_MATCH_CARD_CLASS = "border-rose-300 ring-2 ring-rose-100";
 
 function normalizeTrSearch(value: string): string {
   return value
@@ -88,6 +91,29 @@ function renderHighlightedText(text: string, query: string): ReactNode {
   }
 
   return nodes.length > 0 ? nodes : text;
+}
+
+function textMatchesQuery(text: string | null | undefined, query: string): boolean {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return false;
+  const haystack = normalizeTrSearch(String(text ?? ""));
+  const needle = normalizeTrSearch(trimmedQuery);
+  return Boolean(needle) && haystack.includes(needle);
+}
+
+function SearchMatchBadge() {
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
+}
+
+function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
+  return hasSearchMatch ? `${baseClass} ${SEARCH_MATCH_CARD_CLASS}` : baseClass;
+}
+
+function assignmentsSearchText(assignments: Record<string, string[][]> | null): string {
+  if (!assignments) return "";
+  return Object.entries(assignments)
+    .map(([title, rows]) => `${title} ${rowsToText(rows)}`)
+    .join(" ");
 }
 
 const CHAKRA_OPTIONS = [
@@ -442,6 +468,7 @@ function TextBlock({
   tone = "slate",
   editEnabled,
   highlightQuery = "",
+  hasSearchMatch = false,
   onOpenEdit,
   onOpenRead,
 }: {
@@ -451,23 +478,28 @@ function TextBlock({
   tone?: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber";
   editEnabled: boolean;
   highlightQuery?: string;
+  hasSearchMatch?: boolean;
   onOpenEdit: () => void;
   onOpenRead: () => void;
 }) {
+  const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
+  const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
+
   if (editEnabled) {
     return (
       <button
         type="button"
         onClick={onOpenEdit}
-        className={uiInfoCard}
+        className={cardClass}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className={toneClass(tone)}>{badge}</div>
 
-            <h2 className="mt-2 truncate text-2xl font-black text-slate-950">
-              {title}
-            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-2xl font-black text-slate-950">{title}</h2>
+              {showMatchBadge ? <SearchMatchBadge /> : null}
+            </div>
 
             <p className="mt-2 line-clamp-1 text-base leading-7 text-slate-700">
               {shortPreview(text, 90)}
@@ -486,11 +518,14 @@ function TextBlock({
     <button
       type="button"
       onClick={onOpenRead}
-      className={uiInfoCard}
+      className={cardClass}
     >
       <div className={toneClass(tone)}>{badge}</div>
 
-      <h2 className="mt-2 text-2xl font-black text-slate-950">{title}</h2>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <h2 className="text-2xl font-black text-slate-950">{title}</h2>
+        {showMatchBadge ? <SearchMatchBadge /> : null}
+      </div>
 
       <div className={uiContentBox}>
         <p className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : ""}`}>
@@ -889,6 +924,49 @@ function StoneDetailPage() {
     [stone],
   );
 
+  const sectionMatches = useMemo(() => {
+    const q = highlightQuery.trim();
+    if (!q || !safeStone) return null;
+
+    const matchesText = (value: string | null | undefined) => textMatchesQuery(value, q);
+    const matchesList = (items: string[]) => textMatchesQuery(items.join(" "), q);
+
+    const chakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
+    const warningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
+    const assignments: Record<string, string[][]> =
+      safeStone.assignments &&
+      typeof safeStone.assignments === "object" &&
+      !Array.isArray(safeStone.assignments)
+        ? safeStone.assignments
+        : {};
+
+    return {
+      stoneName: matchesText(safeStone.stone_name),
+      shortDescription: matchesText(safeStone.short_description),
+      generalInfo: matchesText(safeStone.general_info),
+      sourceNote: matchesText(safeStone.source_note),
+      physicalEffects: matchesText(safeStone.physical_effects),
+      spiritualEffects: matchesText(safeStone.spiritual_effects),
+      otherEffects: matchesText(safeStone.other_effects),
+      warningText: matchesText(safeStone.warning_text),
+      fengShui: matchesText(safeStone.feng_shui),
+      meditation: matchesText(safeStone.meditation),
+      care: matchesText(safeStone.care),
+      application: matchesText(safeStone.application),
+      chakras: matchesList(chakras),
+      warningTags: matchesList(warningTags),
+      assignments: textMatchesQuery(assignmentsSearchText(assignments), q),
+    };
+  }, [highlightQuery, safeStone]);
+
+  const readerHasMatch = useMemo(
+    () =>
+      Boolean(activeReader) &&
+      Boolean(highlightQuery.trim()) &&
+      textMatchesQuery(activeReader?.text, highlightQuery),
+    [activeReader, highlightQuery],
+  );
+
   if (loading) {
     return (
       <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
@@ -966,9 +1044,12 @@ function StoneDetailPage() {
                 {safeStone.stone_name}
               </button>
             ) : (
-              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
-                {renderHighlightedText(safeStone.stone_name, highlightQuery)}
-              </h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+                  {renderHighlightedText(safeStone.stone_name, highlightQuery)}
+                </h1>
+                {sectionMatches?.stoneName ? <SearchMatchBadge /> : null}
+              </div>
             )}
 
             <p className="mt-3 text-lg font-medium text-slate-600">
@@ -1195,10 +1276,13 @@ function StoneDetailPage() {
             <button
               type="button"
               onClick={() => openCheckboxEditor("chakras", "Çakralar", "ÇAKRA", CHAKRA_OPTIONS)}
-              className={uiInfoCard}
+              className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.chakras))}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-2xl font-black text-slate-950">Çakralar</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-2xl font-black text-slate-950">Çakralar</h3>
+                  {sectionMatches?.chakras ? <SearchMatchBadge /> : null}
+                </div>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
@@ -1225,10 +1309,13 @@ function StoneDetailPage() {
             <button
               type="button"
               onClick={() => openCheckboxEditor("warning_tags", "Uyarı Etiketleri", "UYARI ETİKETLERİ", WARNING_OPTIONS)}
-              className={uiInfoCard}
+              className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.warningTags))}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-2xl font-black text-slate-950">Uyarı Etiketleri</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-2xl font-black text-slate-950">Uyarı Etiketleri</h3>
+                  {sectionMatches?.warningTags ? <SearchMatchBadge /> : null}
+                </div>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
@@ -1255,10 +1342,13 @@ function StoneDetailPage() {
             <button
               type="button"
               onClick={openAssignmentsEditor}
-              className={uiInfoCard}
+              className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.assignments))}
             >
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-2xl font-black text-slate-950">Atamalar</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-2xl font-black text-slate-950">Atamalar</h3>
+                  {sectionMatches?.assignments ? <SearchMatchBadge /> : null}
+                </div>
                 {editEnabled && (
                   <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Düzenle
@@ -1309,6 +1399,7 @@ function StoneDetailPage() {
               tone="cyan"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.shortDescription}
               onOpenEdit={() => openTextEditor("short_description", "Kısa Açıklama", "GENEL BİLGİ")}
               onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
             />
@@ -1320,6 +1411,7 @@ function StoneDetailPage() {
               tone="cyan"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.generalInfo}
               onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
               onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
             />
@@ -1331,6 +1423,7 @@ function StoneDetailPage() {
               tone="slate"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.sourceNote}
               onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
               onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
             />
@@ -1342,6 +1435,7 @@ function StoneDetailPage() {
               tone="emerald"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.physicalEffects}
               onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
               onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
             />
@@ -1353,6 +1447,7 @@ function StoneDetailPage() {
               tone="violet"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.spiritualEffects}
               onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
               onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
             />
@@ -1364,6 +1459,7 @@ function StoneDetailPage() {
               tone="amber"
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.otherEffects}
               onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
               onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
             />
@@ -1376,6 +1472,7 @@ function StoneDetailPage() {
                 tone="rose"
                 editEnabled={editEnabled}
                 highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.warningText}
                 onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
                 onOpenRead={() =>
                   openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
@@ -1396,7 +1493,20 @@ function StoneDetailPage() {
                   ["Meditasyon", "meditation", safeStone.meditation],
                   ["Bakım", "care", safeStone.care],
                   ["Uygulama", "application", safeStone.application],
-                ].map(([title, key, text]) => (
+                ].map(([title, key, text]) => {
+                  const usageMatchKey =
+                    key === "feng_shui"
+                      ? "fengShui"
+                      : key === "meditation"
+                        ? "meditation"
+                        : key === "care"
+                          ? "care"
+                          : "application";
+                  const usageHasMatch = Boolean(
+                    sectionMatches?.[usageMatchKey as keyof typeof sectionMatches],
+                  );
+
+                  return (
                   <button
                     key={title}
                     type="button"
@@ -1409,10 +1519,16 @@ function StoneDetailPage() {
                           )
                         : openReader(String(title), "KULLANIM ALANI", String(text || ""))
                     }
-                    className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white"
+                    className={mergeMatchCardClass(
+                      "rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white",
+                      usageHasMatch,
+                    )}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-base font-black text-slate-950">{title}</h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-black text-slate-950">{title}</h3>
+                        {usageHasMatch ? <SearchMatchBadge /> : null}
+                      </div>
                       {editEnabled ? (
                         <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
                           Düzenle
@@ -1430,7 +1546,8 @@ function StoneDetailPage() {
                         : shortPreview(String(text || ""), 80)}
                     </p>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </section>
@@ -1446,9 +1563,12 @@ function StoneDetailPage() {
                   {activeReader.badge}
                 </div>
 
-                <h2 className="text-[24px] font-black text-slate-950">
-                  {activeReader.title}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-[24px] font-black text-slate-950">
+                    {activeReader.title}
+                  </h2>
+                  {readerHasMatch ? <SearchMatchBadge /> : null}
+                </div>
 
                 <p className="mt-1 text-[12px] font-bold text-slate-400">
                   {safeStone.stone_name} kaydı okunuyor.
