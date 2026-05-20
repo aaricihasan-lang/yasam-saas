@@ -16,20 +16,14 @@ import {
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
-
-type SymbolViewRecord = {
+type BioenergySymbolRecord = {
   id: string;
-  tenant_id: string;
-  symbol_name: string | null;
+  symbol: string | null;
+  title: string | null;
   category: string | null;
   meaning: string | null;
   subconscious_message: string | null;
-  positive_aspect: string | null;
-  negative_aspect: string | null;
-  usage_area: string | null;
   source: string | null;
-  note: string | null;
   created_at: string;
 };
 
@@ -76,15 +70,10 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
-
 export default function SembolDili() {
-  const [rows, setRows] = useState<SymbolViewRecord[]>([]);
+  const [rows, setRows] = useState<BioenergySymbolRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchSymbol, setSearchSymbol] = useState("");
   const [searchCategory, setSearchCategory] = useState("");
@@ -119,23 +108,23 @@ export default function SembolDili() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
-      .from("symbols_view")
+      .from("bioenergy_symbols")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .order("created_at", { ascending: false });
+      .order("title");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      setLoadError(true);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as SymbolViewRecord[]);
-  }, [showSoft]);
+    setRows((data || []) as BioenergySymbolRecord[]);
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -150,7 +139,9 @@ export default function SembolDili() {
     const b = searchSubconscious.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((row) => {
       const symbolOk =
-        !s || (row.symbol_name ?? "").toLocaleLowerCase("tr-TR").includes(s);
+        !s ||
+        (row.symbol ?? "").toLocaleLowerCase("tr-TR").includes(s) ||
+        (row.title ?? "").toLocaleLowerCase("tr-TR").includes(s);
       const categoryOk =
         !c || (row.category ?? "").toLocaleLowerCase("tr-TR").includes(c);
       const meaningOk =
@@ -169,32 +160,30 @@ export default function SembolDili() {
 
   const moduleStats = useMemo(() => {
     const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
+    const newest = rows.reduce<string | null>((acc, row) => {
+      if (!row.created_at) return acc;
+      if (!acc || row.created_at > acc) return row.created_at;
+      return acc;
+    }, null);
+    const last = newest ? formatDate(newest) : "—";
     return { total: rows.length, cats: cats.size, last };
   }, [rows]);
 
-  const hasSearch = Boolean(
-    searchSymbol.trim() ||
-      searchCategory.trim() ||
-      searchMeaning.trim() ||
-      searchSubconscious.trim(),
-  );
-
-  function fillFormFromRow(row: SymbolViewRecord) {
+  function fillFormFromRow(row: BioenergySymbolRecord) {
     setForm({
-      symbol_name: row.symbol_name ?? "",
+      symbol_name: row.symbol?.trim() || row.title?.trim() || "",
       category: row.category ?? "",
       meaning: row.meaning ?? "",
       subconscious_message: row.subconscious_message ?? "",
-      positive_aspect: row.positive_aspect ?? "",
-      negative_aspect: row.negative_aspect ?? "",
-      usage_area: row.usage_area ?? "",
+      positive_aspect: "",
+      negative_aspect: "",
+      usage_area: "",
       source: row.source ?? "",
-      note: row.note ?? "",
+      note: "",
     });
   }
 
-  function selectRow(row: SymbolViewRecord) {
+  function selectRow(row: BioenergySymbolRecord) {
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -246,17 +235,13 @@ export default function SembolDili() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("symbols_view").insert({
-      tenant_id: TENANT_ID,
-      symbol_name: nameTrim,
+    const { error } = await supabase.from("bioenergy_symbols").insert({
+      symbol: nameTrim,
+      title: nameTrim,
       category: trimOrNull(form.category),
       meaning: trimOrNull(form.meaning),
       subconscious_message: trimOrNull(form.subconscious_message),
-      positive_aspect: trimOrNull(form.positive_aspect),
-      negative_aspect: trimOrNull(form.negative_aspect),
-      usage_area: trimOrNull(form.usage_area),
       source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
     });
 
     setSaving(false);
@@ -285,20 +270,16 @@ export default function SembolDili() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("symbols_view")
+      .from("bioenergy_symbols")
       .update({
-        symbol_name: nameTrim,
+        symbol: nameTrim,
+        title: nameTrim,
         category: trimOrNull(form.category),
         meaning: trimOrNull(form.meaning),
         subconscious_message: trimOrNull(form.subconscious_message),
-        positive_aspect: trimOrNull(form.positive_aspect),
-        negative_aspect: trimOrNull(form.negative_aspect),
-        usage_area: trimOrNull(form.usage_area),
         source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
       })
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
 
@@ -327,10 +308,9 @@ export default function SembolDili() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("symbols_view")
+      .from("bioenergy_symbols")
       .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
@@ -409,6 +389,12 @@ export default function SembolDili() {
         />
       </div>
 
+      {loadError ? (
+        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+          Hata: veri alınamadı
+        </div>
+      ) : null}
+
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {infoSuccess ? (
@@ -444,17 +430,17 @@ export default function SembolDili() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : filteredRows.length === 0 ? (
+            ) : loadError ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="✦"
                 title="Liste boş"
-                subtitle={
-                  hasSearch
-                    ? "Aramayı güncelleyin veya Yeni Kayıt ile sembol ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                }
+                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 tone="emerald"
               />
+            ) : filteredRows.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+                Aramayı güncelleyin veya Yeni Kayıt ile sembol ekleyin.
+              </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
@@ -469,16 +455,20 @@ export default function SembolDili() {
                         : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-emerald-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
                     }`}
                   >
-                    <div className="line-clamp-2 text-[13px] font-black leading-snug text-slate-900">
-                      {row.symbol_name?.trim() || "—"}
+                    <div className="line-clamp-1 text-[13px] font-black leading-snug text-slate-900">
+                      {row.symbol?.trim() || "—"}
+                    </div>
+                    <div className="mt-0.5 line-clamp-1 text-[12px] font-bold text-slate-600">
+                      {row.title?.trim() || "—"}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
                       {row.category?.trim() ? (
                         <span className="rounded-full bg-gradient-to-r from-emerald-100/90 to-cyan-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-950/90 shadow-inner ring-1 ring-emerald-200/45">
                           {row.category}
                         </span>
-                      ) : null}
+                      ) : (
+                        <span>—</span>
+                      )}
                     </div>
                   </button>
                 );
@@ -496,24 +486,50 @@ export default function SembolDili() {
                 SEÇİLİ KAYIT
               </div>
               <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
-                {selectedRow.symbol_name?.trim() || "—"}
+                {selectedRow.title?.trim() || selectedRow.symbol?.trim() || "—"}
               </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>{formatDate(selectedRow.created_at)}</span>
-                {selectedRow.category?.trim() ? (
-                  <span className="rounded-full bg-gradient-to-r from-emerald-100/90 to-cyan-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-950/90 ring-1 ring-emerald-200/45">
-                    {selectedRow.category}
-                  </span>
-                ) : null}
-                {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
-                    Kaynak: {selectedRow.source}
-                  </span>
-                ) : null}
+              <div className="mt-4 space-y-3 text-[12px] leading-relaxed">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700/75">
+                    Sembol
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.symbol?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
+                    Kategori
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.category?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-600/75">
+                    Anlam
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-600">
+                    {selectedRow.meaning?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-violet-600/75">
+                    Bilinçaltı Mesajı
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-600">
+                    {selectedRow.subconscious_message?.trim() || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-600/75">
+                    Kaynak
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {selectedRow.source?.trim() || "—"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.meaning)}
-              </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
                 <button
                   type="button"
