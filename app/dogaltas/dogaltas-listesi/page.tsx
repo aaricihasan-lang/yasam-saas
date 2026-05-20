@@ -596,20 +596,32 @@ function DogaltasListesiPageContent() {
               Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
             </p>
 
-            <Link
-              href="/"
-              className="mt-4 inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-6 font-black text-slate-700 shadow-md transition hover:bg-cyan-50"
-            >
-              <svg
-                aria-hidden
-                className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
-                viewBox="0 0 20 20"
-                fill="currentColor"
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/"
+                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-6 font-black text-slate-700 shadow-md transition hover:bg-cyan-50"
               >
-                <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
-              </svg>
-              <span className="truncate">Ana Panele Dön</span>
-            </Link>
+                <svg
+                  aria-hidden
+                  className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
+                </svg>
+                <span className="truncate">Ana Panele Dön</span>
+              </Link>
+
+              <Link
+                href="/dogaltas"
+                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-xl border-2 border-cyan-200 bg-cyan-50 px-6 font-black text-slate-700 shadow-sm transition hover:bg-cyan-100"
+              >
+                <span className="shrink-0 text-base leading-none" aria-hidden>
+                  💎
+                </span>
+                <span className="truncate">Doğaltaş Sayfasına Dön</span>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
