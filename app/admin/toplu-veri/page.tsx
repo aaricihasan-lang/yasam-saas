@@ -3308,46 +3308,28 @@ const SUBCONSCIOUS_BATCH_SIZE = 250;
 const SUBCONSCIOUS_PREVIEW_LIMIT = 5;
 const SUBCONSCIOUS_FAILED_PREVIEW_LIMIT = 20;
 
-const SUBCONSCIOUS_TITLE_KEYS = [
-  "title",
-  "name",
-  "baslik",
-  "hastalik",
-  "disease",
-] as const;
-
-const SUBCONSCIOUS_CATEGORY_KEYS = ["category", "kategori"] as const;
-
-const SUBCONSCIOUS_CONTENT_KEYS = [
-  "content",
-  "text",
-  "meaning",
-  "description",
-  "aciklama",
-  "neden",
-  "cause",
-  "causes",
-  "sebep",
-  "sebepler",
-  "bilincalti_sebep",
-  "bilincalti_sebepleri",
-  "icerik",
-] as const;
-
-const SUBCONSCIOUS_NOTE_KEYS = ["note", "notes", "not", "aciklama_notu"] as const;
-
 function subconsciousText(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (value == null) return "";
   return String(value).trim();
 }
 
-function subconsciousPickField(item: BioenergySubconsciousJsonItem, keys: string[]): string {
-  for (const key of keys) {
-    const text = subconsciousText(item[key]);
-    if (text) return text;
-  }
-  return "";
+function extractBioenergySubconsciousJsonFields(item: BioenergySubconsciousJsonItem) {
+  return {
+    title: subconsciousText(item.title),
+    category: subconsciousText(item.category) || "Genel",
+    content:
+      subconsciousText(item.cause_text) ||
+      subconsciousText(item.content) ||
+      subconsciousText(item.text) ||
+      subconsciousText(item.description) ||
+      subconsciousText(item.aciklama) ||
+      subconsciousText(item.neden) ||
+      subconsciousText(item.icerik) ||
+      "",
+    note_text: subconsciousText(item.note) || subconsciousText(item.notes) || "",
+    source_uid: subconsciousText(item.uid),
+  };
 }
 
 function parseBioenergySubconsciousJsonItems(text: string): {
@@ -3378,17 +3360,16 @@ function parseBioenergySubconsciousJsonItems(text: string): {
 function mapBioenergySubconsciousItemToInsertRow(
   item: BioenergySubconsciousJsonItem,
 ): BioenergySubconsciousInsertRow | null {
-  const sourceUid = subconsciousText(item.uid);
-  const title = subconsciousPickField(item, [...SUBCONSCIOUS_TITLE_KEYS]);
-  if (!sourceUid || !title) return null;
+  const fields = extractBioenergySubconsciousJsonFields(item);
+  if (!fields.source_uid || !fields.title) return null;
 
   return {
     tenant_id: TENANT_ID,
-    source_uid: sourceUid,
-    title,
-    category: subconsciousPickField(item, [...SUBCONSCIOUS_CATEGORY_KEYS]) || "Genel",
-    content: subconsciousPickField(item, [...SUBCONSCIOUS_CONTENT_KEYS]),
-    note_text: subconsciousPickField(item, [...SUBCONSCIOUS_NOTE_KEYS]),
+    source_uid: fields.source_uid,
+    title: fields.title,
+    category: fields.category,
+    content: fields.content,
+    note_text: fields.note_text,
   };
 }
 
@@ -3517,9 +3498,7 @@ function BilincaltiSebepleriJsonTab() {
   const handleFullImport = useCallback(async () => {
     const rows = flattenBioenergySubconsciousItemsToRows(items);
     if (rows.length === 0) {
-      setParseError(
-        "Aktarılacak kayıt bulunamadı (uid ve başlık alanı zorunlu: title, name, baslik, hastalik, disease).",
-      );
+      setParseError("Aktarılacak kayıt bulunamadı (uid ve title zorunlu).");
       return;
     }
 
@@ -3647,12 +3626,12 @@ function BilincaltiSebepleriJsonTab() {
             </p>
             <div className="mt-4 space-y-3">
               {previewItems.map((item, index) => {
-                const sourceUid = subconsciousText(item.uid) || "—";
-                const title = subconsciousPickField(item, [...SUBCONSCIOUS_TITLE_KEYS]) || "—";
-                const category =
-                  subconsciousPickField(item, [...SUBCONSCIOUS_CATEGORY_KEYS]) || "Genel";
-                const contentPreview = subconsciousPickField(item, [...SUBCONSCIOUS_CONTENT_KEYS]);
-                const previewLine = contentPreview || "İçerik alanı boş";
+                const fields = extractBioenergySubconsciousJsonFields(item);
+                const sourceUid = fields.source_uid || "—";
+                const title = fields.title || "—";
+                const category = fields.category;
+                const contentPreview = fields.content;
+                const previewLine = contentPreview || "İçerik bulunamadı";
 
                 return (
                   <div
@@ -3668,7 +3647,7 @@ function BilincaltiSebepleriJsonTab() {
                       className={`mt-2 line-clamp-2 text-sm ${
                         contentPreview
                           ? "text-slate-600"
-                          : "font-semibold text-amber-800"
+                          : "font-semibold text-rose-700"
                       }`}
                     >
                       {previewLine}
