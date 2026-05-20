@@ -47,14 +47,6 @@ const modules = [
     iconBg: "bg-orange-50",
   },
   {
-    title: "Stok Yönetimi",
-    subtitle: "Stok, adet ve fiyat.",
-    icon: "📦",
-    href: "/dogaltas/stok-yonetimi",
-    dot: "bg-indigo-500",
-    iconBg: "bg-indigo-50",
-  },
-  {
     title: "Taş Bilgi Kütüphanesi",
     subtitle: "Eğitim ve referans.",
     icon: "📚",
