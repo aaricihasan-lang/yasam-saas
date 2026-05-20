@@ -3,6 +3,8 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
@@ -267,14 +269,22 @@ const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900";
 const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-violet-700";
+const uiSelectActionBtn =
+  "rounded-2xl border-2 px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+const uiRowCheckbox =
+  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
 export default function KombinasyonlarPage() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [viewedIssueKeys, setViewedIssueKeys] = useState<Set<string>>(() => new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
   const clearSearch = useCallback(() => {
@@ -395,6 +405,68 @@ export default function KombinasyonlarPage() {
   const hasFilters = Boolean(isSearchActive || categoryFilter.trim());
   const isEmptyDatabase = !loading && !errorMessage && rows.length === 0;
   const isEmptyFiltered = !loading && !errorMessage && rows.length > 0 && groups.length === 0;
+
+  const selectedCount = selectedIds.size;
+
+  const toggleGroupSelection = useCallback((issue: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(issue)) {
+        next.delete(issue);
+      } else {
+        next.add(issue);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(groups.map((group) => group.issue)));
+  }, [groups]);
+
+  const deleteSelectedCombinations = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    const issueKeys = Array.from(selectedIds);
+    const deleteCount = issueKeys.length;
+
+    const confirmed = await confirm({
+      title: "Kombinasyonları sil",
+      message: `Seçili ${deleteCount} kombinasyon silinecek`,
+      tone: "danger",
+      confirmText: "Evet Sil",
+      cancelText: "Vazgeç",
+    });
+
+    if (!confirmed) return;
+
+    setDeleteLoading(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("combinations")
+      .delete()
+      .eq("tenant_id", TENANT_ID)
+      .in("issue", issueKeys);
+
+    setDeleteLoading(false);
+
+    if (error) {
+      setErrorMessage(`Seçili kombinasyonlar silinemedi: ${error.message}`);
+      return;
+    }
+
+    showToast({
+      type: "success",
+      message: `${deleteCount} kombinasyon silindi`,
+    });
+    setSelectedIds(new Set());
+    await loadCombinations();
+  }, [confirm, selectedIds, showToast]);
 
   return (
     <main className={pageBg}>
@@ -538,6 +610,38 @@ export default function KombinasyonlarPage() {
               </span>
             )}
           </div>
+
+          {!loading && groups.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-800 shadow-sm">
+                Seçili: {selectedCount}
+              </span>
+              <button
+                type="button"
+                disabled={deleteLoading}
+                onClick={selectAllFiltered}
+                className={`${uiSelectActionBtn} border-cyan-200 bg-cyan-50 text-cyan-950 hover:bg-cyan-100`}
+              >
+                Tümünü Seç
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading || selectedCount === 0}
+                onClick={clearSelection}
+                className={`${uiSelectActionBtn} border-violet-200 bg-violet-50 text-violet-950 hover:bg-violet-100`}
+              >
+                Seçimi Temizle
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading || selectedCount === 0}
+                onClick={() => void deleteSelectedCombinations()}
+                className={`${uiSelectActionBtn} border-red-200 bg-red-50 text-red-600 hover:bg-red-100`}
+              >
+                {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
+              </button>
+            </div>
+          ) : null}
         </section>
 
         {errorMessage ? (
@@ -570,7 +674,8 @@ export default function KombinasyonlarPage() {
           ) : viewMode === "list" ? (
             <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
               <div className="min-w-[800px]">
-                <div className="grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                <div className="grid grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div className="w-8" aria-hidden />
                   <div>Issue</div>
                   <div>Kategori</div>
                   <div>Kombinasyon</div>
@@ -593,11 +698,14 @@ export default function KombinasyonlarPage() {
                       isSearchActive,
                     );
                     const sourceDisplay = sourceLine || "Kaynak belirtilmedi";
+                    const isSelected = selectedIds.has(issue);
 
                     return (
                       <div
                         key={issue}
-                        className={`relative grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 ${
+                        className={`relative grid grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 ${
+                          isSelected ? "bg-violet-50/60" : ""
+                        } ${
                           isViewedInSearch
                             ? "border-l-4 border-rose-600"
                             : isSearchActive
@@ -611,6 +719,16 @@ export default function KombinasyonlarPage() {
                             aria-hidden
                           />
                         ) : null}
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleGroupSelection(issue)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`${issue} seç`}
+                            className={uiRowCheckbox}
+                          />
+                        </div>
                         <div className={`min-w-0 font-black text-slate-950 ${isViewedInSearch ? "pl-2" : ""}`}>
                           {isSearchActive ? (
                             <div className="mb-1 flex flex-wrap items-center gap-1.5">
@@ -686,11 +804,14 @@ export default function KombinasyonlarPage() {
                   isSearchActive,
                 );
                 const preview = previewText(groupRows);
+                const isSelected = selectedIds.has(issue);
 
                 return (
                   <article
                     key={issue}
                     className={`${uiComboCard} ${
+                      isSelected ? "border-violet-400/70 bg-violet-50/50" : ""
+                    } ${
                       isViewedInSearch
                         ? "border-l-4 border-rose-600"
                         : isSearchActive
@@ -704,7 +825,22 @@ export default function KombinasyonlarPage() {
                         aria-hidden
                       />
                     ) : null}
-                    <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
+                    <div
+                      className={`absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl bg-white/90 px-2 py-1.5 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-6" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleGroupSelection(issue)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`${issue} seç`}
+                        className={uiRowCheckbox}
+                      />
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Seç
+                      </span>
+                    </div>
+                    <div className={`flex gap-3 pt-10 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
                         aria-hidden
