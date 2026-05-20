@@ -296,10 +296,6 @@ export default function DogaltasPage() {
               );
             })}
           </nav>
-
-          <div className="mt-4 shrink-0 rounded-[28px] border border-white/80 bg-white/80 p-6 text-[16px] font-black leading-relaxed text-slate-700 shadow-lg">
-            ✨ Bilgiyi yönetin, değere dönüştürün.
-          </div>
         </aside>
 
         <section className="relative h-screen min-w-0 overflow-hidden px-6 py-5">
