@@ -11,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
@@ -226,7 +226,9 @@ const uiComboBtn =
 
 function MineralListesiPageContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const listPath = pathname || "/dogaltas/mineral-listesi";
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 
   const [minerals, setMinerals] = useState<MineralRecord[]>([]);
@@ -235,6 +237,22 @@ function MineralListesiPageContent() {
   const [searchTerm, setSearchTerm] = useState(urlQuery);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
+
+  const applySearchUrl = useCallback(
+    (query: string | null) => {
+      const nextUrl = query
+        ? `${listPath}?q=${encodeURIComponent(query)}`
+        : listPath;
+      window.history.replaceState(window.history.state, "", nextUrl);
+      router.replace(nextUrl, { scroll: false });
+    },
+    [listPath, router],
+  );
+
+  const clearSearchState = useCallback(() => {
+    setSearchTerm("");
+    applySearchUrl(null);
+  }, [applySearchUrl]);
 
   async function loadMinerals() {
     setLoading(true);
@@ -263,7 +281,11 @@ function MineralListesiPageContent() {
   }, []);
 
   useEffect(() => {
-    setSearchTerm(urlQuery);
+    const fromLocation =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("q")?.trim() ?? ""
+        : urlQuery;
+    setSearchTerm(fromLocation);
   }, [urlQuery]);
 
   useEffect(() => {
@@ -277,18 +299,19 @@ function MineralListesiPageContent() {
     (value: string) => {
       const trimmed = value.trim();
       if (!trimmed) {
-        setSearchTerm("");
-        router.replace("/dogaltas/mineral-listesi", { scroll: false });
+        clearSearchState();
         return;
       }
       setSearchTerm(trimmed);
-      router.replace(
-        `/dogaltas/mineral-listesi?q=${encodeURIComponent(trimmed)}`,
-        { scroll: false },
-      );
+      applySearchUrl(trimmed);
     },
-    [router],
+    [applySearchUrl, clearSearchState],
   );
+
+  const handleRefresh = useCallback(() => {
+    clearSearchState();
+    void loadMinerals();
+  }, [clearSearchState]);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
     markViewedMineralId(mineralId);
@@ -386,7 +409,7 @@ function MineralListesiPageContent() {
             </select>
             <button
               type="button"
-              onClick={() => void loadMinerals()}
+              onClick={handleRefresh}
               className={`${uiActionBtn} border-2 border-emerald-200/80 bg-white/80 text-slate-700 hover:border-emerald-400`}
             >
               Yenile
