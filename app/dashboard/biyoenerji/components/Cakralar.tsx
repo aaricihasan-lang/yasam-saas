@@ -17,57 +17,48 @@ import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
-type ChakraNoteRecord = {
+type BioenergyChakraRecord = {
   id: string;
   tenant_id: string;
-  chakra_name: string | null;
-  chakra_color: string | null;
-  location: string | null;
-  theme: string | null;
-  imbalance_symptoms: string | null;
-  balanced_state: string | null;
-  healing_methods: string | null;
-  affirmation: string | null;
-  stone_support: string | null;
-  frequency_note: string | null;
-  source: string | null;
-  note: string | null;
+  source_uid: string;
+  name: string | null;
+  organs: string | null;
+  glands: string | null;
+  color: string | null;
+  stones: string | null;
+  causes: string | null;
+  physical: string | null;
+  mental: string | null;
+  notes: string | null;
   created_at: string;
 };
 
-type ChakraNoteForm = {
-  chakra_name: string;
-  chakra_color: string;
-  location: string;
-  theme: string;
-  imbalance_symptoms: string;
-  balanced_state: string;
-  healing_methods: string;
-  affirmation: string;
-  stone_support: string;
-  frequency_note: string;
-  source: string;
-  note: string;
+type ChakraForm = {
+  name: string;
+  organs: string;
+  glands: string;
+  color: string;
+  stones: string;
+  causes: string;
+  physical: string;
+  mental: string;
+  notes: string;
 };
 
-const emptyForm: ChakraNoteForm = {
-  chakra_name: "",
-  chakra_color: "",
-  location: "",
-  theme: "",
-  imbalance_symptoms: "",
-  balanced_state: "",
-  healing_methods: "",
-  affirmation: "",
-  stone_support: "",
-  frequency_note: "",
-  source: "",
-  note: "",
+const emptyForm: ChakraForm = {
+  name: "",
+  organs: "",
+  glands: "",
+  color: "",
+  stones: "",
+  causes: "",
+  physical: "",
+  mental: "",
+  notes: "",
 };
 
-function trimOrNull(v: string) {
-  const t = v.trim();
-  return t.length > 0 ? t : null;
+function trimOrEmpty(v: string) {
+  return v.trim();
 }
 
 function formatDate(iso: string) {
@@ -84,13 +75,6 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
-}
-
-/** Geçerli #hex ise rgba döndürür; değilse null */
 function hexToRgba(hex: string, alpha: number): string | null {
   const h = hex.trim();
   if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(h)) return null;
@@ -110,6 +94,10 @@ function hexToRgba(hex: string, alpha: number): string | null {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function colorDotStyle(color: string | null): string {
+  return hexToRgba(color ?? "", 1) ?? "rgb(251, 146, 60)";
+}
+
 function formPanelStyle(colorInput: string): CSSProperties {
   const tint = hexToRgba(colorInput, 0.14);
   const tintMid = hexToRgba(colorInput, 0.08);
@@ -124,16 +112,42 @@ function formPanelStyle(colorInput: string): CSSProperties {
   };
 }
 
+function slugifySourceUid(value: string) {
+  const slug = value
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug || String(Date.now());
+}
+
+function chakraSearchBlob(row: BioenergyChakraRecord) {
+  return [
+    row.name,
+    row.organs,
+    row.glands,
+    row.color,
+    row.stones,
+    row.causes,
+    row.physical,
+    row.mental,
+    row.notes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
+}
+
 export default function Cakralar() {
-  const [rows, setRows] = useState<ChakraNoteRecord[]>([]);
+  const [rows, setRows] = useState<BioenergyChakraRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [searchName, setSearchName] = useState("");
-  const [searchTheme, setSearchTheme] = useState("");
-  const [searchHealing, setSearchHealing] = useState("");
-  const [searchAffirmation, setSearchAffirmation] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState<ChakraNoteForm>({ ...emptyForm });
+  const [form, setForm] = useState<ChakraForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const [infoSuccess, setInfoSuccess] = useState("");
@@ -161,23 +175,23 @@ export default function Cakralar() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
-      .from("chakra_notes")
+      .from("bioenergy_chakras")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .order("created_at", { ascending: false });
+      .order("name");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      setLoadError(true);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as ChakraNoteRecord[]);
-  }, [showSoft]);
+    setRows((data || []) as BioenergyChakraRecord[]);
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -186,23 +200,10 @@ export default function Cakralar() {
   }, [loadRecords]);
 
   const filteredRows = useMemo(() => {
-    const n = searchName.trim().toLocaleLowerCase("tr-TR");
-    const t = searchTheme.trim().toLocaleLowerCase("tr-TR");
-    const h = searchHealing.trim().toLocaleLowerCase("tr-TR");
-    const a = searchAffirmation.trim().toLocaleLowerCase("tr-TR");
-    return rows.filter((row) => {
-      const nameOk =
-        !n || (row.chakra_name ?? "").toLocaleLowerCase("tr-TR").includes(n);
-      const themeOk =
-        !t || (row.theme ?? "").toLocaleLowerCase("tr-TR").includes(t);
-      const healingOk =
-        !h ||
-        (row.healing_methods ?? "").toLocaleLowerCase("tr-TR").includes(h);
-      const affOk =
-        !a || (row.affirmation ?? "").toLocaleLowerCase("tr-TR").includes(a);
-      return nameOk && themeOk && healingOk && affOk;
-    });
-  }, [rows, searchName, searchTheme, searchHealing, searchAffirmation]);
+    const q = searchQuery.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return rows;
+    return rows.filter((row) => chakraSearchBlob(row).includes(q));
+  }, [rows, searchQuery]);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
@@ -210,46 +211,38 @@ export default function Cakralar() {
   );
 
   const moduleStats = useMemo(() => {
-    const themes = new Set(rows.map((r) => r.theme?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
-    return { total: rows.length, themes: themes.size, last };
+    const colors = new Set(rows.map((r) => r.color?.trim()).filter(Boolean));
+    const newest = rows.reduce<string | null>((acc, row) => {
+      if (!row.created_at) return acc;
+      if (!acc || row.created_at > acc) return row.created_at;
+      return acc;
+    }, null);
+    const last = newest ? formatDate(newest) : "—";
+    return { total: rows.length, colors: colors.size, last };
   }, [rows]);
 
-  const hasSearch = Boolean(
-    searchName.trim() ||
-      searchTheme.trim() ||
-      searchHealing.trim() ||
-      searchAffirmation.trim(),
-  );
-
   const detailBgStyle = useMemo(
-    () => (selectedRow ? formPanelStyle(selectedRow.chakra_color ?? "") : undefined),
+    () => (selectedRow ? formPanelStyle(selectedRow.color ?? "") : undefined),
     [selectedRow],
   );
 
-  const modalFormBgStyle = useMemo(
-    () => formPanelStyle(form.chakra_color),
-    [form.chakra_color],
-  );
+  const modalFormBgStyle = useMemo(() => formPanelStyle(form.color), [form.color]);
 
-  function fillFormFromRow(row: ChakraNoteRecord) {
+  function fillFormFromRow(row: BioenergyChakraRecord) {
     setForm({
-      chakra_name: row.chakra_name ?? "",
-      chakra_color: row.chakra_color ?? "",
-      location: row.location ?? "",
-      theme: row.theme ?? "",
-      imbalance_symptoms: row.imbalance_symptoms ?? "",
-      balanced_state: row.balanced_state ?? "",
-      healing_methods: row.healing_methods ?? "",
-      affirmation: row.affirmation ?? "",
-      stone_support: row.stone_support ?? "",
-      frequency_note: row.frequency_note ?? "",
-      source: row.source ?? "",
-      note: row.note ?? "",
+      name: row.name ?? "",
+      organs: row.organs ?? "",
+      glands: row.glands ?? "",
+      color: row.color ?? "",
+      stones: row.stones ?? "",
+      causes: row.causes ?? "",
+      physical: row.physical ?? "",
+      mental: row.mental ?? "",
+      notes: row.notes ?? "",
     });
   }
 
-  function selectRow(row: ChakraNoteRecord) {
+  function selectRow(row: BioenergyChakraRecord) {
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -293,7 +286,7 @@ export default function Cakralar() {
   }
 
   async function handleKaydet() {
-    const nameTrim = form.chakra_name.trim();
+    const nameTrim = form.name.trim();
     if (!nameTrim) {
       showSoft("err", "Çakra adı zorunludur.");
       return;
@@ -301,20 +294,18 @@ export default function Cakralar() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("chakra_notes").insert({
+    const { error } = await supabase.from("bioenergy_chakras").insert({
       tenant_id: TENANT_ID,
-      chakra_name: nameTrim,
-      chakra_color: trimOrNull(form.chakra_color),
-      location: trimOrNull(form.location),
-      theme: trimOrNull(form.theme),
-      imbalance_symptoms: trimOrNull(form.imbalance_symptoms),
-      balanced_state: trimOrNull(form.balanced_state),
-      healing_methods: trimOrNull(form.healing_methods),
-      affirmation: trimOrNull(form.affirmation),
-      stone_support: trimOrNull(form.stone_support),
-      frequency_note: trimOrNull(form.frequency_note),
-      source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
+      source_uid: slugifySourceUid(nameTrim),
+      name: nameTrim,
+      organs: trimOrEmpty(form.organs),
+      glands: trimOrEmpty(form.glands),
+      color: trimOrEmpty(form.color),
+      stones: trimOrEmpty(form.stones),
+      causes: trimOrEmpty(form.causes),
+      physical: trimOrEmpty(form.physical),
+      mental: trimOrEmpty(form.mental),
+      notes: trimOrEmpty(form.notes),
     });
 
     setSaving(false);
@@ -326,7 +317,7 @@ export default function Cakralar() {
 
     setFormModalOpen(false);
     await loadRecords();
-    showSoft("ok", "Çakra notu oluşturuldu.");
+    showSoft("ok", "Çakra kaydı oluşturuldu.");
   }
 
   async function handleGuncelle() {
@@ -334,7 +325,7 @@ export default function Cakralar() {
       showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
       return;
     }
-    const nameTrim = form.chakra_name.trim();
+    const nameTrim = form.name.trim();
     if (!nameTrim) {
       showSoft("err", "Çakra adı zorunludur.");
       return;
@@ -343,23 +334,19 @@ export default function Cakralar() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("chakra_notes")
+      .from("bioenergy_chakras")
       .update({
-        chakra_name: nameTrim,
-        chakra_color: trimOrNull(form.chakra_color),
-        location: trimOrNull(form.location),
-        theme: trimOrNull(form.theme),
-        imbalance_symptoms: trimOrNull(form.imbalance_symptoms),
-        balanced_state: trimOrNull(form.balanced_state),
-        healing_methods: trimOrNull(form.healing_methods),
-        affirmation: trimOrNull(form.affirmation),
-        stone_support: trimOrNull(form.stone_support),
-        frequency_note: trimOrNull(form.frequency_note),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
+        name: nameTrim,
+        organs: trimOrEmpty(form.organs),
+        glands: trimOrEmpty(form.glands),
+        color: trimOrEmpty(form.color),
+        stones: trimOrEmpty(form.stones),
+        causes: trimOrEmpty(form.causes),
+        physical: trimOrEmpty(form.physical),
+        mental: trimOrEmpty(form.mental),
+        notes: trimOrEmpty(form.notes),
       })
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
 
@@ -387,11 +374,7 @@ export default function Cakralar() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
-      .from("chakra_notes")
-      .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+    const { error } = await supabase.from("bioenergy_chakras").delete().eq("id", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
@@ -415,60 +398,33 @@ export default function Cakralar() {
             Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
           </p>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+        <div className="grid w-full grid-cols-1 gap-2 sm:gap-3">
           <label className="block min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-orange-700/75">
-              Çakra adı
+              Ara (ad, organ, renk, taş, neden, fiziksel, zihinsel, not)
             </span>
             <input
               type="search"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className={searchInputClass("orange")}
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-rose-600/75">
-              Tema
-            </span>
-            <input
-              type="search"
-              value={searchTheme}
-              onChange={(e) => setSearchTheme(e.target.value)}
-              className={searchInputClass("fuchsia")}
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-amber-700/75">
-              Şifa yöntemleri
-            </span>
-            <input
-              type="search"
-              value={searchHealing}
-              onChange={(e) => setSearchHealing(e.target.value)}
-              className={searchInputClass("amber")}
-            />
-          </label>
-          <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Olumlama
-            </span>
-            <input
-              type="search"
-              value={searchAffirmation}
-              onChange={(e) => setSearchAffirmation(e.target.value)}
-              className={searchInputClass("violet")}
             />
           </label>
         </div>
         <ModuleStats
           total={moduleStats.total}
-          midLabel="Tema"
-          midCount={moduleStats.themes}
+          midLabel="Renk"
+          midCount={moduleStats.colors}
           lastDate={moduleStats.last}
           tone="orange"
         />
       </div>
+
+      {loadError ? (
+        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+          Hata: veri alınamadı
+        </div>
+      ) : null}
 
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -505,21 +461,21 @@ export default function Cakralar() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : filteredRows.length === 0 ? (
+            ) : loadError ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="⬡"
                 title="Liste boş"
-                subtitle={
-                  hasSearch
-                    ? "Aramayı güncelleyin veya Yeni Kayıt ile çakra notu ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                }
+                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 tone="orange"
               />
+            ) : filteredRows.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+                Aramayı güncelleyin veya Yeni Kayıt ile çakra ekleyin.
+              </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
-                const dotColor = hexToRgba(row.chakra_color ?? "", 1) ?? "rgb(251, 146, 60)";
+                const dotColor = colorDotStyle(row.color);
                 return (
                   <button
                     key={row.id}
@@ -532,25 +488,20 @@ export default function Cakralar() {
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(254,243,199,0.75)_50%,rgba(255,237,213,0.82)_100%)] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-orange-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_14px_-6px_rgba(234,88,12,0.15)] ring-1 ring-orange-200/55"
-                      >
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.95)_0%,rgba(254,243,199,0.75)_50%,rgba(255,237,213,0.82)_100%)] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-orange-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_14px_-6px_rgba(234,88,12,0.15)] ring-1 ring-orange-200/55">
                         <span
                           className="h-2 w-2 shrink-0 rounded-full shadow-[0_0_10px_rgba(251,146,60,0.45)] ring-2 ring-white/90"
                           style={{ backgroundColor: dotColor }}
                           aria-hidden
                         />
-                        <span className="truncate">{row.chakra_name?.trim() || "—"}</span>
+                        <span className="truncate">{row.name?.trim() || "—"}</span>
                       </span>
                     </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
-                      {row.theme?.trim() ? (
-                        <span className="max-w-[min(100%,200px)] truncate rounded-full bg-gradient-to-r from-rose-50/95 to-fuchsia-50/70 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-900/85 ring-1 ring-rose-100/70">
-                          {row.theme}
-                        </span>
-                      ) : null}
-                    </div>
+                    {row.color?.trim() ? (
+                      <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        {row.color}
+                      </p>
+                    ) : null}
                   </button>
                 );
               })
@@ -568,36 +519,38 @@ export default function Cakralar() {
                 SEÇİLİ KAYIT
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/70 px-3 py-1.5 text-[14px] font-black text-slate-900 shadow-sm ring-1 ring-orange-100/50"
-                >
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/70 px-3 py-1.5 text-[14px] font-black text-slate-900 shadow-sm ring-1 ring-orange-100/50">
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white/90"
-                    style={{
-                      backgroundColor:
-                        hexToRgba(selectedRow.chakra_color ?? "", 1) ?? "rgb(251, 146, 60)",
-                    }}
+                    style={{ backgroundColor: colorDotStyle(selectedRow.color) }}
                     aria-hidden
                   />
-                  {selectedRow.chakra_name?.trim() || "—"}
+                  {selectedRow.name?.trim() || "—"}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>{formatDate(selectedRow.created_at)}</span>
-                {selectedRow.location?.trim() ? (
-                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
-                    {selectedRow.location}
-                  </span>
-                ) : null}
-                {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-teal-100/80 bg-teal-50/80 px-2 py-0.5 text-[10px] font-black text-teal-950/90">
-                    Kaynak: {selectedRow.source}
-                  </span>
-                ) : null}
+              <div className="mt-4 space-y-3 text-[12px] leading-relaxed">
+                {(
+                  [
+                    ["Organlar", selectedRow.organs],
+                    ["Bezler", selectedRow.glands],
+                    ["Renk", selectedRow.color],
+                    ["Taşlar", selectedRow.stones],
+                    ["Nedenler", selectedRow.causes],
+                    ["Fiziksel", selectedRow.physical],
+                    ["Zihinsel", selectedRow.mental],
+                    ["Notlar", selectedRow.notes],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-orange-700/75">
+                      {label}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap font-semibold text-slate-600">
+                      {value?.trim() || "—"}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.theme)}
-              </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
                 <button
                   type="button"
@@ -619,7 +572,7 @@ export default function Cakralar() {
           ) : (
             <div className="flex min-h-[220px] flex-col items-center justify-center px-2 text-center">
               <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
-                Soldan bir kayıt seçin veya yeni çakra notu eklemek için üstteki düğmeyi kullanın.
+                Soldan bir kayıt seçin veya yeni çakra eklemek için üstteki düğmeyi kullanın.
               </p>
             </div>
           )}
@@ -629,7 +582,7 @@ export default function Cakralar() {
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
         onClose={closeFormModal}
-        title={formModalMode === "create" ? "Yeni çakra notu" : "Çakra notunu düzenle"}
+        title={formModalMode === "create" ? "Yeni çakra" : "Çakrayı düzenle"}
         subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
         titleId="chakra-form-modal-title"
         accentRingClass="ring-orange-100/50"
@@ -665,7 +618,7 @@ export default function Cakralar() {
                 type="button"
                 disabled={saving}
                 onClick={() => void handleGuncelle()}
-                className="rounded-xl border border-orange-200/70 bg-orange-50/90 px-4 py-2.5 text-[12px] font-black text-orange-950 shadow-sm transition hover:bg-orange-100/90 disabled:opacity-55"
+                className="rounded-xl border border-orange-200/70 bg-amber-50/90 px-4 py-2.5 text-[12px] font-black text-amber-950 shadow-sm transition hover:bg-amber-100/90 disabled:opacity-55"
               >
                 {saving ? "Güncelleniyor…" : "Güncelle"}
               </button>
@@ -680,43 +633,46 @@ export default function Cakralar() {
               Çakra Adı
             </span>
             <input
-              value={form.chakra_name}
-              onChange={(e) => setForm((f) => ({ ...f, chakra_name: e.target.value }))}
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="h-12 w-full rounded-xl border border-orange-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-orange-200/90 focus:ring-2 focus:ring-orange-100/55"
             />
           </label>
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500/90" />
-              Çakra Rengi
+              Renk
             </span>
             <input
-              value={form.chakra_color}
-              onChange={(e) => setForm((f) => ({ ...f, chakra_color: e.target.value }))}
+              value={form.color}
+              onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
               className="h-12 w-full rounded-xl border border-rose-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-rose-200/90 focus:ring-2 focus:ring-rose-100/55"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-              Konum
-            </span>
-            <input
-              value={form.location}
-              onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
             />
           </label>
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/85" />
-                Tema
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
+                Organlar
               </span>
             }
-            modalTitle="Tema"
-            value={form.theme}
-            onChange={(v) => setForm((f) => ({ ...f, theme: v }))}
+            modalTitle="Organlar"
+            value={form.organs}
+            onChange={(v) => setForm((f) => ({ ...f, organs: v }))}
+            minRows={2}
+            className="w-full resize-none rounded-xl border border-amber-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-amber-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/85" />
+                Bezler
+              </span>
+            }
+            modalTitle="Bezler"
+            value={form.glands}
+            onChange={(v) => setForm((f) => ({ ...f, glands: v }))}
             minRows={2}
             className="w-full resize-none rounded-xl border border-fuchsia-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-fuchsia-100/50 transition"
             disabled={saving}
@@ -724,13 +680,27 @@ export default function Cakralar() {
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
-                Dengesizlik Belirtileri
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
+                Taşlar
               </span>
             }
-            modalTitle="Dengesizlik Belirtileri"
-            value={form.imbalance_symptoms}
-            onChange={(v) => setForm((f) => ({ ...f, imbalance_symptoms: v }))}
+            modalTitle="Taşlar"
+            value={form.stones}
+            onChange={(v) => setForm((f) => ({ ...f, stones: v }))}
+            minRows={2}
+            className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
+            disabled={saving}
+          />
+          <LongTextareaField
+            label={
+              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500/75" />
+                Nedenler
+              </span>
+            }
+            modalTitle="Nedenler"
+            value={form.causes}
+            onChange={(v) => setForm((f) => ({ ...f, causes: v }))}
             minRows={3}
             className="w-full resize-none rounded-xl border border-red-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-red-100/50 transition"
             disabled={saving}
@@ -738,27 +708,13 @@ export default function Cakralar() {
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                Dengeli Durum
-              </span>
-            }
-            modalTitle="Dengeli Durum"
-            value={form.balanced_state}
-            onChange={(v) => setForm((f) => ({ ...f, balanced_state: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                Şifa Yöntemleri
+                Fiziksel
               </span>
             }
-            modalTitle="Şifa Yöntemleri"
-            value={form.healing_methods}
-            onChange={(v) => setForm((f) => ({ ...f, healing_methods: v }))}
+            modalTitle="Fiziksel"
+            value={form.physical}
+            onChange={(v) => setForm((f) => ({ ...f, physical: v }))}
             minRows={3}
             className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
             disabled={saving}
@@ -767,12 +723,12 @@ export default function Cakralar() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
-                Olumlama
+                Zihinsel
               </span>
             }
-            modalTitle="Olumlama"
-            value={form.affirmation}
-            onChange={(v) => setForm((f) => ({ ...f, affirmation: v }))}
+            modalTitle="Zihinsel"
+            value={form.mental}
+            onChange={(v) => setForm((f) => ({ ...f, mental: v }))}
             minRows={3}
             className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-violet-100/50 transition"
             disabled={saving}
@@ -780,53 +736,14 @@ export default function Cakralar() {
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                Taş Desteği
-              </span>
-            }
-            modalTitle="Taş Desteği"
-            value={form.stone_support}
-            onChange={(v) => setForm((f) => ({ ...f, stone_support: v }))}
-            minRows={2}
-            className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
-                Frekans Notu
-              </span>
-            }
-            modalTitle="Frekans Notu"
-            value={form.frequency_note}
-            onChange={(v) => setForm((f) => ({ ...f, frequency_note: v }))}
-            minRows={2}
-            className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-sky-100/50 transition"
-            disabled={saving}
-          />
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-600/80" />
-              Kaynak
-            </span>
-            <input
-              value={form.source}
-              onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-teal-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-teal-200/90 focus:ring-2 focus:ring-teal-100/55"
-            />
-          </label>
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
+                Notlar
               </span>
             }
-            modalTitle="Not"
-            value={form.note}
-            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-            minRows={2}
+            modalTitle="Notlar"
+            value={form.notes}
+            onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+            minRows={3}
             className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
             disabled={saving}
           />
@@ -850,7 +767,7 @@ export default function Cakralar() {
               SİLME ONAYI
             </div>
             <h3 id="chakra-delete-title" className="mt-2 text-[17px] font-black leading-snug text-slate-950">
-              Bu çakra notunu silmek istediğinizden emin misiniz?
+              Bu çakra kaydını silmek istediğinizden emin misiniz?
             </h3>
             <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
               İşlem geri alınamaz. Kayıt listeden kaldırılır.
