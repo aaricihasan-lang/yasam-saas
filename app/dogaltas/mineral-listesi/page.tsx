@@ -2,13 +2,28 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 
 const MINERALS_LIST_SELECT =
   "id,source_id,name,aciklama,kategori,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,created_at";
 
 const UNCATEGORIZED_LABEL = "Kategorisiz";
+
+const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+const SEARCH_MATCH_BADGE_CLASS =
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
 
 type MineralRecord = {
   id: string;
@@ -25,6 +40,76 @@ type MineralRecord = {
   iceren_taslar: string[] | null;
   created_at: string;
 };
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
+  let norm = "";
+  const indexMap: number[] = [];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const charNorm = normalizeTrSearch(text[i] ?? "");
+    for (let j = 0; j < charNorm.length; j += 1) {
+      norm += charNorm[j];
+      indexMap.push(i);
+    }
+  }
+
+  return { norm, indexMap };
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  const queryNorm = normalizeTrSearch(trimmedQuery);
+  if (!queryNorm) return text;
+
+  const { norm, indexMap } = buildNormIndexMap(text);
+  const nodes: ReactNode[] = [];
+  let lastEnd = 0;
+  let searchFrom = 0;
+
+  while (searchFrom <= norm.length - queryNorm.length) {
+    const idx = norm.indexOf(queryNorm, searchFrom);
+    if (idx < 0) break;
+
+    const startOrig = indexMap[idx] ?? 0;
+    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
+
+    if (startOrig > lastEnd) {
+      nodes.push(
+        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
+      );
+    }
+
+    nodes.push(
+      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
+        {text.slice(startOrig, endOrig)}
+      </mark>,
+    );
+
+    lastEnd = endOrig;
+    searchFrom = idx + queryNorm.length;
+  }
+
+  if (lastEnd < text.length) {
+    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
+  }
+
+  return nodes.length > 0 ? nodes : text;
+}
 
 function ensureStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -63,18 +148,61 @@ function previewText(value: string | null | undefined, limit = 120) {
   return clean.length > limit ? `${clean.slice(0, limit)}…` : clean;
 }
 
-function mineralSearchBlob(mineral: MineralRecord) {
-  return [
+function buildSearchableText(mineral: MineralRecord): string {
+  const parts: string[] = [
     mineral.name,
-    mineral.aciklama,
+    mineral.aciklama ?? "",
+    mineral.kategori ?? "",
+    mineral.source_id,
     ...ensureStringArray(mineral.fiziksel),
     ...ensureStringArray(mineral.zihinsel),
     ...ensureStringArray(mineral.fizyoloji),
+    ...ensureStringArray(mineral.eksiklik_belirtileri),
+    ...ensureStringArray(mineral.fazlalik_belirtileri),
+    ...ensureStringArray(mineral.doz_asimi),
     ...ensureStringArray(mineral.iceren_taslar),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+  ];
+
+  for (const value of Object.values(mineral)) {
+    if (typeof value === "string" && value.trim()) {
+      parts.push(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim()) parts.push(item);
+      }
+    }
+  }
+
+  return parts.filter(Boolean).join(" ");
+}
+
+function mineralMatchesSearch(mineral: MineralRecord, searchTerm: string): boolean {
+  const trimmed = searchTerm.trim();
+  if (!trimmed) return true;
+  const haystack = normalizeTrSearch(buildSearchableText(mineral));
+  const needle = normalizeTrSearch(trimmed);
+  return Boolean(needle) && haystack.includes(needle);
+}
+
+function readViewedMineralIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((id) => String(id)));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function markViewedMineralId(id: string) {
+  const viewed = readViewedMineralIds();
+  viewed.add(id);
+  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
 }
 
 const uiHeaderCard =
@@ -90,18 +218,23 @@ const uiActionBtn =
 const uiStatCard =
   "rounded-2xl border-2 border-amber-300/40 bg-white/80 px-8 py-4 text-center shadow-md";
 const uiMineralCard =
-  "flex h-full flex-col rounded-[32px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-amber-400 hover:shadow-[0_0_55px_rgba(245,158,11,0.18)]";
+  "relative flex h-full flex-col overflow-hidden rounded-[32px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-amber-400 hover:shadow-[0_0_55px_rgba(245,158,11,0.18)]";
 const uiCategoryPill =
   "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
 const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-emerald-700";
 
-export default function MineralListesiPage() {
+function MineralListesiPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() ?? "";
+
   const [minerals, setMinerals] = useState<MineralRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(urlQuery);
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
 
   async function loadMinerals() {
     setLoading(true);
@@ -125,8 +258,40 @@ export default function MineralListesiPage() {
 
   useEffect(() => {
     runInEffect(() => {
-      loadMinerals();
+      void loadMinerals();
     });
+  }, []);
+
+  useEffect(() => {
+    setSearch(urlQuery);
+  }, [urlQuery]);
+
+  useEffect(() => {
+    const refreshViewed = () => setViewedMineralIds(readViewedMineralIds());
+    refreshViewed();
+    window.addEventListener("focus", refreshViewed);
+    return () => window.removeEventListener("focus", refreshViewed);
+  }, []);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value);
+      const trimmed = value.trim();
+      if (!trimmed) {
+        router.replace("/dogaltas/mineral-listesi", { scroll: false });
+        return;
+      }
+      router.replace(
+        `/dogaltas/mineral-listesi?q=${encodeURIComponent(trimmed)}`,
+        { scroll: false },
+      );
+    },
+    [router],
+  );
+
+  const handleResultNavigate = useCallback((mineralId: string) => {
+    markViewedMineralId(mineralId);
+    setViewedMineralIds(readViewedMineralIds());
   }, []);
 
   const categories = useMemo(() => {
@@ -141,14 +306,14 @@ export default function MineralListesiPage() {
     });
   }, [minerals]);
 
+  const activeSearch = search.trim();
+
   const filteredMinerals = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("tr-TR");
     const category = categoryFilter.trim();
 
     return minerals.filter((mineral) => {
       if (category && getCategoryLabel(mineral.kategori) !== category) return false;
-      if (!keyword) return true;
-      return mineralSearchBlob(mineral).includes(keyword);
+      return mineralMatchesSearch(mineral, search);
     });
   }, [minerals, search, categoryFilter]);
 
@@ -198,8 +363,9 @@ export default function MineralListesiPage() {
         <section className={`${uiFilterCard} mb-5`}>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <input
+              type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
               className={`${uiField} flex-1 text-sm text-slate-700`}
             />
@@ -218,7 +384,7 @@ export default function MineralListesiPage() {
             </select>
             <button
               type="button"
-              onClick={loadMinerals}
+              onClick={() => void loadMinerals()}
               className={`${uiActionBtn} border-2 border-emerald-200/80 bg-white/80 text-slate-700 hover:border-emerald-400`}
             >
               Yenile
@@ -230,6 +396,11 @@ export default function MineralListesiPage() {
               + Yeni Mineral
             </Link>
           </div>
+          {activeSearch ? (
+            <p className="mt-3 text-sm font-bold text-cyan-800">
+              Arama: “{activeSearch}” · {filteredMinerals.length} sonuç
+            </p>
+          ) : null}
         </section>
 
         {errorMessage ? (
@@ -267,10 +438,32 @@ export default function MineralListesiPage() {
               {filteredMinerals.map((mineral) => {
                 const categoryLabel = getCategoryLabel(mineral.kategori);
                 const showCategoryPill = categoryLabel !== UNCATEGORIZED_LABEL;
+                const isViewed = viewedMineralIds.has(mineral.id);
+                const hasSearch = Boolean(activeSearch);
+                const descriptionPreview = previewText(mineral.aciklama);
+                const detailHref = activeSearch
+                  ? `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}?q=${encodeURIComponent(activeSearch)}`
+                  : `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}`;
 
                 return (
-                  <article key={mineral.id} className={uiMineralCard}>
-                    <div className="flex gap-3">
+                  <article
+                    key={mineral.id}
+                    className={`${uiMineralCard} ${
+                      isViewed
+                        ? "border-l-4 border-rose-600"
+                        : hasSearch
+                          ? "border-l-4 border-amber-400"
+                          : ""
+                    }`}
+                  >
+                    {isViewed ? (
+                      <span
+                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                        aria-hidden
+                      />
+                    ) : null}
+
+                    <div className={`flex gap-3 ${isViewed ? "pl-2" : ""}`}>
                       <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#d1fae5_0%,#fef3c7_48%,#fde68a_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(16,185,129,0.12)] ring-1 ring-white/90"
                         aria-hidden
@@ -278,17 +471,43 @@ export default function MineralListesiPage() {
                         ⚗️
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          {hasSearch ? (
+                            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                          ) : null}
+                          {isViewed ? (
+                            <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                              Bakıldı
+                            </span>
+                          ) : null}
+                        </div>
+
                         {showCategoryPill ? (
-                          <span className={`${uiCategoryPill} mb-2 w-fit`}>{categoryLabel}</span>
+                          <span className={`${uiCategoryPill} mb-2 w-fit`}>
+                            {hasSearch
+                              ? renderHighlightedText(categoryLabel, activeSearch)
+                              : categoryLabel}
+                          </span>
                         ) : (
-                          <span className="mb-2 text-xs font-bold text-slate-400">{categoryLabel}</span>
+                          <span className="mb-2 text-xs font-bold text-slate-400">
+                            {hasSearch
+                              ? renderHighlightedText(categoryLabel, activeSearch)
+                              : categoryLabel}
+                          </span>
                         )}
-                        <h2 className="text-2xl font-black text-slate-950">{mineral.name}</h2>
+                        <h2 className="text-2xl font-black text-slate-950">
+                          {hasSearch
+                            ? renderHighlightedText(mineral.name, activeSearch)
+                            : mineral.name}
+                        </h2>
                         <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
-                          {previewText(mineral.aciklama)}
+                          {hasSearch
+                            ? renderHighlightedText(descriptionPreview, activeSearch)
+                            : descriptionPreview}
                         </p>
                         <Link
-                          href={`/dogaltas/mineral-listesi/${mineral.id}`}
+                          href={detailHref}
+                          onClick={() => handleResultNavigate(mineral.id)}
                           className={uiComboBtn}
                         >
                           Detayı Gör →
@@ -303,5 +522,21 @@ export default function MineralListesiPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function MineralListesiPageFallback() {
+  return (
+    <main className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)]">
+      <p className="text-base font-black text-emerald-800">Yükleniyor…</p>
+    </main>
+  );
+}
+
+export default function MineralListesiPage() {
+  return (
+    <Suspense fallback={<MineralListesiPageFallback />}>
+      <MineralListesiPageContent />
+    </Suspense>
   );
 }
