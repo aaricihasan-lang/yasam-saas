@@ -3771,15 +3771,32 @@ function parseReflexologyProtocolJsonItems(text: string): {
     return { items: [], error: "Geçersiz JSON dosyası." };
   }
 
-  if (!Array.isArray(parsed)) {
-    return { items: [], error: "JSON kökü bir dizi olmalıdır." };
+  const json = parsed;
+  const jsonObject =
+    json && typeof json === "object" && !Array.isArray(json)
+      ? (json as Record<string, unknown>)
+      : null;
+  const records = Array.isArray(json)
+    ? json
+    : Array.isArray(jsonObject?.items)
+      ? jsonObject.items
+      : Array.isArray(jsonObject?.protokoller)
+        ? jsonObject.protokoller
+        : Array.isArray(jsonObject?.data)
+          ? jsonObject.data
+          : Array.isArray(jsonObject?.records)
+            ? jsonObject.records
+            : [];
+
+  if (records.length === 0) {
+    return { items: [], error: "JSON içinde protokol kaydı bulunamadı" };
   }
 
-  const items = parsed.filter(
+  const items = records.filter(
     (item) => item && typeof item === "object",
   ) as ReflexologyProtocolJsonItem[];
   if (items.length === 0) {
-    return { items: [], error: "JSON içinde işlenebilir protokol kaydı bulunamadı." };
+    return { items: [], error: "JSON içinde protokol kaydı bulunamadı" };
   }
 
   return { items, error: null };
