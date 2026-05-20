@@ -2,8 +2,137 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+
+const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
+
+const COMBINATIONS_SEARCH_STORAGE_KEYS = [
+  "yasam-combinations-search",
+  "yasam-combinations-search-query",
+  "combinations-search",
+  "searchTerm",
+  "q",
+] as const;
+
+const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+const SEARCH_MATCH_BADGE_CLASS =
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
+  let norm = "";
+  const indexMap: number[] = [];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const charNorm = normalizeTrSearch(text[i] ?? "");
+    for (let j = 0; j < charNorm.length; j += 1) {
+      norm += charNorm[j];
+      indexMap.push(i);
+    }
+  }
+
+  return { norm, indexMap };
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  const queryNorm = normalizeTrSearch(trimmedQuery);
+  if (!queryNorm) return text;
+
+  const { norm, indexMap } = buildNormIndexMap(text);
+  const nodes: ReactNode[] = [];
+  let lastEnd = 0;
+  let searchFrom = 0;
+
+  while (searchFrom <= norm.length - queryNorm.length) {
+    const idx = norm.indexOf(queryNorm, searchFrom);
+    if (idx < 0) break;
+
+    const startOrig = indexMap[idx] ?? 0;
+    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
+
+    if (startOrig > lastEnd) {
+      nodes.push(
+        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
+      );
+    }
+
+    nodes.push(
+      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
+        {text.slice(startOrig, endOrig)}
+      </mark>,
+    );
+
+    lastEnd = endOrig;
+    searchFrom = idx + queryNorm.length;
+  }
+
+  if (lastEnd < text.length) {
+    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
+  }
+
+  return nodes.length > 0 ? nodes : text;
+}
+
+function clearCombinationsSearchStorage() {
+  if (typeof window === "undefined") return;
+  for (const key of COMBINATIONS_SEARCH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
+
+function readUrlSearchQuery(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+}
+
+function stripUrlSearchQuery() {
+  if (typeof window === "undefined") return;
+  const cleanUrl = window.location.pathname;
+  window.history.replaceState({}, "", cleanUrl);
+}
+
+function readViewedCombinationIssues(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((id) => String(id)));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function markViewedCombinationIssue(issue: string) {
+  const viewed = readViewedCombinationIssues();
+  viewed.add(issue);
+  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
+}
+
+function combinationDetailHref(issue: string, query: string, isSearchActive: boolean) {
+  const base = `/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`;
+  return isSearchActive ? `${base}?q=${encodeURIComponent(query)}` : base;
+}
 
 type CombinationRecord = {
   id: string;
@@ -81,11 +210,38 @@ function formatListCardDate(iso: string) {
   }).format(new Date(iso));
 }
 
-function rowSearchText(row: CombinationRecord) {
-  return [row.issue, row.description, row.stones_text, row.notes_text]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
+function buildSearchableText(row: CombinationRecord): string {
+  const parts: string[] = [
+    row.issue,
+    row.description ?? "",
+    row.source ?? "",
+    row.stones_text ?? "",
+    row.notes_text ?? "",
+    row.notes_text_2 ?? "",
+    row.notes_text_3 ?? "",
+    row.source_id,
+    String(row.variant_index),
+  ];
+
+  for (const value of Object.values(row)) {
+    if (typeof value === "string" && value.trim()) {
+      parts.push(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim()) parts.push(item);
+      }
+    }
+  }
+
+  return parts.filter(Boolean).join(" ");
+}
+
+function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
+  const trimmed = searchTerm.trim();
+  if (!trimmed) return true;
+  const haystack = normalizeTrSearch(buildSearchableText(row));
+  const needle = normalizeTrSearch(trimmed);
+  return Boolean(needle) && haystack.includes(needle);
 }
 
 const pageBg =
@@ -104,7 +260,7 @@ const uiCategorySelect =
 const uiViewBtn =
   "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-1";
 const uiComboCard =
-  "flex flex-col rounded-[32px] border-[3px] border-cyan-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.15)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-violet-400 hover:shadow-[0_0_55px_rgba(139,92,246,0.18)]";
+  "relative flex flex-col overflow-hidden rounded-[32px] border-[3px] border-cyan-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.15)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-violet-400 hover:shadow-[0_0_55px_rgba(139,92,246,0.18)]";
 const uiComboBadge =
   "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 font-black text-white shadow-md";
 const uiCategoryPill =
@@ -115,10 +271,39 @@ const uiComboBtn =
 export default function KombinasyonlarPage() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [viewedIssueKeys, setViewedIssueKeys] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
+
+  const clearSearch = useCallback(() => {
+    if (readUrlSearchQuery()) {
+      stripUrlSearchQuery();
+    }
+    clearCombinationsSearchStorage();
+    setSearchTerm("");
+  }, []);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (!value.trim()) {
+      if (readUrlSearchQuery()) {
+        stripUrlSearchQuery();
+      }
+      clearCombinationsSearchStorage();
+    }
+  }, []);
+
+  const handleCombinationNavigate = useCallback((issue: string) => {
+    markViewedCombinationIssue(issue);
+    setViewedIssueKeys(readViewedCombinationIssues());
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    clearSearch();
+    void loadCombinations();
+  }, [clearSearch]);
 
   async function loadCombinations() {
     setLoading(true);
@@ -144,9 +329,26 @@ export default function KombinasyonlarPage() {
 
   useEffect(() => {
     runInEffect(() => {
-      loadCombinations();
+      void loadCombinations();
     });
   }, []);
+
+  useEffect(() => {
+    const q = readUrlSearchQuery();
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, []);
+
+  useEffect(() => {
+    const refreshViewed = () => setViewedIssueKeys(readViewedCombinationIssues());
+    refreshViewed();
+    window.addEventListener("focus", refreshViewed);
+    return () => window.removeEventListener("focus", refreshViewed);
+  }, []);
+
+  const isSearchActive = Boolean(searchTerm.trim());
+  const activeSearch = searchTerm.trim();
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -158,15 +360,13 @@ export default function KombinasyonlarPage() {
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("tr-TR");
     const category = categoryFilter.trim();
 
     return rows.filter((row) => {
       if (category && (row.description?.trim() || "") !== category) return false;
-      if (!keyword) return true;
-      return rowSearchText(row).includes(keyword);
+      return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
     });
-  }, [rows, search, categoryFilter]);
+  }, [rows, searchTerm, isSearchActive, categoryFilter]);
 
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
@@ -192,7 +392,7 @@ export default function KombinasyonlarPage() {
     return set.size;
   }, [rows]);
 
-  const hasFilters = Boolean(search.trim() || categoryFilter.trim());
+  const hasFilters = Boolean(isSearchActive || categoryFilter.trim());
   const isEmptyDatabase = !loading && !errorMessage && rows.length === 0;
   const isEmptyFiltered = !loading && !errorMessage && rows.length > 0 && groups.length === 0;
 
@@ -252,19 +452,27 @@ export default function KombinasyonlarPage() {
 
         <section className={uiFilterCard}>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative min-w-0 w-full flex-1">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
+            <form
+              className="relative min-w-0 w-full flex-1"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <span className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-[17px] text-slate-400">
                 ⌕
               </span>
 
               <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                type="search"
+                value={searchTerm}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
                 placeholder="Issue, açıklama, taş metni veya notlarda ara..."
                 className={uiSearchInput}
+                enterKeyHint="search"
+                autoComplete="off"
               />
-            </div>
+            </form>
 
             <select
               value={categoryFilter}
@@ -307,7 +515,7 @@ export default function KombinasyonlarPage() {
 
               <button
                 type="button"
-                onClick={loadCombinations}
+                onClick={handleRefresh}
                 className={`${uiViewBtn} border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
               >
                 Yenile
@@ -317,9 +525,11 @@ export default function KombinasyonlarPage() {
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
-              {hasFilters
-                ? `${filteredRows.length} variant · ${groups.length} grup`
-                : `${rows.length} variant · ${groups.length} grup`}
+              {isSearchActive
+                ? `Arama: “${activeSearch}” · ${filteredRows.length} variant · ${groups.length} grup`
+                : hasFilters
+                  ? `${filteredRows.length} variant · ${groups.length} grup`
+                  : `${rows.length} variant · ${groups.length} grup`}
             </p>
 
             {loading && (
@@ -375,32 +585,81 @@ export default function KombinasyonlarPage() {
                     const category = groupDescription(groupRows);
                     const ts = latestDisplayTimestamp(groupRows);
                     const count = groupRows.length;
+                    const isViewedInSearch =
+                      isSearchActive && viewedIssueKeys.has(issue);
+                    const detailHref = combinationDetailHref(
+                      issue,
+                      activeSearch,
+                      isSearchActive,
+                    );
+                    const sourceDisplay = sourceLine || "Kaynak belirtilmedi";
 
                     return (
                       <div
                         key={issue}
-                        className="grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                        className={`relative grid grid-cols-[1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 ${
+                          isViewedInSearch
+                            ? "border-l-4 border-rose-600"
+                            : isSearchActive
+                              ? "border-l-4 border-amber-400"
+                              : ""
+                        }`}
                       >
-                        <div className="min-w-0 font-black text-slate-950">
-                          <span className="block truncate">{issue}</span>
-                        </div>
-                        <div className="min-w-0 font-semibold text-violet-800">
-                          <span className="line-clamp-2 block">{category || "—"}</span>
-                        </div>
-                        <div className="font-bold text-slate-600">{count}</div>
-                        <div className="min-w-0 text-slate-600">
-                          <span className="line-clamp-2 block font-medium">
-                            {sourceLine || (
-                              <span className="text-slate-400">Kaynak belirtilmedi</span>
-                            )}
+                        {isViewedInSearch ? (
+                          <span
+                            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                            aria-hidden
+                          />
+                        ) : null}
+                        <div className={`min-w-0 font-black text-slate-950 ${isViewedInSearch ? "pl-2" : ""}`}>
+                          {isSearchActive ? (
+                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                              {isViewedInSearch ? (
+                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                                  Bakıldı
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <span className="block truncate">
+                            {isSearchActive
+                              ? renderHighlightedText(issue, activeSearch)
+                              : issue}
                           </span>
                         </div>
-                        <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
+                        <div className={`min-w-0 font-semibold text-violet-800 ${isViewedInSearch ? "pl-2" : ""}`}>
+                          <span className="line-clamp-2 block">
+                            {isSearchActive && category
+                              ? renderHighlightedText(category, activeSearch)
+                              : category || "—"}
+                          </span>
+                        </div>
+                        <div className={`font-bold text-slate-600 ${isViewedInSearch ? "pl-2" : ""}`}>
+                          {count}
+                        </div>
+                        <div className={`min-w-0 text-slate-600 ${isViewedInSearch ? "pl-2" : ""}`}>
+                          <span className="line-clamp-2 block font-medium">
+                            {isSearchActive && sourceLine
+                              ? renderHighlightedText(sourceDisplay, activeSearch)
+                              : sourceLine ? (
+                                sourceDisplay
+                              ) : (
+                                <span className="text-slate-400">Kaynak belirtilmedi</span>
+                              )}
+                          </span>
+                        </div>
+                        <div
+                          className={`whitespace-nowrap text-[12px] font-semibold text-slate-500 ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
                           {ts ? formatListCardDate(ts) : "—"}
                         </div>
                         <div className="flex justify-end">
                           <Link
-                            href={`/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`}
+                            href={detailHref}
+                            onClick={() => {
+                              if (isSearchActive) handleCombinationNavigate(issue);
+                            }}
                             className={`${uiComboBtn} !mt-0 px-4 py-3 text-sm`}
                           >
                             Detay →
@@ -419,10 +678,33 @@ export default function KombinasyonlarPage() {
                 const category = groupDescription(groupRows);
                 const ts = latestDisplayTimestamp(groupRows);
                 const count = groupRows.length;
+                const isViewedInSearch =
+                  isSearchActive && viewedIssueKeys.has(issue);
+                const detailHref = combinationDetailHref(
+                  issue,
+                  activeSearch,
+                  isSearchActive,
+                );
+                const preview = previewText(groupRows);
 
                 return (
-                  <article key={issue} className={uiComboCard}>
-                    <div className="flex gap-3">
+                  <article
+                    key={issue}
+                    className={`${uiComboCard} ${
+                      isViewedInSearch
+                        ? "border-l-4 border-rose-600"
+                        : isSearchActive
+                          ? "border-l-4 border-amber-400"
+                          : ""
+                    }`}
+                  >
+                    {isViewedInSearch ? (
+                      <span
+                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
                         aria-hidden
@@ -433,16 +715,36 @@ export default function KombinasyonlarPage() {
                       <div className="flex min-w-0 flex-1 flex-col">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className={uiComboBadge}>{count} kombinasyon</span>
-                          {category ? <span className={uiCategoryPill}>{category}</span> : null}
+                          {isSearchActive ? (
+                            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                          ) : null}
+                          {isViewedInSearch ? (
+                            <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                              Bakıldı
+                            </span>
+                          ) : null}
+                          {category ? (
+                            <span className={uiCategoryPill}>
+                              {isSearchActive
+                                ? renderHighlightedText(category, activeSearch)
+                                : category}
+                            </span>
+                          ) : null}
                         </div>
 
-                        <h2 className="mt-3 text-3xl font-black text-slate-950">{issue}</h2>
+                        <h2 className="mt-3 text-3xl font-black text-slate-950">
+                          {isSearchActive
+                            ? renderHighlightedText(issue, activeSearch)
+                            : issue}
+                        </h2>
 
                         <p className="mt-2 line-clamp-2 text-sm font-bold text-cyan-700">
                           {sourceLine ? (
                             <>
                               <span>Kaynak: </span>
-                              {sourceLine}
+                              {isSearchActive
+                                ? renderHighlightedText(sourceLine, activeSearch)
+                                : sourceLine}
                             </>
                           ) : (
                             <span className="text-slate-400">Kaynak belirtilmedi</span>
@@ -450,7 +752,9 @@ export default function KombinasyonlarPage() {
                         </p>
 
                         <p className="mt-3 flex-1 text-base leading-7 text-slate-700">
-                          {previewText(groupRows)}
+                          {isSearchActive
+                            ? renderHighlightedText(preview, activeSearch)
+                            : preview}
                         </p>
 
                         <p className="mt-2 text-sm font-medium text-slate-500">
@@ -458,7 +762,10 @@ export default function KombinasyonlarPage() {
                         </p>
 
                         <Link
-                          href={`/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`}
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleCombinationNavigate(issue);
+                          }}
                           className={uiComboBtn}
                         >
                           Kombinasyonları Gör →

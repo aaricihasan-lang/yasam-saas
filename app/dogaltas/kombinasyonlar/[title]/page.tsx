@@ -2,14 +2,27 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const COMBINATIONS_SELECT =
   "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
+
+const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+const SEARCH_MATCH_BADGE_CLASS =
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+const SEARCH_MATCH_CARD_CLASS = "border-rose-300 ring-2 ring-rose-100";
 
 type CombinationRecord = {
   id: string;
@@ -25,6 +38,92 @@ type CombinationRecord = {
   notes_text_3: string | null;
   created_at: string;
 };
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
+  let norm = "";
+  const indexMap: number[] = [];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const charNorm = normalizeTrSearch(text[i] ?? "");
+    for (let j = 0; j < charNorm.length; j += 1) {
+      norm += charNorm[j];
+      indexMap.push(i);
+    }
+  }
+
+  return { norm, indexMap };
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  const queryNorm = normalizeTrSearch(trimmedQuery);
+  if (!queryNorm) return text;
+
+  const { norm, indexMap } = buildNormIndexMap(text);
+  const nodes: ReactNode[] = [];
+  let lastEnd = 0;
+  let searchFrom = 0;
+
+  while (searchFrom <= norm.length - queryNorm.length) {
+    const idx = norm.indexOf(queryNorm, searchFrom);
+    if (idx < 0) break;
+
+    const startOrig = indexMap[idx] ?? 0;
+    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
+
+    if (startOrig > lastEnd) {
+      nodes.push(
+        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
+      );
+    }
+
+    nodes.push(
+      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
+        {text.slice(startOrig, endOrig)}
+      </mark>,
+    );
+
+    lastEnd = endOrig;
+    searchFrom = idx + queryNorm.length;
+  }
+
+  if (lastEnd < text.length) {
+    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
+  }
+
+  return nodes.length > 0 ? nodes : text;
+}
+
+function textMatchesQuery(text: string | null | undefined, query: string): boolean {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return false;
+  const haystack = normalizeTrSearch(String(text ?? ""));
+  const needle = normalizeTrSearch(trimmedQuery);
+  return Boolean(needle) && haystack.includes(needle);
+}
+
+function SearchMatchBadge() {
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
+}
+
+function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
+  return hasSearchMatch ? `${baseClass} ${SEARCH_MATCH_CARD_CLASS}` : baseClass;
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -57,26 +156,91 @@ const uiComboBadge =
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-4 py-1.5 text-sm font-black text-cyan-900";
 
-function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
+function FieldBlock({
+  label,
+  text,
+  highlightQuery = "",
+  hasSearchMatch = false,
+}: {
+  label: string;
+  text: string | null | undefined;
+  highlightQuery?: string;
+  hasSearchMatch?: boolean;
+}) {
+  const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
+  const cardClass = mergeMatchCardClass(uiFieldBox, showMatchBadge);
+  const displayText = text?.trim() || "";
+
   return (
-    <div className={uiFieldBox}>
-      <div className={uiFieldLabel}>{label}</div>
-      <div className={uiFieldContent}>{children}</div>
+    <div className={cardClass}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className={uiFieldLabel}>{label}</div>
+        {showMatchBadge ? <SearchMatchBadge /> : null}
+      </div>
+      <div className={uiFieldContent}>
+        {displayText ? (
+          <span className="whitespace-pre-wrap">
+            {highlightQuery.trim()
+              ? renderHighlightedText(displayText, highlightQuery)
+              : displayText}
+          </span>
+        ) : (
+          <span className={uiEmptyText}>—</span>
+        )}
+      </div>
     </div>
   );
 }
 
-function VariantCard({ row, index, total }: { row: CombinationRecord; index: number; total: number }) {
+function VariantCard({
+  row,
+  index,
+  total,
+  highlightQuery = "",
+  fieldMatches,
+}: {
+  row: CombinationRecord;
+  index: number;
+  total: number;
+  highlightQuery?: string;
+  fieldMatches: {
+    source: boolean;
+    stones: boolean;
+    notes: boolean;
+    notes2: boolean;
+    notes3: boolean;
+  };
+}) {
   const positionLabel = `Kombinasyon ${index + 1} / ${total}`;
+  const hasVariantMatch =
+    fieldMatches.source ||
+    fieldMatches.stones ||
+    fieldMatches.notes ||
+    fieldMatches.notes2 ||
+    fieldMatches.notes3;
+  const showMatchBadge = Boolean(highlightQuery.trim() && hasVariantMatch);
+  const cardClass = mergeMatchCardClass(uiVariantCard, showMatchBadge);
 
   return (
-    <article className={uiVariantCard}>
+    <article className={cardClass}>
       <div className="flex flex-col gap-3 border-b border-cyan-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className={uiComboBadge}>{positionLabel}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={uiComboBadge}>{positionLabel}</span>
+            {showMatchBadge ? <SearchMatchBadge /> : null}
+          </div>
           <p className="mt-2 text-sm font-bold text-slate-500">
             Variant #{row.variant_index}
-            {row.source ? ` · Kaynak: ${row.source}` : ""}
+            {row.source ? (
+              <>
+                {" · Kaynak: "}
+                {highlightQuery.trim()
+                  ? renderHighlightedText(row.source, highlightQuery)
+                  : row.source}
+              </>
+            ) : (
+              ""
+            )}
           </p>
         </div>
         <div className={uiDatesBox}>
@@ -86,52 +250,49 @@ function VariantCard({ row, index, total }: { row: CombinationRecord; index: num
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <FieldBlock label="Kaynak">
-          {row.source?.trim() ? (
-            <span className="whitespace-pre-wrap">{row.source}</span>
-          ) : (
-            <span className={uiEmptyText}>—</span>
-          )}
-        </FieldBlock>
-
-        <FieldBlock label="Taş metni">
-          {row.stones_text?.trim() ? (
-            <span className="whitespace-pre-wrap">{row.stones_text}</span>
-          ) : (
-            <span className={uiEmptyText}>—</span>
-          )}
-        </FieldBlock>
-
-        <FieldBlock label="Notlar">
-          {row.notes_text?.trim() ? (
-            <span className="whitespace-pre-wrap">{row.notes_text}</span>
-          ) : (
-            <span className={uiEmptyText}>—</span>
-          )}
-        </FieldBlock>
-
-        <FieldBlock label="Notlar 2">
-          {row.notes_text_2?.trim() ? (
-            <span className="whitespace-pre-wrap">{row.notes_text_2}</span>
-          ) : (
-            <span className={uiEmptyText}>—</span>
-          )}
-        </FieldBlock>
-
-        <FieldBlock label="Notlar 3">
-          {row.notes_text_3?.trim() ? (
-            <span className="whitespace-pre-wrap">{row.notes_text_3}</span>
-          ) : (
-            <span className={uiEmptyText}>—</span>
-          )}
-        </FieldBlock>
+        <FieldBlock
+          label="Kaynak"
+          text={row.source}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.source}
+        />
+        <FieldBlock
+          label="Taş metni"
+          text={row.stones_text}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.stones}
+        />
+        <FieldBlock
+          label="Notlar"
+          text={row.notes_text}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.notes}
+        />
+        <FieldBlock
+          label="Notlar 2"
+          text={row.notes_text_2}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.notes2}
+        />
+        <FieldBlock
+          label="Notlar 3"
+          text={row.notes_text_3}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.notes3}
+        />
       </div>
     </article>
   );
 }
 
-export default function KombinasyonDetayPage() {
+function KombinasyonDetayPageContent() {
   const params = useParams<{ title: string | string[] }>();
+  const searchParams = useSearchParams();
+  const highlightQuery = searchParams.get("q")?.trim() ?? "";
+  const listBackHref = highlightQuery
+    ? `/dogaltas/kombinasyonlar?q=${encodeURIComponent(highlightQuery)}`
+    : "/dogaltas/kombinasyonlar";
+
   const rawSegment = params?.title;
   const encodedTitle = Array.isArray(rawSegment) ? rawSegment[0] : rawSegment;
 
@@ -186,9 +347,42 @@ export default function KombinasyonDetayPage() {
 
   useEffect(() => {
     runInEffect(() => {
-      loadRows();
+      void loadRows();
     });
   }, [loadRows]);
+
+  const sectionMatches = useMemo(() => {
+    const q = highlightQuery.trim();
+    if (!q) return null;
+
+    const matchesText = (value: string | null | undefined) => textMatchesQuery(value, q);
+
+    return {
+      issue: matchesText(decodedIssue),
+      category: matchesText(categoryLabel),
+      description: rows.some((row) => matchesText(row.description)),
+    };
+  }, [highlightQuery, decodedIssue, categoryLabel, rows]);
+
+  const variantFieldMatches = useMemo(() => {
+    const q = highlightQuery.trim();
+    if (!q) return [];
+
+    const matchesText = (value: string | null | undefined) => textMatchesQuery(value, q);
+
+    return rows.map((row) => ({
+      source: matchesText(row.source),
+      stones: matchesText(row.stones_text),
+      notes: matchesText(row.notes_text),
+      notes2: matchesText(row.notes_text_2),
+      notes3: matchesText(row.notes_text_3),
+    }));
+  }, [highlightQuery, rows]);
+
+  const hasHighlight = Boolean(highlightQuery.trim());
+  const headerHasMatch = Boolean(
+    sectionMatches?.issue || sectionMatches?.category || sectionMatches?.description,
+  );
 
   if (!decodedIssue) {
     return (
@@ -196,7 +390,7 @@ export default function KombinasyonDetayPage() {
         <div className={`${uiHeaderCard} w-full text-center`}>
           <p className="text-lg font-bold text-slate-600">Geçersiz başlık.</p>
           <Link
-            href="/dogaltas/kombinasyonlar"
+            href={listBackHref}
             className="mt-4 inline-flex rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
           >
             Listeye Dön
@@ -212,19 +406,41 @@ export default function KombinasyonDetayPage() {
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
 
       <div className={pageContent}>
-        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+        <header
+          className={mergeMatchCardClass(
+            `${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`,
+            Boolean(hasHighlight && headerHasMatch),
+          )}
+        >
           <div>
             <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
               KOMBİNASYON DETAY
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
-              {decodedIssue}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+                {hasHighlight
+                  ? renderHighlightedText(decodedIssue, highlightQuery)
+                  : decodedIssue}
+              </h1>
+              {hasHighlight && sectionMatches?.issue ? <SearchMatchBadge /> : null}
+            </div>
 
             {categoryLabel ? (
-              <p className="mt-3">
-                <span className={uiCategoryPill}>{categoryLabel}</span>
+              <p className="mt-3 flex flex-wrap items-center gap-2">
+                <span className={uiCategoryPill}>
+                  {hasHighlight
+                    ? renderHighlightedText(categoryLabel, highlightQuery)
+                    : categoryLabel}
+                </span>
+                {hasHighlight && sectionMatches?.category ? <SearchMatchBadge /> : null}
+              </p>
+            ) : null}
+
+            {hasHighlight && sectionMatches?.description ? (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-cyan-800">
+                <span>Açıklama alanında eşleşme</span>
+                <SearchMatchBadge />
               </p>
             ) : null}
 
@@ -239,15 +455,15 @@ export default function KombinasyonDetayPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href="/dogaltas/kombinasyonlar"
+              href={listBackHref}
               className="rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
             >
-              Listeye Dön
+              {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
 
             <button
               type="button"
-              onClick={loadRows}
+              onClick={() => void loadRows()}
               className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
             >
               Yenile
@@ -278,11 +494,42 @@ export default function KombinasyonDetayPage() {
         ) : (
           <div className="space-y-6">
             {rows.map((row, index) => (
-              <VariantCard key={row.id} row={row} index={index} total={rows.length} />
+              <VariantCard
+                key={row.id}
+                row={row}
+                index={index}
+                total={rows.length}
+                highlightQuery={highlightQuery}
+                fieldMatches={
+                  variantFieldMatches[index] ?? {
+                    source: false,
+                    stones: false,
+                    notes: false,
+                    notes2: false,
+                    notes3: false,
+                  }
+                }
+              />
             ))}
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+function KombinasyonDetayPageFallback() {
+  return (
+    <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
+      <p className="text-sm font-black text-slate-600">Yükleniyor…</p>
+    </main>
+  );
+}
+
+export default function KombinasyonDetayPage() {
+  return (
+    <Suspense fallback={<KombinasyonDetayPageFallback />}>
+      <KombinasyonDetayPageContent />
+    </Suspense>
   );
 }
