@@ -3308,6 +3308,34 @@ const SUBCONSCIOUS_BATCH_SIZE = 250;
 const SUBCONSCIOUS_PREVIEW_LIMIT = 5;
 const SUBCONSCIOUS_FAILED_PREVIEW_LIMIT = 20;
 
+const SUBCONSCIOUS_TITLE_KEYS = [
+  "title",
+  "name",
+  "baslik",
+  "hastalik",
+  "disease",
+] as const;
+
+const SUBCONSCIOUS_CATEGORY_KEYS = ["category", "kategori"] as const;
+
+const SUBCONSCIOUS_CONTENT_KEYS = [
+  "content",
+  "text",
+  "meaning",
+  "description",
+  "aciklama",
+  "neden",
+  "cause",
+  "causes",
+  "sebep",
+  "sebepler",
+  "bilincalti_sebep",
+  "bilincalti_sebepleri",
+  "icerik",
+] as const;
+
+const SUBCONSCIOUS_NOTE_KEYS = ["note", "notes", "not", "aciklama_notu"] as const;
+
 function subconsciousText(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (value == null) return "";
@@ -3351,16 +3379,16 @@ function mapBioenergySubconsciousItemToInsertRow(
   item: BioenergySubconsciousJsonItem,
 ): BioenergySubconsciousInsertRow | null {
   const sourceUid = subconsciousText(item.uid);
-  const title = subconsciousPickField(item, ["title", "name", "baslik"]);
+  const title = subconsciousPickField(item, [...SUBCONSCIOUS_TITLE_KEYS]);
   if (!sourceUid || !title) return null;
 
   return {
     tenant_id: TENANT_ID,
     source_uid: sourceUid,
     title,
-    category: subconsciousPickField(item, ["category", "kategori"]),
-    content: subconsciousPickField(item, ["content", "description", "aciklama", "neden"]),
-    note_text: subconsciousPickField(item, ["note", "notes", "not"]),
+    category: subconsciousPickField(item, [...SUBCONSCIOUS_CATEGORY_KEYS]) || "Genel",
+    content: subconsciousPickField(item, [...SUBCONSCIOUS_CONTENT_KEYS]),
+    note_text: subconsciousPickField(item, [...SUBCONSCIOUS_NOTE_KEYS]),
   };
 }
 
@@ -3489,7 +3517,9 @@ function BilincaltiSebepleriJsonTab() {
   const handleFullImport = useCallback(async () => {
     const rows = flattenBioenergySubconsciousItemsToRows(items);
     if (rows.length === 0) {
-      setParseError("Aktarılacak kayıt bulunamadı (uid ve title/name/baslik zorunlu).");
+      setParseError(
+        "Aktarılacak kayıt bulunamadı (uid ve başlık alanı zorunlu: title, name, baslik, hastalik, disease).",
+      );
       return;
     }
 
@@ -3618,18 +3648,11 @@ function BilincaltiSebepleriJsonTab() {
             <div className="mt-4 space-y-3">
               {previewItems.map((item, index) => {
                 const sourceUid = subconsciousText(item.uid) || "—";
-                const title =
-                  subconsciousPickField(item, ["title", "name", "baslik"]) || "—";
-                const category = subconsciousPickField(item, ["category", "kategori"]);
-                const previewLine =
-                  subconsciousPickField(item, [
-                    "content",
-                    "description",
-                    "aciklama",
-                    "neden",
-                  ]) ||
-                  subconsciousPickField(item, ["note", "notes", "not"]) ||
-                  "—";
+                const title = subconsciousPickField(item, [...SUBCONSCIOUS_TITLE_KEYS]) || "—";
+                const category =
+                  subconsciousPickField(item, [...SUBCONSCIOUS_CATEGORY_KEYS]) || "Genel";
+                const contentPreview = subconsciousPickField(item, [...SUBCONSCIOUS_CONTENT_KEYS]);
+                const previewLine = contentPreview || "İçerik alanı boş";
 
                 return (
                   <div
@@ -3641,7 +3664,15 @@ function BilincaltiSebepleriJsonTab() {
                       {sourceUid}
                       {category ? ` · ${category}` : ""}
                     </p>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                    <p
+                      className={`mt-2 line-clamp-2 text-sm ${
+                        contentPreview
+                          ? "text-slate-600"
+                          : "font-semibold text-amber-800"
+                      }`}
+                    >
+                      {previewLine}
+                    </p>
                   </div>
                 );
               })}
