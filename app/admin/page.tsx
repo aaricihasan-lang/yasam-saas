@@ -223,10 +223,11 @@ function AdminToolCard({
   theme,
 }: AdminToolCardProps) {
   return (
-    <Link href={href} className="relative z-10 block h-full no-underline">
-      <div
-        className={`flex h-full min-h-[168px] cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl ${theme.cardBg} ${theme.border}`}
-      >
+    <Link
+      href={href}
+      aria-label={`${title} — ${description}`}
+      className={`relative z-10 flex h-full min-h-[168px] w-full cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] no-underline transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-300 ${theme.cardBg} ${theme.border}`}
+    >
         <div className="flex items-start justify-between gap-3">
           <div
             className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
@@ -239,9 +240,8 @@ function AdminToolCard({
             </span>
           ) : null}
         </div>
-        <h3 className="mt-4 text-xl font-black text-slate-900">{title}</h3>
-        <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{description}</p>
-      </div>
+      <h3 className="mt-4 text-xl font-black text-slate-900">{title}</h3>
+      <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{description}</p>
     </Link>
   );
 }
@@ -366,15 +366,16 @@ export default function AdminPage() {
               const href = item.href?.trim();
               if (href) {
                 return (
-                  <AdminToolCard
-                    key={item.title}
-                    title={item.title}
-                    description={item.desc}
-                    href={href}
-                    badge={item.badge}
-                    Icon={item.Icon}
-                    theme={item.theme}
-                  />
+                  <div key={item.title} className="h-full">
+                    <AdminToolCard
+                      title={item.title}
+                      description={item.desc}
+                      href={href}
+                      badge={item.badge}
+                      Icon={item.Icon}
+                      theme={item.theme}
+                    />
+                  </div>
                 );
               }
               return <AdminToolCardInactive key={item.title} item={item} />;

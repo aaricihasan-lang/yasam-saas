@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -47,29 +47,34 @@ type ModuleDef = {
   subGroups: SubGroupDef[];
 };
 
+/** Aktif — modül kutusu açmadan doğrudan seçilir */
+const ACTIVE_DATA_GROUPS: SubGroupDef[] = [
+  {
+    key: "stones",
+    label: "Doğaltaş Listesi",
+    active: true,
+    transferKey: "stones",
+  },
+  {
+    key: "combinations",
+    label: "Kombinasyonlar",
+    active: true,
+    transferKey: "combinations",
+  },
+  {
+    key: "minerals",
+    label: "Mineral Bankası",
+    active: true,
+    transferKey: "minerals",
+  },
+];
+
 const MODULES: ModuleDef[] = [
   {
     key: "dogaltas",
     label: "Doğaltaş",
     subGroups: [
-      {
-        key: "stones",
-        label: "Doğaltaş Listesi",
-        active: true,
-        transferKey: "stones",
-      },
-      {
-        key: "combinations",
-        label: "Kombinasyonlar",
-        active: true,
-        transferKey: "combinations",
-      },
-      {
-        key: "minerals",
-        label: "Mineral Bankası",
-        active: true,
-        transferKey: "minerals",
-      },
+      ...ACTIVE_DATA_GROUPS,
       {
         key: "stone_info",
         label: "Taş Bilgi Kütüphanesi",
@@ -118,6 +123,53 @@ const panelClass =
 const navBtn =
   "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
 
+function FlowStepBar({
+  step1Done,
+  step2Done,
+}: {
+  step1Done: boolean;
+  step2Done: boolean;
+}) {
+  const steps = [
+    { n: 1, label: "Üye seç", done: step1Done },
+    { n: 2, label: "Veri seç", done: step2Done },
+    { n: 3, label: "Aktar", done: false },
+  ];
+
+  return (
+    <nav
+      aria-label="Aktarım adımları"
+      className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200/80 bg-white/80 px-4 py-3 shadow-sm"
+    >
+      {steps.map((step, index) => (
+        <Fragment key={step.n}>
+          {index > 0 ? (
+            <span className="text-slate-300" aria-hidden>
+              →
+            </span>
+          ) : null}
+          <span
+            className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-black ${
+              step.done
+                ? "bg-violet-100 text-violet-900"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                step.done ? "bg-violet-600 text-white" : "bg-slate-300 text-slate-700"
+              }`}
+            >
+              {step.done ? <Check className="h-3.5 w-3.5" /> : step.n}
+            </span>
+            {step.label}
+          </span>
+        </Fragment>
+      ))}
+    </nav>
+  );
+}
+
 function formatTransferSummary(counts: TransferResultCounts): string {
   const parts: string[] = [];
   if (counts.stones > 0) parts.push(`${counts.stones} Doğaltaş`);
@@ -138,7 +190,6 @@ export default function VeriPaylasimiPage() {
   const [expertsLoading, setExpertsLoading] = useState(false);
   const [selectedExpertId, setSelectedExpertId] = useState<string | null>(null);
 
-  const [moduleChecked, setModuleChecked] = useState<Record<string, boolean>>({});
   const [subChecked, setSubChecked] = useState<Record<string, boolean>>({});
   const [transferring, setTransferring] = useState(false);
 
@@ -148,14 +199,11 @@ export default function VeriPaylasimiPage() {
   );
 
   const activeTransferGroups = useMemo(() => {
-    const keys = new Set<TransferGroupKey>();
-    for (const mod of MODULES) {
-      for (const sub of mod.subGroups) {
-        if (!sub.active || !sub.transferKey) continue;
-        if (subChecked[sub.key]) keys.add(sub.transferKey);
-      }
+    const keys: TransferGroupKey[] = [];
+    for (const sub of ACTIVE_DATA_GROUPS) {
+      if (sub.transferKey && subChecked[sub.key]) keys.push(sub.transferKey);
     }
-    return [...keys];
+    return keys;
   }, [subChecked]);
 
   const canTransfer =
@@ -232,20 +280,6 @@ export default function VeriPaylasimiPage() {
     if (!sessionChecked || !allowed) return;
     void loadExperts();
   }, [sessionChecked, allowed, loadExperts]);
-
-  function toggleModule(mod: ModuleDef) {
-    const next = !moduleChecked[mod.key];
-    setModuleChecked((prev) => ({ ...prev, [mod.key]: next }));
-    if (!next) {
-      setSubChecked((prev) => {
-        const copy = { ...prev };
-        for (const sub of mod.subGroups) {
-          delete copy[sub.key];
-        }
-        return copy;
-      });
-    }
-  }
 
   function toggleSubGroup(sub: SubGroupDef) {
     if (!sub.active) return;
@@ -397,6 +431,11 @@ export default function VeriPaylasimiPage() {
           </div>
         </header>
 
+        <FlowStepBar
+          step1Done={!!selectedExpertId}
+          step2Done={activeTransferGroups.length > 0}
+        />
+
         <section className={panelClass}>
           <h2 className="text-lg font-black text-slate-900">1. Üye Seç</h2>
           <p className="mt-1 text-sm text-slate-600">
@@ -456,75 +495,81 @@ export default function VeriPaylasimiPage() {
         </section>
 
         <section className={`${panelClass} mt-6`}>
-          <h2 className="text-lg font-black text-slate-900">2. Modül Seç</h2>
+          <h2 className="text-lg font-black text-slate-900">2. Aktarılacak Veriyi Seç</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Kaynak: admin varsayılan kütüphane tenant
+            Doğaltaş modülü — admin kütüphanesinden üyeye kopyalanacak tablolar
           </p>
 
-          <div className="mt-5 space-y-4">
-            {MODULES.map((mod) => {
-              const modOn = !!moduleChecked[mod.key];
-              return (
-                <div
-                  key={mod.key}
-                  className="rounded-2xl border-2 border-slate-100 bg-slate-50/50 p-4"
-                >
-                  <label className="flex cursor-pointer items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={modOn}
-                      onChange={() => toggleModule(mod)}
-                      className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
-                    />
-                    <span className="text-base font-black text-slate-900">
-                      {mod.label}
-                    </span>
-                  </label>
-
-                  {modOn ? (
-                    <div className="mt-4 ml-2 space-y-2 border-l-2 border-violet-200 pl-4">
-                      <p className="text-xs font-black uppercase tracking-wider text-violet-700">
-                        Alt veri grubu
-                      </p>
-                      {mod.subGroups.map((sub) => {
-                        const disabled = !sub.active;
-                        return (
-                          <label
-                            key={sub.key}
-                            className={`flex items-center gap-3 rounded-xl px-2 py-1.5 ${
-                              disabled
-                                ? "cursor-not-allowed opacity-60"
-                                : "cursor-pointer hover:bg-white/80"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={!!subChecked[sub.key]}
-                              disabled={disabled}
-                              onChange={() => toggleSubGroup(sub)}
-                              className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
-                            />
-                            <span className="text-sm font-semibold text-slate-800">
-                              {sub.label}
-                            </span>
-                            {disabled ? (
-                              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                                Yakında
-                              </span>
-                            ) : null}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+          <div className="mt-5 space-y-3 rounded-2xl border-2 border-violet-100 bg-violet-50/40 p-4">
+            <p className="text-sm font-black text-violet-950">Doğaltaş (aktif)</p>
+            {ACTIVE_DATA_GROUPS.map((sub) => (
+              <label
+                key={sub.key}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/80 bg-white px-3 py-2.5 shadow-sm transition hover:border-violet-200"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!subChecked[sub.key]}
+                  onChange={() => toggleSubGroup(sub)}
+                  className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
+                />
+                <span className="text-sm font-bold text-slate-800">{sub.label}</span>
+              </label>
+            ))}
           </div>
+
+          <details className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4">
+            <summary className="cursor-pointer text-sm font-black text-slate-700">
+              Diğer modüller (Yakında)
+            </summary>
+            <div className="mt-3 space-y-3">
+              {MODULES.filter((m) => m.key !== "dogaltas").map((mod) => (
+                <div key={mod.key}>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    {mod.label}
+                  </p>
+                  <ul className="mt-1 space-y-1 pl-2">
+                    {mod.subGroups.map((sub) => (
+                      <li
+                        key={sub.key}
+                        className="flex items-center gap-2 text-sm text-slate-600"
+                      >
+                        <span>{sub.label}</span>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                          Yakında
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <p className="text-xs font-semibold text-slate-500">
+                Taş Bilgi Kütüphanesi — Yakında
+              </p>
+            </div>
+          </details>
         </section>
 
         <section className={`${panelClass} mt-6`}>
-          <div className="rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm font-semibold text-violet-950">
+          <h2 className="text-lg font-black text-slate-900">3. Aktar</h2>
+          {selectedExpert ? (
+            <p className="mt-2 text-sm font-semibold text-slate-700">
+              Hedef üye:{" "}
+              <span className="font-black text-violet-900">{selectedExpert.fullName}</span>
+              {activeTransferGroups.length > 0 ? (
+                <span className="text-slate-500">
+                  {" "}
+                  · Seçili: {activeTransferGroups.join(", ")}
+                </span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-amber-800">
+              Önce bir üye seçin, ardından aktarılacak veri kutularını işaretleyin.
+            </p>
+          )}
+
+          <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm font-semibold text-violet-950">
             Aktarım modu:{" "}
             <span className="font-black">Yeni kayıt olarak ekle</span> — silme,
             güncelleme veya replace yok. Aynı başlıklı kayıtlar yan yana kalabilir.
