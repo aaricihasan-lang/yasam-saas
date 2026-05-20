@@ -1,12 +1,11 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
   ModuleStats,
-  badgeFieldWrapClass,
   formGlassPanelClass,
   listColumnClass,
   newRecordBtnClass,
@@ -18,45 +17,38 @@ import { LongTextareaField } from "./LargeTextModal";
 
 const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
-type EnergyBodyRecord = {
+type BioenergyEnergyBodyRecord = {
   id: string;
   tenant_id: string;
-  title: string | null;
-  body_type: string | null;
-  content: string | null;
-  physical_notes: string | null;
-  emotional_notes: string | null;
-  spiritual_notes: string | null;
-  source: string | null;
-  note: string | null;
+  source_uid: string;
+  genel_tanim: string | null;
+  gorevi: string | null;
+  bozulma: string | null;
+  onerilen_taslar: string | null;
+  not_text: string | null;
   created_at: string;
 };
 
 type EnergyBodyForm = {
-  title: string;
-  body_type: string;
-  content: string;
-  physical_notes: string;
-  emotional_notes: string;
-  spiritual_notes: string;
-  source: string;
-  note: string;
+  source_uid: string;
+  genel_tanim: string;
+  gorevi: string;
+  bozulma: string;
+  onerilen_taslar: string;
+  not_text: string;
 };
 
 const emptyForm: EnergyBodyForm = {
-  title: "",
-  body_type: "",
-  content: "",
-  physical_notes: "",
-  emotional_notes: "",
-  spiritual_notes: "",
-  source: "",
-  note: "",
+  source_uid: "",
+  genel_tanim: "",
+  gorevi: "",
+  bozulma: "",
+  onerilen_taslar: "",
+  not_text: "",
 };
 
-function trimOrNull(v: string) {
-  const t = v.trim();
-  return t.length > 0 ? t : null;
+function trimOrEmpty(v: string) {
+  return v.trim();
 }
 
 function formatDate(iso: string) {
@@ -73,18 +65,36 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
+function energyBodySearchBlob(row: BioenergyEnergyBodyRecord) {
+  return [
+    row.genel_tanim,
+    row.gorevi,
+    row.bozulma,
+    row.onerilen_taslar,
+    row.not_text,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
+}
+
+function DetailCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-cyan-100/80 bg-white/85 p-4 shadow-[0_8px_28px_-16px_rgba(8,145,178,0.18)] ring-1 ring-cyan-50/70 backdrop-blur-sm">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-800/80">
+        {title}
+      </p>
+      <div className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-700">{children}</div>
+    </div>
+  );
 }
 
 export default function EnerjiBedenleri() {
-  const [rows, setRows] = useState<EnergyBodyRecord[]>([]);
+  const [rows, setRows] = useState<BioenergyEnergyBodyRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchTitle, setSearchTitle] = useState("");
-  const [searchContent, setSearchContent] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -114,23 +124,23 @@ export default function EnerjiBedenleri() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setLoadErrorMessage(null);
     setInfoError("");
     const { data, error } = await supabase
-      .from("energy_bodies")
+      .from("bioenergy_energy_bodies")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .order("created_at", { ascending: false });
+      .order("source_uid");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      setLoadErrorMessage(`Enerji bedenleri okunamadı: ${error.message}`);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as EnergyBodyRecord[]);
-  }, [showSoft]);
+    setRows((data || []) as BioenergyEnergyBodyRecord[]);
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {
@@ -139,16 +149,10 @@ export default function EnerjiBedenleri() {
   }, [loadRecords]);
 
   const filteredRows = useMemo(() => {
-    const t = searchTitle.trim().toLocaleLowerCase("tr-TR");
-    const c = searchContent.trim().toLocaleLowerCase("tr-TR");
-    return rows.filter((row) => {
-      const titleOk =
-        !t || (row.title ?? "").toLocaleLowerCase("tr-TR").includes(t);
-      const contentOk =
-        !c || (row.content ?? "").toLocaleLowerCase("tr-TR").includes(c);
-      return titleOk && contentOk;
-    });
-  }, [rows, searchTitle, searchContent]);
+    const q = searchQuery.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return rows;
+    return rows.filter((row) => energyBodySearchBlob(row).includes(q));
+  }, [rows, searchQuery]);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
@@ -156,27 +160,28 @@ export default function EnerjiBedenleri() {
   );
 
   const moduleStats = useMemo(() => {
-    const types = new Set(rows.map((r) => r.body_type?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
-    return { total: rows.length, types: types.size, last };
+    const uids = new Set(rows.map((r) => r.source_uid?.trim()).filter(Boolean));
+    const newest = rows.reduce<string | null>((acc, row) => {
+      if (!row.created_at) return acc;
+      if (!acc || row.created_at > acc) return row.created_at;
+      return acc;
+    }, null);
+    const last = newest ? formatDate(newest) : "—";
+    return { total: rows.length, uids: uids.size, last };
   }, [rows]);
 
-  const hasSearch = Boolean(searchTitle.trim() || searchContent.trim());
-
-  function fillFormFromRow(row: EnergyBodyRecord) {
+  function fillFormFromRow(row: BioenergyEnergyBodyRecord) {
     setForm({
-      title: row.title ?? "",
-      body_type: row.body_type ?? "",
-      content: row.content ?? "",
-      physical_notes: row.physical_notes ?? "",
-      emotional_notes: row.emotional_notes ?? "",
-      spiritual_notes: row.spiritual_notes ?? "",
-      source: row.source ?? "",
-      note: row.note ?? "",
+      source_uid: row.source_uid ?? "",
+      genel_tanim: row.genel_tanim ?? "",
+      gorevi: row.gorevi ?? "",
+      bozulma: row.bozulma ?? "",
+      onerilen_taslar: row.onerilen_taslar ?? "",
+      not_text: row.not_text ?? "",
     });
   }
 
-  function selectRow(row: EnergyBodyRecord) {
+  function selectRow(row: BioenergyEnergyBodyRecord) {
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -220,24 +225,22 @@ export default function EnerjiBedenleri() {
   }
 
   async function handleKaydet() {
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "Başlık zorunludur.");
+    const uidTrim = form.source_uid.trim();
+    if (!uidTrim) {
+      showSoft("err", "Kaynak uid zorunludur (ör. eterik).");
       return;
     }
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("energy_bodies").insert({
+    const { error } = await supabase.from("bioenergy_energy_bodies").insert({
       tenant_id: TENANT_ID,
-      title: titleTrim,
-      body_type: trimOrNull(form.body_type),
-      content: trimOrNull(form.content),
-      physical_notes: trimOrNull(form.physical_notes),
-      emotional_notes: trimOrNull(form.emotional_notes),
-      spiritual_notes: trimOrNull(form.spiritual_notes),
-      source: trimOrNull(form.source),
-      note: trimOrNull(form.note),
+      source_uid: uidTrim,
+      genel_tanim: trimOrEmpty(form.genel_tanim),
+      gorevi: trimOrEmpty(form.gorevi),
+      bozulma: trimOrEmpty(form.bozulma),
+      onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
+      not_text: trimOrEmpty(form.not_text),
     });
 
     setSaving(false);
@@ -257,28 +260,25 @@ export default function EnerjiBedenleri() {
       showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
       return;
     }
-    const titleTrim = form.title.trim();
-    if (!titleTrim) {
-      showSoft("err", "Başlık zorunludur.");
+    const uidTrim = form.source_uid.trim();
+    if (!uidTrim) {
+      showSoft("err", "Kaynak uid zorunludur.");
       return;
     }
 
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("energy_bodies")
+      .from("bioenergy_energy_bodies")
       .update({
-        title: titleTrim,
-        body_type: trimOrNull(form.body_type),
-        content: trimOrNull(form.content),
-        physical_notes: trimOrNull(form.physical_notes),
-        emotional_notes: trimOrNull(form.emotional_notes),
-        spiritual_notes: trimOrNull(form.spiritual_notes),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
+        source_uid: uidTrim,
+        genel_tanim: trimOrEmpty(form.genel_tanim),
+        gorevi: trimOrEmpty(form.gorevi),
+        bozulma: trimOrEmpty(form.bozulma),
+        onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
+        not_text: trimOrEmpty(form.not_text),
       })
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
 
@@ -307,10 +307,9 @@ export default function EnerjiBedenleri() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
-      .from("energy_bodies")
+      .from("bioenergy_energy_bodies")
       .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("id", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
@@ -335,26 +334,15 @@ export default function EnerjiBedenleri() {
               Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-3 xl:flex-row">
-            <label className="block min-w-0 flex-1">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-                Başlıkta ara
-              </span>
-              <input
-                type="search"
-                value={searchTitle}
-                onChange={(e) => setSearchTitle(e.target.value)}
-                className={searchInputClass("violet")}
-              />
-            </label>
+          <div className="flex w-full flex-col gap-3 xl:max-w-xl">
             <label className="block min-w-0 flex-1">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-                Metin içinde ara
+                Ara (genel tanım, görev, bozulma, taşlar, not)
               </span>
               <input
                 type="search"
-                value={searchContent}
-                onChange={(e) => setSearchContent(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className={searchInputClass("cyan")}
               />
             </label>
@@ -362,12 +350,18 @@ export default function EnerjiBedenleri() {
         </div>
         <ModuleStats
           total={moduleStats.total}
-          midLabel="Beden tipi"
-          midCount={moduleStats.types}
+          midLabel="Kaynak uid"
+          midCount={moduleStats.uids}
           lastDate={moduleStats.last}
           tone="cyan"
         />
       </div>
+
+      {loadErrorMessage ? (
+        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+          {loadErrorMessage}
+        </div>
+      ) : null}
 
       {(infoSuccess || infoError) && (
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -402,17 +396,17 @@ export default function EnerjiBedenleri() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : filteredRows.length === 0 ? (
+            ) : loadErrorMessage ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="◎"
                 title="Liste boş"
-                subtitle={
-                  hasSearch
-                    ? "Aramayı güncelleyin veya Yeni Kayıt ile kayıt ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                }
+                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
                 tone="cyan"
               />
+            ) : filteredRows.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+                Aramayı güncelleyin veya Yeni Kayıt ile enerji bedeni ekleyin.
+              </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
@@ -421,23 +415,15 @@ export default function EnerjiBedenleri() {
                     key={row.id}
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-xl border px-4 py-3.5 text-left transition-all duration-200 ease-out will-change-transform ${
                       active
                         ? "scale-[1.01] border-cyan-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(34,211,238,0.18),0_14px_36px_-12px_rgba(8,145,178,0.13)] ring-2 ring-cyan-200/45 ring-offset-1 ring-offset-transparent"
                         : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-cyan-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
                     }`}
                   >
-                    <div className="line-clamp-2 text-[13px] font-black leading-snug text-slate-900">
-                      {row.title?.trim() || "—"}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
-                      {row.body_type?.trim() ? (
-                        <span className="rounded-full bg-gradient-to-r from-cyan-100/90 to-sky-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-cyan-950/90 shadow-inner ring-1 ring-cyan-200/45">
-                          {row.body_type}
-                        </span>
-                      ) : null}
-                    </div>
+                    <p className="text-base font-black capitalize leading-snug tracking-tight text-slate-900 sm:text-lg">
+                      {row.source_uid?.trim() || "—"}
+                    </p>
                   </button>
                 );
               })
@@ -445,33 +431,36 @@ export default function EnerjiBedenleri() {
           </div>
         </div>
 
-        <div
-          className={`${formGlassPanelClass} order-2 xl:order-none`}
-        >
+        <div className={`${formGlassPanelClass} order-2 min-w-0 flex-1 xl:order-none`}>
           {selectedRow ? (
             <>
               <div className="mb-1 inline-flex rounded-full bg-cyan-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-cyan-900 ring-1 ring-cyan-200/45">
                 SEÇİLİ KAYIT
               </div>
-              <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
-                {selectedRow.title?.trim() || "—"}
+              <h3 className="mt-2 text-2xl font-black capitalize leading-snug text-slate-900 sm:text-3xl">
+                {selectedRow.source_uid?.trim() || "—"}
               </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>{formatDate(selectedRow.created_at)}</span>
-                {selectedRow.body_type?.trim() ? (
-                  <span className="rounded-full bg-gradient-to-r from-cyan-100/90 to-sky-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-cyan-950/90 ring-1 ring-cyan-200/45">
-                    {selectedRow.body_type}
-                  </span>
-                ) : null}
-                {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
-                    Kaynak: {selectedRow.source}
-                  </span>
-                ) : null}
+              <div className="mt-5 grid gap-3 sm:grid-cols-1">
+                <DetailCard title="Genel Tanım">
+                  <p className="whitespace-pre-wrap">
+                    {selectedRow.genel_tanim?.trim() || "—"}
+                  </p>
+                </DetailCard>
+                <DetailCard title="Görevi">
+                  <p className="whitespace-pre-wrap">{selectedRow.gorevi?.trim() || "—"}</p>
+                </DetailCard>
+                <DetailCard title="Bozulma Belirtileri">
+                  <p className="whitespace-pre-wrap">{selectedRow.bozulma?.trim() || "—"}</p>
+                </DetailCard>
+                <DetailCard title="Önerilen Taşlar">
+                  <p className="whitespace-pre-wrap">
+                    {selectedRow.onerilen_taslar?.trim() || "—"}
+                  </p>
+                </DetailCard>
+                <DetailCard title="Not">
+                  <p className="whitespace-pre-wrap">{selectedRow.not_text?.trim() || "—"}</p>
+                </DetailCard>
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.content)}
-              </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
                 <button
                   type="button"
@@ -550,96 +539,72 @@ export default function EnerjiBedenleri() {
         <div className="space-y-5">
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
-              Başlık
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
+              Kaynak uid
             </span>
             <input
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/60"
+              value={form.source_uid}
+              onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
+              placeholder="ör. eterik, duygusal, zihinsel, ruhsal"
+              className="h-12 w-full rounded-xl border border-cyan-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-cyan-200/90 focus:ring-2 focus:ring-cyan-100/60"
             />
-          </label>
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-              Beden tipi
-            </span>
-            <div className={badgeFieldWrapClass("cyan")}>
-              <input
-                value={form.body_type}
-                onChange={(e) => setForm((f) => ({ ...f, body_type: e.target.value }))}
-                className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                placeholder="Örn. eterik, duygusal…"
-              />
-            </div>
           </label>
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                İçerik
+                Genel Tanım
               </span>
             }
-            modalTitle="İçerik"
-            value={form.content}
-            onChange={(v) => setForm((f) => ({ ...f, content: v }))}
-            minRows={5}
+            modalTitle="Genel Tanım"
+            value={form.genel_tanim}
+            onChange={(v) => setForm((f) => ({ ...f, genel_tanim: v }))}
+            minRows={4}
             className="w-full resize-none rounded-xl border border-emerald-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-emerald-100/50 transition"
             disabled={saving}
           />
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
-                Fiziksel notlar
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
+                Görevi
               </span>
             }
-            modalTitle="Fiziksel notlar"
-            value={form.physical_notes}
-            onChange={(v) => setForm((f) => ({ ...f, physical_notes: v }))}
+            modalTitle="Görevi"
+            value={form.gorevi}
+            onChange={(v) => setForm((f) => ({ ...f, gorevi: v }))}
             minRows={3}
-            className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-sky-100/50 transition"
+            className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-violet-100/50 transition"
             disabled={saving}
           />
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/80" />
-                Duygusal notlar
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500/80" />
+                Bozulma Belirtileri
               </span>
             }
-            modalTitle="Duygusal notlar"
-            value={form.emotional_notes}
-            onChange={(v) => setForm((f) => ({ ...f, emotional_notes: v }))}
+            modalTitle="Bozulma Belirtileri"
+            value={form.bozulma}
+            onChange={(v) => setForm((f) => ({ ...f, bozulma: v }))}
             minRows={3}
-            className="w-full resize-none rounded-xl border border-fuchsia-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-fuchsia-100/50 transition"
+            className="w-full resize-none rounded-xl border border-rose-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-rose-100/50 transition"
             disabled={saving}
           />
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/85" />
-                Ruhsal notlar
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
+                Önerilen Taşlar
               </span>
             }
-            modalTitle="Ruhsal notlar"
-            value={form.spiritual_notes}
-            onChange={(v) => setForm((f) => ({ ...f, spiritual_notes: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-indigo-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-indigo-100/50 transition"
+            modalTitle="Önerilen Taşlar"
+            value={form.onerilen_taslar}
+            onChange={(v) => setForm((f) => ({ ...f, onerilen_taslar: v }))}
+            minRows={2}
+            className="w-full resize-none rounded-xl border border-amber-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-amber-100/50 transition"
             disabled={saving}
           />
-          <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-              Kaynak
-            </span>
-            <input
-              value={form.source}
-              onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
-            />
-          </label>
           <LongTextareaField
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
@@ -648,8 +613,8 @@ export default function EnerjiBedenleri() {
               </span>
             }
             modalTitle="Not"
-            value={form.note}
-            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+            value={form.not_text}
+            onChange={(v) => setForm((f) => ({ ...f, not_text: v }))}
             minRows={3}
             className="w-full resize-none rounded-xl border border-teal-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-teal-100/50 transition"
             disabled={saving}
