@@ -517,6 +517,19 @@ function DogaltasPageContent() {
     [runSearch, searchInput],
   );
 
+  const handleSearchInputChange = useCallback(
+    (value: string) => {
+      setSearchInput(value);
+      if (!value.trim()) {
+        setActiveQuery("");
+        setSearchError(null);
+        setSearchLoading(false);
+        router.replace("/dogaltas", { scroll: false });
+      }
+    },
+    [router],
+  );
+
   const handleResultNavigate = useCallback((stoneId: string) => {
     markViewedStoneId(stoneId);
     setViewedStoneIds(readViewedStoneIds());
@@ -638,7 +651,7 @@ function DogaltasPageContent() {
                   <input
                     type="search"
                     value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
+                    onChange={(event) => handleSearchInputChange(event.target.value)}
                     placeholder="Taş adı veya içerikte ara (ör. mide, şifa)..."
                     className="h-14 w-full rounded-2xl border border-slate-200/70 bg-white/90 pl-11 pr-4 text-base font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
                   />
