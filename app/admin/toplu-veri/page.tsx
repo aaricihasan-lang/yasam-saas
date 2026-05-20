@@ -9,6 +9,7 @@ import {
   Gem,
   Loader2,
   Moon,
+  Orbit,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -2494,6 +2495,408 @@ function ImajinasyonJsonTab() {
   );
 }
 
+type BioenergyChakraJsonItem = {
+  uid?: unknown;
+  name?: unknown;
+  organs?: unknown;
+  glands?: unknown;
+  color?: unknown;
+  stones?: unknown;
+  causes?: unknown;
+  physical?: unknown;
+  mental?: unknown;
+  notes?: unknown;
+};
+
+type BioenergyChakraInsertRow = {
+  tenant_id: string;
+  source_uid: string;
+  name: string;
+  organs: string;
+  glands: string;
+  color: string;
+  stones: string;
+  causes: string;
+  physical: string;
+  mental: string;
+  notes: string;
+};
+
+type BioenergyChakraImportFailure = {
+  name: string;
+  message: string;
+};
+
+const CHAKRA_BATCH_SIZE = 250;
+const CHAKRA_PREVIEW_LIMIT = 5;
+const CHAKRA_FAILED_PREVIEW_LIMIT = 20;
+
+function chakraText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function chakraSourceUid(value: unknown): string {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function parseBioenergyChakraJsonItems(text: string): {
+  items: BioenergyChakraJsonItem[];
+  error: string | null;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { items: [], error: "Geçersiz JSON dosyası." };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { items: [], error: "JSON kökü bir dizi olmalıdır." };
+  }
+
+  const items = parsed.filter(
+    (item) => item && typeof item === "object",
+  ) as BioenergyChakraJsonItem[];
+  if (items.length === 0) {
+    return { items: [], error: "JSON içinde işlenebilir çakra kaydı bulunamadı." };
+  }
+
+  return { items, error: null };
+}
+
+function mapBioenergyChakraItemToInsertRow(
+  item: BioenergyChakraJsonItem,
+): BioenergyChakraInsertRow | null {
+  const sourceUid = chakraSourceUid(item.uid);
+  const name = chakraText(item.name);
+  if (!sourceUid || !name) return null;
+
+  return {
+    tenant_id: TENANT_ID,
+    source_uid: sourceUid,
+    name,
+    organs: chakraText(item.organs) || "",
+    glands: chakraText(item.glands) || "",
+    color: chakraText(item.color) || "",
+    stones: chakraText(item.stones) || "",
+    causes: chakraText(item.causes) || "",
+    physical: chakraText(item.physical) || "",
+    mental: chakraText(item.mental) || "",
+    notes: chakraText(item.notes) || "",
+  };
+}
+
+function flattenBioenergyChakraItemsToRows(
+  items: BioenergyChakraJsonItem[],
+): BioenergyChakraInsertRow[] {
+  const rows: BioenergyChakraInsertRow[] = [];
+  for (const item of items) {
+    const row = mapBioenergyChakraItemToInsertRow(item);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function bioenergyChakraInsertSucceeded(
+  data: { id: string }[] | null,
+  expectedCount: number,
+): boolean {
+  return Boolean(data && data.length === expectedCount);
+}
+
+async function importBioenergyChakraRows(rows: BioenergyChakraInsertRow[]): Promise<{
+  successCount: number;
+  failedCount: number;
+  failures: BioenergyChakraImportFailure[];
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: BioenergyChakraImportFailure[] = [];
+
+  const recordFailure = (name: string, message: string) => {
+    failedCount += 1;
+    if (failures.length < CHAKRA_FAILED_PREVIEW_LIMIT) {
+      failures.push({ name, message });
+    }
+  };
+
+  for (let offset = 0; offset < rows.length; offset += CHAKRA_BATCH_SIZE) {
+    const batch = rows.slice(offset, offset + CHAKRA_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("bioenergy_chakras")
+      .insert(batch)
+      .select("id");
+
+    if (!error && bioenergyChakraInsertSucceeded(data, batch.length)) {
+      successCount += data!.length;
+      continue;
+    }
+
+    const batchMessage =
+      error?.message ??
+      "Toplu ekleme tamamlanamadı (public.bioenergy_chakras tablosuna kayıt doğrulanamadı).";
+
+    for (const row of batch) {
+      const { data: rowData, error: singleError } = await supabase
+        .from("bioenergy_chakras")
+        .insert(row)
+        .select("id");
+
+      if (singleError || !bioenergyChakraInsertSucceeded(rowData, 1)) {
+        recordFailure(row.name, singleError?.message ?? batchMessage);
+      } else {
+        successCount += 1;
+      }
+    }
+  }
+
+  return { successCount, failedCount, failures };
+}
+
+function CakraJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [items, setItems] = useState<BioenergyChakraJsonItem[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    successCount: number;
+    failedCount: number;
+    totalProcessed: number;
+    failures: BioenergyChakraImportFailure[];
+  } | null>(null);
+
+  const chakraCount = items.length;
+  const importableCount = useMemo(
+    () => flattenBioenergyChakraItemsToRows(items).length,
+    [items],
+  );
+
+  const previewItems = useMemo(() => items.slice(0, CHAKRA_PREVIEW_LIMIT), [items]);
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setItems([]);
+    setFileName(null);
+    setImportReport(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { items: parsed, error } = parseBioenergyChakraJsonItems(text);
+      if (error) {
+        setParseError(error);
+        setItems([]);
+        setFileName(file.name);
+        return;
+      }
+      setItems(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setParseError("Dosya okunamadı.");
+    };
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleFullImport = useCallback(async () => {
+    const rows = flattenBioenergyChakraItemsToRows(items);
+    if (rows.length === 0) {
+      setParseError("Aktarılacak çakra kaydı bulunamadı (uid ve name zorunlu).");
+      return;
+    }
+
+    setImporting(true);
+    setImportReport(null);
+    setParseError(null);
+
+    const { successCount, failedCount, failures } = await importBioenergyChakraRows(rows);
+
+    setImporting(false);
+    const totalProcessed = successCount + failedCount;
+    setImportReport({
+      successCount,
+      failedCount,
+      totalProcessed,
+      failures,
+    });
+
+    if (successCount > 0 && failedCount === 0) {
+      showToast({
+        type: "success",
+        message: `${successCount} çakra kaydı public.bioenergy_chakras tablosuna yazıldı.`,
+      });
+    } else if (successCount > 0) {
+      showToast({
+        type: "warning",
+        message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
+      });
+    } else {
+      const detail = failures[0]?.message;
+      showToast({
+        type: "error",
+        message: detail
+          ? `Hiçbir kayıt yüklenemedi: ${detail}`
+          : "Hiçbir kayıt public.bioenergy_chakras tablosuna yazılamadı.",
+      });
+    }
+  }, [items, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-teal-200/80 bg-gradient-to-br from-teal-50/40 via-white to-cyan-50/50 p-6 shadow-xl sm:p-8"
+      aria-label="Çakra JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Orbit className="h-6 w-6 text-teal-700" aria-hidden />
+            Çakra JSON
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
+            Biyoenerji Çakralar JSON dosyasını seçin; özet görüntüleyip tüm kayıtları
+            bioenergy_chakras tablosuna aktarın.
+          </p>
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Bu işlem mevcut çakra kayıtlarını silmez. Aynı JSON tekrar yüklenirse kayıtlar
+            çoğalabilir.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-teal-300 bg-white px-5 py-3 text-sm font-bold text-teal-950 shadow-md transition hover:scale-[1.02] hover:border-teal-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+          </label>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleFullImport()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-cyan-400 bg-gradient-to-r from-teal-600 to-cyan-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  Yükleniyor...
+                </>
+              ) : (
+                "Tamamını Yükle"
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          Dosya: <span className="font-mono text-teal-900">{fileName}</span>
+          {items.length > 0 ? (
+            <span className="ml-2 text-teal-700">· {chakraCount} çakra</span>
+          ) : null}
+        </p>
+      ) : null}
+
+      {parseError ? (
+        <p
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+          role="alert"
+        >
+          {parseError}
+        </p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="mt-8 space-y-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Özet</h3>
+            <p className="mt-1 text-sm text-slate-600">JSON dosyasından okunan toplam sayı.</p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatBox label="Toplam çakra" value={chakraCount} />
+              <StatBox label="Aktarılabilir kayıt" value={importableCount} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Önizleme</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              İlk {CHAKRA_PREVIEW_LIMIT} çakra kaydı.
+            </p>
+            <div className="mt-4 space-y-3">
+              {previewItems.map((item, index) => {
+                const name = chakraText(item.name) || "—";
+                const sourceUid = chakraSourceUid(item.uid) || "—";
+                const color = chakraText(item.color);
+                const previewLine =
+                  chakraText(item.organs) ||
+                  chakraText(item.physical) ||
+                  chakraText(item.mental) ||
+                  "—";
+
+                return (
+                  <div
+                    key={`${sourceUid}-${index}`}
+                    className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
+                  >
+                    <p className="text-sm font-black text-slate-900">{name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {sourceUid}
+                      {color ? ` · ${color}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {importReport ? (
+        <div className="mt-8 rounded-2xl border border-teal-200 bg-teal-50/90 p-5">
+          <h3 className="text-lg font-black text-teal-950">Yükleme raporu</h3>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox label="Başarılı" value={importReport.successCount} />
+            <StatBox label="Başarısız" value={importReport.failedCount} />
+            <StatBox label="Toplam işlenen" value={importReport.totalProcessed} />
+          </div>
+          {importReport.failures.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-sm font-black text-rose-950">
+                Başarısız kayıtlar (en fazla {CHAKRA_FAILED_PREVIEW_LIMIT})
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {importReport.failures.map((row, index) => (
+                  <li
+                    key={`${row.name}-${index}`}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-rose-950">{row.name}</span>
+                    <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DogaltasJsonTab() {
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -3052,7 +3455,7 @@ function DogaltasJsonTab() {
 
 export default function TopluVeriPage() {
   const [activeTab, setActiveTab] = useState<
-    "dogaltas" | "kombinasyon" | "mineral" | "sembol" | "imajinasyon"
+    "dogaltas" | "kombinasyon" | "mineral" | "sembol" | "imajinasyon" | "cakra"
   >("dogaltas");
 
   return (
@@ -3132,6 +3535,17 @@ export default function TopluVeriPage() {
         >
           🌙 İmajinasyon JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("cakra")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "cakra"
+              ? "border-teal-400 bg-teal-100 text-teal-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          🌀 Çakra JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
@@ -3139,6 +3553,7 @@ export default function TopluVeriPage() {
       {activeTab === "mineral" ? <MineralJsonTab /> : null}
       {activeTab === "sembol" ? <SembolDiliJsonTab /> : null}
       {activeTab === "imajinasyon" ? <ImajinasyonJsonTab /> : null}
+      {activeTab === "cakra" ? <CakraJsonTab /> : null}
     </AdminModuleLayout>
   );
 }
