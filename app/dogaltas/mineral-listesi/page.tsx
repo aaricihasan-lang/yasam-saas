@@ -11,10 +11,34 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
+const LIST_PATH = "/dogaltas/mineral-listesi";
+
+const MINERAL_SEARCH_STORAGE_KEYS = [
+  "yasam-mineral-search",
+  "yasam-mineral-search-query",
+  "yasam-mineral-last-search",
+  "mineral-search",
+  "lastMineralSearch",
+  "searchTerm",
+  "q",
+] as const;
+
+function clearMineralSearchStorage() {
+  if (typeof window === "undefined") return;
+  for (const key of MINERAL_SEARCH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
+
+function readUrlSearchQuery(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+}
 
 const MINERALS_LIST_SELECT =
   "id,source_id,name,aciklama,kategori,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,created_at";
@@ -226,33 +250,52 @@ const uiComboBtn =
 
 function MineralListesiPageContent() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const listPath = pathname || "/dogaltas/mineral-listesi";
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 
   const [minerals, setMinerals] = useState<MineralRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [searchTerm, setSearchTerm] = useState(urlQuery);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
 
   const applySearchUrl = useCallback(
-    (query: string | null) => {
-      const nextUrl = query
-        ? `${listPath}?q=${encodeURIComponent(query)}`
-        : listPath;
-      window.history.replaceState(window.history.state, "", nextUrl);
+    (query: string) => {
+      const nextUrl = `${LIST_PATH}?q=${encodeURIComponent(query)}`;
+      window.history.replaceState(null, "", nextUrl);
       router.replace(nextUrl, { scroll: false });
     },
-    [listPath, router],
+    [router],
   );
 
-  const clearSearchState = useCallback(() => {
+  const clearSearch = useCallback(() => {
+    setSearchInput("");
     setSearchTerm("");
-    applySearchUrl(null);
-  }, [applySearchUrl]);
+    setIsSearchActive(false);
+    setLoading(false);
+    clearMineralSearchStorage();
+    window.history.replaceState(null, "", LIST_PATH);
+    router.replace(LIST_PATH, { scroll: false });
+  }, [router]);
+
+  const activateSearch = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        clearSearch();
+        return;
+      }
+      setSearchInput(trimmed);
+      setSearchTerm(trimmed);
+      setIsSearchActive(true);
+      clearMineralSearchStorage();
+      applySearchUrl(trimmed);
+    },
+    [applySearchUrl, clearSearch],
+  );
 
   async function loadMinerals() {
     setLoading(true);
@@ -281,11 +324,17 @@ function MineralListesiPageContent() {
   }, []);
 
   useEffect(() => {
-    const fromLocation =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("q")?.trim() ?? ""
-        : urlQuery;
-    setSearchTerm(fromLocation);
+    const qFromUrl = readUrlSearchQuery();
+    if (qFromUrl) {
+      setSearchInput(qFromUrl);
+      setSearchTerm(qFromUrl);
+      setIsSearchActive(true);
+      return;
+    }
+    setSearchInput("");
+    setSearchTerm("");
+    setIsSearchActive(false);
+    clearMineralSearchStorage();
   }, [urlQuery]);
 
   useEffect(() => {
@@ -297,21 +346,21 @@ function MineralListesiPageContent() {
 
   const handleSearchChange = useCallback(
     (value: string) => {
+      setSearchInput(value);
       const trimmed = value.trim();
       if (!trimmed) {
-        clearSearchState();
+        clearSearch();
         return;
       }
-      setSearchTerm(trimmed);
-      applySearchUrl(trimmed);
+      activateSearch(trimmed);
     },
-    [applySearchUrl, clearSearchState],
+    [activateSearch, clearSearch],
   );
 
   const handleRefresh = useCallback(() => {
-    clearSearchState();
+    clearSearch();
     void loadMinerals();
-  }, [clearSearchState]);
+  }, [clearSearch]);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
     markViewedMineralId(mineralId);
@@ -330,17 +379,17 @@ function MineralListesiPageContent() {
     });
   }, [minerals]);
 
-  const activeSearch = searchTerm.trim();
-  const isSearchActive = Boolean(activeSearch);
+  const activeSearch = isSearchActive ? searchTerm.trim() : "";
 
   const filteredMinerals = useMemo(() => {
     const category = categoryFilter.trim();
+    const term = isSearchActive ? searchTerm : "";
 
     return minerals.filter((mineral) => {
       if (category && getCategoryLabel(mineral.kategori) !== category) return false;
-      return mineralMatchesSearch(mineral, searchTerm);
+      return mineralMatchesSearch(mineral, term);
     });
-  }, [minerals, searchTerm, categoryFilter]);
+  }, [minerals, searchTerm, isSearchActive, categoryFilter]);
 
   const isEmptyDatabase = !loading && !errorMessage && minerals.length === 0;
   const isEmptyFiltered =
@@ -389,7 +438,7 @@ function MineralListesiPageContent() {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <input
               type="search"
-              value={searchTerm}
+              value={searchInput}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
               className={`${uiField} flex-1 text-sm text-slate-700`}
