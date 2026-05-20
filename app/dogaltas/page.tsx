@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { runInEffect } from "@/lib/runInEffect";
+import { supabase } from "@/lib/supabase";
 
 const modules = [
   {
@@ -59,7 +64,188 @@ const modules = [
   },
 ];
 
+type MonthTrendBucket = {
+  label: string;
+  count: number;
+  heightPct: number;
+};
+
+const STOCK_PRICE_FIELD_CANDIDATES: [string, string][] = [
+  ["stock_qty", "unit_price"],
+  ["stock_quantity", "price"],
+  ["quantity", "price"],
+  ["adet", "fiyat"],
+  ["stok", "fiyat"],
+  ["stock", "price"],
+  ["qty", "unit_price"],
+];
+
+function parseNumeric(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function detectStockValueFields(rows: Record<string, unknown>[]): [string, string] | null {
+  if (rows.length === 0) return null;
+
+  for (const [qtyKey, priceKey] of STOCK_PRICE_FIELD_CANDIDATES) {
+    const hasPair = rows.some((row) => {
+      const qty = parseNumeric(row[qtyKey]);
+      const price = parseNumeric(row[priceKey]);
+      return qty != null && price != null && (qty > 0 || price > 0);
+    });
+    if (hasPair) return [qtyKey, priceKey];
+  }
+
+  return null;
+}
+
+function computeStockValue(rows: Record<string, unknown>[], keys: [string, string]): number {
+  const [qtyKey, priceKey] = keys;
+  return rows.reduce((sum, row) => {
+    const qty = parseNumeric(row[qtyKey]) ?? 0;
+    const price = parseNumeric(row[priceKey]) ?? 0;
+    return sum + qty * price;
+  }, 0);
+}
+
+function buildLast6MonthTrend(createdAts: string[]): MonthTrendBucket[] {
+  const now = new Date();
+  const buckets: { label: string; year: number; month: number; count: number }[] = [];
+
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    buckets.push({
+      label: date.toLocaleDateString("tr-TR", { month: "short" }),
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      count: 0,
+    });
+  }
+
+  for (const iso of createdAts) {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) continue;
+    const bucket = buckets.find(
+      (item) => item.year === date.getFullYear() && item.month === date.getMonth(),
+    );
+    if (bucket) bucket.count += 1;
+  }
+
+  const maxCount = Math.max(...buckets.map((item) => item.count), 1);
+
+  return buckets.map((item) => ({
+    label: item.label,
+    count: item.count,
+    heightPct:
+      item.count === 0 ? 0 : Math.max(8, Math.round((item.count / maxCount) * 100)),
+  }));
+}
+
+function formatCount(value: number | null, loading: boolean): string {
+  if (loading) return "Yükleniyor...";
+  if (value === null) return "—";
+  return value.toLocaleString("tr-TR");
+}
+
+function formatTry(amount: number): string {
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+async function fetchTableCount(table: string): Promise<number | null> {
+  const { count, error } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true });
+
+  if (error) return null;
+  return count ?? 0;
+}
+
 export default function DogaltasPage() {
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [stonesCount, setStonesCount] = useState<number | null>(null);
+  const [mineralsCount, setMineralsCount] = useState<number | null>(null);
+  const [combinationsCount, setCombinationsCount] = useState<number | null>(null);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthTrendBucket[]>([]);
+  const [stockValue, setStockValue] = useState<number | null>(null);
+  const [stockValueMessage, setStockValueMessage] = useState<string | null>(null);
+
+  const loadAnalytics = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+
+    const [stonesCountRes, stonesRowsRes, mineralsCount, combinationsCount] =
+      await Promise.all([
+        supabase.from("stones").select("*", { count: "exact", head: true }),
+        supabase.from("stones").select("*"),
+        fetchTableCount("minerals"),
+        fetchTableCount("combinations"),
+      ]);
+
+    setLoading(false);
+
+    if (stonesCountRes.error) {
+      setErrorMessage(`Analiz verileri okunamadı: ${stonesCountRes.error.message}`);
+      setStonesCount(null);
+      setMineralsCount(null);
+      setCombinationsCount(null);
+      setMonthlyTrend([]);
+      setStockValue(null);
+      setStockValueMessage(null);
+      return;
+    }
+
+    const rows = (stonesRowsRes.data ?? []) as Record<string, unknown>[];
+    if (stonesRowsRes.error) {
+      setErrorMessage(`Taş kayıtları okunamadı: ${stonesRowsRes.error.message}`);
+    }
+
+    setStonesCount(stonesCountRes.count ?? 0);
+    setMineralsCount(mineralsCount);
+    setCombinationsCount(combinationsCount);
+
+    const createdAts = rows
+      .map((row) => (row.created_at != null ? String(row.created_at) : ""))
+      .filter(Boolean);
+    setMonthlyTrend(buildLast6MonthTrend(createdAts));
+
+    const stockFields = detectStockValueFields(rows);
+    if (stockFields) {
+      const total = computeStockValue(rows, stockFields);
+      setStockValue(total);
+      setStockValueMessage(null);
+    } else {
+      setStockValue(null);
+      setStockValueMessage("Stok değeri için fiyat/stok verisi bekleniyor");
+    }
+  }, []);
+
+  useEffect(() => {
+    runInEffect(() => {
+      void loadAnalytics();
+    });
+  }, [loadAnalytics]);
+
+  const stockValueDisplay = useMemo(() => {
+    if (loading) return "Yükleniyor...";
+    if (stockValueMessage) return stockValueMessage;
+    if (stockValue != null && stockValue > 0) return formatTry(stockValue);
+    if (stockValue === 0) return formatTry(0);
+    return "Stok değeri için fiyat/stok verisi bekleniyor";
+  }, [loading, stockValue, stockValueMessage]);
+
+  const stockValueIsMessage = !loading && Boolean(stockValueMessage || stockValue == null);
+
   return (
     <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
       <div className="grid h-full w-full grid-cols-[430px_1fr] overflow-x-hidden">
@@ -186,79 +372,92 @@ export default function DogaltasPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-black text-slate-950">Hesaplanmış Analizler</h2>
-                  <p className="text-xs text-slate-600">Sistem verilerine göre otomatik analizler</p>
+                  <p className="text-xs text-slate-600">Supabase stones, minerals ve combinations verilerine göre</p>
                 </div>
               </div>
+
+              {errorMessage ? (
+                <p
+                  className="mb-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+                  role="alert"
+                >
+                  {errorMessage}
+                </p>
+              ) : null}
 
               <div className="grid shrink-0 grid-cols-3 gap-3">
                 <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
                   <p className="text-base font-black text-slate-800">Stok Değeri</p>
-                  <p className="text-xs text-slate-500">Toplam stok değeri</p>
-                  <h3 className="mt-auto pt-2 text-3xl font-black text-slate-950">₺ 2.450.780</h3>
-                  <p className="mt-1 text-xs font-bold text-emerald-600">↗ %12.5</p>
+                  <p className="text-xs text-slate-500">Stones tablosu fiyat × stok</p>
+                  <h3
+                    className={`mt-auto pt-2 font-black text-slate-950 ${
+                      stockValueIsMessage ? "text-sm leading-snug" : "text-3xl"
+                    }`}
+                  >
+                    {stockValueDisplay}
+                  </h3>
                 </div>
 
                 <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
                   <p className="text-base font-black text-slate-800">Aylık Kayıt Trendi</p>
-                  <p className="text-xs text-slate-500">Son 6 ay</p>
-                  <div className="mt-2 flex h-[88px] items-end gap-1.5">
-                    {[45, 70, 50, 78, 96, 74].map((height, index) => (
-                      <div key={index} className="flex h-full flex-1 flex-col justify-end">
-                        <div
-                          className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
-                          style={{ height: `${height}%`, minHeight: "6px" }}
-                        />
+                  <p className="text-xs text-slate-500">Son 6 ay · stones.created_at</p>
+                  {loading ? (
+                    <p className="mt-auto text-sm font-semibold text-slate-600">Yükleniyor...</p>
+                  ) : (
+                    <>
+                      <div className="mt-2 flex h-[88px] items-end gap-1.5">
+                        {monthlyTrend.map((bucket) => (
+                          <div
+                            key={bucket.label}
+                            className="flex h-full flex-1 flex-col justify-end"
+                            title={`${bucket.label}: ${bucket.count} kayıt`}
+                          >
+                            <div
+                              className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
+                              style={{
+                                height: bucket.heightPct > 0 ? `${bucket.heightPct}%` : "4px",
+                                minHeight: "4px",
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-1.5 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500">
-                    <span>Kas</span>
-                    <span>Ara</span>
-                    <span>Oca</span>
-                    <span>Şub</span>
-                    <span>Mar</span>
-                    <span>Nis</span>
-                  </div>
+                      <div className="mt-1.5 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500">
+                        {monthlyTrend.map((bucket) => (
+                          <span key={`${bucket.label}-lbl`}>{bucket.label}</span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
                   <p className="text-base font-black text-slate-800">En Çok Satılan Taşlar</p>
-                  <p className="text-xs text-slate-500">Bu ay</p>
-                  <div className="mt-2 space-y-1 overflow-hidden">
-                    {[
-                      ["1", "🟣", "Ametist", "412"],
-                      ["2", "⚪", "Kuvars", "356"],
-                      ["3", "🟡", "Sitrin", "289"],
-                      ["4", "🔴", "Akik", "241"],
-                      ["5", "⚫", "Turmalin", "187"],
-                    ].map(([rank, icon, name, count]) => (
-                      <div key={rank} className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">
-                            {rank}
-                          </span>
-                          <span className="text-sm">{icon}</span>
-                          <span className="text-sm font-bold text-slate-700">{name}</span>
-                        </div>
-                        <span className="shrink-0 text-sm font-bold text-slate-500">{count}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-slate-500">Satış hareket tablosu</p>
+                  <p className="mt-auto text-sm font-semibold leading-relaxed text-slate-600">
+                    {loading ? "Yükleniyor..." : "Henüz satış verisi yok"}
+                  </p>
                 </div>
               </div>
 
               <div className="mt-3 grid shrink-0 grid-cols-3 gap-3">
                 <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-5 shadow-md">
                   <p className="text-sm font-black text-teal-700">Toplam Taş Kaydı</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">
+                    {formatCount(stonesCount, loading)}
+                  </p>
                 </div>
                 <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md">
                   <p className="text-sm font-black text-violet-700">Mineral Bankası</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">
+                    {formatCount(mineralsCount, loading)}
+                  </p>
                 </div>
                 <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md">
                   <p className="text-sm font-black text-amber-700">Aktif Kombinasyonlar</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">—</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">
+                    {formatCount(combinationsCount, loading)}
+                  </p>
                 </div>
               </div>
             </div>
