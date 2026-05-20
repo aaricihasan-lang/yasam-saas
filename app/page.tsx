@@ -538,7 +538,7 @@ export default function Home() {
     }
 
     return (
-      <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
+      <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
         <div
           className="pointer-events-none absolute -left-[300px] bottom-[-250px] h-[900px] w-[900px] rounded-full bg-blue-400/20 blur-[180px]"
           aria-hidden
@@ -648,9 +648,9 @@ export default function Home() {
           </defs>
         </svg>
 
-        <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-4 lg:px-10 lg:pt-4 xl:px-14">
+        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-24 lg:px-10 lg:pt-4 lg:pb-24 xl:px-14">
           <div
-            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-8 text-white shadow-[0_30px_90px_rgba(79,70,229,0.22)] sm:px-8 sm:py-9 lg:py-10"
+            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-5 text-white shadow-[0_30px_90px_rgba(79,70,229,0.22)] sm:px-8 sm:py-6 lg:py-7"
             aria-label="Uzman ve kurum profili"
           >
             <div
@@ -670,9 +670,9 @@ export default function Home() {
               Çıkış Yap
             </button>
 
-            <div className="relative flex flex-col gap-6 pr-20 sm:flex-row sm:items-center sm:gap-8 sm:pr-28">
+            <div className="relative flex flex-col gap-5 pr-20 sm:flex-row sm:items-center sm:gap-6 sm:pr-28">
                 <div
-                  className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-7xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-36 sm:w-36 sm:text-8xl"
+                  className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-6xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-32 sm:w-32 sm:text-7xl"
                   aria-hidden
                 >
                   {avatarInitial}
@@ -694,7 +694,7 @@ export default function Home() {
             </div>
           </div>
 
-          <section className="mt-3 flex min-h-0 flex-1 flex-col">
+          <section className="mt-3 flex w-full flex-col">
             {isAdminUser(user) ? (
               <Link
                 href="/admin"
@@ -730,7 +730,7 @@ export default function Home() {
             </div>
 
             {membershipExpired ? (
-              <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-10 text-center shadow-sm">
+              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-10 text-center shadow-sm">
                 <p className="text-lg font-black text-rose-950">
                   Üyelik süreniz doldu
                 </p>
@@ -740,7 +740,7 @@ export default function Home() {
                 </p>
               </div>
             ) : expertModulesEmpty ? (
-              <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-10 text-center shadow-sm">
+              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-10 text-center shadow-sm">
                 <p className="text-lg font-black text-slate-900">
                   Henüz modül izniniz tanımlanmamış
                 </p>
@@ -750,7 +750,7 @@ export default function Home() {
                 </p>
               </div>
             ) : (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
+            <div className="grid w-full grid-cols-1 gap-3 pb-4 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
               {visibleDashboardModules.map((item) => {
                 const hasHref = item.href !== "#";
                 const lockReason = getModuleLockReason(
