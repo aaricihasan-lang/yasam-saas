@@ -17,6 +17,7 @@ import {
   Users,
   AlertTriangle,
   CloudUpload,
+  RefreshCw,
 } from "lucide-react";
 import {
   clearYasamUser,
@@ -112,6 +113,17 @@ const adminCards: AdminCard[] = [
       iconWrap: "from-violet-500 to-purple-600",
       cardBg: "from-violet-100/90 via-purple-50/95 to-white",
       border: "border-violet-200/70",
+    },
+  },
+  {
+    title: "Veri Paylaşımı",
+    desc: "Kütüphane verilerini seçili üyeye aktar.",
+    href: "/admin/veri-paylasimi",
+    Icon: RefreshCw,
+    theme: {
+      iconWrap: "from-indigo-500 to-violet-600",
+      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
+      border: "border-indigo-200/70",
     },
   },
   {
