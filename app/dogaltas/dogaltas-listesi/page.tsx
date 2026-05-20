@@ -2,7 +2,16 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -31,8 +40,206 @@ type StoneRecord = {
   updated_at: string | null;
 };
 
+const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
+const LIST_PATH = "/dogaltas/dogaltas-listesi";
+
+const DOGALTAS_LIST_SEARCH_STORAGE_KEYS = [
+  "yasam-dogaltas-search",
+  "yasam-dogaltas-search-query",
+  "yasam-dogaltas-last-search",
+  "dogaltas-search",
+  "lastDogaltasSearch",
+  "searchTerm",
+  "q",
+] as const;
+
+const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
+const SEARCH_MATCH_BADGE_CLASS =
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+
 const STONES_SELECT =
-  "id, tenant_id, stone_name, short_description, general_info, physical_effects, spiritual_effects, warning_text, chakras, images, created_at, updated_at";
+  "id, tenant_id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, warning_text, warning_tags, feng_shui, meditation, care, application, chakras, assignments, images, created_at, updated_at";
+
+function normalizeTrSearch(value: string): string {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
+  let norm = "";
+  const indexMap: number[] = [];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const charNorm = normalizeTrSearch(text[i] ?? "");
+    for (let j = 0; j < charNorm.length; j += 1) {
+      norm += charNorm[j];
+      indexMap.push(i);
+    }
+  }
+
+  return { norm, indexMap };
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  const queryNorm = normalizeTrSearch(trimmedQuery);
+  if (!queryNorm) return text;
+
+  const { norm, indexMap } = buildNormIndexMap(text);
+  const nodes: ReactNode[] = [];
+  let lastEnd = 0;
+  let searchFrom = 0;
+
+  while (searchFrom <= norm.length - queryNorm.length) {
+    const idx = norm.indexOf(queryNorm, searchFrom);
+    if (idx < 0) break;
+
+    const startOrig = indexMap[idx] ?? 0;
+    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
+
+    if (startOrig > lastEnd) {
+      nodes.push(
+        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
+      );
+    }
+
+    nodes.push(
+      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
+        {text.slice(startOrig, endOrig)}
+      </mark>,
+    );
+
+    lastEnd = endOrig;
+    searchFrom = idx + queryNorm.length;
+  }
+
+  if (lastEnd < text.length) {
+    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
+  }
+
+  return nodes.length > 0 ? nodes : text;
+}
+
+function assignmentsToSearchText(assignments: Record<string, string[][]> | null): string {
+  if (!assignments || typeof assignments !== "object") return "";
+
+  const parts: string[] = [];
+  for (const value of Object.values(assignments)) {
+    if (Array.isArray(value)) {
+      for (const row of value) {
+        if (Array.isArray(row)) {
+          parts.push(row.map((cell) => String(cell ?? "")).join(" "));
+        } else if (typeof row === "string") {
+          parts.push(row);
+        }
+      }
+    } else if (typeof value === "string") {
+      parts.push(value);
+    }
+  }
+  return parts.filter(Boolean).join(" ");
+}
+
+function buildSearchableText(stone: StoneRecord): string {
+  const parts: string[] = [
+    stone.stone_name,
+    stone.short_description ?? "",
+    stone.general_info ?? "",
+    stone.source_note ?? "",
+    stone.physical_effects ?? "",
+    stone.spiritual_effects ?? "",
+    stone.other_effects ?? "",
+    stone.warning_text ?? "",
+    stone.feng_shui ?? "",
+    stone.meditation ?? "",
+    stone.care ?? "",
+    stone.application ?? "",
+    ...(stone.chakras || []),
+    ...(stone.warning_tags || []),
+    assignmentsToSearchText(stone.assignments),
+  ];
+
+  for (const value of Object.values(stone)) {
+    if (typeof value === "string" && value.trim()) {
+      parts.push(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim()) parts.push(item);
+        else if (item && typeof item === "object" && "name" in item) {
+          parts.push(String((item as { name?: string }).name ?? ""));
+        }
+      }
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      parts.push(assignmentsToSearchText(value as Record<string, string[][]>));
+    }
+  }
+
+  return parts.filter(Boolean).join(" ");
+}
+
+function stoneMatchesSearch(stone: StoneRecord, searchTerm: string): boolean {
+  const trimmed = searchTerm.trim();
+  if (!trimmed) return true;
+  const haystack = normalizeTrSearch(buildSearchableText(stone));
+  const needle = normalizeTrSearch(trimmed);
+  return Boolean(needle) && haystack.includes(needle);
+}
+
+function clearDogaltasListSearchStorage() {
+  if (typeof window === "undefined") return;
+  for (const key of DOGALTAS_LIST_SEARCH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
+
+function readUrlSearchQuery(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+}
+
+function stripUrlSearchQuery() {
+  if (typeof window === "undefined") return;
+  const cleanUrl = window.location.pathname;
+  window.history.replaceState({}, "", cleanUrl);
+}
+
+function readViewedStoneIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((id) => String(id)));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function markViewedStoneId(id: string) {
+  const viewed = readViewedStoneIds();
+  viewed.add(id);
+  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
+}
+
+function stoneDetailHref(id: string, query: string, isSearchActive: boolean) {
+  return isSearchActive
+    ? `/dogaltas/dogaltas-listesi/${encodeURIComponent(id)}?q=${encodeURIComponent(query)}`
+    : `/dogaltas/dogaltas-listesi/${encodeURIComponent(id)}`;
+}
 
 function getActiveTenantIdFromLocalStorage(): string | null {
   const user = readYasamUser();
@@ -106,14 +313,20 @@ const uiSelectActionBtn =
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
-export default function DogaltasListesiPage() {
+function DogaltasListesiPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() ?? "";
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const [stones, setStones] = useState<StoneRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -252,40 +465,105 @@ export default function DogaltasListesiPage() {
     setSelectedIds(new Set());
   }, []);
 
+  const applySearchUrl = useCallback(
+    (query: string) => {
+      const basePath =
+        typeof window !== "undefined" ? window.location.pathname : LIST_PATH;
+      const nextUrl = `${basePath}?q=${encodeURIComponent(query)}`;
+      window.history.replaceState({}, "", nextUrl);
+      router.replace(nextUrl, { scroll: false });
+    },
+    [router],
+  );
+
+  const clearSearch = useCallback(() => {
+    stripUrlSearchQuery();
+    clearDogaltasListSearchStorage();
+    setSearchInput("");
+    setSearchTerm("");
+    setIsSearchActive(false);
+    setLoading(false);
+  }, []);
+
+  const activateSearch = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        clearSearch();
+        return;
+      }
+      setSearchInput(trimmed);
+      setSearchTerm(trimmed);
+      setIsSearchActive(true);
+      clearDogaltasListSearchStorage();
+      applySearchUrl(trimmed);
+    },
+    [applySearchUrl, clearSearch],
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        stripUrlSearchQuery();
+        clearDogaltasListSearchStorage();
+        setSearchInput("");
+        setSearchTerm("");
+        setIsSearchActive(false);
+        setLoading(false);
+        return;
+      }
+      setSearchInput(value);
+      activateSearch(trimmed);
+    },
+    [activateSearch],
+  );
+
+  const handleStoneNavigate = useCallback((stoneId: string) => {
+    markViewedStoneId(stoneId);
+    setViewedStoneIds(readViewedStoneIds());
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    clearSearch();
+    void loadStones();
+  }, [clearSearch]);
+
   useEffect(() => {
     runInEffect(() => {
-      loadStones();
+      void loadStones();
     });
   }, []);
 
+  useEffect(() => {
+    const q = readUrlSearchQuery();
+
+    if (!q || !q.trim()) {
+      setSearchInput("");
+      setSearchTerm("");
+      setIsSearchActive(false);
+      clearDogaltasListSearchStorage();
+      return;
+    }
+
+    setSearchInput(q);
+    setSearchTerm(q);
+    setIsSearchActive(true);
+  }, [urlQuery]);
+
+  useEffect(() => {
+    const refreshViewed = () => setViewedStoneIds(readViewedStoneIds());
+    refreshViewed();
+    window.addEventListener("focus", refreshViewed);
+    return () => window.removeEventListener("focus", refreshViewed);
+  }, []);
+
+  const activeSearch = isSearchActive ? searchTerm.trim() : "";
+
   const filteredStones = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("tr-TR");
-
-    if (!keyword) return stones;
-
-    return stones.filter((stone) => {
-      const text = [
-        stone.stone_name,
-        stone.short_description,
-        stone.general_info,
-        stone.source_note,
-        stone.physical_effects,
-        stone.spiritual_effects,
-        stone.other_effects,
-        stone.warning_text,
-        stone.feng_shui,
-        stone.meditation,
-        stone.care,
-        stone.application,
-        ...(stone.chakras || []),
-        ...(stone.warning_tags || []),
-      ]
-        .join(" ")
-        .toLocaleLowerCase("tr-TR");
-
-      return text.includes(keyword);
-    });
-  }, [stones, search]);
+    const term = isSearchActive ? searchTerm : "";
+    return stones.filter((stone) => stoneMatchesSearch(stone, term));
+  }, [stones, searchTerm, isSearchActive]);
 
   const selectAllFiltered = useCallback(() => {
     setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
@@ -410,9 +688,9 @@ export default function DogaltasListesiPage() {
               </span>
 
               <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                type="search"
+                value={searchInput}
+                onChange={(event) => handleSearchChange(event.target.value)}
                 placeholder="Taş adı, açıklama, çakra, etki veya uyarı ara..."
                 className={uiSearchInput}
               />
@@ -445,7 +723,7 @@ export default function DogaltasListesiPage() {
 
               <button
                 type="button"
-                onClick={loadStones}
+                onClick={handleRefresh}
                 className={`${uiViewBtn} border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
               >
                 Yenile
@@ -462,8 +740,8 @@ export default function DogaltasListesiPage() {
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
-              {search.trim()
-                ? `${filteredStones.length} sonuç bulundu`
+              {isSearchActive
+                ? `Arama: “${activeSearch}” · ${filteredStones.length} sonuç`
                 : `${filteredStones.length} kayıt gösteriliyor`}
             </p>
 
@@ -522,7 +800,7 @@ export default function DogaltasListesiPage() {
             <div className="flex h-[330px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
               <div className="text-[54px]">💎</div>
 
-              {stones.length === 0 && !search.trim() ? (
+              {stones.length === 0 && !isSearchActive ? (
                 <>
                   <h3 className="mt-3 text-[18px] font-black text-slate-900">
                     Supabase sorgusu çalıştı ama 0 kayıt döndü
@@ -593,14 +871,31 @@ export default function DogaltasListesiPage() {
                   const sectionCount = countFilledSections(stone);
                   const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
                   const isSelected = selectedIds.has(stone.id);
+                  const isViewedInSearch =
+                    isSearchActive && viewedStoneIds.has(stone.id);
+                  const detailHref = stoneDetailHref(stone.id, activeSearch, isSearchActive);
+                  const displayName = stone.stone_name || "İsimsiz taş";
+                  const displayDescription = safeText(stone.short_description);
 
                   return (
                     <div
                       key={stone.id}
-                      className={`grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 ${
+                      className={`relative grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 ${
                         isSelected ? "bg-violet-50/60" : ""
+                      } ${
+                        isViewedInSearch
+                          ? "border-l-4 border-rose-600"
+                          : isSearchActive
+                            ? "border-l-4 border-amber-400"
+                            : ""
                       }`}
                     >
+                      {isViewedInSearch ? (
+                        <span
+                          className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                          aria-hidden
+                        />
+                      ) : null}
                       <div className="flex items-center">
                         <input
                           type="checkbox"
@@ -612,8 +907,11 @@ export default function DogaltasListesiPage() {
                         />
                       </div>
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex min-w-0 items-center gap-3"
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
+                        className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
                       >
                         <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
                           {coverImageUrl ? (
@@ -632,8 +930,20 @@ export default function DogaltasListesiPage() {
                         </div>
 
                         <div className="min-w-0">
+                          {isSearchActive ? (
+                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                              {isViewedInSearch ? (
+                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                                  Bakıldı
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div className="truncate text-base font-black text-slate-950 xl:text-lg">
-                            {stone.stone_name || "İsimsiz taş"}
+                            {isSearchActive
+                              ? renderHighlightedText(displayName, activeSearch)
+                              : displayName}
                           </div>
 
                           <div className="mt-0.5 text-xs font-bold text-cyan-700 hover:text-violet-700 xl:text-sm">
@@ -643,15 +953,23 @@ export default function DogaltasListesiPage() {
                       </Link>
 
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base"
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
+                        className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
                       >
-                        {safeText(stone.short_description)}
+                        {isSearchActive
+                          ? renderHighlightedText(displayDescription, activeSearch)
+                          : displayDescription}
                       </Link>
 
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center"
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
+                        className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
                       >
                         <div className="flex flex-wrap gap-1.5">
                           {(stone.chakras || []).slice(0, 2).map((chakra) => (
@@ -678,8 +996,11 @@ export default function DogaltasListesiPage() {
                       </Link>
 
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center gap-1.5"
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
+                        className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
                       >
                         <span className={uiBadgeSection}>
                           {sectionCount} bölüm
@@ -693,8 +1014,11 @@ export default function DogaltasListesiPage() {
                       </Link>
 
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="flex items-center text-sm font-black text-slate-500 xl:text-base"
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
+                        className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
                       >
                         {formatDate(stone.created_at)}
                       </Link>
@@ -724,16 +1048,33 @@ export default function DogaltasListesiPage() {
                 const sectionCount = countFilledSections(stone);
                 const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
                 const isSelected = selectedIds.has(stone.id);
+                const isViewedInSearch =
+                  isSearchActive && viewedStoneIds.has(stone.id);
+                const detailHref = stoneDetailHref(stone.id, activeSearch, isSearchActive);
+                const displayName = stone.stone_name || "İsimsiz taş";
+                const displayDescription = safeText(stone.short_description, 120);
 
                 return (
                   <div
                     key={stone.id}
-                    className={`rounded-[28px] border-[3px] bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 ${
+                    className={`relative overflow-hidden rounded-[28px] border-[3px] bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 ${
                       isSelected
                         ? "border-violet-400/70 bg-violet-50/50"
                         : "border-cyan-300/40 hover:border-violet-300/50"
+                    } ${
+                      isViewedInSearch
+                        ? "border-l-4 border-rose-600"
+                        : isSearchActive
+                          ? "border-l-4 border-amber-400"
+                          : ""
                     }`}
                   >
+                    {isViewedInSearch ? (
+                      <span
+                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                        aria-hidden
+                      />
+                    ) : null}
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <input
                         type="checkbox"
@@ -748,9 +1089,22 @@ export default function DogaltasListesiPage() {
                       </span>
                     </div>
                     <Link
-                      href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                      className="group block"
+                      href={detailHref}
+                      onClick={() => {
+                        if (isSearchActive) handleStoneNavigate(stone.id);
+                      }}
+                      className={`group block ${isViewedInSearch ? "pl-2" : ""}`}
                     >
+                      {isSearchActive ? (
+                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                          <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                          {isViewedInSearch ? (
+                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                              Bakıldı
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <div className="flex items-start gap-3">
                         <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
                           {coverImageUrl ? (
@@ -771,7 +1125,9 @@ export default function DogaltasListesiPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="truncate text-base font-black text-slate-950 xl:text-lg">
-                              {stone.stone_name || "İsimsiz taş"}
+                              {isSearchActive
+                                ? renderHighlightedText(displayName, activeSearch)
+                                : displayName}
                             </h3>
 
                             <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
@@ -780,7 +1136,9 @@ export default function DogaltasListesiPage() {
                           </div>
 
                           <p className="mt-2 min-h-[42px] text-[12px] leading-5 text-slate-500">
-                            {safeText(stone.short_description, 120)}
+                            {isSearchActive
+                              ? renderHighlightedText(displayDescription, activeSearch)
+                              : displayDescription}
                           </p>
 
                           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -818,7 +1176,10 @@ export default function DogaltasListesiPage() {
 
                     <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
                       <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleStoneNavigate(stone.id);
+                        }}
                         className="text-xs font-bold text-cyan-700 transition hover:text-violet-700 xl:text-sm"
                       >
                         Detay sayfasında oku →
@@ -886,5 +1247,23 @@ export default function DogaltasListesiPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function DogaltasListesiPageFallback() {
+  return (
+    <main className={pageBg}>
+      <div className="flex min-h-screen items-center justify-center text-base font-black text-slate-600">
+        Yükleniyor…
+      </div>
+    </main>
+  );
+}
+
+export default function DogaltasListesiPage() {
+  return (
+    <Suspense fallback={<DogaltasListesiPageFallback />}>
+      <DogaltasListesiPageContent />
+    </Suspense>
   );
 }

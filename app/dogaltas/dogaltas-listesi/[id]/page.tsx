@@ -549,7 +549,7 @@ function StoneDetailPage() {
   const id = params?.id;
   const highlightQuery = searchParams.get("q")?.trim() ?? "";
   const listBackHref = highlightQuery
-    ? `/dogaltas?q=${encodeURIComponent(highlightQuery)}`
+    ? `/dogaltas/dogaltas-listesi?q=${encodeURIComponent(highlightQuery)}`
     : "/dogaltas/dogaltas-listesi";
   const { confirm } = useConfirm();
   const photoInputRef = useRef<HTMLInputElement>(null);
