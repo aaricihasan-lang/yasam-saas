@@ -40,6 +40,13 @@ function readUrlSearchQuery(): string {
   return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
 }
 
+/** Adres çubuğundan q kaldırır — state güncellemesinden önce çağrılmalı. */
+function stripUrlSearchQuery() {
+  if (typeof window === "undefined") return;
+  const cleanUrl = window.location.pathname;
+  window.history.replaceState({}, "", cleanUrl);
+}
+
 const MINERALS_LIST_SELECT =
   "id,source_id,name,aciklama,kategori,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,created_at";
 
@@ -264,22 +271,23 @@ function MineralListesiPageContent() {
 
   const applySearchUrl = useCallback(
     (query: string) => {
-      const nextUrl = `${LIST_PATH}?q=${encodeURIComponent(query)}`;
-      window.history.replaceState(null, "", nextUrl);
+      const basePath =
+        typeof window !== "undefined" ? window.location.pathname : LIST_PATH;
+      const nextUrl = `${basePath}?q=${encodeURIComponent(query)}`;
+      window.history.replaceState({}, "", nextUrl);
       router.replace(nextUrl, { scroll: false });
     },
     [router],
   );
 
   const clearSearch = useCallback(() => {
+    stripUrlSearchQuery();
+    clearMineralSearchStorage();
     setSearchInput("");
     setSearchTerm("");
     setIsSearchActive(false);
     setLoading(false);
-    clearMineralSearchStorage();
-    window.history.replaceState(null, "", LIST_PATH);
-    router.replace(LIST_PATH, { scroll: false });
-  }, [router]);
+  }, []);
 
   const activateSearch = useCallback(
     (query: string) => {
@@ -324,17 +332,19 @@ function MineralListesiPageContent() {
   }, []);
 
   useEffect(() => {
-    const qFromUrl = readUrlSearchQuery();
-    if (qFromUrl) {
-      setSearchInput(qFromUrl);
-      setSearchTerm(qFromUrl);
-      setIsSearchActive(true);
+    const q = readUrlSearchQuery();
+
+    if (!q || !q.trim()) {
+      setSearchInput("");
+      setSearchTerm("");
+      setIsSearchActive(false);
+      clearMineralSearchStorage();
       return;
     }
-    setSearchInput("");
-    setSearchTerm("");
-    setIsSearchActive(false);
-    clearMineralSearchStorage();
+
+    setSearchInput(q);
+    setSearchTerm(q);
+    setIsSearchActive(true);
   }, [urlQuery]);
 
   useEffect(() => {
@@ -346,15 +356,20 @@ function MineralListesiPageContent() {
 
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearchInput(value);
       const trimmed = value.trim();
       if (!trimmed) {
-        clearSearch();
+        stripUrlSearchQuery();
+        clearMineralSearchStorage();
+        setSearchInput("");
+        setSearchTerm("");
+        setIsSearchActive(false);
+        setLoading(false);
         return;
       }
+      setSearchInput(value);
       activateSearch(trimmed);
     },
-    [activateSearch, clearSearch],
+    [activateSearch],
   );
 
   const handleRefresh = useCallback(() => {
