@@ -11,7 +11,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -41,7 +40,6 @@ type StoneRecord = {
 };
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
-const LIST_PATH = "/dogaltas/dogaltas-listesi";
 
 const DOGALTAS_LIST_SEARCH_STORAGE_KEYS = [
   "yasam-dogaltas-search",
@@ -314,18 +312,13 @@ const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
 function DogaltasListesiPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlQuery = searchParams.get("q")?.trim() ?? "";
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const [stones, setStones] = useState<StoneRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
@@ -465,59 +458,23 @@ function DogaltasListesiPageContent() {
     setSelectedIds(new Set());
   }, []);
 
-  const applySearchUrl = useCallback(
-    (query: string) => {
-      const basePath =
-        typeof window !== "undefined" ? window.location.pathname : LIST_PATH;
-      const nextUrl = `${basePath}?q=${encodeURIComponent(query)}`;
-      window.history.replaceState({}, "", nextUrl);
-      router.replace(nextUrl, { scroll: false });
-    },
-    [router],
-  );
-
   const clearSearch = useCallback(() => {
-    stripUrlSearchQuery();
+    if (readUrlSearchQuery()) {
+      stripUrlSearchQuery();
+    }
     clearDogaltasListSearchStorage();
-    setSearchInput("");
     setSearchTerm("");
-    setIsSearchActive(false);
-    setLoading(false);
   }, []);
 
-  const activateSearch = useCallback(
-    (query: string) => {
-      const trimmed = query.trim();
-      if (!trimmed) {
-        clearSearch();
-        return;
-      }
-      setSearchInput(trimmed);
-      setSearchTerm(trimmed);
-      setIsSearchActive(true);
-      clearDogaltasListSearchStorage();
-      applySearchUrl(trimmed);
-    },
-    [applySearchUrl, clearSearch],
-  );
-
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      const trimmed = value.trim();
-      if (!trimmed) {
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (!value.trim()) {
+      if (readUrlSearchQuery()) {
         stripUrlSearchQuery();
-        clearDogaltasListSearchStorage();
-        setSearchInput("");
-        setSearchTerm("");
-        setIsSearchActive(false);
-        setLoading(false);
-        return;
       }
-      setSearchInput(value);
-      activateSearch(trimmed);
-    },
-    [activateSearch],
-  );
+      clearDogaltasListSearchStorage();
+    }
+  }, []);
 
   const handleStoneNavigate = useCallback((stoneId: string) => {
     markViewedStoneId(stoneId);
@@ -537,19 +494,10 @@ function DogaltasListesiPageContent() {
 
   useEffect(() => {
     const q = readUrlSearchQuery();
-
-    if (!q || !q.trim()) {
-      setSearchInput("");
-      setSearchTerm("");
-      setIsSearchActive(false);
-      clearDogaltasListSearchStorage();
-      return;
+    if (q) {
+      setSearchTerm(q);
     }
-
-    setSearchInput(q);
-    setSearchTerm(q);
-    setIsSearchActive(true);
-  }, [urlQuery]);
+  }, []);
 
   useEffect(() => {
     const refreshViewed = () => setViewedStoneIds(readViewedStoneIds());
@@ -558,11 +506,13 @@ function DogaltasListesiPageContent() {
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
 
-  const activeSearch = isSearchActive ? searchTerm.trim() : "";
+  const isSearchActive = Boolean(searchTerm.trim());
+  const activeSearch = searchTerm.trim();
 
   const filteredStones = useMemo(() => {
-    const term = isSearchActive ? searchTerm : "";
-    return stones.filter((stone) => stoneMatchesSearch(stone, term));
+    return stones.filter((stone) =>
+      stoneMatchesSearch(stone, isSearchActive ? searchTerm : ""),
+    );
   }, [stones, searchTerm, isSearchActive]);
 
   const selectAllFiltered = useCallback(() => {
@@ -682,19 +632,27 @@ function DogaltasListesiPageContent() {
 
         <section className={uiFilterCard}>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-400">
+            <form
+              className="relative w-full"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <span className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-lg text-slate-400">
                 ⌕
               </span>
 
               <input
                 type="search"
-                value={searchInput}
+                value={searchTerm}
                 onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
                 placeholder="Taş adı, açıklama, çakra, etki veya uyarı ara..."
                 className={uiSearchInput}
+                enterKeyHint="search"
+                autoComplete="off"
               />
-            </div>
+            </form>
 
             <div className="flex flex-wrap items-center gap-3">
               <button
