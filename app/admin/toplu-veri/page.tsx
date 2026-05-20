@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import {
   AlertTriangle,
+  Brain,
   CheckCircle2,
   Dna,
   FileJson,
@@ -3286,6 +3287,404 @@ function EnerjiBedenleriJsonTab() {
   );
 }
 
+type BioenergySubconsciousJsonItem = Record<string, unknown>;
+
+type BioenergySubconsciousInsertRow = {
+  tenant_id: string;
+  source_uid: string;
+  title: string;
+  category: string;
+  content: string;
+  note_text: string;
+};
+
+type BioenergySubconsciousImportFailure = {
+  title: string;
+  source_uid: string;
+  message: string;
+};
+
+const SUBCONSCIOUS_BATCH_SIZE = 250;
+const SUBCONSCIOUS_PREVIEW_LIMIT = 5;
+const SUBCONSCIOUS_FAILED_PREVIEW_LIMIT = 20;
+
+function subconsciousText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function subconsciousPickField(item: BioenergySubconsciousJsonItem, keys: string[]): string {
+  for (const key of keys) {
+    const text = subconsciousText(item[key]);
+    if (text) return text;
+  }
+  return "";
+}
+
+function parseBioenergySubconsciousJsonItems(text: string): {
+  items: BioenergySubconsciousJsonItem[];
+  error: string | null;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { items: [], error: "Geçersiz JSON dosyası." };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { items: [], error: "JSON kökü bir dizi olmalıdır." };
+  }
+
+  const items = parsed.filter(
+    (item) => item && typeof item === "object",
+  ) as BioenergySubconsciousJsonItem[];
+  if (items.length === 0) {
+    return { items: [], error: "JSON içinde işlenebilir bilinçaltı kaydı bulunamadı." };
+  }
+
+  return { items, error: null };
+}
+
+function mapBioenergySubconsciousItemToInsertRow(
+  item: BioenergySubconsciousJsonItem,
+): BioenergySubconsciousInsertRow | null {
+  const sourceUid = subconsciousText(item.uid);
+  const title = subconsciousPickField(item, ["title", "name", "baslik"]);
+  if (!sourceUid || !title) return null;
+
+  return {
+    tenant_id: TENANT_ID,
+    source_uid: sourceUid,
+    title,
+    category: subconsciousPickField(item, ["category", "kategori"]),
+    content: subconsciousPickField(item, ["content", "description", "aciklama", "neden"]),
+    note_text: subconsciousPickField(item, ["note", "notes", "not"]),
+  };
+}
+
+function flattenBioenergySubconsciousItemsToRows(
+  items: BioenergySubconsciousJsonItem[],
+): BioenergySubconsciousInsertRow[] {
+  const rows: BioenergySubconsciousInsertRow[] = [];
+  for (const item of items) {
+    const row = mapBioenergySubconsciousItemToInsertRow(item);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function bioenergySubconsciousInsertSucceeded(
+  data: { id: string }[] | null,
+  expectedCount: number,
+): boolean {
+  return Boolean(data && data.length === expectedCount);
+}
+
+async function importBioenergySubconsciousRows(
+  rows: BioenergySubconsciousInsertRow[],
+): Promise<{
+  successCount: number;
+  failedCount: number;
+  failures: BioenergySubconsciousImportFailure[];
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: BioenergySubconsciousImportFailure[] = [];
+
+  const recordFailure = (title: string, sourceUid: string, message: string) => {
+    failedCount += 1;
+    if (failures.length < SUBCONSCIOUS_FAILED_PREVIEW_LIMIT) {
+      failures.push({ title, source_uid: sourceUid, message });
+    }
+  };
+
+  for (let offset = 0; offset < rows.length; offset += SUBCONSCIOUS_BATCH_SIZE) {
+    const batch = rows.slice(offset, offset + SUBCONSCIOUS_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("bioenergy_subconscious_causes")
+      .insert(batch)
+      .select("id");
+
+    if (!error && bioenergySubconsciousInsertSucceeded(data, batch.length)) {
+      successCount += data!.length;
+      continue;
+    }
+
+    const batchMessage =
+      error?.message ??
+      "Toplu ekleme tamamlanamadı (public.bioenergy_subconscious_causes tablosuna kayıt doğrulanamadı).";
+
+    for (const row of batch) {
+      const { data: rowData, error: singleError } = await supabase
+        .from("bioenergy_subconscious_causes")
+        .insert(row)
+        .select("id");
+
+      if (singleError || !bioenergySubconsciousInsertSucceeded(rowData, 1)) {
+        recordFailure(row.title, row.source_uid, singleError?.message ?? batchMessage);
+      } else {
+        successCount += 1;
+      }
+    }
+  }
+
+  return { successCount, failedCount, failures };
+}
+
+function BilincaltiSebepleriJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [items, setItems] = useState<BioenergySubconsciousJsonItem[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    successCount: number;
+    failedCount: number;
+    totalProcessed: number;
+    failures: BioenergySubconsciousImportFailure[];
+  } | null>(null);
+
+  const recordCount = items.length;
+  const importableCount = useMemo(
+    () => flattenBioenergySubconsciousItemsToRows(items).length,
+    [items],
+  );
+
+  const previewItems = useMemo(
+    () => items.slice(0, SUBCONSCIOUS_PREVIEW_LIMIT),
+    [items],
+  );
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setItems([]);
+    setFileName(null);
+    setImportReport(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { items: parsed, error } = parseBioenergySubconsciousJsonItems(text);
+      if (error) {
+        setParseError(error);
+        setItems([]);
+        setFileName(file.name);
+        return;
+      }
+      setItems(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setParseError("Dosya okunamadı.");
+    };
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleFullImport = useCallback(async () => {
+    const rows = flattenBioenergySubconsciousItemsToRows(items);
+    if (rows.length === 0) {
+      setParseError("Aktarılacak kayıt bulunamadı (uid ve title/name/baslik zorunlu).");
+      return;
+    }
+
+    setImporting(true);
+    setImportReport(null);
+    setParseError(null);
+
+    const { successCount, failedCount, failures } = await importBioenergySubconsciousRows(rows);
+
+    setImporting(false);
+    const totalProcessed = successCount + failedCount;
+    setImportReport({
+      successCount,
+      failedCount,
+      totalProcessed,
+      failures,
+    });
+
+    if (successCount > 0 && failedCount === 0) {
+      showToast({
+        type: "success",
+        message: `${successCount} bilinçaltı kaydı public.bioenergy_subconscious_causes tablosuna yazıldı.`,
+      });
+    } else if (successCount > 0) {
+      showToast({
+        type: "warning",
+        message: `${successCount} başarılı, ${failedCount} başarısız kayıt.`,
+      });
+    } else {
+      const detail = failures[0]?.message;
+      showToast({
+        type: "error",
+        message: detail
+          ? `Hiçbir kayıt yüklenemedi: ${detail}`
+          : "Hiçbir kayıt public.bioenergy_subconscious_causes tablosuna yazılamadı.",
+      });
+    }
+  }, [items, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/40 via-white to-purple-50/50 p-6 shadow-xl sm:p-8"
+      aria-label="Bilinçaltı Sebepleri JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Brain className="h-6 w-6 text-violet-700" aria-hidden />
+            Bilinçaltı Sebepleri JSON
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
+            subconscious_causes.json dosyasını seçin; kayıtları bioenergy_subconscious_causes
+            tablosuna aktarın.
+          </p>
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Bu işlem mevcut bilinçaltı kayıtlarını silmez. Aynı JSON tekrar yüklenirse kayıtlar
+            çoğalabilir.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white px-5 py-3 text-sm font-bold text-violet-950 shadow-md transition hover:scale-[1.02] hover:border-violet-400">
+            <Upload className="h-5 w-5" aria-hidden />
+            JSON dosyası seç
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+          </label>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              disabled={importing || importableCount === 0}
+              onClick={() => void handleFullImport()}
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-purple-400 bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  Yükleniyor...
+                </>
+              ) : (
+                "Tamamını Yükle"
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          Dosya: <span className="font-mono text-violet-900">{fileName}</span>
+          {items.length > 0 ? (
+            <span className="ml-2 text-violet-700">· {recordCount} kayıt</span>
+          ) : null}
+        </p>
+      ) : null}
+
+      {parseError ? (
+        <p
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+          role="alert"
+        >
+          {parseError}
+        </p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="mt-8 space-y-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Özet</h3>
+            <p className="mt-1 text-sm text-slate-600">JSON dosyasından okunan toplam sayı.</p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatBox label="Toplam kayıt" value={recordCount} />
+              <StatBox label="Aktarılabilir kayıt" value={importableCount} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-900">Önizleme</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              İlk {SUBCONSCIOUS_PREVIEW_LIMIT} kayıt.
+            </p>
+            <div className="mt-4 space-y-3">
+              {previewItems.map((item, index) => {
+                const sourceUid = subconsciousText(item.uid) || "—";
+                const title =
+                  subconsciousPickField(item, ["title", "name", "baslik"]) || "—";
+                const category = subconsciousPickField(item, ["category", "kategori"]);
+                const previewLine =
+                  subconsciousPickField(item, [
+                    "content",
+                    "description",
+                    "aciklama",
+                    "neden",
+                  ]) ||
+                  subconsciousPickField(item, ["note", "notes", "not"]) ||
+                  "—";
+
+                return (
+                  <div
+                    key={`${sourceUid}-${index}`}
+                    className="rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm"
+                  >
+                    <p className="text-sm font-black text-slate-900">{title}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {sourceUid}
+                      {category ? ` · ${category}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{previewLine}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {importReport ? (
+        <div className="mt-8 rounded-2xl border border-violet-200 bg-violet-50/90 p-5">
+          <h3 className="text-lg font-black text-violet-950">Yükleme raporu</h3>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatBox label="Başarılı" value={importReport.successCount} />
+            <StatBox label="Başarısız" value={importReport.failedCount} />
+            <StatBox label="Toplam işlenen" value={importReport.totalProcessed} />
+          </div>
+          {importReport.failures.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-sm font-black text-rose-950">
+                Başarısız kayıtlar (en fazla {SUBCONSCIOUS_FAILED_PREVIEW_LIMIT})
+              </p>
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {importReport.failures.map((row, index) => (
+                  <li
+                    key={`${row.source_uid}-${index}`}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-rose-950">
+                      {row.title}
+                      {row.source_uid ? ` · ${row.source_uid}` : ""}
+                    </span>
+                    <span className="mt-1 block font-medium text-rose-800">{row.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DogaltasJsonTab() {
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -3851,6 +4250,7 @@ export default function TopluVeriPage() {
     | "imajinasyon"
     | "cakra"
     | "enerji-bedeni"
+    | "bilincalti"
   >("dogaltas");
 
   return (
@@ -3952,6 +4352,17 @@ export default function TopluVeriPage() {
         >
           🧬 Enerji Bedenleri JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("bilincalti")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "bilincalti"
+              ? "border-violet-400 bg-violet-100 text-violet-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          🧠 Bilinçaltı Sebepleri JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
@@ -3961,6 +4372,7 @@ export default function TopluVeriPage() {
       {activeTab === "imajinasyon" ? <ImajinasyonJsonTab /> : null}
       {activeTab === "cakra" ? <CakraJsonTab /> : null}
       {activeTab === "enerji-bedeni" ? <EnerjiBedenleriJsonTab /> : null}
+      {activeTab === "bilincalti" ? <BilincaltiSebepleriJsonTab /> : null}
     </AdminModuleLayout>
   );
 }
