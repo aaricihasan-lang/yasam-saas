@@ -29,6 +29,9 @@ import {
 const navBtn =
   "inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-5 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[56px] sm:w-auto sm:px-7 sm:text-base";
 
+/** Veri Paylaşımı — admin kütüphane aktarım merkezi (sabit route) */
+const VERI_PAYLASIMI_HREF = "/admin/veri-paylasimi";
+
 function AdminTopNav({ onLogout }: { onLogout: () => void }) {
   return (
     <nav
@@ -118,7 +121,7 @@ const adminCards: AdminCard[] = [
   {
     title: "Veri Paylaşımı",
     desc: "Kütüphane verilerini seçili üyeye aktar.",
-    href: "/admin/veri-paylasimi",
+    href: VERI_PAYLASIMI_HREF,
     Icon: RefreshCw,
     theme: {
       iconWrap: "from-indigo-500 to-violet-600",
@@ -226,22 +229,44 @@ function AdminToolCard({
     <Link
       href={href}
       aria-label={`${title} — ${description}`}
-      className={`relative z-10 flex h-full min-h-[168px] w-full cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] no-underline transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-300 ${theme.cardBg} ${theme.border}`}
+      className={`relative z-40 flex h-full min-h-[168px] w-full cursor-pointer flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] no-underline transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-300 ${theme.cardBg} ${theme.border}`}
     >
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
-          >
-            <Icon className="h-7 w-7" strokeWidth={2.25} aria-hidden />
-          </div>
-          {badge ? (
-            <span className="pointer-events-none rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-              {badge}
-            </span>
-          ) : null}
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${theme.iconWrap}`}
+        >
+          <Icon className="h-7 w-7" strokeWidth={2.25} aria-hidden />
         </div>
+        {badge ? (
+          <span className="pointer-events-none rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+            {badge}
+          </span>
+        ) : null}
+      </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">{title}</h3>
       <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">{description}</p>
+    </Link>
+  );
+}
+
+/** Toplu Veri Aktarımı ile karışmaması için ayrı, tam tıklanabilir kart */
+function VeriPaylasimiAdminCard() {
+  return (
+    <Link
+      href={VERI_PAYLASIMI_HREF}
+      data-admin-card="veri-paylasimi"
+      aria-label="Veri Paylaşımı — Kütüphane verilerini seçili üyeye aktar."
+      className="relative z-40 flex h-full min-h-[168px] w-full cursor-pointer flex-col rounded-[28px] border border-indigo-200/70 bg-gradient-to-br from-indigo-100/90 via-violet-50/95 to-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] no-underline transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl shadow-lg">
+          <span aria-hidden>🔄</span>
+        </div>
+      </div>
+      <h3 className="mt-4 text-xl font-black text-slate-900">Veri Paylaşımı</h3>
+      <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">
+        Kütüphane verilerini seçili üyeye aktar.
+      </p>
     </Link>
   );
 }
@@ -364,9 +389,18 @@ export default function AdminPage() {
           <div className="relative z-30 mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {adminCards.map((item) => {
               const href = item.href?.trim();
+
+              if (href === VERI_PAYLASIMI_HREF) {
+                return (
+                  <div key="admin-veri-paylasimi" className="h-full">
+                    <VeriPaylasimiAdminCard />
+                  </div>
+                );
+              }
+
               if (href) {
                 return (
-                  <div key={item.title} className="h-full">
+                  <div key={`${item.title}-${href}`} className="h-full">
                     <AdminToolCard
                       title={item.title}
                       description={item.desc}
@@ -378,6 +412,7 @@ export default function AdminPage() {
                   </div>
                 );
               }
+
               return <AdminToolCardInactive key={item.title} item={item} />;
             })}
           </div>
