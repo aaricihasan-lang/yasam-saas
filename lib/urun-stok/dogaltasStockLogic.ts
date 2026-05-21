@@ -1,5 +1,10 @@
 /** Masaüstü base.py + inventory.py + pricing_sales.py mantığı (birebir port) */
 
+import {
+  calculateCurrencyCost,
+  calculateInventoryItemTotals,
+} from "@/lib/urun-stok/calculateCurrencyCost";
+
 export const INVENTORY_STORAGE_KEY = "dogaltas_inventory_v1";
 export const SALES_STORAGE_KEY = "dogaltas_sales_history_v1";
 
@@ -14,6 +19,15 @@ export type InvItem = {
   adet_price: number;
   photos: string[];
   dizi_price_usd: number;
+  /** Kümülatif EUR (Supabase: cost_eur / dizi_price_eur) */
+  dizi_price_eur: number;
+  /** Son kullanılan kurlar (Supabase: usd_rate, eur_rate) */
+  usd_rate: number;
+  eur_rate: number;
+  /** Hesaplanan toplam TL (Supabase: total_cost_try) */
+  total_cost_try: number;
+  /** Hesaplanan birim TL (Supabase: unit_cost_try) */
+  unit_cost_try: number;
 };
 
 export type SaleLine = {
@@ -67,17 +81,41 @@ export function fmtTrim(x: number, maxDec = 4): string {
   return s || "0";
 }
 
-function parseInvItem(r: Record<string, unknown>): InvItem {
+function applyItemCostTotals(item: InvItem): InvItem {
+  const usdRate = item.usd_rate || 0;
+  const eurRate = item.eur_rate || 0;
+  const { totalCostTry, unitCostTry } = calculateInventoryItemTotals({
+    dizi_price: item.dizi_price,
+    dizi_price_usd: item.dizi_price_usd,
+    dizi_price_eur: item.dizi_price_eur,
+    usd_rate: usdRate,
+    eur_rate: eurRate,
+    adet: item.adet,
+  });
   return {
+    ...item,
+    total_cost_try: totalCostTry,
+    unit_cost_try: unitCostTry ?? 0,
+  };
+}
+
+function parseInvItem(r: Record<string, unknown>): InvItem {
+  const base: InvItem = {
     name: String(r.name ?? ""),
     type: String(r.type ?? ""),
     adet: toFloat(r.adet, 0),
     dizi_icerik: toFloat(r.dizi_icerik, 0),
-    dizi_price: toFloat(r.dizi_price, 0),
+    dizi_price: toFloat(r.cost_try ?? r.dizi_price, 0),
     adet_price: toFloat(r.adet_price, 0),
     photos: Array.isArray(r.photos) ? (r.photos as string[]) : [],
-    dizi_price_usd: toFloat(r.dizi_price_usd, 0),
+    dizi_price_usd: toFloat(r.cost_usd ?? r.dizi_price_usd, 0),
+    dizi_price_eur: toFloat(r.cost_eur ?? r.dizi_price_eur, 0),
+    usd_rate: toFloat(r.usd_rate, 0),
+    eur_rate: toFloat(r.eur_rate, 0),
+    total_cost_try: toFloat(r.total_cost_try, 0),
+    unit_cost_try: toFloat(r.unit_cost_try, 0),
   };
+  return applyItemCostTotals(base);
 }
 
 export function loadInventory(): InvItem[] {
@@ -136,7 +174,7 @@ export function normalizeDiziInventory(items: InvItem[]): { items: InvItem[]; di
       copy.dizi_price = newTotal;
       dirty = true;
     }
-    return copy;
+    return applyItemCostTotals(copy);
   });
   return { items: next, dirty };
 }
@@ -147,6 +185,9 @@ export type AddItemInput = {
   stokIn: number;
   diziTlIn: number;
   diziUsdIn: number;
+  diziEurIn: number;
+  usdRateIn: number;
+  eurRateIn: number;
   adetTlIn: number;
   pendingPhotos: string[];
 };
@@ -166,9 +207,24 @@ export function addOrUpdateInventoryItem(
   const stokIn = input.stokIn;
   const diziTlIn = input.diziTlIn;
   const diziUsdIn = input.diziUsdIn;
+  const diziEurIn = input.diziEurIn;
+  const usdRateIn = input.usdRateIn;
+  const eurRateIn = input.eurRateIn;
   const adetTlIn = input.adetTlIn;
 
   if (stokIn === 0) return { ok: false, error: "0 giremezsiniz." };
+
+  const entryCost = calculateCurrencyCost({
+    costTry: diziTlIn,
+    costUsd: diziUsdIn,
+    costEur: diziEurIn,
+    usdRate: usdRateIn,
+    eurRate: eurRateIn,
+    stockQty: Math.abs(stokIn),
+  });
+  if (entryCost.errors.length > 0) {
+    return { ok: false, error: entryCost.errors[0] };
+  }
 
   const k = itemKey(name, typ);
   const isDiziType = isDizi(typ);
@@ -194,7 +250,11 @@ export function addOrUpdateInventoryItem(
       }
       if (addTl > 0) target.dizi_price = (target.dizi_price || 0) + addTl;
       if (diziUsdIn > 0) target.dizi_price_usd = (target.dizi_price_usd || 0) + diziUsdIn;
+      if (diziEurIn > 0) target.dizi_price_eur = (target.dizi_price_eur || 0) + diziEurIn;
     }
+
+    if (usdRateIn > 0) target.usd_rate = usdRateIn;
+    if (eurRateIn > 0) target.eur_rate = eurRateIn;
 
     target.adet = Math.max(0, beforeQty + deltaQty);
 
@@ -217,6 +277,16 @@ export function addOrUpdateInventoryItem(
     if (isDiziType && (target.adet || 0) <= 0) {
       target.dizi_price = 0;
       target.dizi_price_usd = 0;
+      target.dizi_price_eur = 0;
+    }
+
+    if (
+      entryCost.unitCostTry != null &&
+      entryCost.unitCostTry > 0 &&
+      adetTlIn <= 0 &&
+      isDiziType
+    ) {
+      target.adet_price = entryCost.unitCostTry;
     }
 
     if (input.pendingPhotos.length) {
@@ -224,7 +294,7 @@ export function addOrUpdateInventoryItem(
     }
 
     const next = [...items];
-    next[targetIdx] = target;
+    next[targetIdx] = applyItemCostTotals(target);
     return { ok: true, items: next };
   }
 
@@ -233,22 +303,33 @@ export function addOrUpdateInventoryItem(
   let stok = stokIn;
   let diziTl = diziTlIn;
   let diziUsd = diziUsdIn;
+  let diziEur = diziEurIn;
   let adetTl = adetTlIn;
 
   if (isDiziType) {
     if (adetTl <= 0 && diziTl > 0 && stok > 0) adetTl = diziTl / stok;
+    if (adetTl <= 0 && entryCost.unitCostTry != null && entryCost.unitCostTry > 0) {
+      adetTl = entryCost.unitCostTry;
+    }
+  } else if (entryCost.unitCostTry != null && entryCost.unitCostTry > 0) {
+    adetTl = entryCost.unitCostTry;
   }
 
-  const it: InvItem = {
+  const it = applyItemCostTotals({
     name,
     type: typ,
     adet: stok,
     dizi_icerik: 0,
     dizi_price: diziTl,
     dizi_price_usd: diziUsd,
+    dizi_price_eur: diziEur,
+    usd_rate: usdRateIn,
+    eur_rate: eurRateIn,
     adet_price: adetTl,
     photos: [...input.pendingPhotos],
-  };
+    total_cost_try: 0,
+    unit_cost_try: 0,
+  });
 
   return { ok: true, items: [...items, it] };
 }
@@ -309,23 +390,43 @@ export function formatTotalsCard(totalTl: number, totalUsd: number): string {
 export function unitCostAndCurrency(
   it: InvItem,
   usdRate: number,
+  eurRate = 0,
 ): { unit: number; currency: string; warning?: string } {
+  const rateUsd = usdRate > 0 ? usdRate : it.usd_rate || 0;
+  const rateEur = eurRate > 0 ? eurRate : it.eur_rate || 0;
+  const costCheck = calculateCurrencyCost({
+    costTry: 0,
+    costUsd: it.dizi_price_usd,
+    costEur: it.dizi_price_eur,
+    usdRate: rateUsd,
+    eurRate: rateEur,
+    stockQty: 1,
+  });
+  if (costCheck.errors.length > 0) {
+    return { unit: 0, currency: "₺", warning: costCheck.errors[0] };
+  }
+
+  if ((it.unit_cost_try || 0) > 0) {
+    return { unit: it.unit_cost_try, currency: "₺" };
+  }
+
   if (isDizi(it.type)) {
     const icerik = it.adet || 0;
-    if ((it.dizi_price_usd || 0) > 0) {
-      if (usdRate <= 0) {
-        return { unit: 0, currency: "$", warning: "Lütfen güncel dolar kuru giriniz." };
-      }
-      if (icerik > 0) return { unit: (it.dizi_price_usd * usdRate) / icerik, currency: "₺" };
-      return { unit: 0, currency: "$" };
+    const { totalCostTry, unitCostTry } = calculateInventoryItemTotals({
+      ...it,
+      usd_rate: rateUsd,
+      eur_rate: rateEur,
+    });
+    if (unitCostTry != null && unitCostTry > 0) {
+      return { unit: unitCostTry, currency: "₺" };
     }
-    if ((it.dizi_price || 0) > 0 && icerik > 0) {
-      return { unit: it.dizi_price / icerik, currency: "₺" };
+    if (totalCostTry > 0 && icerik > 0) {
+      return { unit: totalCostTry / icerik, currency: "₺" };
     }
     if ((it.adet_price || 0) > 0) return { unit: it.adet_price, currency: "₺" };
     return { unit: 0, currency: "₺" };
   }
-  return { unit: it.adet_price || 0, currency: "₺" };
+  return { unit: it.adet_price || it.unit_cost_try || 0, currency: "₺" };
 }
 
 export function deductInventoryForSales(
@@ -357,6 +458,10 @@ export function deductInventoryForSales(
           const unitUsd = it.dizi_price_usd / beforeQty;
           it.dizi_price_usd = Math.max(0, it.dizi_price_usd - unitUsd * sellQty);
         }
+        if ((it.dizi_price_eur || 0) > 0) {
+          const unitEur = it.dizi_price_eur / beforeQty;
+          it.dizi_price_eur = Math.max(0, it.dizi_price_eur - unitEur * sellQty);
+        }
         if ((it.dizi_price || 0) > 0) {
           const unitTry = it.dizi_price / beforeQty;
           it.dizi_price = Math.max(0, it.dizi_price - unitTry * sellQty);
@@ -364,6 +469,8 @@ export function deductInventoryForSales(
       }
 
       it.adet = Math.max(0, beforeQty - sellQty);
+      const refreshed = applyItemCostTotals(it);
+      Object.assign(it, refreshed);
     }
   }
 

@@ -26,6 +26,7 @@ import {
   turkishUpper,
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
+import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -208,6 +209,9 @@ export default function DogaltasUrunStokPage() {
   const [stokIn, setStokIn] = useState("");
   const [diziTl, setDiziTl] = useState("");
   const [diziUsd, setDiziUsd] = useState("");
+  const [diziEur, setDiziEur] = useState("");
+  const [stockUsdRate, setStockUsdRate] = useState("");
+  const [stockEurRate, setStockEurRate] = useState("");
   const [adetTl, setAdetTl] = useState("");
   const [pendingPhotos, setPendingPhotos] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -225,6 +229,19 @@ export default function DogaltasUrunStokPage() {
 
   const critNum = toFloat(critAdet, 3);
 
+  const stockCostPreview = useMemo(
+    () =>
+      calculateCurrencyCost({
+        costTry: diziTl,
+        costUsd: diziUsd,
+        costEur: diziEur,
+        usdRate: stockUsdRate,
+        eurRate: stockEurRate,
+        stockQty: stokIn,
+      }),
+    [diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, stokIn],
+  );
+
   function handleAddStock() {
     setStockMsg(null);
     const result = addOrUpdateInventoryItem(inventory, {
@@ -233,6 +250,9 @@ export default function DogaltasUrunStokPage() {
       stokIn: toFloat(stokIn, 0),
       diziTlIn: toFloat(diziTl, 0),
       diziUsdIn: toFloat(diziUsd, 0),
+      diziEurIn: toFloat(diziEur, 0),
+      usdRateIn: toFloat(stockUsdRate, 0),
+      eurRateIn: toFloat(stockEurRate, 0),
       adetTlIn: toFloat(adetTl, 0),
       pendingPhotos,
     });
@@ -249,6 +269,7 @@ export default function DogaltasUrunStokPage() {
     setStokIn("");
     setDiziTl("");
     setDiziUsd("");
+    setDiziEur("");
     setAdetTl("");
     setPendingPhotos([]);
   }
@@ -284,6 +305,7 @@ export default function DogaltasUrunStokPage() {
   const [productName, setProductName] = useState("");
   const [productPhotos, setProductPhotos] = useState<string[]>([]);
   const [usdRate, setUsdRate] = useState("");
+  const [eurRate, setEurRate] = useState("");
   const [profitPct, setProfitPct] = useState("100");
   const [basket, setBasket] = useState<SaleRecord[]>([]);
   const [pricingMsg, setPricingMsg] = useState<string | null>(null);
@@ -320,7 +342,8 @@ export default function DogaltasUrunStokPage() {
       return;
     }
     const rate = toFloat(usdRate, 0);
-    const { unit, currency, warning } = unitCostAndCurrency(it, rate);
+    const rateEur = toFloat(eurRate, 0);
+    const { unit, currency, warning } = unitCostAndCurrency(it, rate, rateEur);
     if (warning) {
       setPricingMsg(warning);
       return;
@@ -506,7 +529,9 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Dizi ₺ (toplam)</span>
+                  <span className="mb-2 block text-sm font-black text-slate-700">
+                    Dizi / ürün maliyeti TL
+                  </span>
                   <input
                     className={inputClass}
                     type="number"
@@ -516,7 +541,9 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Dizi $ (toplam)</span>
+                  <span className="mb-2 block text-sm font-black text-slate-700">
+                    Dizi / ürün maliyeti USD
+                  </span>
                   <input
                     className={inputClass}
                     type="number"
@@ -526,7 +553,21 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Adet ₺ (otomatik / manuel)</span>
+                  <span className="mb-2 block text-sm font-black text-slate-700">
+                    Dizi / ürün maliyeti EUR
+                  </span>
+                  <input
+                    className={inputClass}
+                    type="number"
+                    step="0.01"
+                    value={diziEur}
+                    onChange={(e) => setDiziEur(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-black text-slate-700">
+                    Adet ₺ (otomatik / manuel)
+                  </span>
                   <input
                     className={inputClass}
                     type="number"
@@ -535,6 +576,79 @@ export default function DogaltasUrunStokPage() {
                     onChange={(e) => setAdetTl(e.target.value)}
                   />
                 </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
+                <div className="rounded-2xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-4 shadow-sm">
+                  <p className="text-sm font-black uppercase tracking-wide text-violet-800">
+                    Güncel kurlar
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Dolar kuru
+                      </span>
+                      <input
+                        className="h-12 w-full rounded-xl border-2 border-sky-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-violet-400"
+                        type="number"
+                        step="0.0001"
+                        value={stockUsdRate}
+                        onChange={(e) => setStockUsdRate(e.target.value)}
+                        placeholder="Örn. 34.50"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Euro kuru
+                      </span>
+                      <input
+                        className="h-12 w-full rounded-xl border-2 border-sky-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-violet-400"
+                        type="number"
+                        step="0.0001"
+                        value={stockEurRate}
+                        onChange={(e) => setStockEurRate(e.target.value)}
+                        placeholder="Örn. 37.20"
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div className="rounded-2xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50/80 p-4 shadow-sm lg:col-span-2">
+                  <p className="text-sm font-black uppercase tracking-wide text-emerald-900">
+                    Anlık maliyet özeti
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <p className="text-base font-semibold text-slate-800">
+                      Toplam TL maliyet:{" "}
+                      <span className="font-black text-emerald-900">
+                        {fmtMoney(stockCostPreview.totalCostTry)}
+                      </span>
+                    </p>
+                    <p className="text-base font-semibold text-slate-800">
+                      Birim TL maliyet:{" "}
+                      <span className="font-black text-emerald-900">
+                        {stockCostPreview.unitCostTry != null
+                          ? fmtMoney(stockCostPreview.unitCostTry)
+                          : "—"}
+                      </span>
+                    </p>
+                  </div>
+                  {stockCostPreview.errors.map((msg) => (
+                    <p
+                      key={msg}
+                      className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900"
+                    >
+                      {msg}
+                    </p>
+                  ))}
+                  {stockCostPreview.warnings.map((msg) => (
+                    <p
+                      key={msg}
+                      className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950"
+                    >
+                      {msg}
+                    </p>
+                  ))}
+                </div>
               </div>
               <div className="mt-6 flex flex-wrap items-center gap-4">
                 <label className="cursor-pointer">
@@ -594,7 +708,7 @@ export default function DogaltasUrunStokPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-base">
+                <table className="w-full min-w-[1100px] border-separate border-spacing-y-2 text-base">
                   <thead>
                     <tr className="text-left text-sm font-black uppercase tracking-wide text-violet-800">
                       <th className="w-12 px-2 py-3">Seç</th>
@@ -602,8 +716,11 @@ export default function DogaltasUrunStokPage() {
                       <th className="px-4 py-3">Taş Adı</th>
                       <th className="px-4 py-3">Tür</th>
                       <th className="px-4 py-3 text-center">Stok</th>
-                      <th className="px-4 py-3 text-center">Dizi ₺</th>
-                      <th className="px-4 py-3 text-center">Dizi $</th>
+                      <th className="px-4 py-3 text-center">TL ₺</th>
+                      <th className="px-4 py-3 text-center">USD $</th>
+                      <th className="px-4 py-3 text-center">EUR €</th>
+                      <th className="px-4 py-3 text-center">Toplam TL</th>
+                      <th className="px-4 py-3 text-center">Birim TL</th>
                       <th className="px-4 py-3 text-center">Adet ₺</th>
                       <th className="px-4 py-3 text-center">Foto</th>
                     </tr>
@@ -640,6 +757,13 @@ export default function DogaltasUrunStokPage() {
                           </td>
                           <td className="px-4 py-4 text-center">{(it.dizi_price || 0).toFixed(2)}</td>
                           <td className="px-4 py-4 text-center">{(it.dizi_price_usd || 0).toFixed(2)}</td>
+                          <td className="px-4 py-4 text-center">{(it.dizi_price_eur || 0).toFixed(2)}</td>
+                          <td className="px-4 py-4 text-center font-semibold text-emerald-900">
+                            {(it.total_cost_try || 0).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-4 text-center font-semibold text-emerald-800">
+                            {(it.unit_cost_try || 0).toFixed(4)}
+                          </td>
                           <td className="px-4 py-4 text-center">{(it.adet_price || 0).toFixed(2)}</td>
                           <td className="px-4 py-4 text-center">
                             <button
@@ -728,17 +852,36 @@ export default function DogaltasUrunStokPage() {
                 />
               </label>
 
-              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="block sm:col-span-1 lg:max-w-sm">
-                  <span className="mb-2 block text-sm font-black">Güncel Dolar Kuru</span>
-                  <input
-                    className={inputClass}
-                    type="number"
-                    step="0.01"
-                    value={usdRate}
-                    onChange={(e) => setUsdRate(e.target.value)}
-                  />
-                </label>
+              <div className="rounded-2xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-4">
+                <p className="text-sm font-black uppercase tracking-wide text-violet-800">
+                  Satış fiyatlandırma kurları
+                </p>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-base font-bold text-slate-700">
+                      Güncel Dolar Kuru
+                    </span>
+                    <input
+                      className={inputClass}
+                      type="number"
+                      step="0.0001"
+                      value={usdRate}
+                      onChange={(e) => setUsdRate(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-base font-bold text-slate-700">
+                      Güncel Euro Kuru
+                    </span>
+                    <input
+                      className={inputClass}
+                      type="number"
+                      step="0.0001"
+                      value={eurRate}
+                      onChange={(e) => setEurRate(e.target.value)}
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
