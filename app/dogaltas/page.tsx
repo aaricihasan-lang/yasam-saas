@@ -11,6 +11,10 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { runInEffect } from "@/lib/runInEffect";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
@@ -340,10 +344,14 @@ function formatTry(amount: number): string {
   }).format(amount);
 }
 
-async function fetchTableCount(table: string): Promise<number | null> {
+async function fetchTableCount(
+  table: string,
+  tenantId: string,
+): Promise<number | null> {
   const { count, error } = await supabase
     .from(table)
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+    .eq("tenant_id", tenantId);
 
   if (error) return null;
   return count ?? 0;
@@ -375,12 +383,28 @@ function DogaltasPageContent() {
     setLoading(true);
     setErrorMessage(null);
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setStonesCount(null);
+      setMineralsCount(null);
+      setCombinationsCount(null);
+      setMonthlyTrend([]);
+      setStockValue(null);
+      setStockValueMessage(null);
+      return;
+    }
+
     const [stonesCountRes, stonesRowsRes, mineralsCount, combinationsCount] =
       await Promise.all([
-        supabase.from("stones").select("*", { count: "exact", head: true }),
-        supabase.from("stones").select("*"),
-        fetchTableCount("minerals"),
-        fetchTableCount("combinations"),
+        supabase
+          .from("stones")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId),
+        supabase.from("stones").select("*").eq("tenant_id", tenantId),
+        fetchTableCount("minerals", tenantId),
+        fetchTableCount("combinations", tenantId),
       ]);
 
     setLoading(false);
@@ -442,7 +466,15 @@ function DogaltasPageContent() {
   const ensureStonesForSearch = useCallback(async () => {
     if (stonesForSearch !== null) return stonesForSearch;
 
-    const { data, error } = await supabase.from("stones").select(STONES_SEARCH_SELECT);
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      throw new Error(MISSING_SESSION_TENANT_MESSAGE);
+    }
+
+    const { data, error } = await supabase
+      .from("stones")
+      .select(STONES_SEARCH_SELECT)
+      .eq("tenant_id", tenantId);
 
     if (error) {
       throw new Error(error.message);

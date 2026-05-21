@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type MineralForm = {
   name: string;
@@ -162,10 +164,16 @@ export default function MineralBankasiPage() {
       return;
     }
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       source_id: slugifySourceId(nameTrim),
       name: nameTrim,
       aciklama: form.aciklama.trim() || null,

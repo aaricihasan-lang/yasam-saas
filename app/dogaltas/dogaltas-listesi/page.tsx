@@ -13,7 +13,10 @@ import {
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 type StoneRecord = {
@@ -239,12 +242,6 @@ function stoneDetailHref(id: string, query: string, isSearchActive: boolean) {
     : `/dogaltas/dogaltas-listesi/${encodeURIComponent(id)}`;
 }
 
-function getActiveTenantIdFromLocalStorage(): string | null {
-  const user = readYasamUser();
-  const tenantId = user?.tenant_id?.trim();
-  return tenantId || null;
-}
-
 type StonesLoadDebug = {
   activeUserTenantId: string | null;
   queryTenantId: string | null;
@@ -330,7 +327,7 @@ function DogaltasListesiPageContent() {
     setLoading(true);
     setErrorMessage("");
 
-    const activeUserTenantId = getActiveTenantIdFromLocalStorage();
+    const activeUserTenantId = getSessionTenantId();
     const tenantIdForQuery = activeUserTenantId;
 
     if (!tenantIdForQuery) {
@@ -344,9 +341,7 @@ function DogaltasListesiPageContent() {
         tableTotalVisible: null,
         sampleTenantIds: [],
       });
-      setErrorMessage(
-        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
-      );
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
@@ -366,12 +361,14 @@ function DogaltasListesiPageContent() {
     if (!error && returnedCount === 0) {
       const { count } = await supabase
         .from("stones")
-        .select("id", { count: "exact", head: true });
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantIdForQuery);
       tableTotalVisible = count ?? 0;
 
       const { data: tenantRows } = await supabase
         .from("stones")
         .select("tenant_id")
+        .eq("tenant_id", tenantIdForQuery)
         .limit(50);
 
       sampleTenantIds = [
@@ -408,11 +405,9 @@ function DogaltasListesiPageContent() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const tenantId = queryTenantId ?? getActiveTenantIdFromLocalStorage();
+    const tenantId = queryTenantId ?? getSessionTenantId();
     if (!tenantId) {
-      setErrorMessage(
-        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
-      );
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
@@ -532,11 +527,9 @@ function DogaltasListesiPageContent() {
 
     if (!confirmed) return;
 
-    const tenantId = queryTenantId ?? getActiveTenantIdFromLocalStorage();
+    const tenantId = queryTenantId ?? getSessionTenantId();
     if (!tenantId) {
-      setErrorMessage(
-        "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
-      );
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 

@@ -12,9 +12,11 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const COMBINATIONS_SELECT =
   "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
@@ -327,10 +329,18 @@ function KombinasyonDetayPageContent() {
     setLoading(true);
     setErrorMessage("");
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setRows([]);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("combinations")
       .select(COMBINATIONS_SELECT)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("issue", decodedIssue)
       .order("variant_index", { ascending: true });
 

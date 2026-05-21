@@ -13,10 +13,13 @@ import {
   type ReactNode,
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
@@ -597,9 +600,18 @@ function StoneDetailPage() {
     setSuccessMessage("");
 
     try {
+      const tenantId = getSessionTenantId();
+      if (!tenantId) {
+        setLoading(false);
+        setStone(null);
+        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("stones")
         .select("*")
+        .eq("tenant_id", tenantId)
         .eq("id", id)
         .maybeSingle();
 
@@ -712,6 +724,12 @@ function StoneDetailPage() {
   async function saveEditor() {
     if (!stone || !activeEditor) return;
 
+    const tenantId = stone.tenant_id?.trim() || getSessionTenantId();
+    if (!tenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -743,7 +761,7 @@ function StoneDetailPage() {
     const { data, error } = await supabase
       .from("stones")
       .update(payload)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("id", stone.id)
       .select("*")
       .maybeSingle();
@@ -767,13 +785,19 @@ function StoneDetailPage() {
   async function deleteStone() {
     if (!stone) return;
 
+    const tenantId = stone.tenant_id?.trim() || getSessionTenantId();
+    if (!tenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     setDeleteLoading(true);
     setErrorMessage("");
 
     const { error } = await supabase
       .from("stones")
       .delete()
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("id", stone.id);
 
     setDeleteLoading(false);
@@ -798,12 +822,20 @@ function StoneDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
+    const tenantId =
+      currentStone.tenant_id?.trim() || getSessionTenantId();
+    if (!tenantId) {
+      setImageBusy(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const additions: { id: string; name: string; url: string; file_path: string }[] = [];
     const baseImages = [...(currentStone.images || [])];
 
     for (const file of files) {
       const cleanName = safeFileName(file.name);
-      const filePath = `catalog/${TENANT_ID}/${currentStone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+      const filePath = `catalog/${tenantId}/${currentStone.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STONE_BUCKET)
@@ -836,7 +868,7 @@ function StoneDetailPage() {
         images: nextImages,
         updated_at: new Date().toISOString(),
       })
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("id", currentStone.id)
       .select("*")
       .maybeSingle();
@@ -874,6 +906,13 @@ function StoneDetailPage() {
     });
     if (!confirmed) return;
 
+    const tenantId =
+      currentStone.tenant_id?.trim() || getSessionTenantId();
+    if (!tenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     setImageBusy(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -895,7 +934,7 @@ function StoneDetailPage() {
         images: nextImages.length > 0 ? nextImages : [],
         updated_at: new Date().toISOString(),
       })
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("id", currentStone.id)
       .select("*")
       .maybeSingle();

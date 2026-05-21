@@ -5,6 +5,10 @@ import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
@@ -150,8 +154,6 @@ type CombinationRecord = {
   notes_text_3: string | null;
   created_at: string;
 };
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const COMBINATIONS_SELECT =
   "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
@@ -319,10 +321,18 @@ export default function KombinasyonlarPage() {
     setLoading(true);
     setErrorMessage("");
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setRows([]);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("combinations")
       .select(COMBINATIONS_SELECT)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .order("issue", { ascending: true })
       .order("variant_index", { ascending: true });
 
@@ -447,10 +457,17 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setDeleteLoading(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { error } = await supabase
       .from("combinations")
       .delete()
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .in("issue", issueKeys);
 
     setDeleteLoading(false);

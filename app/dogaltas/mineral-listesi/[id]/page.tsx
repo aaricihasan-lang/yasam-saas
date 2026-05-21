@@ -12,6 +12,10 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 const MINERALS_DETAIL_SELECT =
@@ -329,9 +333,18 @@ function MineralDetailPageContent() {
     setLoading(true);
     setErrorMessage("");
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setMineral(null);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("minerals")
       .select(MINERALS_DETAIL_SELECT)
+      .eq("tenant_id", tenantId)
       .eq("id", id)
       .maybeSingle();
 

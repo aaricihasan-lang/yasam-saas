@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { ChangeEvent, useState } from "react";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const STONE_BUCKET = "stone-photos";
 
 const chakraOptions = [
@@ -326,7 +328,12 @@ export default function DogaltasKayitPage() {
     for (const file of files) {
       const compressed = await compressImageFileToWebp(file);
       const cleanName = safeFileName(compressed.name);
-      const filePath = `catalog/${TENANT_ID}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
+      const tenantId = getSessionTenantId();
+      if (!tenantId) {
+        showError(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
+      const filePath = `catalog/${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2)}-${cleanName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STONE_BUCKET)
@@ -366,11 +373,17 @@ export default function DogaltasKayitPage() {
       return;
     }
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      showError(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage("");
 
     const payload = {
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       stone_name: formData.stone_name.trim(),
       short_description: formData.short_description,
       general_info: formData.general_info,

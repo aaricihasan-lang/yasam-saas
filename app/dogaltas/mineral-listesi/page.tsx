@@ -12,6 +12,10 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  getSessionTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
@@ -309,9 +313,18 @@ function MineralListesiPageContent() {
     setLoading(true);
     setErrorMessage("");
 
+    const tenantId = getSessionTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setMinerals([]);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("minerals")
       .select(MINERALS_LIST_SELECT)
+      .eq("tenant_id", tenantId)
       .order("name", { ascending: true });
 
     setLoading(false);

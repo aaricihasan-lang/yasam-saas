@@ -117,15 +117,28 @@ export async function runLibraryTransfer(
   targetTenantId: string,
   sourceTenantId: string = ADMIN_SOURCE_TENANT_ID,
 ): Promise<{ counts: TransferResultCounts; error?: string }> {
+  const target = targetTenantId.trim();
+  const source = sourceTenantId.trim();
+
+  if (!target) {
+    return {
+      counts: emptyTransferCounts(),
+      error: "Hedef kullanıcı tenant_id geçersiz.",
+    };
+  }
+
+  if (target === source) {
+    return {
+      counts: emptyTransferCounts(),
+      error: "Kaynak ve hedef tenant aynı; aktarım yalnızca seçili üyeye yapılmalı.",
+    };
+  }
+
   const counts = emptyTransferCounts();
   const uniqueGroups = [...new Set(groups)];
 
   for (const group of uniqueGroups) {
-    const { count, error } = await copyLibraryTableToTenant(
-      group,
-      sourceTenantId,
-      targetTenantId,
-    );
+    const { count, error } = await copyLibraryTableToTenant(group, source, target);
     counts[group] = count;
     if (error) {
       return { counts, error };
