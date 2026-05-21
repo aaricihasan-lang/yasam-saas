@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -14,8 +15,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type BioenergyChakraRecord = {
   id: string;
@@ -141,6 +140,7 @@ function chakraSearchBlob(row: BioenergyChakraRecord) {
 }
 
 export default function Cakralar() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyChakraRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -173,13 +173,20 @@ export default function Cakralar() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_chakras")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("name");
 
     setLoading(false);
@@ -191,7 +198,7 @@ export default function Cakralar() {
     }
 
     setRows((data || []) as BioenergyChakraRecord[]);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -286,6 +293,8 @@ export default function Cakralar() {
   }
 
   async function handleKaydet() {
+    if (!tenantId) return;
+
     const nameTrim = form.name.trim();
     if (!nameTrim) {
       showSoft("err", "Çakra adı zorunludur.");
@@ -295,7 +304,7 @@ export default function Cakralar() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase.from("bioenergy_chakras").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       source_uid: slugifySourceUid(nameTrim),
       name: nameTrim,
       organs: trimOrEmpty(form.organs),
@@ -321,7 +330,7 @@ export default function Cakralar() {
   }
 
   async function handleGuncelle() {
-    if (!selectedId) {
+    if (!tenantId || !selectedId) {
       showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
       return;
     }
@@ -346,7 +355,8 @@ export default function Cakralar() {
         mental: trimOrEmpty(form.mental),
         notes: trimOrEmpty(form.notes),
       })
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -370,11 +380,15 @@ export default function Cakralar() {
   }
 
   async function executeDelete() {
-    if (!selectedId) return;
+    if (!tenantId || !selectedId) return;
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("bioenergy_chakras").delete().eq("id", selectedId);
+    const { error } = await supabase
+      .from("bioenergy_chakras")
+      .delete()
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

@@ -9,12 +9,7 @@ import {
   findRouteModuleRule,
   type RouteModuleGuardDecision,
 } from "@/lib/auth/routeModuleAccess";
-import {
-  readYasamUser,
-  refreshYasamUserFromDb,
-  saveYasamUser,
-  type YasamUser,
-} from "@/lib/auth/yasamUser";
+import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 
 type ModuleRouteGuardProps = {
   children: ReactNode;
@@ -38,12 +33,8 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
       const rule = findRouteModuleRule(path);
       let user: YasamUser | null = readYasamUser();
 
-      if (user && rule) {
-        const fresh = await refreshYasamUserFromDb(user);
-        if (fresh) {
-          user = fresh;
-          saveYasamUser(fresh);
-        }
+      if (user) {
+        user = await syncYasamUserFromDb(user);
       }
 
       if (cancelled) return;

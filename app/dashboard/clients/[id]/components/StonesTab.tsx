@@ -4,9 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const STONE_PHOTO_BUCKET = "stone-photos";
 
 type ClientStone = {
@@ -524,6 +523,7 @@ function PhotoGallery({
 export default function StonesTab({ clientId }: StonesTabProps) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [stones, setStones] = useState<ClientStone[]>([]);
   const [photos, setPhotos] = useState<StonePhoto[]>([]);
 
@@ -619,8 +619,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     );
   }
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   async function loadStones() {
-    if (!clientId) return;
+    if (!clientId || !tenantId) return;
 
     setLoading(true);
     setErrorMessage("");
@@ -628,7 +632,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     const { data, error } = await supabase
       .from("client_stones")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("stone_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
@@ -645,7 +649,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   async function loadPhotos() {
-    if (!clientId) return;
+    if (!clientId || !tenantId) return;
 
     setPhotosLoading(true);
     setErrorMessage("");
@@ -653,7 +657,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     const { data, error } = await supabase
       .from("client_stone_photos")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
 
@@ -674,11 +678,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   useEffect(() => {
+    if (!tenantId) return;
+
     runInEffect(() => {
       void refreshAll();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   useEffect(() => {
     return () => {
@@ -689,7 +695,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   async function uploadFilesForStone(stoneId: string, files: File[]) {
     for (const file of files) {
       const cleanName = safeFileName(file.name);
-      const filePath = `${TENANT_ID}/${clientId}/${stoneId}/${Date.now()}-${Math.random()
+      const filePath = `${tenantId}/${clientId}/${stoneId}/${Date.now()}-${Math.random()
         .toString(36)
         .slice(2)}-${cleanName}`;
 
@@ -717,7 +723,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       const { error: insertError } = await supabase
         .from("client_stone_photos")
         .insert({
-          tenant_id: TENANT_ID,
+          tenant_id: tenantId,
           client_id: clientId,
           stone_id: stoneId,
           image_url: publicUrlData.publicUrl,
@@ -762,7 +768,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     const { data, error } = await supabase
       .from("client_stones")
       .insert({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         client_id: clientId,
         ...formToPayload(form),
       })
@@ -825,7 +831,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       .from("client_stones")
       .update(formToPayload(editForm))
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -881,7 +887,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       .from("client_stones")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -950,7 +956,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       .from("client_stone_photos")
       .delete()
       .eq("id", photo.id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {

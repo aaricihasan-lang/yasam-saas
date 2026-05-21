@@ -14,7 +14,7 @@ import {
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -327,7 +327,7 @@ function DogaltasListesiPageContent() {
     setLoading(true);
     setErrorMessage("");
 
-    const activeUserTenantId = getSessionTenantId();
+    const activeUserTenantId = await getSyncedTenantId();
     const tenantIdForQuery = activeUserTenantId;
 
     if (!tenantIdForQuery) {
@@ -405,7 +405,7 @@ function DogaltasListesiPageContent() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const tenantId = queryTenantId ?? getSessionTenantId();
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
@@ -527,7 +527,7 @@ function DogaltasListesiPageContent() {
 
     if (!confirmed) return;
 
-    const tenantId = queryTenantId ?? getSessionTenantId();
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;

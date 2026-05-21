@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, useState } from "react";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -328,7 +328,7 @@ export default function DogaltasKayitPage() {
     for (const file of files) {
       const compressed = await compressImageFileToWebp(file);
       const cleanName = safeFileName(compressed.name);
-      const tenantId = getSessionTenantId();
+      const tenantId = await getSyncedTenantId();
       if (!tenantId) {
         showError(MISSING_SESSION_TENANT_MESSAGE);
         return;
@@ -373,7 +373,7 @@ export default function DogaltasKayitPage() {
       return;
     }
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       showError(MISSING_SESSION_TENANT_MESSAGE);
       return;

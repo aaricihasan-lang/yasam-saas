@@ -12,6 +12,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -21,7 +22,6 @@ import { supabase } from "@/lib/supabase";
  * storage bucket: personal-archive (file_path storage içindeki yol ile uyumlu olmalı)
  */
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const CATEGORIES = [
   "Ses",
@@ -506,6 +506,7 @@ function DetailArchiveFileCard({
 }
 
 export default function KisiselArsivPage() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -594,6 +595,10 @@ export default function KisiselArsivPage() {
   );
 
   useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (toastClearTimerRef.current) {
         clearTimeout(toastClearTimerRef.current);
@@ -625,12 +630,14 @@ export default function KisiselArsivPage() {
   }, [isCreateModalOpen, detailId, lightboxUrl, deleteConfirmRow]);
 
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoadingList(true);
 
     const { data: archivesRaw, error: archErr } = await supabase
       .from("personal_archives")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
 
     if (archErr) {
@@ -654,7 +661,7 @@ export default function KisiselArsivPage() {
         const { data: filesRaw, error: filesErr } = await supabase
           .from("personal_archive_files")
           .select("*")
-          .eq("tenant_id", TENANT_ID)
+          .eq("tenant_id", tenantId)
           .in("archive_id", slice);
 
         if (filesErr) {
@@ -672,7 +679,7 @@ export default function KisiselArsivPage() {
 
     setRecords(mergeArchivesWithFiles(archives, allFiles));
     setLoadingList(false);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -779,7 +786,7 @@ export default function KisiselArsivPage() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", archiveId)
-        .eq("tenant_id", TENANT_ID);
+        .eq("tenant_id", tenantId);
 
       if (updErr) {
         console.error("[kisisel-arsiv] personal_archives update", updErr);
@@ -790,7 +797,7 @@ export default function KisiselArsivPage() {
       for (let i = 0; i < detailExtraFiles.length; i++) {
         const file = detailExtraFiles[i]!;
         const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
-        const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${i}_${safeName}`;
+        const path = `${tenantId}/${archiveId}/${Date.now()}_${i}_${safeName}`;
 
         const { error: upErr } = await supabase.storage
           .from("personal-archive")
@@ -802,7 +809,7 @@ export default function KisiselArsivPage() {
         }
 
         const { error: metaErr } = await supabase.from("personal_archive_files").insert({
-          tenant_id: TENANT_ID,
+          tenant_id: tenantId,
           archive_id: archiveId,
           file_name: file.name,
           file_path: path,
@@ -854,7 +861,7 @@ export default function KisiselArsivPage() {
         .from("personal_archive_files")
         .delete()
         .eq("archive_id", row.id)
-        .eq("tenant_id", TENANT_ID);
+        .eq("tenant_id", tenantId);
 
       if (delFilesErr) {
         console.error("[kisisel-arsiv] personal_archive_files delete", delFilesErr);
@@ -865,7 +872,7 @@ export default function KisiselArsivPage() {
         .from("personal_archives")
         .delete()
         .eq("id", row.id)
-        .eq("tenant_id", TENANT_ID);
+        .eq("tenant_id", tenantId);
 
       if (delArcErr) {
         console.error("[kisisel-arsiv] personal_archives delete", delArcErr);
@@ -904,7 +911,7 @@ export default function KisiselArsivPage() {
     const { data: insertedRows, error: insErr } = await supabase
       .from("personal_archives")
       .insert({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         title: titleToSave,
         category: categoryToSave,
         tags: tagsToSave,
@@ -929,7 +936,7 @@ export default function KisiselArsivPage() {
 
     for (const file of selectedFiles) {
       const safeName = file.name.replace(/[^\w.\-()+ ]/g, "_");
-      const path = `${TENANT_ID}/${archiveId}/${Date.now()}_${safeName}`;
+      const path = `${tenantId}/${archiveId}/${Date.now()}_${safeName}`;
 
       const { error: upErr } = await supabase.storage
         .from("personal-archive")
@@ -941,7 +948,7 @@ export default function KisiselArsivPage() {
       }
 
       const { error: metaErr } = await supabase.from("personal_archive_files").insert({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         archive_id: archiveId,
         file_name: file.name,
         file_path: path,

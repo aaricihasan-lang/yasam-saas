@@ -12,7 +12,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { runInEffect } from "@/lib/runInEffect";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -383,7 +383,7 @@ function DogaltasPageContent() {
     setLoading(true);
     setErrorMessage(null);
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setLoading(false);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
@@ -466,7 +466,7 @@ function DogaltasPageContent() {
   const ensureStonesForSearch = useCallback(async () => {
     if (stonesForSearch !== null) return stonesForSearch;
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       throw new Error(MISSING_SESSION_TENANT_MESSAGE);
     }

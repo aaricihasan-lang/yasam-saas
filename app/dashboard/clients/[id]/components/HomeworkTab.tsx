@@ -4,9 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type HomeworkStatus = "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -408,6 +407,7 @@ function DetailBlock({
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
   const [form, setForm] = useState<HomeworkFormState>({
     ...emptyForm,
@@ -497,8 +497,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setReadModal({ title, value, icon });
   }
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   async function loadHomeworks() {
-    if (!clientId) return;
+    if (!clientId || !tenantId) return;
 
     setLoading(true);
     setErrorMessage("");
@@ -506,7 +510,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     const { data, error } = await supabase
       .from("client_homeworks")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("end_date", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
@@ -523,13 +527,15 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   }
 
   useEffect(() => {
+    if (!tenantId) return;
+
     runInEffect(() => {
       loadHomeworks();
     });
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   async function addHomework() {
-    if (!clientId) {
+    if (!clientId || !tenantId) {
       showToast({
         title: "İşlem başarısız",
         message: "Danışan bilgisi bulunamadı.",
@@ -551,7 +557,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setErrorMessage("");
 
     const { error } = await supabase.from("client_homeworks").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       client_id: clientId,
       ...formToPayload(form),
     });
@@ -605,7 +611,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .from("client_homeworks")
       .update(formToPayload(editForm))
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -635,7 +641,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .from("client_homeworks")
       .update({ status })
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -663,7 +669,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .from("client_homeworks")
       .update({ alert_dismissed_at: new Date().toISOString() })
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -704,7 +710,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       .from("client_homeworks")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {

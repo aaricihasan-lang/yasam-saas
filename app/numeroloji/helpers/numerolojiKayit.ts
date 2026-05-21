@@ -1,3 +1,4 @@
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
@@ -23,22 +24,23 @@ export type NumerologyRecordRow = {
 
 export type NumerologyRecordListItem = NumerologyRecordRow;
 
-/** localStorage yasam_user.tenant_id veya NUMEROLOJI_TENANT_ID */
-export function getTenantIdFromStorage(): string {
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem("yasam_user");
-      if (raw) {
-        const u = JSON.parse(raw) as { tenant_id?: string };
-        if (typeof u.tenant_id === "string" && u.tenant_id.length > 0) {
-          return u.tenant_id;
-        }
-      }
-    } catch {
-      /* demo tenant */
-    }
+/** @deprecated getSyncedTenantId kullanın — admin tenant yedeği yok */
+export function getTenantIdFromStorage(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("yasam_user");
+    if (!raw) return null;
+    const u = JSON.parse(raw) as { tenant_id?: string };
+    const tid = u.tenant_id?.trim();
+    return tid || null;
+  } catch {
+    return null;
   }
-  return NUMEROLOJI_TENANT_ID;
+}
+
+/** Veri sorgusu öncesi DB ile senkron tenant */
+export async function resolveNumerolojiTenantId(): Promise<string | null> {
+  return getSyncedTenantId();
 }
 
 export function sortRecordsByNameTurkish(rows: NumerologyRecordListItem[]): NumerologyRecordListItem[] {
@@ -53,7 +55,10 @@ export async function saveNumerologyAnalysis(input: {
   birthDate: string;
   motor: NumerolojiMotorOut;
 }): Promise<{ error: string | null; id?: string }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) {
+    return { error: "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın." };
+  }
   const analysis_data: AnalysisDataPayload = {
     version: 1,
     motor: input.motor,

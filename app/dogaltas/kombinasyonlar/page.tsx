@@ -6,7 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } f
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -321,7 +321,7 @@ export default function KombinasyonlarPage() {
     setLoading(true);
     setErrorMessage("");
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setLoading(false);
       setRows([]);
@@ -457,7 +457,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setDeleteLoading(false);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);

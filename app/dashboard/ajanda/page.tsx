@@ -12,9 +12,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type Client = {
   id: string;
@@ -98,6 +97,11 @@ export default function AjandaPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [filter, setFilter] = useState<AppointmentFilter>("all");
+  const [tenantId, setTenantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
 
   const clientMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -200,10 +204,12 @@ export default function AjandaPage() {
   }
 
   async function loadClients() {
+    if (!tenantId) return;
+
     const { data, error } = await supabase
       .from("clients")
       .select("id, ad, soyad")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .order("ad", { ascending: true });
 
     if (error) {
@@ -219,10 +225,12 @@ export default function AjandaPage() {
   }
 
   async function loadAppointments() {
+    if (!tenantId) return;
+
     const { data, error } = await supabase
       .from("appointments")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .order("appointment_date", { ascending: true });
 
     if (error) {
@@ -256,11 +264,13 @@ export default function AjandaPage() {
   }
 
   async function updateAppointmentStatus(id: string, status: AppointmentStatus) {
+    if (!tenantId) return;
+
     const { error } = await supabase
       .from("appointments")
       .update({ status })
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID);
+      .eq("tenant_id", tenantId);
 
     if (error) {
       showToast({
@@ -288,11 +298,13 @@ export default function AjandaPage() {
     });
     if (!confirmDelete) return;
 
+    if (!tenantId) return;
+
     const { error } = await supabase
       .from("appointments")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID);
+      .eq("tenant_id", tenantId);
 
     if (error) {
       showToast({
@@ -314,11 +326,13 @@ export default function AjandaPage() {
   }
 
   useEffect(() => {
+    if (!tenantId) return;
+
     runInEffect(() => {
       loadClients();
       loadAppointments();
     });
-  }, []);
+  }, [tenantId]);
 
   return (
     <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_25%),radial-gradient(circle_at_85%_10%,rgba(236,72,153,0.10),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)] px-6 py-8 text-slate-950 antialiased lg:px-10 xl:px-14">

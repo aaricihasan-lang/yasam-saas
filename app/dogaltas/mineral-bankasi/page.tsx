@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -164,7 +164,7 @@ export default function MineralBankasiPage() {
       return;
     }
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;

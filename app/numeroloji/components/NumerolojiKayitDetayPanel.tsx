@@ -13,7 +13,10 @@ import {
   type ContentFontSize,
 } from "./numerolojiContentTypography";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
-import { getTenantIdFromStorage, updateNumerologyAnalysisGorsel } from "../helpers/numerolojiKayit";
+import {
+  resolveNumerolojiTenantId,
+  updateNumerologyAnalysisGorsel,
+} from "../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
   extractGorselFromAnalysisData,
@@ -282,6 +285,12 @@ export function NumerolojiKayitDetayPanel({
   async function handleGorselAyarKaydet() {
     setKayitGorselMesaj(null);
     setKayitGorselKaydediliyor(true);
+    const tenantId = await resolveNumerolojiTenantId();
+    if (!tenantId) {
+      setKayitGorselKaydediliyor(false);
+      setKayitGorselMesaj("Aktif kullanıcı tenant_id bulunamadı.");
+      return;
+    }
     const gorselData: AnalysisGorselData = {
       temaId: gorselTema,
       uzmanAdi: uzmanAdi.trim(),
@@ -292,7 +301,7 @@ export function NumerolojiKayitDetayPanel({
     };
     const { error, analysis_data: updated } = await updateNumerologyAnalysisGorsel(
       recordId,
-      getTenantIdFromStorage(),
+      tenantId,
       gorselData,
       analysisData,
     );

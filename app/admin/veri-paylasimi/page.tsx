@@ -24,7 +24,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
-  refreshYasamUserFromDb,
+  syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
@@ -286,8 +286,7 @@ export default function VeriPaylasimiPage() {
         return;
       }
 
-      const fresh = await refreshYasamUserFromDb(session);
-      const effective = fresh ?? session;
+      const effective = (await syncYasamUserFromDb(session)) ?? session;
 
       if (!cancelled) {
         setAllowed(isAdminUser(effective));

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { getTenantIdFromStorage } from "../../helpers/numerolojiKayit";
+import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
 import { analizTuruLabel } from "./bilgiBankaLabels";
 
 const KNOWLEDGE_TABLE = "numerology_knowledge_records";
@@ -67,7 +67,8 @@ export async function getKnowledgeRecord(
   analysisType: string,
   value: string,
 ): Promise<{ data: KnowledgeRecordRow | null; error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const { data, error } = await supabase
     .from(KNOWLEDGE_TABLE)
     .select("*")
@@ -86,7 +87,8 @@ export async function saveKnowledgeRecord(input: {
   source: string;
   description: string;
 }): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const value = input.value.trim();
   const payload = {
     tenant_id: tenantId,
@@ -120,7 +122,8 @@ export async function getStoneAssignment(
   analysisType: string,
   value: string,
 ): Promise<{ data: { reason: string; stones: string[]; updated_at: string } | null; error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const { data, error } = await supabase
     .from(STONE_TABLE)
     .select("*")
@@ -149,7 +152,8 @@ export async function saveStoneAssignment(input: {
   reason: string;
   stones: string[];
 }): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const value = input.value.trim();
   const payload = {
     tenant_id: tenantId,
@@ -183,7 +187,10 @@ export async function listBilgiBankaKayitlari(): Promise<{
   rows: BilgiBankaListeSatir[];
   error: string | null;
 }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) {
+    return { rows: [], error: "Aktif kullanıcı tenant_id bulunamadı." };
+  }
 
   const [knowledgeRes, stoneRes] = await Promise.all([
     supabase
@@ -263,7 +270,8 @@ export async function updateKnowledgeRecordById(
     description: string;
   },
 ): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const { error } = await supabase
     .from(KNOWLEDGE_TABLE)
     .update({
@@ -288,7 +296,8 @@ export async function updateStoneAssignmentById(
     stones: string[];
   },
 ): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const { error } = await supabase
     .from(STONE_TABLE)
     .update({
@@ -308,7 +317,8 @@ export async function deleteBilgiBankaKayit(
   kayitTuru: "aciklama" | "dogaltas",
   recordId: string,
 ): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
   const table = kayitTuru === "aciklama" ? KNOWLEDGE_TABLE : STONE_TABLE;
   const { error } = await supabase
     .from(table)
@@ -323,7 +333,8 @@ export async function deleteBilgiBankaKayitlari(
   knowledgeIds: string[],
   stoneIds: string[],
 ): Promise<{ error: string | null }> {
-  const tenantId = getTenantIdFromStorage();
+  const tenantId = await resolveNumerolojiTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
 
   if (knowledgeIds.length > 0) {
     const { error } = await supabase

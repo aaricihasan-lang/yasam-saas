@@ -14,7 +14,7 @@ import {
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -600,7 +600,7 @@ function StoneDetailPage() {
     setSuccessMessage("");
 
     try {
-      const tenantId = getSessionTenantId();
+      const tenantId = await getSyncedTenantId();
       if (!tenantId) {
         setLoading(false);
         setStone(null);
@@ -724,7 +724,7 @@ function StoneDetailPage() {
   async function saveEditor() {
     if (!stone || !activeEditor) return;
 
-    const tenantId = stone.tenant_id?.trim() || getSessionTenantId();
+    const tenantId = stone.tenant_id?.trim() || (await getSyncedTenantId());
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
@@ -785,7 +785,7 @@ function StoneDetailPage() {
   async function deleteStone() {
     if (!stone) return;
 
-    const tenantId = stone.tenant_id?.trim() || getSessionTenantId();
+    const tenantId = stone.tenant_id?.trim() || (await getSyncedTenantId());
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
@@ -823,7 +823,7 @@ function StoneDetailPage() {
     setSuccessMessage("");
 
     const tenantId =
-      currentStone.tenant_id?.trim() || getSessionTenantId();
+      currentStone.tenant_id?.trim() || (await getSyncedTenantId());
     if (!tenantId) {
       setImageBusy(false);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
@@ -907,7 +907,7 @@ function StoneDetailPage() {
     if (!confirmed) return;
 
     const tenantId =
-      currentStone.tenant_id?.trim() || getSessionTenantId();
+      currentStone.tenant_id?.trim() || (await getSyncedTenantId());
     if (!tenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;

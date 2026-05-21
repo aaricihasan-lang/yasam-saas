@@ -4,9 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type ClientSession = {
   id: string;
@@ -396,6 +395,7 @@ function DetailBlock({
 export default function SessionsTab({ clientId }: SessionsTabProps) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [form, setForm] = useState<SessionFormState>({
     ...emptyForm,
@@ -464,8 +464,12 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setReadModal({ title, value, icon });
   }
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   async function loadSessions() {
-    if (!clientId) return;
+    if (!clientId || !tenantId) return;
 
     setLoading(true);
     setErrorMessage("");
@@ -473,7 +477,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     const { data, error } = await supabase
       .from("client_sessions")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("session_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
@@ -490,13 +494,15 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   }
 
   useEffect(() => {
+    if (!tenantId) return;
+
     runInEffect(() => {
       loadSessions();
     });
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   async function addSession() {
-    if (!clientId) {
+    if (!clientId || !tenantId) {
       showToast({
         title: "İşlem başarısız",
         message: "Danışan bilgisi bulunamadı.",
@@ -518,7 +524,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setErrorMessage("");
 
     const { error } = await supabase.from("client_sessions").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       client_id: clientId,
       ...formToPayload(form),
     });
@@ -572,7 +578,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
       .from("client_sessions")
       .update(formToPayload(editForm))
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -611,7 +617,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
       .from("client_sessions")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {

@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -71,6 +72,7 @@ function formatDate(iso: string) {
 }
 
 export default function SembolDili() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySymbolRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -106,13 +108,20 @@ export default function SembolDili() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_symbols")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("title");
 
     setLoading(false);
@@ -124,7 +133,7 @@ export default function SembolDili() {
     }
 
     setRows((data || []) as BioenergySymbolRecord[]);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -235,7 +244,10 @@ export default function SembolDili() {
 
     setSaving(true);
     setInfoError("");
+    if (!tenantId) return;
+
     const { error } = await supabase.from("bioenergy_symbols").insert({
+      tenant_id: tenantId,
       symbol: nameTrim,
       title: nameTrim,
       category: trimOrNull(form.category),
@@ -279,7 +291,8 @@ export default function SembolDili() {
         subconscious_message: trimOrNull(form.subconscious_message),
         source: trimOrNull(form.source),
       })
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -307,10 +320,13 @@ export default function SembolDili() {
 
     setSaving(true);
     setInfoError("");
+    if (!tenantId) return;
+
     const { error } = await supabase
       .from("bioenergy_symbols")
       .delete()
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

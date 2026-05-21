@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -15,8 +16,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type BioenergySubconsciousRecord = {
   id: string;
@@ -82,6 +81,7 @@ function subconsciousSearchBlob(row: BioenergySubconsciousRecord) {
 }
 
 export default function BilincaltiSebepleri() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySubconsciousRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
@@ -114,13 +114,20 @@ export default function BilincaltiSebepleri() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setLoadErrorMessage(null);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_subconscious_causes")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("title");
 
     setLoading(false);
@@ -132,7 +139,7 @@ export default function BilincaltiSebepleri() {
     }
 
     setRows((data || []) as BioenergySubconsciousRecord[]);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -226,7 +233,7 @@ export default function BilincaltiSebepleri() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase.from("bioenergy_subconscious_causes").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       source_uid: uidTrim || slugifySourceUid(titleTrim),
       title: titleTrim,
       category: trimOrEmpty(form.category),
@@ -268,7 +275,8 @@ export default function BilincaltiSebepleri() {
         content: trimOrEmpty(form.content),
         note_text: trimOrEmpty(form.note_text),
       })
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -299,7 +307,8 @@ export default function BilincaltiSebepleri() {
     const { error } = await supabase
       .from("bioenergy_subconscious_causes")
       .delete()
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

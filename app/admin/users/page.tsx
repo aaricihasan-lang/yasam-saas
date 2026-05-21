@@ -23,6 +23,11 @@ import {
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
+  createTenantForNewUser,
+  deleteTenantById,
+} from "@/lib/auth/createExpertTenant";
+import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
+import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
@@ -387,19 +392,55 @@ export default function AdminUsersPage() {
     }
 
     setCreating(true);
-    const { error } = await supabase.from("users").insert({
+
+    const tenantResult = await createTenantForNewUser({
+      fullName,
+      email,
+    });
+
+    if (!tenantResult.ok) {
+      setCreating(false);
+      showToast({
+        title: "İşlem başarısız",
+        message: "Çalışma alanı oluşturulamadı: " + tenantResult.error,
+        type: "error",
+      });
+      return;
+    }
+
+    const tenantId = tenantResult.tenantId;
+    const isExpert = form.role === "expert";
+    const now = new Date();
+    const trialEnds = new Date(now);
+    trialEnds.setDate(trialEnds.getDate() + 7);
+
+    const userPayload: Record<string, unknown> = {
       full_name: fullName,
       email,
       password: form.password.trim(),
       role: form.role,
       active: form.active,
       approval_status: form.active ? "approved" : "pending",
-    });
+      tenant_id: tenantId,
+    };
+
+    if (isExpert) {
+      userPayload.module_permissions = DEFAULT_MODULE_PERMISSIONS;
+      if (form.active) {
+        userPayload.plan = "trial";
+        userPayload.subscription_status = "trial";
+        userPayload.trial_started_at = now.toISOString();
+        userPayload.trial_ends_at = trialEnds.toISOString();
+      }
+    }
+
+    const { error } = await supabase.from("users").insert(userPayload);
 
     setCreating(false);
 
     if (error) {
       console.error("Kullanıcı ekleme hatası:", error);
+      await deleteTenantById(tenantId);
       showToast({
         title: "İşlem başarısız",
         message: "Kayıt hatası: " + error.message,

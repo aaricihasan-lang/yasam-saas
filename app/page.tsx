@@ -5,7 +5,7 @@ import { loginWithCredentials } from "@/lib/auth/loginUser";
 import {
   canLoginYasamUser,
   clearYasamUser,
-  enrichYasamUserProfile,
+  syncYasamUserFromDb,
   getYasamUserDisplayName,
   hasFullPanelAccess,
   isAdminUser,
@@ -402,13 +402,12 @@ export default function Home() {
           setUser(null);
           return;
         }
-        const fresh = await enrichYasamUserProfile(stored);
+        const fresh = await syncYasamUserFromDb(stored);
         if (!fresh) {
           clearYasamUser();
           setUser(null);
           return;
         }
-        saveYasamUser(fresh);
         setUser(fresh);
       } finally {
         setAuthLoading(false);
@@ -492,7 +491,7 @@ export default function Home() {
       return;
     }
 
-    const freshUser = await enrichYasamUserProfile(loggedUser);
+    const freshUser = await syncYasamUserFromDb(loggedUser);
     if (!freshUser) {
       setMessage("Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.");
       setLoading(false);
@@ -507,7 +506,6 @@ export default function Home() {
       return;
     }
 
-    saveYasamUser(loggedUser);
     setUser(loggedUser);
     setLoginModalOpen(false);
     setEmail("");

@@ -5,9 +5,8 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type AnalizlerTabProps = {
   clientId: string;
@@ -154,6 +153,7 @@ function getAnalysisLabel(type: string | null | undefined) {
 }
 
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
@@ -176,18 +176,23 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }, []);
 
   useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
+  useEffect(() => {
+    if (!tenantId) return;
     loadSavedAnalyses();
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   async function loadSavedAnalyses() {
-    if (!clientId) return;
+    if (!clientId || !tenantId) return;
 
     setLoadingSaved(true);
 
     const { data, error } = await supabase
       .from("client_analyses")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
 
@@ -247,7 +252,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       .from("client_analyses")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -399,7 +404,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     };
 
     const { error } = await supabase.from("client_analyses").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       client_id: clientId,
       analysis_type: activeAnalysis,
       analysis_data: analysisData,

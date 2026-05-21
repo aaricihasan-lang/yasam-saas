@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { NumerolojiResult } from "@/lib/numeroloji";
-import { getTenantIdFromStorage } from "../../helpers/numerolojiKayit";
+import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
 
@@ -180,10 +180,11 @@ export async function getKnowledgeNotesForAnalysis(
   out: NumerolojiMotorOut,
   tenantId?: string,
 ): Promise<KnowledgeNotesForAnalysis> {
-  const tid = tenantId ?? getTenantIdFromStorage();
+  const tid = tenantId ?? (await resolveNumerolojiTenantId());
   const plan = buildKnowledgeLookupPlan(out);
   const hasAnyValue = plan.some((p) => p.values.length > 0);
   if (!hasAnyValue) return { ...EMPTY_NOTES };
+  if (!tid) return { ...EMPTY_NOTES };
 
   try {
     const { data, error } = await supabase

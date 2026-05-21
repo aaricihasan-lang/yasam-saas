@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import NotesTab from "./components/NotesTab";
 import StonesTab from "./components/StonesTab";
@@ -46,8 +47,6 @@ type Appointment = {
 };
 
 type PlanningMode = "auto" | "manual";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 function formatDateTR(date: string | undefined) {
   if (!date) return "-";
@@ -118,6 +117,7 @@ export default function ClientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const clientId = params.id as string;
+  const [tenantId, setTenantId] = useState<string | null>(null);
 
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState("genel");
@@ -135,6 +135,12 @@ export default function ClientDetailPage() {
   const [savingClientNotes, setSavingClientNotes] = useState(false);
 
   useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
     async function fetchClient() {
       setLoading(true);
 
@@ -142,6 +148,7 @@ export default function ClientDetailPage() {
         .from("clients")
         .select("*")
         .eq("id", clientId)
+        .eq("tenant_id", tenantId)
         .single();
 
       if (error) {
@@ -179,14 +186,16 @@ export default function ClientDetailPage() {
     if (clientId) {
       fetchClient();
     }
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   async function saveGeneralNotes() {
+    if (!tenantId) return;
+
     setSavingNotes(true);
 
     const payload = {
       id: noteId || undefined,
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       client_id: clientId,
       saglik_notu: saglikNotu,
       adres,
@@ -223,11 +232,13 @@ export default function ClientDetailPage() {
   }
 
   async function saveClientNotes() {
+    if (!tenantId) return;
+
     setSavingClientNotes(true);
 
     const payload = {
       id: noteId || undefined,
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       client_id: clientId,
       saglik_notu: saglikNotu,
       adres,
@@ -265,13 +276,15 @@ export default function ClientDetailPage() {
   }
 
   async function deleteClient() {
+    if (!tenantId) return;
+
     setDeletingClient(true);
 
     const { error } = await supabase
       .from("clients")
       .delete()
       .eq("id", clientId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("tenant_id", tenantId);
 
     if (error) {
       console.error("Danışan silme hatası:", error);
@@ -428,6 +441,7 @@ export default function ClientDetailPage() {
             <AppointmentsTab
               clientId={client.id}
               clientName={fullName || "Danışan"}
+              tenantId={tenantId}
               confirm={confirm}
               showToast={showToast}
             />
@@ -495,11 +509,13 @@ export default function ClientDetailPage() {
 function AppointmentsTab({
   clientId,
   clientName,
+  tenantId,
   confirm,
   showToast,
 }: {
   clientId: string;
   clientName: string;
+  tenantId: string | null;
   confirm: ReturnType<typeof useConfirm>["confirm"];
   showToast: ReturnType<typeof useToast>["showToast"];
 }) {
@@ -517,16 +533,19 @@ function AppointmentsTab({
   const [manualDates, setManualDates] = useState<string[]>([""]);
 
   useEffect(() => {
+    if (!tenantId) return;
     loadAppointments();
-  }, [clientId]);
+  }, [clientId, tenantId]);
 
   async function loadAppointments() {
+    if (!tenantId) return;
+
     setLoading(true);
 
     const { data, error } = await supabase
       .from("appointments")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId)
       .order("appointment_date", { ascending: true });
 
@@ -568,6 +587,8 @@ function AppointmentsTab({
   }
 
   async function createAppointments() {
+    if (!tenantId) return;
+
     const count = Math.max(1, Number(sessionCount));
 
     let rows: {
@@ -597,7 +618,7 @@ function AppointmentsTab({
         appointmentDate.setDate(startDate.getDate() + index * interval);
 
         return {
-          tenant_id: TENANT_ID,
+          tenant_id: tenantId,
           client_id: clientId,
           title:
             count > 1
@@ -622,7 +643,7 @@ function AppointmentsTab({
       }
 
       rows = filledDates.map((manualDate, index) => ({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         client_id: clientId,
         title:
           count > 1
@@ -665,7 +686,7 @@ function AppointmentsTab({
       .from("appointments")
       .update({ status })
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {
@@ -698,7 +719,7 @@ function AppointmentsTab({
       .from("appointments")
       .delete()
       .eq("id", id)
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
 
     if (error) {

@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
-import { getTenantIdFromStorage } from "../../helpers/numerolojiKayit";
+import { resolveNumerolojiTenantId } from "../../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import { analizTuruLabel } from "./bilgiBankaLabels";
 import { buildChakraLookupValues } from "./knowledgeLookup";
@@ -119,10 +119,11 @@ export async function getStoneAssignmentsForAnalysis(
   out: NumerolojiMotorOut,
   tenantId?: string,
 ): Promise<StoneAssignmentForAnalysis[]> {
-  const tid = tenantId ?? getTenantIdFromStorage();
+  const tid = tenantId ?? (await resolveNumerolojiTenantId());
   const plan = buildStoneLookupPlan(out);
   const hasAnyValue = plan.some((p) => p.values.length > 0);
   if (!hasAnyValue) return [];
+  if (!tid) return [];
 
   try {
     const { data, error } = await supabase

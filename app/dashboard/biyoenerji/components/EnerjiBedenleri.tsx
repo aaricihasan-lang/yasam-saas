@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -14,8 +15,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type BioenergyEnergyBodyRecord = {
   id: string;
@@ -90,6 +89,7 @@ function DetailCard({ title, children }: { title: string; children: ReactNode })
 }
 
 export default function EnerjiBedenleri() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyEnergyBodyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
@@ -122,13 +122,20 @@ export default function EnerjiBedenleri() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setLoadErrorMessage(null);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_energy_bodies")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("source_uid");
 
     setLoading(false);
@@ -140,7 +147,7 @@ export default function EnerjiBedenleri() {
     }
 
     setRows((data || []) as BioenergyEnergyBodyRecord[]);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -234,7 +241,7 @@ export default function EnerjiBedenleri() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase.from("bioenergy_energy_bodies").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       source_uid: uidTrim,
       genel_tanim: trimOrEmpty(form.genel_tanim),
       gorevi: trimOrEmpty(form.gorevi),
@@ -278,7 +285,8 @@ export default function EnerjiBedenleri() {
         onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
         not_text: trimOrEmpty(form.not_text),
       })
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -309,7 +317,8 @@ export default function EnerjiBedenleri() {
     const { error } = await supabase
       .from("bioenergy_energy_bodies")
       .delete()
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

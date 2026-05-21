@@ -13,7 +13,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  getSessionTenantId,
+  getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -313,7 +313,7 @@ function MineralListesiPageContent() {
     setLoading(true);
     setErrorMessage("");
 
-    const tenantId = getSessionTenantId();
+    const tenantId = await getSyncedTenantId();
     if (!tenantId) {
       setLoading(false);
       setMinerals([]);

@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 export default function DashboardPage() {
   const [totalClients, setTotalClients] = useState<number | null>(null);
@@ -16,10 +15,13 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function loadTotalClients() {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+
       const { count, error } = await supabase
         .from("clients")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", TENANT_ID);
+        .eq("tenant_id", tenantId);
 
       if (cancelled) return;
 
@@ -43,6 +45,9 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function loadTodayAppointments() {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -51,7 +56,7 @@ export default function DashboardPage() {
       const { count, error } = await supabase
         .from("appointments")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", TENANT_ID)
+        .eq("tenant_id", tenantId)
         .gte("appointment_date", today.toISOString())
         .lt("appointment_date", tomorrow.toISOString());
 

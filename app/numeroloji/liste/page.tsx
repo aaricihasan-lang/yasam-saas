@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getTenantIdFromStorage, listNumerologyAnalyses } from "../helpers/numerolojiKayit";
+import { listNumerologyAnalyses, resolveNumerolojiTenantId } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 
 const listeNavSecondaryClass =
@@ -22,7 +22,13 @@ export default function NumerolojiListePage() {
 
   const loadRows = useCallback(async () => {
     setLoading(true);
-    const tenantId = getTenantIdFromStorage();
+    const tenantId = await resolveNumerolojiTenantId();
+    if (!tenantId) {
+      setError("Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.");
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     const { data, error: e } = await listNumerologyAnalyses(tenantId);
     if (e) {
       setError(`Kayıtlar yüklenemedi: ${e}`);

@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { runInEffect } from "@/lib/runInEffect";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 const WARNING_MINUTES = 30;
 
 type Appointment = {
@@ -20,6 +19,9 @@ export default function DashboardNotifications() {
   const warnedIdsRef = useRef<Set<string>>(new Set());
 
   async function loadAppointments() {
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -29,7 +31,7 @@ export default function DashboardNotifications() {
     const { data, error } = await supabase
       .from("appointments")
       .select("id, title, appointment_date, client_id")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .gte("appointment_date", today.toISOString())
       .lt("appointment_date", tomorrow.toISOString())
       .order("appointment_date", { ascending: true });

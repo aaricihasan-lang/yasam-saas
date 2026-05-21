@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -15,8 +16,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type BioenergySession = {
   id: string;
@@ -71,6 +70,7 @@ function previewText(s: string | null, max = 200) {
 }
 
 export default function BiyoenerjiSeanslari() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,13 +103,19 @@ export default function BiyoenerjiSeanslari() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadSessions = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_sessions")
       .select("*")
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
 
     setLoading(false);
@@ -121,7 +127,7 @@ export default function BiyoenerjiSeanslari() {
     }
 
     setRows((data || []) as BioenergySession[]);
-  }, [showSoft]);
+  }, [showSoft, tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -208,6 +214,8 @@ export default function BiyoenerjiSeanslari() {
   }
 
   async function handleKaydet() {
+    if (!tenantId) return;
+
     const titleTrim = form.title.trim();
     if (!titleTrim) {
       showSoft("err", "Seans başlığı zorunludur.");
@@ -219,7 +227,7 @@ export default function BiyoenerjiSeanslari() {
     const { error } = await supabase
       .from("bioenergy_sessions")
       .insert({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         title: titleTrim,
         content: trimOrNull(form.content),
         category: trimOrNull(form.category),
@@ -242,7 +250,7 @@ export default function BiyoenerjiSeanslari() {
   }
 
   async function handleGuncelle() {
-    if (!selectedId) {
+    if (!tenantId || !selectedId) {
       showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
       return;
     }
@@ -264,7 +272,7 @@ export default function BiyoenerjiSeanslari() {
         note: trimOrNull(form.note),
       })
       .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -288,7 +296,7 @@ export default function BiyoenerjiSeanslari() {
   }
 
   async function executeDelete() {
-    if (!selectedId) return;
+    if (!tenantId || !selectedId) return;
 
     setSaving(true);
     setInfoError("");
@@ -296,7 +304,7 @@ export default function BiyoenerjiSeanslari() {
       .from("bioenergy_sessions")
       .delete()
       .eq("id", selectedId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

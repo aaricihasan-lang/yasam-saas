@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import {
+  createTenantForNewUser,
+  deleteTenantById,
+} from "@/lib/auth/createExpertTenant";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
 
@@ -55,36 +59,23 @@ export default function RegisterPage() {
     trialEnds.setDate(trialEnds.getDate() + 7);
     const trialEndsAt = trialEnds.toISOString();
 
-    const tenantId = crypto.randomUUID();
+    const tenantResult = await createTenantForNewUser({
+      fullName: name,
+      email: mail,
+    });
 
-    const slug = name
-      .toLowerCase()
-      .replaceAll(" ", "-")
-      .replaceAll("ı", "i")
-      .replaceAll("ğ", "g")
-      .replaceAll("ü", "u")
-      .replaceAll("ş", "s")
-      .replaceAll("ö", "o")
-      .replaceAll("ç", "c");
-
-    const { error: tenantError } = await supabase.from("tenants").insert([
-      {
-        id: tenantId,
-        name: `${name} Çalışma Alanı`,
-        slug: `${slug}-${Date.now()}`,
-      },
-    ]);
-
-    if (tenantError) {
-      console.error("Tenant oluşturma hatası:", tenantError);
+    if (!tenantResult.ok) {
+      console.error("Tenant oluşturma hatası:", tenantResult.error);
       showToast({
         title: "İşlem başarısız",
-        message: tenantError.message,
+        message: tenantResult.error,
         type: "error",
       });
       setSaving(false);
       return;
     }
+
+    const tenantId = tenantResult.tenantId;
 
     const { error: userError } = await supabase.from("users").insert([
       {
@@ -105,6 +96,7 @@ export default function RegisterPage() {
 
     if (userError) {
       console.error("Kullanıcı kayıt hatası:", userError);
+      await deleteTenantById(tenantId);
       showToast({
         title: "İşlem başarısız",
         message: userError.message,

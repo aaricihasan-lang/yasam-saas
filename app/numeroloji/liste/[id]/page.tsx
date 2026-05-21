@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
-import { getNumerologyAnalysisById, getTenantIdFromStorage, type NumerologyRecordRow } from "../../helpers/numerolojiKayit";
+import {
+  getNumerologyAnalysisById,
+  resolveNumerolojiTenantId,
+  type NumerologyRecordRow,
+} from "../../helpers/numerolojiKayit";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
 
 const detayNavSecondaryClass =
@@ -32,7 +36,7 @@ export default function NumerolojiKayitDetayPage() {
     }
     let cancelled = false;
     async function run() {
-      const tid = getTenantIdFromStorage();
+      const tid = await resolveNumerolojiTenantId();
       const { data, error: e } = await getNumerologyAnalysisById(id, tid);
       if (cancelled) return;
       if (e || !data) {

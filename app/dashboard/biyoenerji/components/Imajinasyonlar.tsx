@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
   CrudEmptyState,
@@ -15,8 +16,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type BioenergyImaginationRecord = {
   id: string;
@@ -81,6 +80,7 @@ function slugifySourceId(value: string) {
 }
 
 export default function Imajinasyonlar() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyImaginationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -117,13 +117,20 @@ export default function Imajinasyonlar() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
   const loadRecords = useCallback(async () => {
+    if (!tenantId) return;
+
     setLoading(true);
     setLoadError(false);
     setInfoError("");
     const { data, error } = await supabase
       .from("bioenergy_imaginations")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("title");
 
     setLoading(false);
@@ -135,7 +142,7 @@ export default function Imajinasyonlar() {
     }
 
     setRows((data || []) as BioenergyImaginationRecord[]);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -234,6 +241,8 @@ export default function Imajinasyonlar() {
   }
 
   async function handleKaydet() {
+    if (!tenantId) return;
+
     const titleTrim = form.title.trim();
     if (!titleTrim) {
       showSoft("err", "İmajinasyon başlığı zorunludur.");
@@ -243,7 +252,7 @@ export default function Imajinasyonlar() {
     setSaving(true);
     setInfoError("");
     const { error } = await supabase.from("bioenergy_imaginations").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: tenantId,
       source_id: slugifySourceId(titleTrim),
       title: titleTrim,
       category: trimOrNull(form.category) || "Genel",
@@ -286,7 +295,8 @@ export default function Imajinasyonlar() {
         notes: trimOrEmpty(form.notes),
         source: trimOrNull(form.source),
       })
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
 
@@ -310,14 +320,15 @@ export default function Imajinasyonlar() {
   }
 
   async function executeDelete() {
-    if (!selectedId) return;
+    if (!tenantId || !selectedId) return;
 
     setSaving(true);
     setInfoError("");
     const { error } = await supabase
       .from("bioenergy_imaginations")
       .delete()
-      .eq("id", selectedId);
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);

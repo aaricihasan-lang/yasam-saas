@@ -256,18 +256,34 @@ export async function refreshYasamUserFromDb(
 
   const row = data as Record<string, unknown>;
   const refreshed = parseLoginUserRecord({
-    ...user,
     ...row,
-    module_permissions: row.module_permissions ?? user.module_permissions,
+    module_permissions:
+      row.module_permissions ?? user.module_permissions ?? undefined,
   });
 
   return refreshed;
 }
 
+/**
+ * users tablosundan güncel kaydı alır ve localStorage yasam_user'ı tamamen yeniden yazar.
+ */
+export async function syncYasamUserFromDb(
+  seed?: YasamUser | null,
+): Promise<YasamUser | null> {
+  const current = seed ?? readYasamUser();
+  if (!current?.id) return null;
+
+  const fresh = await refreshYasamUserFromDb(current);
+  if (!fresh) return null;
+
+  saveYasamUser(fresh);
+  return fresh;
+}
+
 /** login_user RPC sonrası users tablosundan güncel alanları yükler */
 export async function enrichYasamUserProfile(user: YasamUser): Promise<YasamUser> {
-  const fresh = await refreshYasamUserFromDb(user);
-  return fresh ?? user;
+  const synced = await syncYasamUserFromDb(user);
+  return synced ?? user;
 }
 
 /** @deprecated enrichYasamUserProfile kullanın */
