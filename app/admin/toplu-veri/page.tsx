@@ -11,6 +11,7 @@ import {
   Footprints,
   Gem,
   Loader2,
+  Package,
   Moon,
   Orbit,
   Sparkles,
@@ -24,6 +25,13 @@ import {
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ADMIN_SOURCE_TENANT_MISSING_MESSAGE } from "@/lib/admin/adminSourceTenant";
+import {
+  DOGALTAS_INVENTORY_SUPABASE_TABLE,
+  DOGALTAS_WEB_STOCK_STORAGE_KEY,
+  importInventoryJsonToWebStock,
+  parseInventoryJsonPayload,
+  type InventoryJsonRow,
+} from "@/lib/urun-stok/inventoryJsonImport";
 import { supabase } from "@/lib/supabase";
 
 type StoneJsonRecord = Record<string, unknown>;
@@ -4753,9 +4761,171 @@ function DogaltasJsonTab() {
   );
 }
 
+const STOK_JSON_PREVIEW_LIMIT = 40;
+
+function StokJsonTab() {
+  const { showToast } = useToast();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [rows, setRows] = useState<InventoryJsonRow[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const previewRows = useMemo(
+    () => rows.slice(0, STOK_JSON_PREVIEW_LIMIT),
+    [rows],
+  );
+
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setParseError(null);
+    setRows([]);
+    setFileName(null);
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const { rows: parsed, error } = parseInventoryJsonPayload(text);
+      if (error) {
+        setParseError(error);
+        setRows([]);
+        setFileName(file.name);
+        return;
+      }
+      setRows(parsed);
+      setFileName(file.name);
+    };
+    reader.onerror = () => setParseError("Dosya okunamadı.");
+    reader.readAsText(file, "utf-8");
+    event.target.value = "";
+  }, []);
+
+  const handleImport = useCallback(() => {
+    if (rows.length === 0) {
+      setParseError("Aktarılacak kayıt yok.");
+      return;
+    }
+    setImporting(true);
+    setParseError(null);
+    const result = importInventoryJsonToWebStock(rows);
+    setImporting(false);
+
+    if (!result.ok) {
+      setParseError(result.error);
+      showToast({ type: "error", message: result.error });
+      return;
+    }
+
+    showToast({ type: "success", message: "Stok JSON başarıyla aktarıldı." });
+    setParseError(null);
+  }, [rows, showToast]);
+
+  return (
+    <section
+      className="rounded-3xl border-2 border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/40 p-6 shadow-xl sm:p-8"
+      aria-label="Stok JSON sekmesi"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 sm:text-2xl">
+            <Package className="h-6 w-6 text-amber-700" aria-hidden />
+            Stok JSON
+          </h2>
+          <p className="mt-2 max-w-3xl text-base font-medium text-slate-600">
+            Masaüstü <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">inventory.json</code>{" "}
+            dosyasını web ürün stok sistemine aktarır. Mevcut kayıtlar silinmez; aynı taş adı + tür
+            güncellenir.
+          </p>
+          <p className="mt-2 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2 text-sm font-semibold text-sky-950">
+            Depolama: tarayıcı{" "}
+            <span className="font-mono text-xs">{DOGALTAS_WEB_STOCK_STORAGE_KEY}</span> (
+            <span className="font-bold">/urun-stok/dogaltas</span> ile aynı). Supabase tablosu:{" "}
+            <span className="font-mono">{DOGALTAS_INVENTORY_SUPABASE_TABLE}</span> — henüz yok; SQL
+            gerekir.
+          </p>
+        </div>
+        <label className="cursor-pointer">
+          <span className="inline-flex h-12 items-center rounded-2xl border-2 border-amber-300 bg-amber-100 px-5 text-sm font-black text-amber-950 shadow-sm">
+            JSON Dosyası Seç
+          </span>
+          <input
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </label>
+      </div>
+
+      {fileName ? (
+        <p className="mt-4 text-sm font-bold text-slate-700">Dosya: {fileName}</p>
+      ) : null}
+
+      {parseError ? (
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900">
+          {parseError}
+        </p>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <>
+          <p className="mt-4 text-base font-bold text-slate-800">
+            Önizleme ({Math.min(rows.length, STOK_JSON_PREVIEW_LIMIT)} / {rows.length} kayıt)
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[720px] border-separate border-spacing-y-1 text-base">
+              <thead>
+                <tr className="text-left text-sm font-black uppercase tracking-wide text-amber-900">
+                  <th className="px-3 py-2">Taş Adı</th>
+                  <th className="px-3 py-2">Tür</th>
+                  <th className="px-3 py-2 text-center">Stok Adedi</th>
+                  <th className="px-3 py-2 text-center">Dizi TL</th>
+                  <th className="px-3 py-2 text-center">Dizi USD</th>
+                  <th className="px-3 py-2 text-center">Adet TL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewRows.map((row, index) => (
+                  <tr key={`${row.name}-${row.type}-${index}`} className="rounded-lg bg-white/90">
+                    <td className="px-3 py-2.5 font-bold text-slate-900">{row.name}</td>
+                    <td className="px-3 py-2.5 font-medium text-slate-700">{row.type || "—"}</td>
+                    <td className="px-3 py-2.5 text-center">{row.adet}</td>
+                    <td className="px-3 py-2.5 text-center">{row.dizi_price.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 text-center">{row.dizi_price_usd.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 text-center">{row.adet_price.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={importing}
+              onClick={handleImport}
+              className="inline-flex h-12 items-center rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-base font-black text-white shadow-lg disabled:opacity-50"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
+                  Aktarılıyor…
+                </>
+              ) : (
+                "Aktar"
+              )}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 export default function TopluVeriPage() {
   const [activeTab, setActiveTab] = useState<
     | "dogaltas"
+    | "stok-json"
     | "kombinasyon"
     | "mineral"
     | "sembol"
@@ -4800,6 +4970,17 @@ export default function TopluVeriPage() {
           }`}
         >
           Doğaltaş JSON
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("stok-json")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "stok-json"
+              ? "border-amber-400 bg-amber-100 text-amber-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          📦 Stok JSON
         </button>
         <button
           type="button"
@@ -4892,6 +5073,7 @@ export default function TopluVeriPage() {
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
+      {activeTab === "stok-json" ? <StokJsonTab /> : null}
       {activeTab === "kombinasyon" ? <KombinasyonJsonTab /> : null}
       {activeTab === "mineral" ? <MineralJsonTab /> : null}
       {activeTab === "sembol" ? <SembolDiliJsonTab /> : null}

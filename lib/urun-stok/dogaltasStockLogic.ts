@@ -136,6 +136,77 @@ export function saveInventory(items: InvItem[]): void {
   localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
 }
 
+/** inventory.json satırı — masaüstü export formatı */
+export type InventoryJsonMergeRow = {
+  name: string;
+  type: string;
+  adet: number;
+  dizi_icerik: number;
+  dizi_price: number;
+  adet_price: number;
+  photos: string[];
+  dizi_price_usd: number;
+};
+
+/**
+ * Mevcut envanter + JSON — silme yok.
+ * Aynı taş adı + tür: adet, dizi_price, adet_price, dizi_price_usd güncellenir.
+ */
+export function mergeInventoryJsonRows(
+  items: InvItem[],
+  incoming: InventoryJsonMergeRow[],
+): InvItem[] {
+  const map = new Map<string, InvItem>();
+  for (const it of items) {
+    map.set(itemKey(it.name, it.type), {
+      ...it,
+      photos: [...(it.photos || [])],
+    });
+  }
+
+  for (const row of incoming) {
+    const name = row.name.trim();
+    const type = row.type.trim();
+    if (!name) continue;
+
+    const key = itemKey(name, type);
+    const photos = Array.isArray(row.photos) ? row.photos : [];
+    const existing = map.get(key);
+
+    if (existing) {
+      existing.adet = row.adet;
+      existing.dizi_icerik = row.dizi_icerik;
+      existing.dizi_price = row.dizi_price;
+      existing.adet_price = row.adet_price;
+      existing.dizi_price_usd = row.dizi_price_usd;
+      if (photos.length > 0) existing.photos = photos;
+      map.set(key, applyItemCostTotals(existing));
+      continue;
+    }
+
+    map.set(
+      key,
+      applyItemCostTotals({
+        name,
+        type,
+        adet: row.adet,
+        dizi_icerik: row.dizi_icerik,
+        dizi_price: row.dizi_price,
+        adet_price: row.adet_price,
+        photos,
+        dizi_price_usd: row.dizi_price_usd,
+        dizi_price_eur: 0,
+        usd_rate: 0,
+        eur_rate: 0,
+        total_cost_try: 0,
+        unit_cost_try: 0,
+      }),
+    );
+  }
+
+  return Array.from(map.values());
+}
+
 export function loadSales(): SaleRecord[] {
   if (typeof window === "undefined") return [];
   try {
