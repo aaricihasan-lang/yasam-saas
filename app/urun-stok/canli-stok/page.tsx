@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
+import { DOGALTAS_INVENTORY_TABLE } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   CATEGORY_LABELS,
   type LiveStockCategory,
@@ -10,7 +12,7 @@ import {
   filterLiveStock,
   fmtMoney,
   formatStockTotals,
-  loadLiveStockRows,
+  loadLiveStockRowsAsync,
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
@@ -104,18 +106,29 @@ export default function CanliStokMerkeziPage() {
   const [hydrated, setHydrated] = useState(false);
   const [rows, setRows] = useState<LiveStockRow[]>([]);
   const [usdRate, setUsdRate] = useState("");
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [inventorySource, setInventorySource] = useState<string>("—");
 
-  const reload = useCallback(() => {
-    setRows(loadLiveStockRows(toFloat(usdRate, 0)));
+  const reload = useCallback(async () => {
+    const tid = await getSyncedTenantId();
+    setTenantId(tid);
+    const result = await loadLiveStockRowsAsync(tid, toFloat(usdRate, 0));
+    setRows(result.rows);
+    setInventorySource(result.dogaltasSource);
+    console.log("[canli-stok] okuma", {
+      tenant_id: result.tenantId,
+      kaynak: result.dogaltasSource,
+      tablo: DOGALTAS_INVENTORY_TABLE,
+      dogaltasSatir: result.rows.filter((r) => r.category === "dogaltas").length,
+    });
   }, [usdRate]);
 
   useEffect(() => {
-    reload();
-    setHydrated(true);
+    void reload().then(() => setHydrated(true));
   }, [reload]);
 
   useEffect(() => {
-    const onRefresh = () => reload();
+    const onRefresh = () => void reload();
     window.addEventListener("focus", onRefresh);
     window.addEventListener("storage", onRefresh);
     document.addEventListener("visibilitychange", () => {
@@ -172,6 +185,10 @@ export default function CanliStokMerkeziPage() {
           <p className="mt-3 text-base text-slate-600 sm:text-lg">
             Tüm modüllerdeki gerçek stoklar tek ekranda — salt okunur. Satış veya manuel düzenleme burada yapılmaz;
             stoklar ilgili modül envanterinden anlık okunur.
+          </p>
+          <p className="mt-3 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 font-mono text-sm text-violet-950">
+            Doğaltaş stok kaynağı: {DOGALTAS_INVENTORY_TABLE} · tenant_id: {tenantId ?? "—"} · okuma:{" "}
+            {inventorySource}
           </p>
         </header>
 

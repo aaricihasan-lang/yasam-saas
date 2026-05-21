@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   type InvItem,
   type SaleRecord,
@@ -16,7 +17,6 @@ import {
   fmtTrim,
   formatTotalsCard,
   isDizi,
-  loadInventory,
   loadSales,
   normalizeDiziInventory,
   saveInventory,
@@ -26,6 +26,7 @@ import {
   turkishUpper,
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
+import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 
 type TabId = "stock" | "pricing" | "history";
@@ -183,8 +184,10 @@ export default function DogaltasUrunStokPage() {
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  const reloadInventory = useCallback(() => {
-    let items = loadInventory();
+  const reloadInventory = useCallback(async () => {
+    const tenantId = await getSyncedTenantId();
+    const { items: loaded } = await loadDogaltasInventoryForTenant(tenantId);
+    let items = loaded;
     const { items: normalized, dirty } = normalizeDiziInventory(items);
     if (dirty) saveInventory(normalized);
     setInventory(dirty ? normalized : items);

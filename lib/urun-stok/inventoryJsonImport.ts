@@ -1,23 +1,18 @@
 /**
- * Masaüstü inventory.json → web ürün stoku (Doğaltaş)
- *
- * Depolama: localStorage `dogaltas_inventory_v1` (/urun-stok/dogaltas ile aynı)
- * Supabase stok tablosu henüz yok — ileride `dogaltas_inventory` kullanılabilir.
+ * Masaüstü inventory.json → web ürün stoku
+ * Öncelik: Supabase public.dogaltas_inventory (tenant_id ile)
+ * Yedek: localStorage dogaltas_inventory_v1 (aynı tenant önbelleği)
  */
 
 import {
-  INVENTORY_STORAGE_KEY,
-  itemKey,
-  loadInventory,
-  mergeInventoryJsonRows,
-  normalizeDiziInventory,
-  saveInventory,
-  toFloat,
-} from "@/lib/urun-stok/dogaltasStockLogic";
+  DOGALTAS_INVENTORY_TABLE,
+  upsertDogaltasInventoryFromJson,
+} from "@/lib/urun-stok/dogaltasInventoryDb";
+import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
 
-/** Gelecekte Supabase migration için önerilen tablo adı (şu an aktif değil) */
-export const DOGALTAS_INVENTORY_SUPABASE_TABLE = "dogaltas_inventory";
+import { INVENTORY_STORAGE_KEY } from "@/lib/urun-stok/dogaltasStockLogic";
 
+export const DOGALTAS_INVENTORY_SUPABASE_TABLE = DOGALTAS_INVENTORY_TABLE;
 export const DOGALTAS_WEB_STOCK_STORAGE_KEY = INVENTORY_STORAGE_KEY;
 
 export type InventoryJsonRow = {
@@ -29,6 +24,7 @@ export type InventoryJsonRow = {
   adet_price: number;
   photos: string[];
   dizi_price_usd: number;
+  dizi_price_eur?: number;
 };
 
 export type InventoryJsonParseResult = {
@@ -37,7 +33,13 @@ export type InventoryJsonParseResult = {
 };
 
 export type InventoryJsonImportResult =
-  | { ok: true; inserted: number; updated: number; total: number }
+  | {
+      ok: true;
+      inserted: number;
+      updated: number;
+      total: number;
+      tenantId: string;
+    }
   | { ok: false; error: string };
 
 function normalizeJsonRecord(raw: unknown): InventoryJsonRow | null {
@@ -58,6 +60,7 @@ function normalizeJsonRecord(raw: unknown): InventoryJsonRow | null {
     adet_price: toFloat(r.adet_price ?? r.unit_cost_try, 0),
     photos,
     dizi_price_usd: toFloat(r.dizi_price_usd ?? r.cost_usd, 0),
+    dizi_price_eur: toFloat(r.dizi_price_eur ?? r.cost_eur, 0),
   };
 }
 
@@ -97,36 +100,50 @@ export function parseInventoryJsonPayload(text: string): InventoryJsonParseResul
   return { rows, error: null };
 }
 
+function toMergeRows(rows: InventoryJsonRow[]) {
+  return rows.map((row) => ({
+    name: row.name,
+    type: row.type,
+    adet: row.adet,
+    dizi_icerik: row.dizi_icerik,
+    dizi_price: row.dizi_price,
+    adet_price: row.adet_price,
+    photos: row.photos,
+    dizi_price_usd: row.dizi_price_usd,
+  }));
+}
+
 /**
- * Web stok envanterine birleştir — eski kayıtları silmez;
- * aynı name+type varsa adet ve maliyet alanlarını günceller.
+ * Web stok — Supabase dogaltas_inventory + localStorage önbellek.
  */
-export function importInventoryJsonToWebStock(
+export async function importInventoryJsonToWebStock(
   rows: InventoryJsonRow[],
-): InventoryJsonImportResult {
+  tenantId: string,
+): Promise<InventoryJsonImportResult> {
   if (typeof window === "undefined") {
     return { ok: false, error: "İçe aktarım yalnızca tarayıcıda çalışır." };
   }
 
-  const before = loadInventory();
-  const beforeKeys = new Set(before.map((it) => itemKey(it.name, it.type)));
+  const tid = tenantId.trim();
+  if (!tid) {
+    return {
+      ok: false,
+      error: "tenant_id gerekli. Admin oturumunda çalışma alanı tanımlı olmalı.",
+    };
+  }
 
-  const merged = mergeInventoryJsonRows(before, rows);
-  const norm = normalizeDiziInventory(merged);
-  saveInventory(norm.items);
+  console.log("[stok-json] import başlıyor tenant_id=", tid, "kayıt=", rows.length);
 
-  let inserted = 0;
-  let updated = 0;
-  for (const r of rows) {
-    const k = itemKey(r.name, r.type);
-    if (beforeKeys.has(k)) updated += 1;
-    else inserted += 1;
+  const result = await upsertDogaltasInventoryFromJson(tid, toMergeRows(rows));
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
 
   return {
     ok: true,
-    inserted,
-    updated,
-    total: norm.items.length,
+    inserted: result.inserted,
+    updated: result.updated,
+    total: result.total,
+    tenantId: result.tenantId,
   };
 }

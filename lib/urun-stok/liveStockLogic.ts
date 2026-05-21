@@ -5,11 +5,12 @@ import {
   formatVariantLabel as formatAccessoryVariant,
   loadAccessoryInventory,
 } from "@/lib/urun-stok/accessoryStockLogic";
+import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   fmtMoney,
   itemKey,
-  loadInventory as loadDogaltasInventory,
   unitCostAndCurrency,
+  type InvItem,
 } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
   CATEGORY_LABELS,
@@ -74,10 +75,9 @@ function fmtQty(n: number): string {
   return s || "0";
 }
 
-export function loadLiveStockRows(usdRate = 0): LiveStockRow[] {
+function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRow[] {
   const rows: LiveStockRow[] = [];
-
-  for (const it of loadDogaltasInventory()) {
+  for (const it of items) {
     const qty = it.adet || 0;
     if (qty <= 0) continue;
     const { unit, warning } = unitCostAndCurrency(it, usdRate);
@@ -102,7 +102,10 @@ export function loadLiveStockRows(usdRate = 0): LiveStockRow[] {
       photos: it.photos ?? [],
     });
   }
+  return rows;
+}
 
+function appendOtherModuleStockRows(rows: LiveStockRow[]): void {
   for (const it of loadOilInventory()) {
     if (it.stockBase <= 0) continue;
     const u = it.baseUnit;
@@ -181,7 +184,63 @@ export function loadLiveStockRows(usdRate = 0): LiveStockRow[] {
       photos: it.photos ?? [],
     });
   }
+}
 
+/** Supabase dogaltas_inventory öncelikli (tenant_id ile) */
+export async function loadLiveStockRowsAsync(
+  tenantId: string | null,
+  usdRate = 0,
+): Promise<{
+  rows: LiveStockRow[];
+  dogaltasSource: "supabase" | "localStorage" | "none";
+  tenantId: string | null;
+}> {
+  const rows: LiveStockRow[] = [];
+  const inv = await loadDogaltasInventoryForTenant(tenantId);
+  rows.push(...dogaltasItemsToLiveRows(inv.items, usdRate));
+  appendOtherModuleStockRows(rows);
+  return { rows, dogaltasSource: inv.source, tenantId: inv.tenantId };
+}
+
+/** Senkron — doğaltaş için localStorage önbellek; diğer modüller aynı */
+export function loadLiveStockRows(usdRate = 0): LiveStockRow[] {
+  const rows: LiveStockRow[] = [];
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("dogaltas_inventory_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          rows.push(
+            ...dogaltasItemsToLiveRows(
+              parsed.map((r) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  name: String(row.name ?? ""),
+                  type: String(row.type ?? ""),
+                  adet: Number(row.adet) || 0,
+                  dizi_icerik: Number(row.dizi_icerik) || 0,
+                  dizi_price: Number(row.dizi_price) || 0,
+                  adet_price: Number(row.adet_price) || 0,
+                  photos: Array.isArray(row.photos) ? (row.photos as string[]) : [],
+                  dizi_price_usd: Number(row.dizi_price_usd) || 0,
+                  dizi_price_eur: Number(row.dizi_price_eur) || 0,
+                  usd_rate: Number(row.usd_rate) || 0,
+                  eur_rate: Number(row.eur_rate) || 0,
+                  total_cost_try: Number(row.total_cost_try) || 0,
+                  unit_cost_try: Number(row.unit_cost_try) || 0,
+                };
+              }),
+              usdRate,
+            ),
+          );
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  appendOtherModuleStockRows(rows);
   return rows;
 }
 

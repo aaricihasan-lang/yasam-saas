@@ -4764,11 +4764,13 @@ function DogaltasJsonTab() {
 const STOK_JSON_PREVIEW_LIMIT = 40;
 
 function StokJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [rows, setRows] = useState<InventoryJsonRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [lastImportTenant, setLastImportTenant] = useState<string | null>(null);
 
   const previewRows = useMemo(
     () => rows.slice(0, STOK_JSON_PREVIEW_LIMIT),
@@ -4801,14 +4803,20 @@ function StokJsonTab() {
     event.target.value = "";
   }, []);
 
-  const handleImport = useCallback(() => {
+  const handleImport = useCallback(async () => {
+    if (!tenantId) {
+      const msg = tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE;
+      setParseError(msg);
+      showToast({ type: "error", message: msg });
+      return;
+    }
     if (rows.length === 0) {
       setParseError("Aktarılacak kayıt yok.");
       return;
     }
     setImporting(true);
     setParseError(null);
-    const result = importInventoryJsonToWebStock(rows);
+    const result = await importInventoryJsonToWebStock(rows, tenantId);
     setImporting(false);
 
     if (!result.ok) {
@@ -4817,9 +4825,11 @@ function StokJsonTab() {
       return;
     }
 
+    setLastImportTenant(result.tenantId);
+    console.log("[stok-json] aktarım tamam tenant_id=", result.tenantId, result);
     showToast({ type: "success", message: "Stok JSON başarıyla aktarıldı." });
     setParseError(null);
-  }, [rows, showToast]);
+  }, [rows, showToast, tenantId, tenantError]);
 
   return (
     <section
@@ -4838,11 +4848,18 @@ function StokJsonTab() {
             güncellenir.
           </p>
           <p className="mt-2 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2 text-sm font-semibold text-sky-950">
-            Depolama: tarayıcı{" "}
-            <span className="font-mono text-xs">{DOGALTAS_WEB_STOCK_STORAGE_KEY}</span> (
-            <span className="font-bold">/urun-stok/dogaltas</span> ile aynı). Supabase tablosu:{" "}
-            <span className="font-mono">{DOGALTAS_INVENTORY_SUPABASE_TABLE}</span> — henüz yok; SQL
-            gerekir.
+            Hedef tablo:{" "}
+            <span className="font-mono">{DOGALTAS_INVENTORY_SUPABASE_TABLE}</span> · Aktarım tenant_id:{" "}
+            <span className="font-mono">{tenantId ?? "—"}</span>
+            {lastImportTenant ? (
+              <span className="block mt-1">
+                Son aktarım tenant_id: <span className="font-mono">{lastImportTenant}</span>
+              </span>
+            ) : null}
+            <span className="block mt-1 text-xs font-medium">
+              Önbellek: {DOGALTAS_WEB_STOCK_STORAGE_KEY} · Canlı stok: /urun-stok/canli-stok (aynı tenant ile
+              okur)
+            </span>
           </p>
         </div>
         <label className="cursor-pointer">
@@ -4903,7 +4920,7 @@ function StokJsonTab() {
             <button
               type="button"
               disabled={importing}
-              onClick={handleImport}
+              onClick={() => void handleImport()}
               className="inline-flex h-12 items-center rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-base font-black text-white shadow-lg disabled:opacity-50"
             >
               {importing ? (
