@@ -66,29 +66,55 @@ function prepareRowForInsert(
   return copy;
 }
 
-/** Doğaltaş: kaynak satırından güvenli insert objesi */
-function buildCleanStoneRow(
+/** Doğaltaş insert — yalnızca tablo alanları (minerals/combinations ile aynı strip mantığı) */
+const STONE_COPY_FIELDS = [
+  "short_description",
+  "general_info",
+  "source_note",
+  "physical_effects",
+  "spiritual_effects",
+  "other_effects",
+  "warning_text",
+  "warning_tags",
+  "feng_shui",
+  "meditation",
+  "care",
+  "application",
+  "chakras",
+  "assignments",
+  "images",
+  "image_upload_failed",
+] as const;
+
+function prepareStoneRowForInsert(
   row: Record<string, unknown>,
   targetTenantId: string,
-): Record<string, unknown> {
-  const cleanRow: Record<string, unknown> = {
-    ...row,
-    tenant_id: targetTenantId,
-  };
-
-  delete cleanRow.id;
-  delete cleanRow.created_at;
-  delete cleanRow.updated_at;
-
-  if (!Object.prototype.hasOwnProperty.call(row, "image_upload_failed")) {
-    delete cleanRow.image_upload_failed;
+): Record<string, unknown> | null {
+  const stoneName = String(row.stone_name ?? row.name ?? "").trim();
+  if (!stoneName) {
+    console.warn(
+      "[veri-paylasimi] stones atlandı: stone_name/name yok",
+      row.id ?? "(id yok)",
+    );
+    return null;
   }
 
-  if (cleanRow.images == null) cleanRow.images = [];
-  if (cleanRow.assignments == null) cleanRow.assignments = {};
-  if (cleanRow.warning_tags == null) cleanRow.warning_tags = [];
+  const copy: Record<string, unknown> = {
+    tenant_id: targetTenantId,
+    stone_name: stoneName,
+  };
 
-  return cleanRow;
+  for (const key of STONE_COPY_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      copy[key] = row[key];
+    }
+  }
+
+  if (copy.images == null) copy.images = [];
+  if (copy.assignments == null) copy.assignments = {};
+  if (copy.warning_tags == null) copy.warning_tags = [];
+
+  return copy;
 }
 
 function sumSelectedCounts(
@@ -179,10 +205,9 @@ async function insertRowsBatched(
 }
 
 /**
- * Doğaltaş listesi — admin oturum tenant kaynağı, hedef üye tenant_id.
- * Tek tek insert; mineral/kombinasyon akışından bağımsız.
+ * Doğaltaş — minerals/combinations ile aynı akış: SELECT → prepare → batch INSERT.
+ * Tablo adı: public.stones
  */
-/** Yalnızca INSERT — hedef kullanıcıdaki mevcut kayıtlar silinmez / güncellenmez */
 async function copyStonesTableToTenant(
   sourceAdminTenantId: string,
   targetUserTenantId: string,
@@ -193,7 +218,7 @@ async function copyStonesTableToTenant(
     .eq("tenant_id", sourceAdminTenantId);
 
   if (readError) {
-    console.error("[veri-paylasimi] stones okuma:", readError.message);
+    console.error("[veri-paylasimi] tablo=stones okuma hata:", readError.message);
     return { count: 0, readCount: 0, error: readError.message };
   }
 
@@ -205,37 +230,43 @@ async function copyStonesTableToTenant(
   );
 
   if (readCount === 0) {
-    return { count: 0, readCount: 0, error: EMPTY_SOURCE_ADMIN_MESSAGE };
+    return { count: 0, readCount: 0 };
   }
 
-  let successCount = 0;
-  let failCount = 0;
-  let lastInsertError = "";
-
-  for (const row of rows) {
-    const cleanRow = buildCleanStoneRow(row, targetUserTenantId);
-    const { error: insertError } = await supabase.from("stones").insert(cleanRow);
-
-    if (insertError) {
-      failCount += 1;
-      lastInsertError = insertError.message;
-      console.log(
-        "STONE INSERT HATA:",
-        insertError.message,
-        cleanRow.stone_name,
-      );
-      continue;
-    }
-
-    successCount += 1;
-  }
+  const payloads = rows
+    .map((row) => prepareStoneRowForInsert(row, targetUserTenantId))
+    .filter((row): row is Record<string, unknown> => row !== null);
 
   console.log(
-    `[veri-paylasimi] tablo=stones hedef=${targetUserTenantId} okunan=${readCount} eklenen=${successCount} başarısız=${failCount}`,
+    `[veri-paylasimi] tablo=stones insert öncesi data.length=${payloads.length} okunan=${readCount}`,
+    payloads[0]
+      ? {
+          stone_name: payloads[0].stone_name,
+          tenant_id: payloads[0].tenant_id,
+          alanlar: Object.keys(payloads[0]),
+        }
+      : null,
   );
 
-  if (successCount === 0) {
-    const detail = lastInsertError ? ` ${lastInsertError}` : "";
+  if (payloads.length === 0) {
+    return {
+      count: 0,
+      readCount,
+      error:
+        "Doğaltaş: kaynakta kayıt var ancak stone_name/name dolu satır bulunamadı.",
+    };
+  }
+
+  const { inserted, error: insertError } = await insertRowsBatched("stones", payloads);
+
+  console.log(
+    `[veri-paylasimi] tablo=stones hedef=${targetUserTenantId} insert sonrası eklenen=${inserted} okunan=${readCount} payloads=${payloads.length}${
+      insertError ? ` hata=${insertError}` : ""
+    }`,
+  );
+
+  if (inserted === 0) {
+    const detail = insertError ? ` ${insertError}` : "";
     return {
       count: 0,
       readCount,
@@ -243,15 +274,15 @@ async function copyStonesTableToTenant(
     };
   }
 
-  if (failCount > 0) {
+  if (inserted < payloads.length) {
     return {
-      count: successCount,
+      count: inserted,
       readCount,
-      error: `Doğaltaş: okunan ${readCount}, başarılı ${successCount}, başarısız ${failCount}`,
+      error: `Doğaltaş: ${payloads.length} hazır, ${inserted} eklendi.`,
     };
   }
 
-  return { count: successCount, readCount };
+  return { count: inserted, readCount };
 }
 
 export async function copyLibraryTableToTenant(
