@@ -68,7 +68,9 @@ export async function getKnowledgeRecord(
   value: string,
 ): Promise<{ data: KnowledgeRecordRow | null; error: string | null }> {
   const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
+  if (!tenantId) {
+    return { data: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
+  }
   const { data, error } = await supabase
     .from(KNOWLEDGE_TABLE)
     .select("*")
@@ -123,7 +125,9 @@ export async function getStoneAssignment(
   value: string,
 ): Promise<{ data: { reason: string; stones: string[]; updated_at: string } | null; error: string | null }> {
   const tenantId = await resolveNumerolojiTenantId();
-  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
+  if (!tenantId) {
+    return { data: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
+  }
   const { data, error } = await supabase
     .from(STONE_TABLE)
     .select("*")
