@@ -4,15 +4,39 @@ export const ADMIN_SOURCE_TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 export const TRANSFER_BATCH_SIZE = 100;
 
-export type TransferTableName = "stones" | "minerals" | "combinations";
+/** UI seçim anahtarı → gerçek Supabase tablo adı */
+export type TransferGroupKey =
+  | "stones"
+  | "minerals"
+  | "combinations"
+  | "bioenergy_symbols"
+  | "bioenergy_imaginations"
+  | "bioenergy_chakras"
+  | "bioenergy_energy_bodies"
+  | "bioenergy_subconscious_causes"
+  | "reflexology_protocols"
+  | "numerology_knowledge_records"
+  | "numerology_stone_assignments";
 
-export type TransferGroupKey = "stones" | "minerals" | "combinations";
+export type TransferTableName = TransferGroupKey;
 
-export type TransferResultCounts = {
-  stones: number;
-  minerals: number;
-  combinations: number;
-};
+export type TransferResultCounts = Record<TransferGroupKey, number>;
+
+export function emptyTransferCounts(): TransferResultCounts {
+  return {
+    stones: 0,
+    minerals: 0,
+    combinations: 0,
+    bioenergy_symbols: 0,
+    bioenergy_imaginations: 0,
+    bioenergy_chakras: 0,
+    bioenergy_energy_bodies: 0,
+    bioenergy_subconscious_causes: 0,
+    reflexology_protocols: 0,
+    numerology_knowledge_records: 0,
+    numerology_stone_assignments: 0,
+  };
+}
 
 const STRIP_ON_COPY = new Set(["id", "created_at", "updated_at"]);
 
@@ -93,16 +117,12 @@ export async function runLibraryTransfer(
   targetTenantId: string,
   sourceTenantId: string = ADMIN_SOURCE_TENANT_ID,
 ): Promise<{ counts: TransferResultCounts; error?: string }> {
-  const counts: TransferResultCounts = {
-    stones: 0,
-    minerals: 0,
-    combinations: 0,
-  };
+  const counts = emptyTransferCounts();
+  const uniqueGroups = [...new Set(groups)];
 
-  for (const group of groups) {
-    const table: TransferTableName = group;
+  for (const group of uniqueGroups) {
     const { count, error } = await copyLibraryTableToTenant(
-      table,
+      group,
       sourceTenantId,
       targetTenantId,
     );
@@ -113,4 +133,40 @@ export async function runLibraryTransfer(
   }
 
   return { counts };
+}
+
+export function sumBioenergyCounts(counts: TransferResultCounts): number {
+  return (
+    counts.bioenergy_symbols +
+    counts.bioenergy_imaginations +
+    counts.bioenergy_chakras +
+    counts.bioenergy_energy_bodies +
+    counts.bioenergy_subconscious_causes
+  );
+}
+
+export function sumReflexologyCounts(counts: TransferResultCounts): number {
+  return counts.reflexology_protocols;
+}
+
+export function sumNumerologyCounts(counts: TransferResultCounts): number {
+  return counts.numerology_knowledge_records + counts.numerology_stone_assignments;
+}
+
+export function formatTransferResultLines(counts: TransferResultCounts): string[] {
+  const lines: string[] = [];
+  if (counts.stones > 0) lines.push(`${counts.stones} Doğaltaş`);
+  if (counts.combinations > 0) lines.push(`${counts.combinations} Kombinasyon`);
+  if (counts.minerals > 0) lines.push(`${counts.minerals} Mineral`);
+
+  const bio = sumBioenergyCounts(counts);
+  if (bio > 0) lines.push(`${bio} Biyoenerji`);
+
+  const ref = sumReflexologyCounts(counts);
+  if (ref > 0) lines.push(`${ref} Refleksoloji`);
+
+  const num = sumNumerologyCounts(counts);
+  if (num > 0) lines.push(`${num} Numeroloji`);
+
+  return lines;
 }

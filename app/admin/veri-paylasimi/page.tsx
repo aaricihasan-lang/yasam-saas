@@ -15,6 +15,7 @@ import {
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
+  formatTransferResultLines,
   runLibraryTransfer,
   type TransferGroupKey,
   type TransferResultCounts,
@@ -35,10 +36,12 @@ type ExpertOption = {
 };
 
 type SubGroupDef = {
-  key: TransferGroupKey | string;
+  key: string;
   label: string;
   active: boolean;
-  transferKey?: TransferGroupKey;
+  /** Gerçek Supabase tablo anahtarları — uydurma tablo adı yok */
+  transferKeys?: TransferGroupKey[];
+  pendingNote?: string;
 };
 
 type ModuleDef = {
@@ -47,38 +50,34 @@ type ModuleDef = {
   subGroups: SubGroupDef[];
 };
 
-/** Aktif — modül kutusu açmadan doğrudan seçilir */
-const ACTIVE_DATA_GROUPS: SubGroupDef[] = [
-  {
-    key: "stones",
-    label: "Doğaltaş Listesi",
-    active: true,
-    transferKey: "stones",
-  },
-  {
-    key: "combinations",
-    label: "Kombinasyonlar",
-    active: true,
-    transferKey: "combinations",
-  },
-  {
-    key: "minerals",
-    label: "Mineral Bankası",
-    active: true,
-    transferKey: "minerals",
-  },
-];
-
 const MODULES: ModuleDef[] = [
   {
     key: "dogaltas",
     label: "Doğaltaş",
     subGroups: [
-      ...ACTIVE_DATA_GROUPS,
+      {
+        key: "stones",
+        label: "Doğaltaş Listesi",
+        active: true,
+        transferKeys: ["stones"],
+      },
+      {
+        key: "combinations",
+        label: "Kombinasyonlar",
+        active: true,
+        transferKeys: ["combinations"],
+      },
+      {
+        key: "minerals",
+        label: "Mineral Bankası",
+        active: true,
+        transferKeys: ["minerals"],
+      },
       {
         key: "stone_info",
         label: "Taş Bilgi Kütüphanesi",
         active: false,
+        pendingNote: "Henüz tenant tablosu tanımlı değil",
       },
     ],
   },
@@ -86,36 +85,110 @@ const MODULES: ModuleDef[] = [
     key: "bioenergy",
     label: "Biyoenerji",
     subGroups: [
-      { key: "bio_symbols", label: "Sembol Dili", active: false },
-      { key: "bio_imag", label: "İmajinasyonlar", active: false },
-      { key: "bio_chakras", label: "Çakralar", active: false },
-      { key: "bio_bodies", label: "Enerji Bedenleri", active: false },
-      { key: "bio_sub", label: "Bilinçaltı Sebepleri", active: false },
+      {
+        key: "bio_symbols",
+        label: "Sembol Dili",
+        active: true,
+        transferKeys: ["bioenergy_symbols"],
+      },
+      {
+        key: "bio_imag",
+        label: "İmajinasyonlar",
+        active: true,
+        transferKeys: ["bioenergy_imaginations"],
+      },
+      {
+        key: "bio_chakras",
+        label: "Çakralar",
+        active: true,
+        transferKeys: ["bioenergy_chakras"],
+      },
+      {
+        key: "bio_bodies",
+        label: "Enerji Bedenleri",
+        active: true,
+        transferKeys: ["bioenergy_energy_bodies"],
+      },
+      {
+        key: "bio_sub",
+        label: "Bilinçaltı Sebepleri",
+        active: true,
+        transferKeys: ["bioenergy_subconscious_causes"],
+      },
     ],
   },
   {
     key: "reflexology",
     label: "Refleksoloji",
     subGroups: [
-      { key: "ref_proto", label: "Protokoller", active: false },
-      { key: "ref_atlas", label: "Atlas", active: false },
-      { key: "ref_notes", label: "Notlar", active: false },
+      {
+        key: "ref_proto",
+        label: "Protokoller",
+        active: true,
+        transferKeys: ["reflexology_protocols"],
+      },
+      {
+        key: "ref_atlas",
+        label: "Atlas",
+        active: false,
+        pendingNote: "Atlas verisi şu an tarayıcıda (localStorage)",
+      },
+      {
+        key: "ref_notes",
+        label: "Notlar",
+        active: false,
+        pendingNote: "Klinik notlar şu an tarayıcıda (localStorage)",
+      },
     ],
   },
   {
     key: "numerology",
     label: "Numeroloji",
-    subGroups: [{ key: "num_bank", label: "Bilgi Bankası", active: false }],
+    subGroups: [
+      {
+        key: "num_bank",
+        label: "Bilgi Bankası",
+        active: true,
+        transferKeys: [
+          "numerology_knowledge_records",
+          "numerology_stone_assignments",
+        ],
+      },
+    ],
   },
   {
     key: "aromatherapy",
     label: "Aromaterapi",
     subGroups: [
-      { key: "aro_vol", label: "Uçucu Yağlar", active: false },
-      { key: "aro_fix", label: "Sabit Yağlar", active: false },
+      {
+        key: "aro_vol",
+        label: "Uçucu Yağlar",
+        active: false,
+        pendingNote: "Projede Supabase tablosu henüz bağlı değil",
+      },
+      {
+        key: "aro_fix",
+        label: "Sabit Yağlar",
+        active: false,
+        pendingNote: "Projede Supabase tablosu henüz bağlı değil",
+      },
     ],
   },
 ];
+
+function collectActiveTransferGroups(
+  checked: Record<string, boolean>,
+): TransferGroupKey[] {
+  const keys: TransferGroupKey[] = [];
+  for (const mod of MODULES) {
+    for (const sub of mod.subGroups) {
+      if (!sub.active || !sub.transferKeys?.length) continue;
+      if (!checked[sub.key]) continue;
+      keys.push(...sub.transferKeys);
+    }
+  }
+  return keys;
+}
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6";
@@ -170,14 +243,6 @@ function FlowStepBar({
   );
 }
 
-function formatTransferSummary(counts: TransferResultCounts): string {
-  const parts: string[] = [];
-  if (counts.stones > 0) parts.push(`${counts.stones} Doğaltaş`);
-  if (counts.combinations > 0) parts.push(`${counts.combinations} Kombinasyon`);
-  if (counts.minerals > 0) parts.push(`${counts.minerals} Mineral`);
-  return parts.join("\n");
-}
-
 export default function VeriPaylasimiPage() {
   const router = useRouter();
   const { confirm } = useConfirm();
@@ -198,13 +263,10 @@ export default function VeriPaylasimiPage() {
     [experts, selectedExpertId],
   );
 
-  const activeTransferGroups = useMemo(() => {
-    const keys: TransferGroupKey[] = [];
-    for (const sub of ACTIVE_DATA_GROUPS) {
-      if (sub.transferKey && subChecked[sub.key]) keys.push(sub.transferKey);
-    }
-    return keys;
-  }, [subChecked]);
+  const activeTransferGroups = useMemo(
+    () => collectActiveTransferGroups(subChecked),
+    [subChecked],
+  );
 
   const canTransfer =
     !!selectedExpert?.tenantId &&
@@ -337,15 +399,14 @@ export default function VeriPaylasimiPage() {
       return;
     }
 
-    const summary = formatTransferSummary(counts);
-    const total = counts.stones + counts.minerals + counts.combinations;
+    const summaryLines = formatTransferResultLines(counts);
 
     showToast({
       title: "Veriler başarıyla aktarıldı",
       message:
-        summary.length > 0
-          ? `${summary}\n\n${expertName} hesabına eklendi`
-          : `${total} kayıt ${expertName} hesabına eklendi`,
+        summaryLines.length > 0
+          ? `${summaryLines.join("\n")}\n\n${expertName} hesabına eklendi`
+          : `Kayıtlar ${expertName} hesabına eklendi`,
       type: "success",
     });
   }
@@ -497,57 +558,58 @@ export default function VeriPaylasimiPage() {
         <section className={`${panelClass} mt-6`}>
           <h2 className="text-lg font-black text-slate-900">2. Aktarılacak Veriyi Seç</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Doğaltaş modülü — admin kütüphanesinden üyeye kopyalanacak tablolar
+            Kaynak: admin kütüphane tenant — hedef: seçili üye tenant (yalnızca INSERT)
           </p>
 
-          <div className="mt-5 space-y-3 rounded-2xl border-2 border-violet-100 bg-violet-50/40 p-4">
-            <p className="text-sm font-black text-violet-950">Doğaltaş (aktif)</p>
-            {ACTIVE_DATA_GROUPS.map((sub) => (
-              <label
-                key={sub.key}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/80 bg-white px-3 py-2.5 shadow-sm transition hover:border-violet-200"
+          <div className="mt-5 space-y-4">
+            {MODULES.map((mod) => (
+              <div
+                key={mod.key}
+                className="rounded-2xl border-2 border-slate-100 bg-slate-50/50 p-4"
               >
-                <input
-                  type="checkbox"
-                  checked={!!subChecked[sub.key]}
-                  onChange={() => toggleSubGroup(sub)}
-                  className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
-                />
-                <span className="text-sm font-bold text-slate-800">{sub.label}</span>
-              </label>
+                <p className="text-sm font-black text-slate-900">{mod.label}</p>
+                <div className="mt-3 space-y-2">
+                  {mod.subGroups.map((sub) => {
+                    const disabled = !sub.active;
+                    return (
+                      <label
+                        key={sub.key}
+                        className={`flex flex-wrap items-center gap-3 rounded-xl px-2 py-2 ${
+                          disabled
+                            ? "cursor-not-allowed opacity-65"
+                            : "cursor-pointer hover:bg-white/80"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!subChecked[sub.key]}
+                          disabled={disabled}
+                          onChange={() => toggleSubGroup(sub)}
+                          className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
+                        />
+                        <span className="text-sm font-semibold text-slate-800">
+                          {sub.label}
+                        </span>
+                        {disabled ? (
+                          <span
+                            className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                            title={sub.pendingNote}
+                          >
+                            Yakında
+                          </span>
+                        ) : null}
+                        {sub.pendingNote && disabled ? (
+                          <span className="w-full pl-8 text-xs font-medium text-slate-500">
+                            {sub.pendingNote}
+                          </span>
+                        ) : null}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
-
-          <details className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4">
-            <summary className="cursor-pointer text-sm font-black text-slate-700">
-              Diğer modüller (Yakında)
-            </summary>
-            <div className="mt-3 space-y-3">
-              {MODULES.filter((m) => m.key !== "dogaltas").map((mod) => (
-                <div key={mod.key}>
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    {mod.label}
-                  </p>
-                  <ul className="mt-1 space-y-1 pl-2">
-                    {mod.subGroups.map((sub) => (
-                      <li
-                        key={sub.key}
-                        className="flex items-center gap-2 text-sm text-slate-600"
-                      >
-                        <span>{sub.label}</span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                          Yakında
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <p className="text-xs font-semibold text-slate-500">
-                Taş Bilgi Kütüphanesi — Yakında
-              </p>
-            </div>
-          </details>
         </section>
 
         <section className={`${panelClass} mt-6`}>
@@ -559,7 +621,7 @@ export default function VeriPaylasimiPage() {
               {activeTransferGroups.length > 0 ? (
                 <span className="text-slate-500">
                   {" "}
-                  · Seçili: {activeTransferGroups.join(", ")}
+                  · {activeTransferGroups.length} tablo seçildi
                 </span>
               ) : null}
             </p>
