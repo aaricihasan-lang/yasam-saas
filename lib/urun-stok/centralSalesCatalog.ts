@@ -141,10 +141,15 @@ function loadDogaltasProducts(usdRate: number): CatalogProduct[] {
       type,
       adet,
       dizi_icerik: pickNum(r, "dizi_icerik"),
-      dizi_price: pickNum(r, "dizi_price"),
+      dizi_price: pickNum(r, "dizi_price", "cost_try"),
       adet_price: pickNum(r, "adet_price", "cost", "costPerBase", "purchaseCost", "alisMaliyeti"),
       photos: pickPhotos(r),
-      dizi_price_usd: pickNum(r, "dizi_price_usd"),
+      dizi_price_usd: pickNum(r, "dizi_price_usd", "cost_usd"),
+      dizi_price_eur: pickNum(r, "dizi_price_eur", "cost_eur"),
+      usd_rate: pickNum(r, "usd_rate"),
+      eur_rate: pickNum(r, "eur_rate"),
+      total_cost_try: pickNum(r, "total_cost_try"),
+      unit_cost_try: pickNum(r, "unit_cost_try"),
     };
     const { unit } = unitCostAndCurrency(it, usdRate);
     const costPerUnit = unit > 0 ? unit : it.adet_price || 0;
