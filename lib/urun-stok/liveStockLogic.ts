@@ -5,7 +5,11 @@ import {
   formatVariantLabel as formatAccessoryVariant,
   loadAccessoryInventory,
 } from "@/lib/urun-stok/accessoryStockLogic";
-import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
+import {
+  DOGALTAS_INVENTORY_TABLE,
+  loadDogaltasInventoryForTenant,
+  type DogaltasInventoryLoadDebug,
+} from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   fmtMoney,
   itemKey,
@@ -186,21 +190,34 @@ function appendOtherModuleStockRows(rows: LiveStockRow[]): void {
   }
 }
 
-/** Supabase dogaltas_inventory öncelikli (tenant_id ile) */
-export async function loadLiveStockRowsAsync(
-  tenantId: string | null,
-  usdRate = 0,
-): Promise<{
+export type LiveStockLoadResult = {
   rows: LiveStockRow[];
   dogaltasSource: "supabase" | "localStorage" | "none";
   tenantId: string | null;
-}> {
+  inventoryDebug: DogaltasInventoryLoadDebug;
+  dogaltasListedCount: number;
+};
+
+/** Supabase public.dogaltas_inventory öncelikli (tenant_id ile) */
+export async function loadLiveStockRowsAsync(
+  tenantId: string | null,
+  usdRate = 0,
+): Promise<LiveStockLoadResult> {
   const rows: LiveStockRow[] = [];
   const inv = await loadDogaltasInventoryForTenant(tenantId);
-  rows.push(...dogaltasItemsToLiveRows(inv.items, usdRate));
+  const dogaltasRows = dogaltasItemsToLiveRows(inv.items, usdRate);
+  rows.push(...dogaltasRows);
   appendOtherModuleStockRows(rows);
-  return { rows, dogaltasSource: inv.source, tenantId: inv.tenantId };
+  return {
+    rows,
+    dogaltasSource: inv.source,
+    tenantId: inv.tenantId,
+    inventoryDebug: inv.debug,
+    dogaltasListedCount: dogaltasRows.length,
+  };
 }
+
+export { DOGALTAS_INVENTORY_TABLE };
 
 /** Senkron — doğaltaş için localStorage önbellek; diğer modüller aynı */
 export function loadLiveStockRows(usdRate = 0): LiveStockRow[] {

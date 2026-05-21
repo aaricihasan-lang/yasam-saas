@@ -4826,8 +4826,15 @@ function StokJsonTab() {
     }
 
     setLastImportTenant(result.tenantId);
-    console.log("[stok-json] aktarım tamam tenant_id=", result.tenantId, result);
-    showToast({ type: "success", message: "Stok JSON başarıyla aktarıldı." });
+    console.log("[stok-json] aktarım tamam", result);
+    const verifyMsg =
+      result.supabaseVerifiedCount > 0
+        ? `Stok JSON aktarıldı. Supabase doğrulama: ${result.supabaseVerifiedCount} kayıt (tenant: ${result.tenantId}).`
+        : `Stok JSON aktarıldı ancak Supabase doğrulama 0 kayıt — canlı stokta oturum tenant_id aynı mı kontrol edin.`;
+    showToast({
+      type: result.supabaseVerifiedCount > 0 ? "success" : "warning",
+      message: verifyMsg,
+    });
     setParseError(null);
   }, [rows, showToast, tenantId, tenantError]);
 

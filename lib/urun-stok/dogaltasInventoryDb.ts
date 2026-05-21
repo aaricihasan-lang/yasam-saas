@@ -1,6 +1,6 @@
 /**
  * Ürün stoku — Supabase public.dogaltas_inventory (öncelikli)
- * localStorage yalnızca önbellek / tablo yoksa yedek
+ * localStorage dogaltas_inventory_v1 yalnızca yedek (aynı tenant önbelleği)
  */
 
 import { supabase } from "@/lib/supabase";
@@ -21,6 +21,17 @@ const ACTIVE_TENANT_CACHE_KEY = "dogaltas_inventory_active_tenant_v1";
 
 const SELECT_COLUMNS =
   "id, tenant_id, name, type, adet, dizi_icerik, dizi_price, adet_price, dizi_price_usd, dizi_price_eur, photos, usd_rate, eur_rate, total_cost_try, unit_cost_try";
+
+export type DogaltasInventoryLoadDebug = {
+  tableName: string;
+  sessionTenantId: string | null;
+  cachedImportTenantId: string | null;
+  supabaseRawCount: number;
+  supabaseError: string | null;
+  localStorageCount: number;
+  inventorySource: "supabase" | "localStorage" | "none";
+  adetPositiveCount: number;
+};
 
 export type DogaltasInventoryDbRow = {
   id?: string;
@@ -77,24 +88,28 @@ function invItemToDbPayload(tenantId: string, item: InvItem): Omit<DogaltasInven
   };
 }
 
-function setActiveTenantCache(tenantId: string): void {
+export function setActiveTenantCache(tenantId: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(ACTIVE_TENANT_CACHE_KEY, tenantId);
 }
 
-function readActiveTenantCache(): string | null {
+export function readActiveTenantCache(): string | null {
   if (typeof window === "undefined") return null;
   const v = localStorage.getItem(ACTIVE_TENANT_CACHE_KEY)?.trim();
   return v || null;
 }
 
-/** Supabase'ten tenant envanteri — hata/boşta [] */
+export function countAdetPositive(items: InvItem[]): number {
+  return items.filter((it) => (it.adet ?? 0) > 0).length;
+}
+
+/** public.dogaltas_inventory — tenant_id ile filtre */
 export async function fetchDogaltasInventoryFromDb(
   tenantId: string,
-): Promise<{ items: InvItem[]; error: string | null; fromDb: boolean }> {
+): Promise<{ items: InvItem[]; error: string | null; count: number }> {
   const tid = tenantId.trim();
   if (!tid) {
-    return { items: [], error: "tenant_id gerekli.", fromDb: false };
+    return { items: [], error: "tenant_id boş — sorgu atlanmadı.", count: 0 };
   }
 
   const { data, error } = await supabase
@@ -103,24 +118,133 @@ export async function fetchDogaltasInventoryFromDb(
     .eq("tenant_id", tid);
 
   if (error) {
-    console.warn("[dogaltas_inventory] okuma:", error.message);
-    return { items: [], error: error.message, fromDb: false };
+    console.warn("[dogaltas_inventory] SELECT hata:", error.message, "tenant_id=", tid);
+    return { items: [], error: error.message, count: 0 };
   }
 
   const items = (data ?? []).map((row) =>
     dbRowToInvItem(row as Record<string, unknown>),
   );
-  return { items, error: null, fromDb: items.length > 0 };
+
+  console.log("[dogaltas_inventory] SELECT ok", {
+    tenant_id: tid,
+    count: items.length,
+  });
+
+  return { items, error: null, count: items.length };
+}
+
+function loadLocalInventoryCache(expectedTenantId: string | null): InvItem[] {
+  if (typeof window === "undefined") return [];
+
+  const cachedTenant = readActiveTenantCache();
+  if (expectedTenantId && cachedTenant && cachedTenant !== expectedTenantId) {
+    console.warn(
+      "[dogaltas_inventory] localStorage tenant uyuşmazlığı",
+      { beklenen: expectedTenantId, onbellek: cachedTenant },
+    );
+    return [];
+  }
+
+  try {
+    const raw = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((r) => dbRowToInvItem(r as Record<string, unknown>));
+  } catch {
+    return [];
+  }
 }
 
 /**
- * JSON import birleştirme + Supabase kayıt (silme yok, name+type güncelleme).
+ * Supabase öncelikli yükleme.
+ * Supabase boş/hatalıysa — aynı tenant önbelleği varsa localStorage yedek.
  */
+export async function loadDogaltasInventoryForTenant(
+  sessionTenantId: string | null,
+): Promise<{
+  items: InvItem[];
+  source: "supabase" | "localStorage" | "none";
+  tenantId: string | null;
+  debug: DogaltasInventoryLoadDebug;
+}> {
+  const tid = sessionTenantId?.trim() || null;
+  const cachedTenant = readActiveTenantCache();
+
+  const debug: DogaltasInventoryLoadDebug = {
+    tableName: DOGALTAS_INVENTORY_TABLE,
+    sessionTenantId: tid,
+    cachedImportTenantId: cachedTenant,
+    supabaseRawCount: 0,
+    supabaseError: null,
+    localStorageCount: 0,
+    inventorySource: "none",
+    adetPositiveCount: 0,
+  };
+
+  if (!tid) {
+    debug.supabaseError =
+      "Oturum tenant_id yok. Stok JSON import tenant_id ile canlı oturum eşleşmeli.";
+    const localOnly = loadLocalInventoryCache(null);
+    debug.localStorageCount = localOnly.length;
+    if (localOnly.length > 0) {
+      debug.inventorySource = "localStorage";
+      debug.adetPositiveCount = countAdetPositive(localOnly);
+      return { items: localOnly, source: "localStorage", tenantId: cachedTenant, debug };
+    }
+    return { items: [], source: "none", tenantId: null, debug };
+  }
+
+  if (cachedTenant && cachedTenant !== tid) {
+    debug.supabaseError = `Import tenant (${cachedTenant}) ≠ oturum tenant (${tid}). Kayıtlar farklı çalışma alanında.`;
+  }
+
+  const db = await fetchDogaltasInventoryFromDb(tid);
+  debug.supabaseRawCount = db.count;
+  debug.supabaseError = db.error;
+
+  if (db.items.length > 0) {
+    setActiveTenantCache(tid);
+    saveInventory(db.items);
+    debug.inventorySource = "supabase";
+    debug.adetPositiveCount = countAdetPositive(db.items);
+    return { items: db.items, source: "supabase", tenantId: tid, debug };
+  }
+
+  const localItems = loadLocalInventoryCache(tid);
+  debug.localStorageCount = localItems.length;
+
+  if (localItems.length > 0) {
+    debug.inventorySource = "localStorage";
+    debug.adetPositiveCount = countAdetPositive(localItems);
+    if (!debug.supabaseError && db.count === 0) {
+      debug.supabaseError =
+        "Supabase 0 kayıt döndü; localStorage önbellek kullanıldı (import aynı tarayıcıda yapıldıysa normal).";
+    }
+    return { items: localItems, source: "localStorage", tenantId: tid, debug };
+  }
+
+  if (!debug.supabaseError) {
+    debug.supabaseError =
+      "Supabase ve localStorage boş. Import tenant_id ile oturum tenant_id aynı mı kontrol edin.";
+  }
+
+  return { items: [], source: "none", tenantId: tid, debug };
+}
+
 export async function upsertDogaltasInventoryFromJson(
   tenantId: string,
   incoming: InventoryJsonMergeRow[],
 ): Promise<
-  | { ok: true; inserted: number; updated: number; total: number; tenantId: string }
+  | {
+      ok: true;
+      inserted: number;
+      updated: number;
+      total: number;
+      tenantId: string;
+      supabaseVerifiedCount: number;
+    }
   | { ok: false; error: string }
 > {
   const tid = tenantId.trim();
@@ -129,9 +253,8 @@ export async function upsertDogaltasInventoryFromJson(
   }
 
   const { items: existing, error: readError } = await fetchDogaltasInventoryFromDb(tid);
-  if (readError && existing.length === 0) {
-    // Tablo yok veya RLS — yine de local birleştirme dene
-    console.warn("[dogaltas_inventory] mevcut okunamadı:", readError);
+  if (readError) {
+    console.warn("[dogaltas_inventory] import öncesi okuma:", readError);
   }
 
   const beforeKeys = new Set(existing.map((it) => itemKey(it.name, it.type)));
@@ -147,6 +270,8 @@ export async function upsertDogaltasInventoryFromJson(
     else inserted += 1;
   }
 
+  let dbWriteError: string | null = null;
+
   for (const item of items) {
     const payload = invItemToDbPayload(tid, item);
     const { data: found, error: findError } = await supabase
@@ -158,7 +283,8 @@ export async function upsertDogaltasInventoryFromJson(
       .maybeSingle();
 
     if (findError) {
-      return { ok: false, error: findError.message };
+      dbWriteError = findError.message;
+      break;
     }
 
     if (found?.id) {
@@ -167,68 +293,54 @@ export async function upsertDogaltasInventoryFromJson(
         .update(payload)
         .eq("id", found.id);
       if (updateError) {
-        return { ok: false, error: updateError.message };
+        dbWriteError = updateError.message;
+        break;
       }
     } else {
       const { error: insertError } = await supabase
         .from(DOGALTAS_INVENTORY_TABLE)
         .insert(payload);
       if (insertError) {
-        return { ok: false, error: insertError.message };
+        dbWriteError = insertError.message;
+        break;
       }
     }
   }
 
+  if (dbWriteError) {
+    return {
+      ok: false,
+      error: `${DOGALTAS_INVENTORY_TABLE}: ${dbWriteError}`,
+    };
+  }
+
   setActiveTenantCache(tid);
   saveInventory(items);
+
+  const verify = await fetchDogaltasInventoryFromDb(tid);
 
   console.log("[dogaltas_inventory] import tamam", {
     tenant_id: tid,
     inserted,
     updated,
     total: items.length,
+    supabase_dogrulama: verify.count,
+    verify_error: verify.error,
   });
 
-  return { ok: true, inserted, updated, total: items.length, tenantId: tid };
-}
-
-/** Supabase öncelikli; yoksa aynı tenant için localStorage önbellek */
-export async function loadDogaltasInventoryForTenant(
-  tenantId: string | null,
-): Promise<{ items: InvItem[]; source: "supabase" | "localStorage" | "none"; tenantId: string | null }> {
-  const tid = tenantId?.trim() || null;
-
-  if (tid) {
-    const db = await fetchDogaltasInventoryFromDb(tid);
-    if (db.items.length > 0) {
-      setActiveTenantCache(tid);
-      saveInventory(db.items);
-      return { items: db.items, source: "supabase", tenantId: tid };
-    }
-    if (db.error) {
-      console.warn("[dogaltas_inventory] Supabase boş/hata, localStorage deneniyor:", db.error);
-    }
+  if (verify.error) {
+    return {
+      ok: false,
+      error: `Yazıldı ancak doğrulama okuması başarısız: ${verify.error}`,
+    };
   }
 
-  if (typeof window !== "undefined") {
-    const cachedTenant = readActiveTenantCache();
-    if (tid && cachedTenant === tid) {
-      try {
-        const raw = localStorage.getItem(INVENTORY_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const items = parsed.map((r) =>
-              dbRowToInvItem(r as Record<string, unknown>),
-            );
-            return { items, source: "localStorage", tenantId: tid };
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  return { items: [], source: "none", tenantId: tid };
+  return {
+    ok: true,
+    inserted,
+    updated,
+    total: items.length,
+    tenantId: tid,
+    supabaseVerifiedCount: verify.count,
+  };
 }

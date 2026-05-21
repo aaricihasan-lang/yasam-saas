@@ -25,6 +25,10 @@ export type InventoryJsonRow = {
   photos: string[];
   dizi_price_usd: number;
   dizi_price_eur?: number;
+  usd_rate?: number;
+  eur_rate?: number;
+  total_cost_try?: number;
+  unit_cost_try?: number;
 };
 
 export type InventoryJsonParseResult = {
@@ -39,6 +43,7 @@ export type InventoryJsonImportResult =
       updated: number;
       total: number;
       tenantId: string;
+      supabaseVerifiedCount: number;
     }
   | { ok: false; error: string };
 
@@ -61,6 +66,10 @@ function normalizeJsonRecord(raw: unknown): InventoryJsonRow | null {
     photos,
     dizi_price_usd: toFloat(r.dizi_price_usd ?? r.cost_usd, 0),
     dizi_price_eur: toFloat(r.dizi_price_eur ?? r.cost_eur, 0),
+    usd_rate: toFloat(r.usd_rate, 0),
+    eur_rate: toFloat(r.eur_rate, 0),
+    total_cost_try: toFloat(r.total_cost_try, 0),
+    unit_cost_try: toFloat(r.unit_cost_try, 0),
   };
 }
 
@@ -110,6 +119,11 @@ function toMergeRows(rows: InventoryJsonRow[]) {
     adet_price: row.adet_price,
     photos: row.photos,
     dizi_price_usd: row.dizi_price_usd,
+    dizi_price_eur: row.dizi_price_eur ?? 0,
+    usd_rate: row.usd_rate ?? 0,
+    eur_rate: row.eur_rate ?? 0,
+    total_cost_try: row.total_cost_try ?? 0,
+    unit_cost_try: row.unit_cost_try ?? 0,
   }));
 }
 
@@ -145,5 +159,6 @@ export async function importInventoryJsonToWebStock(
     updated: result.updated,
     total: result.total,
     tenantId: result.tenantId,
+    supabaseVerifiedCount: result.supabaseVerifiedCount,
   };
 }

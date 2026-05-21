@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
-import { DOGALTAS_INVENTORY_TABLE } from "@/lib/urun-stok/dogaltasInventoryDb";
+import type { DogaltasInventoryLoadDebug } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   CATEGORY_LABELS,
+  DOGALTAS_INVENTORY_TABLE,
   type LiveStockCategory,
   type LiveStockRow,
   filterLiveStock,
@@ -108,6 +109,9 @@ export default function CanliStokMerkeziPage() {
   const [usdRate, setUsdRate] = useState("");
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [inventorySource, setInventorySource] = useState<string>("—");
+  const [inventoryDebug, setInventoryDebug] = useState<DogaltasInventoryLoadDebug | null>(
+    null,
+  );
 
   const reload = useCallback(async () => {
     const tid = await getSyncedTenantId();
@@ -115,11 +119,15 @@ export default function CanliStokMerkeziPage() {
     const result = await loadLiveStockRowsAsync(tid, toFloat(usdRate, 0));
     setRows(result.rows);
     setInventorySource(result.dogaltasSource);
+    setInventoryDebug(result.inventoryDebug);
     console.log("[canli-stok] okuma", {
-      tenant_id: result.tenantId,
-      kaynak: result.dogaltasSource,
       tablo: DOGALTAS_INVENTORY_TABLE,
-      dogaltasSatir: result.rows.filter((r) => r.category === "dogaltas").length,
+      oturum_tenant_id: tid,
+      kaynak: result.dogaltasSource,
+      supabase_ham: result.inventoryDebug.supabaseRawCount,
+      adet_gt_0: result.inventoryDebug.adetPositiveCount,
+      listede_dogaltas: result.dogaltasListedCount,
+      hata: result.inventoryDebug.supabaseError,
     });
   }, [usdRate]);
 
@@ -186,10 +194,22 @@ export default function CanliStokMerkeziPage() {
             Tüm modüllerdeki gerçek stoklar tek ekranda — salt okunur. Satış veya manuel düzenleme burada yapılmaz;
             stoklar ilgili modül envanterinden anlık okunur.
           </p>
-          <p className="mt-3 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 font-mono text-sm text-violet-950">
-            Doğaltaş stok kaynağı: {DOGALTAS_INVENTORY_TABLE} · tenant_id: {tenantId ?? "—"} · okuma:{" "}
-            {inventorySource}
-          </p>
+          <div className="mt-4 rounded-xl border-2 border-amber-200/90 bg-amber-50/95 px-4 py-3 text-sm font-semibold text-amber-950">
+            <p className="font-black uppercase tracking-wide text-amber-900">Stok debug</p>
+            <ul className="mt-2 space-y-1 font-mono text-xs sm:text-sm">
+              <li>Okunan tablo: {inventoryDebug?.tableName ?? DOGALTAS_INVENTORY_TABLE}</li>
+              <li>Aktif oturum tenant_id: {inventoryDebug?.sessionTenantId ?? tenantId ?? "—"}</li>
+              <li>Son import tenant_id (önbellek): {inventoryDebug?.cachedImportTenantId ?? "—"}</li>
+              <li>Veri kaynağı: {inventorySource}</li>
+              <li>Supabase ham kayıt: {inventoryDebug?.supabaseRawCount ?? "—"}</li>
+              <li>localStorage yedek: {inventoryDebug?.localStorageCount ?? "—"}</li>
+              <li>adet &gt; 0 (gösterilebilir): {inventoryDebug?.adetPositiveCount ?? "—"}</li>
+              <li>Listede doğaltaş satırı: {rows.filter((r) => r.category === "dogaltas").length}</li>
+              {inventoryDebug?.supabaseError ? (
+                <li className="text-rose-800">Hata / uyarı: {inventoryDebug.supabaseError}</li>
+              ) : null}
+            </ul>
+          </div>
         </header>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

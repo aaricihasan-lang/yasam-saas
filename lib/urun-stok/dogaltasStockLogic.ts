@@ -146,6 +146,11 @@ export type InventoryJsonMergeRow = {
   adet_price: number;
   photos: string[];
   dizi_price_usd: number;
+  dizi_price_eur?: number;
+  usd_rate?: number;
+  eur_rate?: number;
+  total_cost_try?: number;
+  unit_cost_try?: number;
 };
 
 /**
@@ -179,6 +184,11 @@ export function mergeInventoryJsonRows(
       existing.dizi_price = row.dizi_price;
       existing.adet_price = row.adet_price;
       existing.dizi_price_usd = row.dizi_price_usd;
+      if (row.dizi_price_eur != null) existing.dizi_price_eur = row.dizi_price_eur;
+      if (row.usd_rate != null) existing.usd_rate = row.usd_rate;
+      if (row.eur_rate != null) existing.eur_rate = row.eur_rate;
+      if (row.total_cost_try != null) existing.total_cost_try = row.total_cost_try;
+      if (row.unit_cost_try != null) existing.unit_cost_try = row.unit_cost_try;
       if (photos.length > 0) existing.photos = photos;
       map.set(key, applyItemCostTotals(existing));
       continue;
@@ -195,11 +205,11 @@ export function mergeInventoryJsonRows(
         adet_price: row.adet_price,
         photos,
         dizi_price_usd: row.dizi_price_usd,
-        dizi_price_eur: 0,
-        usd_rate: 0,
-        eur_rate: 0,
-        total_cost_try: 0,
-        unit_cost_try: 0,
+        dizi_price_eur: row.dizi_price_eur ?? 0,
+        usd_rate: row.usd_rate ?? 0,
+        eur_rate: row.eur_rate ?? 0,
+        total_cost_try: row.total_cost_try ?? 0,
+        unit_cost_try: row.unit_cost_try ?? 0,
       }),
     );
   }
