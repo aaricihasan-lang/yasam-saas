@@ -50,8 +50,9 @@ export function emptyTransferCounts(): TransferResultCounts {
 
 const STRIP_ON_COPY = new Set(["id", "created_at", "updated_at"]);
 
-const STONES_EMPTY_SOURCE_MESSAGE =
-  "Admin kütüphanesinde aktarılacak Doğaltaş kaydı bulunamadı";
+/** Kaynak admin kütüphanesinde seçilen gruplar için aktarılacak kayıt yok */
+export const EMPTY_SOURCE_ADMIN_MESSAGE =
+  "Admin kütüphanesinde aktarılacak kayıt bulunamadı.";
 
 /** Giriş yapan adminin güncel tenant_id (localStorage → users senkron) */
 export async function resolveSourceAdminTenantId(): Promise<{
@@ -172,6 +173,7 @@ function buildTransferSuccessMessage(
   return lines.join("\n");
 }
 
+/** Yalnızca INSERT — batch, replace/update yok */
 async function insertRowsBatched(
   table: TransferTableName,
   rows: Record<string, unknown>[],
@@ -208,9 +210,10 @@ async function insertRowsBatched(
  * Doğaltaş listesi — admin oturum tenant kaynağı, hedef üye tenant_id.
  * Tek tek insert; mineral/kombinasyon akışından bağımsız.
  */
+/** Yalnızca INSERT — hedef kullanıcıdaki mevcut kayıtlar silinmez / güncellenmez */
 async function copyStonesTableToTenant(
   sourceAdminTenantId: string,
-  targetTenantId: string,
+  targetUserTenantId: string,
 ): Promise<{ count: number; readCount: number; error?: string }> {
   const { data: sourceRows, error: readError } = await supabase
     .from("stones")
@@ -230,7 +233,7 @@ async function copyStonesTableToTenant(
   );
 
   if (readCount === 0) {
-    return { count: 0, readCount: 0, error: STONES_EMPTY_SOURCE_MESSAGE };
+    return { count: 0, readCount: 0, error: EMPTY_SOURCE_ADMIN_MESSAGE };
   }
 
   let successCount = 0;
@@ -238,7 +241,7 @@ async function copyStonesTableToTenant(
   let lastInsertError = "";
 
   for (const row of rows) {
-    const cleanRow = buildCleanStoneRow(row, targetTenantId);
+    const cleanRow = buildCleanStoneRow(row, targetUserTenantId);
     const { error: insertError } = await supabase.from("stones").insert(cleanRow);
 
     if (insertError) {
@@ -281,13 +284,13 @@ async function copyStonesTableToTenant(
 
 export async function copyLibraryTableToTenant(
   table: TransferTableName,
-  sourceTenantId: string,
-  targetTenantId: string,
+  sourceAdminTenantId: string,
+  targetUserTenantId: string,
 ): Promise<{ count: number; error?: string }> {
   if (table === "stones") {
     const stonesResult = await copyStonesTableToTenant(
-      sourceTenantId,
-      targetTenantId,
+      sourceAdminTenantId,
+      targetUserTenantId,
     );
     return {
       count: stonesResult.count,
@@ -298,7 +301,7 @@ export async function copyLibraryTableToTenant(
   const { data, error } = await supabase
     .from(table)
     .select("*")
-    .eq("tenant_id", sourceTenantId);
+    .eq("tenant_id", sourceAdminTenantId);
 
   if (error) {
     return { count: 0, error: error.message };
@@ -310,7 +313,7 @@ export async function copyLibraryTableToTenant(
   }
 
   const payloads = sourceRows.map((row) =>
-    prepareRowForInsert(row, targetTenantId),
+    prepareRowForInsert(row, targetUserTenantId),
   );
 
   const { inserted, error: insertError } = await insertRowsBatched(table, payloads);
@@ -340,9 +343,10 @@ export async function runLibraryTransfer(
     };
   }
 
-  const source = sourceResolved.tenantId;
+  const sourceAdminTenantId = sourceResolved.tenantId;
+  const targetUserTenantId = target;
 
-  if (target === source) {
+  if (targetUserTenantId === sourceAdminTenantId) {
     return {
       counts: emptyTransferCounts(),
       error: "Kaynak ve hedef tenant aynı; aktarım yalnızca seçili üyeye yapılmalı.",
@@ -352,7 +356,11 @@ export async function runLibraryTransfer(
   const counts = emptyTransferCounts();
 
   for (const group of uniqueGroups) {
-    const { count, error } = await copyLibraryTableToTenant(group, source, target);
+    const { count, error } = await copyLibraryTableToTenant(
+      group,
+      sourceAdminTenantId,
+      targetUserTenantId,
+    );
     counts[group] = count;
     if (error) {
       return { counts, error };
@@ -362,15 +370,9 @@ export async function runLibraryTransfer(
   const totalInserted = sumSelectedCounts(counts, uniqueGroups);
 
   if (totalInserted === 0) {
-    const onlyStones =
-      uniqueGroups.length === 1 && uniqueGroups[0] === "stones";
-    const includesStones = uniqueGroups.includes("stones");
-
     return {
       counts,
-      error: onlyStones || includesStones
-        ? STONES_EMPTY_SOURCE_MESSAGE
-        : "Aktarılacak kayıt bulunamadı veya hiçbir kayıt eklenemedi.",
+      error: EMPTY_SOURCE_ADMIN_MESSAGE,
     };
   }
 
