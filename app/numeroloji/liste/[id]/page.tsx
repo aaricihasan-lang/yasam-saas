@@ -37,6 +37,14 @@ export default function NumerolojiKayitDetayPage() {
     let cancelled = false;
     async function run() {
       const tid = await resolveNumerolojiTenantId();
+      if (!tid) {
+        if (!cancelled) {
+          setError("Aktif kullanıcı tenant_id bulunamadı.");
+          setRow(null);
+          setLoading(false);
+        }
+        return;
+      }
       const { data, error: e } = await getNumerologyAnalysisById(id, tid);
       if (cancelled) return;
       if (e || !data) {
