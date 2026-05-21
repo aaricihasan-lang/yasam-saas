@@ -4,9 +4,6 @@ export const ADMIN_SOURCE_TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 export const TRANSFER_BATCH_SIZE = 100;
 
-/** stones JSON satırları büyük olabilir */
-const STONES_BATCH_SIZE = 25;
-
 /** UI seçim anahtarı → gerçek Supabase tablo adı */
 export type TransferGroupKey =
   | "stones"
@@ -43,27 +40,6 @@ export function emptyTransferCounts(): TransferResultCounts {
 
 const STRIP_ON_COPY = new Set(["id", "created_at", "updated_at"]);
 
-/** stones tablosunda bilinen insert alanları — select(*) fazlalıkları gönderilmez */
-const STONES_INSERT_FIELDS = [
-  "stone_name",
-  "short_description",
-  "source_note",
-  "general_info",
-  "physical_effects",
-  "spiritual_effects",
-  "other_effects",
-  "warning_text",
-  "warning_tags",
-  "feng_shui",
-  "meditation",
-  "care",
-  "application",
-  "chakras",
-  "assignments",
-  "images",
-  "image_upload_failed",
-] as const;
-
 function prepareRowForInsert(
   row: Record<string, unknown>,
   targetTenantId: string,
@@ -77,33 +53,37 @@ function prepareRowForInsert(
   return copy;
 }
 
-/**
- * Doğaltaş: yalnızca tabloda kullanılan alanlar + hedef tenant_id.
- * id / created_at / updated_at ve bilinmeyen kolonlar gönderilmez.
- */
-function prepareStoneRowForInsert(
+/** Doğaltaş: kaynak satırından güvenli insert objesi */
+function buildCleanStoneRow(
   row: Record<string, unknown>,
   targetTenantId: string,
-  options?: { omitImageUploadFailed?: boolean },
-): Record<string, unknown> | null {
-  const stoneName = String(row.stone_name ?? row.name ?? "").trim();
-  if (!stoneName) return null;
-
-  const copy: Record<string, unknown> = {
+): Record<string, unknown> {
+  const cleanRow: Record<string, unknown> = {
+    ...row,
     tenant_id: targetTenantId,
-    stone_name: stoneName,
   };
 
-  for (const key of STONES_INSERT_FIELDS) {
-    if (key === "stone_name") continue;
-    if (options?.omitImageUploadFailed && key === "image_upload_failed") continue;
-    if (!(key in row)) continue;
-    const value = row[key];
-    if (value === undefined) continue;
-    copy[key] = value;
+  delete cleanRow.id;
+  delete cleanRow.created_at;
+  delete cleanRow.updated_at;
+
+  if (!Object.prototype.hasOwnProperty.call(row, "image_upload_failed")) {
+    delete cleanRow.image_upload_failed;
   }
 
-  return copy;
+  if (cleanRow.images == null) cleanRow.images = [];
+  if (cleanRow.assignments == null) cleanRow.assignments = {};
+  if (cleanRow.warning_tags == null) cleanRow.warning_tags = [];
+
+  return cleanRow;
+}
+
+function formatStonesTransferSummary(
+  readCount: number,
+  successCount: number,
+  failCount: number,
+): string {
+  return `Doğaltaş: okunan ${readCount}, başarılı ${successCount}, başarısız ${failCount}`;
 }
 
 async function insertRowsBatched(
@@ -139,87 +119,78 @@ async function insertRowsBatched(
   return { inserted };
 }
 
-function formatStonesTransferError(
-  readCount: number,
-  inserted: number,
-  message: string,
-): string {
-  return `Doğaltaş: okunan ${readCount}, eklenen ${inserted}. ${message}`;
-}
-
+/**
+ * Doğaltaş listesi — admin tenant kaynağı, hedef üye tenant_id.
+ * Tek tek insert; mineral/kombinasyon akışından bağımsız.
+ */
 async function copyStonesTableToTenant(
   sourceTenantId: string,
   targetTenantId: string,
 ): Promise<{ count: number; readCount: number; error?: string }> {
-  const { data, error } = await supabase
+  const sourceId = sourceTenantId.trim() || ADMIN_SOURCE_TENANT_ID;
+
+  const { data: sourceRows, error: readError } = await supabase
     .from("stones")
     .select("*")
-    .eq("tenant_id", sourceTenantId);
+    .eq("tenant_id", sourceId);
 
-  if (error) {
-    console.error("[veri-paylasimi] stones okuma:", error.message);
-    return { count: 0, readCount: 0, error: error.message };
+  if (readError) {
+    console.error("[veri-paylasimi] stones okuma:", readError.message);
+    return { count: 0, readCount: 0, error: readError.message };
   }
 
-  const sourceRows = (data ?? []) as Record<string, unknown>[];
-  const readCount = sourceRows.length;
+  const rows = (sourceRows ?? []) as Record<string, unknown>[];
+  const readCount = rows.length;
 
   if (readCount === 0) {
-    console.log("[veri-paylasimi] stones okunan: 0 / eklenen: 0");
+    const summary = formatStonesTransferSummary(0, 0, 0);
+    console.log("[veri-paylasimi]", summary);
     return { count: 0, readCount: 0 };
   }
 
-  let payloads = sourceRows
-    .map((row) => prepareStoneRowForInsert(row, targetTenantId))
-    .filter((row): row is Record<string, unknown> => row !== null);
+  let successCount = 0;
+  let failCount = 0;
+  let lastInsertError = "";
 
-  if (payloads.length === 0) {
-    const msg = "Kaynakta geçerli taş adı (stone_name) bulunamadı.";
-    console.error("[veri-paylasimi] stones:", msg);
+  for (const row of rows) {
+    const cleanRow = buildCleanStoneRow(row, targetTenantId);
+    const { error: insertError } = await supabase.from("stones").insert(cleanRow);
+
+    if (insertError) {
+      failCount += 1;
+      lastInsertError = insertError.message;
+      console.log(
+        "STONE INSERT HATA:",
+        insertError.message,
+        cleanRow.stone_name,
+      );
+      continue;
+    }
+
+    successCount += 1;
+  }
+
+  const summary = formatStonesTransferSummary(readCount, successCount, failCount);
+  console.log("[veri-paylasimi]", summary);
+
+  if (successCount === 0) {
+    const detail = lastInsertError ? ` ${lastInsertError}` : "";
     return {
       count: 0,
       readCount,
-      error: formatStonesTransferError(readCount, 0, msg),
+      error: `${summary}.${detail}`,
     };
   }
 
-  let { inserted, error: insertError } = await insertRowsBatched(
-    "stones",
-    payloads,
-    STONES_BATCH_SIZE,
-  );
-
-  if (insertError && /image_upload_failed/i.test(insertError)) {
-    console.warn(
-      "[veri-paylasimi] stones: image_upload_failed alanı atlanarak yeniden deneniyor",
-    );
-    payloads = sourceRows
-      .map((row) =>
-        prepareStoneRowForInsert(row, targetTenantId, {
-          omitImageUploadFailed: true,
-        }),
-      )
-      .filter((row): row is Record<string, unknown> => row !== null);
-
-    const retry = await insertRowsBatched("stones", payloads, STONES_BATCH_SIZE);
-    inserted = retry.inserted;
-    insertError = retry.error;
-  }
-
-  console.log(
-    `[veri-paylasimi] stones okunan: ${readCount} / eklenen: ${inserted}`,
-  );
-
-  if (insertError) {
-    console.error("[veri-paylasimi] stones insert:", insertError);
+  if (failCount > 0) {
     return {
-      count: inserted,
+      count: successCount,
       readCount,
-      error: formatStonesTransferError(readCount, inserted, insertError),
+      error: summary,
     };
   }
 
-  return { count: inserted, readCount };
+  return { count: successCount, readCount };
 }
 
 export async function copyLibraryTableToTenant(
