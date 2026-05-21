@@ -16,30 +16,15 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
+import {
+  AdminSourceTenantDebug,
+  AdminSourceTenantProvider,
+  useAdminSourceTenant,
+} from "@/components/admin/AdminSourceTenantContext";
 import { AdminModuleLayout } from "@/components/admin/AdminModuleLayout";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ADMIN_SOURCE_TENANT_MISSING_MESSAGE } from "@/lib/admin/adminSourceTenant";
 import { supabase } from "@/lib/supabase";
-
-const YASAM_USER_STORAGE_KEY = "yasam_user";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
-
-const TENANT_ID_MISSING_MESSAGE =
-  "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.";
-
-function getActiveTenantIdFromLocalStorage(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const user = JSON.parse(
-      localStorage.getItem(YASAM_USER_STORAGE_KEY) || "{}",
-    ) as { tenant_id?: unknown };
-    const tenantId =
-      user.tenant_id != null ? String(user.tenant_id).trim() : "";
-    return tenantId || null;
-  } catch {
-    return null;
-  }
-}
 
 type StoneJsonRecord = Record<string, unknown>;
 
@@ -988,7 +973,10 @@ function parseCombinationJsonIssues(text: string): {
   return { issues, error: null };
 }
 
-function flattenCombinationIssuesToRows(issues: CombinationJsonIssue[]): CombinationInsertRow[] {
+function flattenCombinationIssuesToRows(
+  issues: CombinationJsonIssue[],
+  tenantId: string,
+): CombinationInsertRow[] {
   const rows: CombinationInsertRow[] = [];
 
   for (const item of issues) {
@@ -1006,7 +994,7 @@ function flattenCombinationIssuesToRows(issues: CombinationJsonIssue[]): Combina
       const v = variant as CombinationJsonVariant;
 
       rows.push({
-        tenant_id: TENANT_ID,
+        tenant_id: tenantId,
         source_id: sourceId,
         issue: issueTitle,
         description,
@@ -1065,6 +1053,7 @@ async function importCombinationRows(rows: CombinationInsertRow[]): Promise<{
 }
 
 function KombinasyonJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -1115,7 +1104,11 @@ function KombinasyonJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenCombinationIssuesToRows(issues);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenCombinationIssuesToRows(issues, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak variant kaydı bulunamadı (id, issue ve variants zorunlu).");
       return;
@@ -1385,13 +1378,16 @@ function parseMineralJsonItems(text: string): {
   return { items, error: null };
 }
 
-function mapMineralItemToInsertRow(item: MineralJsonItem): MineralInsertRow | null {
+function mapMineralItemToInsertRow(
+  item: MineralJsonItem,
+  tenantId: string,
+): MineralInsertRow | null {
   const sourceId = mineralText(item.id);
   const name = mineralText(item.name);
   if (!sourceId || !name) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_id: sourceId,
     name,
     aciklama: mineralNullableText(item.aciklama),
@@ -1408,10 +1404,13 @@ function mapMineralItemToInsertRow(item: MineralJsonItem): MineralInsertRow | nu
   };
 }
 
-function flattenMineralItemsToRows(items: MineralJsonItem[]): MineralInsertRow[] {
+function flattenMineralItemsToRows(
+  items: MineralJsonItem[],
+  tenantId: string,
+): MineralInsertRow[] {
   const rows: MineralInsertRow[] = [];
   for (const item of items) {
-    const row = mapMineralItemToInsertRow(item);
+    const row = mapMineralItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -1475,6 +1474,7 @@ async function importMineralRows(rows: MineralInsertRow[]): Promise<{
 }
 
 function MineralJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -1488,7 +1488,10 @@ function MineralJsonTab() {
   } | null>(null);
 
   const mineralCount = items.length;
-  const importableCount = useMemo(() => flattenMineralItemsToRows(items).length, [items]);
+  const importableCount = useMemo(
+    () => (tenantId ? flattenMineralItemsToRows(items, tenantId).length : 0),
+    [items, tenantId],
+  );
 
   const previewItems = useMemo(() => items.slice(0, MINERAL_PREVIEW_LIMIT), [items]);
 
@@ -1522,7 +1525,11 @@ function MineralJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenMineralItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenMineralItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak mineral kaydı bulunamadı (id ve name zorunlu).");
       return;
@@ -1772,13 +1779,14 @@ function parseBioenergySymbolJsonItems(text: string): {
 
 function mapBioenergySymbolItemToInsertRow(
   item: BioenergySymbolJsonItem,
+  tenantId: string,
 ): BioenergySymbolInsertRow | null {
   const symbol = symbolText(item.symbol);
   const title = symbolText(item.title);
   if (!symbol || !title) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     symbol,
     title,
     category: symbolText(item.category) || "Genel",
@@ -1789,10 +1797,11 @@ function mapBioenergySymbolItemToInsertRow(
 
 function flattenBioenergySymbolItemsToRows(
   items: BioenergySymbolJsonItem[],
+  tenantId: string,
 ): BioenergySymbolInsertRow[] {
   const rows: BioenergySymbolInsertRow[] = [];
   for (const item of items) {
-    const row = mapBioenergySymbolItemToInsertRow(item);
+    const row = mapBioenergySymbolItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -1859,6 +1868,7 @@ async function importBioenergySymbolRows(rows: BioenergySymbolInsertRow[]): Prom
 }
 
 function SembolDiliJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -1873,8 +1883,8 @@ function SembolDiliJsonTab() {
 
   const symbolCount = items.length;
   const importableCount = useMemo(
-    () => flattenBioenergySymbolItemsToRows(items).length,
-    [items],
+    () => (tenantId ? flattenBioenergySymbolItemsToRows(items, tenantId).length : 0),
+    [items, tenantId],
   );
 
   const previewItems = useMemo(() => items.slice(0, SYMBOL_PREVIEW_LIMIT), [items]);
@@ -1909,7 +1919,11 @@ function SembolDiliJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenBioenergySymbolItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenBioenergySymbolItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak sembol kaydı bulunamadı (symbol ve title zorunlu).");
       return;
@@ -2168,13 +2182,14 @@ function parseBioenergyImaginationJsonItems(text: string): {
 
 function mapBioenergyImaginationItemToInsertRow(
   item: BioenergyImaginationJsonItem,
+  tenantId: string,
 ): BioenergyImaginationInsertRow | null {
   const sourceId = imaginationSourceId(item.id);
   const title = imaginationText(item.title);
   if (!sourceId || !title) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_id: sourceId,
     title,
     category: imaginationText(item.category) || "Genel",
@@ -2186,10 +2201,11 @@ function mapBioenergyImaginationItemToInsertRow(
 
 function flattenBioenergyImaginationItemsToRows(
   items: BioenergyImaginationJsonItem[],
+  tenantId: string,
 ): BioenergyImaginationInsertRow[] {
   const rows: BioenergyImaginationInsertRow[] = [];
   for (const item of items) {
-    const row = mapBioenergyImaginationItemToInsertRow(item);
+    const row = mapBioenergyImaginationItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -2254,6 +2270,7 @@ async function importBioenergyImaginationRows(
 }
 
 function ImajinasyonJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -2268,8 +2285,9 @@ function ImajinasyonJsonTab() {
 
   const imaginationCount = items.length;
   const importableCount = useMemo(
-    () => flattenBioenergyImaginationItemsToRows(items).length,
-    [items],
+    () =>
+      tenantId ? flattenBioenergyImaginationItemsToRows(items, tenantId).length : 0,
+    [items, tenantId],
   );
 
   const previewItems = useMemo(
@@ -2307,7 +2325,11 @@ function ImajinasyonJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenBioenergyImaginationItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenBioenergyImaginationItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak imajinasyon kaydı bulunamadı (id ve title zorunlu).");
       return;
@@ -2572,13 +2594,14 @@ function parseBioenergyChakraJsonItems(text: string): {
 
 function mapBioenergyChakraItemToInsertRow(
   item: BioenergyChakraJsonItem,
+  tenantId: string,
 ): BioenergyChakraInsertRow | null {
   const sourceUid = chakraSourceUid(item.uid);
   const name = chakraText(item.name);
   if (!sourceUid || !name) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_uid: sourceUid,
     name,
     organs: chakraText(item.organs) || "",
@@ -2594,10 +2617,11 @@ function mapBioenergyChakraItemToInsertRow(
 
 function flattenBioenergyChakraItemsToRows(
   items: BioenergyChakraJsonItem[],
+  tenantId: string,
 ): BioenergyChakraInsertRow[] {
   const rows: BioenergyChakraInsertRow[] = [];
   for (const item of items) {
-    const row = mapBioenergyChakraItemToInsertRow(item);
+    const row = mapBioenergyChakraItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -2660,6 +2684,7 @@ async function importBioenergyChakraRows(rows: BioenergyChakraInsertRow[]): Prom
 }
 
 function CakraJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -2674,8 +2699,8 @@ function CakraJsonTab() {
 
   const chakraCount = items.length;
   const importableCount = useMemo(
-    () => flattenBioenergyChakraItemsToRows(items).length,
-    [items],
+    () => (tenantId ? flattenBioenergyChakraItemsToRows(items, tenantId).length : 0),
+    [items, tenantId],
   );
 
   const previewItems = useMemo(() => items.slice(0, CHAKRA_PREVIEW_LIMIT), [items]);
@@ -2710,7 +2735,11 @@ function CakraJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenBioenergyChakraItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenBioenergyChakraItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak çakra kaydı bulunamadı (uid ve name zorunlu).");
       return;
@@ -2966,12 +2995,13 @@ function parseBioenergyEnergyBodyJsonItems(text: string): {
 
 function mapBioenergyEnergyBodyItemToInsertRow(
   item: BioenergyEnergyBodyJsonItem,
+  tenantId: string,
 ): BioenergyEnergyBodyInsertRow | null {
   const sourceUid = energyBodySourceUid(item.uid);
   if (!sourceUid) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_uid: sourceUid,
     genel_tanim: energyBodyText(item.genel_tanim) || "",
     gorevi: energyBodyText(item.gorevi) || "",
@@ -2983,10 +3013,11 @@ function mapBioenergyEnergyBodyItemToInsertRow(
 
 function flattenBioenergyEnergyBodyItemsToRows(
   items: BioenergyEnergyBodyJsonItem[],
+  tenantId: string,
 ): BioenergyEnergyBodyInsertRow[] {
   const rows: BioenergyEnergyBodyInsertRow[] = [];
   for (const item of items) {
-    const row = mapBioenergyEnergyBodyItemToInsertRow(item);
+    const row = mapBioenergyEnergyBodyItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -3051,6 +3082,7 @@ async function importBioenergyEnergyBodyRows(
 }
 
 function EnerjiBedenleriJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -3065,8 +3097,9 @@ function EnerjiBedenleriJsonTab() {
 
   const energyBodyCount = items.length;
   const importableCount = useMemo(
-    () => flattenBioenergyEnergyBodyItemsToRows(items).length,
-    [items],
+    () =>
+      tenantId ? flattenBioenergyEnergyBodyItemsToRows(items, tenantId).length : 0,
+    [items, tenantId],
   );
 
   const previewItems = useMemo(
@@ -3104,7 +3137,11 @@ function EnerjiBedenleriJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenBioenergyEnergyBodyItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenBioenergyEnergyBodyItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak enerji bedeni kaydı bulunamadı (uid zorunlu).");
       return;
@@ -3360,12 +3397,13 @@ function parseBioenergySubconsciousJsonItems(text: string): {
 
 function mapBioenergySubconsciousItemToInsertRow(
   item: BioenergySubconsciousJsonItem,
+  tenantId: string,
 ): BioenergySubconsciousInsertRow | null {
   const fields = extractBioenergySubconsciousJsonFields(item);
   if (!fields.source_uid || !fields.title) return null;
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_uid: fields.source_uid,
     title: fields.title,
     category: fields.category,
@@ -3376,10 +3414,11 @@ function mapBioenergySubconsciousItemToInsertRow(
 
 function flattenBioenergySubconsciousItemsToRows(
   items: BioenergySubconsciousJsonItem[],
+  tenantId: string,
 ): BioenergySubconsciousInsertRow[] {
   const rows: BioenergySubconsciousInsertRow[] = [];
   for (const item of items) {
-    const row = mapBioenergySubconsciousItemToInsertRow(item);
+    const row = mapBioenergySubconsciousItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -3444,6 +3483,7 @@ async function importBioenergySubconsciousRows(
 }
 
 function BilincaltiSebepleriJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -3458,8 +3498,9 @@ function BilincaltiSebepleriJsonTab() {
 
   const recordCount = items.length;
   const importableCount = useMemo(
-    () => flattenBioenergySubconsciousItemsToRows(items).length,
-    [items],
+    () =>
+      tenantId ? flattenBioenergySubconsciousItemsToRows(items, tenantId).length : 0,
+    [items, tenantId],
   );
 
   const previewItems = useMemo(
@@ -3497,7 +3538,11 @@ function BilincaltiSebepleriJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenBioenergySubconsciousItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenBioenergySubconsciousItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak kayıt bulunamadı (uid ve title zorunlu).");
       return;
@@ -3822,13 +3867,14 @@ function parseReflexologyProtocolJsonItems(text: string): {
 
 function mapReflexologyProtocolItemToInsertRow(
   item: ReflexologyProtocolJsonItem,
+  tenantId: string,
 ): ReflexologyProtocolInsertRow | null {
   if (!isReflexologyProtocolTransferable(item)) return null;
 
   const fields = extractReflexologyProtocolJsonFields(item);
 
   return {
-    tenant_id: TENANT_ID,
+    tenant_id: tenantId,
     source_uid: fields.source_uid,
     title: fields.title,
     target_problem: fields.target_problem,
@@ -3840,10 +3886,11 @@ function mapReflexologyProtocolItemToInsertRow(
 
 function flattenReflexologyProtocolItemsToRows(
   items: ReflexologyProtocolJsonItem[],
+  tenantId: string,
 ): ReflexologyProtocolInsertRow[] {
   const rows: ReflexologyProtocolInsertRow[] = [];
   for (const item of items) {
-    const row = mapReflexologyProtocolItemToInsertRow(item);
+    const row = mapReflexologyProtocolItemToInsertRow(item, tenantId);
     if (row) rows.push(row);
   }
   return rows;
@@ -3908,6 +3955,7 @@ async function importReflexologyProtocolRows(
 }
 
 function RefleksolojiProtokollerJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -3961,7 +4009,11 @@ function RefleksolojiProtokollerJsonTab() {
   }, []);
 
   const handleFullImport = useCallback(async () => {
-    const rows = flattenReflexologyProtocolItemsToRows(items);
+    if (!tenantId) {
+      setParseError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
+      return;
+    }
+    const rows = flattenReflexologyProtocolItemsToRows(items, tenantId);
     if (rows.length === 0) {
       setParseError("Aktarılacak kayıt bulunamadı (hedef veya aciklama zorunlu).");
       return;
@@ -4147,6 +4199,7 @@ function RefleksolojiProtokollerJsonTab() {
 }
 
 function DogaltasJsonTab() {
+  const { tenantId, error: tenantError } = useAdminSourceTenant();
   const { showToast } = useToast();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -4243,19 +4296,17 @@ function DogaltasJsonTab() {
 
     if (records.length === 0) return;
 
-    const tenantId = getActiveTenantIdFromLocalStorage();
     if (!tenantId) {
-      setImportError(TENANT_ID_MISSING_MESSAGE);
+      setImportError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
       return;
     }
 
     setImportSummaryOpen(true);
-  }, [records.length]);
+  }, [records.length, tenantId, tenantError]);
 
   const runSupabaseImport = useCallback(async () => {
-    const tenantId = getActiveTenantIdFromLocalStorage();
     if (!tenantId) {
-      setImportError(TENANT_ID_MISSING_MESSAGE);
+      setImportError(tenantError ?? ADMIN_SOURCE_TENANT_MISSING_MESSAGE);
       setImportSummaryOpen(false);
       return;
     }
@@ -4331,7 +4382,7 @@ function DogaltasJsonTab() {
     } else {
       setImportError("Hiçbir kayıt aktarılamadı. Başarısız kayıtları listeden inceleyin.");
     }
-  }, [records, showToast, imageBasePath]);
+  }, [records, showToast, imageBasePath, tenantId, tenantError]);
 
   return (
     <section
@@ -4716,6 +4767,7 @@ export default function TopluVeriPage() {
   >("dogaltas");
 
   return (
+    <AdminSourceTenantProvider>
     <AdminModuleLayout
       title="Toplu Veri Aktarımı"
       description="JSON ve toplu veri içe aktarma merkezi"
@@ -4736,6 +4788,7 @@ export default function TopluVeriPage() {
       ]}
       footerNote="Toplu Veri Aktarımı · uyumluluk önizlemesi"
     >
+      <AdminSourceTenantDebug className="mb-4" />
       <div className="mb-6 flex flex-wrap gap-2">
         <button
           type="button"
@@ -4848,5 +4901,6 @@ export default function TopluVeriPage() {
       {activeTab === "bilincalti" ? <BilincaltiSebepleriJsonTab /> : null}
       {activeTab === "refleksoloji-protokol" ? <RefleksolojiProtokollerJsonTab /> : null}
     </AdminModuleLayout>
+    </AdminSourceTenantProvider>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 import {
   formatTransferResultLines,
   runLibraryTransfer,
@@ -257,6 +258,8 @@ export default function VeriPaylasimiPage() {
 
   const [subChecked, setSubChecked] = useState<Record<string, boolean>>({});
   const [transferring, setTransferring] = useState(false);
+  const [sourceAdminTenantId, setSourceAdminTenantId] = useState<string | null>(null);
+  const [sourceTenantError, setSourceTenantError] = useState<string | null>(null);
 
   const selectedExpert = useMemo(
     () => experts.find((e) => e.id === selectedExpertId) ?? null,
@@ -289,7 +292,18 @@ export default function VeriPaylasimiPage() {
       const effective = (await syncYasamUserFromDb(session)) ?? session;
 
       if (!cancelled) {
-        setAllowed(isAdminUser(effective));
+        const isAllowed = isAdminUser(effective);
+        setAllowed(isAllowed);
+        if (isAllowed) {
+          const resolved = await resolveSourceAdminTenantId();
+          if (!cancelled) {
+            setSourceAdminTenantId(resolved.tenantId);
+            setSourceTenantError(resolved.error ?? null);
+          }
+        } else {
+          setSourceAdminTenantId(null);
+          setSourceTenantError(null);
+        }
         setSessionChecked(true);
       }
     }
@@ -383,11 +397,18 @@ export default function VeriPaylasimiPage() {
     if (!ok) return;
 
     setTransferring(true);
-    const { counts, error } = await runLibraryTransfer(
+    console.log("[veri-paylasimi/ui] Aktarım başlıyor", {
+      hedefTenant: selectedExpert.tenantId,
+      hedefEmail: selectedExpert.email,
+      gruplar: activeTransferGroups,
+    });
+    const { counts, error, successMessage } = await runLibraryTransfer(
       activeTransferGroups,
       selectedExpert.tenantId,
+      selectedExpert.email ?? undefined,
     );
     setTransferring(false);
+    console.log("[veri-paylasimi/ui] Aktarım sonucu", { counts, error, successMessage });
 
     if (error) {
       showToast({
@@ -398,14 +419,18 @@ export default function VeriPaylasimiPage() {
       return;
     }
 
-    const summaryLines = formatTransferResultLines(counts);
+    const summaryLines = formatTransferResultLines(
+      counts,
+      selectedExpert.email,
+    );
 
     showToast({
       title: "Veriler başarıyla aktarıldı",
       message:
-        summaryLines.length > 0
+        successMessage ??
+        (summaryLines.length > 0
           ? summaryLines.join("\n")
-          : `Kayıtlar ${expertName} hesabına eklendi`,
+          : `Kayıtlar ${expertName} hesabına eklendi`),
       type: "success",
     });
   }
@@ -486,6 +511,10 @@ export default function VeriPaylasimiPage() {
               <p className="mt-3 max-w-2xl text-base font-medium text-white/85">
                 Admin kütüphane verilerini seçili üyeye yeni kayıt olarak ekler.
                 Üye verisi silinmez veya güncellenmez.
+              </p>
+              <p className="mt-3 rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 font-mono text-xs text-amber-100">
+                Admin kaynak tenant_id: {sourceAdminTenantId ?? "—"}
+                {sourceTenantError ? ` · ${sourceTenantError}` : ""}
               </p>
             </div>
           </div>

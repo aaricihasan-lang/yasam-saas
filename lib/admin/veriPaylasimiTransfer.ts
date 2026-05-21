@@ -1,9 +1,10 @@
 import {
-  isAdminUser,
-  readYasamUser,
-  syncYasamUserFromDb,
-} from "@/lib/auth/yasamUser";
+  EMPTY_SOURCE_ADMIN_MESSAGE,
+  resolveSourceAdminTenantId,
+} from "@/lib/admin/adminSourceTenant";
 import { supabase } from "@/lib/supabase";
+
+export { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 
 export const TRANSFER_BATCH_SIZE = 100;
 
@@ -50,36 +51,7 @@ export function emptyTransferCounts(): TransferResultCounts {
 
 const STRIP_ON_COPY = new Set(["id", "created_at", "updated_at"]);
 
-/** Kaynak admin kütüphanesinde seçilen gruplar için aktarılacak kayıt yok */
-export const EMPTY_SOURCE_ADMIN_MESSAGE =
-  "Admin kütüphanesinde aktarılacak kayıt bulunamadı.";
-
-/** Giriş yapan adminin güncel tenant_id (localStorage → users senkron) */
-export async function resolveSourceAdminTenantId(): Promise<{
-  tenantId: string | null;
-  error?: string;
-}> {
-  const session = readYasamUser();
-  if (!session) {
-    return { tenantId: null, error: "Admin oturumu bulunamadı. Lütfen tekrar giriş yapın." };
-  }
-
-  const user = (await syncYasamUserFromDb(session)) ?? session;
-
-  if (!isAdminUser(user)) {
-    return { tenantId: null, error: "Kaynak tenant yalnızca admin oturumundan alınır." };
-  }
-
-  const tenantId = user.tenant_id?.trim() || null;
-  if (!tenantId) {
-    return {
-      tenantId: null,
-      error: "Admin kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
-    };
-  }
-
-  return { tenantId };
-}
+export { EMPTY_SOURCE_ADMIN_MESSAGE } from "@/lib/admin/adminSourceTenant";
 
 function prepareRowForInsert(
   row: Record<string, unknown>,
@@ -229,7 +201,7 @@ async function copyStonesTableToTenant(
   const readCount = rows.length;
 
   console.log(
-    `[veri-paylasimi] stones kaynak tenant=${sourceAdminTenantId} okunan=${readCount}`,
+    `[veri-paylasimi] tablo=stones kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} okunan=${readCount}`,
   );
 
   if (readCount === 0) {
@@ -259,7 +231,7 @@ async function copyStonesTableToTenant(
   }
 
   console.log(
-    `[veri-paylasimi] stones okunan=${readCount} başarılı=${successCount} başarısız=${failCount}`,
+    `[veri-paylasimi] tablo=stones hedef=${targetUserTenantId} okunan=${readCount} eklenen=${successCount} başarısız=${failCount}`,
   );
 
   if (successCount === 0) {
@@ -287,6 +259,10 @@ export async function copyLibraryTableToTenant(
   sourceAdminTenantId: string,
   targetUserTenantId: string,
 ): Promise<{ count: number; error?: string }> {
+  console.log(
+    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} işlem=SELECT+INSERT`,
+  );
+
   if (table === "stones") {
     const stonesResult = await copyStonesTableToTenant(
       sourceAdminTenantId,
@@ -304,11 +280,21 @@ export async function copyLibraryTableToTenant(
     .eq("tenant_id", sourceAdminTenantId);
 
   if (error) {
+    console.error(
+      `[veri-paylasimi] tablo=${table} okuma hata:`,
+      error.message,
+    );
     return { count: 0, error: error.message };
   }
 
   const sourceRows = (data ?? []) as Record<string, unknown>[];
-  if (sourceRows.length === 0) {
+  const readCount = sourceRows.length;
+
+  console.log(
+    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} okunan=${readCount}`,
+  );
+
+  if (readCount === 0) {
     return { count: 0 };
   }
 
@@ -317,6 +303,13 @@ export async function copyLibraryTableToTenant(
   );
 
   const { inserted, error: insertError } = await insertRowsBatched(table, payloads);
+
+  console.log(
+    `[veri-paylasimi] tablo=${table} hedef=${targetUserTenantId} okunan=${readCount} eklenen=${inserted}${
+      insertError ? ` hata=${insertError}` : ""
+    }`,
+  );
+
   return { count: inserted, error: insertError };
 }
 
@@ -346,7 +339,17 @@ export async function runLibraryTransfer(
   const sourceAdminTenantId = sourceResolved.tenantId;
   const targetUserTenantId = target;
 
+  console.log("[veri-paylasimi] AKTARIM BAŞLANGIÇ", {
+    kaynakTenant: sourceAdminTenantId,
+    hedefTenant: targetUserTenantId,
+    gruplar: uniqueGroups,
+  });
+
   if (targetUserTenantId === sourceAdminTenantId) {
+    console.warn(
+      "[veri-paylasimi] AKTARIM İPTAL: kaynak ve hedef tenant aynı",
+      sourceAdminTenantId,
+    );
     return {
       counts: emptyTransferCounts(),
       error: "Kaynak ve hedef tenant aynı; aktarım yalnızca seçili üyeye yapılmalı.",
@@ -363,11 +366,25 @@ export async function runLibraryTransfer(
     );
     counts[group] = count;
     if (error) {
+      console.error("[veri-paylasimi] AKTARIM HATA", {
+        tablo: group,
+        kaynakTenant: sourceAdminTenantId,
+        hedefTenant: targetUserTenantId,
+        eklenen: count,
+        hata: error,
+      });
       return { counts, error };
     }
   }
 
   const totalInserted = sumSelectedCounts(counts, uniqueGroups);
+
+  console.log("[veri-paylasimi] AKTARIM BİTİŞ", {
+    kaynakTenant: sourceAdminTenantId,
+    hedefTenant: targetUserTenantId,
+    sayimlar: counts,
+    toplamEklenen: totalInserted,
+  });
 
   if (totalInserted === 0) {
     return {
