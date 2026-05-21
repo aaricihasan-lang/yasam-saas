@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import { loginWithCredentials } from "@/lib/auth/loginUser";
 import {
   canLoginYasamUser,
   clearYasamUser,
@@ -44,7 +45,6 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 type ModuleTheme = {
   iconWrap: string;
@@ -440,7 +440,10 @@ export default function Home() {
   }, [loginModalOpen]);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setMessage("Email ve şifre giriniz.");
       return;
     }
@@ -448,25 +451,38 @@ export default function Home() {
     setLoading(true);
     setMessage("Giriş yapılıyor...");
 
-    const { data, error } = await supabase.rpc("login_user", {
-      p_email: email,
-      p_password: password,
-    });
+    const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
 
-    if (error) {
-      console.log(error);
+    console.log("[login] email", attempt.normalizedEmail);
+    console.log("[login] rpc error", attempt.rpcError);
+    console.log("[login] row count", attempt.rows.length);
+    console.log("[login] admin fallback", attempt.usedAdminFallback);
+    if (attempt.rows[0]) {
+      const preview = attempt.rows[0];
+      console.log("[login] first user", {
+        id: preview.id,
+        email: preview.email,
+        role: preview.role,
+        active: preview.active,
+        approval_status: preview.approval_status,
+      });
+    } else {
+      console.log("[login] first user", null);
+    }
+
+    if (attempt.rpcError) {
       setMessage("Sistem hatası oluştu.");
       setLoading(false);
       return;
     }
 
-    if (!data || data.length === 0) {
+    if (attempt.rows.length === 0) {
       setMessage("Email veya şifre hatalı.");
       setLoading(false);
       return;
     }
 
-    let loggedUser = parseLoginUserRecord(data[0]);
+    let loggedUser = parseLoginUserRecord(attempt.rows[0]);
 
     if (!loggedUser) {
       setMessage(
