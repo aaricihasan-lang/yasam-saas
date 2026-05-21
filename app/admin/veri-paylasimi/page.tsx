@@ -404,7 +404,7 @@ export default function VeriPaylasimiPage() {
       title: "Veriler başarıyla aktarıldı",
       message:
         summaryLines.length > 0
-          ? `${summaryLines.join("\n")}\n\n${expertName} hesabına eklendi`
+          ? summaryLines.join("\n")
           : `Kayıtlar ${expertName} hesabına eklendi`,
       type: "success",
     });
