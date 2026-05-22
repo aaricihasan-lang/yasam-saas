@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -28,7 +28,6 @@ type SymbolForm = {
   symbol_name: string;
   category: string;
   meaning: string;
-  subconscious_message: string;
   source: string;
 };
 
@@ -36,7 +35,6 @@ const emptyForm: SymbolForm = {
   symbol_name: "",
   category: "",
   meaning: "",
-  subconscious_message: "",
   source: "",
 };
 
@@ -70,6 +68,7 @@ const detailOpenBtnClass =
   "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-2xl bg-slate-950 py-4 text-[17px] font-black text-white shadow-lg transition duration-300 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
 
 export default function SembolDili() {
+  const lastGoodRowsRef = useRef<SymbolLanguageListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SymbolLanguageListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -137,52 +136,88 @@ export default function SembolDili() {
       const offset = opts.offset ?? 0;
       const search = debouncedSearch.trim() || undefined;
 
-      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-        fetchSymbolLanguagePage(tenantId, { offset, search }),
-        opts.reset
-          ? fetchSymbolLanguageCount(tenantId)
-          : Promise.resolve({ count: totalInDb, error: null }),
-        opts.reset
-          ? fetchSymbolLanguageCount(tenantId, search)
-          : Promise.resolve({ count: searchResultCount, error: null }),
-        opts.reset
-          ? supabase
-              .from("bioenergy_symbols")
-              .select("created_at")
-              .eq("tenant_id", tenantId)
-              .order("created_at", { ascending: false, nullsFirst: false })
-              .limit(1)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+      try {
+        const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
+          fetchSymbolLanguagePage(tenantId, { offset, search }),
+          opts.reset
+            ? fetchSymbolLanguageCount(tenantId)
+            : Promise.resolve({ data: totalInDb, error: null, usedFallback: false }),
+          opts.reset
+            ? fetchSymbolLanguageCount(tenantId, search)
+            : Promise.resolve({ data: searchResultCount, error: null, usedFallback: false }),
+          opts.reset
+            ? supabase
+                .from("bioenergy_symbols")
+                .select("created_at")
+                .eq("tenant_id", tenantId)
+                .order("created_at", { ascending: false, nullsFirst: false })
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
 
-      if (opts.reset) setListLoading(false);
-      setLoadingMore(false);
+        if (opts.reset) setListLoading(false);
+        setLoadingMore(false);
 
-      if (pageRes.error) {
-        setLoadErrorMessage(`Sembol kayıtları okunamadı: ${pageRes.error}`);
-        if (opts.reset) setRows([]);
-        return;
-      }
+        const pageRows = pageRes.data;
+        const hadPageError = Boolean(pageRes.error);
+        const hasCachedRows = lastGoodRowsRef.current.length > 0;
 
-      if (opts.reset) {
-        if (totalRes.error) {
-          setLoadErrorMessage(`Kayıt sayısı alınamadı: ${totalRes.error}`);
+        if (hadPageError) {
+          const warnParts = [`Sembol kayıtları okunamadı: ${pageRes.error}`];
+          if (pageRes.usedFallback) {
+            warnParts.push("Arama filtresi kaldırılarak liste gösteriliyor.");
+          }
+          setLoadErrorMessage(warnParts.join(" "));
+
+          if (pageRows.length > 0) {
+            const merged = opts.append ? [...lastGoodRowsRef.current, ...pageRows] : pageRows;
+            lastGoodRowsRef.current = merged;
+            setRows(merged);
+          } else if (hasCachedRows) {
+            setRows(lastGoodRowsRef.current);
+          } else if (opts.reset) {
+            setRows([]);
+          }
         } else {
-          setTotalInDb(totalRes.count);
+          setLoadErrorMessage("");
+          const merged = opts.append ? [...lastGoodRowsRef.current, ...pageRows] : pageRows;
+          lastGoodRowsRef.current = merged;
+          setRows(merged);
         }
-        if (searchCountRes.error) {
-          setSearchResultCount(0);
-        } else {
-          setSearchResultCount(searchCountRes.count);
-        }
-        const lastRow = lastRes.data as { created_at?: string } | null;
-        setLastCreatedAt(lastRow?.created_at ?? null);
-      }
 
-      setRows((current) =>
-        opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
-      );
+        if (opts.reset) {
+          if (totalRes.error) {
+            setLoadErrorMessage((prev) =>
+              prev
+                ? `${prev} · Kayıt sayısı alınamadı: ${totalRes.error}`
+                : `Kayıt sayısı alınamadı: ${totalRes.error}`,
+            );
+          } else if (!hadPageError || totalRes.data > 0) {
+            setTotalInDb(totalRes.data);
+          }
+
+          if (searchCountRes.error) {
+            if (!search?.trim()) setSearchResultCount(0);
+          } else {
+            setSearchResultCount(searchCountRes.data);
+          }
+
+          const lastRow = lastRes.data as { created_at?: string } | null;
+          if (!lastRes.error) {
+            setLastCreatedAt(lastRow?.created_at ?? null);
+          }
+        }
+      } catch (err) {
+        if (opts.reset) setListLoading(false);
+        setLoadingMore(false);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[SembolDili] fetchList exception:", message);
+        setLoadErrorMessage(`Beklenmeyen hata: ${message}`);
+        if (lastGoodRowsRef.current.length > 0) {
+          setRows(lastGoodRowsRef.current);
+        }
+      }
     },
     [debouncedSearch, queryTenantId, searchResultCount, totalInDb],
   );
@@ -228,7 +263,6 @@ export default function SembolDili() {
       title: nameTrim,
       category: trimOrNull(form.category),
       meaning: trimOrNull(form.meaning),
-      note: trimOrNull(form.subconscious_message),
       source: trimOrNull(form.source),
     });
 
@@ -333,7 +367,7 @@ export default function SembolDili() {
           <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = symbolLanguageDetailHref(row.id);
-              const preview = previewSymbolLanguageText(row.meaning, row.note);
+              const preview = previewSymbolLanguageText(row.meaning, row.source);
               const theme = getSymbolLanguageCardTheme(index);
               const hasCategory = Boolean(row.category?.trim());
               const displayTitle = symbolDisplayName(row);
@@ -456,19 +490,12 @@ export default function SembolDili() {
             className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-cyan-100/50"
             disabled={saving}
           />
-          <LongTextareaField
-            label={
-              <span className="mb-2 block text-[12px] font-black text-slate-800">
-                Bilinçaltı Mesajı
-              </span>
-            }
-            modalTitle="Bilinçaltı Mesajı"
-            value={form.subconscious_message}
-            onChange={(v) => setForm((f) => ({ ...f, subconscious_message: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-violet-100/50"
-            disabled={saving}
-          />
+          <div className="rounded-xl border border-dashed border-violet-200/90 bg-violet-50/50 px-3.5 py-3">
+            <p className="text-[12px] font-black text-violet-900">Bilinçaltı mesajı</p>
+            <p className="mt-1 text-[11px] font-semibold leading-relaxed text-violet-800/90">
+              Bu alan veritabanında saklanmıyor. Detay için &quot;Anlam&quot; alanını kullanın.
+            </p>
+          </div>
           <label className="block">
             <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak</span>
             <input

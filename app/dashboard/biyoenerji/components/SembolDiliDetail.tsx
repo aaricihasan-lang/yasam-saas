@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -13,8 +13,10 @@ import {
   type SymbolLanguageTypography,
 } from "@/lib/bioenergy/symbolLanguageFontSize";
 import {
+  fetchSymbolLanguageRecordById,
   SYMBOL_LANGUAGE_LIST_PATH,
   symbolDisplayName,
+  type SymbolLanguageListItem,
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
@@ -23,23 +25,10 @@ import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
-type BioenergySymbolRecord = {
-  id: string;
-  tenant_id: string;
-  symbol: string | null;
-  title: string | null;
-  category: string | null;
-  meaning: string | null;
-  note: string | null;
-  source: string | null;
-  created_at: string;
-};
-
 type SymbolForm = {
   symbol_name: string;
   category: string;
   meaning: string;
-  subconscious_message: string;
   source: string;
 };
 
@@ -127,6 +116,7 @@ function DetailContentCard({
 
 export default function SembolDiliDetail({ id }: { id: string }) {
   const router = useRouter();
+  const lastGoodRecordRef = useRef<SymbolLanguageListItem | null>(null);
   const isMobile = useMobileViewport();
   const {
     fontSizePx,
@@ -147,7 +137,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     [contentFontSizePx],
   );
 
-  const [record, setRecord] = useState<BioenergySymbolRecord | null>(null);
+  const [record, setRecord] = useState<SymbolLanguageListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -155,7 +145,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     symbol_name: "",
     category: "",
     meaning: "",
-    subconscious_message: "",
     source: "",
   });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -201,37 +190,50 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("bioenergy_symbols")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("id", recordId)
-      .maybeSingle();
+    try {
+      const result = await fetchSymbolLanguageRecordById(tenantId, recordId);
+      setLoading(false);
 
-    setLoading(false);
+      if (result.error) {
+        setErrorMessage(`Kayıt okunamadı: ${result.error}`);
+        if (lastGoodRecordRef.current) {
+          setRecord(lastGoodRecordRef.current);
+        } else {
+          setRecord(null);
+        }
+        return;
+      }
 
-    if (error) {
-      setErrorMessage(`Kayıt okunamadı: ${error.message}`);
-      setRecord(null);
-      return;
+      if (!result.data) {
+        setErrorMessage("Kayıt bulunamadı.");
+        if (lastGoodRecordRef.current) {
+          setRecord(lastGoodRecordRef.current);
+        } else {
+          setRecord(null);
+        }
+        return;
+      }
+
+      const row = result.data;
+      lastGoodRecordRef.current = row;
+      setRecord(row);
+      setErrorMessage("");
+      const displayName = symbolDisplayName(row);
+      setForm({
+        symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
+        category: row.category ?? "",
+        meaning: row.meaning ?? "",
+        source: row.source ?? "",
+      });
+    } catch (err) {
+      setLoading(false);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[SembolDiliDetail] loadRecord exception:", message);
+      setErrorMessage(`Beklenmeyen hata: ${message}`);
+      if (lastGoodRecordRef.current) {
+        setRecord(lastGoodRecordRef.current);
+      }
     }
-
-    if (!data) {
-      setErrorMessage("Kayıt bulunamadı.");
-      setRecord(null);
-      return;
-    }
-
-    const row = data as BioenergySymbolRecord;
-    setRecord(row);
-    const displayName = symbolDisplayName(row);
-    setForm({
-      symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
-      category: row.category ?? "",
-      meaning: row.meaning ?? "",
-      subconscious_message: row.note ?? "",
-      source: row.source ?? "",
-    });
   }, [id]);
 
   useEffect(() => {
@@ -262,7 +264,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         title: nameTrim,
         category: trimOrNull(form.category),
         meaning: trimOrNull(form.meaning),
-        note: trimOrNull(form.subconscious_message),
         source: trimOrNull(form.source),
       })
       .eq("id", record.id)
@@ -310,6 +311,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     );
   }
 
+  const showRecordWithWarning = Boolean(record && errorMessage);
+
   if (errorMessage && !record) {
     return (
       <div className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-6 text-center sm:p-8">
@@ -327,7 +330,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   if (!record) return null;
 
   const meaningContent = record.meaning?.trim() ?? "";
-  const messageContent = record.note?.trim() ?? "";
   const sourceContent = record.source?.trim() ?? "";
   const categoryText = record.category?.trim() ?? "";
   const displayTitle = symbolDisplayName(record);
@@ -349,7 +351,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         </Link>
       </div>
 
-      {(infoSuccess || infoError) && (
+      {(infoSuccess || infoError || showRecordWithWarning) && (
         <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           {infoSuccess ? (
             <div className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-800">
@@ -359,6 +361,11 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           {infoError ? (
             <div className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
               {infoError}
+            </div>
+          ) : null}
+          {showRecordWithWarning ? (
+            <div className="flex-1 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-base font-bold text-amber-900">
+              {errorMessage}
             </div>
           ) : null}
         </div>
@@ -421,14 +428,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             tone="violet"
           />
         ) : null}
-        {messageContent ? (
-          <DetailContentCard
-            title="Bilinçaltı Mesajı"
-            text={messageContent}
-            typography={contentTypography}
-            tone="cyan"
-          />
-        ) : null}
         {sourceContent ? (
           <DetailContentCard
             title="Kaynak"
@@ -437,10 +436,10 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             tone="emerald"
           />
         ) : null}
-        {!meaningContent && !messageContent && !sourceContent ? (
+        {!meaningContent && !sourceContent ? (
           <DetailContentCard
             title="İçerik"
-            text="Bu kayıt için henüz anlam, bilinçaltı mesajı veya kaynak girilmemiş."
+            text="Bu kayıt için henüz anlam veya kaynak girilmemiş."
             typography={contentTypography}
             tone="amber"
           />
@@ -473,7 +472,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
                   symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
                   category: record.category ?? "",
                   meaning: record.meaning ?? "",
-                  subconscious_message: record.note ?? "",
                   source: record.source ?? "",
                 });
               }}
@@ -518,19 +516,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
             minRows={5}
             className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-violet-100/50"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 block text-[12px] font-black text-slate-800">
-                Bilinçaltı Mesajı
-              </span>
-            }
-            modalTitle="Bilinçaltı Mesajı"
-            value={form.subconscious_message}
-            onChange={(v) => setForm((f) => ({ ...f, subconscious_message: v }))}
-            minRows={4}
-            className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-cyan-100/50"
             disabled={saving}
           />
           <label className="block">
