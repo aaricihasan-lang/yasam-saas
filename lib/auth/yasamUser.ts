@@ -43,6 +43,17 @@ export const PENDING_APPROVAL_MESSAGE =
 
 const STORAGE_KEY = "yasam_user";
 
+/** Aynı oturumda tekrarlayan users SELECT'lerini sınırla */
+const USER_SYNC_TTL_MS = 90_000;
+
+let lastUserSyncAt = 0;
+let syncInFlight: Promise<YasamUser | null> | null = null;
+
+export function invalidateYasamUserSyncCache(): void {
+  lastUserSyncAt = 0;
+  syncInFlight = null;
+}
+
 export function normalizeRole(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -208,6 +219,7 @@ export function saveYasamUser(user: YasamUser): void {
 export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
+  invalidateYasamUserSyncCache();
 }
 
 export function isAdminUser(user: YasamUser | null | undefined): boolean {
@@ -264,20 +276,51 @@ export async function refreshYasamUserFromDb(
   return refreshed;
 }
 
+export type SyncYasamUserOptions = {
+  /** Giriş sonrası gibi — TTL'yi yok say */
+  force?: boolean;
+};
+
 /**
- * users tablosundan güncel kaydı alır ve localStorage yasam_user'ı tamamen yeniden yazar.
+ * users tablosundan güncel kaydı alır ve localStorage yasam_user'ı yeniden yazar.
+ * TTL içinde tekrar çağrılırsa önbellekten döner (paralel istekler tek sorguda birleşir).
  */
 export async function syncYasamUserFromDb(
   seed?: YasamUser | null,
+  options?: SyncYasamUserOptions,
 ): Promise<YasamUser | null> {
   const current = seed ?? readYasamUser();
   if (!current?.id) return null;
 
-  const fresh = await refreshYasamUserFromDb(current);
-  if (!fresh) return null;
+  const force = options?.force === true;
+  const now = Date.now();
 
-  saveYasamUser(fresh);
-  return fresh;
+  if (!force && now - lastUserSyncAt < USER_SYNC_TTL_MS) {
+    return readYasamUser() ?? current;
+  }
+
+  if (syncInFlight && !force) {
+    return syncInFlight;
+  }
+
+  const run = async (): Promise<YasamUser | null> => {
+    const fresh = await refreshYasamUserFromDb(current);
+    if (!fresh) return null;
+    saveYasamUser(fresh);
+    lastUserSyncAt = Date.now();
+    return fresh;
+  };
+
+  syncInFlight = run().finally(() => {
+    syncInFlight = null;
+  });
+
+  return syncInFlight;
+}
+
+/** UI'ı bloklamadan izin/tenant güncellemesi */
+export function backgroundSyncYasamUserFromDb(seed?: YasamUser | null): void {
+  void syncYasamUserFromDb(seed);
 }
 
 /** login_user RPC sonrası users tablosundan güncel alanları yükler */

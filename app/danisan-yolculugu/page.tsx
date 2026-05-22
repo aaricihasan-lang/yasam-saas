@@ -146,7 +146,7 @@ const journeyFolders: {
 ];
 
 const hoverLift =
-  "transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03]";
+  "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg";
 
 function SummaryStatCard({
   label,
@@ -158,10 +158,10 @@ function SummaryStatCard({
 }: (typeof summaryStatCards)[number]) {
   return (
     <div
-      className={`group relative z-0 flex min-h-[112px] cursor-pointer flex-col rounded-[22px] border p-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:z-30 hover:-translate-y-2 hover:scale-[1.08] hover:shadow-[0_35px_80px_rgba(79,70,229,0.22)] ${border} ${cardBg}`}
+      className={`group relative z-0 flex min-h-[112px] flex-col rounded-[22px] border p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${border} ${cardBg}`}
     >
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${iconBox}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-md transition-all duration-200 group-hover:scale-105 ${iconBox}`}
       >
         <Icon className="h-5 w-5" strokeWidth={2.25} aria-hidden />
       </div>
@@ -178,29 +178,8 @@ export default function DanisanYolculuguPage() {
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-6 py-6 text-slate-900 antialiased lg:px-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]" />
-        <div className="absolute -bottom-32 -left-32 h-[520px] w-[520px] rounded-full bg-blue-400/18 blur-[160px]" />
-        <div className="absolute -right-32 -top-24 h-[480px] w-[480px] rounded-full bg-pink-300/14 blur-[160px]" />
-        <div className="absolute left-[30%] top-[18%] h-[420px] w-[420px] rounded-full bg-violet-300/12 blur-[150px]" />
-        <div className="absolute left-8 top-20 h-20 w-20 rounded-full bg-white/35 backdrop-blur-sm" />
-        <div className="absolute left-24 top-32 h-12 w-12 rounded-full bg-white/30 backdrop-blur-sm" />
-        <svg
-          className="absolute bottom-0 left-0 h-20 w-full opacity-[0.08]"
-          viewBox="0 0 1440 100"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d="M0 72 C 280 28, 520 88, 760 48 C 1020 8, 1240 68, 1440 42 L 1440 100 L 0 100 Z"
-            fill="url(#journey-bottom-glow)"
-          />
-          <defs>
-            <linearGradient id="journey-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(99,102,241,0)" />
-              <stop offset="45%" stopColor="rgba(129,140,248,0.35)" />
-              <stop offset="100%" stopColor="rgba(217,70,239,0)" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-blue-400/15 blur-3xl" />
+        <div className="absolute -right-24 -top-16 h-72 w-72 rounded-full bg-pink-300/12 blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[1760px]">
@@ -215,7 +194,7 @@ export default function DanisanYolculuguPage() {
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_520px] lg:items-start xl:grid-cols-[1fr_560px]">
           <div className="min-w-0 space-y-6">
             <header
-              className={`relative overflow-hidden rounded-[40px] border border-white/80 bg-white/70 px-8 py-10 shadow-[0_30px_90px_rgba(99,102,241,0.10)] backdrop-blur-xl sm:px-10 ${hoverLift}`}
+              className={`relative overflow-hidden rounded-[40px] border border-white/80 bg-white/85 px-8 py-10 shadow-lg sm:px-10 ${hoverLift}`}
             >
               <CalendarCheck
                 className="pointer-events-none absolute right-6 top-1/2 h-44 w-44 -translate-y-1/2 text-indigo-400 opacity-10"
@@ -249,7 +228,7 @@ export default function DanisanYolculuguPage() {
                     <Link
                       key={folder.title}
                       href={folder.href}
-                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border p-9 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:shadow-[0_35px_90px_rgba(79,70,229,0.18)] ${folder.border} ${folder.cardGradient}`}
+                      className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[36px] border p-9 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${folder.border} ${folder.cardGradient}`}
                     >
                       <DecorIcon
                         className={`pointer-events-none absolute -bottom-2 -right-2 h-44 w-44 ${folder.decorColor} opacity-10`}
@@ -286,7 +265,7 @@ export default function DanisanYolculuguPage() {
           </div>
 
           <aside className="min-w-0 lg:sticky lg:top-6">
-            <div className="rounded-[36px] border border-white/80 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            <div className="rounded-[36px] border border-white/80 bg-white/90 p-6 shadow-lg">
               <h2 className="text-3xl font-black text-slate-950">Genel Özet</h2>
               <p className="mt-1.5 text-sm font-medium leading-relaxed text-slate-600">
                 Danışan ve randevu süreçlerinizin anonim genel görünümü.
@@ -299,7 +278,7 @@ export default function DanisanYolculuguPage() {
               </div>
 
               <div
-                className={`mt-4 flex items-center gap-3 rounded-2xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-sm transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02]`}
+                className="mt-4 flex items-center gap-3 rounded-2xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-sm transition duration-200 hover:-translate-y-0.5"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-md">
                   <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />

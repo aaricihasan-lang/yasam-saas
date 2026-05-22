@@ -2,14 +2,17 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import {
   evaluateRouteModuleGuard,
   findRouteModuleRule,
   type RouteModuleGuardDecision,
 } from "@/lib/auth/routeModuleAccess";
-import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
+import {
+  backgroundSyncYasamUserFromDb,
+  readYasamUser,
+  syncYasamUserFromDb,
+} from "@/lib/auth/yasamUser";
 
 type ModuleRouteGuardProps = {
   children: ReactNode;
@@ -21,44 +24,40 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   const [denyReason, setDenyReason] = useState<"permission" | "membership">(
     "permission",
   );
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function runCheck() {
-      setChecking(true);
+    const path = pathname ?? "/";
+    const rule = findRouteModuleRule(path);
 
-      const path = pathname ?? "/";
-      const rule = findRouteModuleRule(path);
-      let user: YasamUser | null = readYasamUser();
-
-      if (user) {
-        user = await syncYasamUserFromDb(user);
-      }
-
-      if (cancelled) return;
-
-      const next = evaluateRouteModuleGuard(path, user);
-      setDecision(next);
-      setDenyReason(next === "deny_membership" ? "membership" : "permission");
-      setChecking(false);
+    if (!rule) {
+      setDecision("skip");
+      return;
     }
 
-    void runCheck();
+    const cached = readYasamUser();
+    const initial = evaluateRouteModuleGuard(path, cached);
+    setDecision(initial);
+    setDenyReason(
+      initial === "deny_membership" ? "membership" : "permission",
+    );
+
+    if (!cached) return;
+
+    backgroundSyncYasamUserFromDb(cached);
+
+    void syncYasamUserFromDb(cached).then((fresh) => {
+      if (cancelled || !fresh) return;
+      const next = evaluateRouteModuleGuard(path, fresh);
+      setDecision(next);
+      setDenyReason(next === "deny_membership" ? "membership" : "permission");
+    });
 
     return () => {
       cancelled = true;
     };
   }, [pathname]);
-
-  if (checking && findRouteModuleRule(pathname ?? "/")) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#f0fdfa_100%)]">
-        <Loader2 className="h-10 w-10 animate-spin text-violet-600" aria-hidden />
-      </main>
-    );
-  }
 
   if (decision === "deny" || decision === "deny_membership") {
     return <ModuleAccessDenied reason={denyReason} />;

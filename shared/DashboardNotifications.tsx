@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { runInEffect } from "@/lib/runInEffect";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { getSessionTenantId } from "@/lib/auth/sessionTenant";
+import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 const WARNING_MINUTES = 30;
 
@@ -19,7 +19,7 @@ export default function DashboardNotifications() {
   const warnedIdsRef = useRef<Set<string>>(new Set());
 
   async function loadAppointments() {
-    const tenantId = await getSyncedTenantId();
+    const tenantId = getSessionTenantId();
     if (!tenantId) return;
 
     const today = new Date();
@@ -62,9 +62,8 @@ export default function DashboardNotifications() {
   }
 
   useEffect(() => {
-    runInEffect(() => {
-      void loadAppointments();
-    });
+    backgroundSyncYasamUserFromDb();
+    void loadAppointments();
 
     const refreshInterval = setInterval(() => {
       void loadAppointments();

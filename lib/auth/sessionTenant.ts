@@ -1,4 +1,5 @@
 import {
+  backgroundSyncYasamUserFromDb,
   readYasamUser,
   syncYasamUserFromDb,
   type YasamUser,
@@ -16,13 +17,24 @@ export function getSessionTenantId(): string | null {
   return tenantId || null;
 }
 
-/** Veri çekmeden önce: DB'den güncel kullanıcı + tenant_id */
+/** Veri çekmeden önce: önce localStorage, arka planda DB senkron */
 export async function getSyncedTenantId(): Promise<string | null> {
-  const user = await syncYasamUserFromDb();
+  const cached = readYasamUser();
+  const tid = cached?.tenant_id?.trim();
+  if (cached) {
+    backgroundSyncYasamUserFromDb(cached);
+    if (tid) return tid;
+  }
+  const user = await syncYasamUserFromDb(cached);
   return user?.tenant_id?.trim() || null;
 }
 
-/** Veri çekmeden önce: güncel oturum kullanıcısı */
+/** Veri çekmeden önce: önce önbellek, gerekirse DB */
 export async function getSyncedYasamUser(): Promise<YasamUser | null> {
+  const cached = readYasamUser();
+  if (cached) {
+    backgroundSyncYasamUserFromDb(cached);
+    return cached;
+  }
   return syncYasamUserFromDb();
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { runInEffect } from "@/lib/runInEffect";
 import { loginWithCredentials } from "@/lib/auth/loginUser";
 import {
   canLoginYasamUser,
@@ -325,10 +324,9 @@ function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
 function AuthBootScreen() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
-      <div className="pointer-events-none absolute -left-32 top-0 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[120px]" />
-      <div className="pointer-events-none absolute right-0 bottom-0 h-[380px] w-[380px] rounded-full bg-cyan-200/20 blur-[110px]" />
+      <div className="pointer-events-none absolute -left-32 top-0 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
       <div
-        className="relative z-10 flex flex-col items-center gap-5 rounded-[28px] border-2 border-white/80 bg-white/85 px-10 py-12 shadow-[0_24px_60px_rgba(15,23,42,0.1)] backdrop-blur-xl"
+        className="relative z-10 flex flex-col items-center gap-5 rounded-[28px] border-2 border-white/80 bg-white/90 px-10 py-12 shadow-lg"
         role="status"
         aria-live="polite"
         aria-busy="true"
@@ -395,24 +393,22 @@ export default function Home() {
   };
 
   useEffect(() => {
-    runInEffect(async () => {
-      try {
-        const stored = readYasamUser();
-        if (!stored) {
-          setUser(null);
-          return;
-        }
-        const fresh = await syncYasamUserFromDb(stored);
+    const stored = readYasamUser();
+    if (stored) {
+      setUser(stored);
+      setAuthLoading(false);
+      void syncYasamUserFromDb(stored).then((fresh) => {
         if (!fresh) {
           clearYasamUser();
           setUser(null);
           return;
         }
         setUser(fresh);
-      } finally {
-        setAuthLoading(false);
-      }
-    });
+      });
+      return;
+    }
+    setUser(null);
+    setAuthLoading(false);
   }, []);
 
   useEffect(() => {
@@ -452,23 +448,6 @@ export default function Home() {
 
     const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
 
-    console.log("[login] email", attempt.normalizedEmail);
-    console.log("[login] rpc error", attempt.rpcError);
-    console.log("[login] row count", attempt.rows.length);
-    console.log("[login] admin fallback", attempt.usedAdminFallback);
-    if (attempt.rows[0]) {
-      const preview = attempt.rows[0];
-      console.log("[login] first user", {
-        id: preview.id,
-        email: preview.email,
-        role: preview.role,
-        active: preview.active,
-        approval_status: preview.approval_status,
-      });
-    } else {
-      console.log("[login] first user", null);
-    }
-
     if (attempt.rpcError) {
       setMessage("Sistem hatası oluştu.");
       setLoading(false);
@@ -491,7 +470,7 @@ export default function Home() {
       return;
     }
 
-    const freshUser = await syncYasamUserFromDb(loggedUser);
+    const freshUser = await syncYasamUserFromDb(loggedUser, { force: true });
     if (!freshUser) {
       setMessage("Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.");
       setLoading(false);
@@ -554,132 +533,23 @@ export default function Home() {
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
         <div
-          className="pointer-events-none absolute -left-[300px] bottom-[-250px] h-[900px] w-[900px] rounded-full bg-blue-400/20 blur-[180px]"
+          className="pointer-events-none absolute -left-40 bottom-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -right-[250px] top-[20%] h-[800px] w-[800px] rounded-full bg-fuchsia-300/18 blur-[180px]"
+          className="pointer-events-none absolute -right-32 top-[15%] h-80 w-80 rounded-full bg-fuchsia-300/12 blur-3xl"
           aria-hidden
         />
-        <div
-          className="pointer-events-none absolute left-[40%] top-[30%] h-[600px] w-[600px] rounded-full bg-violet-300/10 blur-[170px]"
-          aria-hidden
-        />
-
-        <div
-          className="pointer-events-none absolute left-8 top-10 h-24 w-24 rounded-full bg-white/30 backdrop-blur-sm"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute left-24 top-28 h-16 w-16 rounded-full bg-white/30 backdrop-blur-sm"
-          aria-hidden
-        />
-        <svg
-          className="pointer-events-none absolute bottom-0 left-0 h-[42%] w-[38%] opacity-[0.06] text-indigo-400"
-          viewBox="0 0 420 320"
-          fill="none"
-          aria-hidden
-        >
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <line
-              key={`h-${i}`}
-              x1="0"
-              y1={i * 64}
-              x2="420"
-              y2={i * 64}
-              stroke="currentColor"
-              strokeWidth="0.75"
-            />
-          ))}
-          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-            <line
-              key={`v-${i}`}
-              x1={i * 70}
-              y1="0"
-              x2={i * 70}
-              y2="320"
-              stroke="currentColor"
-              strokeWidth="0.75"
-            />
-          ))}
-          {[
-            [40, 48],
-            [110, 120],
-            [180, 72],
-            [250, 160],
-            [320, 88],
-            [70, 200],
-            [200, 240],
-            [350, 200],
-          ].map(([cx, cy], i) => (
-            <circle key={`dot-${i}`} cx={cx} cy={cy} r="2.5" fill="currentColor" />
-          ))}
-        </svg>
-
-        <svg
-          className="pointer-events-none absolute bottom-8 right-0 h-[38%] w-[42%] opacity-[0.07] text-violet-400"
-          viewBox="0 0 480 300"
-          fill="none"
-          aria-hidden
-        >
-          <line x1="60" y1="220" x2="180" y2="140" stroke="currentColor" strokeWidth="0.8" />
-          <line x1="180" y1="140" x2="320" y2="180" stroke="currentColor" strokeWidth="0.8" />
-          <line x1="320" y1="180" x2="420" y2="80" stroke="currentColor" strokeWidth="0.8" />
-          <line x1="180" y1="140" x2="240" y2="260" stroke="currentColor" strokeWidth="0.8" />
-          <line x1="240" y1="260" x2="380" y2="240" stroke="currentColor" strokeWidth="0.8" />
-          <line x1="120" y1="60" x2="180" y2="140" stroke="currentColor" strokeWidth="0.8" />
-          {[
-            [60, 220],
-            [180, 140],
-            [320, 180],
-            [420, 80],
-            [240, 260],
-            [380, 240],
-            [120, 60],
-          ].map(([cx, cy], i) => (
-            <circle key={`node-${i}`} cx={cx} cy={cy} r="3" fill="currentColor" />
-          ))}
-        </svg>
-
-        <svg
-          className="pointer-events-none absolute bottom-0 left-0 w-full opacity-[0.12]"
-          viewBox="0 0 1440 120"
-          preserveAspectRatio="none"
-          fill="none"
-          aria-hidden
-        >
-          <path
-            d="M0 95 C 240 40, 480 110, 720 70 C 960 30, 1200 90, 1440 55 L 1440 120 L 0 120 Z"
-            fill="url(#home-bottom-glow)"
-          />
-          <defs>
-            <linearGradient id="home-bottom-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(99,102,241,0)" />
-              <stop offset="35%" stopColor="rgba(129,140,248,0.35)" />
-              <stop offset="65%" stopColor="rgba(217,70,239,0.3)" />
-              <stop offset="100%" stopColor="rgba(56,189,248,0)" />
-            </linearGradient>
-          </defs>
-        </svg>
 
         <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-24 lg:px-10 lg:pt-4 lg:pb-24 xl:px-14">
           <div
-            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-5 text-white shadow-[0_30px_90px_rgba(79,70,229,0.22)] sm:px-8 sm:py-6 lg:py-7"
+            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-5 text-white shadow-xl sm:px-8 sm:py-6 lg:py-7"
             aria-label="Uzman ve kurum profili"
           >
-            <div
-              className="pointer-events-none absolute -right-10 -top-8 h-40 w-40 animate-pulse rounded-full bg-white/15 blur-3xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute bottom-0 left-1/4 h-28 w-56 animate-pulse rounded-full bg-fuchsia-300/20 blur-2xl [animation-delay:700ms]"
-              aria-hidden
-            />
-
             <button
               type="button"
               onClick={logout}
-              className="absolute right-4 top-4 z-10 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-base font-bold text-white backdrop-blur-md transition hover:bg-white/20 sm:right-6 sm:top-5"
+              className="absolute right-4 top-4 z-10 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-base font-bold text-white transition duration-200 hover:bg-white/20 sm:right-6 sm:top-5"
             >
               Çıkış Yap
             </button>
@@ -714,7 +584,7 @@ export default function Home() {
                 href="/admin"
                 className="mb-3 block shrink-0 text-inherit no-underline"
               >
-                <div className="group flex items-center gap-4 rounded-[24px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-5 py-4 shadow-[0_16px_40px_rgba(136,19,55,0.08)] transition hover:-translate-y-0.5 hover:shadow-lg">
+                <div className="group flex items-center gap-4 rounded-[24px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-5 py-4 shadow-md transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-rose-700 text-white shadow-md">
                     <Shield className="h-6 w-6" strokeWidth={2.25} />
                   </div>
@@ -779,9 +649,9 @@ export default function Home() {
 
                 const card = (
                   <div
-                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_22px_55px_rgba(15,23,42,0.10)] transition-all duration-300 ${theme.cardBg} ${theme.border} ${
+                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-md transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                       isOpen
-                        ? "cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
+                        ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg"
                         : isLocked
                           ? "cursor-not-allowed"
                           : "cursor-default opacity-90"
@@ -797,7 +667,7 @@ export default function Home() {
 
                     <div className="flex items-start justify-between gap-3">
                       <div
-                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-all duration-300 group-hover:scale-110 ${theme.iconWrap}`}
+                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md transition-all duration-200 group-hover:scale-105 ${theme.iconWrap}`}
                       >
                         <Icon className="h-8 w-8" strokeWidth={2.25} />
                       </div>
@@ -891,13 +761,12 @@ export default function Home() {
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(155deg,#f3eeff_0%,#e8f4ff_40%,#fff9f0_75%,#fff5f8_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-20 top-0 h-[520px] w-[520px] rounded-full bg-violet-400/22 blur-[120px]" />
-        <div className="absolute right-0 top-[12%] h-[480px] w-[480px] rounded-full bg-sky-300/28 blur-[110px]" />
-        <div className="absolute bottom-0 left-1/4 h-[420px] w-[420px] -translate-x-1/4 rounded-full bg-rose-200/18 blur-[100px]" />
+        <div className="absolute -left-20 top-0 h-80 w-80 rounded-full bg-violet-400/18 blur-3xl" />
+        <div className="absolute right-0 top-[12%] h-72 w-72 rounded-full bg-sky-300/20 blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-none px-6 py-6 md:px-10 xl:px-16 2xl:px-20">
-        <header className="sticky top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/75 px-6 py-7 shadow-[0_20px_60px_rgba(49,46,129,0.12)] backdrop-blur-2xl sm:px-8">
+        <header className="sticky top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/90 px-6 py-7 shadow-lg sm:px-8">
           <div className="flex min-w-[min(100%,420px)] shrink-0 items-center gap-4 sm:min-w-[420px]">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50">
               ✨
@@ -968,9 +837,7 @@ export default function Home() {
           </div>
 
           <div className="relative w-full">
-            <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-violet-500/20 via-fuchsia-400/16 to-cyan-400/20 blur-3xl" />
-
-            <div className="relative flex flex-col rounded-[32px] border border-white/90 bg-white/80 p-7 shadow-[0_32px_90px_rgba(49,46,129,0.14)] ring-1 ring-violet-100/60 backdrop-blur-2xl sm:p-9">
+            <div className="relative flex flex-col rounded-[32px] border border-white/90 bg-white/90 p-7 shadow-lg ring-1 ring-violet-100/60 sm:p-9">
               <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-sm font-black uppercase tracking-wide text-violet-800">
                 Çalışma Seçenekleri
               </div>
@@ -1021,7 +888,7 @@ export default function Home() {
           {landingModules.map((item) => (
             <div
               key={item.title}
-              className="group relative flex min-h-[220px] flex-col rounded-[28px] border border-slate-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-violet-200/80 hover:shadow-xl"
+              className="group relative flex min-h-[220px] flex-col rounded-[28px] border border-slate-200/80 bg-white/90 p-6 shadow-md ring-1 ring-white/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200/80 hover:shadow-lg"
             >
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-3xl text-white shadow-lg shadow-violet-300/40 transition group-hover:scale-105">
                 {item.icon}
@@ -1071,22 +938,9 @@ export default function Home() {
         </section>
 
         <section
-          className="relative mt-14 w-full max-w-none overflow-hidden rounded-[36px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-6 shadow-[0_28px_90px_rgba(79,70,229,0.12)] ring-1 ring-violet-200/50 backdrop-blur-2xl sm:p-10 xl:mt-16 xl:p-12"
+          className="relative mt-14 w-full max-w-none overflow-hidden rounded-[36px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-6 shadow-lg ring-1 ring-violet-200/50 sm:p-10 xl:mt-16 xl:p-12"
           aria-labelledby="trust-principles-heading"
         >
-          <div
-            className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-violet-400/25 blur-[90px]"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute -left-12 bottom-0 h-56 w-56 rounded-full bg-cyan-300/30 blur-[80px]"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-300/20 blur-[70px]"
-            aria-hidden
-          />
-
           <div className="relative z-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-12 xl:gap-16">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-800/90 md:text-base">
@@ -1105,7 +959,7 @@ export default function Home() {
                 {trustPrinciples.map((item) => (
                   <li
                     key={item}
-                    className="flex items-start gap-4 rounded-[22px] border border-white/80 bg-white/65 px-5 py-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:border-violet-200/80 hover:bg-white/85"
+                    className="flex items-start gap-4 rounded-[22px] border border-white/80 bg-white/80 px-5 py-4 shadow-sm transition duration-200 hover:border-violet-200/80 hover:bg-white/95"
                   >
                     <span
                       className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-emerald-600 text-white shadow-md"
@@ -1126,21 +980,9 @@ export default function Home() {
             </div>
 
             <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-              <div
-                className="absolute inset-4 rounded-[32px] bg-gradient-to-br from-violet-500/25 via-indigo-400/20 to-emerald-400/25 blur-2xl"
-                aria-hidden
-              />
-              <div className="relative flex aspect-square max-h-[420px] flex-col items-center justify-center rounded-[32px] border border-white/80 bg-gradient-to-br from-white/75 via-violet-50/80 to-cyan-50/70 p-8 shadow-[0_24px_70px_rgba(91,33,182,0.15)] backdrop-blur-xl sm:max-h-none sm:min-h-[360px] lg:min-h-[400px]">
+              <div className="relative flex aspect-square max-h-[420px] flex-col items-center justify-center rounded-[32px] border border-white/80 bg-gradient-to-br from-white/85 via-violet-50/80 to-cyan-50/70 p-8 shadow-lg sm:max-h-none sm:min-h-[360px] lg:min-h-[400px]">
                 <div className="relative flex h-44 w-44 items-center justify-center sm:h-52 sm:w-52">
-                  <div
-                    className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-br from-violet-400/30 via-indigo-300/25 to-emerald-400/30"
-                    aria-hidden
-                  />
-                  <div
-                    className="absolute inset-6 rounded-full border-2 border-dashed border-violet-300/50"
-                    aria-hidden
-                  />
-                  <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-[0_20px_50px_rgba(79,70,229,0.35)] ring-4 ring-white/50 sm:h-32 sm:w-32">
+                  <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-lg ring-4 ring-white/50 sm:h-32 sm:w-32">
                     <ShieldCheck className="h-14 w-14 sm:h-16 sm:w-16" strokeWidth={1.75} />
                   </div>
                   <div className="absolute -left-2 top-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-violet-700 shadow-lg backdrop-blur-sm sm:h-16 sm:w-16">
