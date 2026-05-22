@@ -16,10 +16,15 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
+import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
+import { ensureMineralStringArray } from "@/lib/dogaltas/mineralsListFetch";
+import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
+import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
 import { supabase } from "@/lib/supabase";
 
 const MINERALS_DETAIL_SELECT =
-  "id,source_id,name,aciklama,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,kategori,created_at";
+  "id,source_id,name,aciklama,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,organ_etkileri,cakralar,kategori,created_at";
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
@@ -38,6 +43,8 @@ type MineralRecord = {
   fazlalik_belirtileri: string[];
   doz_asimi: string[];
   iceren_taslar: string[];
+  organ_etkileri: string[];
+  cakralar: string[];
   kategori: string | null;
   created_at: string;
 };
@@ -51,6 +58,8 @@ type MineralRow = Omit<
   | "fazlalik_belirtileri"
   | "doz_asimi"
   | "iceren_taslar"
+  | "organ_etkileri"
+  | "cakralar"
 > & {
   fiziksel: string[] | null;
   zihinsel: string[] | null;
@@ -59,6 +68,8 @@ type MineralRow = Omit<
   fazlalik_belirtileri: string[] | null;
   doz_asimi: string[] | null;
   iceren_taslar: string[] | null;
+  organ_etkileri: string[] | null;
+  cakralar: string[] | null;
 };
 
 function normalizeTrSearch(value: string): string {
@@ -151,30 +162,23 @@ function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
   return hasSearchMatch ? `${baseClass} ${SEARCH_MATCH_CARD_CLASS}` : baseClass;
 }
 
-function ensureStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (typeof value === "string" && value.trim()) {
-    return value
-      .split(/\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
 function normalizeMineral(row: MineralRow): MineralRecord {
   return {
     ...row,
-    fiziksel: ensureStringArray(row.fiziksel),
-    zihinsel: ensureStringArray(row.zihinsel),
-    fizyoloji: ensureStringArray(row.fizyoloji),
-    eksiklik_belirtileri: ensureStringArray(row.eksiklik_belirtileri),
-    fazlalik_belirtileri: ensureStringArray(row.fazlalik_belirtileri),
-    doz_asimi: ensureStringArray(row.doz_asimi),
-    iceren_taslar: ensureStringArray(row.iceren_taslar),
+    fiziksel: ensureMineralStringArray(row.fiziksel),
+    zihinsel: ensureMineralStringArray(row.zihinsel),
+    fizyoloji: ensureMineralStringArray(row.fizyoloji),
+    eksiklik_belirtileri: ensureMineralStringArray(row.eksiklik_belirtileri),
+    fazlalik_belirtileri: ensureMineralStringArray(row.fazlalik_belirtileri),
+    doz_asimi: ensureMineralStringArray(row.doz_asimi),
+    iceren_taslar: ensureMineralStringArray(row.iceren_taslar),
+    organ_etkileri: ensureMineralStringArray(row.organ_etkileri),
+    cakralar: ensureMineralStringArray(row.cakralar),
   };
+}
+
+function arraySectionToText(items: string[]): string {
+  return items.map((item, index) => `${index + 1}. ${item}`).join("\n\n");
 }
 
 function formatDate(value: string | null | undefined) {
@@ -200,7 +204,7 @@ const uiStatBox =
 const uiInfoCard =
   "w-full rounded-[28px] border-[3px] border-emerald-300/45 bg-white/75 p-5 shadow-[0_0_35px_rgba(16,185,129,0.12)] backdrop-blur-xl";
 const uiContentBox =
-  "mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 text-base leading-7 text-slate-700 shadow-inner";
+  "mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 sm:p-6 text-slate-700 shadow-inner";
 const uiEmptyText = "text-slate-400 italic font-medium";
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-4 py-1.5 text-sm font-black text-cyan-900";
@@ -228,6 +232,7 @@ function TextSectionCard({
   tone = "emerald",
   highlightQuery = "",
   hasSearchMatch = false,
+  contentTypography,
 }: {
   title: string;
   badge: string;
@@ -235,25 +240,27 @@ function TextSectionCard({
   tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red";
   highlightQuery?: string;
   hasSearchMatch?: boolean;
+  contentTypography: MineralContentTypography;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
   const displayText = text?.trim() || "";
+  const renderSegment = (segment: string, key: string) =>
+    highlightQuery.trim() ? renderHighlightedText(segment, highlightQuery) : segment;
 
   return (
     <article className={cardClass}>
       <div className={toneClass(tone)}>{badge}</div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <h2 className="text-xl font-black text-slate-950">{title}</h2>
+        <h2 className="text-2xl font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className={uiContentBox}>
+      <div className={uiContentBox} style={contentTypography.bodyStyle}>
         {displayText ? (
-          <p className="whitespace-pre-wrap">
-            {highlightQuery.trim()
-              ? renderHighlightedText(displayText, highlightQuery)
-              : displayText}
-          </p>
+          formatStoneContent(displayText, {
+            renderSegment,
+            fontSizePx: contentTypography.fontSizePx,
+          })
         ) : (
           <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
         )}
@@ -269,6 +276,7 @@ function ListSectionCard({
   tone = "cyan",
   highlightQuery = "",
   hasSearchMatch = false,
+  contentTypography,
 }: {
   title: string;
   badge: string;
@@ -276,32 +284,27 @@ function ListSectionCard({
   tone?: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red";
   highlightQuery?: string;
   hasSearchMatch?: boolean;
+  contentTypography: MineralContentTypography;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
-  const hasHighlight = Boolean(highlightQuery.trim());
+  const bodyText = arraySectionToText(items);
+  const renderSegment = (segment: string, key: string) =>
+    highlightQuery.trim() ? renderHighlightedText(segment, highlightQuery) : segment;
 
   return (
     <article className={cardClass}>
       <div className={toneClass(tone)}>{badge}</div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <h2 className="text-xl font-black text-slate-950">{title}</h2>
+        <h2 className="text-2xl font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className={uiContentBox}>
+      <div className={uiContentBox} style={contentTypography.bodyStyle}>
         {items.length > 0 ? (
-          <ul className="space-y-2">
-            {items.map((item, index) => (
-              <li key={`${index}-${item.slice(0, 24)}`} className="flex gap-2">
-                <span className="shrink-0 font-black text-emerald-600">{index + 1}.</span>
-                <span className="whitespace-pre-wrap">
-                  {hasHighlight
-                    ? renderHighlightedText(item, highlightQuery)
-                    : item}
-                </span>
-              </li>
-            ))}
-          </ul>
+          formatStoneContent(bodyText, {
+            renderSegment,
+            fontSizePx: contentTypography.fontSizePx,
+          })
         ) : (
           <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
         )}
@@ -318,6 +321,17 @@ function MineralDetailPageContent() {
   const listBackHref = highlightQuery
     ? `/dogaltas/mineral-listesi?q=${encodeURIComponent(highlightQuery)}`
     : "/dogaltas/mineral-listesi";
+
+  const {
+    fontSizePx,
+    typography: contentTypography,
+    decrease: decreaseFontSize,
+    reset: resetFontSize,
+    increase: increaseFontSize,
+    canDecrease: canDecreaseFontSize,
+    canIncrease: canIncreaseFontSize,
+    isDefault: isDefaultFontSize,
+  } = useMineralDetailFontSize();
 
   const [mineral, setMineral] = useState<MineralRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -390,6 +404,8 @@ function MineralDetailPageContent() {
       fazlalik: matchesList(mineral.fazlalik_belirtileri),
       dozAsimi: matchesList(mineral.doz_asimi),
       icerenTaslar: matchesList(mineral.iceren_taslar),
+      organEtkileri: matchesList(mineral.organ_etkileri),
+      cakralar: matchesList(mineral.cakralar),
     };
   }, [highlightQuery, mineral]);
 
@@ -404,6 +420,8 @@ function MineralDetailPageContent() {
     if (mineral.fazlalik_belirtileri.length) count += 1;
     if (mineral.doz_asimi.length) count += 1;
     if (mineral.iceren_taslar.length) count += 1;
+    if (mineral.organ_etkileri.length) count += 1;
+    if (mineral.cakralar.length) count += 1;
     return count;
   }, [mineral]);
 
@@ -479,6 +497,15 @@ function MineralDetailPageContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <DogaltasFontSizeControl
+              fontSizePx={fontSizePx}
+              onDecrease={decreaseFontSize}
+              onReset={resetFontSize}
+              onIncrease={increaseFontSize}
+              canDecrease={canDecreaseFontSize}
+              canIncrease={canIncreaseFontSize}
+              isDefault={isDefaultFontSize}
+            />
             <Link
               href={listBackHref}
               className="rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 font-black text-slate-800 shadow-md hover:bg-slate-50"
@@ -545,6 +572,7 @@ function MineralDetailPageContent() {
               tone="emerald"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.aciklama}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Fiziksel"
@@ -553,6 +581,7 @@ function MineralDetailPageContent() {
               tone="sky"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fiziksel}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Zihinsel"
@@ -561,6 +590,7 @@ function MineralDetailPageContent() {
               tone="purple"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.zihinsel}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Fizyoloji"
@@ -569,6 +599,25 @@ function MineralDetailPageContent() {
               tone="violet"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fizyoloji}
+              contentTypography={contentTypography}
+            />
+            <ListSectionCard
+              title="Organ etkileri"
+              badge="ORGAN"
+              items={mineral.organ_etkileri}
+              tone="emerald"
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.organEtkileri}
+              contentTypography={contentTypography}
+            />
+            <ListSectionCard
+              title="Çakralar"
+              badge="ÇAKRA"
+              items={mineral.cakralar}
+              tone="cyan"
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.cakralar}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Eksiklik belirtileri"
@@ -577,6 +626,7 @@ function MineralDetailPageContent() {
               tone="amber"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.eksiklik}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Fazlalık belirtileri"
@@ -585,6 +635,7 @@ function MineralDetailPageContent() {
               tone="red"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fazlalik}
+              contentTypography={contentTypography}
             />
             <ListSectionCard
               title="Doz aşımı"
@@ -593,15 +644,19 @@ function MineralDetailPageContent() {
               tone="rose"
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.dozAsimi}
+              contentTypography={contentTypography}
             />
-            <ListSectionCard
-              title="İçeren taşlar"
-              badge={`${mineral.iceren_taslar.length} TAŞ`}
-              items={mineral.iceren_taslar}
-              tone="cyan"
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.icerenTaslar}
-            />
+            <div className="lg:col-span-2">
+              <ListSectionCard
+                title="İçeren taşlar"
+                badge={`${mineral.iceren_taslar.length} TAŞ`}
+                items={mineral.iceren_taslar}
+                tone="cyan"
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.icerenTaslar}
+                contentTypography={contentTypography}
+              />
+            </div>
           </section>
         </section>
       </div>

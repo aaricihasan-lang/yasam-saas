@@ -1,6 +1,5 @@
 "use client";
 
-import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import {
   Fragment,
@@ -12,11 +11,18 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
+  getSessionTenantId,
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import {
+  fetchMineralsListCount,
+  fetchMineralsListPage,
+  MINERALS_UNCATEGORIZED_FILTER,
+  type MineralListItem,
+} from "@/lib/dogaltas/mineralsListFetch";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -51,30 +57,12 @@ function stripUrlSearchQuery() {
   window.history.replaceState({}, "", cleanUrl);
 }
 
-const MINERALS_LIST_SELECT =
-  "id,source_id,name,aciklama,kategori,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,created_at";
-
+const SEARCH_DEBOUNCE_MS = 300;
 const UNCATEGORIZED_LABEL = "Kategorisiz";
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
   "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
-
-type MineralRecord = {
-  id: string;
-  source_id: string;
-  name: string;
-  aciklama: string | null;
-  kategori: string | null;
-  fiziksel: string[] | null;
-  zihinsel: string[] | null;
-  fizyoloji: string[] | null;
-  eksiklik_belirtileri: string[] | null;
-  fazlalik_belirtileri: string[] | null;
-  doz_asimi: string[] | null;
-  iceren_taslar: string[] | null;
-  created_at: string;
-};
 
 function normalizeTrSearch(value: string): string {
   return value
@@ -146,32 +134,6 @@ function renderHighlightedText(text: string, query: string): ReactNode {
   return nodes.length > 0 ? nodes : text;
 }
 
-function ensureStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (typeof value === "string" && value.trim()) {
-    return value
-      .split(/\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function normalizeMineral(row: MineralRecord): MineralRecord {
-  return {
-    ...row,
-    fiziksel: ensureStringArray(row.fiziksel),
-    zihinsel: ensureStringArray(row.zihinsel),
-    fizyoloji: ensureStringArray(row.fizyoloji),
-    eksiklik_belirtileri: ensureStringArray(row.eksiklik_belirtileri),
-    fazlalik_belirtileri: ensureStringArray(row.fazlalik_belirtileri),
-    doz_asimi: ensureStringArray(row.doz_asimi),
-    iceren_taslar: ensureStringArray(row.iceren_taslar),
-  };
-}
-
 function getCategoryLabel(kategori: string | null | undefined) {
   const trimmed = kategori?.trim();
   return trimmed || UNCATEGORIZED_LABEL;
@@ -181,42 +143,6 @@ function previewText(value: string | null | undefined, limit = 120) {
   if (!value || !value.trim()) return "Açıklama henüz girilmedi.";
   const clean = value.replace(/\s+/g, " ").trim();
   return clean.length > limit ? `${clean.slice(0, limit)}…` : clean;
-}
-
-function buildSearchableText(mineral: MineralRecord): string {
-  const parts: string[] = [
-    mineral.name,
-    mineral.aciklama ?? "",
-    mineral.kategori ?? "",
-    mineral.source_id,
-    ...ensureStringArray(mineral.fiziksel),
-    ...ensureStringArray(mineral.zihinsel),
-    ...ensureStringArray(mineral.fizyoloji),
-    ...ensureStringArray(mineral.eksiklik_belirtileri),
-    ...ensureStringArray(mineral.fazlalik_belirtileri),
-    ...ensureStringArray(mineral.doz_asimi),
-    ...ensureStringArray(mineral.iceren_taslar),
-  ];
-
-  for (const value of Object.values(mineral)) {
-    if (typeof value === "string" && value.trim()) {
-      parts.push(value);
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === "string" && item.trim()) parts.push(item);
-      }
-    }
-  }
-
-  return parts.filter(Boolean).join(" ");
-}
-
-function mineralMatchesSearch(mineral: MineralRecord, searchTerm: string): boolean {
-  const trimmed = searchTerm.trim();
-  if (!trimmed) return true;
-  const haystack = normalizeTrSearch(buildSearchableText(mineral));
-  const needle = normalizeTrSearch(trimmed);
-  return Boolean(needle) && haystack.includes(needle);
 }
 
 function readViewedMineralIds(): Set<string> {
@@ -258,26 +184,32 @@ const uiCategoryPill =
   "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
 const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-emerald-700";
+const uiLoadMoreBtn =
+  "rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-amber-50 px-8 py-4 text-sm font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-amber-100 disabled:opacity-60";
 
 function MineralListesiPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 
-  const [minerals, setMinerals] = useState<MineralRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [minerals, setMinerals] = useState<MineralListItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
-  const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
+  const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
 
   const applySearchUrl = useCallback(
     (query: string) => {
       const basePath =
         typeof window !== "undefined" ? window.location.pathname : LIST_PATH;
-      const nextUrl = `${basePath}?q=${encodeURIComponent(query)}`;
+      const nextUrl = query.trim()
+        ? `${basePath}?q=${encodeURIComponent(query.trim())}`
+        : basePath;
       window.history.replaceState({}, "", nextUrl);
       router.replace(nextUrl, { scroll: false });
     },
@@ -287,77 +219,122 @@ function MineralListesiPageContent() {
   const clearSearch = useCallback(() => {
     stripUrlSearchQuery();
     clearMineralSearchStorage();
-    setSearchInput("");
     setSearchTerm("");
-    setIsSearchActive(false);
-    setLoading(false);
   }, []);
 
-  const activateSearch = useCallback(
-    (query: string) => {
-      const trimmed = query.trim();
-      if (!trimmed) {
-        clearSearch();
+  const fetchList = useCallback(
+    async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const tenantId = queryTenantId ?? getSessionTenantId();
+      if (!tenantId) {
+        setListLoading(false);
+        setLoadingMore(false);
+        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
         return;
       }
-      setSearchInput(trimmed);
-      setSearchTerm(trimmed);
-      setIsSearchActive(true);
-      clearMineralSearchStorage();
-      applySearchUrl(trimmed);
+
+      if (opts.reset) {
+        setListLoading(true);
+        setErrorMessage("");
+      } else {
+        setLoadingMore(true);
+      }
+
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const categoryParam =
+        categoryFilter.trim() === UNCATEGORIZED_LABEL
+          ? MINERALS_UNCATEGORIZED_FILTER
+          : categoryFilter.trim() || undefined;
+
+      const [pageRes, countRes] = await Promise.all([
+        fetchMineralsListPage(tenantId, {
+          offset,
+          search,
+          category: categoryParam,
+        }),
+        opts.reset
+          ? fetchMineralsListCount(tenantId, search, categoryParam)
+          : Promise.resolve({ count: totalCount, error: null }),
+      ]);
+
+      if (opts.reset) setListLoading(false);
+      setLoadingMore(false);
+
+      if (pageRes.error) {
+        setErrorMessage(`Mineral kayıtları okunamadı: ${pageRes.error}`);
+        if (opts.reset) setMinerals([]);
+        return;
+      }
+
+      if (countRes.error) {
+        setErrorMessage(`Kayıt sayısı alınamadı: ${countRes.error}`);
+      } else if (opts.reset) {
+        setTotalCount(countRes.count);
+      }
+
+      setMinerals((current) =>
+        opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
+      );
     },
-    [applySearchUrl, clearSearch],
+    [categoryFilter, debouncedSearch, queryTenantId, totalCount],
   );
 
-  async function loadMinerals() {
-    setLoading(true);
-    setErrorMessage("");
-
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setLoading(false);
-      setMinerals([]);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
+  const resolveTenant = useCallback(async () => {
+    const cached = getSessionTenantId();
+    if (cached) {
+      setQueryTenantId(cached);
+      backgroundSyncYasamUserFromDb();
+      return cached;
     }
+    const synced = await getSyncedTenantId();
+    if (synced) setQueryTenantId(synced);
+    return synced;
+  }, []);
 
-    const { data, error } = await supabase
-      .from("minerals")
-      .select(MINERALS_LIST_SELECT)
-      .eq("tenant_id", tenantId)
-      .order("name", { ascending: true });
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      if (!value.trim()) {
+        stripUrlSearchQuery();
+        clearMineralSearchStorage();
+      }
+    },
+    [],
+  );
 
-    setLoading(false);
-
-    if (error) {
-      setErrorMessage(`Mineral kayıtları okunamadı: ${error.message}`);
-      setMinerals([]);
-      return;
-    }
-
-    setMinerals(((data || []) as MineralRecord[]).map(normalizeMineral));
-  }
+  const handleRefresh = useCallback(() => {
+    clearSearch();
+    setDebouncedSearch("");
+    void fetchList({ reset: true });
+  }, [clearSearch, fetchList]);
 
   useEffect(() => {
-    runInEffect(() => {
-      void loadMinerals();
-    });
-  }, []);
+    void resolveTenant();
+  }, [resolveTenant]);
+
+  useEffect(() => {
+    if (!queryTenantId) return;
+    void fetchList({ reset: true });
+  }, [queryTenantId, debouncedSearch, categoryFilter, fetchList]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchTerm.trim();
+      setDebouncedSearch(next);
+      if (next) {
+        clearMineralSearchStorage();
+        applySearchUrl(next);
+      } else if (readUrlSearchQuery()) {
+        stripUrlSearchQuery();
+        clearMineralSearchStorage();
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm, applySearchUrl]);
 
   useEffect(() => {
     const q = readUrlSearchQuery();
-
-    if (!q || !q.trim()) {
-      setSearchInput("");
-      setSearchTerm("");
-      setIsSearchActive(false);
-      clearMineralSearchStorage();
-      return;
-    }
-
-    setSearchInput(q);
-    setSearchTerm(q);
-    setIsSearchActive(true);
+    if (q) setSearchTerm(q);
   }, [urlQuery]);
 
   useEffect(() => {
@@ -366,29 +343,6 @@ function MineralListesiPageContent() {
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
-
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        stripUrlSearchQuery();
-        clearMineralSearchStorage();
-        setSearchInput("");
-        setSearchTerm("");
-        setIsSearchActive(false);
-        setLoading(false);
-        return;
-      }
-      setSearchInput(value);
-      activateSearch(trimmed);
-    },
-    [activateSearch],
-  );
-
-  const handleRefresh = useCallback(() => {
-    clearSearch();
-    void loadMinerals();
-  }, [clearSearch]);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
     markViewedMineralId(mineralId);
@@ -407,21 +361,21 @@ function MineralListesiPageContent() {
     });
   }, [minerals]);
 
-  const activeSearch = isSearchActive ? searchTerm.trim() : "";
+  const isSearchActive = Boolean(debouncedSearch);
+  const activeSearch = debouncedSearch;
+  const filteredMinerals = minerals;
+  const hasMore = minerals.length < totalCount;
+  const listBusy =
+    listLoading || (Boolean(searchTerm.trim()) && searchTerm.trim() !== debouncedSearch);
 
-  const filteredMinerals = useMemo(() => {
-    const category = categoryFilter.trim();
-    const term = isSearchActive ? searchTerm : "";
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || listLoading || !hasMore) return;
+    void fetchList({ reset: false, append: true, offset: minerals.length });
+  }, [fetchList, hasMore, listLoading, loadingMore, minerals.length]);
 
-    return minerals.filter((mineral) => {
-      if (category && getCategoryLabel(mineral.kategori) !== category) return false;
-      return mineralMatchesSearch(mineral, term);
-    });
-  }, [minerals, searchTerm, isSearchActive, categoryFilter]);
-
-  const isEmptyDatabase = !loading && !errorMessage && minerals.length === 0;
+  const isEmptyDatabase = !listLoading && !errorMessage && totalCount === 0 && !isSearchActive;
   const isEmptyFiltered =
-    !loading && !errorMessage && minerals.length > 0 && filteredMinerals.length === 0;
+    !listLoading && !errorMessage && filteredMinerals.length === 0 && (isSearchActive || Boolean(categoryFilter));
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
@@ -452,12 +406,14 @@ function MineralListesiPageContent() {
 
           <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{minerals.length}</div>
+              <div className="text-2xl font-black text-slate-950">{totalCount}</div>
               <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
             <div className={uiStatCard}>
               <div className="text-2xl font-black text-slate-950">{filteredMinerals.length}</div>
-              <div className="text-xs font-bold text-slate-500">Görünen sonuç</div>
+              <div className="text-xs font-bold text-slate-500">
+                {hasMore ? "Yüklü / toplam" : "Görünen sonuç"}
+              </div>
             </div>
           </div>
         </header>
@@ -466,7 +422,7 @@ function MineralListesiPageContent() {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <input
               type="search"
-              value={searchInput}
+              value={searchTerm}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara..."
               className={`${uiField} flex-1 text-sm text-slate-700`}
@@ -498,9 +454,11 @@ function MineralListesiPageContent() {
               + Yeni Mineral
             </Link>
           </div>
-          {isSearchActive ? (
+          {isSearchActive || listBusy ? (
             <p className="mt-3 text-sm font-bold text-cyan-800">
-              Arama: “{activeSearch}” · {filteredMinerals.length} sonuç
+              {listBusy
+                ? "Aranıyor..."
+                : `Arama: “${activeSearch}” · ${totalCount} sonuç`}
             </p>
           ) : null}
         </section>
@@ -515,7 +473,7 @@ function MineralListesiPageContent() {
         ) : null}
 
         <section className={uiContentCard}>
-          {loading ? (
+          {listLoading && filteredMinerals.length === 0 ? (
             <div className="flex min-h-[520px] items-center justify-center text-base font-black text-slate-500">
               Mineraller yükleniyor...
             </div>
@@ -536,6 +494,7 @@ function MineralListesiPageContent() {
               </p>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filteredMinerals.map((mineral) => {
                 const categoryLabel = getCategoryLabel(mineral.kategori);
@@ -622,6 +581,22 @@ function MineralListesiPageContent() {
                 );
               })}
             </div>
+
+            {hasMore && filteredMinerals.length > 0 ? (
+              <div className="mt-8 flex justify-center border-t border-emerald-100/80 pt-8">
+                <button
+                  type="button"
+                  disabled={loadingMore || listLoading}
+                  onClick={handleLoadMore}
+                  className={uiLoadMoreBtn}
+                >
+                  {loadingMore
+                    ? "Yükleniyor..."
+                    : `Daha Fazla Göster (${filteredMinerals.length} / ${totalCount})`}
+                </button>
+              </div>
+            ) : null}
+            </>
           )}
         </section>
       </div>
