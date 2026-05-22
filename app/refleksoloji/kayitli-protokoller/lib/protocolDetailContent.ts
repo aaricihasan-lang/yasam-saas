@@ -6,6 +6,15 @@ function reflexologyText(value: unknown): string {
   return String(value).trim();
 }
 
+function pickRawText(raw: Record<string, unknown> | null, keys: string[]): string | null {
+  if (!raw) return null;
+  for (const key of keys) {
+    const text = reflexologyText(raw[key]);
+    if (text) return text;
+  }
+  return null;
+}
+
 function normalizeStepLine(line: string): string {
   return line.replace(/^\s*[\d]+[\.\)\-:]\s*/, "").trim();
 }
@@ -30,7 +39,103 @@ export function parseLinesToSteps(text: string): string[] {
   return [];
 }
 
-function extractStepsFromRaw(raw: Record<string, unknown> | null): string[] {
+/** raw_json.metin — Uygulama Notları ana kaynağı */
+export function resolvePrimaryMetin(
+  rawJson: Record<string, unknown> | null,
+  applicationNotes?: string | null,
+): string | null {
+  const fromRaw = pickRawText(rawJson, [
+    "metin",
+    "uygulama_notlari",
+    "uygulama_notu",
+    "notes",
+    "note",
+    "aciklama",
+    "description",
+  ]);
+  if (fromRaw) return fromRaw;
+
+  const db = applicationNotes?.trim();
+  return db || null;
+}
+
+/** raw_json.hedef — Hedef / Sorun */
+export function resolveTargetProblem(
+  protocol: ReflexologyProtocolRecord,
+  rawJson: Record<string, unknown> | null,
+): string | null {
+  const hedef = pickRawText(rawJson, ["hedef", "target", "problem", "sorun", "target_problem"]);
+  if (hedef) return hedef;
+
+  return (
+    protocol.target_problem?.trim() ||
+    protocol.title?.trim() ||
+    pickRawText(rawJson, ["title", "name", "baslik", "protokol_adi"]) ||
+    null
+  );
+}
+
+export function protocolHeroTitle(
+  protocol: ReflexologyProtocolRecord,
+  rawJson: Record<string, unknown> | null = protocol.raw_json,
+): string {
+  return resolveTargetProblem(protocol, rawJson) || "Başlıksız protokol";
+}
+
+/** raw_json.kaynak */
+export function resolveSourceText(
+  rawJson: Record<string, unknown> | null,
+  opts?: { skipTexts?: (string | null | undefined)[] },
+): string | null {
+  const kaynak = pickRawText(rawJson, ["kaynak", "source"]);
+  if (!kaynak) return null;
+
+  const skip = new Set(
+    (opts?.skipTexts ?? []).map((v) => v?.trim()).filter(Boolean) as string[],
+  );
+  if (skip.has(kaynak)) return null;
+
+  return kaynak;
+}
+
+function formatMethodStep(method: Record<string, unknown>): string {
+  const baslik = reflexologyText(method.metod_basligi);
+  const metin = reflexologyText(method.metin);
+  const aciklama = reflexologyText(method.aciklama);
+  const diger = reflexologyText(method.diger_uygulamalar);
+
+  const lines: string[] = [];
+  if (baslik) lines.push(baslik);
+  if (metin) lines.push(metin);
+  if (aciklama && aciklama !== metin) lines.push(aciklama);
+  if (diger) lines.push(diger);
+
+  return lines.join("\n").trim();
+}
+
+/** raw_json.methods[] → numaralı adımlar */
+function extractStepsFromMethods(raw: Record<string, unknown> | null): string[] {
+  if (!raw) return [];
+  const methods = raw.methods;
+  if (!Array.isArray(methods) || methods.length === 0) return [];
+
+  const steps: string[] = [];
+  for (const entry of methods) {
+    if (!entry || typeof entry !== "object") continue;
+    const formatted = formatMethodStep(entry as Record<string, unknown>);
+    if (!formatted) continue;
+
+    const lineSteps = parseLinesToSteps(formatted);
+    if (lineSteps.length >= 2) {
+      steps.push(...lineSteps);
+    } else {
+      steps.push(formatted);
+    }
+  }
+  return steps;
+}
+
+function extractStepsFromLegacyRaw(raw: Record<string, unknown> | null): string[] {
   if (!raw) return [];
 
   const candidates = [
@@ -50,19 +155,23 @@ function extractStepsFromRaw(raw: Record<string, unknown> | null): string[] {
     if (text) {
       const fromLines = parseLinesToSteps(text);
       if (fromLines.length > 0) return fromLines;
-      if (text.length > 0) return [text];
+      return [text];
     }
   }
 
   return [];
 }
 
+/** Uygulama Adımları — önce methods[], sonra legacy alanlar (metin hariç) */
 export function parseApplicationSteps(
   applicationNotes: string | null | undefined,
   rawJson: Record<string, unknown> | null,
 ): string[] {
-  const fromRaw = extractStepsFromRaw(rawJson);
-  if (fromRaw.length > 0) return fromRaw;
+  const fromMethods = extractStepsFromMethods(rawJson);
+  if (fromMethods.length > 0) return fromMethods;
+
+  const fromLegacy = extractStepsFromLegacyRaw(rawJson);
+  if (fromLegacy.length > 0) return fromLegacy;
 
   const notes = applicationNotes?.trim() ?? "";
   const fromNotes = parseLinesToSteps(notes);
@@ -71,50 +180,45 @@ export function parseApplicationSteps(
   return [];
 }
 
+/**
+ * Uygulama Notları — öncelik raw_json.metin; adımlarla aynı metin olsa bile not bölümünde gösterilir.
+ */
 export function resolveApplicationNotesDisplay(
   applicationNotes: string | null | undefined,
-  steps: string[],
+  rawJson: Record<string, unknown> | null,
+  _steps: string[],
 ): string | null {
-  const notes = applicationNotes?.trim() ?? "";
-  if (!notes) return null;
-
-  if (steps.length === 0) return notes;
-
-  const joined = steps.join("\n").trim();
-  if (joined === notes) return null;
-
-  const lines = parseLinesToSteps(notes);
-  if (lines.length > 0 && lines.length === steps.length) return null;
-
-  return notes;
+  return resolvePrimaryMetin(rawJson, applicationNotes);
 }
 
+/** Kaynak / Açıklama kartı */
 export function extractSourceDescription(
   rawJson: Record<string, unknown> | null,
-  opts: { applicationNotes?: string | null; targetProblem?: string | null; title?: string | null },
+  opts: {
+    applicationNotes?: string | null;
+    targetProblem?: string | null;
+    title?: string | null;
+  },
 ): string | null {
+  const source = resolveSourceText(rawJson, {
+    skipTexts: [opts.applicationNotes, opts.targetProblem, opts.title],
+  });
+  if (source) return source;
+
   if (!rawJson) return null;
 
   const skip = new Set(
-    [opts.applicationNotes, opts.targetProblem, opts.title]
+    [opts.applicationNotes, opts.targetProblem, opts.title, source]
       .map((v) => v?.trim())
       .filter(Boolean) as string[],
   );
 
-  for (const key of ["kaynak", "source", "kisa_aciklama", "description", "aciklama"] as const) {
+  for (const key of ["kisa_aciklama"] as const) {
     const text = reflexologyText(rawJson[key]);
     if (text && !skip.has(text)) return text;
   }
 
   return null;
-}
-
-export function protocolHeroTitle(protocol: ReflexologyProtocolRecord): string {
-  return (
-    protocol.target_problem?.trim() ||
-    protocol.title?.trim() ||
-    "Başlıksız protokol"
-  );
 }
 
 export function formatRawJsonForDev(raw: Record<string, unknown> | null): string {

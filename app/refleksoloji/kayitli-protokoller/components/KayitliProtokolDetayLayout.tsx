@@ -15,8 +15,11 @@ import {
   extractSourceDescription,
   formatRawJsonForDev,
   parseApplicationSteps,
+  parseLinesToSteps,
   protocolHeroTitle,
   resolveApplicationNotesDisplay,
+  resolveSourceText,
+  resolveTargetProblem,
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 
@@ -70,6 +73,31 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
   return (
     <p className="rounded-xl border border-dashed border-violet-200/90 bg-violet-50/50 px-4 py-3 text-[15px] font-semibold leading-relaxed text-violet-800/85">
       {children}
+    </p>
+  );
+}
+
+function ApplicationNotesBody({ text }: { text: string }) {
+  const paragraphs = text.split(/\r?\n/).map((p) => p.trim()).filter(Boolean);
+
+  if (paragraphs.length >= 2) {
+    return (
+      <div className="space-y-4">
+        {paragraphs.map((paragraph, index) => (
+          <p
+            key={`${index}-${paragraph.slice(0, 20)}`}
+            className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
+          >
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+      {text}
     </p>
   );
 }
@@ -180,21 +208,37 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     [protocol?.application_notes, protocol?.raw_json],
   );
 
-  const applicationNotesDisplay = useMemo(
-    () => resolveApplicationNotesDisplay(protocol?.application_notes, applicationSteps),
-    [protocol?.application_notes, applicationSteps],
-  );
+  const rawJson = protocol?.raw_json ?? null;
 
-  const sourceDescription = useMemo(
+  const applicationNotesDisplay = useMemo(
     () =>
       protocol
-        ? extractSourceDescription(protocol.raw_json, {
-            applicationNotes: protocol.application_notes,
-            targetProblem: protocol.target_problem,
-            title: protocol.title,
-          })
+        ? resolveApplicationNotesDisplay(protocol.application_notes, rawJson, applicationSteps)
         : null,
-    [protocol],
+    [protocol, rawJson, applicationSteps],
+  );
+
+  const targetText = useMemo(
+    () => (protocol ? resolveTargetProblem(protocol, rawJson) : null),
+    [protocol, rawJson],
+  );
+
+  const sourceDescription = useMemo(() => {
+    if (!protocol) return null;
+    const source = resolveSourceText(rawJson, {
+      skipTexts: [applicationNotesDisplay, targetText, protocol.title],
+    });
+    if (source) return source;
+    return extractSourceDescription(rawJson, {
+      applicationNotes: applicationNotesDisplay,
+      targetProblem: targetText,
+      title: protocol.title,
+    });
+  }, [protocol, rawJson, applicationNotesDisplay, targetText]);
+
+  const heroTitle = useMemo(
+    () => (protocol ? protocolHeroTitle(protocol, rawJson) : ""),
+    [protocol, rawJson],
   );
 
   const rawJsonDevText = useMemo(
@@ -206,7 +250,6 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     process.env.NODE_ENV === "development" && Boolean(rawJsonDevText.trim());
 
   const hasAtlasMapping = organs.length > 0 && regions.length > 0;
-  const heroTitle = protocol ? protocolHeroTitle(protocol) : "";
 
   if (loading) {
     return (
@@ -243,7 +286,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     );
   }
 
-  const targetText = protocol.target_problem?.trim() || null;
+  const notesParagraphs = applicationNotesDisplay
+    ? parseLinesToSteps(applicationNotesDisplay)
+    : [];
 
   return (
     <main className="relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
@@ -327,17 +372,26 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               <ApplicationStepsList steps={applicationSteps} />
             </ClinicalCard>
 
-            <ClinicalCard
-              title="Uygulama Notları"
-              tone="amber"
-              hidden={!applicationNotesDisplay}
-            >
-              <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
-                {applicationNotesDisplay}
-              </p>
+            <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
+              {applicationNotesDisplay ? (
+                notesParagraphs.length >= 2 ? (
+                  <ol className="space-y-4">
+                    {notesParagraphs.map((paragraph, index) => (
+                      <li
+                        key={`note-${index}-${paragraph.slice(0, 16)}`}
+                        className="rounded-2xl border border-amber-100/90 bg-amber-50/50 px-4 py-3 text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
+                      >
+                        {paragraph}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ApplicationNotesBody text={applicationNotesDisplay} />
+                )
+              ) : null}
             </ClinicalCard>
 
-            {!applicationNotesDisplay && applicationSteps.length === 0 ? (
+            {!applicationNotesDisplay ? (
               <ClinicalCard title="Uygulama Notları" tone="amber">
                 <EmptyHint>Henüz not yok.</EmptyHint>
               </ClinicalCard>
