@@ -19,6 +19,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -1593,44 +1594,19 @@ function StoneDetailPage() {
         </section>
       </div>
 
-      {activeReader && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
-          <div className="w-full max-w-[920px] rounded-[30px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.26)] ring-1 ring-white">
-            <header className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="mb-1 inline-flex rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-cyan-700 ring-1 ring-cyan-100">
-                  {activeReader.badge}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-[24px] font-black text-slate-950">
-                    {activeReader.title}
-                  </h2>
-                  {readerHasMatch ? <SearchMatchBadge /> : null}
-                </div>
-
-                <p className="mt-1 text-[12px] font-bold text-slate-400">
-                  {safeStone.stone_name} kaydı okunuyor.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveReader(null)}
-                className="rounded-2xl bg-slate-950 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
-              >
-                Kapat
-              </button>
-            </header>
-
-            <div className="max-h-[62vh] overflow-y-auto rounded-[24px] bg-slate-50/80 p-5 text-[15px] leading-8 text-slate-700 ring-1 ring-slate-100">
-              <div className="whitespace-pre-wrap">
-                {renderHighlightedText(activeReader.text, highlightQuery)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <StoneReaderModal
+        open={Boolean(activeReader)}
+        title={activeReader?.title ?? ""}
+        badge={activeReader?.badge ?? ""}
+        subtitle={`${safeStone.stone_name} · detaylı okuma`}
+        text={activeReader?.text ?? ""}
+        highlightQuery={highlightQuery}
+        renderHighlight={(segment, key) => (
+          <Fragment key={key}>{renderHighlightedText(segment, highlightQuery)}</Fragment>
+        )}
+        matchBadge={readerHasMatch ? <SearchMatchBadge /> : null}
+        onClose={() => setActiveReader(null)}
+      />
 
       {activeEditor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
