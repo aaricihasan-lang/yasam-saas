@@ -23,11 +23,19 @@ type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
 };
 
-const navBtnPrimary =
-  "inline-flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white/95 px-5 py-3.5 text-[15px] font-black text-violet-950 shadow-md transition hover:border-violet-400 hover:bg-violet-50 sm:px-6 sm:text-base";
+const navBtnBase =
+  "inline-flex w-full items-center justify-center gap-3 rounded-2xl border-2 px-6 py-4 text-[16px] font-black leading-tight shadow-[0_12px_32px_-10px_rgba(91,33,182,0.4)] ring-2 ring-white/75 transition duration-200 hover:scale-[1.03] active:scale-[0.98] sm:w-auto sm:justify-start sm:px-7 sm:py-4 sm:text-[17px]";
 
-const navBtnSecondary =
-  "inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-violet-50 px-5 py-3.5 text-[15px] font-black text-fuchsia-950 shadow-md transition hover:from-fuchsia-100 hover:to-violet-100 sm:px-6 sm:text-base";
+/** Kayıtlı Protokollere Dön — mor/cyan pastel gradient */
+const navBtnBackToList =
+  `${navBtnBase} border-violet-300/90 bg-gradient-to-r from-violet-200 via-fuchsia-100 to-cyan-100 text-violet-950 hover:border-violet-400 hover:shadow-[0_16px_40px_-10px_rgba(139,92,246,0.5)] hover:from-violet-300/90 hover:via-fuchsia-200 hover:to-cyan-200`;
+
+/** Refleksoloji ana menü — fuchsia/amber pastel */
+const navBtnBackToMenu =
+  `${navBtnBase} border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-100 via-rose-50 to-amber-100 text-fuchsia-950 hover:border-fuchsia-400 hover:shadow-[0_16px_40px_-10px_rgba(217,70,239,0.4)] hover:from-fuchsia-200 hover:via-rose-100 hover:to-amber-200`;
+
+const navBtnIconWrap =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/85 text-lg shadow-sm";
 
 const clinicalCardClass =
   "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
@@ -248,8 +256,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         >
           {loadErrorMessage}
         </p>
-        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
-          ← Kayıtlı Protokollere Dön
+        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
+          <span className={navBtnIconWrap} aria-hidden>
+            🗂️
+          </span>
+          <span>← Kayıtlı Protokollere Dön</span>
         </Link>
       </main>
     );
@@ -259,8 +270,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
         <p className="text-xl font-bold text-violet-900">Protokol bulunamadı.</p>
-        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
-          ← Kayıtlı Protokollere Dön
+        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
+          <span className={navBtnIconWrap} aria-hidden>
+            🗂️
+          </span>
+          <span>← Kayıtlı Protokollere Dön</span>
         </Link>
       </main>
     );
@@ -279,20 +293,31 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[1800px] px-6 py-6 sm:px-8 lg:px-10">
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
-            ← Kayıtlı Protokollere Dön
-          </Link>
-          <Link href="/refleksoloji" className={navBtnSecondary}>
-            Refleksoloji Ana Sayfasına Dön
-          </Link>
-          <Link
-            href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
-            className="ml-auto inline-flex rounded-2xl border-2 border-emerald-300/80 bg-emerald-500 px-5 py-3 text-[15px] font-black text-white shadow-md transition hover:bg-emerald-600"
-          >
-            Protokolü Düzenle
-          </Link>
-        </div>
+        <nav
+          className="rounded-[24px] border-2 border-violet-200/70 bg-white/70 p-4 shadow-[0_12px_36px_-14px_rgba(139,92,246,0.25)] ring-1 ring-violet-100/80 backdrop-blur-md sm:p-5"
+          aria-label="Sayfa gezintisi"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+            <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
+              <span className={navBtnIconWrap} aria-hidden>
+                🗂️
+              </span>
+              <span>← Kayıtlı Protokollere Dön</span>
+            </Link>
+            <Link href="/refleksoloji" className={navBtnBackToMenu}>
+              <span className={navBtnIconWrap} aria-hidden>
+                ←
+              </span>
+              <span>Refleksoloji Ana Sayfasına Dön</span>
+            </Link>
+            <Link
+              href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
+              className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-emerald-300/80 bg-emerald-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] transition duration-200 hover:scale-[1.02] hover:bg-emerald-600 sm:ml-auto sm:w-auto sm:text-[17px]"
+            >
+              Protokolü Düzenle
+            </Link>
+          </div>
+        </nav>
 
         <header className="mt-6 rounded-[32px] border-2 border-violet-200/70 bg-gradient-to-br from-violet-100/90 via-white/95 to-fuchsia-50/90 p-6 shadow-[0_20px_50px_-18px_rgba(139,92,246,0.22)] sm:p-8 lg:p-10">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
