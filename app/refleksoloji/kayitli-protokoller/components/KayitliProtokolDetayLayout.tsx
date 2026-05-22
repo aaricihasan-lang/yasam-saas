@@ -14,10 +14,10 @@ import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
   buildProtocolClinicalContent,
   formatRawJsonForDev,
-  introDiffersFromTarget,
   protocolHeroTitle,
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
+import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -95,28 +95,6 @@ function ApplicationNotesBody({ text }: { text: string }) {
     <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
       {text}
     </p>
-  );
-}
-
-function ApplicationStepsList({ steps }: { steps: string[] }) {
-  if (steps.length === 0) return null;
-
-  return (
-    <ol className="space-y-4">
-      {steps.map((step, index) => (
-        <li
-          key={`${index}-${step.slice(0, 24)}`}
-          className="flex gap-4 rounded-2xl border border-violet-100/90 bg-gradient-to-r from-violet-50/80 to-fuchsia-50/60 px-4 py-4 shadow-sm ring-1 ring-white/80"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-lg font-black text-white shadow-md">
-            {index + 1}
-          </span>
-          <p className="min-w-0 flex-1 text-[17px] font-semibold leading-[1.75] text-slate-800 sm:text-[18px]">
-            {step}
-          </p>
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -205,9 +183,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   );
 
   const targetText = clinical?.targetProblem ?? null;
-  const protocolIntro = clinical?.protocolIntro ?? null;
-  const showProtocolIntro = introDiffersFromTarget(protocolIntro, targetText);
-  const applicationSteps = clinical?.applicationSteps ?? [];
+  const groupedProtocol = clinical?.groupedProtocol ?? { intro: null, groups: [] };
   const applicationNotesDisplay = clinical?.applicationNotes ?? null;
   const sourceDescription = clinical?.source ?? null;
 
@@ -335,27 +311,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               </p>
             </ClinicalCard>
 
-            <ClinicalCard
-              title="Protokol Başlığı / Kısa Açıklama"
-              tone="violet"
-              hidden={!showProtocolIntro}
-            >
-              <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
-                {protocolIntro}
-              </p>
-            </ClinicalCard>
-
             <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
               <OrganPills organs={organs} organStatuses={organStatuses} />
             </ClinicalCard>
 
-            <ClinicalCard
-              title="Uygulama Adımları"
-              tone="violet"
-              hidden={applicationSteps.length === 0}
-            >
-              <ApplicationStepsList steps={applicationSteps} />
-            </ClinicalCard>
+            <ClinicalProtocolStepsCard grouped={groupedProtocol} />
 
             <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
               {notesParagraphs.length >= 2 ? (

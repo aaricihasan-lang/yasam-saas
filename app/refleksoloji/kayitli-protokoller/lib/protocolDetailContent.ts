@@ -1,9 +1,19 @@
 import type { ReflexologyProtocolRecord } from "../types";
+import {
+  flattenGroupedItems,
+  groupProtocolStepLines,
+  type ProtocolGroupedView,
+} from "./protocolStepGroups";
+
+export type { ProtocolGroupedView, ProtocolStepGroup, ProtocolStepGroupKey } from "./protocolStepGroups";
+export { hasGroupedProtocolContent } from "./protocolStepGroups";
 
 export type ProtocolClinicalContent = {
   targetProblem: string | null;
-  /** record.metin ilk satırı — hedeften farklıysa ayrı kart */
+  /** record.metin ilk satırı */
   protocolIntro: string | null;
+  /** Maddeli klinik protokol görünümü */
+  groupedProtocol: ProtocolGroupedView;
   applicationSteps: string[];
   applicationNotes: string | null;
   source: string | null;
@@ -186,7 +196,14 @@ export function buildProtocolClinicalContent(
   const metinLines = metin ? dedupeLines(splitMetinToLines(metin)) : [];
 
   if (stepsFromMethods) {
-    applicationSteps = dedupeLines(methodsStepsRaw, comparePool);
+    const expanded: string[] = [];
+    for (const block of methodsStepsRaw) {
+      const lines = splitMetinToLines(block);
+      if (lines.length >= 2) expanded.push(...lines);
+      else if (lines.length === 1) expanded.push(lines[0]!);
+      else if (block.trim()) expanded.push(block.trim());
+    }
+    applicationSteps = dedupeLines(expanded, comparePool);
     addToComparePool(comparePool, ...applicationSteps);
 
     if (metinLines.length > 0) {
@@ -219,6 +236,14 @@ export function buildProtocolClinicalContent(
     }
   }
 
+  const stepLinesForGrouping = applicationSteps;
+  const groupedProtocol: ProtocolGroupedView = {
+    intro: protocolIntro,
+    groups: groupProtocolStepLines(stepLinesForGrouping, comparePool),
+  };
+
+  addToComparePool(comparePool, ...flattenGroupedItems(groupedProtocol.groups));
+
   const applicationNotes = resolveSupplementaryNotes(
     raw,
     protocol.application_notes,
@@ -243,6 +268,7 @@ export function buildProtocolClinicalContent(
   return {
     targetProblem,
     protocolIntro,
+    groupedProtocol,
     applicationSteps,
     applicationNotes,
     source,
