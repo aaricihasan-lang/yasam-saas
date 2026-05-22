@@ -14,6 +14,10 @@ export type ProtocolStepGroup = {
 export type ProtocolGroupedView = {
   intro: string | null;
   groups: ProtocolStepGroup[];
+  /** record.metin ham satırları — fallback için */
+  rawMetinLines: string[];
+  metinFallbackText: string | null;
+  useFlatFallback: boolean;
 };
 
 const GROUP_ORDER: { key: ProtocolStepGroupKey; title: string }[] = [
@@ -116,8 +120,36 @@ export function flattenGroupedItems(groups: ProtocolStepGroup[]): string[] {
   return groups.flatMap((g) => g.items);
 }
 
+export function resolveDisplayGroups(view: ProtocolGroupedView): ProtocolStepGroup[] {
+  const groupedItems = flattenGroupedItems(view.groups);
+  if (groupedItems.length > 0) return view.groups;
+
+  if (view.rawMetinLines.length > 0) {
+    return [
+      {
+        key: "preparation",
+        title: "Uygulama Adımları",
+        items: view.rawMetinLines,
+      },
+    ];
+  }
+
+  if (view.metinFallbackText?.trim()) {
+    return [
+      {
+        key: "preparation",
+        title: "Uygulama Adımları",
+        items: [view.metinFallbackText.trim()],
+      },
+    ];
+  }
+
+  return [];
+}
+
 export function hasGroupedProtocolContent(view: ProtocolGroupedView | null): boolean {
   if (!view) return false;
   if (view.intro?.trim()) return true;
-  return view.groups.some((g) => g.items.length > 0);
+  if (resolveDisplayGroups(view).some((g) => g.items.length > 0)) return true;
+  return Boolean(view.metinFallbackText?.trim());
 }

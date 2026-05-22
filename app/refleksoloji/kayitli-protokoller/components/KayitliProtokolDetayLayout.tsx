@@ -183,7 +183,13 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   );
 
   const targetText = clinical?.targetProblem ?? null;
-  const groupedProtocol = clinical?.groupedProtocol ?? { intro: null, groups: [] };
+  const groupedProtocol = clinical?.groupedProtocol ?? {
+    intro: null,
+    groups: [],
+    rawMetinLines: [],
+    metinFallbackText: null,
+    useFlatFallback: false,
+  };
   const applicationNotesDisplay = clinical?.applicationNotes ?? null;
   const sourceDescription = clinical?.source ?? null;
 

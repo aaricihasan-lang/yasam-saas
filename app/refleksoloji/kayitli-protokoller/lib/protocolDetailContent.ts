@@ -6,7 +6,7 @@ import {
 } from "./protocolStepGroups";
 
 export type { ProtocolGroupedView, ProtocolStepGroup, ProtocolStepGroupKey } from "./protocolStepGroups";
-export { hasGroupedProtocolContent } from "./protocolStepGroups";
+export { hasGroupedProtocolContent, resolveDisplayGroups } from "./protocolStepGroups";
 
 export type ProtocolClinicalContent = {
   targetProblem: string | null;
@@ -44,11 +44,19 @@ function normalizeStepLine(line: string): string {
   return line.replace(/^\s*[\d]+[\.\)\-:]\s*/, "").trim();
 }
 
-function splitMetinToLines(metin: string): string[] {
-  return metin
-    .split(/\r?\n/)
-    .map((line) => normalizeStepLine(line))
-    .filter(Boolean);
+/** \n, \r\n, ; ve • ile satır/parça ayırır */
+export function splitMetinToLines(metin: string): string[] {
+  const parts: string[] = [];
+
+  for (const lineChunk of metin.split(/\r?\n/)) {
+    const segments = lineChunk.split(/[;•]+/);
+    for (const segment of segments) {
+      const normalized = normalizeStepLine(segment.trim());
+      if (normalized) parts.push(normalized);
+    }
+  }
+
+  return parts;
 }
 
 /** trim + lowercase ile satır tekilleştirme */
@@ -236,13 +244,83 @@ export function buildProtocolClinicalContent(
     }
   }
 
-  const stepLinesForGrouping = applicationSteps;
+  const rawMetinLines = metinLines;
+  const stepLinesForGrouping =
+    applicationSteps.length > 0 ? applicationSteps : rawMetinLines;
+
+  let groupedGroups = groupProtocolStepLines(stepLinesForGrouping);
+  const groupedItemCount = flattenGroupedItems(groupedGroups).length;
+
+  let groupedIntro = protocolIntro;
+  let useFlatFallback = false;
+
+  if (groupedItemCount === 0) {
+    if (rawMetinLines.length > 0) {
+      useFlatFallback = true;
+      groupedIntro = null;
+      groupedGroups = [
+        {
+          key: "preparation",
+          title: "Uygulama Adımları",
+          items: rawMetinLines,
+        },
+      ];
+    } else if (metin?.trim()) {
+      useFlatFallback = true;
+      groupedIntro = null;
+      groupedGroups = [
+        {
+          key: "preparation",
+          title: "Uygulama Adımları",
+          items: [metin.trim()],
+        },
+      ];
+    } else if (applicationSteps.length > 0) {
+      groupedGroups = [
+        {
+          key: "preparation",
+          title: "Uygulama Adımları",
+          items: applicationSteps,
+        },
+      ];
+    }
+  } else if (
+    groupedItemCount < stepLinesForGrouping.length &&
+    rawMetinLines.length > groupedItemCount
+  ) {
+    const groupedKeys = new Set(
+      flattenGroupedItems(groupedGroups).map((line) => normalizeCompareKey(line)),
+    );
+    const missing = rawMetinLines.filter(
+      (line) => !groupedKeys.has(normalizeCompareKey(line)),
+    );
+    if (missing.length > 0) {
+      groupedGroups = [
+        ...groupedGroups,
+        {
+          key: "extra",
+          title: "Ek Notlar",
+          items: missing,
+        },
+      ];
+    }
+  }
+
   const groupedProtocol: ProtocolGroupedView = {
-    intro: protocolIntro,
-    groups: groupProtocolStepLines(stepLinesForGrouping, comparePool),
+    intro: groupedIntro,
+    groups: groupedGroups,
+    rawMetinLines,
+    metinFallbackText: metin?.trim() || null,
+    useFlatFallback,
   };
 
-  addToComparePool(comparePool, ...flattenGroupedItems(groupedProtocol.groups));
+  addToComparePool(
+    comparePool,
+    groupedIntro,
+    ...flattenGroupedItems(groupedProtocol.groups),
+    ...rawMetinLines,
+    metin,
+  );
 
   const applicationNotes = resolveSupplementaryNotes(
     raw,

@@ -1,7 +1,10 @@
 "use client";
 
 import type { ProtocolGroupedView, ProtocolStepGroupKey } from "../lib/protocolStepGroups";
-import { hasGroupedProtocolContent } from "../lib/protocolStepGroups";
+import {
+  hasGroupedProtocolContent,
+  resolveDisplayGroups,
+} from "../lib/protocolStepGroups";
 
 const clinicalCardClass =
   "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
@@ -77,9 +80,12 @@ type ClinicalProtocolStepsCardProps = {
 };
 
 export function ClinicalProtocolStepsCard({ grouped }: ClinicalProtocolStepsCardProps) {
-  if (!hasGroupedProtocolContent(grouped)) return null;
+  const displayGroups = resolveDisplayGroups(grouped);
+  const hasSteps = displayGroups.some((g) => g.items.length > 0);
 
-  const showIntro = Boolean(grouped.intro?.trim());
+  if (!hasGroupedProtocolContent(grouped) && !hasSteps) return null;
+
+  const showIntro = Boolean(grouped.intro?.trim()) && !grouped.useFlatFallback;
 
   return (
     <section className={clinicalCardClass}>
@@ -98,8 +104,8 @@ export function ClinicalProtocolStepsCard({ grouped }: ClinicalProtocolStepsCard
           </div>
         ) : null}
 
-        {grouped.groups.map((group) => (
-          <StepGroupSection key={group.key} group={group} />
+        {displayGroups.map((group) => (
+          <StepGroupSection key={`${group.key}-${group.title}`} group={group} />
         ))}
       </div>
     </section>
