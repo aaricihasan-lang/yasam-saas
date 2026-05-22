@@ -186,6 +186,8 @@ const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-emerald-700";
 const uiLoadMoreBtn =
   "rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-amber-50 px-8 py-4 text-sm font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-amber-100 disabled:opacity-60";
+const uiBackToDogaltasBtn =
+  "inline-flex shrink-0 items-center gap-2.5 rounded-2xl border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-7 py-4 text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(16,185,129,0.5)] ring-2 ring-white/45 transition duration-200 hover:scale-[1.04] hover:border-emerald-300/80 hover:shadow-[0_18px_44px_-8px_rgba(34,211,238,0.55)] hover:shadow-cyan-400/25";
 
 function MineralListesiPageContent() {
   const router = useRouter();
@@ -385,12 +387,10 @@ function MineralListesiPageContent() {
       <div className="relative z-10 w-full px-6 py-6 xl:px-10 2xl:px-14">
         <header className={`${uiHeaderCard} mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Link
-                href="/dogaltas"
-                className="inline-flex h-14 items-center rounded-2xl border border-white/40 bg-white/60 px-7 text-base font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400/60"
-              >
-                ← Geri
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <Link href="/dogaltas" className={uiBackToDogaltasBtn}>
+                <span aria-hidden>←</span>
+                <span>Doğaltaş Merkezine Dön</span>
               </Link>
               <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-5 py-2 text-sm font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL LİSTESİ
