@@ -20,6 +20,44 @@ function escapeIlikePattern(value: string): string {
   return value.replace(/[%_\\]/g, "\\$&");
 }
 
+/** Metin kolonları — arama dolu iken .or ilike (case-insensitive) */
+export const STONES_LIST_SEARCH_TEXT_COLUMNS = [
+  "stone_name",
+  "short_description",
+  "general_info",
+  "physical_effects",
+  "spiritual_effects",
+  "other_effects",
+  "warning_text",
+  "source_note",
+] as const;
+
+/** Dizi / JSON — PostgREST ::text cast ile ilike */
+export const STONES_LIST_SEARCH_CAST_COLUMNS = [
+  "chakras::text",
+  "assignments::text",
+] as const;
+
+function wrapPostgrestOrValue(pattern: string): string {
+  if (/[,.()]/.test(pattern)) {
+    return `"${pattern.replace(/"/g, '""')}"`;
+  }
+  return pattern;
+}
+
+/** Geniş kapsamlı liste araması — select hâlâ hafif kolonlar */
+export function buildStonesListSearchOrFilter(term: string): string | null {
+  const q = term.trim();
+  if (!q) return null;
+
+  const pattern = wrapPostgrestOrValue(`%${escapeIlikePattern(q)}%`);
+  const clauses = [
+    ...STONES_LIST_SEARCH_TEXT_COLUMNS.map((col) => `${col}.ilike.${pattern}`),
+    ...STONES_LIST_SEARCH_CAST_COLUMNS.map((col) => `${col}.ilike.${pattern}`),
+  ];
+  return clauses.join(",");
+}
+
 export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
   return {
     id: String(row.id ?? ""),
@@ -58,11 +96,9 @@ export async function fetchStonesListCount(
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
 
-  if (q) {
-    const pattern = `%${escapeIlikePattern(q)}%`;
-    query = query.or(
-      `stone_name.ilike.${pattern},short_description.ilike.${pattern}`,
-    );
+  const searchOr = q ? buildStonesListSearchOrFilter(q) : null;
+  if (searchOr) {
+    query = query.or(searchOr);
   }
 
   const { count, error } = await query;
@@ -86,11 +122,9 @@ export async function fetchStonesListPage(
     .order("updated_at", { ascending: false, nullsFirst: false })
     .range(from, to);
 
-  if (q) {
-    const pattern = `%${escapeIlikePattern(q)}%`;
-    query = query.or(
-      `stone_name.ilike.${pattern},short_description.ilike.${pattern}`,
-    );
+  const searchOr = q ? buildStonesListSearchOrFilter(q) : null;
+  if (searchOr) {
+    query = query.or(searchOr);
   }
 
   const { data, error } = await query;
