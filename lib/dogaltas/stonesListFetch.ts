@@ -16,11 +16,7 @@ export type StoneListItem = {
   updated_at: string | null;
 };
 
-function escapeIlikePattern(value: string): string {
-  return value.replace(/[%_\\]/g, "\\$&");
-}
-
-/** Metin kolonları — arama dolu iken .or ilike (case-insensitive) */
+/** Metin kolonları — arama dolu iken .or ilike (case-insensitive, tüm tablo) */
 export const STONES_LIST_SEARCH_TEXT_COLUMNS = [
   "stone_name",
   "short_description",
@@ -32,30 +28,27 @@ export const STONES_LIST_SEARCH_TEXT_COLUMNS = [
   "source_note",
 ] as const;
 
-/** Dizi / JSON — PostgREST ::text cast ile ilike */
-export const STONES_LIST_SEARCH_CAST_COLUMNS = [
-  "chakras::text",
-  "assignments::text",
-] as const;
-
-function wrapPostgrestOrValue(pattern: string): string {
-  if (/[,.()]/.test(pattern)) {
-    return `"${pattern.replace(/"/g, '""')}"`;
-  }
-  return pattern;
+/**
+ * PostgREST .or() dizesini bozan karakterleri temizler.
+ * chakras / assignments JSON cast kullanılmıyor (parse hatası).
+ */
+export function sanitizeOrSearchTerm(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[,()%']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Geniş kapsamlı liste araması — select hâlâ hafif kolonlar */
 export function buildStonesListSearchOrFilter(term: string): string | null {
-  const q = term.trim();
-  if (!q) return null;
+  const safeTerm = sanitizeOrSearchTerm(term);
+  if (!safeTerm) return null;
 
-  const pattern = wrapPostgrestOrValue(`%${escapeIlikePattern(q)}%`);
-  const clauses = [
-    ...STONES_LIST_SEARCH_TEXT_COLUMNS.map((col) => `${col}.ilike.${pattern}`),
-    ...STONES_LIST_SEARCH_CAST_COLUMNS.map((col) => `${col}.ilike.${pattern}`),
-  ];
-  return clauses.join(",");
+  const pattern = `%${safeTerm}%`;
+  return STONES_LIST_SEARCH_TEXT_COLUMNS.map(
+    (col) => `${col}.ilike.${pattern}`,
+  ).join(",");
 }
 
 export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
