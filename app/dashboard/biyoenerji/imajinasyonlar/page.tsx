@@ -4,11 +4,14 @@ import BiyoenerjiSectionShell from "../components/BiyoenerjiSectionShell";
 export default function ImajinasyonlarPage() {
   return (
     <BiyoenerjiSectionShell
-      badge="BİYOENERJİ · İMAJİNASYON"
-      title="İmajinasyonlar"
+      headerVariant="premium"
+      badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
+      title="İmajinasyon Kütüphanesi"
       subtitle="Görselleştirme, rehberli çalışmalar ve seans imgeleri"
     >
-      <Imajinasyonlar />
+      <div className="w-full min-w-0 max-w-none px-0 sm:px-2 lg:px-4 xl:px-6 2xl:px-8">
+        <Imajinasyonlar />
+      </div>
     </BiyoenerjiSectionShell>
   );
 }
