@@ -1,6 +1,8 @@
 "use client";
 
+import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
+import type { DogaltasContentTypography } from "@/lib/dogaltas/dogaltasDetailFontSize";
 import { useCallback, useEffect, type ReactNode } from "react";
 
 export type StoneReaderModalProps = {
@@ -12,6 +14,14 @@ export type StoneReaderModalProps = {
   highlightQuery?: string;
   renderHighlight?: (text: string, key: string) => ReactNode;
   matchBadge?: ReactNode;
+  fontSizePx: number;
+  typography: DogaltasContentTypography;
+  onFontDecrease: () => void;
+  onFontReset: () => void;
+  onFontIncrease: () => void;
+  canFontDecrease?: boolean;
+  canFontIncrease?: boolean;
+  isFontDefault?: boolean;
   onClose: () => void;
 };
 
@@ -24,6 +34,14 @@ export function StoneReaderModal({
   highlightQuery,
   renderHighlight,
   matchBadge,
+  fontSizePx,
+  typography,
+  onFontDecrease,
+  onFontReset,
+  onFontIncrease,
+  canFontDecrease,
+  canFontIncrease,
+  isFontDefault,
   onClose,
 }: StoneReaderModalProps) {
   const renderSegment = useCallback(
@@ -68,12 +86,12 @@ export function StoneReaderModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="stone-reader-title"
-        className="flex h-[min(90vh,920px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-t-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:rounded-[28px]"
+        className="flex h-[min(90vh,940px)] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:rounded-[28px]"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="sticky top-0 z-10 shrink-0 border-b border-violet-100/90 bg-white/95 px-4 py-4 backdrop-blur-md sm:px-7 sm:py-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1 pr-2">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
               <div className="mb-2 inline-flex rounded-full border border-cyan-200/80 bg-gradient-to-r from-cyan-50 to-violet-50 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-800">
                 {badge}
               </div>
@@ -95,20 +113,33 @@ export function StoneReaderModal({
               ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-2xl border border-slate-200 bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition duration-200 hover:bg-slate-800 sm:self-start"
-            >
-              <span aria-hidden>×</span>
-              Kapat
-            </button>
+            <div className="flex shrink-0 flex-col items-stretch gap-2.5 sm:items-end">
+              <DogaltasFontSizeControl
+                fontSizePx={fontSizePx}
+                onDecrease={onFontDecrease}
+                onReset={onFontReset}
+                onIncrease={onFontIncrease}
+                canDecrease={canFontDecrease}
+                canIncrease={canFontIncrease}
+                isDefault={isFontDefault}
+                compact
+              />
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition duration-200 hover:bg-slate-800"
+              >
+                <span aria-hidden>×</span>
+                Kapat
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="stone-reader-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-7 sm:py-6">
-          <div className="mx-auto w-full max-w-[52rem]">
-            {formatStoneContent(text, { renderSegment })}
+        <div className="stone-reader-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 sm:px-8 sm:py-7">
+          <div className="mx-auto w-full max-w-[58rem]">
+            {formatStoneContent(text, { renderSegment, typography, fontSizePx })}
           </div>
         </div>
       </div>

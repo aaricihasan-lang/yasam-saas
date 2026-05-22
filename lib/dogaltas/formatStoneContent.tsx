@@ -1,3 +1,7 @@
+import {
+  dogaltasContentTypography,
+  type DogaltasContentTypography,
+} from "@/lib/dogaltas/dogaltasDetailFontSize";
 import { Fragment, type ReactNode } from "react";
 
 /** "Mineral sınıfı:" gibi etiket satırları */
@@ -8,6 +12,8 @@ const SECTION_HEADER_RE =
 
 export type FormatStoneContentOptions = {
   renderSegment?: (text: string, key: string) => ReactNode;
+  fontSizePx?: number;
+  typography?: DogaltasContentTypography;
 };
 
 function defaultRender(text: string): ReactNode {
@@ -54,10 +60,15 @@ function isSectionHeaderLine(line: string): boolean {
   return SECTION_HEADER_RE.test(trimmed);
 }
 
+function bulletOffset(fontSizePx: number): number {
+  return Math.max(10, Math.round(fontSizePx * 0.45));
+}
+
 function renderInlineSegment(
   text: string,
   key: string,
   renderSegment: (text: string, key: string) => ReactNode,
+  typo: DogaltasContentTypography,
 ): ReactNode {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -66,10 +77,7 @@ function renderInlineSegment(
   if (labelMatch) {
     const [, label, rest] = labelMatch;
     return (
-      <p
-        key={key}
-        className="text-[16px] leading-8 tracking-[0.01em] text-slate-700 sm:text-[17px]"
-      >
+      <p key={key} className="text-slate-700" style={typo.bodyStyle}>
         <span className="font-bold text-slate-900">{label}:</span>
         {rest ? (
           <>
@@ -82,10 +90,7 @@ function renderInlineSegment(
   }
 
   return (
-    <p
-      key={key}
-      className="text-[16px] leading-8 tracking-[0.01em] text-slate-700 sm:text-[17px]"
-    >
+    <p key={key} className="text-slate-700" style={typo.bodyStyle}>
       {renderSegment(trimmed, key)}
     </p>
   );
@@ -95,21 +100,24 @@ function renderListItems(
   items: string[],
   keyPrefix: string,
   renderSegment: (text: string, key: string) => ReactNode,
+  typo: DogaltasContentTypography,
 ): ReactNode {
+  const bulletTop = bulletOffset(typo.fontSizePx);
+
   return (
     <ul
       key={keyPrefix}
-      className="ml-1 list-none space-y-2.5 pl-0 text-[16px] leading-8 text-slate-700 sm:text-[17px]"
+      className="ml-1 list-none space-y-3 pl-0 text-slate-700 sm:space-y-3.5"
+      style={typo.bodyStyle}
     >
       {items.map((item, index) => (
         <li key={`${keyPrefix}-${index}`} className="flex gap-3">
           <span
-            className="mt-3 h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
+            className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
+            style={{ marginTop: bulletTop }}
             aria-hidden
           />
-          <span className="min-w-0 flex-1 tracking-[0.01em]">
-            {renderSegment(item, `${keyPrefix}-li-${index}`)}
-          </span>
+          <span className="min-w-0 flex-1">{renderSegment(item, `${keyPrefix}-li-${index}`)}</span>
         </li>
       ))}
     </ul>
@@ -120,8 +128,10 @@ function renderBlock(
   block: string,
   blockIndex: number,
   renderSegment: (text: string, key: string) => ReactNode,
+  typo: DogaltasContentTypography,
 ): ReactNode {
   const key = `block-${blockIndex}`;
+  const cardPad = "p-4 shadow-sm sm:p-5 md:p-6";
 
   if (isListBlock(block)) {
     const items = block
@@ -136,9 +146,9 @@ function renderBlock(
     return (
       <article
         key={key}
-        className="rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 p-4 shadow-sm sm:p-5"
+        className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
       >
-        {renderListItems(items, `${key}-ul`, renderSegment)}
+        {renderListItems(items, `${key}-ul`, renderSegment, typo)}
       </article>
     );
   }
@@ -152,7 +162,7 @@ function renderBlock(
       return (
         <h3
           key={key}
-          className="border-l-4 border-violet-500 bg-violet-50/60 py-1 pl-4 text-xl font-semibold tracking-tight text-violet-950"
+          className="border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950"
         >
           {renderSegment(line, `${key}-h`)}
         </h3>
@@ -167,9 +177,9 @@ function renderBlock(
       return (
         <article
           key={key}
-          className="rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 p-4 shadow-sm sm:p-5"
+          className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
         >
-          {renderListItems(items, `${key}-sc`, renderSegment)}
+          {renderListItems(items, `${key}-sc`, renderSegment, typo)}
         </article>
       );
     }
@@ -177,14 +187,16 @@ function renderBlock(
     return (
       <article
         key={key}
-        className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm sm:p-5"
+        className={`rounded-2xl border border-slate-200/80 bg-white/90 ${cardPad}`}
       >
-        {renderInlineSegment(line, `${key}-p`, renderSegment)}
+        {renderInlineSegment(line, `${key}-p`, renderSegment, typo)}
       </article>
     );
   }
 
   const nodes: ReactNode[] = [];
+  const bulletTop = bulletOffset(typo.fontSizePx);
+
   lines.forEach((line, lineIndex) => {
     const lineKey = `${key}-ln-${lineIndex}`;
 
@@ -192,7 +204,7 @@ function renderBlock(
       nodes.push(
         <h3
           key={lineKey}
-          className="border-l-4 border-violet-500 bg-violet-50/60 py-1 pl-4 text-xl font-semibold tracking-tight text-violet-950"
+          className="border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950"
         >
           {renderSegment(line, lineKey)}
         </h3>,
@@ -203,14 +215,13 @@ function renderBlock(
     const listMatch = line.match(LIST_ITEM_RE);
     if (listMatch) {
       nodes.push(
-        <div key={lineKey} className="flex gap-3 pl-1">
+        <div key={lineKey} className="flex gap-3 pl-1 text-slate-700" style={typo.bodyStyle}>
           <span
-            className="mt-3 h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
+            className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
+            style={{ marginTop: bulletTop }}
             aria-hidden
           />
-          <span className="min-w-0 flex-1 text-[16px] leading-8 text-slate-700 sm:text-[17px]">
-            {renderSegment(listMatch[1], `${lineKey}-t`)}
-          </span>
+          <span className="min-w-0 flex-1">{renderSegment(listMatch[1], `${lineKey}-t`)}</span>
         </div>,
       );
       return;
@@ -218,7 +229,7 @@ function renderBlock(
 
     nodes.push(
       <Fragment key={lineKey}>
-        {renderInlineSegment(line, lineKey, renderSegment)}
+        {renderInlineSegment(line, lineKey, renderSegment, typo)}
       </Fragment>,
     );
   });
@@ -226,7 +237,7 @@ function renderBlock(
   return (
     <article
       key={key}
-      className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm sm:space-y-4 sm:p-5"
+      className={`space-y-4 rounded-2xl border border-slate-200/80 bg-white/90 sm:space-y-5 ${cardPad}`}
     >
       {nodes}
     </article>
@@ -241,19 +252,24 @@ export function formatStoneContent(
   options?: FormatStoneContentOptions,
 ): ReactNode {
   const renderSegment = options?.renderSegment ?? defaultRender;
+  const typo =
+    options?.typography ??
+    dogaltasContentTypography(options?.fontSizePx ?? 17);
   const normalized = normalizeText(text);
 
   if (!normalized) {
     return (
-      <p className="text-[16px] italic leading-8 text-slate-400">Henüz bilgi girilmedi.</p>
+      <p className="italic text-slate-400" style={typo.bodyStyle}>
+        Henüz bilgi girilmedi.
+      </p>
     );
   }
 
   const blocks = splitParagraphBlocks(normalized);
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      {blocks.map((block, index) => renderBlock(block, index, renderSegment))}
+    <div className="space-y-5 sm:space-y-6 md:space-y-7">
+      {blocks.map((block, index) => renderBlock(block, index, renderSegment, typo))}
     </div>
   );
 }
