@@ -30,7 +30,7 @@ type BioenergySymbolRecord = {
   title: string | null;
   category: string | null;
   meaning: string | null;
-  subconscious_message: string | null;
+  note: string | null;
   source: string | null;
   created_at: string;
 };
@@ -229,7 +229,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
       category: row.category ?? "",
       meaning: row.meaning ?? "",
-      subconscious_message: row.subconscious_message ?? "",
+      subconscious_message: row.note ?? "",
       source: row.source ?? "",
     });
   }, [id]);
@@ -262,7 +262,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         title: nameTrim,
         category: trimOrNull(form.category),
         meaning: trimOrNull(form.meaning),
-        subconscious_message: trimOrNull(form.subconscious_message),
+        note: trimOrNull(form.subconscious_message),
         source: trimOrNull(form.source),
       })
       .eq("id", record.id)
@@ -327,7 +327,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   if (!record) return null;
 
   const meaningContent = record.meaning?.trim() ?? "";
-  const messageContent = record.subconscious_message?.trim() ?? "";
+  const messageContent = record.note?.trim() ?? "";
   const sourceContent = record.source?.trim() ?? "";
   const categoryText = record.category?.trim() ?? "";
   const displayTitle = symbolDisplayName(record);
@@ -473,7 +473,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
                   symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
                   category: record.category ?? "",
                   meaning: record.meaning ?? "",
-                  subconscious_message: record.subconscious_message ?? "",
+                  subconscious_message: record.note ?? "",
                   source: record.source ?? "",
                 });
               }}

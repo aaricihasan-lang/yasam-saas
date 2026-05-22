@@ -228,7 +228,7 @@ export default function SembolDili() {
       title: nameTrim,
       category: trimOrNull(form.category),
       meaning: trimOrNull(form.meaning),
-      subconscious_message: trimOrNull(form.subconscious_message),
+      note: trimOrNull(form.subconscious_message),
       source: trimOrNull(form.source),
     });
 
@@ -333,7 +333,7 @@ export default function SembolDili() {
           <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = symbolLanguageDetailHref(row.id);
-              const preview = previewSymbolLanguageText(row.meaning, row.subconscious_message);
+              const preview = previewSymbolLanguageText(row.meaning, row.note);
               const theme = getSymbolLanguageCardTheme(index);
               const hasCategory = Boolean(row.category?.trim());
               const displayTitle = symbolDisplayName(row);

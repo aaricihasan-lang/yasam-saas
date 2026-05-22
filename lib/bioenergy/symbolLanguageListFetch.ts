@@ -3,17 +3,19 @@ import { sanitizeOrSearchTerm } from "@/lib/dogaltas/stonesListFetch";
 
 export const SYMBOL_LANGUAGE_LIST_PATH = "/dashboard/biyoenerji/sembol-dili";
 
+/** bioenergy_symbols — yalnızca tabloda doğrulanmış kolonlar */
 export const SYMBOL_LANGUAGE_LIST_SELECT =
-  "id, tenant_id, symbol, title, category, meaning, subconscious_message, source, created_at";
+  "id, tenant_id, symbol, title, category, meaning, note, source, created_at";
 
 export const SYMBOL_LANGUAGE_PAGE_SIZE = 30;
 
+/** .or() araması — olmayan kolon eklenmez */
 export const SYMBOL_LANGUAGE_SEARCH_TEXT_COLUMNS = [
   "symbol",
   "title",
   "category",
   "meaning",
-  "subconscious_message",
+  "note",
   "source",
 ] as const;
 
@@ -24,7 +26,7 @@ export type SymbolLanguageListItem = {
   title: string | null;
   category: string | null;
   meaning: string | null;
-  subconscious_message: string | null;
+  note: string | null;
   source: string | null;
   created_at: string;
 };
@@ -47,8 +49,7 @@ export function mapSymbolLanguageListRow(row: Record<string, unknown>): SymbolLa
     title: row.title != null ? String(row.title) : null,
     category: row.category != null ? String(row.category) : null,
     meaning: row.meaning != null ? String(row.meaning) : null,
-    subconscious_message:
-      row.subconscious_message != null ? String(row.subconscious_message) : null,
+    note: row.note != null ? String(row.note) : null,
     source: row.source != null ? String(row.source) : null,
     created_at: String(row.created_at ?? ""),
   };
