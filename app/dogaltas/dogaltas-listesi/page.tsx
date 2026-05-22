@@ -1,46 +1,30 @@
 "use client";
 
-import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import {
   Fragment,
   Suspense,
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
+  getSessionTenantId,
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import {
+  fetchStonesListCount,
+  fetchStonesListPage,
+  getFirstStoneImageUrl,
+  stoneListImageCount,
+  type StoneListItem,
+} from "@/lib/dogaltas/stonesListFetch";
 import { supabase } from "@/lib/supabase";
-
-type StoneRecord = {
-  id: string;
-  tenant_id: string;
-  stone_name: string;
-  short_description: string | null;
-  general_info: string | null;
-  source_note: string | null;
-  physical_effects: string | null;
-  spiritual_effects: string | null;
-  other_effects: string | null;
-  warning_text: string | null;
-  warning_tags: string[] | null;
-  feng_shui: string | null;
-  meditation: string | null;
-  care: string | null;
-  application: string | null;
-  chakras: string[] | null;
-  assignments: Record<string, string[][]> | null;
-  images: { id: string; name: string; url?: string; file_path?: string }[] | null;
-  created_at: string;
-  updated_at: string | null;
-};
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
 
@@ -58,8 +42,7 @@ const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-95
 const SEARCH_MATCH_BADGE_CLASS =
   "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
 
-const STONES_SELECT =
-  "id, tenant_id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, warning_text, warning_tags, feng_shui, meditation, care, application, chakras, assignments, images, created_at, updated_at";
+const SEARCH_DEBOUNCE_MS = 300;
 
 function normalizeTrSearch(value: string): string {
   return value
@@ -131,71 +114,6 @@ function renderHighlightedText(text: string, query: string): ReactNode {
   return nodes.length > 0 ? nodes : text;
 }
 
-function assignmentsToSearchText(assignments: Record<string, string[][]> | null): string {
-  if (!assignments || typeof assignments !== "object") return "";
-
-  const parts: string[] = [];
-  for (const value of Object.values(assignments)) {
-    if (Array.isArray(value)) {
-      for (const row of value) {
-        if (Array.isArray(row)) {
-          parts.push(row.map((cell) => String(cell ?? "")).join(" "));
-        } else if (typeof row === "string") {
-          parts.push(row);
-        }
-      }
-    } else if (typeof value === "string") {
-      parts.push(value);
-    }
-  }
-  return parts.filter(Boolean).join(" ");
-}
-
-function buildSearchableText(stone: StoneRecord): string {
-  const parts: string[] = [
-    stone.stone_name,
-    stone.short_description ?? "",
-    stone.general_info ?? "",
-    stone.source_note ?? "",
-    stone.physical_effects ?? "",
-    stone.spiritual_effects ?? "",
-    stone.other_effects ?? "",
-    stone.warning_text ?? "",
-    stone.feng_shui ?? "",
-    stone.meditation ?? "",
-    stone.care ?? "",
-    stone.application ?? "",
-    ...(stone.chakras || []),
-    ...(stone.warning_tags || []),
-    assignmentsToSearchText(stone.assignments),
-  ];
-
-  for (const value of Object.values(stone)) {
-    if (typeof value === "string" && value.trim()) {
-      parts.push(value);
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === "string" && item.trim()) parts.push(item);
-        else if (item && typeof item === "object" && "name" in item) {
-          parts.push(String((item as { name?: string }).name ?? ""));
-        }
-      }
-    } else if (value && typeof value === "object" && !Array.isArray(value)) {
-      parts.push(assignmentsToSearchText(value as Record<string, string[][]>));
-    }
-  }
-
-  return parts.filter(Boolean).join(" ");
-}
-
-function stoneMatchesSearch(stone: StoneRecord, searchTerm: string): boolean {
-  const trimmed = searchTerm.trim();
-  if (!trimmed) return true;
-  const haystack = normalizeTrSearch(buildSearchableText(stone));
-  const needle = normalizeTrSearch(trimmed);
-  return Boolean(needle) && haystack.includes(needle);
-}
-
 function clearDogaltasListSearchStorage() {
   if (typeof window === "undefined") return;
   for (const key of DOGALTAS_LIST_SEARCH_STORAGE_KEYS) {
@@ -265,31 +183,46 @@ function safeText(value: string | null | undefined, limit = 115) {
   return value.length > limit ? `${value.slice(0, limit)}...` : value;
 }
 
-function countFilledSections(stone: StoneRecord) {
-  return [
-    stone.short_description,
-    stone.general_info,
-    stone.source_note,
-    stone.physical_effects,
-    stone.spiritual_effects,
-    stone.other_effects,
-    stone.warning_text,
-    stone.feng_shui,
-    stone.meditation,
-    stone.care,
-    stone.application,
-  ].filter((item) => item && item.trim().length > 0).length;
+function listSummaryLabel(stone: StoneListItem): string {
+  return stone.short_description?.trim() ? "Özet var" : "—";
+}
+
+function ListSkeletonRows({ count = 6 }: { count?: number }) {
+  return (
+    <div className="divide-y divide-cyan-100">
+      {Array.from({ length: count }, (_, i) => (
+        <div
+          key={`sk-${i}`}
+          className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-5 py-5"
+        >
+          <div className="h-5 w-5 animate-pulse rounded-md bg-slate-200" />
+          <div className="flex gap-3">
+            <div className="h-10 w-10 shrink-0 animate-pulse rounded-2xl bg-slate-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+              <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
+            </div>
+          </div>
+          <div className="h-4 animate-pulse rounded bg-slate-100" />
+          <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+          <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
+          <div className="h-4 w-14 animate-pulse rounded bg-slate-100" />
+          <div className="h-9 w-14 animate-pulse rounded-xl bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
 const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/90 p-8 shadow-lg";
 const uiFilterCard =
-  "rounded-[30px] border-[3px] border-violet-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(139,92,246,0.14)] backdrop-blur-xl";
+  "rounded-[30px] border-[3px] border-violet-300/45 bg-white/90 p-5 shadow-md";
 const uiTableCard =
-  "w-full min-h-[520px] overflow-hidden rounded-[34px] border-[3px] border-cyan-400/45 bg-white/78 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+  "w-full min-h-[520px] overflow-hidden rounded-[34px] border-[3px] border-cyan-400/45 bg-white/92 shadow-lg";
 const uiSearchInput =
   "h-14 w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-5 pl-12 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiViewBtn =
@@ -299,7 +232,6 @@ const uiStatCard =
 const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
-const uiBadgeWarning = `${uiBadgeBase} border-red-200 bg-red-50 text-red-600`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiDeleteBtn =
   "rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
@@ -311,93 +243,91 @@ const uiRowCheckbox =
 function DogaltasListesiPageContent() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
-  const [stones, setStones] = useState<StoneRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stones, setStones] = useState<StoneListItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  const [stoneToDelete, setStoneToDelete] = useState<StoneRecord | null>(null);
+  const [stoneToDelete, setStoneToDelete] = useState<StoneListItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
 
-  async function loadStones() {
-    setLoading(true);
-    setErrorMessage("");
+  const fetchList = useCallback(
+    async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const tenantId = queryTenantId ?? getSessionTenantId();
+      if (!tenantId) {
+        setListLoading(false);
+        setLoadingMore(false);
+        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
 
-    const activeUserTenantId = await getSyncedTenantId();
-    const tenantIdForQuery = activeUserTenantId;
+      if (opts.reset) {
+        setListLoading(true);
+        setErrorMessage("");
+      } else {
+        setLoadingMore(true);
+      }
 
-    if (!tenantIdForQuery) {
-      setLoading(false);
-      setQueryTenantId(null);
-      setStones([]);
-      setLoadDebug({
-        activeUserTenantId: null,
-        queryTenantId: null,
-        returnedCount: 0,
-        tableTotalVisible: null,
-        sampleTenantIds: [],
-      });
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+
+      const [pageRes, countRes] = await Promise.all([
+        fetchStonesListPage(tenantId, { offset, search }),
+        opts.reset
+          ? fetchStonesListCount(tenantId, search)
+          : Promise.resolve({ count: totalCount, error: null }),
+      ]);
+
+      if (opts.reset) setListLoading(false);
+      setLoadingMore(false);
+
+      if (pageRes.error) {
+        setErrorMessage(`Kayıtlar alınamadı: ${pageRes.error}`);
+        if (opts.reset) setStones([]);
+        return;
+      }
+
+      if (countRes.error) {
+        setErrorMessage(`Kayıt sayısı alınamadı: ${countRes.error}`);
+      } else if (opts.reset) {
+        setTotalCount(countRes.count);
+      }
+
+      setStones((current) =>
+        opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
+      );
+
+      if (opts.reset) {
+        setLoadDebug({
+          activeUserTenantId: tenantId,
+          queryTenantId: tenantId,
+          returnedCount: pageRes.rows.length,
+          tableTotalVisible: countRes.error ? null : countRes.count,
+          sampleTenantIds: [],
+        });
+      }
+    },
+    [debouncedSearch, queryTenantId, totalCount],
+  );
+
+  const resolveTenant = useCallback(async () => {
+    const cached = getSessionTenantId();
+    if (cached) {
+      setQueryTenantId(cached);
+      backgroundSyncYasamUserFromDb();
+      return cached;
     }
-
-    setQueryTenantId(tenantIdForQuery);
-
-    const { data, error } = await supabase
-      .from("stones")
-      .select(STONES_SELECT)
-      .eq("tenant_id", tenantIdForQuery)
-      .order("created_at", { ascending: false });
-
-    const returnedCount = data?.length ?? 0;
-
-    let tableTotalVisible: number | null = null;
-    let sampleTenantIds: string[] = [];
-
-    if (!error && returnedCount === 0) {
-      const { count } = await supabase
-        .from("stones")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantIdForQuery);
-      tableTotalVisible = count ?? 0;
-
-      const { data: tenantRows } = await supabase
-        .from("stones")
-        .select("tenant_id")
-        .eq("tenant_id", tenantIdForQuery)
-        .limit(50);
-
-      sampleTenantIds = [
-        ...new Set(
-          (tenantRows ?? [])
-            .map((row) => String(row.tenant_id ?? "").trim())
-            .filter(Boolean),
-        ),
-      ].slice(0, 5);
-    }
-
-    setLoadDebug({
-      activeUserTenantId,
-      queryTenantId: tenantIdForQuery,
-      returnedCount,
-      tableTotalVisible,
-      sampleTenantIds,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
-      setStones([]);
-      return;
-    }
-
-    setStones((data || []) as StoneRecord[]);
-  }
+    const synced = await getSyncedTenantId();
+    if (synced) setQueryTenantId(synced);
+    return synced;
+  }, []);
 
   async function deleteStone() {
     if (!stoneToDelete) return;
@@ -478,14 +408,25 @@ function DogaltasListesiPageContent() {
 
   const handleRefresh = useCallback(() => {
     clearSearch();
-    void loadStones();
-  }, [clearSearch]);
+    setDebouncedSearch("");
+    void fetchList({ reset: true });
+  }, [clearSearch, fetchList]);
 
   useEffect(() => {
-    runInEffect(() => {
-      void loadStones();
-    });
-  }, []);
+    void resolveTenant();
+  }, [resolveTenant]);
+
+  useEffect(() => {
+    if (!queryTenantId) return;
+    void fetchList({ reset: true });
+  }, [queryTenantId, debouncedSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     const q = readUrlSearchQuery();
@@ -501,18 +442,20 @@ function DogaltasListesiPageContent() {
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
 
-  const isSearchActive = Boolean(searchTerm.trim());
-  const activeSearch = searchTerm.trim();
-
-  const filteredStones = useMemo(() => {
-    return stones.filter((stone) =>
-      stoneMatchesSearch(stone, isSearchActive ? searchTerm : ""),
-    );
-  }, [stones, searchTerm, isSearchActive]);
+  const isSearchActive = Boolean(debouncedSearch);
+  const activeSearch = debouncedSearch;
+  const filteredStones = stones;
+  const hasMore = stones.length < totalCount;
+  const listBusy = listLoading || (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
   const selectAllFiltered = useCallback(() => {
     setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
   }, [filteredStones]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || listLoading || !hasMore) return;
+    void fetchList({ reset: false, append: true, offset: stones.length });
+  }, [fetchList, hasMore, listLoading, loadingMore, stones.length]);
 
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -555,24 +498,18 @@ function DogaltasListesiPageContent() {
       message: `${ids.length} kayıt başarıyla silindi.`,
     });
     setSelectedIds(new Set());
-    await loadStones();
-  }, [confirm, queryTenantId, selectedIds, showToast]);
+    await fetchList({ reset: true });
+  }, [confirm, fetchList, queryTenantId, selectedIds, showToast]);
 
-  const totalImages = stones.reduce(
-    (total, stone) => total + (stone.images || []).length,
-    0
+  const loadedImages = stones.reduce(
+    (total, stone) => total + stoneListImageCount(stone.images),
+    0,
   );
-
-  const totalWarnings = stones.filter(
-    (stone) =>
-      (stone.warning_text && stone.warning_text.trim().length > 0) ||
-      (stone.warning_tags || []).length > 0
-  ).length;
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-300/15 blur-3xl" />
 
       <div className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
@@ -619,18 +556,18 @@ function DogaltasListesiPageContent() {
 
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
             <div className={uiStatCard}>
+              <div className="text-2xl font-black text-slate-950">{totalCount}</div>
+              <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
+            </div>
+
+            <div className={uiStatCard}>
               <div className="text-2xl font-black text-slate-950">{stones.length}</div>
-              <div className="text-xs font-bold text-slate-500">Kayıt</div>
+              <div className="text-xs font-bold text-slate-500">Yüklü</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{totalImages}</div>
-              <div className="text-xs font-bold text-slate-500">Görsel</div>
-            </div>
-
-            <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{totalWarnings}</div>
-              <div className="text-xs font-bold text-slate-500">Uyarı</div>
+              <div className="text-2xl font-black text-slate-950">{loadedImages}</div>
+              <div className="text-xs font-bold text-slate-500">Görsel (yüklü)</div>
             </div>
           </div>
         </header>
@@ -652,7 +589,7 @@ function DogaltasListesiPageContent() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.preventDefault();
                 }}
-                placeholder="Taş adı, açıklama, çakra, etki veya uyarı ara..."
+                placeholder="Taş adı veya kısa açıklama ara..."
                 className={uiSearchInput}
                 enterKeyHint="search"
                 autoComplete="off"
@@ -708,14 +645,16 @@ function DogaltasListesiPageContent() {
                 : `${filteredStones.length} kayıt gösteriliyor`}
             </p>
 
-            {loading && (
+            {listBusy && (
               <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
-                Yükleniyor...
+                {isSearchActive && searchTerm.trim() !== debouncedSearch
+                  ? "Aranıyor..."
+                  : "Yükleniyor..."}
               </span>
             )}
           </div>
 
-          {!loading && filteredStones.length > 0 ? (
+          {!listLoading && filteredStones.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
               <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-800 shadow-sm">
                 Seçili: {selectedCount}
@@ -755,15 +694,13 @@ function DogaltasListesiPageContent() {
         )}
 
         <section className={uiTableCard}>
-          {loading ? (
-            <div className="flex min-h-[520px] items-center justify-center text-base font-bold text-slate-500">
-              Kayıtlar yükleniyor...
-            </div>
+          {listLoading && filteredStones.length === 0 ? (
+            <ListSkeletonRows count={8} />
           ) : filteredStones.length === 0 ? (
             <div className="flex h-[330px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
               <div className="text-[54px]">💎</div>
 
-              {stones.length === 0 && !isSearchActive ? (
+              {totalCount === 0 && !isSearchActive ? (
                 <>
                   <h3 className="mt-3 text-[18px] font-black text-slate-900">
                     Supabase sorgusu çalıştı ama 0 kayıt döndü
@@ -829,10 +766,8 @@ function DogaltasListesiPageContent() {
 
               <div>
                 {filteredStones.map((stone) => {
-                  const imageCount = (stone.images || []).length;
-                  const warningCount = (stone.warning_tags || []).length;
-                  const sectionCount = countFilledSections(stone);
-                  const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
+                  const imageCount = stoneListImageCount(stone.images);
+                  const coverImageUrl = getFirstStoneImageUrl(stone.images);
                   const isSelected = selectedIds.has(stone.id);
                   const isViewedInSearch =
                     isSearchActive && viewedStoneIds.has(stone.id);
@@ -944,13 +879,7 @@ function DogaltasListesiPageContent() {
                             </span>
                           ))}
 
-                          {warningCount > 0 && (
-                            <span className={uiBadgeWarning}>
-                              {warningCount} uyarı
-                            </span>
-                          )}
-
-                          {(stone.chakras || []).length === 0 && warningCount === 0 && (
+                          {(stone.chakras || []).length === 0 && (
                             <span className="text-[11px] font-bold text-slate-300">
                               -
                             </span>
@@ -965,9 +894,7 @@ function DogaltasListesiPageContent() {
                         }}
                         className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
                       >
-                        <span className={uiBadgeSection}>
-                          {sectionCount} bölüm
-                        </span>
+                        <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
 
                         {imageCount > 0 && (
                           <span className={uiBadgeImage}>
@@ -983,7 +910,7 @@ function DogaltasListesiPageContent() {
                         }}
                         className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
                       >
-                        {formatDate(stone.created_at)}
+                        {formatDate(stone.updated_at)}
                       </Link>
 
                       <div className="flex flex-col items-end justify-center">
@@ -1007,9 +934,8 @@ function DogaltasListesiPageContent() {
           ) : (
             <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
               {filteredStones.map((stone) => {
-                const imageCount = (stone.images || []).length;
-                const sectionCount = countFilledSections(stone);
-                const coverImageUrl = (stone.images || []).find((image) => image.url)?.url;
+                const imageCount = stoneListImageCount(stone.images);
+                const coverImageUrl = getFirstStoneImageUrl(stone.images);
                 const isSelected = selectedIds.has(stone.id);
                 const isViewedInSearch =
                   isSearchActive && viewedStoneIds.has(stone.id);
@@ -1094,7 +1020,7 @@ function DogaltasListesiPageContent() {
                             </h3>
 
                             <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
-                              {formatDate(stone.created_at)}
+                              {formatDate(stone.updated_at)}
                             </span>
                           </div>
 
@@ -1114,18 +1040,7 @@ function DogaltasListesiPageContent() {
                               </span>
                             ))}
 
-                            {(stone.warning_tags || []).slice(0, 2).map((tag) => (
-                              <span
-                                key={tag}
-                                className={uiBadgeWarning}
-                              >
-                                {tag}
-                              </span>
-                            ))}
-
-                            <span className={uiBadgeSection}>
-                              {sectionCount} bölüm
-                            </span>
+                            <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
 
                             {imageCount > 0 && (
                               <span className={uiBadgeImage}>
@@ -1165,6 +1080,21 @@ function DogaltasListesiPageContent() {
               })}
             </div>
           )}
+
+          {hasMore && filteredStones.length > 0 ? (
+            <div className="flex justify-center border-t border-cyan-100 bg-white/80 px-5 py-6">
+              <button
+                type="button"
+                disabled={loadingMore || listLoading}
+                onClick={handleLoadMore}
+                className={`${uiViewBtn} border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-violet-50 text-slate-800 hover:from-cyan-100 hover:to-violet-100 disabled:opacity-60`}
+              >
+                {loadingMore
+                  ? "Yükleniyor..."
+                  : `Daha Fazla Göster (${stones.length} / ${totalCount})`}
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
 
@@ -1216,8 +1146,10 @@ function DogaltasListesiPageContent() {
 function DogaltasListesiPageFallback() {
   return (
     <main className={pageBg}>
-      <div className="flex min-h-screen items-center justify-center text-base font-black text-slate-600">
-        Yükleniyor…
+      <div className={pageContent}>
+        <div className={`${uiTableCard} p-0`}>
+          <ListSkeletonRows count={8} />
+        </div>
       </div>
     </main>
   );
