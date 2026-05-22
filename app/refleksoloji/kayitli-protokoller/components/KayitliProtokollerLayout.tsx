@@ -48,14 +48,19 @@ export function KayitliProtokollerLayout() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-none px-6 py-6 xl:px-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-4">
             <Link
               href="/refleksoloji"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-violet-300/95 bg-white/90 px-4 py-2.5 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white"
+              className="inline-flex w-full shrink-0 items-center justify-center gap-3 rounded-2xl border-2 border-violet-400/50 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_14px_36px_-10px_rgba(91,33,182,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.04] hover:border-violet-300/70 hover:shadow-[0_18px_44px_-8px_rgba(139,92,246,0.7)] hover:shadow-violet-500/30 sm:w-auto sm:justify-start sm:px-7 sm:py-4 sm:text-[17px]"
             >
-              <span aria-hidden>←</span>
-              Refleksoloji Ana Menü
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
+                aria-hidden
+              >
+                🏠
+              </span>
+              <span>← Refleksoloji Ana Menü</span>
             </Link>
             <header className="min-w-0">
               <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
