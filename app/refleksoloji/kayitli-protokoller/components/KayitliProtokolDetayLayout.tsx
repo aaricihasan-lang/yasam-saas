@@ -12,14 +12,10 @@ import type { ProtocolFootView } from "@/app/refleksoloji/protokol-haritasi/type
 import { supabase } from "@/lib/supabase";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
-  extractSourceDescription,
+  buildProtocolClinicalContent,
   formatRawJsonForDev,
-  parseApplicationSteps,
-  parseLinesToSteps,
+  introDiffersFromTarget,
   protocolHeroTitle,
-  resolveApplicationNotesDisplay,
-  resolveSourceText,
-  resolveTargetProblem,
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 
@@ -103,9 +99,7 @@ function ApplicationNotesBody({ text }: { text: string }) {
 }
 
 function ApplicationStepsList({ steps }: { steps: string[] }) {
-  if (steps.length === 0) {
-    return <EmptyHint>Henüz uygulama adımı eklenmemiş.</EmptyHint>;
-  }
+  if (steps.length === 0) return null;
 
   return (
     <ol className="space-y-4">
@@ -203,38 +197,19 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const organStatuses = useMemo(() => buildOrganStatuses(organs, footView), [organs, footView]);
   const missingOrgans = useMemo(() => missingAtlasOrgans(organStatuses), [organStatuses]);
 
-  const applicationSteps = useMemo(
-    () => parseApplicationSteps(protocol?.application_notes, protocol?.raw_json ?? null),
-    [protocol?.application_notes, protocol?.raw_json],
-  );
-
   const rawJson = protocol?.raw_json ?? null;
 
-  const applicationNotesDisplay = useMemo(
-    () =>
-      protocol
-        ? resolveApplicationNotesDisplay(protocol.application_notes, rawJson, applicationSteps)
-        : null,
-    [protocol, rawJson, applicationSteps],
+  const clinical = useMemo(
+    () => (protocol ? buildProtocolClinicalContent(protocol) : null),
+    [protocol],
   );
 
-  const targetText = useMemo(
-    () => (protocol ? resolveTargetProblem(protocol, rawJson) : null),
-    [protocol, rawJson],
-  );
-
-  const sourceDescription = useMemo(() => {
-    if (!protocol) return null;
-    const source = resolveSourceText(rawJson, {
-      skipTexts: [applicationNotesDisplay, targetText, protocol.title],
-    });
-    if (source) return source;
-    return extractSourceDescription(rawJson, {
-      applicationNotes: applicationNotesDisplay,
-      targetProblem: targetText,
-      title: protocol.title,
-    });
-  }, [protocol, rawJson, applicationNotesDisplay, targetText]);
+  const targetText = clinical?.targetProblem ?? null;
+  const protocolIntro = clinical?.protocolIntro ?? null;
+  const showProtocolIntro = introDiffersFromTarget(protocolIntro, targetText);
+  const applicationSteps = clinical?.applicationSteps ?? [];
+  const applicationNotesDisplay = clinical?.applicationNotes ?? null;
+  const sourceDescription = clinical?.source ?? null;
 
   const heroTitle = useMemo(
     () => (protocol ? protocolHeroTitle(protocol, rawJson) : ""),
@@ -287,7 +262,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   }
 
   const notesParagraphs = applicationNotesDisplay
-    ? parseLinesToSteps(applicationNotesDisplay)
+    ? applicationNotesDisplay.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
     : [];
 
   return (
@@ -354,48 +329,50 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               </p>
             </div>
 
-            <ClinicalCard title="Hedef / Sorun" tone="fuchsia">
-              {targetText ? (
-                <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
-                  {targetText}
-                </p>
-              ) : (
-                <EmptyHint>Hedef / sorun bilgisi henüz girilmemiş.</EmptyHint>
-              )}
+            <ClinicalCard title="Hedef / Sorun" tone="fuchsia" hidden={!targetText}>
+              <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+                {targetText}
+              </p>
+            </ClinicalCard>
+
+            <ClinicalCard
+              title="Protokol Başlığı / Kısa Açıklama"
+              tone="violet"
+              hidden={!showProtocolIntro}
+            >
+              <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+                {protocolIntro}
+              </p>
             </ClinicalCard>
 
             <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
               <OrganPills organs={organs} organStatuses={organStatuses} />
             </ClinicalCard>
 
-            <ClinicalCard title="Uygulama Adımları" tone="violet">
+            <ClinicalCard
+              title="Uygulama Adımları"
+              tone="violet"
+              hidden={applicationSteps.length === 0}
+            >
               <ApplicationStepsList steps={applicationSteps} />
             </ClinicalCard>
 
             <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
-              {applicationNotesDisplay ? (
-                notesParagraphs.length >= 2 ? (
-                  <ol className="space-y-4">
-                    {notesParagraphs.map((paragraph, index) => (
-                      <li
-                        key={`note-${index}-${paragraph.slice(0, 16)}`}
-                        className="rounded-2xl border border-amber-100/90 bg-amber-50/50 px-4 py-3 text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
-                      >
-                        {paragraph}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <ApplicationNotesBody text={applicationNotesDisplay} />
-                )
-              ) : null}
+              {notesParagraphs.length >= 2 ? (
+                <div className="space-y-4">
+                  {notesParagraphs.map((paragraph, index) => (
+                    <p
+                      key={`note-${index}-${paragraph.slice(0, 16)}`}
+                      className="rounded-2xl border border-amber-100/90 bg-amber-50/50 px-4 py-3 text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <ApplicationNotesBody text={applicationNotesDisplay!} />
+              )}
             </ClinicalCard>
-
-            {!applicationNotesDisplay ? (
-              <ClinicalCard title="Uygulama Notları" tone="amber">
-                <EmptyHint>Henüz not yok.</EmptyHint>
-              </ClinicalCard>
-            ) : null}
 
             <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
               <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
