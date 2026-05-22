@@ -4,11 +4,14 @@ import BiyoenerjiSectionShell from "../components/BiyoenerjiSectionShell";
 export default function SembolDiliPage() {
   return (
     <BiyoenerjiSectionShell
-      badge="BİYOENERJİ · SEMBOL"
-      title="Sembol Dili"
-      subtitle="Semboller, anlamlar ve enerji dili sözlüğü"
+      headerVariant="premium"
+      badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
+      title="Sembol Dili Kütüphanesi"
+      subtitle="Semboller, anlamlar ve bilinçaltı mesajları"
     >
-      <SembolDili />
+      <div className="w-full min-w-0 max-w-none px-0 sm:px-2 lg:px-4 xl:px-6 2xl:px-8">
+        <SembolDili />
+      </div>
     </BiyoenerjiSectionShell>
   );
 }

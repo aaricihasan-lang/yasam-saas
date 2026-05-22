@@ -1,55 +1,43 @@
 "use client";
 
-import { runInEffect } from "@/lib/runInEffect";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
-  CrudEmptyState,
-  ModuleStats,
-  badgeFieldWrapClass,
-  formGlassPanelClass,
-  listColumnClass,
-  newRecordBtnClass,
-  searchInputClass,
-  sectionShellClass,
-} from "./BiyoenerjiUi";
+  getSessionTenantId,
+  getSyncedTenantId,
+  MISSING_SESSION_TENANT_MESSAGE,
+} from "@/lib/auth/sessionTenant";
+import { getSymbolLanguageCardTheme } from "@/lib/bioenergy/symbolLanguageCardTheme";
+import {
+  fetchSymbolLanguageCount,
+  fetchSymbolLanguagePage,
+  previewSymbolLanguageText,
+  symbolDisplayName,
+  type SymbolLanguageListItem,
+} from "@/lib/bioenergy/symbolLanguageListFetch";
+import { symbolLanguageDetailHref } from "@/lib/bioenergy/symbolLanguageRoutes";
+import { supabase } from "@/lib/supabase";
+import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
-type BioenergySymbolRecord = {
-  id: string;
-  symbol: string | null;
-  title: string | null;
-  category: string | null;
-  meaning: string | null;
-  subconscious_message: string | null;
-  source: string | null;
-  created_at: string;
-};
+const SEARCH_DEBOUNCE_MS = 300;
 
-type SymbolViewForm = {
+type SymbolForm = {
   symbol_name: string;
   category: string;
   meaning: string;
   subconscious_message: string;
-  positive_aspect: string;
-  negative_aspect: string;
-  usage_area: string;
   source: string;
-  note: string;
 };
 
-const emptyForm: SymbolViewForm = {
+const emptyForm: SymbolForm = {
   symbol_name: "",
   category: "",
   meaning: "",
   subconscious_message: "",
-  positive_aspect: "",
-  negative_aspect: "",
-  usage_area: "",
   source: "",
-  note: "",
 };
 
 function trimOrNull(v: string) {
@@ -57,7 +45,8 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null) {
+  if (!iso) return "—";
   try {
     return new Intl.DateTimeFormat("tr-TR", {
       day: "2-digit",
@@ -71,23 +60,31 @@ function formatDate(iso: string) {
   }
 }
 
+const newRecordBtnPremium =
+  "inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-600 px-8 py-4 text-base font-black text-white shadow-[0_12px_32px_rgba(109,40,217,0.28)] transition duration-300 hover:-translate-y-0.5 hover:from-violet-700 hover:to-cyan-700 hover:shadow-[0_16px_40px_rgba(6,182,212,0.25)]";
+
+const loadMoreBtnClass =
+  "rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-violet-50 px-8 py-4 text-base font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-violet-100 disabled:opacity-60";
+
+const detailOpenBtnClass =
+  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-2xl bg-slate-950 py-4 text-[17px] font-black text-white shadow-lg transition duration-300 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
+
 export default function SembolDili() {
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [rows, setRows] = useState<BioenergySymbolRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
+  const [rows, setRows] = useState<SymbolLanguageListItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalInDb, setTotalInDb] = useState(0);
+  const [searchResultCount, setSearchResultCount] = useState(0);
+  const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const [loadErrorMessage, setLoadErrorMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [saving, setSaving] = useState(false);
-  const [searchSymbol, setSearchSymbol] = useState("");
-  const [searchCategory, setSearchCategory] = useState("");
-  const [searchMeaning, setSearchMeaning] = useState("");
-  const [searchSubconscious, setSearchSubconscious] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState<SymbolViewForm>({ ...emptyForm });
+  const [form, setForm] = useState<SymbolForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
-  const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -108,134 +105,116 @@ export default function SembolDili() {
     return () => window.clearTimeout(t);
   }, [infoSuccess, infoError]);
 
-  useEffect(() => {
-    void getSyncedTenantId().then(setTenantId);
+  const resolveTenant = useCallback(async () => {
+    const cached = getSessionTenantId();
+    if (cached) {
+      setQueryTenantId(cached);
+      backgroundSyncYasamUserFromDb();
+      return cached;
+    }
+    const synced = await getSyncedTenantId();
+    if (synced) setQueryTenantId(synced);
+    return synced;
   }, []);
 
-  const loadRecords = useCallback(async () => {
-    if (!tenantId) return;
+  const fetchList = useCallback(
+    async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const tenantId = queryTenantId ?? getSessionTenantId();
+      if (!tenantId) {
+        setListLoading(false);
+        setLoadingMore(false);
+        setLoadErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
 
-    setLoading(true);
-    setLoadError(false);
-    setInfoError("");
-    const { data, error } = await supabase
-      .from("bioenergy_symbols")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("title");
+      if (opts.reset) {
+        setListLoading(true);
+        setLoadErrorMessage("");
+      } else {
+        setLoadingMore(true);
+      }
 
-    setLoading(false);
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
 
-    if (error) {
-      setLoadError(true);
-      setRows([]);
-      return;
-    }
+      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
+        fetchSymbolLanguagePage(tenantId, { offset, search }),
+        opts.reset
+          ? fetchSymbolLanguageCount(tenantId)
+          : Promise.resolve({ count: totalInDb, error: null }),
+        opts.reset
+          ? fetchSymbolLanguageCount(tenantId, search)
+          : Promise.resolve({ count: searchResultCount, error: null }),
+        opts.reset
+          ? supabase
+              .from("bioenergy_symbols")
+              .select("created_at")
+              .eq("tenant_id", tenantId)
+              .order("created_at", { ascending: false, nullsFirst: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-    setRows((data || []) as BioenergySymbolRecord[]);
-  }, [tenantId]);
+      if (opts.reset) setListLoading(false);
+      setLoadingMore(false);
 
-  useEffect(() => {
-    runInEffect(() => {
-      void loadRecords();
-    });
-  }, [loadRecords]);
+      if (pageRes.error) {
+        setLoadErrorMessage(`Sembol kayıtları okunamadı: ${pageRes.error}`);
+        if (opts.reset) setRows([]);
+        return;
+      }
 
-  const filteredRows = useMemo(() => {
-    const s = searchSymbol.trim().toLocaleLowerCase("tr-TR");
-    const c = searchCategory.trim().toLocaleLowerCase("tr-TR");
-    const m = searchMeaning.trim().toLocaleLowerCase("tr-TR");
-    const b = searchSubconscious.trim().toLocaleLowerCase("tr-TR");
-    return rows.filter((row) => {
-      const symbolOk =
-        !s ||
-        (row.symbol ?? "").toLocaleLowerCase("tr-TR").includes(s) ||
-        (row.title ?? "").toLocaleLowerCase("tr-TR").includes(s);
-      const categoryOk =
-        !c || (row.category ?? "").toLocaleLowerCase("tr-TR").includes(c);
-      const meaningOk =
-        !m || (row.meaning ?? "").toLocaleLowerCase("tr-TR").includes(m);
-      const subconsciousOk =
-        !b ||
-        (row.subconscious_message ?? "").toLocaleLowerCase("tr-TR").includes(b);
-      return symbolOk && categoryOk && meaningOk && subconsciousOk;
-    });
-  }, [rows, searchSymbol, searchCategory, searchMeaning, searchSubconscious]);
+      if (opts.reset) {
+        if (totalRes.error) {
+          setLoadErrorMessage(`Kayıt sayısı alınamadı: ${totalRes.error}`);
+        } else {
+          setTotalInDb(totalRes.count);
+        }
+        if (searchCountRes.error) {
+          setSearchResultCount(0);
+        } else {
+          setSearchResultCount(searchCountRes.count);
+        }
+        const lastRow = lastRes.data as { created_at?: string } | null;
+        setLastCreatedAt(lastRow?.created_at ?? null);
+      }
 
-  const selectedRow = useMemo(
-    () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
-    [rows, selectedId],
+      setRows((current) =>
+        opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
+      );
+    },
+    [debouncedSearch, queryTenantId, searchResultCount, totalInDb],
   );
 
-  const moduleStats = useMemo(() => {
-    const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
-    const newest = rows.reduce<string | null>((acc, row) => {
-      if (!row.created_at) return acc;
-      if (!acc || row.created_at > acc) return row.created_at;
-      return acc;
-    }, null);
-    const last = newest ? formatDate(newest) : "—";
-    return { total: rows.length, cats: cats.size, last };
-  }, [rows]);
+  useEffect(() => {
+    void resolveTenant();
+  }, [resolveTenant]);
 
-  function fillFormFromRow(row: BioenergySymbolRecord) {
-    setForm({
-      symbol_name: row.symbol?.trim() || row.title?.trim() || "",
-      category: row.category ?? "",
-      meaning: row.meaning ?? "",
-      subconscious_message: row.subconscious_message ?? "",
-      positive_aspect: "",
-      negative_aspect: "",
-      usage_area: "",
-      source: row.source ?? "",
-      note: "",
-    });
-  }
+  useEffect(() => {
+    if (!queryTenantId) return;
+    void fetchList({ reset: true });
+  }, [queryTenantId, debouncedSearch, fetchList]);
 
-  function selectRow(row: BioenergySymbolRecord) {
-    setSelectedId(row.id);
-    setFormModalOpen(false);
-    setInfoError("");
-    setInfoSuccess("");
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
-  function resetFormSelection() {
-    setSelectedId(null);
-    setForm({ ...emptyForm });
-  }
-
-  function closeFormModal() {
-    setFormModalOpen(false);
-  }
-
-  function openCreateModal() {
-    setFormModalMode("create");
-    setForm({ ...emptyForm });
-    setSelectedId(null);
-    setFormModalOpen(true);
-    setInfoError("");
-  }
-
-  function openEditModal() {
-    if (!selectedRow) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
-      return;
-    }
-    setFormModalMode("edit");
-    fillFormFromRow(selectedRow);
-    setFormModalOpen(true);
-    setInfoError("");
-  }
-
-  function modalTemizle() {
-    if (formModalMode === "create") {
-      setForm({ ...emptyForm });
-    } else if (selectedRow) {
-      fillFormFromRow(selectedRow);
-    }
-  }
+  const hasMore = rows.length < searchResultCount;
+  const listBusy =
+    listLoading || (Boolean(searchTerm.trim()) && searchTerm.trim() !== debouncedSearch);
+  const isSearchActive = Boolean(debouncedSearch);
 
   async function handleKaydet() {
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
+    if (!tenantId) {
+      showSoft("err", MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const nameTrim = form.symbol_name.trim();
     if (!nameTrim) {
       showSoft("err", "Sembol adı zorunludur.");
@@ -243,9 +222,6 @@ export default function SembolDili() {
     }
 
     setSaving(true);
-    setInfoError("");
-    if (!tenantId) return;
-
     const { error } = await supabase.from("bioenergy_symbols").insert({
       tenant_id: tenantId,
       symbol: nameTrim,
@@ -264,321 +240,162 @@ export default function SembolDili() {
     }
 
     setFormModalOpen(false);
-    await loadRecords();
+    setForm({ ...emptyForm });
+    await fetchList({ reset: true });
     showSoft("ok", "Sembol kaydı oluşturuldu.");
   }
 
-  async function handleGuncelle() {
-    if (!selectedId) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
-      return;
-    }
-    const nameTrim = form.symbol_name.trim();
-    if (!nameTrim) {
-      showSoft("err", "Sembol adı zorunludur.");
-      return;
-    }
-
-    setSaving(true);
-    setInfoError("");
-    const { error } = await supabase
-      .from("bioenergy_symbols")
-      .update({
-        symbol: nameTrim,
-        title: nameTrim,
-        category: trimOrNull(form.category),
-        meaning: trimOrNull(form.meaning),
-        subconscious_message: trimOrNull(form.subconscious_message),
-        source: trimOrNull(form.source),
-      })
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
-
-    setSaving(false);
-
-    if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    setFormModalOpen(false);
-    await loadRecords();
-    showSoft("ok", "Kayıt güncellendi.");
-  }
-
-  function openDeleteConfirm() {
-    if (!selectedId) {
-      showSoft("err", "Silmek için listeden bir kayıt seçin.");
-      return;
-    }
-    setDeleteConfirmOpen(true);
-    setInfoError("");
-  }
-
-  async function executeDelete() {
-    if (!selectedId) return;
-
-    setSaving(true);
-    setInfoError("");
-    if (!tenantId) return;
-
-    const { error } = await supabase
-      .from("bioenergy_symbols")
-      .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
-
-    setSaving(false);
-    setDeleteConfirmOpen(false);
-
-    if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
-      return;
-    }
-
-    await loadRecords();
-    resetFormSelection();
-    showSoft("ok", "Kayıt silindi.");
-  }
-
   return (
-    <section className={sectionShellClass}>
-      <div className="mb-4 flex flex-col gap-3 border-b border-emerald-100/50 pb-4">
-        <div>
-          <h2 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">Sembol Dili</h2>
-          <p className="mt-1 text-[12px] font-medium text-slate-500">
-            Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
-          </p>
-        </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-emerald-700/75">
-              Sembol adı
-            </span>
-            <input
-              type="search"
-              value={searchSymbol}
-              onChange={(e) => setSearchSymbol(e.target.value)}
-              className={searchInputClass("emerald")}
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-              Kategori
-            </span>
-            <input
-              type="search"
-              value={searchCategory}
-              onChange={(e) => setSearchCategory(e.target.value)}
-              className={searchInputClass("cyan")}
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-amber-600/75">
-              Anlam
-            </span>
-            <input
-              type="search"
-              value={searchMeaning}
-              onChange={(e) => setSearchMeaning(e.target.value)}
-              className={searchInputClass("amber")}
-            />
-          </label>
-          <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Bilinçaltı mesajı
-            </span>
-            <input
-              type="search"
-              value={searchSubconscious}
-              onChange={(e) => setSearchSubconscious(e.target.value)}
-              className={searchInputClass("violet")}
-            />
-          </label>
-        </div>
-        <ModuleStats
-          total={moduleStats.total}
-          midLabel="Kategori"
-          midCount={moduleStats.cats}
-          lastDate={moduleStats.last}
-          tone="emerald"
-        />
+    <section className="w-full min-w-0">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
+          + Yeni Kayıt
+        </button>
       </div>
 
-      {loadError ? (
-        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
-          Hata: veri alınamadı
+      <div className="mb-6 grid w-full grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
+        <div className="rounded-2xl border-2 border-emerald-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
+          <p className="text-base font-bold text-slate-500">Toplam kayıt</p>
+          <p className="mt-2 text-3xl font-black tabular-nums text-emerald-700 sm:text-4xl">
+            {totalInDb}
+          </p>
+        </div>
+        <div className="rounded-2xl border-2 border-violet-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
+          <p className="text-base font-bold text-slate-500">
+            {isSearchActive ? "Arama sonucu" : "Görünen sonuç"}
+          </p>
+          <p className="mt-2 text-3xl font-black tabular-nums text-violet-700 sm:text-4xl">
+            {searchResultCount}
+          </p>
+        </div>
+        <div className="rounded-2xl border-2 border-cyan-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
+          <p className="text-base font-bold text-slate-500">Son kayıt</p>
+          <p className="mt-2 text-lg font-black leading-snug text-cyan-800 sm:text-xl">
+            {formatDate(lastCreatedAt)}
+          </p>
+        </div>
+      </div>
+
+      <label className="mb-6 block w-full">
+        <span className="mb-2 block text-base font-bold text-slate-600">Kütüphane araması</span>
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Sembol adı, kategori, anlam ve bilinçaltı mesajı içinde ara..."
+          className="h-[3.25rem] w-full rounded-2xl border-2 border-emerald-200 bg-white/95 px-5 text-[17px] font-semibold text-slate-800 shadow-inner outline-none transition placeholder:text-base placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
+        />
+        {listBusy ? (
+          <p className="mt-2 text-sm font-bold text-emerald-700">Aranıyor…</p>
+        ) : isSearchActive ? (
+          <p className="mt-2 text-sm font-bold text-emerald-700">
+            Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+          </p>
+        ) : null}
+      </label>
+
+      {loadErrorMessage ? (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
+          {loadErrorMessage}
         </div>
       ) : null}
 
       {(infoSuccess || infoError) && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-xl border border-emerald-100/80 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-bold text-emerald-800 shadow-sm ring-1 ring-emerald-100/50">
+            <div className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-800">
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+            <div className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
               {infoError}
             </div>
           ) : null}
         </div>
       )}
 
-      <div className="flex min-h-[min(68vh,560px)] flex-col gap-4 lg:flex-row lg:gap-6">
-        <div
-          className={`${listColumnClass} order-1 border-emerald-100/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(236,253,245,0.42)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_28px_-14px_rgba(5,150,105,0.06)] lg:order-none`}
-        >
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <span className="text-[11px] font-black uppercase tracking-wide text-emerald-800/90">
-              Kayıtlar ({filteredRows.length})
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {loading ? (
-                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-              ) : null}
-              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
-                + Yeni Kayıt
+      {listLoading && rows.length === 0 ? (
+        <p className="py-16 text-center text-lg font-semibold text-slate-400">Yükleniyor…</p>
+      ) : rows.length === 0 ? (
+        <CrudEmptyState
+          icon="✦"
+          title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
+          subtitle={
+            isSearchActive
+              ? "Arama terimini değiştirin veya yeni kayıt ekleyin."
+              : "Yeni Kayıt ile ilk sembol kaydını ekleyebilirsiniz."
+          }
+          tone="emerald"
+        />
+      ) : (
+        <>
+          <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
+            {rows.map((row, index) => {
+              const detailHref = symbolLanguageDetailHref(row.id);
+              const preview = previewSymbolLanguageText(row.meaning, row.subconscious_message);
+              const theme = getSymbolLanguageCardTheme(index);
+              const hasCategory = Boolean(row.category?.trim());
+              const displayTitle = symbolDisplayName(row);
+
+              if (!detailHref) return null;
+
+              return (
+                <Link
+                  key={row.id}
+                  href={detailHref}
+                  className={`group relative flex h-[300px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${theme.card} ${theme.hover}`}
+                >
+                  {hasCategory ? (
+                    <span
+                      className={`mb-3 inline-flex w-fit max-w-full truncate rounded-full px-3.5 py-1.5 text-xs font-black uppercase tracking-wide ${theme.badge}`}
+                    >
+                      {row.category}
+                    </span>
+                  ) : (
+                    <span
+                      className={`mb-3 inline-flex w-fit rounded-full px-3.5 py-1.5 text-xs font-bold ${theme.badgeMuted}`}
+                    >
+                      Kategorisiz
+                    </span>
+                  )}
+
+                  <h2 className="line-clamp-2 text-[20px] font-black leading-snug text-slate-950">
+                    {displayTitle}
+                  </h2>
+
+                  <p className="mt-3 line-clamp-2 min-h-[3.25rem] flex-1 text-[16px] leading-relaxed text-slate-800/90">
+                    {preview}
+                  </p>
+
+                  <span className={detailOpenBtnClass}>Detayı Aç →</span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {hasMore ? (
+            <div className="mt-10 flex justify-center">
+              <button
+                type="button"
+                disabled={loadingMore || listLoading}
+                onClick={() => void fetchList({ reset: false, append: true, offset: rows.length })}
+                className={loadMoreBtnClass}
+              >
+                {loadingMore
+                  ? "Yükleniyor…"
+                  : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
               </button>
             </div>
-          </div>
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
-            {loading ? (
-              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-            ) : loadError ? null : rows.length === 0 ? (
-              <CrudEmptyState
-                icon="✦"
-                title="Liste boş"
-                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
-                tone="emerald"
-              />
-            ) : filteredRows.length === 0 ? (
-              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
-                Aramayı güncelleyin veya Yeni Kayıt ile sembol ekleyin.
-              </p>
-            ) : (
-              filteredRows.map((row) => {
-                const active = selectedId === row.id;
-                return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
-                      active
-                        ? "scale-[1.01] border-emerald-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(52,211,153,0.18),0_14px_36px_-12px_rgba(5,150,105,0.12)] ring-2 ring-emerald-200/45 ring-offset-1 ring-offset-transparent"
-                        : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-emerald-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
-                    }`}
-                  >
-                    <div className="line-clamp-1 text-[13px] font-black leading-snug text-slate-900">
-                      {row.symbol?.trim() || "—"}
-                    </div>
-                    <div className="mt-0.5 line-clamp-1 text-[12px] font-bold text-slate-600">
-                      {row.title?.trim() || "—"}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      {row.category?.trim() ? (
-                        <span className="rounded-full bg-gradient-to-r from-emerald-100/90 to-cyan-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-950/90 shadow-inner ring-1 ring-emerald-200/45">
-                          {row.category}
-                        </span>
-                      ) : (
-                        <span>—</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div
-          className={`${formGlassPanelClass} order-2 min-h-[min(280px,42vh)] min-w-0 flex-1 border-emerald-100/35 ring-teal-100/30 lg:order-none`}
-        >
-          {selectedRow ? (
-            <>
-              <div className="mb-1 inline-flex rounded-full bg-emerald-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-emerald-950 ring-1 ring-emerald-200/45">
-                SEÇİLİ KAYIT
-              </div>
-              <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
-                {selectedRow.title?.trim() || selectedRow.symbol?.trim() || "—"}
-              </h3>
-              <div className="mt-4 space-y-3 text-[12px] leading-relaxed">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700/75">
-                    Sembol
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">
-                    {selectedRow.symbol?.trim() || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-                    Kategori
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">
-                    {selectedRow.category?.trim() || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-600/75">
-                    Anlam
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-600">
-                    {selectedRow.meaning?.trim() || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-                    Bilinçaltı Mesajı
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-600">
-                    {selectedRow.subconscious_message?.trim() || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-600/75">
-                    Kaynak
-                  </p>
-                  <p className="mt-1 font-semibold text-slate-800">
-                    {selectedRow.source?.trim() || "—"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  className="rounded-xl border border-emerald-200/70 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-black text-emerald-950 shadow-sm transition hover:bg-emerald-100/90"
-                >
-                  Güncelle
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={openDeleteConfirm}
-                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
-                >
-                  Sil
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex min-h-[220px] flex-col items-center justify-center px-2 text-center">
-              <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
-                Soldan bir kayıt seçin veya yeni sembol eklemek için üstteki düğmeyi kullanın.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+          ) : null}
+        </>
+      )}
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
-        onClose={closeFormModal}
-        title={formModalMode === "create" ? "Yeni sembol kaydı" : "Sembol kaydını düzenle"}
-        subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
+        onClose={() => setFormModalOpen(false)}
+        title="Yeni sembol kaydı"
+        subtitle="Kaydettikten sonra kütüphanede görünür."
         titleId="symbol-form-modal-title"
         accentRingClass="ring-emerald-100/50"
         footer={
@@ -586,7 +403,7 @@ export default function SembolDili() {
             <button
               type="button"
               disabled={saving}
-              onClick={closeFormModal}
+              onClick={() => setFormModalOpen(false)}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -594,50 +411,33 @@ export default function SembolDili() {
             <button
               type="button"
               disabled={saving}
-              onClick={modalTemizle}
+              onClick={() => setForm({ ...emptyForm })}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Temizle
             </button>
-            {formModalMode === "create" ? (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void handleKaydet()}
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
-              >
-                {saving ? "Kaydediliyor…" : "Kaydet"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void handleGuncelle()}
-                className="rounded-xl border border-emerald-200/70 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-black text-emerald-950 shadow-sm transition hover:bg-emerald-100/90 disabled:opacity-55"
-              >
-                {saving ? "Güncelleniyor…" : "Güncelle"}
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleKaydet()}
+              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
+            >
+              {saving ? "Kaydediliyor…" : "Kaydet"}
+            </button>
           </>
         }
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]" />
-              Sembol Adı
-            </span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">Sembol Adı *</span>
             <input
               value={form.symbol_name}
               onChange={(e) => setForm((f) => ({ ...f, symbol_name: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
+              className="h-12 w-full rounded-xl border border-emerald-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 outline-none transition focus:border-emerald-200/90 focus:ring-2 focus:ring-emerald-100/55"
             />
           </label>
           <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-500/90" />
-              Kategori
-            </span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">Kategori</span>
             <div className={badgeFieldWrapClass("emerald")}>
               <input
                 value={form.category}
@@ -648,23 +448,17 @@ export default function SembolDili() {
             </div>
           </label>
           <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-                Anlamı
-              </span>
-            }
-            modalTitle="Anlamı"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Anlam</span>}
+            modalTitle="Anlam"
             value={form.meaning}
             onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
             minRows={4}
-            className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-cyan-100/50 transition"
+            className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-cyan-100/50"
             disabled={saving}
           />
           <LongTextareaField
             label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
+              <span className="mb-2 block text-[12px] font-black text-slate-800">
                 Bilinçaltı Mesajı
               </span>
             }
@@ -672,122 +466,19 @@ export default function SembolDili() {
             value={form.subconscious_message}
             onChange={(v) => setForm((f) => ({ ...f, subconscious_message: v }))}
             minRows={3}
-            className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-violet-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-lime-500/85" />
-                Pozitif Yön
-              </span>
-            }
-            modalTitle="Pozitif Yön"
-            value={form.positive_aspect}
-            onChange={(v) => setForm((f) => ({ ...f, positive_aspect: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-lime-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-lime-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-500/85" />
-                Negatif Yön
-              </span>
-            }
-            modalTitle="Negatif Yön"
-            value={form.negative_aspect}
-            onChange={(v) => setForm((f) => ({ ...f, negative_aspect: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-orange-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-orange-100/50 transition"
-            disabled={saving}
-          />
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/90" />
-                Kullanım Alanı
-              </span>
-            }
-            modalTitle="Kullanım Alanı"
-            value={form.usage_area}
-            onChange={(v) => setForm((f) => ({ ...f, usage_area: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-sky-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-sky-100/50 transition"
+            className="w-full resize-none rounded-xl border border-violet-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-violet-100/50"
             disabled={saving}
           />
           <label className="block">
-            <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-              Kaynak
-            </span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak</span>
             <input
               value={form.source}
               onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
+              className="h-12 w-full rounded-xl border border-amber-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 outline-none transition focus:border-amber-200/90 focus:ring-2 focus:ring-amber-100/55"
             />
           </label>
-          <LongTextareaField
-            label={
-              <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                Not
-              </span>
-            }
-            modalTitle="Not"
-            value={form.note}
-            onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-            minRows={3}
-            className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-[13px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-100/60 transition"
-            disabled={saving}
-          />
         </div>
       </BiyoenerjiCrudFormModal>
-
-      {deleteConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
-          role="presentation"
-          onClick={() => !saving && setDeleteConfirmOpen(false)}
-        >
-          <div
-            className="w-full max-w-[420px] rounded-[22px] border border-white/88 bg-white/88 p-6 shadow-[0_24px_64px_-12px_rgba(15,23,42,0.12)] ring-1 ring-emerald-100/50 backdrop-blur-md"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="symbol-delete-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-rose-700 ring-1 ring-rose-100">
-              SİLME ONAYI
-            </div>
-            <h3 id="symbol-delete-title" className="mt-2 text-[17px] font-black leading-snug text-slate-950">
-              Bu sembol kaydını silmek istediğinizden emin misiniz?
-            </h3>
-            <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
-              İşlem geri alınamaz. Kayıt listeden kaldırılır.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void executeDelete()}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
-              >
-                {saving ? "Siliniyor…" : "Evet, sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
