@@ -4,11 +4,14 @@ import BiyoenerjiSectionShell from "../components/BiyoenerjiSectionShell";
 export default function CakralarPage() {
   return (
     <BiyoenerjiSectionShell
-      badge="BİYOENERJİ · ÇAKRA"
-      title="Çakralar"
-      subtitle="Enerji merkezleri, denge alanları ve çakra notları"
+      headerVariant="premium"
+      badge="BİYOENERJİ · ÇAKRA KÜTÜPHANESİ"
+      title="Çakra Kütüphanesi"
+      subtitle="Enerji merkezleri, organlar, renkler ve çakra notları"
     >
-      <Cakralar />
+      <div className="w-full min-w-0 max-w-none px-0 sm:px-6 lg:px-8">
+        <Cakralar />
+      </div>
     </BiyoenerjiSectionShell>
   );
 }
