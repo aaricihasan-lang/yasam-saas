@@ -42,7 +42,7 @@ export function mapSubconsciousCauseListRow(
   row: Record<string, unknown>,
 ): SubconsciousCauseListItem {
   return {
-    id: String(row.id ?? ""),
+    id: String(row.id ?? "").trim(),
     tenant_id: String(row.tenant_id ?? ""),
     source_uid: String(row.source_uid ?? ""),
     title: row.title != null ? String(row.title) : null,

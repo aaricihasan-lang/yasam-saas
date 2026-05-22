@@ -339,7 +339,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   if (sourceUidText) extraLines.push(`Kaynak UID: ${sourceUidText}`);
 
   return (
-    <div className="w-full min-w-0 px-2 sm:px-0">
+    <div className="w-full min-w-0 max-w-none">
       <div className="mb-5 flex flex-wrap items-center gap-2.5 sm:mb-6 sm:gap-3">
         <Link
           href={SUBCONSCIOUS_CAUSES_LIST_PATH}

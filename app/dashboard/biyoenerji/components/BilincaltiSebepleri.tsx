@@ -75,6 +75,9 @@ const newRecordBtnPremium =
 const loadMoreBtnClass =
   "rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-violet-50 px-8 py-4 text-base font-black text-slate-800 shadow-md transition hover:from-fuchsia-100 hover:to-violet-100 disabled:opacity-60";
 
+const detailOpenBtnClass =
+  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-2xl bg-slate-950 py-4 text-[17px] font-black text-white shadow-lg transition duration-300 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
+
 export default function BilincaltiSebepleri() {
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SubconsciousCauseListItem[]>([]);
@@ -347,9 +350,10 @@ export default function BilincaltiSebepleri() {
               if (!detailHref) return null;
 
               return (
-                <article
+                <Link
                   key={row.id}
-                  className={`flex h-[300px] flex-col rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 ${theme.card} ${theme.hover}`}
+                  href={detailHref}
+                  className={`group relative flex h-[300px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 ${theme.card} ${theme.hover}`}
                 >
                   {hasCategory ? (
                     <span
@@ -373,13 +377,8 @@ export default function BilincaltiSebepleri() {
                     {preview}
                   </p>
 
-                  <Link
-                    href={detailHref}
-                    className={`mt-auto inline-flex w-full items-center justify-center rounded-2xl py-4 text-[17px] font-black transition duration-300 ${theme.button}`}
-                  >
-                    Detayı Aç →
-                  </Link>
-                </article>
+                  <span className={detailOpenBtnClass}>Detayı Aç →</span>
+                </Link>
               );
             })}
           </div>
