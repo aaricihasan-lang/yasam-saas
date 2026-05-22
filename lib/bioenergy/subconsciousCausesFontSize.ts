@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
 export const SUBCONSCIOUS_CAUSES_FONT_SIZE_KEY = "subconscious-causes-font-size";
-export const SUBCONSCIOUS_CAUSES_FONT_DEFAULT = 18;
+export const SUBCONSCIOUS_CAUSES_FONT_DEFAULT = 19;
 export const SUBCONSCIOUS_CAUSES_FONT_MIN = 16;
-export const SUBCONSCIOUS_CAUSES_FONT_MAX = 24;
+export const SUBCONSCIOUS_CAUSES_FONT_MAX = 25;
 export const SUBCONSCIOUS_CAUSES_FONT_STEP = 1;
-export const SUBCONSCIOUS_CAUSES_LINE_HEIGHT = 1.75;
+export const SUBCONSCIOUS_CAUSES_LINE_HEIGHT = 1.9;
+/** Mobil detayda okunabilirlik alt sınırı */
+export const SUBCONSCIOUS_CAUSES_FONT_MOBILE_MIN = 17;
 
 export type SubconsciousCausesTypography = {
   fontSizePx: number;

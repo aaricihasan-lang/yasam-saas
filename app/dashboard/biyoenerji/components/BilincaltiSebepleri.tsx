@@ -8,6 +8,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { getSubconsciousCardTheme } from "@/lib/bioenergy/subconsciousCausesCardTheme";
 import {
   fetchSubconsciousCausesCount,
   fetchSubconsciousCausesPage,
@@ -336,37 +337,43 @@ export default function BilincaltiSebepleri() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {rows.map((row) => {
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {rows.map((row, index) => {
               const detailHref = `${SUBCONSCIOUS_CAUSES_LIST_PATH}/${encodeURIComponent(row.id)}`;
               const preview = previewSubconsciousText(row.content, row.note_text);
+              const theme = getSubconsciousCardTheme(index);
+              const hasCategory = Boolean(row.category?.trim());
 
               return (
                 <article
                   key={row.id}
-                  className="flex min-h-[280px] flex-col rounded-3xl border-2 border-fuchsia-200/60 bg-gradient-to-br from-white/95 via-fuchsia-50/40 to-violet-50/30 p-6 shadow-[0_12px_36px_-16px_rgba(192,38,211,0.2)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-300 hover:shadow-xl"
+                  className={`flex h-[300px] flex-col rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 ${theme.card} ${theme.hover}`}
                 >
-                  {row.category?.trim() ? (
-                    <span className="mb-3 inline-flex w-fit rounded-full bg-gradient-to-r from-fuchsia-100 to-violet-50 px-3.5 py-1 text-xs font-black uppercase tracking-wide text-fuchsia-950 ring-1 ring-fuchsia-200/60">
+                  {hasCategory ? (
+                    <span
+                      className={`mb-3 inline-flex w-fit max-w-full truncate rounded-full px-3.5 py-1.5 text-xs font-black uppercase tracking-wide ${theme.badge}`}
+                    >
                       {row.category}
                     </span>
                   ) : (
-                    <span className="mb-3 inline-flex w-fit rounded-full bg-slate-100 px-3.5 py-1 text-xs font-bold text-slate-500">
+                    <span
+                      className={`mb-3 inline-flex w-fit rounded-full px-3.5 py-1.5 text-xs font-bold ${theme.badgeMuted}`}
+                    >
                       Kategorisiz
                     </span>
                   )}
 
-                  <h2 className="line-clamp-2 text-xl font-black leading-snug text-slate-950 sm:text-[1.35rem]">
+                  <h2 className="line-clamp-2 text-[20px] font-black leading-snug text-slate-950">
                     {row.title?.trim() || "İsimsiz kayıt"}
                   </h2>
 
-                  <p className="mt-4 line-clamp-3 flex-1 text-base leading-relaxed text-slate-600">
+                  <p className="mt-3 line-clamp-2 min-h-[3.25rem] flex-1 text-[16px] leading-relaxed text-slate-800/90">
                     {preview}
                   </p>
 
                   <Link
                     href={detailHref}
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 py-3.5 text-base font-black text-white shadow-md transition hover:bg-fuchsia-800"
+                    className={`mt-auto inline-flex w-full items-center justify-center rounded-2xl py-4 text-[17px] font-black transition duration-300 ${theme.button}`}
                   >
                     Detayı Aç →
                   </Link>

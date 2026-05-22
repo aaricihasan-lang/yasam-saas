@@ -61,8 +61,8 @@ export function previewSubconsciousText(
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
-  if (!combined) return "İçerik önizlemesi henüz yok.";
-  return combined.length > 200 ? `${combined.slice(0, 200)}…` : combined;
+  if (!combined) return "Önizleme yok.";
+  return combined.length > 100 ? `${combined.slice(0, 100)}…` : combined;
 }
 
 export async function fetchSubconsciousCausesCount(

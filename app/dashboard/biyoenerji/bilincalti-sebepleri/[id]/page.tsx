@@ -15,7 +15,9 @@ export default async function BilincaltiSebepleriDetailPage({ params }: PageProp
       title="Bilinçaltı Sebepleri"
       subtitle="Kayıt detayı — içerik ve notlar"
     >
-      <BilincaltiSebepleriDetail id={id} />
+      <div className="mx-auto w-full max-w-[1500px] px-1 sm:px-0">
+        <BilincaltiSebepleriDetail id={id} />
+      </div>
     </BiyoenerjiSectionShell>
   );
 }

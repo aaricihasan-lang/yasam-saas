@@ -9,7 +9,9 @@ export default function BilincaltiSebepleriPage() {
       title="Bilinçaltı Sebepleri Kütüphanesi"
       subtitle="Arama yapın, karttan detayı açın — kök nedenler ve dönüşüm notları"
     >
-      <BilincaltiSebepleri />
+      <div className="mx-auto w-full max-w-[1500px]">
+        <BilincaltiSebepleri />
+      </div>
     </BiyoenerjiSectionShell>
   );
 }

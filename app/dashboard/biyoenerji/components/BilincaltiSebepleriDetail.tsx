@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
   SUBCONSCIOUS_CAUSES_FONT_DEFAULT,
+  SUBCONSCIOUS_CAUSES_FONT_MOBILE_MIN,
+  subconsciousCausesTypography,
   type SubconsciousCausesTypography,
 } from "@/lib/bioenergy/subconsciousCausesFontSize";
 import { SUBCONSCIOUS_CAUSES_LIST_PATH } from "@/lib/bioenergy/subconsciousCausesListFetch";
@@ -35,6 +37,29 @@ type SubconsciousCauseForm = {
   category: string;
   content: string;
   note_text: string;
+};
+
+type DetailSectionTone = "violet" | "amber" | "slate";
+
+const SECTION_SHELL: Record<
+  DetailSectionTone,
+  { wrap: string; title: string }
+> = {
+  violet: {
+    wrap:
+      "rounded-[28px] border-2 border-violet-300/60 bg-gradient-to-br from-violet-100/95 via-violet-50/90 to-purple-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(139,92,246,0.28)] sm:p-10",
+    title: "text-violet-950",
+  },
+  amber: {
+    wrap:
+      "rounded-[28px] border-2 border-amber-300/60 bg-gradient-to-br from-amber-100/95 via-amber-50/90 to-yellow-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(245,158,11,0.22)] sm:p-10",
+    title: "text-amber-950",
+  },
+  slate: {
+    wrap:
+      "rounded-[28px] border-2 border-slate-300/60 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-zinc-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(100,116,139,0.2)] sm:p-10",
+    title: "text-slate-900",
+  },
 };
 
 function trimOrEmpty(v: string) {
@@ -67,28 +92,38 @@ function formatDate(iso: string | null | undefined) {
   }
 }
 
+function useMobileViewport() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
+}
+
 function DetailContentCard({
   title,
   text,
   typography,
+  tone,
 }: {
   title: string;
-  text: string | null | undefined;
+  text: string;
   typography: SubconsciousCausesTypography;
+  tone: DetailSectionTone;
 }) {
-  const display = text?.trim() || "";
+  const shell = SECTION_SHELL[tone];
 
   return (
-    <article className="rounded-[24px] border-2 border-fuchsia-200/70 bg-gradient-to-br from-white/95 via-fuchsia-50/35 to-violet-50/25 p-6 shadow-[0_12px_36px_-18px_rgba(192,38,211,0.18)] sm:p-8">
-      <h2 className="text-2xl font-black text-slate-950">{title}</h2>
-      <div className="mt-5 min-w-0" style={typography.bodyStyle}>
-        {display ? (
-          formatStoneContent(display, { fontSizePx: typography.fontSizePx })
-        ) : (
-          <p className="rounded-xl border border-dashed border-fuchsia-200/80 bg-fuchsia-50/40 px-5 py-8 text-center font-medium italic text-fuchsia-400/90">
-            Henüz bilgi girilmedi.
-          </p>
-        )}
+    <article className={shell.wrap}>
+      <h2 className={`text-2xl font-black sm:text-3xl ${shell.title}`}>{title}</h2>
+      <div className="mt-6 min-w-0 [&_.space-y-4]:space-y-7 [&_.space-y-3]:space-y-6" style={typography.bodyStyle}>
+        {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
     </article>
   );
@@ -96,9 +131,9 @@ function DetailContentCard({
 
 export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   const router = useRouter();
+  const isMobile = useMobileViewport();
   const {
     fontSizePx,
-    typography,
     decrease: decreaseFontSize,
     reset: resetFontSize,
     increase: increaseFontSize,
@@ -106,6 +141,15 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     canIncrease: canIncreaseFontSize,
     isDefault: isDefaultFontSize,
   } = useSubconsciousCausesFontSize();
+
+  const contentFontSizePx = isMobile
+    ? Math.max(SUBCONSCIOUS_CAUSES_FONT_MOBILE_MIN, fontSizePx)
+    : fontSizePx;
+
+  const contentTypography = useMemo(
+    () => subconsciousCausesTypography(contentFontSizePx),
+    [contentFontSizePx],
+  );
 
   const [record, setRecord] = useState<BioenergySubconsciousRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -248,19 +292,19 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-3xl border-2 border-fuchsia-200/60 bg-white/80">
-        <p className="text-lg font-semibold text-slate-500">Kayıt yükleniyor…</p>
+      <div className="flex min-h-[320px] items-center justify-center rounded-3xl border-2 border-violet-200/60 bg-violet-50/80">
+        <p className="text-lg font-semibold text-slate-600">Kayıt yükleniyor…</p>
       </div>
     );
   }
 
   if (errorMessage && !record) {
     return (
-      <div className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-8 text-center">
+      <div className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-6 text-center sm:p-8">
         <p className="text-lg font-bold text-rose-800">{errorMessage}</p>
         <Link
           href={SUBCONSCIOUS_CAUSES_LIST_PATH}
-          className="mt-6 inline-flex rounded-2xl bg-slate-900 px-6 py-3 text-base font-black text-white"
+          className="mt-6 inline-flex rounded-2xl bg-slate-900 px-6 py-3.5 text-base font-black text-white"
         >
           Listeye Dön
         </Link>
@@ -270,18 +314,28 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
   if (!record) return null;
 
+  const contentText = record.content?.trim() ?? "";
+  const noteText = record.note_text?.trim() ?? "";
+  const categoryText = record.category?.trim() ?? "";
+  const sourceUidText = record.source_uid?.trim() ?? "";
+  const hasExtraInfo = Boolean(categoryText || sourceUidText);
+
+  const extraLines: string[] = [];
+  if (categoryText) extraLines.push(`Kategori: ${categoryText}`);
+  if (sourceUidText) extraLines.push(`Kaynak UID: ${sourceUidText}`);
+
   return (
-    <div className="w-full min-w-0">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div className="w-full min-w-0 px-2 sm:px-0">
+      <div className="mb-5 flex flex-wrap items-center gap-2.5 sm:mb-6 sm:gap-3">
         <Link
           href={SUBCONSCIOUS_CAUSES_LIST_PATH}
-          className="inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-200 bg-white px-5 py-3.5 text-base font-black text-fuchsia-900 shadow-md transition hover:bg-fuchsia-50"
+          className="inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-300 bg-white px-4 py-3 text-[15px] font-black text-fuchsia-900 shadow-md transition hover:bg-fuchsia-50 sm:px-5 sm:py-3.5 sm:text-base"
         >
           ← Listeye Dön
         </Link>
         <Link
           href={BIOENERJI_FOLDER_BASE}
-          className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-200 bg-white px-5 py-3.5 text-base font-black text-violet-900 shadow-md transition hover:bg-violet-50"
+          className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white px-4 py-3 text-[15px] font-black text-violet-900 shadow-md transition hover:bg-violet-50 sm:px-5 sm:py-3.5 sm:text-base"
         >
           Biyoenerji Ana Klasörüne Dön
         </Link>
@@ -302,48 +356,40 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         </div>
       )}
 
-      <header className="mb-8 rounded-[32px] border-2 border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white/95 to-violet-50/80 p-6 shadow-lg sm:p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="mb-8 rounded-[32px] border-2 border-violet-300/70 bg-gradient-to-br from-violet-100/95 via-white/95 to-cyan-50/90 p-5 shadow-[0_20px_50px_-18px_rgba(139,92,246,0.25)] sm:p-8 lg:p-10">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
-            {record.category?.trim() ? (
-              <span className="mb-3 inline-flex rounded-full bg-gradient-to-r from-fuchsia-100 to-violet-50 px-4 py-1.5 text-sm font-black uppercase tracking-wide text-fuchsia-950 ring-1 ring-fuchsia-200/60">
-                {record.category}
+            {categoryText ? (
+              <span className="mb-4 inline-flex rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-5 py-2 text-sm font-black uppercase tracking-wider text-white shadow-md ring-2 ring-white/50">
+                {categoryText}
               </span>
-            ) : (
-              <span className="mb-3 inline-flex rounded-full bg-slate-100 px-4 py-1.5 text-sm font-bold text-slate-500">
-                Kategorisiz
-              </span>
-            )}
-            <h1 className="text-3xl font-black leading-tight text-slate-950 sm:text-4xl xl:text-[2.75rem]">
+            ) : null}
+            <h1 className="text-[42px] font-black leading-[1.1] tracking-tight text-slate-950 sm:text-[48px] xl:text-[52px]">
               {record.title?.trim() || "İsimsiz kayıt"}
             </h1>
-            <p className="mt-3 text-base font-medium text-slate-500">
-              Kayıt: {formatDate(record.created_at)}
-              {record.source_uid?.trim() ? (
-                <>
-                  {" "}
-                  · Kaynak uid: <span className="font-bold text-slate-700">{record.source_uid}</span>
-                </>
-              ) : null}
+            <p className="mt-4 text-base font-medium text-slate-600 sm:text-lg">
+              Kayıt tarihi: {formatDate(record.created_at)}
             </p>
           </div>
-          <DogaltasFontSizeControl
-            fontSizePx={fontSizePx}
-            onDecrease={decreaseFontSize}
-            onReset={resetFontSize}
-            onIncrease={increaseFontSize}
-            canDecrease={canDecreaseFontSize}
-            canIncrease={canIncreaseFontSize}
-            isDefault={isDefaultFontSize}
-            defaultFontSizePx={SUBCONSCIOUS_CAUSES_FONT_DEFAULT}
-          />
+          <div className="shrink-0">
+            <DogaltasFontSizeControl
+              fontSizePx={fontSizePx}
+              onDecrease={decreaseFontSize}
+              onReset={resetFontSize}
+              onIncrease={increaseFontSize}
+              canDecrease={canDecreaseFontSize}
+              canIncrease={canIncreaseFontSize}
+              isDefault={isDefaultFontSize}
+              defaultFontSizePx={SUBCONSCIOUS_CAUSES_FONT_DEFAULT}
+            />
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3 border-t border-fuchsia-100/80 pt-5">
+        <div className="mt-6 flex flex-wrap gap-3 border-t border-violet-200/80 pt-5">
           <button
             type="button"
             onClick={() => setFormModalOpen(true)}
-            className="rounded-2xl border-2 border-fuchsia-200 bg-fuchsia-50 px-6 py-3 text-base font-black text-fuchsia-950 transition hover:bg-fuchsia-100"
+            className="rounded-2xl border-2 border-fuchsia-300 bg-fuchsia-50 px-6 py-3 text-base font-black text-fuchsia-950 transition hover:bg-fuchsia-100"
           >
             Düzenle
           </button>
@@ -351,18 +397,37 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             type="button"
             disabled={saving}
             onClick={() => setDeleteConfirmOpen(true)}
-            className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
+            className="rounded-2xl border-2 border-rose-300 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
           >
             Sil
           </button>
         </div>
       </header>
 
-      <div className="grid gap-6">
-        <DetailContentCard title="İçerik" text={record.content} typography={typography} />
-        <DetailContentCard title="Notlar" text={record.note_text} typography={typography} />
-        {record.source_uid?.trim() ? (
-          <DetailContentCard title="Kaynak UID" text={record.source_uid} typography={typography} />
+      <div className="flex flex-col gap-7 sm:gap-8">
+        {contentText ? (
+          <DetailContentCard
+            title="İçerik"
+            text={contentText}
+            typography={contentTypography}
+            tone="violet"
+          />
+        ) : null}
+        {noteText ? (
+          <DetailContentCard
+            title="Not"
+            text={noteText}
+            typography={contentTypography}
+            tone="amber"
+          />
+        ) : null}
+        {hasExtraInfo ? (
+          <DetailContentCard
+            title="Kategori / Ek Bilgiler"
+            text={extraLines.join("\n\n")}
+            typography={contentTypography}
+            tone="slate"
+          />
         ) : null}
       </div>
 
