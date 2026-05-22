@@ -11,6 +11,8 @@ type DogaltasFontSizeControlProps = {
   canIncrease?: boolean;
   isDefault?: boolean;
   compact?: boolean;
+  /** Orta A varsayılan px (farklı modüller için) */
+  defaultFontSizePx?: number;
 };
 
 const btnBase =
@@ -27,9 +29,11 @@ export function DogaltasFontSizeControl({
   onIncrease,
   canDecrease = true,
   canIncrease = true,
-  isDefault = fontSizePx === DOGALTAS_MODAL_FONT_DEFAULT,
+  isDefault,
   compact = false,
+  defaultFontSizePx = DOGALTAS_MODAL_FONT_DEFAULT,
 }: DogaltasFontSizeControlProps) {
+  const isDefaultSize = isDefault ?? fontSizePx === defaultFontSizePx;
   return (
     <div
       className={`inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-violet-200/90 bg-white/95 shadow-sm ring-1 ring-violet-100/70 ${
@@ -60,9 +64,9 @@ export function DogaltasFontSizeControl({
       <button
         type="button"
         onClick={onReset}
-        className={`${btnBase} ${isDefault ? btnActive : btnIdle}`}
-        aria-label={`Varsayılan yazı boyutu (${DOGALTAS_MODAL_FONT_DEFAULT}px)`}
-        title={`Varsayılan (${DOGALTAS_MODAL_FONT_DEFAULT}px)`}
+        className={`${btnBase} ${isDefaultSize ? btnActive : btnIdle}`}
+        aria-label={`Varsayılan yazı boyutu (${defaultFontSizePx}px)`}
+        title={`Varsayılan (${defaultFontSizePx}px)`}
       >
         A
       </button>

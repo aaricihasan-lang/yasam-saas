@@ -1,18 +1,17 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
+import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import {
-  CrudEmptyState,
-  ModuleStats,
-  formGlassPanelClass,
-  listColumnClass,
-  newRecordBtnClass,
-  searchInputClass,
-  sectionShellClass,
-} from "./BiyoenerjiUi";
+  ENERGY_BODIES_FONT_DEFAULT,
+  type EnergyBodiesTypography,
+} from "@/lib/bioenergy/energyBodiesFontSize";
+import { useEnergyBodiesFontSize } from "@/lib/bioenergy/useEnergyBodiesFontSize";
+import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -77,18 +76,86 @@ function energyBodySearchBlob(row: BioenergyEnergyBodyRecord) {
     .toLocaleLowerCase("tr-TR");
 }
 
-function DetailCard({ title, children }: { title: string; children: ReactNode }) {
+function EnergyBodyStats({
+  total,
+  uidCount,
+  lastDate,
+}: {
+  total: number;
+  uidCount: number;
+  lastDate: string;
+}) {
+  const items = [
+    { label: "Toplam kayıt", value: String(total) },
+    { label: "Kaynak UID", value: String(uidCount) },
+    { label: "Son kayıt", value: lastDate },
+  ];
+
   return (
-    <div className="rounded-2xl border border-cyan-100/80 bg-white/85 p-4 shadow-[0_8px_28px_-16px_rgba(8,145,178,0.18)] ring-1 ring-cyan-50/70 backdrop-blur-sm">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-800/80">
-        {title}
-      </p>
-      <div className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-700">{children}</div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="rounded-2xl border-2 border-violet-200/70 bg-white/90 px-5 py-5 shadow-md ring-1 ring-violet-100/50 sm:px-6 sm:py-6"
+        >
+          <p className="text-base font-bold text-slate-500">{item.label}</p>
+          <p className="mt-2 break-words text-3xl font-black tabular-nums tracking-tight text-violet-700 sm:text-4xl">
+            {item.value}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
 
+function DetailFieldCard({
+  title,
+  text,
+  typography,
+}: {
+  title: string;
+  text: string | null | undefined;
+  typography: EnergyBodiesTypography;
+}) {
+  const display = text?.trim() || "";
+
+  return (
+    <article className="rounded-[22px] border-2 border-cyan-100/80 bg-gradient-to-br from-white/95 via-cyan-50/35 to-violet-50/25 p-5 shadow-[0_12px_36px_-18px_rgba(139,92,246,0.18)] sm:p-6">
+      <h4 className="text-xl font-black text-slate-950 sm:text-2xl">{title}</h4>
+      <div className="mt-4 min-w-0" style={typography.bodyStyle}>
+        {display ? (
+          formatStoneContent(display, { fontSizePx: typography.fontSizePx })
+        ) : (
+          <p className="rounded-xl border border-dashed border-slate-200/90 bg-slate-50/80 px-5 py-8 text-center font-medium italic text-slate-400">
+            Henüz bilgi girilmedi.
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+const listPanelClass =
+  "flex min-h-[min(72vh,640px)] w-full min-w-0 flex-col rounded-[32px] border-[3px] border-violet-300/45 bg-gradient-to-br from-violet-50/85 via-white/92 to-fuchsia-50/55 p-5 shadow-[0_0_48px_rgba(139,92,246,0.14)] sm:p-6 lg:max-w-[480px] lg:shrink-0 xl:max-w-[500px]";
+
+const detailPanelClass =
+  "flex min-h-[min(72vh,640px)] min-w-0 flex-1 flex-col rounded-[32px] border-[3px] border-cyan-300/45 bg-gradient-to-br from-cyan-50/75 via-white/94 to-violet-50/45 p-6 shadow-[0_0_48px_rgba(34,211,238,0.14)] sm:p-8";
+
+const newRecordBtnPremium =
+  "inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-4 text-base font-black text-white shadow-[0_12px_32px_rgba(139,92,246,0.28)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(34,211,238,0.25)] sm:w-auto sm:px-8 sm:py-4";
+
 export default function EnerjiBedenleri() {
+  const {
+    fontSizePx,
+    typography: detailTypography,
+    decrease: decreaseFontSize,
+    reset: resetFontSize,
+    increase: increaseFontSize,
+    canDecrease: canDecreaseFontSize,
+    canIncrease: canIncreaseFontSize,
+    isDefault: isDefaultFontSize,
+  } = useEnergyBodiesFontSize();
+
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyEnergyBodyRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -334,77 +401,67 @@ export default function EnerjiBedenleri() {
   }
 
   return (
-    <section className={sectionShellClass}>
-      <div className="mb-6 flex flex-col gap-4 border-b border-cyan-100/50 pb-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <h2 className="text-4xl font-black text-slate-950">Enerji Bedenleri</h2>
-            <p className="mt-2 text-lg font-medium text-slate-600">
-              Listeden seçin; düzenleme ve yeni kayıt geniş panelde açılır.
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-3 xl:max-w-xl">
-            <label className="block min-w-0 flex-1">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-                Ara (genel tanım, görev, bozulma, taşlar, not)
-              </span>
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={searchInputClass("cyan")}
-              />
-            </label>
-          </div>
-        </div>
-        <ModuleStats
+    <section className="w-full min-w-0">
+      <div className="mb-6 space-y-5">
+        <EnergyBodyStats
           total={moduleStats.total}
-          midLabel="Kaynak uid"
-          midCount={moduleStats.uids}
+          uidCount={moduleStats.uids}
           lastDate={moduleStats.last}
-          tone="cyan"
         />
+
+        <label className="block w-full">
+          <span className="mb-2 block text-base font-bold text-slate-600">
+            Genel tanım, görev, bozulma, taşlar, not içinde ara
+          </span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Örn. eterik, aura, görev, bozulma…"
+            className="h-[3.25rem] w-full rounded-2xl border-2 border-cyan-200 bg-white/95 px-5 text-[17px] font-semibold text-slate-800 shadow-inner outline-none transition placeholder:text-base placeholder:font-medium placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30"
+          />
+        </label>
       </div>
 
       {loadErrorMessage ? (
-        <div className="mb-3 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
           {loadErrorMessage}
         </div>
       ) : null}
 
       {(infoSuccess || infoError) && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-xl border border-emerald-100/80 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-bold text-emerald-800 shadow-sm ring-1 ring-emerald-100/50">
+            <div className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-800">
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50">
+            <div className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
               {infoError}
             </div>
           ) : null}
         </div>
       )}
 
-      <div className="flex min-h-[min(68vh,560px)] flex-col gap-6 xl:flex-row">
-        <div className={`${listColumnClass} order-1 xl:order-none`}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <span className="text-[11px] font-black uppercase tracking-wide text-cyan-700/90">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(300px,500px)_minmax(0,1fr)] xl:gap-8">
+        <div className={listPanelClass}>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-base font-black text-violet-800">
               Kayıtlar ({filteredRows.length})
             </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {loading ? (
-                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-              ) : null}
-              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
-                + Yeni Kayıt
-              </button>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
-              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
+              <span className="text-base font-bold text-slate-400">Yükleniyor…</span>
+            ) : null}
+          </div>
+
+          <button type="button" onClick={openCreateModal} className={`${newRecordBtnPremium} mb-4`}>
+            + Yeni Kayıt
+          </button>
+
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            {loading ? (
+              <p className="py-10 text-center text-base font-medium text-slate-400">Yükleniyor…</p>
             ) : loadErrorMessage ? null : rows.length === 0 ? (
               <CrudEmptyState
                 icon="◎"
@@ -413,7 +470,7 @@ export default function EnerjiBedenleri() {
                 tone="cyan"
               />
             ) : filteredRows.length === 0 ? (
-              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-500">
+              <p className="py-10 text-center text-base font-medium text-slate-500">
                 Aramayı güncelleyin veya Yeni Kayıt ile enerji bedeni ekleyin.
               </p>
             ) : (
@@ -424,13 +481,13 @@ export default function EnerjiBedenleri() {
                     key={row.id}
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border px-4 py-3.5 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-2xl border-2 px-5 py-4 text-left transition-all duration-200 ${
                       active
-                        ? "scale-[1.01] border-cyan-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(34,211,238,0.18),0_14px_36px_-12px_rgba(8,145,178,0.13)] ring-2 ring-cyan-200/45 ring-offset-1 ring-offset-transparent"
-                        : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-cyan-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
+                        ? "scale-[1.01] border-violet-300 bg-gradient-to-r from-violet-50/95 to-cyan-50/95 shadow-[0_0_0_2px_rgba(139,92,246,0.2),0_0_32px_rgba(34,211,238,0.22)] ring-2 ring-violet-300/55"
+                        : "border-violet-100/60 bg-white/70 hover:border-cyan-200/80 hover:bg-white hover:shadow-lg"
                     }`}
                   >
-                    <p className="text-base font-black capitalize leading-snug tracking-tight text-slate-900 sm:text-lg">
+                    <p className="text-lg font-black capitalize leading-snug tracking-tight text-slate-900 sm:text-xl">
                       {row.source_uid?.trim() || "—"}
                     </p>
                   </button>
@@ -440,41 +497,56 @@ export default function EnerjiBedenleri() {
           </div>
         </div>
 
-        <div className={`${formGlassPanelClass} order-2 min-w-0 flex-1 xl:order-none`}>
+        <div className={detailPanelClass}>
           {selectedRow ? (
             <>
-              <div className="mb-1 inline-flex rounded-full bg-cyan-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-cyan-900 ring-1 ring-cyan-200/45">
-                SEÇİLİ KAYIT
+              <div className="flex flex-col gap-4 border-b border-cyan-100/70 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-2 inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-black tracking-[0.14em] text-cyan-900 ring-1 ring-cyan-200/60">
+                    SEÇİLİ KAYIT
+                  </div>
+                  <h3 className="text-[1.75rem] font-black capitalize leading-tight text-slate-900 sm:text-[30px]">
+                    {selectedRow.source_uid?.trim() || "—"}
+                  </h3>
+                </div>
+                <DogaltasFontSizeControl
+                  fontSizePx={fontSizePx}
+                  onDecrease={decreaseFontSize}
+                  onReset={resetFontSize}
+                  onIncrease={increaseFontSize}
+                  canDecrease={canDecreaseFontSize}
+                  canIncrease={canIncreaseFontSize}
+                  isDefault={isDefaultFontSize}
+                  defaultFontSizePx={ENERGY_BODIES_FONT_DEFAULT}
+                  compact
+                />
               </div>
-              <h3 className="mt-2 text-2xl font-black capitalize leading-snug text-slate-900 sm:text-3xl">
-                {selectedRow.source_uid?.trim() || "—"}
-              </h3>
-              <div className="mt-5 grid gap-3 sm:grid-cols-1">
-                <DetailCard title="Genel Tanım">
-                  <p className="whitespace-pre-wrap">
-                    {selectedRow.genel_tanim?.trim() || "—"}
-                  </p>
-                </DetailCard>
-                <DetailCard title="Görevi">
-                  <p className="whitespace-pre-wrap">{selectedRow.gorevi?.trim() || "—"}</p>
-                </DetailCard>
-                <DetailCard title="Bozulma Belirtileri">
-                  <p className="whitespace-pre-wrap">{selectedRow.bozulma?.trim() || "—"}</p>
-                </DetailCard>
-                <DetailCard title="Önerilen Taşlar">
-                  <p className="whitespace-pre-wrap">
-                    {selectedRow.onerilen_taslar?.trim() || "—"}
-                  </p>
-                </DetailCard>
-                <DetailCard title="Not">
-                  <p className="whitespace-pre-wrap">{selectedRow.not_text?.trim() || "—"}</p>
-                </DetailCard>
+
+              <div className="mt-6 grid flex-1 gap-5">
+                <DetailFieldCard
+                  title="Genel Tanım"
+                  text={selectedRow.genel_tanim}
+                  typography={detailTypography}
+                />
+                <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} />
+                <DetailFieldCard
+                  title="Bozulma Belirtileri"
+                  text={selectedRow.bozulma}
+                  typography={detailTypography}
+                />
+                <DetailFieldCard
+                  title="Taşlar"
+                  text={selectedRow.onerilen_taslar}
+                  typography={detailTypography}
+                />
+                <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} />
               </div>
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+
+              <div className="mt-8 flex flex-wrap gap-3 border-t border-cyan-100/70 pt-6">
                 <button
                   type="button"
                   onClick={openEditModal}
-                  className="rounded-xl border border-cyan-200/70 bg-cyan-50/90 px-4 py-2.5 text-[12px] font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100/90"
+                  className="rounded-2xl border-2 border-cyan-200 bg-cyan-50 px-6 py-3 text-base font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100"
                 >
                   Güncelle
                 </button>
@@ -482,16 +554,17 @@ export default function EnerjiBedenleri() {
                   type="button"
                   disabled={saving}
                   onClick={openDeleteConfirm}
-                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                  className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
                 >
                   Sil
                 </button>
               </div>
             </>
           ) : (
-            <div className="flex min-h-[220px] flex-col items-center justify-center px-2 text-center">
-              <p className="max-w-sm text-[13px] font-semibold leading-relaxed text-slate-500">
-                Soldan bir kayıt seçin veya yeni enerji bedeni eklemek için üstteki düğmeyi kullanın.
+            <div className="flex min-h-[280px] flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-200/80 bg-cyan-50/30 px-6 text-center">
+              <p className="max-w-md text-lg font-semibold leading-relaxed text-slate-500">
+                Soldan bir kayıt seçin veya yeni enerji bedeni eklemek için{" "}
+                <span className="font-black text-violet-700">+ Yeni Kayıt</span> düğmesini kullanın.
               </p>
             </div>
           )}
