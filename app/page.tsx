@@ -179,7 +179,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/urun-stok",
-    permissionKey: "stock",
+    permissionKey: "stok",
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -193,7 +193,7 @@ const dashboardModules: ModuleCard[] = [
     count: "Aktif",
     badge: "Modül",
     href: "/sifa-rehberi",
-    permissionKey: "healing",
+    permissionKey: "sifa_rehberi",
     Icon: Leaf,
     theme: {
       iconWrap: "from-green-500 to-emerald-500",
@@ -251,8 +251,8 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   appointments: ["ajanda"],
   numerology: ["numeroloji"],
   stones: ["dogaltas"],
-  stock: [],
-  healing: [],
+  stok: ["stock"],
+  sifa_rehberi: ["healing"],
   energy_body: [
     "biyoenerji",
     "reflexology",

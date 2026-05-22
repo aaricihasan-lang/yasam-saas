@@ -9,8 +9,8 @@ export type ModulePermissionKey =
   | "appointments"
   | "numerology"
   | "stones"
-  | "stock"
-  | "healing"
+  | "stok"
+  | "sifa_rehberi"
   | "energy_body"
   | "personal_archive";
 
@@ -21,8 +21,8 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "appointments",
   "numerology",
   "stones",
-  "stock",
-  "healing",
+  "stok",
+  "sifa_rehberi",
   "energy_body",
   "personal_archive",
 ];
@@ -32,8 +32,8 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   appointments: "Ajanda",
   numerology: "Numeroloji",
   stones: "Doğaltaş",
-  stock: "Ürün & Stok Merkezi",
-  healing: "Şifa Rehberi",
+  stok: "Ürün & Stok Merkezi",
+  sifa_rehberi: "Şifa Rehberi",
   energy_body: "Enerji & Beden",
   personal_archive: "Kişisel Arşiv",
 };
@@ -43,8 +43,8 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   appointments: false,
   numerology: false,
   stones: false,
-  stock: false,
-  healing: false,
+  stok: false,
+  sifa_rehberi: false,
   energy_body: false,
   personal_archive: false,
 };
@@ -61,6 +61,8 @@ export const EXTENDED_MODULE_PERMISSION_ALIASES = [
   "danisan_yonetimi",
   "ajanda",
   "kisisel_arsiv",
+  "stock",
+  "healing",
 ] as const;
 
 export const LOCKED_PERMISSION_TOAST =
@@ -72,6 +74,8 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "appointments",
   "numerology",
   "stones",
+  "stok",
+  "sifa_rehberi",
   "reflexology",
   "energy_body",
   "aromatherapy",
@@ -84,14 +88,18 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "biyoenerji",
   "aromaterapi",
   "kisisel_arsiv",
+  "stock",
+  "healing",
 ] as const;
 
 const PREMIUM_EXPERT_MODULE_KEY_SET = new Set<string>(PREMIUM_EXPERT_MODULE_KEYS);
 
-/** Ana panelde Premium ile gösterilecek kartlar (stok/şifa rehberi hariç) */
+/** Ana panelde Premium ile gösterilecek kartlar */
 export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "clients",
   "stones",
+  "stok",
+  "sifa_rehberi",
   "energy_body",
   "personal_archive",
   "numerology",
@@ -127,6 +135,8 @@ export function parseModulePermissions(raw: unknown): ModulePermissions {
   for (const key of MODULE_PERMISSION_KEYS) {
     if (typeof row[key] === "boolean") perms[key] = row[key];
   }
+  if (row.stock === true) perms.stok = true;
+  if (row.healing === true) perms.sifa_rehberi = true;
   const extended = perms as ModulePermissions & Record<string, boolean>;
   for (const key of EXTENDED_MODULE_PERMISSION_ALIASES) {
     if (typeof row[key] === "boolean") extended[key] = row[key];

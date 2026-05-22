@@ -58,8 +58,8 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
     ],
   },
   { prefix: "/danisan-yolculugu", keys: ["clients", "danisan_yonetimi"] },
-  { prefix: "/urun-stok", keys: ["stock"] },
-  { prefix: "/sifa-rehberi", keys: ["healing"] },
+  { prefix: "/urun-stok", keys: ["stok", "stock"] },
+  { prefix: "/sifa-rehberi", keys: ["sifa_rehberi", "healing"] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PUBLIC_EXACT_PATHS = new Set(["/"]);
@@ -132,6 +132,8 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   appointments: "/dashboard/ajanda",
   energy_body: "/dashboard/biyoenerji",
   personal_archive: "/dashboard/kisisel-arsiv",
+  sifa_rehberi: "/sifa-rehberi",
+  stok: "/urun-stok",
   healing: "/sifa-rehberi",
   stock: "/urun-stok",
   reflexology: "/refleksoloji",
