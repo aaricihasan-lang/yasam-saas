@@ -1,11 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 const STONE_BUCKET = "stone-photos";
+const PATH_SEP = process.platform === "win32" ? "\\" : "/";
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set([
   "jpg",
@@ -33,6 +32,24 @@ function safeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+function normalizePathSlashes(value: string) {
+  return process.platform === "win32"
+    ? value.replace(/\//g, "\\")
+    : value.replace(/\\/g, "/");
+}
+
+function fileBaseName(filePath: string) {
+  const normalized = normalizePathSlashes(filePath);
+  const parts = normalized.split(PATH_SEP).filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+}
+
+function fileExtension(filePath: string) {
+  const base = fileBaseName(filePath);
+  const dot = base.lastIndexOf(".");
+  return dot >= 0 ? base.slice(dot + 1) : "";
+}
+
 function isAbsoluteLocalPath(localPath: string) {
   const trimmed = localPath.trim();
   return /^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\");
@@ -47,7 +64,13 @@ function resolveImportRoot(basePath?: string): string {
   const cwd =
     typeof process.cwd === "function" ? String(process.cwd() ?? "").trim() : "";
   const root = fromArg || fromEnv || cwd || ".";
-  return path.resolve(root);
+  return normalizePathSlashes(root);
+}
+
+function joinPaths(root: string, relative: string) {
+  const cleanRoot = normalizePathSlashes(root).replace(/[\\/]+$/, "");
+  const cleanRelative = normalizePathSlashes(relative).replace(/^[\\/]+/, "");
+  return `${cleanRoot}${PATH_SEP}${cleanRelative}`;
 }
 
 function resolveImportImagePath(localPath: string, basePath?: string) {
@@ -56,14 +79,14 @@ function resolveImportImagePath(localPath: string, basePath?: string) {
     throw new Error("Geçersiz görsel yolu");
   }
 
-  const normalizedInput = trimmed.replace(/\//g, path.sep);
+  const normalizedInput = normalizePathSlashes(trimmed);
 
   if (isAbsoluteLocalPath(trimmed)) {
-    return path.normalize(normalizedInput);
+    return normalizedInput;
   }
 
   const resolvedRoot = resolveImportRoot(basePath);
-  const resolved = path.resolve(resolvedRoot, normalizedInput);
+  const resolved = joinPaths(resolvedRoot, normalizedInput);
 
   if (!resolved.startsWith(resolvedRoot)) {
     throw new Error("Geçersiz görsel yolu");
@@ -91,7 +114,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const ext = path.extname(localPath).slice(1).toLowerCase();
+    const ext = fileExtension(localPath).toLowerCase();
     if (!ext || !ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
       return NextResponse.json(
         { ok: false, error: "Desteklenmeyen dosya uzantısı" },
@@ -106,6 +129,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Geçersiz görsel yolu" }, { status: 400 });
     }
 
+    const fs = await import("node:fs/promises");
+
     try {
       await fs.access(absolutePath);
     } catch {
@@ -117,7 +142,7 @@ export async function POST(request: Request) {
     }
 
     const fileBuffer = await fs.readFile(absolutePath);
-    const originalName = path.basename(absolutePath);
+    const originalName = fileBaseName(absolutePath);
     const storagePath = `catalog/${tenantId}/${Date.now()}-${safeFileName(originalName)}`;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
