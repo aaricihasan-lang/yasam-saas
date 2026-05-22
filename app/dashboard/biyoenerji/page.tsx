@@ -1,80 +1,52 @@
-"use client";
-
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import BilincaltiSebepleri from "./components/BilincaltiSebepleri";
-import BiyoenerjiLayout, {
-  type BiyoenerjiNavItem,
-  type BiyoenerjiSectionId,
-} from "./components/BiyoenerjiLayout";
-import BiyoenerjiSeanslari from "./components/BiyoenerjiSeanslari";
-import Cakralar from "./components/Cakralar";
-import EnerjiBedenleri from "./components/EnerjiBedenleri";
-import Imajinasyonlar from "./components/Imajinasyonlar";
-import SembolDili from "./components/SembolDili";
+import BiyoenerjiFolderCards from "./components/BiyoenerjiFolderCards";
 
-const NAV_ITEMS: BiyoenerjiNavItem[] = [
-  { id: "seanslar", label: "Biyoenerji Seansları", icon: "◈" },
-  { id: "enerji-bedenleri", label: "Enerji Bedenleri", icon: "◎" },
-  { id: "bilincalti", label: "Bilinçaltı Sebepleri", icon: "◐" },
-  { id: "imajinasyon", label: "İmajinasyonlar", icon: "✧" },
-  { id: "sembol", label: "Sembol Dili", icon: "✦" },
-  { id: "cakralar", label: "Çakralar", icon: "⬡" },
-];
-
-export default function BiyoenerjiDashboardPage() {
-  const [activeId, setActiveId] = useState<BiyoenerjiSectionId>("seanslar");
-
-  const panel = useMemo(() => {
-    switch (activeId) {
-      case "enerji-bedenleri":
-        return <EnerjiBedenleri />;
-      case "bilincalti":
-        return <BilincaltiSebepleri />;
-      case "imajinasyon":
-        return <Imajinasyonlar />;
-      case "sembol":
-        return <SembolDili />;
-      case "cakralar":
-        return <Cakralar />;
-      case "seanslar":
-      default:
-        return <BiyoenerjiSeanslari />;
-    }
-  }, [activeId]);
-
+export default function BiyoenerjiFolderPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_38%,#f8fafc_100%)] text-slate-950">
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#071226] text-slate-100 antialiased">
+      <div
+        className="pointer-events-none absolute left-[-60px] top-[-60px] h-72 w-72 rounded-full bg-purple-600/18 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute right-[-40px] top-0 h-64 w-64 rounded-full bg-cyan-500/14 blur-3xl"
+        aria-hidden
+      />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col px-6 py-6 xl:px-10 2xl:px-14">
-        <header className="mb-6 shrink-0 rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
-                MODÜL
-              </p>
-              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">Biyoenerji</h1>
-              <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
-                Aura, bilinçaltı & sembol dili çalışma alanı
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="inline-flex w-fit shrink-0 items-center gap-2 self-start rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-violet-50"
-            >
-              <span aria-hidden className="text-violet-500">
-                ←
-              </span>
-              Modüllere dön
-            </Link>
-          </div>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-4 py-5 sm:px-6 sm:py-6 xl:px-10 2xl:px-14">
+        <div className="mb-5 flex flex-wrap items-center gap-2 sm:gap-3">
+          <Link
+            href="/enerji-beden"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:border-cyan-300/40 hover:bg-white/15 sm:px-5 sm:py-3"
+          >
+            <span aria-hidden>←</span>
+            Enerji & Beden&apos;e Dön
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 sm:px-5 sm:py-3"
+          >
+            Ana Sayfa
+          </Link>
+        </div>
+
+        <header className="mb-8 text-center sm:mb-10">
+          <p className="text-xs font-bold uppercase tracking-[0.35em] text-cyan-300/90 sm:text-sm">
+            ENERJİ & BEDEN
+          </p>
+          <h1 className="mt-3 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl xl:text-6xl">
+            Biyoenerji
+          </h1>
+          <p className="mx-auto mt-3 max-w-2xl text-base font-medium text-slate-400 sm:text-lg">
+            Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir
+          </p>
+          <div
+            className="mx-auto mt-5 h-1 w-full max-w-md rounded-full bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent"
+            aria-hidden
+          />
         </header>
 
-        <BiyoenerjiLayout items={NAV_ITEMS} activeId={activeId} onSelect={setActiveId}>
-          {panel}
-        </BiyoenerjiLayout>
+        <BiyoenerjiFolderCards />
       </div>
     </main>
   );
