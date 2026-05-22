@@ -15,6 +15,10 @@ type ProtocolFootMapProps = {
   footView: ProtocolFootView;
   missingOrgans: string[];
   onFootViewChange: (view: ProtocolFootView) => void;
+  /** Kayıtlı protokol detay — daha belirgin görünüm kontrolleri */
+  prominentControls?: boolean;
+  /** Üst kart başlığı dışarıda — çift başlık ve fazla çerçeveyi kaldırır */
+  embedded?: boolean;
 };
 
 export function ProtocolFootMap({
@@ -22,6 +26,8 @@ export function ProtocolFootMap({
   footView,
   missingOrgans,
   onFootViewChange,
+  prominentControls = false,
+  embedded = false,
 }: ProtocolFootMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
@@ -59,26 +65,46 @@ export function ProtocolFootMap({
     [imageRect],
   );
 
+  const shellClass = embedded
+    ? "flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
+    : "flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-white/90 bg-white/80 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70";
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-white/90 bg-white/80 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70">
-      <div className="shrink-0 border-b border-violet-100/80 px-5 py-4">
+    <div className={shellClass}>
+      <div
+        className={`shrink-0 border-b border-violet-100/80 ${embedded ? "px-3 py-2.5" : "px-5 py-4"}`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-800">
-              Ayak Haritası Önizleme
-            </p>
-            <p className="mt-1 text-base font-semibold text-slate-600">{imageLabel}</p>
+            {embedded ? (
+              <p className="text-sm font-bold text-violet-800">{imageLabel}</p>
+            ) : (
+              <>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-800">
+                  Ayak Haritası Önizleme
+                </p>
+                <p className="mt-1 text-base font-semibold text-slate-600">{imageLabel}</p>
+              </>
+            )}
           </div>
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${prominentControls ? "rounded-2xl bg-violet-100/60 p-1.5 ring-1 ring-violet-200/80" : ""}`}>
             <button
               type="button"
               onClick={() => onFootViewChange("taban")}
               aria-pressed={footView === "taban"}
-              className={`rounded-lg border px-4 py-2 text-sm font-bold transition ${
-                footView === "taban"
-                  ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                  : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-              }`}
+              className={
+                prominentControls
+                  ? `rounded-xl border-2 px-5 py-2.5 text-[15px] font-black shadow-md transition ${
+                      footView === "taban"
+                        ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
+                        : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
+                    }`
+                  : `rounded-lg border px-4 py-2 text-sm font-bold transition ${
+                      footView === "taban"
+                        ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
+                        : "border-violet-200/80 bg-violet-50/80 text-violet-800"
+                    }`
+              }
             >
               Taban
             </button>
@@ -86,11 +112,19 @@ export function ProtocolFootMap({
               type="button"
               onClick={() => onFootViewChange("yan")}
               aria-pressed={footView === "yan"}
-              className={`rounded-lg border px-4 py-2 text-sm font-bold transition ${
-                footView === "yan"
-                  ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
-                  : "border-violet-200/80 bg-violet-50/80 text-violet-800"
-              }`}
+              className={
+                prominentControls
+                  ? `rounded-xl border-2 px-5 py-2.5 text-[15px] font-black shadow-md transition ${
+                      footView === "yan"
+                        ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
+                        : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
+                    }`
+                  : `rounded-lg border px-4 py-2 text-sm font-bold transition ${
+                      footView === "yan"
+                        ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
+                        : "border-violet-200/80 bg-violet-50/80 text-violet-800"
+                    }`
+              }
             >
               Yan
             </button>
@@ -155,7 +189,9 @@ export function ProtocolFootMap({
                         borderRadius: region.shape === "oval" ? 9999 : 6,
                         backgroundColor: region.fill,
                         borderColor: region.stroke,
-                        boxShadow: `0 0 14px ${region.stroke}55`,
+                        boxShadow: prominentControls
+                          ? `0 0 22px ${region.stroke}88, 0 0 8px ${region.fill}`
+                          : `0 0 14px ${region.stroke}55`,
                       }}
                       title={region.organ}
                     />

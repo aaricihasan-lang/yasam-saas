@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
 import {
   buildOrganStatuses,
@@ -11,18 +11,119 @@ import {
 import type { ProtocolFootView } from "@/app/refleksoloji/protokol-haritasi/types";
 import { supabase } from "@/lib/supabase";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
+import {
+  extractSourceDescription,
+  formatRawJsonForDev,
+  parseApplicationSteps,
+  protocolHeroTitle,
+  resolveApplicationNotesDisplay,
+} from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
 };
 
-const panelClass =
-  "rounded-[28px] border border-purple-100 bg-white/80 p-6 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md xl:p-8";
+const navBtnPrimary =
+  "inline-flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white/95 px-5 py-3.5 text-[15px] font-black text-violet-950 shadow-md transition hover:border-violet-400 hover:bg-violet-50 sm:px-6 sm:text-base";
 
-function fieldValue(value: string | null | undefined, emptyLabel = "—") {
-  const text = value?.trim();
-  return text || emptyLabel;
+const navBtnSecondary =
+  "inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-violet-50 px-5 py-3.5 text-[15px] font-black text-fuchsia-950 shadow-md transition hover:from-fuchsia-100 hover:to-violet-100 sm:px-6 sm:text-base";
+
+const clinicalCardClass =
+  "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
+
+const footCardClass =
+  "flex min-h-[min(72vh,820px)] flex-col overflow-hidden rounded-[28px] border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white/95 to-fuchsia-50/80 shadow-[0_20px_50px_-16px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/60";
+
+type CardTone = "violet" | "fuchsia" | "cyan" | "amber" | "emerald";
+
+const CARD_TITLE: Record<CardTone, string> = {
+  violet: "text-violet-950",
+  fuchsia: "text-fuchsia-950",
+  cyan: "text-cyan-950",
+  amber: "text-amber-950",
+  emerald: "text-emerald-950",
+};
+
+function ClinicalCard({
+  title,
+  tone = "violet",
+  children,
+  hidden,
+}: {
+  title: string;
+  tone?: CardTone;
+  children: ReactNode;
+  hidden?: boolean;
+}) {
+  if (hidden) return null;
+  return (
+    <section className={clinicalCardClass}>
+      <h2 className={`text-xl font-black sm:text-2xl ${CARD_TITLE[tone]}`}>{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-xl border border-dashed border-violet-200/90 bg-violet-50/50 px-4 py-3 text-[15px] font-semibold leading-relaxed text-violet-800/85">
+      {children}
+    </p>
+  );
+}
+
+function ApplicationStepsList({ steps }: { steps: string[] }) {
+  if (steps.length === 0) {
+    return <EmptyHint>Henüz uygulama adımı eklenmemiş.</EmptyHint>;
+  }
+
+  return (
+    <ol className="space-y-4">
+      {steps.map((step, index) => (
+        <li
+          key={`${index}-${step.slice(0, 24)}`}
+          className="flex gap-4 rounded-2xl border border-violet-100/90 bg-gradient-to-r from-violet-50/80 to-fuchsia-50/60 px-4 py-4 shadow-sm ring-1 ring-white/80"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-lg font-black text-white shadow-md">
+            {index + 1}
+          </span>
+          <p className="min-w-0 flex-1 text-[17px] font-semibold leading-[1.75] text-slate-800 sm:text-[18px]">
+            {step}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function OrganPills({
+  organs,
+  organStatuses,
+}: {
+  organs: string[];
+  organStatuses: ReturnType<typeof buildOrganStatuses>;
+}) {
+  if (organs.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2.5">
+      {organStatuses.map((status) => (
+        <span
+          key={status.name}
+          className={`inline-flex max-w-full items-center gap-2 rounded-full px-4 py-2 text-[15px] font-black shadow-sm ring-2 ring-white/70 ${status.color.chipClass}`}
+        >
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white/80"
+            style={{ backgroundColor: status.color.stroke }}
+            aria-hidden
+          />
+          <span className="truncate">{status.name}</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayLayoutProps) {
@@ -74,19 +175,43 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const organStatuses = useMemo(() => buildOrganStatuses(organs, footView), [organs, footView]);
   const missingOrgans = useMemo(() => missingAtlasOrgans(organStatuses), [organStatuses]);
 
-  const rawJsonText = useMemo(() => {
-    if (!protocol?.raw_json) return "";
-    try {
-      return JSON.stringify(protocol.raw_json, null, 2);
-    } catch {
-      return String(protocol.raw_json);
-    }
-  }, [protocol?.raw_json]);
+  const applicationSteps = useMemo(
+    () => parseApplicationSteps(protocol?.application_notes, protocol?.raw_json ?? null),
+    [protocol?.application_notes, protocol?.raw_json],
+  );
+
+  const applicationNotesDisplay = useMemo(
+    () => resolveApplicationNotesDisplay(protocol?.application_notes, applicationSteps),
+    [protocol?.application_notes, applicationSteps],
+  );
+
+  const sourceDescription = useMemo(
+    () =>
+      protocol
+        ? extractSourceDescription(protocol.raw_json, {
+            applicationNotes: protocol.application_notes,
+            targetProblem: protocol.target_problem,
+            title: protocol.title,
+          })
+        : null,
+    [protocol],
+  );
+
+  const rawJsonDevText = useMemo(
+    () => formatRawJsonForDev(protocol?.raw_json ?? null),
+    [protocol?.raw_json],
+  );
+
+  const showDevJson =
+    process.env.NODE_ENV === "development" && Boolean(rawJsonDevText.trim());
+
+  const hasAtlasMapping = organs.length > 0 && regions.length > 0;
+  const heroTitle = protocol ? protocolHeroTitle(protocol) : "";
 
   if (loading) {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-base font-semibold text-violet-900">Yükleniyor…</p>
+        <p className="text-lg font-semibold text-violet-900">Yükleniyor…</p>
       </main>
     );
   }
@@ -100,11 +225,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         >
           {loadErrorMessage}
         </p>
-        <Link
-          href="/refleksoloji/kayitli-protokoller"
-          className="rounded-xl border border-violet-300/80 bg-violet-100 px-5 py-2.5 text-base font-bold text-violet-950"
-        >
-          Listeye dön
+        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
+          ← Kayıtlı Protokollere Dön
         </Link>
       </main>
     );
@@ -114,130 +236,173 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
         <p className="text-xl font-bold text-violet-900">Protokol bulunamadı.</p>
-        <Link
-          href="/refleksoloji/kayitli-protokoller"
-          className="rounded-xl border border-violet-300/80 bg-violet-100 px-5 py-2.5 text-base font-bold text-violet-950"
-        >
-          Listeye dön
+        <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
+          ← Kayıtlı Protokollere Dön
         </Link>
       </main>
     );
   }
 
-  const title = fieldValue(protocol.title, "Başlıksız protokol");
+  const targetText = protocol.target_problem?.trim() || null;
 
   return (
     <main className="relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl" />
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
+        <div className="absolute bottom-0 left-[20%] h-64 w-64 rounded-full bg-cyan-200/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-none px-6 py-6 xl:px-10">
-        <div className="flex flex-wrap items-center gap-4">
-          <Link
-            href="/refleksoloji/kayitli-protokoller"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-violet-300/95 bg-white/90 px-4 py-2.5 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white"
-          >
-            <span aria-hidden>←</span>
-            Kayıtlı Protokoller
+      <div className="relative z-10 mx-auto w-full max-w-[1800px] px-6 py-6 sm:px-8 lg:px-10">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <Link href="/refleksoloji/kayitli-protokoller" className={navBtnPrimary}>
+            ← Kayıtlı Protokollere Dön
+          </Link>
+          <Link href="/refleksoloji" className={navBtnSecondary}>
+            Refleksoloji Ana Sayfasına Dön
           </Link>
           <Link
             href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
-            className="rounded-xl border border-fuchsia-300/80 bg-fuchsia-50 px-4 py-2.5 text-sm font-bold text-fuchsia-950 transition hover:bg-fuchsia-100/90"
+            className="ml-auto inline-flex rounded-2xl border-2 border-emerald-300/80 bg-emerald-500 px-5 py-3 text-[15px] font-black text-white shadow-md transition hover:bg-emerald-600"
           >
-            Düzenle
+            Protokolü Düzenle
           </Link>
         </div>
 
-        <header className="mt-4">
+        <header className="mt-6 rounded-[32px] border-2 border-violet-200/70 bg-gradient-to-br from-violet-100/90 via-white/95 to-fuchsia-50/90 p-6 shadow-[0_20px_50px_-18px_rgba(139,92,246,0.22)] sm:p-8 lg:p-10">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
-            Protokol Detayı
+            Klinik Protokol Detayı
           </p>
-          <h1 className="mt-1 text-3xl font-black text-slate-900 sm:text-4xl">{title}</h1>
-          <p className="mt-2 text-sm font-medium text-slate-500">
-            Kayıt: {formatProtocolDate(protocol.created_at)}
-            {protocol.source_uid?.trim() ? ` · UID: ${protocol.source_uid}` : ""}
-          </p>
+          <h1 className="mt-3 text-[32px] font-black leading-[1.12] tracking-tight text-slate-950 sm:text-[42px] lg:text-[48px]">
+            {heroTitle}
+          </h1>
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <span className="inline-flex rounded-full border border-violet-200/90 bg-white/90 px-4 py-1.5 text-sm font-bold text-violet-900 shadow-sm">
+              Kayıt: {formatProtocolDate(protocol.created_at)}
+            </span>
+            {protocol.source_uid?.trim() ? (
+              <span className="inline-flex max-w-full truncate rounded-full border border-fuchsia-200/90 bg-fuchsia-50/90 px-4 py-1.5 text-sm font-bold text-fuchsia-950 shadow-sm">
+                UID: {protocol.source_uid}
+              </span>
+            ) : null}
+            {protocol.title?.trim() && protocol.title.trim() !== heroTitle ? (
+              <span className="inline-flex rounded-full border border-cyan-200/90 bg-cyan-50/90 px-4 py-1.5 text-sm font-bold text-cyan-950 shadow-sm">
+                Başlık: {protocol.title}
+              </span>
+            ) : null}
+            {organs.length > 0 ? (
+              <span className="inline-flex rounded-full border border-emerald-200/90 bg-emerald-50/90 px-4 py-1.5 text-sm font-bold text-emerald-950 shadow-sm">
+                {organs.length} organ
+              </span>
+            ) : null}
+          </div>
         </header>
 
-        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(480px,1fr)]">
+        <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)] 2xl:grid-cols-[minmax(0,1.05fr)_minmax(480px,560px)]">
           <div className="space-y-6">
-            <section className={panelClass}>
-              <h2 className="text-xl font-bold text-violet-900">Hedef / Sorun</h2>
-              <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-relaxed text-slate-700">
-                {fieldValue(protocol.target_problem, "Hedef bilgisi eklenmemiş.")}
+            <div className="rounded-[28px] border-2 border-violet-300/50 bg-violet-50/40 px-5 py-4 sm:px-6">
+              <h2 className="text-lg font-black text-violet-950 sm:text-xl">
+                Klinik Protokol Bilgileri
+              </h2>
+              <p className="mt-1 text-[15px] font-medium text-violet-800/85">
+                Hedef, organlar, uygulama adımları ve seans notları
               </p>
-            </section>
+            </div>
 
-            <section className={panelClass}>
-              <h2 className="text-xl font-bold text-violet-900">Organlar</h2>
-              <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-relaxed text-slate-700">
-                {fieldValue(protocol.organs, "Organ bilgisi eklenmemiş.")}
-              </p>
-              {organs.length > 0 ? (
-                <ul className="mt-4 flex flex-col gap-3">
-                  {organStatuses.map((status) => (
-                    <li
-                      key={status.name}
-                      className={`rounded-xl border p-4 ${status.color.chipClass}`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-lg font-bold">{status.name}</span>
-                        <span
-                          className={`rounded-lg px-3 py-1 text-sm font-bold ${
-                            status.found
-                              ? "bg-white/80 text-emerald-800"
-                              : "bg-white/80 text-amber-900"
-                          }`}
-                        >
-                          {status.found
-                            ? `Atlas bulundu (${status.regionCount})`
-                            : "Atlas bulunamadı"}
-                        </span>
-                      </div>
-                      {!status.found ? (
-                        <p className="mt-2 text-sm font-medium opacity-90">
-                          Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası&apos;ndan
-                          organ bölgesi ekleyin.
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </section>
-
-            <section className={panelClass}>
-              <h2 className="text-xl font-bold text-violet-900">Uygulama Notları</h2>
-              <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-relaxed text-slate-700">
-                {fieldValue(protocol.application_notes, "Uygulama notu eklenmemiş.")}
-              </p>
-            </section>
-
-            <section className={panelClass}>
-              <h2 className="text-xl font-bold text-violet-900">Ham JSON (raw_json)</h2>
-              {rawJsonText ? (
-                <pre className="mt-3 max-h-96 overflow-auto rounded-xl border border-violet-100 bg-violet-50/40 p-4 text-xs font-mono leading-relaxed text-slate-800">
-                  {rawJsonText}
-                </pre>
+            <ClinicalCard title="Hedef / Sorun" tone="fuchsia">
+              {targetText ? (
+                <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+                  {targetText}
+                </p>
               ) : (
-                <p className="mt-3 text-base font-medium text-slate-500">Ham JSON kaydı yok.</p>
+                <EmptyHint>Hedef / sorun bilgisi henüz girilmemiş.</EmptyHint>
               )}
-            </section>
+            </ClinicalCard>
+
+            <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
+              <OrganPills organs={organs} organStatuses={organStatuses} />
+            </ClinicalCard>
+
+            <ClinicalCard title="Uygulama Adımları" tone="violet">
+              <ApplicationStepsList steps={applicationSteps} />
+            </ClinicalCard>
+
+            <ClinicalCard
+              title="Uygulama Notları"
+              tone="amber"
+              hidden={!applicationNotesDisplay}
+            >
+              <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+                {applicationNotesDisplay}
+              </p>
+            </ClinicalCard>
+
+            {!applicationNotesDisplay && applicationSteps.length === 0 ? (
+              <ClinicalCard title="Uygulama Notları" tone="amber">
+                <EmptyHint>Henüz not yok.</EmptyHint>
+              </ClinicalCard>
+            ) : null}
+
+            <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
+              <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+                {sourceDescription}
+              </p>
+            </ClinicalCard>
+
+            {showDevJson ? (
+              <details className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-black text-slate-600">
+                  Geliştirici Verisi (raw_json)
+                </summary>
+                <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono leading-relaxed text-slate-700">
+                  {rawJsonDevText}
+                </pre>
+              </details>
+            ) : null}
           </div>
 
-          <section className={`${panelClass} flex min-h-[560px] flex-col xl:min-h-[720px]`}>
-            <h2 className="mb-4 text-xl font-bold text-violet-900">Ayak Haritası Önizleme</h2>
-            <div className="relative min-h-0 flex-1">
-              <div className="absolute inset-0 origin-center scale-[1.08]">
-                <ProtocolFootMap
-                  regions={regions}
-                  footView={footView}
-                  missingOrgans={missingOrgans}
-                  onFootViewChange={setFootView}
-                />
-              </div>
+          <section className={footCardClass}>
+            <div className="shrink-0 border-b border-violet-200/70 px-5 py-4 sm:px-6">
+              <h2 className="text-xl font-black text-violet-950 sm:text-2xl">Ayak Haritası Önizleme</h2>
+              <p className="mt-1 text-[15px] font-semibold text-violet-800/80">
+                Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
+              </p>
+            </div>
+
+            <div className="relative min-h-[min(52vh,640px)] flex-1 p-3 sm:p-4">
+              {organs.length === 0 ? (
+                <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/90 bg-white/70 px-6 text-center">
+                  <p className="text-lg font-black text-violet-900">
+                    Bu protokol için atlas eşleşmesi bulunamadı.
+                  </p>
+                  <p className="mt-2 max-w-sm text-[15px] font-semibold leading-relaxed text-violet-800/85">
+                    Organ ekledikten sonra harita önizlemesi burada görünür.
+                  </p>
+                </div>
+              ) : (
+                <div className="relative h-full min-h-[min(48vh,600px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner">
+                  <div className="absolute inset-0 origin-center scale-[1.02]">
+                    <ProtocolFootMap
+                      regions={regions}
+                      footView={footView}
+                      missingOrgans={missingOrgans}
+                      onFootViewChange={setFootView}
+                      prominentControls
+                      embedded
+                    />
+                  </div>
+                  {!hasAtlasMapping ? (
+                    <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 rounded-2xl border border-violet-200/90 bg-white/92 px-4 py-3 text-center shadow-lg backdrop-blur-sm">
+                      <p className="text-[15px] font-black text-violet-950">
+                        Bu protokol için atlas eşleşmesi bulunamadı.
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-violet-800/85">
+                        Organlar kayıtlı; bölge haritasında eşleşen bölge tanımlayın.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </section>
         </div>
