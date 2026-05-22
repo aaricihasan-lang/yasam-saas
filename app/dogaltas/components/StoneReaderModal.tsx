@@ -2,7 +2,8 @@
 
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
-import type { DogaltasContentTypography } from "@/lib/dogaltas/dogaltasDetailFontSize";
+import { DOGALTAS_MODAL_LINE_HEIGHT } from "@/lib/dogaltas/dogaltasModalFontSize";
+import { useDogaltasModalFontSize } from "@/lib/dogaltas/useDogaltasModalFontSize";
 import { useCallback, useEffect, type ReactNode } from "react";
 
 export type StoneReaderModalProps = {
@@ -14,14 +15,6 @@ export type StoneReaderModalProps = {
   highlightQuery?: string;
   renderHighlight?: (text: string, key: string) => ReactNode;
   matchBadge?: ReactNode;
-  fontSizePx: number;
-  typography: DogaltasContentTypography;
-  onFontDecrease: () => void;
-  onFontReset: () => void;
-  onFontIncrease: () => void;
-  canFontDecrease?: boolean;
-  canFontIncrease?: boolean;
-  isFontDefault?: boolean;
   onClose: () => void;
 };
 
@@ -34,16 +27,18 @@ export function StoneReaderModal({
   highlightQuery,
   renderHighlight,
   matchBadge,
-  fontSizePx,
-  typography,
-  onFontDecrease,
-  onFontReset,
-  onFontIncrease,
-  canFontDecrease,
-  canFontIncrease,
-  isFontDefault,
   onClose,
 }: StoneReaderModalProps) {
+  const {
+    modalFontSize,
+    decrease,
+    reset,
+    increase,
+    canDecrease,
+    canIncrease,
+    isDefault,
+  } = useDogaltasModalFontSize(open);
+
   const renderSegment = useCallback(
     (segment: string, key: string) => {
       const q = highlightQuery?.trim();
@@ -115,13 +110,13 @@ export function StoneReaderModal({
 
             <div className="flex shrink-0 flex-col items-stretch gap-2.5 sm:items-end">
               <DogaltasFontSizeControl
-                fontSizePx={fontSizePx}
-                onDecrease={onFontDecrease}
-                onReset={onFontReset}
-                onIncrease={onFontIncrease}
-                canDecrease={canFontDecrease}
-                canIncrease={canFontIncrease}
-                isDefault={isFontDefault}
+                fontSizePx={modalFontSize}
+                onDecrease={decrease}
+                onReset={reset}
+                onIncrease={increase}
+                canDecrease={canDecrease}
+                canIncrease={canIncrease}
+                isDefault={isDefault}
                 compact
               />
 
@@ -138,8 +133,11 @@ export function StoneReaderModal({
         </header>
 
         <div className="stone-reader-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 sm:px-8 sm:py-7">
-          <div className="mx-auto w-full max-w-[58rem]">
-            {formatStoneContent(text, { renderSegment, typography, fontSizePx })}
+          <div
+            className="mx-auto w-full max-w-[58rem]"
+            style={{ fontSize: modalFontSize, lineHeight: DOGALTAS_MODAL_LINE_HEIGHT }}
+          >
+            {formatStoneContent(text, { renderSegment, fontSizePx: modalFontSize })}
           </div>
         </div>
       </div>

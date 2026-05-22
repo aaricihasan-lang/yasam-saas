@@ -1,6 +1,6 @@
 "use client";
 
-import { DOGALTAS_DETAIL_FONT_DEFAULT } from "@/lib/dogaltas/dogaltasDetailFontSize";
+import { DOGALTAS_MODAL_FONT_DEFAULT } from "@/lib/dogaltas/dogaltasModalFontSize";
 
 type DogaltasFontSizeControlProps = {
   fontSizePx: number;
@@ -27,7 +27,7 @@ export function DogaltasFontSizeControl({
   onIncrease,
   canDecrease = true,
   canIncrease = true,
-  isDefault = fontSizePx === DOGALTAS_DETAIL_FONT_DEFAULT,
+  isDefault = fontSizePx === DOGALTAS_MODAL_FONT_DEFAULT,
   compact = false,
 }: DogaltasFontSizeControlProps) {
   return (
@@ -61,8 +61,8 @@ export function DogaltasFontSizeControl({
         type="button"
         onClick={onReset}
         className={`${btnBase} ${isDefault ? btnActive : btnIdle}`}
-        aria-label={`Varsayılan yazı boyutu (${DOGALTAS_DETAIL_FONT_DEFAULT}px)`}
-        title={`Varsayılan (${DOGALTAS_DETAIL_FONT_DEFAULT}px)`}
+        aria-label={`Varsayılan yazı boyutu (${DOGALTAS_MODAL_FONT_DEFAULT}px)`}
+        title={`Varsayılan (${DOGALTAS_MODAL_FONT_DEFAULT}px)`}
       >
         A
       </button>

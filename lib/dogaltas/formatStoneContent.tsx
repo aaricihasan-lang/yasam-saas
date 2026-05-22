@@ -1,7 +1,4 @@
-import {
-  dogaltasContentTypography,
-  type DogaltasContentTypography,
-} from "@/lib/dogaltas/dogaltasDetailFontSize";
+import { DOGALTAS_MODAL_FONT_DEFAULT } from "@/lib/dogaltas/dogaltasModalFontSize";
 import { Fragment, type ReactNode } from "react";
 
 /** "Mineral sınıfı:" gibi etiket satırları */
@@ -12,8 +9,8 @@ const SECTION_HEADER_RE =
 
 export type FormatStoneContentOptions = {
   renderSegment?: (text: string, key: string) => ReactNode;
+  /** Madde işareti hizası için; gövde yazı boyutu üst kapsayıcıdan gelir */
   fontSizePx?: number;
-  typography?: DogaltasContentTypography;
 };
 
 function defaultRender(text: string): ReactNode {
@@ -68,7 +65,6 @@ function renderInlineSegment(
   text: string,
   key: string,
   renderSegment: (text: string, key: string) => ReactNode,
-  typo: DogaltasContentTypography,
 ): ReactNode {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -77,7 +73,7 @@ function renderInlineSegment(
   if (labelMatch) {
     const [, label, rest] = labelMatch;
     return (
-      <p key={key} className="text-slate-700" style={typo.bodyStyle}>
+      <p key={key} className="text-slate-700">
         <span className="font-bold text-slate-900">{label}:</span>
         {rest ? (
           <>
@@ -90,7 +86,7 @@ function renderInlineSegment(
   }
 
   return (
-    <p key={key} className="text-slate-700" style={typo.bodyStyle}>
+    <p key={key} className="text-slate-700">
       {renderSegment(trimmed, key)}
     </p>
   );
@@ -100,15 +96,14 @@ function renderListItems(
   items: string[],
   keyPrefix: string,
   renderSegment: (text: string, key: string) => ReactNode,
-  typo: DogaltasContentTypography,
+  fontSizePx: number,
 ): ReactNode {
-  const bulletTop = bulletOffset(typo.fontSizePx);
+  const bulletTop = bulletOffset(fontSizePx);
 
   return (
     <ul
       key={keyPrefix}
       className="ml-1 list-none space-y-3 pl-0 text-slate-700 sm:space-y-3.5"
-      style={typo.bodyStyle}
     >
       {items.map((item, index) => (
         <li key={`${keyPrefix}-${index}`} className="flex gap-3">
@@ -128,7 +123,7 @@ function renderBlock(
   block: string,
   blockIndex: number,
   renderSegment: (text: string, key: string) => ReactNode,
-  typo: DogaltasContentTypography,
+  fontSizePx: number,
 ): ReactNode {
   const key = `block-${blockIndex}`;
   const cardPad = "p-4 shadow-sm sm:p-5 md:p-6";
@@ -148,7 +143,7 @@ function renderBlock(
         key={key}
         className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
       >
-        {renderListItems(items, `${key}-ul`, renderSegment, typo)}
+        {renderListItems(items, `${key}-ul`, renderSegment, fontSizePx)}
       </article>
     );
   }
@@ -179,7 +174,7 @@ function renderBlock(
           key={key}
           className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
         >
-          {renderListItems(items, `${key}-sc`, renderSegment, typo)}
+          {renderListItems(items, `${key}-sc`, renderSegment, fontSizePx)}
         </article>
       );
     }
@@ -189,13 +184,13 @@ function renderBlock(
         key={key}
         className={`rounded-2xl border border-slate-200/80 bg-white/90 ${cardPad}`}
       >
-        {renderInlineSegment(line, `${key}-p`, renderSegment, typo)}
+        {renderInlineSegment(line, `${key}-p`, renderSegment)}
       </article>
     );
   }
 
   const nodes: ReactNode[] = [];
-  const bulletTop = bulletOffset(typo.fontSizePx);
+  const bulletTop = bulletOffset(fontSizePx);
 
   lines.forEach((line, lineIndex) => {
     const lineKey = `${key}-ln-${lineIndex}`;
@@ -215,7 +210,7 @@ function renderBlock(
     const listMatch = line.match(LIST_ITEM_RE);
     if (listMatch) {
       nodes.push(
-        <div key={lineKey} className="flex gap-3 pl-1 text-slate-700" style={typo.bodyStyle}>
+        <div key={lineKey} className="flex gap-3 pl-1 text-slate-700">
           <span
             className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
             style={{ marginTop: bulletTop }}
@@ -229,7 +224,7 @@ function renderBlock(
 
     nodes.push(
       <Fragment key={lineKey}>
-        {renderInlineSegment(line, lineKey, renderSegment, typo)}
+        {renderInlineSegment(line, lineKey, renderSegment)}
       </Fragment>,
     );
   });
@@ -246,30 +241,25 @@ function renderBlock(
 
 /**
  * Uzun taş metinlerini okunabilir bloklara, listelere ve etiket satırlarına dönüştürür.
+ * Gövde yazı boyutu üst kapsayıcının font-size değerinden kalıtılır.
  */
 export function formatStoneContent(
   text: string,
   options?: FormatStoneContentOptions,
 ): ReactNode {
   const renderSegment = options?.renderSegment ?? defaultRender;
-  const typo =
-    options?.typography ??
-    dogaltasContentTypography(options?.fontSizePx ?? 17);
+  const fontSizePx = options?.fontSizePx ?? DOGALTAS_MODAL_FONT_DEFAULT;
   const normalized = normalizeText(text);
 
   if (!normalized) {
-    return (
-      <p className="italic text-slate-400" style={typo.bodyStyle}>
-        Henüz bilgi girilmedi.
-      </p>
-    );
+    return <p className="italic text-slate-400">Henüz bilgi girilmedi.</p>;
   }
 
   const blocks = splitParagraphBlocks(normalized);
 
   return (
     <div className="space-y-5 sm:space-y-6 md:space-y-7">
-      {blocks.map((block, index) => renderBlock(block, index, renderSegment, typo))}
+      {blocks.map((block, index) => renderBlock(block, index, renderSegment, fontSizePx))}
     </div>
   );
 }

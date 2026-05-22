@@ -19,10 +19,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
-import type { DogaltasContentTypography } from "@/lib/dogaltas/dogaltasDetailFontSize";
-import { useDogaltasDetailFontSize } from "@/lib/dogaltas/useDogaltasDetailFontSize";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -476,7 +473,6 @@ function TextBlock({
   editEnabled,
   highlightQuery = "",
   hasSearchMatch = false,
-  contentTypography,
   onOpenEdit,
   onOpenRead,
 }: {
@@ -487,7 +483,6 @@ function TextBlock({
   editEnabled: boolean;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
-  contentTypography: DogaltasContentTypography;
   onOpenEdit: () => void;
   onOpenRead: () => void;
 }) {
@@ -510,10 +505,7 @@ function TextBlock({
               {showMatchBadge ? <SearchMatchBadge /> : null}
             </div>
 
-            <p
-              className="mt-2 line-clamp-1 text-slate-700"
-              style={contentTypography.bodyStyle}
-            >
+            <p className="mt-2 line-clamp-1 text-slate-700">
               {shortPreview(text, 90)}
             </p>
           </div>
@@ -542,7 +534,6 @@ function TextBlock({
       <div className={uiContentBox}>
         <p
           className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
-          style={text?.trim() ? contentTypography.bodyStyle : undefined}
         >
           {text?.trim()
             ? renderHighlightedText(shortPreview(text, 420), highlightQuery)
@@ -563,16 +554,6 @@ function StoneDetailPage() {
   const searchParams = useSearchParams();
   const id = params?.id;
   const highlightQuery = searchParams.get("q")?.trim() ?? "";
-  const {
-    fontSizePx,
-    typography: contentTypography,
-    decrease: decreaseFontSize,
-    reset: resetFontSize,
-    increase: increaseFontSize,
-    canDecrease: canDecreaseFontSize,
-    canIncrease: canIncreaseFontSize,
-    isDefault: isDefaultFontSize,
-  } = useDogaltasDetailFontSize();
   const listBackHref = highlightQuery
     ? `/dogaltas/dogaltas-listesi?q=${encodeURIComponent(highlightQuery)}`
     : "/dogaltas/dogaltas-listesi";
@@ -1122,16 +1103,6 @@ function StoneDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <DogaltasFontSizeControl
-              fontSizePx={fontSizePx}
-              onDecrease={decreaseFontSize}
-              onReset={resetFontSize}
-              onIncrease={increaseFontSize}
-              canDecrease={canDecreaseFontSize}
-              canIncrease={canIncreaseFontSize}
-              isDefault={isDefaultFontSize}
-            />
-
             <Link
               href={listBackHref}
               className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
@@ -1469,7 +1440,6 @@ function StoneDetailPage() {
               text={safeStone.short_description}
               tone="cyan"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.shortDescription}
               onOpenEdit={() => openTextEditor("short_description", "Kısa Açıklama", "GENEL BİLGİ")}
@@ -1482,7 +1452,6 @@ function StoneDetailPage() {
               text={safeStone.general_info}
               tone="cyan"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.generalInfo}
               onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
@@ -1495,7 +1464,6 @@ function StoneDetailPage() {
               text={safeStone.source_note}
               tone="slate"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.sourceNote}
               onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
@@ -1508,7 +1476,6 @@ function StoneDetailPage() {
               text={safeStone.physical_effects}
               tone="emerald"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.physicalEffects}
               onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
@@ -1521,7 +1488,6 @@ function StoneDetailPage() {
               text={safeStone.spiritual_effects}
               tone="violet"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.spiritualEffects}
               onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
@@ -1534,7 +1500,6 @@ function StoneDetailPage() {
               text={safeStone.other_effects}
               tone="amber"
               editEnabled={editEnabled}
-              contentTypography={contentTypography}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.otherEffects}
               onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
@@ -1548,7 +1513,6 @@ function StoneDetailPage() {
                 text={safeStone.warning_text}
                 tone="rose"
                 editEnabled={editEnabled}
-                contentTypography={contentTypography}
                 highlightQuery={highlightQuery}
                 hasSearchMatch={sectionMatches?.warningText}
                 onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
@@ -1619,8 +1583,7 @@ function StoneDetailPage() {
                     </div>
 
                     <p
-                      className={`mt-2 line-clamp-2 text-slate-700 ${!String(text || "").trim() ? uiEmptyText : ""}`}
-                      style={String(text || "").trim() ? contentTypography.bodyStyle : undefined}
+                      className={`mt-2 line-clamp-2 text-base leading-7 text-slate-700 ${!String(text || "").trim() ? uiEmptyText : ""}`}
                     >
                       {String(text || "").trim()
                         ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
@@ -1646,14 +1609,6 @@ function StoneDetailPage() {
           <Fragment key={key}>{renderHighlightedText(segment, highlightQuery)}</Fragment>
         )}
         matchBadge={readerHasMatch ? <SearchMatchBadge /> : null}
-        fontSizePx={fontSizePx}
-        typography={contentTypography}
-        onFontDecrease={decreaseFontSize}
-        onFontReset={resetFontSize}
-        onFontIncrease={increaseFontSize}
-        canFontDecrease={canDecreaseFontSize}
-        canFontIncrease={canIncreaseFontSize}
-        isFontDefault={isDefaultFontSize}
         onClose={() => setActiveReader(null)}
       />
 
