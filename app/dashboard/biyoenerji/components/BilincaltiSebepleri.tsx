@@ -258,7 +258,7 @@ export default function BilincaltiSebepleri() {
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid w-full grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
         <div className="rounded-2xl border-2 border-fuchsia-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
           <p className="text-base font-bold text-slate-500">Toplam kayıt</p>
           <p className="mt-2 text-3xl font-black tabular-nums text-fuchsia-700 sm:text-4xl">
@@ -337,7 +337,7 @@ export default function BilincaltiSebepleri() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = subconsciousCauseDetailHref(row.id);
               const preview = previewSubconsciousText(row.content, row.note_text);
