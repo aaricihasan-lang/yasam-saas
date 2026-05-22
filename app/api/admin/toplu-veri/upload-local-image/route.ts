@@ -38,19 +38,31 @@ function isAbsoluteLocalPath(localPath: string) {
   return /^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\");
 }
 
+function resolveImportRoot(basePath?: string): string {
+  const fromArg = typeof basePath === "string" ? basePath.trim() : "";
+  const fromEnv =
+    typeof process.env.IMPORT_IMAGE_BASE_PATH === "string"
+      ? process.env.IMPORT_IMAGE_BASE_PATH.trim()
+      : "";
+  const cwd =
+    typeof process.cwd === "function" ? String(process.cwd() ?? "").trim() : "";
+  const root = fromArg || fromEnv || cwd || ".";
+  return path.resolve(root);
+}
+
 function resolveImportImagePath(localPath: string, basePath?: string) {
   const trimmed = localPath.trim();
+  if (!trimmed) {
+    throw new Error("Geçersiz görsel yolu");
+  }
+
   const normalizedInput = trimmed.replace(/\//g, path.sep);
 
   if (isAbsoluteLocalPath(trimmed)) {
     return path.normalize(normalizedInput);
   }
 
-  const root =
-    basePath?.trim() ||
-    process.env.IMPORT_IMAGE_BASE_PATH?.trim() ||
-    process.cwd();
-  const resolvedRoot = path.resolve(root);
+  const resolvedRoot = resolveImportRoot(basePath);
   const resolved = path.resolve(resolvedRoot, normalizedInput);
 
   if (!resolved.startsWith(resolvedRoot)) {

@@ -1,12 +1,13 @@
+"use client";
+
+import { useParams } from "next/navigation";
 import BilincaltiSebepleriDetail from "../../components/BilincaltiSebepleriDetail";
 import BiyoenerjiSectionShell from "../../components/BiyoenerjiSectionShell";
+import { safeSubconsciousCauseId } from "@/lib/bioenergy/subconsciousCausesRoutes";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
-};
-
-export default async function BilincaltiSebepleriDetailPage({ params }: PageProps) {
-  const { id } = await params;
+export default function BilincaltiSebepleriDetailPage() {
+  const params = useParams();
+  const safeId = safeSubconsciousCauseId(params?.id);
 
   return (
     <BiyoenerjiSectionShell
@@ -16,7 +17,7 @@ export default async function BilincaltiSebepleriDetailPage({ params }: PageProp
       subtitle="Kayıt detayı — içerik ve notlar"
     >
       <div className="mx-auto w-full max-w-[1500px] px-1 sm:px-0">
-        <BilincaltiSebepleriDetail id={id} />
+        <BilincaltiSebepleriDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>
   );

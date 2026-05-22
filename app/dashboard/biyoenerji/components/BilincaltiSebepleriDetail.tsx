@@ -187,6 +187,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   }, [infoSuccess, infoError]);
 
   const loadRecord = useCallback(async () => {
+    const recordId = id.trim();
+    if (!recordId) {
+      setLoading(false);
+      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setRecord(null);
+      return;
+    }
+
     setLoading(true);
     setErrorMessage("");
 
@@ -201,7 +209,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       .from("bioenergy_subconscious_causes")
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("id", id)
+      .eq("id", recordId)
       .maybeSingle();
 
     setLoading(false);
@@ -230,8 +238,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   }, [id]);
 
   useEffect(() => {
+    if (!id.trim()) {
+      setLoading(false);
+      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setRecord(null);
+      return;
+    }
     void loadRecord();
-  }, [loadRecord]);
+  }, [loadRecord, id]);
 
   async function handleGuncelle() {
     const tenantId = await getSyncedTenantId();

@@ -13,9 +13,9 @@ import {
   fetchSubconsciousCausesCount,
   fetchSubconsciousCausesPage,
   previewSubconsciousText,
-  SUBCONSCIOUS_CAUSES_LIST_PATH,
   type SubconsciousCauseListItem,
 } from "@/lib/bioenergy/subconsciousCausesListFetch";
+import { subconsciousCauseDetailHref } from "@/lib/bioenergy/subconsciousCausesRoutes";
 import { supabase } from "@/lib/supabase";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
@@ -339,10 +339,12 @@ export default function BilincaltiSebepleri() {
         <>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {rows.map((row, index) => {
-              const detailHref = `${SUBCONSCIOUS_CAUSES_LIST_PATH}/${encodeURIComponent(row.id)}`;
+              const detailHref = subconsciousCauseDetailHref(row.id);
               const preview = previewSubconsciousText(row.content, row.note_text);
               const theme = getSubconsciousCardTheme(index);
               const hasCategory = Boolean(row.category?.trim());
+
+              if (!detailHref) return null;
 
               return (
                 <article
