@@ -4,9 +4,10 @@ import BiyoenerjiSectionShell from "../components/BiyoenerjiSectionShell";
 export default function BilincaltiSebepleriPage() {
   return (
     <BiyoenerjiSectionShell
-      badge="BİYOENERJİ · BİLİNÇALTI"
-      title="Bilinçaltı Sebepleri"
-      subtitle="Kök nedenler, içsel bloklar ve dönüşüm notları"
+      headerVariant="premium"
+      badge="BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ"
+      title="Bilinçaltı Sebepleri Kütüphanesi"
+      subtitle="Arama yapın, karttan detayı açın — kök nedenler ve dönüşüm notları"
     >
       <BilincaltiSebepleri />
     </BiyoenerjiSectionShell>
