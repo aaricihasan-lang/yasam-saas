@@ -32,8 +32,11 @@ const navBtnSecondary =
 const clinicalCardClass =
   "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
 
-const footCardClass =
-  "flex min-h-[min(72vh,820px)] flex-col overflow-hidden rounded-[28px] border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white/95 to-fuchsia-50/80 shadow-[0_20px_50px_-16px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/60";
+const footMapPanelLargeClass =
+  "flex w-full flex-col overflow-hidden rounded-[28px] border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white/95 to-fuchsia-50/80 shadow-[0_20px_50px_-16px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/60 xl:sticky xl:top-6 xl:max-h-[calc(100vh-1.5rem)] xl:min-h-[min(78vh,900px)] xl:self-start";
+
+const footMapPanelCompactClass =
+  "w-full rounded-[22px] border-2 border-dashed border-violet-200/75 bg-gradient-to-br from-violet-50/85 via-white/95 to-fuchsia-50/50 px-5 py-4 shadow-sm ring-1 ring-violet-100/60 sm:px-6 sm:py-5 xl:max-w-md xl:justify-self-end";
 
 type CardTone = "violet" | "fuchsia" | "cyan" | "amber" | "emerald";
 
@@ -123,6 +126,26 @@ function OrganPills({
         </span>
       ))}
     </div>
+  );
+}
+
+function FootMapAtlasCompactCard({
+  hasOrgans,
+}: {
+  hasOrgans: boolean;
+}) {
+  return (
+    <section className={footMapPanelCompactClass} aria-label="Ayak haritası bilgisi">
+      <h2 className="text-base font-black text-violet-950 sm:text-lg">Ayak Haritası</h2>
+      <p className="mt-2 text-[15px] font-semibold leading-[1.75] text-violet-900 sm:text-[16px]">
+        Bu protokol için atlas eşleşmesi bulunamadı.
+      </p>
+      <p className="mt-1.5 text-sm font-medium leading-relaxed text-violet-800/85">
+        {hasOrgans
+          ? "Organlar kayıtlı; bölge haritasında eşleşen bölge tanımlayın."
+          : "Organ eklendiğinde harita otomatik gösterilir."}
+      </p>
+    </section>
   );
 }
 
@@ -300,8 +323,14 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           </div>
         </header>
 
-        <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)] 2xl:grid-cols-[minmax(0,1.05fr)_minmax(480px,560px)]">
-          <div className="space-y-6">
+        <div
+          className={
+            hasAtlasMapping
+              ? "mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[58%_42%] xl:items-start xl:gap-8"
+              : "mt-8 grid grid-cols-1 gap-6"
+          }
+        >
+          <div className="min-w-0 space-y-6">
             <div className="rounded-[28px] border-2 border-violet-300/50 bg-violet-50/40 px-5 py-4 sm:px-6">
               <h2 className="text-lg font-black text-violet-950 sm:text-xl">
                 Klinik Protokol Bilgileri
@@ -358,27 +387,20 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             ) : null}
           </div>
 
-          <section className={footCardClass}>
-            <div className="shrink-0 border-b border-violet-200/70 px-5 py-4 sm:px-6">
-              <h2 className="text-xl font-black text-violet-950 sm:text-2xl">Ayak Haritası Önizleme</h2>
-              <p className="mt-1 text-[15px] font-semibold text-violet-800/80">
-                Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
-              </p>
-            </div>
+          {hasAtlasMapping ? (
+            <section className={footMapPanelLargeClass} aria-label="Ayak haritası önizleme">
+              <div className="shrink-0 border-b border-violet-200/70 px-5 py-4 sm:px-6">
+                <h2 className="text-xl font-black text-violet-950 sm:text-2xl">
+                  Ayak Haritası Önizleme
+                </h2>
+                <p className="mt-1 text-[15px] font-semibold text-violet-800/80">
+                  Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
+                </p>
+              </div>
 
-            <div className="relative min-h-[min(52vh,640px)] flex-1 p-3 sm:p-4">
-              {organs.length === 0 ? (
-                <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/90 bg-white/70 px-6 text-center">
-                  <p className="text-lg font-black text-violet-900">
-                    Bu protokol için atlas eşleşmesi bulunamadı.
-                  </p>
-                  <p className="mt-2 max-w-sm text-[15px] font-semibold leading-relaxed text-violet-800/85">
-                    Organ ekledikten sonra harita önizlemesi burada görünür.
-                  </p>
-                </div>
-              ) : (
-                <div className="relative h-full min-h-[min(48vh,600px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner">
-                  <div className="absolute inset-0 origin-center scale-[1.02]">
+              <div className="relative min-h-[min(62vh,720px)] flex-1 p-3 sm:min-h-[min(68vh,800px)] sm:p-4">
+                <div className="relative h-full min-h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:min-h-[min(64vh,760px)]">
+                  <div className="absolute inset-0 origin-center scale-[1.06] sm:scale-[1.08]">
                     <ProtocolFootMap
                       regions={regions}
                       footView={footView}
@@ -388,20 +410,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                       embedded
                     />
                   </div>
-                  {!hasAtlasMapping ? (
-                    <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 rounded-2xl border border-violet-200/90 bg-white/92 px-4 py-3 text-center shadow-lg backdrop-blur-sm">
-                      <p className="text-[15px] font-black text-violet-950">
-                        Bu protokol için atlas eşleşmesi bulunamadı.
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-violet-800/85">
-                        Organlar kayıtlı; bölge haritasında eşleşen bölge tanımlayın.
-                      </p>
-                    </div>
-                  ) : null}
                 </div>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
+          ) : (
+            <FootMapAtlasCompactCard hasOrgans={organs.length > 0} />
+          )}
         </div>
       </div>
     </main>
