@@ -33,6 +33,7 @@ import {
   type InventoryJsonRow,
 } from "@/lib/urun-stok/inventoryJsonImport";
 import { supabase } from "@/lib/supabase";
+import { HealingGuideJsonTab } from "./HealingGuideJsonTab";
 
 type StoneJsonRecord = Record<string, unknown>;
 
@@ -4958,6 +4959,7 @@ export default function TopluVeriPage() {
     | "enerji-bedeni"
     | "bilincalti"
     | "refleksoloji-protokol"
+    | "sifa-rehberi"
   >("dogaltas");
 
   return (
@@ -5094,6 +5096,17 @@ export default function TopluVeriPage() {
         >
           🦶 Refleksoloji Protokoller JSON
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("sifa-rehberi")}
+          className={`rounded-2xl border-2 px-5 py-2.5 text-sm font-bold transition ${
+            activeTab === "sifa-rehberi"
+              ? "border-violet-400 bg-gradient-to-r from-violet-100 to-cyan-100 text-violet-950 shadow-md"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          🩺 Şifa Rehberi JSON
+        </button>
       </div>
 
       {activeTab === "dogaltas" ? <DogaltasJsonTab /> : null}
@@ -5106,6 +5119,7 @@ export default function TopluVeriPage() {
       {activeTab === "enerji-bedeni" ? <EnerjiBedenleriJsonTab /> : null}
       {activeTab === "bilincalti" ? <BilincaltiSebepleriJsonTab /> : null}
       {activeTab === "refleksoloji-protokol" ? <RefleksolojiProtokollerJsonTab /> : null}
+      {activeTab === "sifa-rehberi" ? <HealingGuideJsonTab /> : null}
     </AdminModuleLayout>
     </AdminSourceTenantProvider>
   );
