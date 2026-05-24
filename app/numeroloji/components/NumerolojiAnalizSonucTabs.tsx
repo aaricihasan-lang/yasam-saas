@@ -72,7 +72,7 @@ const CHAKRA_TABLO_HEX: Record<number, string> = {
 function CakraBosCizgi({ align }: { align: "left" | "right" }) {
   return (
     <span
-      className={`block h-1.5 min-w-20 w-full max-w-32 shrink-0 rounded-full bg-black/80 shadow-sm ${align === "left" ? "ml-auto" : "mr-auto"}`}
+      className={`block h-1 min-w-12 w-full max-w-24 shrink-0 rounded-full bg-black/25 ${align === "left" ? "ml-auto" : "mr-auto"}`}
       aria-hidden
     />
   );
@@ -99,7 +99,7 @@ function CakraEnerjiDaireleri({
         Array.from({ length: count }, (_, i) => (
           <span
             key={i}
-            className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/90 sm:h-6 sm:w-6"
+            className="h-4 w-4 shrink-0 rounded-full ring-1 ring-white/90 sm:h-5 sm:w-5"
             style={{
               backgroundColor: hex,
               opacity: tone === "pasif" ? 0.48 : 1,
@@ -117,7 +117,7 @@ export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   return (
     <section className="col-span-full min-w-0 w-full rounded-[18px] border border-violet-200/70 bg-white/85 p-5 shadow-[0_0_16px_rgba(139,92,246,0.07)]">
       <h3 className="text-lg font-black tracking-wide text-slate-950">Çakra Sütunu & Çakra Omurgası</h3>
-      <div className="mt-5 space-y-1.5 sm:space-y-2">
+      <div className="mt-3 space-y-1">
         {CAKRA_TABLO_SIRA.map((cNo) => {
           const sol = out.cakraOmurgasi.sayilar[cNo] ?? 0;
           const sag = out.cakraOmurgasi.harfler[cNo] ?? 0;
@@ -125,10 +125,10 @@ export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
           return (
             <div
               key={cNo}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-violet-100/70 bg-white/65 px-4 py-2.5 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30 sm:gap-6 sm:px-6 sm:py-3"
+              className="flex w-full items-center justify-between gap-2 rounded-xl border border-violet-100/60 bg-white/65 px-3 py-2 shadow-sm ring-1 ring-white/80 transition-colors hover:bg-violet-50/30 sm:gap-4 sm:px-4"
             >
               <CakraEnerjiDaireleri count={sol} hex={hex} tone="pasif" align="left" />
-              <span className="shrink-0 px-2 text-center text-lg font-black tracking-wide text-slate-800 sm:px-4">
+              <span className="shrink-0 px-1 text-center text-sm font-black tracking-wide text-slate-800 sm:px-2">
                 {cNo}. Çakra
               </span>
               <CakraEnerjiDaireleri count={sag > 0 ? sag : 0} hex={hex} tone="aktif" align="right" />
@@ -173,9 +173,9 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
   return (
     <section className="col-span-full min-w-0 w-full rounded-[18px] border border-amber-300/35 bg-white/80 p-5 shadow-[0_0_18px_rgba(245,158,11,0.08)] backdrop-blur-xl">
       <h3 className="text-lg font-black tracking-wide text-violet-700">Harflerin Yankılanışı</h3>
-      <div className="mt-6 flex w-full min-w-0 flex-wrap justify-center gap-4">
+      <div className="mt-4 flex w-full min-w-0 flex-wrap justify-center gap-2">
         {segments.length === 0 ? (
-          <p className="w-full min-h-[140px] px-6 py-5 text-center text-lg font-medium leading-9 text-slate-700">
+          <p className="w-full py-4 text-center text-sm font-medium text-slate-600">
             Harf dönemi hesaplanamadı.
           </p>
         ) : (
@@ -186,20 +186,20 @@ function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] })
             return (
               <div
                 key={`${idx}-${seg.letter}-${seg.ageStart}`}
-                className={`relative flex min-h-[120px] min-w-[95px] shrink-0 flex-col items-center justify-center rounded-2xl border-2 p-5 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${tint} ${aktif ? "ring-2 ring-violet-500/50" : ""}`}
+                className={`relative flex min-h-[88px] min-w-[68px] shrink-0 flex-col items-center justify-center rounded-xl border p-2.5 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${tint} ${aktif ? "ring-2 ring-violet-500/45" : ""}`}
               >
                 {aktif ? (
-                  <span className="absolute -top-2 left-1/2 z-10 w-full max-w-[calc(100%+1rem)] -translate-x-1/2 whitespace-normal break-words rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1 text-center text-sm font-black leading-8 tracking-wide text-white shadow-md">
+                  <span className="absolute -top-2 left-1/2 z-10 w-full max-w-[calc(100%+0.75rem)] -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-2 py-0.5 text-center text-[9px] font-black tracking-wide text-white shadow-sm">
                     Aktif
                   </span>
                 ) : null}
-                <span className="w-full text-4xl font-black leading-none text-slate-900">{seg.letter}</span>
-                <span className="mt-2 w-full text-2xl font-black tabular-nums text-violet-700">{seg.chakra}</span>
-                <span className="mt-2 w-full whitespace-normal break-words text-lg font-medium leading-9 text-slate-700">
+                <span className="w-full text-2xl font-black leading-none text-slate-900">{seg.letter}</span>
+                <span className="mt-1 w-full text-base font-black tabular-nums text-violet-700">{seg.chakra}</span>
+                <span className="mt-1 w-full whitespace-normal break-words text-[11px] font-medium leading-4 text-slate-600">
                   {harfYasMetni(seg.ageStart, seg.ageEnd)}
                 </span>
                 {yilMetin ? (
-                  <span className="mt-1 w-full whitespace-normal break-words text-lg font-medium leading-9 tabular-nums text-slate-600">
+                  <span className="mt-0.5 w-full whitespace-normal break-words text-[11px] font-medium leading-4 tabular-nums text-slate-500">
                     {yilMetin}
                   </span>
                 ) : null}
@@ -232,17 +232,17 @@ function OzetPremiumKart({
 }) {
   return (
     <div
-      className={`relative min-w-0 overflow-hidden rounded-[18px] border border-violet-200/70 bg-white/85 p-5 shadow-[0_0_16px_rgba(139,92,246,0.07)] transition-all duration-200 hover:-translate-y-0.5 ${tint}`}
+      className={`relative min-w-0 overflow-hidden rounded-[16px] border border-violet-200/70 bg-white/85 p-4 shadow-[0_0_14px_rgba(139,92,246,0.07)] transition-all duration-200 hover:-translate-y-0.5 ${tint}`}
     >
-      <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-violet-400/8 blur-xl" aria-hidden />
+      <div className="pointer-events-none absolute -right-3 -top-3 h-12 w-12 rounded-full bg-violet-400/8 blur-lg" aria-hidden />
       <div className="relative flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{title}</p>
-          <p className="mt-1.5 w-full whitespace-normal break-words text-5xl font-black leading-tight text-slate-950">
+          <p className="mt-1 w-full whitespace-normal break-words text-4xl font-black leading-tight text-slate-950">
             {value}
           </p>
         </div>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-sm text-violet-600 shadow-sm ring-1 ring-violet-100/60">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 text-xs text-violet-600 shadow-sm ring-1 ring-violet-100/60">
           {icon}
         </div>
       </div>
@@ -300,10 +300,10 @@ function TabSonucOzetiPremium({
 
         <section className={`min-w-0 w-full rounded-[18px] border border-violet-200/70 bg-white/85 shadow-[0_0_16px_rgba(139,92,246,0.07)] ${typo.boxPadding}`}>
           <h3 className="text-lg font-black tracking-wide text-slate-950">Elementler</h3>
-          <div className="mt-6 w-full min-w-0 space-y-5">
+          <div className="mt-4 w-full min-w-0 space-y-3">
             {ELEMENT_ORDER.map((name) => (
               <div key={name} className="min-w-0 w-full">
-                <div className="mb-2 flex w-full min-w-0 justify-between gap-4 text-lg font-black tracking-wide text-slate-700">
+                <div className="mb-1.5 flex w-full min-w-0 justify-between gap-4 text-sm font-black tracking-wide text-slate-700">
                   <span className="min-w-0">{name}</span>
                   <span>{el[name]}</span>
                 </div>
