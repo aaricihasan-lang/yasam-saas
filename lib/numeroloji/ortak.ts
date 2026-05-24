@@ -21,7 +21,9 @@ export const CHAKRA_LETTER_MAP: Record<string, number> = {
 export const VOWELS = new Set(["A", "E", "I", "İ", "O", "Ö", "U", "Ü"]);
 
 export function turkishUpper(text: string): string {
-  return (text || "").toLocaleUpperCase("tr-TR");
+  return (text || "")
+    .toLocaleUpperCase("tr-TR")
+    .replace(/İ/g, "I"); // İ (U+0130) → I (U+0049): Python .upper() davranışıyla uyumlu
 }
 
 export function sumDigits(n: number): number {
