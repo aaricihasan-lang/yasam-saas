@@ -189,6 +189,81 @@ const DETAIL_TABS: {
   },
 ];
 
+const detailNavBtnActive =
+  "bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-[0_12px_36px_rgba(16,185,129,0.42)] ring-2 ring-emerald-300/55";
+const detailNavBtnIdle =
+  "bg-white/75 text-slate-700 ring-1 ring-emerald-100/70 hover:bg-white hover:ring-emerald-200/90";
+
+const sectionPremiumCard =
+  "rounded-[28px] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50/30 p-7 shadow-[0_12px_35px_rgba(16,185,129,0.10)] ring-1 ring-white/90";
+
+const sectionNoteBody =
+  "whitespace-pre-wrap rounded-2xl border border-slate-100 bg-white/90 p-5 text-[17px] leading-8 text-slate-700 shadow-inner shadow-slate-200/30";
+
+type SectionBadgeTone = "emerald" | "cyan" | "violet";
+
+const SECTION_BADGE_STYLES: Record<SectionBadgeTone, string> = {
+  emerald: "border-emerald-100/90 bg-emerald-50/95 text-emerald-800",
+  cyan: "border-cyan-100/90 bg-cyan-50/95 text-cyan-800",
+  violet: "border-violet-100/90 bg-violet-50/95 text-violet-800",
+};
+
+function normalizeSectionModeKey(mode: string | null | undefined): string {
+  if (!mode?.trim()) return "";
+  return mode.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+function sectionCardIcon(section: HealingGuideSectionRow, displayTitle: string): string {
+  const mode = normalizeSectionModeKey(section.mode);
+  if (mode.includes("bitkisel") || mode === "herbal" || displayTitle.includes("Bitkisel")) return "🌿";
+  if (mode.includes("hacamat") || displayTitle.includes("Hacamat")) return "💧";
+  if (mode.includes("refleks") || displayTitle.includes("Refleks")) return "👣";
+  if (mode.includes("diyet") || displayTitle.includes("Diyet")) return "🥗";
+  if (mode.includes("aroma") || displayTitle.includes("Aromaterapi")) return "🌸";
+
+  switch (section.section_type) {
+    case "reasons":
+      return "🔍";
+    case "applications":
+      return "🙌";
+    case "stones_details":
+      return "💎";
+    case "islamic_suggestions":
+      return "🕌";
+    case "supportive":
+      return "✨";
+    default:
+      return "✦";
+  }
+}
+
+function sectionContentBadge(
+  section: HealingGuideSectionRow,
+): { label: string; tone: SectionBadgeTone } | null {
+  const mode = normalizeSectionModeKey(section.mode);
+
+  if (section.section_type === "applications" || section.section_type === "herbal") {
+    if (mode.includes("bitkisel") || mode === "herbal" || mode === "herbal_methods") {
+      return { label: "Bitkisel destek", tone: "emerald" };
+    }
+    return { label: "Uygulama yöntemi", tone: "cyan" };
+  }
+
+  if (section.section_type === "reasons") {
+    return { label: "Uzman notu", tone: "violet" };
+  }
+
+  if (section.section_type === "supportive") {
+    return { label: "Destekleyici uygulama", tone: "cyan" };
+  }
+
+  if (section.source?.trim()) {
+    return { label: "Uzman notu", tone: "violet" };
+  }
+
+  return null;
+}
+
 function trimOrNull(value: string) {
   const t = value.trim();
   return t.length > 0 ? t : null;
@@ -726,14 +801,12 @@ export default function SifaRehberiDetailPage() {
                         key={t.type}
                         type="button"
                         onClick={() => setSectionTab(t.type)}
-                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[12px] font-black transition lg:min-w-0 ${
-                          active
-                            ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
-                            : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
+                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3.5 py-3 text-left text-[15px] font-bold transition lg:min-w-0 ${
+                          active ? detailNavBtnActive : detailNavBtnIdle
                         }`}
                       >
-                        <span className="text-[16px] leading-none">{t.icon}</span>
-                        <span className="flex-1 leading-tight">{t.label}</span>
+                        <span className="text-[17px] leading-none">{t.icon}</span>
+                        <span className="flex-1 leading-snug">{t.label}</span>
                         {count > 0 ? (
                           <span
                             className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
@@ -753,14 +826,12 @@ export default function SifaRehberiDetailPage() {
                         key={t.id}
                         type="button"
                         onClick={() => setTab(t.id)}
-                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[12px] font-black transition lg:min-w-0 ${
-                          active
-                            ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
-                            : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
+                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3.5 py-3 text-left text-[15px] font-bold transition lg:min-w-0 ${
+                          active ? detailNavBtnActive : detailNavBtnIdle
                         }`}
                       >
-                        <span className="text-[16px] leading-none">{t.icon}</span>
-                        <span className="leading-tight">{t.label}</span>
+                        <span className="text-[17px] leading-none">{t.icon}</span>
+                        <span className="leading-snug">{t.label}</span>
                       </button>
                     );
                   })}
@@ -776,11 +847,23 @@ export default function SifaRehberiDetailPage() {
               onChange={handleGuideImageFileChange}
             />
 
-            <div className="rounded-[22px] border border-white bg-white/80 p-5 shadow-md">
-              <h2 className="text-[18px] font-black tracking-tight text-slate-950">
+            <div className="rounded-[22px] border border-white/90 bg-white/80 p-5 shadow-md lg:p-6">
+              <h2
+                className={
+                  useSectionView
+                    ? "text-3xl font-black tracking-tight text-slate-950"
+                    : "text-[20px] font-black tracking-tight text-slate-950"
+                }
+              >
                 {useSectionView ? activeSectionMeta.label : activeTab.label}
               </h2>
-              <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-500">
+              <p
+                className={
+                  useSectionView
+                    ? "mt-2 text-base font-medium leading-relaxed text-slate-600"
+                    : "mt-1.5 text-[13px] font-medium leading-relaxed text-slate-500"
+                }
+              >
                 {useSectionView ? activeSectionMeta.desc : activeTab.desc}
               </p>
 
@@ -834,12 +917,12 @@ export default function SifaRehberiDetailPage() {
                 </div>
               ) : null}
 
-              <div className="mt-6 space-y-5">
+              <div className="mt-6 space-y-6">
                 {useSectionView ? (
                   sectionsInActiveTab.length === 0 ? (
                     <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
-                      <p className="text-[14px] font-black text-slate-700">Henüz kayıt yok</p>
-                      <p className="mt-1 text-[12px] font-medium text-slate-500">
+                      <p className="text-[15px] font-black text-slate-700">Henüz kayıt yok</p>
+                      <p className="mt-1 text-sm font-medium text-slate-500">
                         Bu bölüm için içerik henüz eklenmemiş.
                       </p>
                     </div>
@@ -848,28 +931,46 @@ export default function SifaRehberiDetailPage() {
                       const displayTitle = getHealingGuideSectionDisplayTitle(section);
                       const hasNote = Boolean(section.note?.trim());
                       const hasSource = Boolean(section.source?.trim());
+                      const badge = sectionContentBadge(section);
+                      const cardIcon = sectionCardIcon(section, displayTitle);
 
                       return (
-                        <article
-                          key={section.id}
-                          className="rounded-[20px] border border-emerald-100/90 bg-gradient-to-b from-white via-white to-emerald-50/25 p-5 shadow-[0_8px_28px_rgba(16,185,129,0.08)] ring-1 ring-white/95"
-                        >
-                          <h3 className="text-lg font-black tracking-tight text-slate-950">
-                            {displayTitle}
-                          </h3>
-                          {hasNote ? (
-                            <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-slate-100/90 bg-white/95 px-4 py-3.5 text-[14px] leading-7 text-slate-700 shadow-inner shadow-slate-100/40">
-                              {section.note!.trim()}
+                        <article key={section.id} className={sectionPremiumCard}>
+                          <div className="flex items-start gap-4">
+                            <span
+                              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-xl shadow-[0_10px_24px_rgba(16,185,129,0.35)] ring-2 ring-white/80"
+                              aria-hidden
+                            >
+                              {cardIcon}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              {badge ? (
+                                <span
+                                  className={`mb-2.5 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide ${SECTION_BADGE_STYLES[badge.tone]}`}
+                                >
+                                  {badge.label}
+                                </span>
+                              ) : null}
+                              <h3 className="text-2xl font-black tracking-tight text-slate-950">
+                                {displayTitle}
+                              </h3>
+                              <div
+                                className="mt-3 h-1 w-20 rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
+                                aria-hidden
+                              />
                             </div>
+                          </div>
+                          {hasNote ? (
+                            <div className={`mt-5 ${sectionNoteBody}`}>{section.note!.trim()}</div>
                           ) : null}
                           {hasSource ? (
-                            <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-500">
+                            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-500">
                               <span className="font-bold text-slate-600">Kaynak:</span>{" "}
                               {section.source!.trim()}
                             </p>
                           ) : null}
                           {!hasNote && !hasSource ? (
-                            <p className="mt-3 text-[13px] font-medium text-slate-400">
+                            <p className="mt-4 text-[15px] font-medium text-slate-400">
                               Bu başlık için henüz açıklama eklenmemiş.
                             </p>
                           ) : null}
@@ -882,26 +983,31 @@ export default function SifaRehberiDetailPage() {
                     const label = FIELD_LABELS[key];
                     const value = draft[key];
                     return (
-                      <div
-                        key={key}
-                        className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm ring-1 ring-slate-50/80"
-                      >
-                        <div className="mb-2 flex items-center gap-2 text-[13px] font-black tracking-tight text-slate-800">
+                      <div key={key} className={sectionPremiumCard}>
+                        <div className="flex items-start gap-3">
                           <span
-                            className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-sm ring-4 ring-emerald-100/90"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-base text-white shadow-md ring-2 ring-white/80"
                             aria-hidden
-                          />
-                          {label}
+                          >
+                            ✦
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-xl font-black tracking-tight text-slate-950">{label}</h3>
+                            <div
+                              className="mt-2.5 h-0.5 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400"
+                              aria-hidden
+                            />
+                          </div>
                         </div>
                         {editEnabled ? (
                           <textarea
                             value={value}
                             onChange={(e) => setDraftField(key, e.target.value)}
                             rows={6}
-                            className="w-full resize-y rounded-xl border border-slate-200/90 bg-white p-3 text-[13px] leading-6 text-slate-900 outline-none transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/50"
+                            className="mt-5 w-full resize-y rounded-2xl border border-slate-200/90 bg-white/95 p-4 text-[16px] leading-8 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/50"
                           />
                         ) : (
-                          <div className="min-h-[72px] whitespace-pre-wrap rounded-xl border border-slate-100/90 bg-slate-50/50 p-3 text-[13px] leading-6 text-slate-700">
+                          <div className={`mt-5 min-h-[72px] ${sectionNoteBody}`}>
                             {value.trim() ? value : (
                               <span className="text-slate-400">Henüz kayıt yok</span>
                             )}
