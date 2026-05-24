@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
@@ -282,6 +283,11 @@ const listGuideCardCta =
 
 type PageView = "menu" | "new" | "list";
 
+function pageViewFromQueryParam(value: string | null): PageView | null {
+  if (value === "list" || value === "menu" || value === "new") return value;
+  return null;
+}
+
 const uiMenuCardBase =
   "group relative flex h-[360px] w-full flex-col overflow-hidden rounded-[30px] border-2 p-8 text-left shadow-[0_14px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_22px_55px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 lg:p-10";
 
@@ -471,6 +477,7 @@ function FormFieldMiniCard({
 }
 
 export default function SifaRehberiPage() {
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -478,7 +485,9 @@ export default function SifaRehberiPage() {
   const [search, setSearch] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [pageView, setPageView] = useState<PageView>("menu");
+  const [pageView, setPageView] = useState<PageView>(() => {
+    return pageViewFromQueryParam(searchParams.get("view")) ?? "menu";
+  });
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [largeEditorKey, setLargeEditorKey] = useState<keyof GuideForm | null>(null);
@@ -523,6 +532,11 @@ export default function SifaRehberiPage() {
       })();
     });
   }, []);
+
+  useEffect(() => {
+    const fromQuery = pageViewFromQueryParam(searchParams.get("view"));
+    if (fromQuery) setPageView(fromQuery);
+  }, [searchParams]);
 
   useEffect(() => {
     if (pageView === "new") return;

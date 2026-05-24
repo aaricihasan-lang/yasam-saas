@@ -116,6 +116,14 @@ const FIELD_LABELS: Record<Exclude<DraftTextKey, "name" | "category">, string> =
   supportive_alternative_methods: "Destekleyici / Alternatif Uygulamalar",
 };
 
+const SIFA_REHBERI_LIST_HREF = "/sifa-rehberi?view=list";
+
+const detailToolbarWrap =
+  "flex flex-wrap items-center gap-2 rounded-[22px] border border-white/90 bg-white/60 p-1.5 shadow-[0_10px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80 backdrop-blur-md";
+
+const detailToolbarBtn =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-5 text-[13px] font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60";
+
 const DETAIL_TABS: {
   id: DetailTabId;
   label: string;
@@ -665,7 +673,7 @@ export default function SifaRehberiDetailPage() {
       return;
     }
     setDeleteConfirmOpen(false);
-    router.push("/sifa-rehberi");
+    router.push(SIFA_REHBERI_LIST_HREF);
   }
 
   if (loading) {
@@ -689,9 +697,10 @@ export default function SifaRehberiDetailPage() {
               Bu şifa rehberi kaydı bulunamadı veya erişim izniniz yok.
             </p>
             <Link
-              href="/sifa-rehberi"
+              href={SIFA_REHBERI_LIST_HREF}
               className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
             >
+              <span aria-hidden>←</span>
               Listeye Dön
             </Link>
           </div>
@@ -748,21 +757,24 @@ export default function SifaRehberiDetailPage() {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+            <div className={detailToolbarWrap}>
               <Link
-                href="/sifa-rehberi"
-                className="inline-flex items-center justify-center rounded-2xl border border-white/60 bg-white/55 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-white/80 backdrop-blur-md transition hover:bg-white/90"
+                href={SIFA_REHBERI_LIST_HREF}
+                className={`${detailToolbarBtn} border border-slate-200/90 bg-white/90 text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-white/90 hover:bg-white`}
               >
+                <span aria-hidden className="text-base leading-none">
+                  ←
+                </span>
                 Listeye Dön
               </Link>
               <button
                 type="button"
                 onClick={toggleEditOrSave}
                 disabled={saving}
-                className={`rounded-2xl px-5 py-2.5 text-[12px] font-black shadow-[0_12px_25px_rgba(15,23,42,0.08)] ring-1 transition disabled:opacity-60 ${
+                className={`${detailToolbarBtn} text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)] ring-1 ring-slate-700/40 hover:shadow-[0_16px_36px_rgba(15,23,42,0.32)] ${
                   editEnabled
-                    ? "bg-emerald-600 text-white ring-emerald-500/30 hover:bg-emerald-700"
-                    : "bg-slate-950 text-white ring-slate-900 hover:bg-slate-800"
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-500 ring-emerald-500/30 hover:brightness-105"
+                    : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950"
                 }`}
               >
                 {saving ? "Kaydediliyor..." : editEnabled ? "Kaydet" : "Düzenle"}
@@ -773,7 +785,7 @@ export default function SifaRehberiDetailPage() {
                   setDeleteConfirmOpen(true);
                   setErrorMessage("");
                 }}
-                className="rounded-2xl bg-rose-50 px-4 py-2.5 text-[12px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
+                className={`${detailToolbarBtn} border border-red-200/90 bg-red-50/95 text-red-700 shadow-sm hover:bg-red-100`}
               >
                 Sil
               </button>
@@ -1069,10 +1081,10 @@ export default function SifaRehberiDetailPage() {
               ONAY
             </div>
             <h2 id="delete-confirm-title" className="mt-3 text-[18px] font-black leading-snug text-slate-950">
-              Bu şifa rehberi kaydını silmek istediğinizden emin misiniz?
+              Bu kaydı silmek istiyor musunuz?
             </h2>
-            <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
-              Bu işlem geri alınamaz. Kayıt listeden kaldırılır.
+            <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
+              Bu işlem geri alınamaz. Şifa rehberi kaydı ve bağlı içerikleri silinecek.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <button
