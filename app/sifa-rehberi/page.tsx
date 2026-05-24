@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
   countListFilledSections,
@@ -258,7 +258,117 @@ const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 type PageView = "menu" | "new" | "list";
 
 const uiMenuCardBase =
-  "group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border-2 p-4 text-left shadow-[0_14px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-[0_20px_50px_rgba(15,23,42,0.11)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 sm:p-5 lg:p-6";
+  "group relative flex h-[360px] w-full flex-col overflow-hidden rounded-[30px] border-2 p-8 text-left shadow-[0_14px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_22px_55px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 lg:p-10";
+
+const uiMenuBadge =
+  "inline-flex rounded-full border bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm";
+
+const uiMenuTitle = "text-[22px] font-black leading-tight tracking-tight text-slate-950 lg:text-2xl";
+
+const uiMenuDesc =
+  "mt-2 max-w-[300px] text-sm font-medium leading-snug text-slate-600 line-clamp-2";
+
+function NewRecordMenuIcon() {
+  return (
+    <span
+      className="relative flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border border-emerald-200/80 bg-white/80 text-[42px] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
+      aria-hidden
+    >
+      <span className="leading-none">🌿</span>
+      <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-base font-black text-white shadow-md ring-2 ring-white">
+        +
+      </span>
+    </span>
+  );
+}
+
+function ListMenuIcon() {
+  return (
+    <span
+      className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border border-violet-200/80 bg-white/80 text-[42px] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
+      aria-hidden
+    >
+      📚
+    </span>
+  );
+}
+
+type MenuStatBadge = {
+  label: string;
+  variant: "solid" | "outline";
+  palette: "emerald" | "violet";
+};
+
+function menuStatBadgeClass(badge: MenuStatBadge) {
+  if (badge.variant === "solid") {
+    return badge.palette === "emerald"
+      ? "rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-emerald-500/30"
+      : "rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-violet-500/30";
+  }
+  return badge.palette === "emerald"
+    ? "rounded-full border border-emerald-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-800"
+    : "rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800";
+}
+
+function MenuChoiceCard({
+  onClick,
+  cardTone,
+  glowTone,
+  badgeLabel,
+  badgeTone,
+  icon,
+  title,
+  description,
+  statBadges,
+  ctaLabel,
+  ctaTone,
+}: {
+  onClick: () => void;
+  cardTone: string;
+  glowTone: string;
+  badgeLabel: string;
+  badgeTone: string;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  statBadges: MenuStatBadge[];
+  ctaLabel: string;
+  ctaTone: string;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={`${uiMenuCardBase} ${cardTone}`}>
+      <div
+        className={`pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full blur-2xl transition group-hover:opacity-100 ${glowTone}`}
+      />
+      <div className="relative flex h-full flex-col justify-between">
+        <div className="shrink-0">
+          <span className={`${uiMenuBadge} ${badgeTone}`}>{badgeLabel}</span>
+        </div>
+
+        <div className="flex flex-1 flex-col items-center justify-center px-1 py-3 text-center">
+          <div className="mb-3 shrink-0">{icon}</div>
+          <h2 className={uiMenuTitle}>{title}</h2>
+          <p className={uiMenuDesc}>{description}</p>
+        </div>
+
+        <div className="shrink-0 space-y-3">
+          <div className="flex min-h-[26px] flex-wrap items-center justify-center gap-2">
+            {statBadges.map((badge) => (
+              <span key={badge.label} className={menuStatBadgeClass(badge)}>
+                {badge.label}
+              </span>
+            ))}
+          </div>
+          <span
+            className={`block w-full rounded-2xl py-3.5 text-center text-[15px] font-black shadow-md ring-1 transition group-hover:brightness-105 ${ctaTone}`}
+          >
+            {ctaLabel}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
 const menuPageShell =
   "relative flex h-screen flex-col overflow-hidden max-lg:min-h-screen max-lg:h-auto max-lg:overflow-y-auto";
 const menuPageContent =
@@ -684,85 +794,50 @@ export default function SifaRehberiPage() {
         ) : null}
 
         {pageView === "menu" ? (
-          <section className="grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
-            <button
-              type="button"
-              onClick={openNewRecord}
-              className={`${uiMenuCardBase} border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70`}
-            >
-              <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-300/25 blur-2xl transition group-hover:bg-emerald-300/35" />
-              <div className="relative flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5">
-                <div className="flex shrink-0 items-center gap-3 lg:w-[88px] lg:flex-col lg:justify-center lg:gap-2 lg:py-1">
-                  <span className="inline-flex w-fit rounded-full border border-emerald-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-800 shadow-sm lg:hidden">
-                    Manuel
-                  </span>
-                  <span className="text-[40px] leading-none lg:text-[44px]" aria-hidden>
-                    🌿
-                  </span>
-                </div>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="hidden rounded-full border border-emerald-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-800 shadow-sm lg:inline-flex">
-                      Manuel kayıt
-                    </span>
-                    <h2 className="text-xl font-black tracking-tight text-slate-950 lg:mt-1.5 lg:text-2xl">
-                      Yeni Rahatsızlık Kaydı
-                    </h2>
-                    <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600">
-                      Bölümlü form ile nedenler, bitkisel yöntemler ve destekleyici uygulamaları tek
-                      kayıtta toplayın.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-emerald-500/30">
-                      {FORM_TABS.length} bölüm
-                    </span>
-                    <span className="rounded-full border border-emerald-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
-                      Görsel destekli
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </button>
+          <section className="flex min-h-0 flex-1 items-center justify-center">
+            <div className="grid w-full max-w-[1280px] grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-6">
+              <MenuChoiceCard
+                onClick={openNewRecord}
+                cardTone="border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70"
+                glowTone="bg-emerald-300/25 group-hover:bg-emerald-300/35"
+                badgeLabel="Manuel kayıt"
+                badgeTone="border-emerald-200/80 text-emerald-800"
+                icon={<NewRecordMenuIcon />}
+                title="Yeni Rahatsızlık Kaydı"
+                description="Bölümlü form ile nedenler, bitkisel yöntemler ve destekleyici uygulamaları tek kayıtta toplayın."
+                statBadges={[
+                  { label: `${FORM_TABS.length} bölüm`, variant: "solid", palette: "emerald" },
+                  { label: "Görsel destekli", variant: "outline", palette: "emerald" },
+                ]}
+                ctaLabel="Yeni kayıt oluştur"
+                ctaTone="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white ring-emerald-400/40"
+              />
 
-            <button
-              type="button"
-              onClick={openList}
-              className={`${uiMenuCardBase} border-violet-300/55 bg-gradient-to-br from-violet-50 via-indigo-50/95 to-sky-50/85 hover:border-violet-400/70 focus-visible:ring-violet-300/40`}
-            >
-              <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-violet-300/25 blur-2xl transition group-hover:bg-violet-300/35" />
-              <div className="relative flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5">
-                <div className="flex shrink-0 items-center gap-3 lg:w-[88px] lg:flex-col lg:justify-center lg:gap-2 lg:py-1">
-                  <span className="inline-flex w-fit rounded-full border border-violet-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-800 shadow-sm lg:hidden">
-                    Kütüphane
-                  </span>
-                  <span className="text-[40px] leading-none lg:text-[44px]" aria-hidden>
-                    📚
-                  </span>
-                </div>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="hidden rounded-full border border-violet-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-800 shadow-sm lg:inline-flex">
-                      Kütüphane
-                    </span>
-                    <h2 className="text-xl font-black tracking-tight text-slate-950 lg:mt-1.5 lg:text-2xl">
-                      Kayıtlı Şifa Rehberi Listesi
-                    </h2>
-                    <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600">
-                      Rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-violet-500/30">
-                      {loading ? "…" : `${rows.length} kayıt`}
-                    </span>
-                    <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">
-                      {categoryCount} kategori
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </button>
+              <MenuChoiceCard
+                onClick={openList}
+                cardTone="border-violet-300/55 bg-gradient-to-br from-violet-50 via-indigo-50/95 to-sky-50/85 hover:border-violet-400/70 focus-visible:ring-violet-300/40"
+                glowTone="bg-violet-300/25 group-hover:bg-violet-300/35"
+                badgeLabel="Kütüphane"
+                badgeTone="border-violet-200/80 text-violet-800"
+                icon={<ListMenuIcon />}
+                title="Kayıtlı Şifa Rehberi Listesi"
+                description="Rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin."
+                statBadges={[
+                  {
+                    label: loading ? "…" : `${rows.length} kayıt`,
+                    variant: "solid",
+                    palette: "violet",
+                  },
+                  {
+                    label: `${categoryCount} kategori`,
+                    variant: "outline",
+                    palette: "violet",
+                  },
+                ]}
+                ctaLabel="Listeyi aç"
+                ctaTone="bg-gradient-to-r from-violet-500 to-indigo-500 text-white ring-violet-400/40"
+              />
+            </div>
           </section>
         ) : null}
 
