@@ -270,15 +270,15 @@ const listNewBtn =
   "rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5";
 const listContentCard =
   "w-full rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.08)] backdrop-blur-xl sm:p-5";
-const listGuideCardGrid = "grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3";
+const listGuideCardGrid = "grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3";
 const listGuideCard =
-  "group flex h-full min-h-[300px] flex-col rounded-[32px] border border-emerald-100 bg-white/85 p-6 shadow-[0_10px_40px_rgba(16,185,129,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(16,185,129,0.18)] sm:min-h-[320px] sm:p-7";
+  "group flex flex-col rounded-[32px] border border-emerald-100 bg-white/85 p-5 shadow-[0_10px_40px_rgba(16,185,129,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(16,185,129,0.18)]";
 const listGuideCardBadge =
-  "inline-flex rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 py-1 text-xs font-semibold tracking-wide text-white shadow-[0_6px_22px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40";
+  "inline-flex rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-3 py-0.5 text-[11px] font-semibold tracking-wide text-white shadow-[0_6px_22px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40";
 const listGuideCardCategory =
-  "inline-flex rounded-full border border-emerald-100/90 bg-emerald-50/80 px-3 py-1 text-[10px] font-bold tracking-wide text-emerald-800";
+  "inline-flex rounded-full border border-emerald-100/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800";
 const listGuideCardCta =
-  "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-5 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] ring-1 ring-white/25 transition-all duration-300 group-hover:shadow-[0_14px_36px_rgba(16,185,129,0.48)] hover:brightness-105";
+  "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 text-[13px] font-semibold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] ring-1 ring-white/25 transition-all duration-300 group-hover:shadow-[0_14px_36px_rgba(16,185,129,0.48)] hover:brightness-105";
 
 type PageView = "menu" | "new" | "list";
 
@@ -1427,27 +1427,25 @@ export default function SifaRehberiPage() {
                       ) : null}
                     </div>
 
-                    <h2 className="mt-4 line-clamp-2 text-2xl font-black tracking-tight text-slate-950">
+                    <h2 className="mt-2.5 line-clamp-2 text-xl font-black tracking-tight text-slate-950">
                       {row.name}
                     </h2>
 
-                    <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                    <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-slate-600">
                       {listRowPreview(row)}
                     </p>
 
-                    <div className="min-h-0 flex-1" aria-hidden />
-
-                    <div className="mt-5 border-t border-emerald-50 pt-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    <div className="mt-3 border-t border-emerald-50 pt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                         Son güncelleme
                       </p>
-                      <p className="mt-0.5 text-sm font-bold text-slate-600">
+                      <p className="mt-0.5 text-[13px] font-bold text-slate-600">
                         {formatDate(row.updated_at || row.created_at)}
                       </p>
                     </div>
 
-                    <Link href={`/sifa-rehberi/${row.id}`} className={`mt-4 ${listGuideCardCta}`}>
-                      <span aria-hidden className="text-base leading-none opacity-90">
+                    <Link href={`/sifa-rehberi/${row.id}`} className={`mt-3 ${listGuideCardCta}`}>
+                      <span aria-hidden className="text-sm leading-none opacity-90">
                         ✦
                       </span>
                       Detayı Aç →
