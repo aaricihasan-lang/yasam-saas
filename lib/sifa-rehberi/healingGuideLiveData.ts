@@ -83,6 +83,99 @@ export const HEALING_SECTION_DISPLAY: {
   },
 ];
 
+/** Kullanıcıya gösterilecek mode / teknik başlık etiketleri */
+const MODE_DISPLAY_LABELS: Record<string, string> = {
+  herbal: "Bitkisel Yöntemler",
+  bitkisel: "Bitkisel Yöntemler",
+  herbal_methods: "Bitkisel Yöntemler",
+  hacamat_suluk: "Hacamat & Sülük",
+  hacamat: "Hacamat & Sülük",
+  cupping_leech: "Hacamat & Sülük",
+  refleksoloji: "Refleksoloji",
+  reflexology: "Refleksoloji",
+  diyet: "Diyet Önerileri",
+  diet_recommendations: "Diyet Önerileri",
+  aromaterapi: "Aromaterapi",
+  aromatherapy: "Aromaterapi",
+  supportive: "Destekleyici Uygulamalar",
+  applications: "Uygulamalar / Yöntemler",
+  reasons: "Nedenler / Sebepler",
+  stones_details: "Doğaltaş Detayları",
+  islamic_suggestions: "İslami Öneriler",
+  bilincalti: "Bilinçaltı Sebepleri",
+  mizac: "Mizaç Sebepleri",
+  tibbi: "Tıbbi Nedenler",
+  diger: "Diğer Sebepler",
+  medical_causes: "Tıbbi Nedenler",
+  subconscious_causes: "Bilinçaltı Sebepleri",
+  temperament_causes: "Mizaç Sebepleri",
+  other_causes: "Diğer Sebepler",
+  iridology_match: "İridoloji Eşleşmesi",
+  hand_analysis_match: "El Analizi Eşleşmesi",
+  uygulama: "Uygulama",
+  masaj: "Masaj",
+  massage: "Masaj",
+  nefes: "Nefes",
+  breathwork: "Nefes",
+  bioenerji: "Biyoenerji",
+  bioenergy: "Biyoenerji",
+  meditation: "Meditasyon",
+  daily_routine: "Günlük Rutin",
+  sleep_routine: "Uyku Düzeni",
+  supportive_alternative_methods: "Destekleyici / Alternatif",
+  stone_recommendations: "Doğaltaş Önerileri",
+  islamic_recommendations: "İslami Öneriler",
+  general_summary: "Genel Özet",
+};
+
+function normalizeModeKey(value: string | null | undefined): string {
+  const raw = textValue(value);
+  if (!raw) return "";
+  return raw
+    .toLocaleLowerCase("tr-TR")
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+}
+
+function isTechnicalStoredTitle(title: string, modeKey: string): boolean {
+  const titleKey = normalizeModeKey(title);
+  if (!titleKey) return false;
+  if (modeKey && titleKey === modeKey) return true;
+  if (!(titleKey in MODE_DISPLAY_LABELS)) return false;
+
+  const upper = title.toLocaleUpperCase("tr-TR");
+  if (title === upper) return true;
+  if (title.replace(/\s+/g, "_").toLocaleUpperCase("tr-TR") === titleKey.toLocaleUpperCase("tr-TR")) {
+    return true;
+  }
+  return false;
+}
+
+export function getHealingGuideSectionDisplayTitle(section: HealingGuideSectionRow): string {
+  const modeKey = normalizeModeKey(section.mode);
+  const storedTitle = textValue(section.title);
+  const titleKey = normalizeModeKey(storedTitle);
+
+  if (storedTitle && !isTechnicalStoredTitle(storedTitle, modeKey) && titleKey !== modeKey) {
+    return storedTitle;
+  }
+
+  if (modeKey && MODE_DISPLAY_LABELS[modeKey]) {
+    return MODE_DISPLAY_LABELS[modeKey];
+  }
+
+  if (titleKey && MODE_DISPLAY_LABELS[titleKey]) {
+    return MODE_DISPLAY_LABELS[titleKey];
+  }
+
+  if (storedTitle && !isTechnicalStoredTitle(storedTitle, modeKey)) {
+    return storedTitle;
+  }
+
+  const tab = HEALING_SECTION_DISPLAY.find((t) => t.type === section.section_type);
+  return tab?.label ?? "İçerik";
+}
+
 const LEGACY_TEXT_KEYS = [
   "general_summary",
   "medical_causes",

@@ -9,6 +9,7 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import {
   fetchHealingGuideDetail,
   firstSectionTabWithContent,
+  getHealingGuideSectionDisplayTitle,
   groupSectionsByType,
   HEALING_SECTION_DISPLAY,
   type HealingGuideDetail,
@@ -843,37 +844,38 @@ export default function SifaRehberiDetailPage() {
                       </p>
                     </div>
                   ) : (
-                    sectionsInActiveTab.map((section) => (
-                      <div
-                        key={section.id}
-                        className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm ring-1 ring-slate-50/80"
-                      >
-                        {section.title?.trim() ? (
-                          <h3 className="text-[14px] font-black text-slate-900">{section.title.trim()}</h3>
-                        ) : null}
-                        {section.mode?.trim() ? (
-                          <p className="mt-1 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-700">
-                            {section.mode.trim()}
-                          </p>
-                        ) : null}
-                        {section.note?.trim() ? (
-                          <div className="mt-3 whitespace-pre-wrap rounded-xl border border-slate-100/90 bg-slate-50/50 p-3 text-[13px] leading-6 text-slate-700">
-                            {section.note.trim()}
-                          </div>
-                        ) : null}
-                        {section.source?.trim() ? (
-                          <p className="mt-2 text-[12px] font-medium text-slate-500">
-                            Kaynak: {section.source.trim()}
-                          </p>
-                        ) : null}
-                        {!section.title?.trim() &&
-                        !section.mode?.trim() &&
-                        !section.note?.trim() &&
-                        !section.source?.trim() ? (
-                          <p className="text-[13px] text-slate-400">Henüz kayıt yok</p>
-                        ) : null}
-                      </div>
-                    ))
+                    sectionsInActiveTab.map((section) => {
+                      const displayTitle = getHealingGuideSectionDisplayTitle(section);
+                      const hasNote = Boolean(section.note?.trim());
+                      const hasSource = Boolean(section.source?.trim());
+
+                      return (
+                        <article
+                          key={section.id}
+                          className="rounded-[20px] border border-emerald-100/90 bg-gradient-to-b from-white via-white to-emerald-50/25 p-5 shadow-[0_8px_28px_rgba(16,185,129,0.08)] ring-1 ring-white/95"
+                        >
+                          <h3 className="text-lg font-black tracking-tight text-slate-950">
+                            {displayTitle}
+                          </h3>
+                          {hasNote ? (
+                            <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-slate-100/90 bg-white/95 px-4 py-3.5 text-[14px] leading-7 text-slate-700 shadow-inner shadow-slate-100/40">
+                              {section.note!.trim()}
+                            </div>
+                          ) : null}
+                          {hasSource ? (
+                            <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-500">
+                              <span className="font-bold text-slate-600">Kaynak:</span>{" "}
+                              {section.source!.trim()}
+                            </p>
+                          ) : null}
+                          {!hasNote && !hasSource ? (
+                            <p className="mt-3 text-[13px] font-medium text-slate-400">
+                              Bu başlık için henüz açıklama eklenmemiş.
+                            </p>
+                          ) : null}
+                        </article>
+                      );
+                    })
                   )
                 ) : (
                   activeTab.keys.map((key) => {
