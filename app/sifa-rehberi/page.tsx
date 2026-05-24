@@ -270,6 +270,15 @@ const listNewBtn =
   "rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5";
 const listContentCard =
   "w-full rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.08)] backdrop-blur-xl sm:p-5";
+const listGuideCardGrid = "grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3";
+const listGuideCard =
+  "group flex h-full min-h-[300px] flex-col rounded-[32px] border border-emerald-100 bg-white/85 p-6 shadow-[0_10px_40px_rgba(16,185,129,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(16,185,129,0.18)] sm:min-h-[320px] sm:p-7";
+const listGuideCardBadge =
+  "inline-flex rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 py-1 text-xs font-semibold tracking-wide text-white shadow-[0_6px_22px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40";
+const listGuideCardCategory =
+  "inline-flex rounded-full border border-emerald-100/90 bg-emerald-50/80 px-3 py-1 text-[10px] font-bold tracking-wide text-emerald-800";
+const listGuideCardCta =
+  "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-5 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] ring-1 ring-white/25 transition-all duration-300 group-hover:shadow-[0_14px_36px_rgba(16,185,129,0.48)] hover:brightness-105";
 
 type PageView = "menu" | "new" | "list";
 
@@ -1406,34 +1415,42 @@ export default function SifaRehberiPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className={listGuideCardGrid}>
               {filteredRows.map((row) => {
                 const filled = countListFilledSections(row);
                 return (
-                  <article
-                    key={row.id}
-                    className="flex flex-col rounded-[24px] border border-white/90 bg-white/88 p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] ring-1 ring-slate-100/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:ring-emerald-200/80"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black tracking-tight text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] ring-1 ring-emerald-500/30">
-                        {filled} bölüm dolu
-                      </span>
+                  <article key={row.id} className={listGuideCard}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={listGuideCardBadge}>{filled} bölüm dolu</span>
                       {row.category?.trim() ? (
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
-                          {row.category}
-                        </span>
+                        <span className={listGuideCardCategory}>{row.category}</span>
                       ) : null}
                     </div>
-                    <h2 className="text-[18px] font-black leading-snug text-slate-950">{row.name}</h2>
-                    <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">{listRowPreview(row)}</p>
-                    <p className="mt-2 text-[11px] font-bold text-slate-400">
-                      Son güncelleme: {formatDate(row.updated_at || row.created_at)}
+
+                    <h2 className="mt-4 line-clamp-2 text-2xl font-black tracking-tight text-slate-950">
+                      {row.name}
+                    </h2>
+
+                    <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                      {listRowPreview(row)}
                     </p>
-                    <Link
-                      href={`/sifa-rehberi/${row.id}`}
-                      className="mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:bg-slate-800"
-                    >
-                      Detayı Aç
+
+                    <div className="min-h-0 flex-1" aria-hidden />
+
+                    <div className="mt-5 border-t border-emerald-50 pt-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        Son güncelleme
+                      </p>
+                      <p className="mt-0.5 text-sm font-bold text-slate-600">
+                        {formatDate(row.updated_at || row.created_at)}
+                      </p>
+                    </div>
+
+                    <Link href={`/sifa-rehberi/${row.id}`} className={`mt-4 ${listGuideCardCta}`}>
+                      <span aria-hidden className="text-base leading-none opacity-90">
+                        ✦
+                      </span>
+                      Detayı Aç →
                     </Link>
                   </article>
                 );
