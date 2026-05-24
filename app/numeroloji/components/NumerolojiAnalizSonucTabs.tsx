@@ -115,7 +115,7 @@ function CakraEnerjiDaireleri({
 
 export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   return (
-    <section className="col-span-full min-w-0 w-full rounded-[28px] border-[3px] border-violet-200/90 bg-white/85 p-7 shadow-[0_0_32px_rgba(139,92,246,0.10)]">
+    <section className="col-span-full min-w-0 w-full rounded-[18px] border border-violet-200/70 bg-white/85 p-5 shadow-[0_0_16px_rgba(139,92,246,0.07)]">
       <h3 className="text-lg font-black tracking-wide text-slate-950">Çakra Sütunu & Çakra Omurgası</h3>
       <div className="mt-5 space-y-1.5 sm:space-y-2">
         {CAKRA_TABLO_SIRA.map((cNo) => {
@@ -171,7 +171,7 @@ function harfDonemAktif(seg: HarfYankilanisiSegment): boolean {
 
 function HarflerBuyukPanel({ segments }: { segments: HarfYankilanisiSegment[] }) {
   return (
-    <section className="col-span-full min-w-0 w-full rounded-[28px] border-[3px] border-amber-300/45 bg-white/80 p-7 shadow-[0_0_45px_rgba(245,158,11,0.14)] backdrop-blur-xl">
+    <section className="col-span-full min-w-0 w-full rounded-[18px] border border-amber-300/35 bg-white/80 p-5 shadow-[0_0_18px_rgba(245,158,11,0.08)] backdrop-blur-xl">
       <h3 className="text-lg font-black tracking-wide text-violet-700">Harflerin Yankılanışı</h3>
       <div className="mt-6 flex w-full min-w-0 flex-wrap justify-center gap-4">
         {segments.length === 0 ? (
@@ -232,17 +232,17 @@ function OzetPremiumKart({
 }) {
   return (
     <div
-      className={`group relative min-w-0 overflow-hidden rounded-[28px] border-[3px] border-violet-200 bg-white/85 p-7 shadow-[0_0_32px_rgba(139,92,246,0.10)] transition-all duration-300 hover:-translate-y-1 ${tint}`}
+      className={`relative min-w-0 overflow-hidden rounded-[18px] border border-violet-200/70 bg-white/85 p-5 shadow-[0_0_16px_rgba(139,92,246,0.07)] transition-all duration-200 hover:-translate-y-0.5 ${tint}`}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-400/10 blur-2xl transition group-hover:bg-violet-400/20" />
-      <div className="relative flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0 w-full flex-1">
-          <p className="text-base font-black text-slate-600">{title}</p>
-          <p className="mt-2 w-full whitespace-normal break-words text-5xl font-black leading-tight text-slate-950">
+      <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-violet-400/8 blur-xl" aria-hidden />
+      <div className="relative flex min-w-0 items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{title}</p>
+          <p className="mt-1.5 w-full whitespace-normal break-words text-5xl font-black leading-tight text-slate-950">
             {value}
           </p>
         </div>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/80 text-violet-700 shadow-sm ring-1 ring-violet-100/80">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-sm text-violet-600 shadow-sm ring-1 ring-violet-100/60">
           {icon}
         </div>
       </div>
@@ -273,23 +273,32 @@ function TabSonucOzetiPremium({
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div className="min-w-0 rounded-[28px] border-[3px] border-violet-300/40 bg-gradient-to-br from-white/85 via-violet-50/60 to-amber-50/50 p-7 shadow-[0_0_40px_rgba(139,92,246,0.13)]">
-        <p className="text-lg font-black tracking-wide text-violet-700">Numerolojik sonuç özeti</p>
-        <p className="mt-3 w-full text-xl font-black leading-9 text-slate-950">{isimGoster}</p>
-        <p className="mt-2 w-full text-xl font-medium leading-9 text-slate-700">Doğum tarihi: {dogumGoster}</p>
+    <div className="space-y-4 sm:space-y-5">
+      <div className="relative min-w-0 overflow-hidden rounded-[18px] border border-violet-200/60 bg-gradient-to-br from-white/90 via-violet-50/40 to-amber-50/30 px-6 py-5 shadow-[0_0_20px_rgba(139,92,246,0.09)]">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-200/14 blur-2xl" aria-hidden />
+        <div className="pointer-events-none absolute right-12 top-2 h-12 w-12 rounded-full bg-amber-200/14 blur-xl" aria-hidden />
+        <div className="pointer-events-none absolute right-4 top-4 opacity-[0.12]" aria-hidden>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-violet-700">
+            <path d="M12 2l2.2 6.8H21l-5.5 4 2.1 6.5L12 15.3 6.4 19.3l2.1-6.5L3 8.8h6.8L12 2z" stroke="currentColor" strokeWidth="0.5" fill="currentColor" fillOpacity="0.2" />
+          </svg>
+        </div>
+        <div className="relative max-w-[calc(100%-3.5rem)]">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Numerolojik sonuç özeti</p>
+          <p className="mt-2 text-2xl font-black text-slate-950">{isimGoster}</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">Doğum: {dogumGoster}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ustKartlar.map((k) => (
           <OzetPremiumKart key={k.title} title={k.title} value={k.value} tint={`bg-gradient-to-br ${k.tint} to-white/90`} icon={<span className="text-lg">{k.icon}</span>} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4">
         <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
-        <section className={`min-w-0 w-full border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
+        <section className={`min-w-0 w-full rounded-[18px] border border-violet-200/70 bg-white/85 shadow-[0_0_16px_rgba(139,92,246,0.07)] ${typo.boxPadding}`}>
           <h3 className="text-lg font-black tracking-wide text-slate-950">Elementler</h3>
           <div className="mt-6 w-full min-w-0 space-y-5">
             {ELEMENT_ORDER.map((name) => (

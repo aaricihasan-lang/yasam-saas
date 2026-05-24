@@ -334,30 +334,34 @@ export function NumerolojiKayitDetayPanel({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-[24px] border border-fuchsia-300/35 bg-white/80 shadow-[0_0_36px_rgba(217,70,239,0.12)] backdrop-blur-xl">
-      <div className="border-b border-violet-100/80 bg-gradient-to-r from-violet-50/85 via-amber-50/55 to-fuchsia-50/70 p-4 sm:p-5">
-        <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-          <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
-        </div>
-        <div className="flex flex-wrap gap-2">
-        {DETAY_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
-              tab === t.id
-                ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_4px_14px_rgba(139,92,246,0.28)]"
-                : "border border-violet-100 bg-white/85 text-slate-700 hover:bg-violet-50"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+    <div className="w-full overflow-hidden rounded-[20px] border border-violet-200/55 bg-white/80 shadow-[0_0_22px_rgba(139,92,246,0.09)] backdrop-blur-xl">
+      <div className="border-b border-violet-100/60 bg-gradient-to-r from-violet-50/60 via-white/80 to-fuchsia-50/40 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            {DETAY_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-150 ${
+                  tab === t.id
+                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_2px_8px_rgba(139,92,246,0.25)]"
+                    : "border border-violet-100/80 bg-white/80 text-slate-600 hover:border-violet-200 hover:bg-violet-50"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {isOkumaTab ? (
+            <div className="ml-auto">
+              <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="w-full bg-gradient-to-b from-white/98 via-slate-50/40 to-violet-50/25 p-5 sm:p-6 xl:p-8">
+      <div className="w-full bg-gradient-to-b from-white/98 via-slate-50/30 to-violet-50/20 p-4 sm:p-5 xl:p-7">
         {isOkumaTab ? (
           <ContentFontSizeProvider size={contentFontSize}>
             {tab === "summary" ? (
