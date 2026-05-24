@@ -665,9 +665,15 @@ function DogaltasPageContent() {
               </div>
               <Link
                 href="/"
-                className="shrink-0 rounded-2xl border border-white/80 bg-white/90 px-5 py-2.5 text-sm font-black text-slate-700 shadow-md transition hover:bg-white"
+                className="inline-flex w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl border-2 border-violet-400/50 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-7 py-4 text-[16px] font-semibold text-white shadow-[0_14px_36px_-10px_rgba(91,33,182,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.04] hover:border-violet-300/70 hover:shadow-[0_18px_44px_-8px_rgba(139,92,246,0.65)] hover:shadow-violet-500/30 sm:w-auto sm:justify-start sm:text-[17px]"
               >
-                ⌂ Ana Sayfaya Dön
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
+                  aria-hidden
+                >
+                  🏠
+                </span>
+                <span>← Ana Sayfaya Dön</span>
               </Link>
             </header>
 
