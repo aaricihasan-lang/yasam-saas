@@ -19,36 +19,36 @@ export function getContentTypography(size: ContentFontSize): ContentTypography {
   switch (size) {
     case "large":
       return {
-        body: "w-full min-w-0 text-xl leading-9 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-xl leading-9 font-mono text-slate-700",
+        body: "w-full min-w-0 text-xl leading-7 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-xl leading-6 font-mono text-slate-700",
         label: "text-xl font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-xl leading-9 font-medium text-slate-700",
+        caption: "w-full min-w-0 text-xl leading-6 font-medium text-slate-700",
         sectionTitle: "text-xl font-black tracking-wide text-slate-800",
         display: "text-5xl font-black text-slate-950",
-        boxPadding: "rounded-[28px] p-7",
-        infoBoxPadding: "rounded-[28px] p-7",
+        boxPadding: "rounded-[18px] p-4",
+        infoBoxPadding: "rounded-[16px] p-3.5",
       };
     case "xlarge":
       return {
-        body: "w-full min-w-0 text-2xl leading-9 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-2xl leading-9 font-mono text-slate-700",
+        body: "w-full min-w-0 text-2xl leading-7 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-2xl leading-6 font-mono text-slate-700",
         label: "text-2xl font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-2xl leading-9 font-medium text-slate-700",
+        caption: "w-full min-w-0 text-2xl leading-6 font-medium text-slate-700",
         sectionTitle: "text-2xl font-black tracking-wide text-slate-800",
         display: "text-6xl font-black text-slate-950",
-        boxPadding: "rounded-[28px] p-7",
-        infoBoxPadding: "rounded-[28px] p-7",
+        boxPadding: "rounded-[18px] p-4",
+        infoBoxPadding: "rounded-[16px] p-3.5",
       };
     default:
       return {
-        body: "w-full min-w-0 text-lg leading-9 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-lg leading-9 font-mono text-slate-700",
+        body: "w-full min-w-0 text-lg leading-7 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-lg leading-6 font-mono text-slate-700",
         label: "text-lg font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-lg leading-9 font-medium text-slate-700",
+        caption: "w-full min-w-0 text-lg leading-6 font-medium text-slate-700",
         sectionTitle: "text-lg font-black tracking-wide text-slate-800",
         display: "text-5xl font-black text-slate-950",
-        boxPadding: "rounded-[28px] p-7",
-        infoBoxPadding: "rounded-[28px] p-7",
+        boxPadding: "rounded-[18px] p-4",
+        infoBoxPadding: "rounded-[16px] p-3.5",
       };
   }
 }

@@ -40,9 +40,9 @@ function OzetRow({ label, value }: { label: string; value: string }) {
 function OzetSectionCard({ title, children }: { title: string; children: ReactNode }) {
   const typo = useContentTypography();
   return (
-    <div className={`min-w-0 border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}>
-      <h3 className="text-lg font-black tracking-wide text-slate-950">{title}</h3>
-      <div className="mt-4 w-full min-w-0">{children}</div>
+    <div className={`min-w-0 border border-violet-200/70 bg-white/85 shadow-[0_0_14px_rgba(139,92,246,0.07)] ${typo.boxPadding}`}>
+      <h3 className="text-sm font-black uppercase tracking-wider text-slate-600">{title}</h3>
+      <div className="mt-2 w-full min-w-0">{children}</div>
     </div>
   );
 }
@@ -273,8 +273,8 @@ function TabSonucOzetiPremium({
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <div className="relative min-w-0 overflow-hidden rounded-[18px] border border-violet-200/60 bg-gradient-to-br from-white/90 via-violet-50/40 to-amber-50/30 px-6 py-5 shadow-[0_0_20px_rgba(139,92,246,0.09)]">
+    <div className="space-y-3">
+      <div className="relative min-w-0 overflow-hidden rounded-[18px] border border-violet-200/60 bg-gradient-to-br from-white/90 via-violet-50/40 to-amber-50/30 px-5 py-4 shadow-[0_0_16px_rgba(139,92,246,0.08)]">
         <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-200/14 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute right-12 top-2 h-12 w-12 rounded-full bg-amber-200/14 blur-xl" aria-hidden />
         <div className="pointer-events-none absolute right-4 top-4 opacity-[0.12]" aria-hidden>
@@ -289,13 +289,13 @@ function TabSonucOzetiPremium({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {ustKartlar.map((k) => (
           <OzetPremiumKart key={k.title} title={k.title} value={k.value} tint={`bg-gradient-to-br ${k.tint} to-white/90`} icon={<span className="text-lg">{k.icon}</span>} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-2">
         <HarflerBuyukPanel segments={Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : []} />
 
         <section className={`min-w-0 w-full rounded-[18px] border border-violet-200/70 bg-white/85 shadow-[0_0_16px_rgba(139,92,246,0.07)] ${typo.boxPadding}`}>
@@ -369,7 +369,7 @@ export function TabSonucOzeti({
   const typo = useContentTypography();
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-3">
       <div className={`rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/95 via-white to-amber-50/25 shadow-sm ring-1 ring-violet-100/50 ${typo.boxPadding}`}>
         <p className={`${typo.sectionTitle} text-violet-700/90`}>Numerolojik sonuç özeti</p>
         <p className={`mt-2 ${typo.body} font-bold tracking-tight text-slate-900`}>{isimGoster}</p>
@@ -576,14 +576,37 @@ function NumeroCardBody({
 }
 
 export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
-  const typo = useContentTypography();
+  const raw = buildPlainAnalizFull(out);
+  const blocks = raw
+    .split(/\n——————————\n/)
+    .map((chunk) => {
+      const trimmed = chunk.replace(/^\n+|\n+$/g, "");
+      const nl = trimmed.indexOf("\n");
+      if (nl === -1) return { title: trimmed, body: "" };
+      return { title: trimmed.slice(0, nl), body: trimmed.slice(nl + 1).trim() };
+    })
+    .filter((b) => b.title);
+
   return (
-    <pre
-      className={`min-w-0 w-full whitespace-pre-wrap rounded-[18px] border border-violet-200/70 bg-white/85 p-4 shadow-[0_0_18px_rgba(139,92,246,0.07)] sm:p-5 ${typo.pre}`}
-      style={{ lineHeight: "1.65" }}
-    >
-      {buildPlainAnalizFull(out)}
-    </pre>
+    <div className="overflow-hidden rounded-[18px] border border-violet-200/70 bg-white/85 shadow-[0_0_18px_rgba(139,92,246,0.07)]">
+      {blocks.map((blok, i) => (
+        <div
+          key={i}
+          className={`grid grid-cols-[7rem_1fr] items-start gap-3 px-4 py-2.5 sm:grid-cols-[10rem_1fr] sm:px-5${i > 0 ? " border-t border-violet-100/60" : ""}`}
+        >
+          <p className="shrink-0 pt-0.5 text-[10px] font-black uppercase leading-tight tracking-wider text-slate-400">
+            {blok.title}
+          </p>
+          {i < 4 ? (
+            <p className="text-2xl font-black leading-none text-violet-700">{blok.body || "—"}</p>
+          ) : (
+            <pre className="min-w-0 whitespace-pre-wrap font-mono text-[12.5px] leading-[1.5] text-slate-700">
+              {blok.body || "—"}
+            </pre>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
