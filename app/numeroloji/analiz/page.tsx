@@ -84,9 +84,9 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export default function NumerolojiAnalizPage() {
-  const [firstName, setFirstName] = useState("Hasan");
-  const [lastName, setLastName] = useState("ARICI");
-  const [birthDate, setBirthDate] = useState("14/02/1987");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [out, setOut] = useState<NumerolojiMotorOut | null>(null);
   const [tab, setTab] = useState<TabId>("summary");
@@ -223,18 +223,18 @@ export default function NumerolojiAnalizPage() {
   const isimGoster = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();
   const dogumGoster = birthDate.trim();
   const inputClass =
-    "w-full rounded-2xl border border-slate-200/90 bg-white/95 px-5 py-4 text-lg font-medium text-slate-900 shadow-sm outline-none ring-violet-100/80 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+    "w-full rounded-xl border border-slate-200/90 bg-white/95 px-4 py-3 text-base font-medium text-slate-900 shadow-sm outline-none ring-violet-100/80 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
   const analizNavLinkClass =
-    "inline-flex shrink-0 items-center justify-center gap-4 rounded-2xl border-2 border-violet-200/90 bg-white/85 px-8 py-4 text-[15px] font-black text-violet-900 shadow-lg shadow-violet-600/30 ring-1 ring-violet-100/80 backdrop-blur-md transition-all hover:scale-[1.03] hover:border-violet-300 hover:bg-white/95 hover:shadow-xl hover:shadow-violet-600/35 no-underline min-h-[58px] min-w-[170px]";
+    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-200/80 bg-white/80 px-4 py-2 text-sm font-bold text-violet-900 shadow-md shadow-violet-600/20 ring-1 ring-violet-100/60 backdrop-blur-md transition-all hover:scale-[1.02] hover:border-violet-300 hover:bg-white/95 hover:shadow-lg no-underline";
 
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-7xl">
-      <div className="-mt-2 space-y-6 sm:space-y-8">
-        <header className="relative overflow-hidden rounded-[32px] border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-6 py-10 text-center shadow-[0_20px_60px_-24px_rgba(91,33,182,0.35)] ring-1 ring-white/60 backdrop-blur-xl sm:px-10 sm:py-12">
-          <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
+      <div className="-mt-1 space-y-4 sm:space-y-5">
+        <header className="relative overflow-hidden rounded-[28px] border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-5 py-5 text-center shadow-[0_16px_48px_-20px_rgba(91,33,182,0.32)] ring-1 ring-white/60 backdrop-blur-xl sm:px-8 sm:py-7">
+          <div className="pointer-events-none absolute -left-14 -top-14 h-40 w-40 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
           <nav
-            className="absolute top-6 right-6 z-20 flex flex-row flex-wrap items-center justify-end gap-5 sm:top-8 sm:right-8"
+            className="absolute top-4 right-4 z-20 flex flex-row flex-wrap items-center justify-end gap-2 sm:top-5 sm:right-5"
             aria-label="Sayfa gezinmesi"
           >
             <Link href="/numeroloji" className={analizNavLinkClass}>
@@ -244,23 +244,23 @@ export default function NumerolojiAnalizPage() {
               Kayıtlı analizler
             </Link>
           </nav>
-          <div className="relative pt-20 sm:pt-24">
-            <p className="text-xs font-black uppercase tracking-[0.36em] text-violet-800/95 sm:text-sm sm:tracking-[0.42em]">
+          <div className="relative pt-12 sm:pt-14">
+            <p className="text-[11px] font-black uppercase tracking-[0.32em] text-violet-800/90 sm:text-xs sm:tracking-[0.38em]">
               Yaşam Sistemi · Numeroloji
             </p>
             <h1
-              className="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:mt-5 sm:text-5xl md:text-6xl lg:text-[3.5rem] lg:leading-[1.06] lg:tracking-[-0.02em]"
-              style={{ textShadow: "0 4px 28px rgba(91,33,182,0.22), 0 2px 0 rgba(255,255,255,0.85)" }}
+              className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:mt-3 sm:text-4xl md:text-5xl lg:text-[2.75rem] lg:leading-[1.08] lg:tracking-[-0.02em]"
+              style={{ textShadow: "0 4px 24px rgba(91,33,182,0.2), 0 2px 0 rgba(255,255,255,0.85)" }}
             >
               Numeroloji Analizi
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:mt-5 sm:text-lg sm:leading-[1.65]">
+            <p className="mx-auto mt-2 max-w-xl text-sm font-medium leading-relaxed text-slate-600 sm:mt-3 sm:text-base">
               Yaşam haritanızı hesaplayın, premium görsel raporunuzu oluşturun ve analizlerinizi güvenle kaydedin.
             </p>
-            <div className="relative mx-auto mt-8 flex max-w-lg items-center justify-center gap-3 sm:mt-10" aria-hidden>
+            <div className="relative mx-auto mt-4 flex max-w-xs items-center justify-center gap-3 sm:mt-5" aria-hidden>
               <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-400/70 to-violet-300/30" />
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100/95 via-white to-amber-50/90 shadow-[0_0_24px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/70">
-                <span className="text-base leading-none text-violet-600/90">✦</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100/95 via-white to-amber-50/90 shadow-[0_0_18px_rgba(139,92,246,0.24)] ring-1 ring-violet-200/70">
+                <span className="text-sm leading-none text-violet-600/90">✦</span>
               </span>
               <span className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-400/70 to-violet-300/30" />
             </div>
@@ -269,9 +269,9 @@ export default function NumerolojiAnalizPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-[32px] border border-white/85 bg-white/75 p-6 shadow-[0_16px_48px_-20px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:p-8 lg:p-10"
+          className="rounded-[28px] border border-white/85 bg-white/75 p-5 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:p-6 lg:p-8"
         >
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="noj-ad" className="mb-2 block text-sm font-bold text-slate-700">
                 Ad
@@ -317,7 +317,7 @@ export default function NumerolojiAnalizPage() {
               />
             </div>
           </div>
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-stretch">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
             <button
               type="submit"
               className="min-w-[160px] flex-1 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-indigo-600 px-8 py-4 text-base font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_36px_-6px_rgba(91,33,182,0.55)] ring-1 ring-white/30 transition duration-200 hover:scale-[1.02] hover:brightness-110 hover:shadow-[0_18px_44px_-4px_rgba(91,33,182,0.5)] active:scale-[0.98] sm:flex-none"
