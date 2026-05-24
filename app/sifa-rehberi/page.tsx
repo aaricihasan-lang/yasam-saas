@@ -255,6 +255,22 @@ const uiContentCard =
   "w-full rounded-[34px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_50px_rgba(16,185,129,0.14)] backdrop-blur-xl xl:p-8";
 const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 
+const listPageContent = "relative z-10 w-full space-y-3 px-5 py-4 sm:px-6 xl:px-8 2xl:px-10";
+const listHeaderCard =
+  "max-h-[220px] shrink-0 overflow-hidden rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.1)] backdrop-blur-xl sm:py-5";
+const listStatCard =
+  "min-w-[4.5rem] rounded-xl border border-cyan-200/80 bg-white/90 px-3 py-2 text-center shadow-sm sm:min-w-[5rem]";
+const listFilterCard =
+  "rounded-[22px] border border-cyan-300/40 bg-white/85 p-4 shadow-[0_6px_24px_rgba(34,211,238,0.08)] backdrop-blur-xl";
+const listSearchInput =
+  "h-11 w-full rounded-xl border border-emerald-200 bg-white/90 pl-10 pr-4 text-sm font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/60";
+const listViewBtn =
+  "rounded-xl px-4 py-2 text-[12px] font-black shadow-sm transition hover:-translate-y-0.5";
+const listNewBtn =
+  "rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5";
+const listContentCard =
+  "w-full rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.08)] backdrop-blur-xl sm:p-5";
+
 type PageView = "menu" | "new" | "list";
 
 const uiMenuCardBase =
@@ -707,6 +723,7 @@ export default function SifaRehberiPage() {
   }
 
   const isMenuView = pageView === "menu";
+  const isListView = pageView === "list";
   const isNewView = pageView === "new";
 
   const newViewScrollArea =
@@ -1041,19 +1058,21 @@ export default function SifaRehberiPage() {
         }`}
       />
 
-      <div className={isMenuView ? menuPageContent : pageContent}>
+      <div className={isMenuView ? menuPageContent : isListView ? listPageContent : pageContent}>
         <header
           className={
             isMenuView
               ? `${menuHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4`
-              : `${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`
+              : isListView
+                ? `${listHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`
+                : `${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`
           }
         >
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div
               className={`inline-flex rounded-full border border-emerald-200 bg-emerald-50 font-black text-emerald-700 ${
-                isMenuView
-                  ? "mb-2 px-3 py-1 text-[10px] tracking-[0.14em]"
+                isMenuView || isListView
+                  ? "mb-1.5 px-3 py-0.5 text-[10px] tracking-[0.14em]"
                   : "mb-3 px-5 py-2"
               }`}
             >
@@ -1064,7 +1083,9 @@ export default function SifaRehberiPage() {
               className={
                 isMenuView
                   ? "text-3xl font-black tracking-tight text-slate-950 lg:text-4xl"
-                  : "text-5xl font-black tracking-tight text-slate-950 xl:text-6xl"
+                  : isListView
+                    ? "text-4xl font-black tracking-tight text-slate-950 xl:text-5xl"
+                    : "text-5xl font-black tracking-tight text-slate-950 xl:text-6xl"
               }
             >
               Şifa Rehberi
@@ -1074,7 +1095,9 @@ export default function SifaRehberiPage() {
               className={
                 isMenuView
                   ? "mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-slate-600 lg:text-[15px]"
-                  : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
+                  : isListView
+                    ? "mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600"
+                    : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
               }
             >
               {pageView === "menu"
@@ -1085,14 +1108,14 @@ export default function SifaRehberiPage() {
             <Link
               href="/"
               className={
-                isMenuView
-                  ? "mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm transition hover:bg-emerald-50"
+                isMenuView || isListView
+                  ? "mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-800 shadow-sm transition hover:bg-emerald-50"
                   : "mt-4 inline-flex items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-emerald-50"
               }
             >
               <svg
                 aria-hidden
-                className={`shrink-0 text-emerald-600 ${isMenuView ? "h-3.5 w-3.5" : "h-4 w-4"}`}
+                className={`shrink-0 text-emerald-600 ${isMenuView || isListView ? "h-3.5 w-3.5" : "h-4 w-4"}`}
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -1104,30 +1127,72 @@ export default function SifaRehberiPage() {
 
           <div
             className={`grid w-full shrink-0 grid-cols-3 ${
-              isMenuView ? "gap-2 lg:w-auto lg:gap-3" : "gap-4 lg:w-auto"
+              isMenuView ? "gap-2 lg:w-auto lg:gap-3" : isListView ? "gap-2 sm:w-auto" : "gap-4 lg:w-auto"
             }`}
           >
-            <div className={isMenuView ? menuStatCard : uiStatCard}>
-              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+              <div
+                className={
+                  isMenuView
+                    ? "text-xl font-black lg:text-2xl"
+                    : isListView
+                      ? "text-lg font-black sm:text-xl"
+                      : "text-3xl font-black"
+                }
+              >
                 {rows.length}
               </div>
-              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+              <div
+                className={
+                  isMenuView || isListView
+                    ? "text-[10px] font-bold text-slate-500"
+                    : "text-sm font-bold text-slate-500"
+                }
+              >
                 Kayıt
               </div>
             </div>
-            <div className={isMenuView ? menuStatCard : uiStatCard}>
-              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+              <div
+                className={
+                  isMenuView
+                    ? "text-xl font-black lg:text-2xl"
+                    : isListView
+                      ? "text-lg font-black sm:text-xl"
+                      : "text-3xl font-black"
+                }
+              >
                 {categoryCount}
               </div>
-              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+              <div
+                className={
+                  isMenuView || isListView
+                    ? "text-[10px] font-bold text-slate-500"
+                    : "text-sm font-bold text-slate-500"
+                }
+              >
                 Kategori
               </div>
             </div>
-            <div className={isMenuView ? menuStatCard : uiStatCard}>
-              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+              <div
+                className={
+                  isMenuView
+                    ? "text-xl font-black lg:text-2xl"
+                    : isListView
+                      ? "text-lg font-black sm:text-xl"
+                      : "text-3xl font-black"
+                }
+              >
                 {filteredRows.length}
               </div>
-              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+              <div
+                className={
+                  isMenuView || isListView
+                    ? "text-[10px] font-bold text-slate-500"
+                    : "text-sm font-bold text-slate-500"
+                }
+              >
                 Görünen
               </div>
             </div>
@@ -1202,13 +1267,16 @@ export default function SifaRehberiPage() {
           </section>
         ) : null}
 
-        {pageView === "list" ? <SifaRehberiMainMenuButton onClick={goToMainMenu} /> : null}
-
         {pageView === "list" ? (
-        <section className={uiFilterCard}>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className={listFilterCard}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
+            <p className="truncate text-[11px] font-bold text-slate-500">Kayıtlı rehber listesi</p>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative min-w-0 w-full flex-1">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl text-slate-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-slate-400">
                 ⌕
               </span>
               <input
@@ -1216,15 +1284,15 @@ export default function SifaRehberiPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="İsim, kategori veya rehber metinlerinde ara..."
-                className={uiSearchInput}
+                className={listSearchInput}
               />
             </div>
 
-            <div className="flex w-full shrink-0 flex-wrap items-center gap-3 xl:w-auto xl:justify-end">
+            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
-                className={`${uiViewBtn} ${
+                className={`${listViewBtn} ${
                   viewMode === "list" ? uiViewBtnActive : uiViewBtnIdle
                 }`}
               >
@@ -1233,7 +1301,7 @@ export default function SifaRehberiPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("card")}
-                className={`${uiViewBtn} ${
+                className={`${listViewBtn} ${
                   viewMode === "card" ? uiViewBtnActive : uiViewBtnIdle
                 }`}
               >
@@ -1244,21 +1312,21 @@ export default function SifaRehberiPage() {
                 onClick={() => {
                   if (queryTenantId) void loadGuides(queryTenantId);
                 }}
-                className={`${uiViewBtn} ${uiViewBtnIdle}`}
+                className={`${listViewBtn} ${uiViewBtnIdle}`}
               >
                 Yenile
               </button>
               <button
                 type="button"
                 onClick={openNewRecord}
-                className={uiNewBtn}
+                className={listNewBtn}
               >
                 + Yeni Rahatsızlık
               </button>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+          <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2.5">
             <p className="text-[11px] font-bold text-slate-400">
               {search.trim()
                 ? `${filteredRows.length} sonuç`
@@ -1274,18 +1342,18 @@ export default function SifaRehberiPage() {
         ) : null}
 
         {pageView === "list" ? (
-        <section className={uiContentCard}>
+        <section className={listContentCard}>
           {loading ? (
-            <div className="flex min-h-[420px] flex-col items-center justify-center text-base font-bold text-slate-500">
+            <div className="flex min-h-[280px] flex-col items-center justify-center text-sm font-bold text-slate-500">
               Kayıtlar yükleniyor...
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-              <div className="text-6xl">✶</div>
-              <h3 className="mt-4 text-4xl font-black text-slate-900">
+            <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
+              <div className="text-4xl">✶</div>
+              <h3 className="mt-3 text-2xl font-black text-slate-900">
                 {search.trim() ? "Kayıt bulunamadı" : "Henüz kayıt yok"}
               </h3>
-              <p className="mt-3 text-lg text-slate-500">
+              <p className="mt-2 text-sm text-slate-500">
                 {search.trim()
                   ? "Aramayı değiştirin veya yeni bir rahatsızlık rehberi ekleyin."
                   : "Admin toplu veri aktarımı sonrası kayıtlar burada listelenir. Yeni kayıt da ekleyebilirsiniz."}
