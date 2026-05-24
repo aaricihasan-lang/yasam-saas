@@ -709,22 +709,74 @@ export default function SifaRehberiPage() {
   const isMenuView = pageView === "menu";
   const isNewView = pageView === "new";
 
+  const newViewScrollArea =
+    "min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+  const newViewFieldInput =
+    "h-10 w-full rounded-xl border border-emerald-100/90 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
+
+  const newViewFieldTextarea =
+    "min-h-[88px] max-h-[120px] w-full cursor-pointer resize-none rounded-xl border border-emerald-100/90 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
+
+  const newViewMiniCard =
+    "rounded-2xl border border-emerald-100/80 bg-gradient-to-b from-white to-emerald-50/30 p-4 shadow-[0_8px_24px_-12px_rgba(16,185,129,0.25)]";
+
+  function renderNewViewImagesBlock() {
+    return (
+      <section className={newViewMiniCard}>
+        <header className="mb-3">
+          <h4 className="text-[13px] font-black tracking-tight text-slate-900">Görseller</h4>
+          <p className="mt-0.5 text-[11px] font-medium text-slate-500">Bu bölüme görsel ekleyin</p>
+        </header>
+        <button
+          type="button"
+          disabled={uploadingImage}
+          onClick={() => triggerImagePick(formTab)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-100 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:opacity-60"
+        >
+          <span aria-hidden>📷</span>
+          {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
+        </button>
+        {tabImages.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tabImages.map((img) => (
+              <div key={img.id} className="relative w-16 shrink-0 rounded-lg border border-emerald-100 p-0.5">
+                <button type="button" onClick={() => setLightbox(img)} className="block w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.url} alt="" className="aspect-square h-14 w-full rounded-md object-cover" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    void removeGuideImage(img);
+                  }}
+                  className="absolute right-0 top-0 rounded bg-rose-600 px-1 text-[8px] font-black text-white"
+                >
+                  Sil
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   if (isNewView) {
     return (
       <>
-        <div className="flex h-[calc(100vh-92px)] flex-col overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-4 text-slate-950">
-          <div className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-emerald-100/80 bg-white/85 px-6 shadow-sm">
+        <div className="h-screen overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-4 text-slate-950">
+          <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
             <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
             <div className="min-w-0 pl-4 text-right">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
-                Yeni kayıt
-              </p>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Yeni Kayıt</p>
               <h2 className="truncate text-base font-black text-slate-950">Yeni rahatsızlık kaydı</h2>
             </div>
-          </div>
+          </header>
 
-          {(errorMessage || successMessage) && (
-            <div className="mb-2 shrink-0 space-y-1">
+          {(errorMessage || successMessage) ? (
+            <div className="mb-3 shrink-0 space-y-1">
               {errorMessage ? (
                 <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">
                   {errorMessage}
@@ -736,9 +788,13 @@ export default function SifaRehberiPage() {
                 </p>
               ) : null}
             </div>
-          )}
+          ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-emerald-100 bg-white/80 shadow-2xl">
+          <div
+            className={`grid min-h-0 grid-cols-[300px_1fr] gap-5 ${
+              errorMessage || successMessage ? "h-[calc(100vh-148px)]" : "h-[calc(100vh-112px)]"
+            }`}
+          >
             <input
               ref={imageFileInputRef}
               type="file"
@@ -747,195 +803,156 @@ export default function SifaRehberiPage() {
               onChange={handleGuideImageFileChange}
             />
 
-            <div className="grid h-[calc(100%-84px)] min-h-0 grid-cols-[280px_1fr] overflow-hidden">
-              <aside className="overflow-y-auto border-r border-emerald-100/70 p-4">
-                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                  Bölümler
-                </p>
-                <div className="space-y-2">
-                  {FORM_TABS.map((tab) => {
-                    const active = formTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setFormTab(tab.id)}
-                        className={`flex h-12 w-full items-center gap-2 rounded-xl p-3 text-left text-[13px] font-bold transition ${
-                          active
-                            ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_6px_18px_rgba(16,185,129,0.35)]"
-                            : "border border-emerald-100/80 bg-white/70 text-slate-600 hover:bg-emerald-50/80"
-                        }`}
-                      >
-                        <span className="text-base leading-none">{tab.icon}</span>
-                        <span className="min-w-0 flex-1 truncate">{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </aside>
-
-              <div className="overflow-y-auto p-6">
-                {formTab === "rahatsizlik" ? (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormFieldMiniCard title="Rahatsızlık adı" subtitle="Zorunlu">
-                      <input
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        className={uiFormFieldInput}
-                        placeholder="Örn. Migren"
-                      />
-                    </FormFieldMiniCard>
-                    <FormFieldMiniCard title="Kategori" subtitle="Sınıflandırma">
-                      <input
-                        value={form.category}
-                        onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className={uiFormFieldInput}
-                        placeholder="Örn. Sinir sistemi"
-                      />
-                    </FormFieldMiniCard>
-                    <FormFieldMiniCard
-                      title="Genel / Özet"
-                      subtitle="Geniş editör için tıklayın"
-                      className="md:col-span-2"
+            <aside
+              className={`h-full min-h-0 rounded-[28px] border border-emerald-100/80 bg-white/85 p-4 shadow-xl ${newViewScrollArea}`}
+            >
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Bölümler</p>
+              <div className="space-y-2">
+                {FORM_TABS.map((tab) => {
+                  const active = formTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setFormTab(tab.id)}
+                      className={`flex h-12 w-full items-center gap-2 rounded-xl px-3 text-left text-[13px] font-bold transition ${
+                        active
+                          ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_6px_18px_rgba(16,185,129,0.35)]"
+                          : "border border-emerald-100/80 bg-white/70 text-slate-600 hover:bg-emerald-50/80"
+                      }`}
                     >
-                      <textarea
-                        readOnly
-                        value={form.general_summary}
-                        onClick={() => openLargeEditor("general_summary", "Genel / Özeti")}
-                        onFocus={(e) => {
-                          openLargeEditor("general_summary", "Genel / Özeti");
-                          e.target.blur();
-                        }}
-                        rows={3}
-                        className={uiFormFieldTextarea}
-                      />
-                    </FormFieldMiniCard>
-                    <FormFieldMiniCard title="Görseller" subtitle="Bu bölüme görsel ekleyin" className="md:col-span-2">
-                      <button
-                        type="button"
-                        disabled={uploadingImage}
-                        onClick={() => triggerImagePick(formTab)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-100 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:opacity-60"
-                      >
-                        <span aria-hidden>📷</span>
-                        {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
-                      </button>
-                      {tabImages.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {tabImages.map((img) => (
-                            <div key={img.id} className="relative w-16 shrink-0 rounded-lg border border-emerald-100 p-0.5">
-                              <button type="button" onClick={() => setLightbox(img)} className="block w-full">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={img.url} alt="" className="aspect-square h-14 w-full rounded-md object-cover" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(ev) => {
-                                  ev.stopPropagation();
-                                  void removeGuideImage(img);
-                                }}
-                                className="absolute right-0 top-0 rounded bg-rose-600 px-1 text-[8px] font-black text-white"
-                              >
-                                Sil
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </FormFieldMiniCard>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {activeFormTab.keys.map((fieldKey) => {
-                      const meta = FORM_SECTIONS.find((s) => s.key === fieldKey);
-                      if (!meta) return null;
-                      const { key, label, multiline } = meta;
-                      return (
-                        <FormFieldMiniCard
-                          key={key}
-                          title={label}
-                          className={multiline ? "md:col-span-2" : undefined}
-                        >
-                          {multiline ? (
-                            <textarea
-                              readOnly
-                              value={form[key]}
-                              onClick={() => openLargeEditor(key, label)}
-                              onFocus={(e) => {
-                                openLargeEditor(key, label);
-                                e.target.blur();
-                              }}
-                              rows={3}
-                              className={uiFormFieldTextarea}
-                            />
-                          ) : (
-                            <input
-                              value={form[key]}
-                              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                              className={uiFormFieldInput}
-                            />
-                          )}
-                        </FormFieldMiniCard>
-                      );
-                    })}
-                    <FormFieldMiniCard title="Görseller" className="md:col-span-2">
-                      <button
-                        type="button"
-                        disabled={uploadingImage}
-                        onClick={() => triggerImagePick(formTab)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-100 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:opacity-60"
-                      >
-                        <span aria-hidden>📷</span>
-                        {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
-                      </button>
-                      {tabImages.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {tabImages.map((img) => (
-                            <div key={img.id} className="relative w-16 shrink-0 rounded-lg border border-emerald-100 p-0.5">
-                              <button type="button" onClick={() => setLightbox(img)} className="block w-full">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={img.url} alt="" className="aspect-square h-14 w-full rounded-md object-cover" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(ev) => {
-                                  ev.stopPropagation();
-                                  void removeGuideImage(img);
-                                }}
-                                className="absolute right-0 top-0 rounded bg-rose-600 px-1 text-[8px] font-black text-white"
-                              >
-                                Sil
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </FormFieldMiniCard>
-                  </div>
-                )}
+                      <span className="text-base leading-none">{tab.icon}</span>
+                      <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            </aside>
 
-            <footer className="flex h-[84px] shrink-0 items-center justify-between border-t border-emerald-100 bg-white/90 px-6">
-              <div className="flex items-center gap-3">
+            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white/85 shadow-xl">
+              <div className={`${newViewScrollArea} p-6`}>
+                <div className="mx-auto max-w-5xl space-y-5 pb-4">
+                  {formTab === "rahatsizlik" ? (
+                    <>
+                      <header className="border-b border-emerald-100/80 pb-4">
+                        <h3 className="text-lg font-black tracking-tight text-slate-950">Rahatsızlık Bilgileri</h3>
+                        <p className="mt-1 text-[12px] font-medium text-slate-500">
+                          Temel tanım, kategori ve özet alanlarını doldurun.
+                        </p>
+                      </header>
+                      <div className="grid grid-cols-2 gap-5">
+                        <section className={newViewMiniCard}>
+                          <header className="mb-2.5">
+                            <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
+                            <p className="text-[11px] font-medium text-slate-500">Zorunlu</p>
+                          </header>
+                          <input
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            className={newViewFieldInput}
+                            placeholder="Örn. Migren"
+                          />
+                        </section>
+                        <section className={newViewMiniCard}>
+                          <header className="mb-2.5">
+                            <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
+                            <p className="text-[11px] font-medium text-slate-500">Sınıflandırma</p>
+                          </header>
+                          <input
+                            value={form.category}
+                            onChange={(e) => setForm({ ...form, category: e.target.value })}
+                            className={newViewFieldInput}
+                            placeholder="Örn. Sinir sistemi"
+                          />
+                        </section>
+                      </div>
+                      <section className={newViewMiniCard}>
+                        <header className="mb-2.5">
+                          <h4 className="text-[13px] font-black text-slate-900">Genel / Özet</h4>
+                          <p className="text-[11px] font-medium text-slate-500">Geniş editör için tıklayın</p>
+                        </header>
+                        <textarea
+                          readOnly
+                          value={form.general_summary}
+                          onClick={() => openLargeEditor("general_summary", "Genel / Özeti")}
+                          onFocus={(e) => {
+                            openLargeEditor("general_summary", "Genel / Özeti");
+                            e.target.blur();
+                          }}
+                          rows={3}
+                          className={newViewFieldTextarea}
+                        />
+                      </section>
+                      {renderNewViewImagesBlock()}
+                    </>
+                  ) : (
+                    <>
+                      <header className="border-b border-emerald-100/80 pb-4">
+                        <h3 className="text-lg font-black tracking-tight text-slate-950">{activeFormTab.label}</h3>
+                        <p className="mt-1 text-[12px] font-medium text-slate-500">
+                          Bu bölümdeki alanları düzenleyin; uzun metinler için alana tıklayın.
+                        </p>
+                      </header>
+                      <div className="grid grid-cols-2 gap-5">
+                        {activeFormTab.keys.map((fieldKey) => {
+                          const meta = FORM_SECTIONS.find((s) => s.key === fieldKey);
+                          if (!meta) return null;
+                          const { key, label, multiline } = meta;
+                          return (
+                            <section
+                              key={key}
+                              className={`${newViewMiniCard} ${multiline ? "col-span-2" : ""}`}
+                            >
+                              <header className="mb-2.5">
+                                <h4 className="text-[13px] font-black text-slate-900">{label}</h4>
+                              </header>
+                              {multiline ? (
+                                <textarea
+                                  readOnly
+                                  value={form[key]}
+                                  onClick={() => openLargeEditor(key, label)}
+                                  onFocus={(e) => {
+                                    openLargeEditor(key, label);
+                                    e.target.blur();
+                                  }}
+                                  rows={3}
+                                  className={newViewFieldTextarea}
+                                />
+                              ) : (
+                                <input
+                                  value={form[key]}
+                                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                                  className={newViewFieldInput}
+                                />
+                              )}
+                            </section>
+                          );
+                        })}
+                        <div className="col-span-2">{renderNewViewImagesBlock()}</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 z-10 flex shrink-0 items-center gap-2.5 border-t border-emerald-100/80 bg-white/95 px-5 py-2.5 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex h-11 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 text-[15px] font-black text-white shadow-md disabled:opacity-60"
+                  className="inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60"
                 >
                   {saving ? "Kaydediliyor..." : "Kaydet"}
                 </button>
                 <button
                   type="button"
                   onClick={goToMainMenu}
-                  className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-[15px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
+                  className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
                 >
                   Kapat
                 </button>
               </div>
-              <p className="hidden text-[11px] text-slate-400 sm:block">Boş alanlar kayıtta boş kalır.</p>
-            </footer>
+            </section>
           </div>
         </div>
 
