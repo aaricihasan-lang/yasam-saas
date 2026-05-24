@@ -258,7 +258,15 @@ const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 type PageView = "menu" | "new" | "list";
 
 const uiMenuCardBase =
-  "group relative flex min-h-[300px] flex-col overflow-hidden rounded-[34px] border-[3px] p-8 text-left shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_28px_80px_rgba(15,23,42,0.14)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40";
+  "group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border-2 p-4 text-left shadow-[0_14px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-[0_20px_50px_rgba(15,23,42,0.11)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 sm:p-5 lg:p-6";
+const menuPageShell =
+  "relative flex h-screen flex-col overflow-hidden max-lg:min-h-screen max-lg:h-auto max-lg:overflow-y-auto";
+const menuPageContent =
+  "relative z-10 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden px-4 py-3 sm:px-6 lg:gap-4 lg:px-10 lg:py-4";
+const menuHeaderCard =
+  "shrink-0 rounded-[26px] border-2 border-emerald-300/45 bg-white/75 p-4 shadow-[0_0_32px_rgba(16,185,129,0.12)] backdrop-blur-xl lg:p-5";
+const menuStatCard =
+  "rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 text-center shadow-sm sm:px-4 sm:py-3";
 
 function SifaRehberiMainMenuButton({ onClick }: { onClick: () => void }) {
   return (
@@ -539,23 +547,63 @@ export default function SifaRehberiPage() {
     setPageView("list");
   }
 
-  return (
-    <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+  const isMenuView = pageView === "menu";
 
-      <div className={pageContent}>
-        <header className={`${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-black text-emerald-700">
+  return (
+    <main
+      className={
+        isMenuView
+          ? `${menuPageShell} bg-[radial-gradient(circle_at_top_left,#dcfce7_0%,#ecfeff_35%,#f8fafc_100%)] text-slate-950`
+          : pageBg
+      }
+    >
+      <div
+        className={`pointer-events-none absolute left-0 top-0 rounded-full bg-emerald-300/20 blur-[150px] ${
+          isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
+        }`}
+      />
+      <div
+        className={`pointer-events-none absolute right-0 top-0 rounded-full bg-cyan-300/20 blur-[150px] ${
+          isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
+        }`}
+      />
+
+      <div className={isMenuView ? menuPageContent : pageContent}>
+        <header
+          className={
+            isMenuView
+              ? `${menuHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4`
+              : `${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`
+          }
+        >
+          <div className="min-w-0">
+            <div
+              className={`inline-flex rounded-full border border-emerald-200 bg-emerald-50 font-black text-emerald-700 ${
+                isMenuView
+                  ? "mb-2 px-3 py-1 text-[10px] tracking-[0.14em]"
+                  : "mb-3 px-5 py-2"
+              }`}
+            >
               ✶ ŞİFA REHBERİ
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+            <h1
+              className={
+                isMenuView
+                  ? "text-3xl font-black tracking-tight text-slate-950 lg:text-4xl"
+                  : "text-5xl font-black tracking-tight text-slate-950 xl:text-6xl"
+              }
+            >
               Şifa Rehberi
             </h1>
 
-            <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
+            <p
+              className={
+                isMenuView
+                  ? "mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-slate-600 lg:text-[15px]"
+                  : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
+              }
+            >
               {pageView === "menu"
                 ? "Yeni kayıt oluşturun veya kayıtlı şifa rehberi listenize geçin."
                 : pageView === "new"
@@ -565,11 +613,15 @@ export default function SifaRehberiPage() {
 
             <Link
               href="/"
-              className="mt-4 inline-flex items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-emerald-50"
+              className={
+                isMenuView
+                  ? "mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm transition hover:bg-emerald-50"
+                  : "mt-4 inline-flex items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-emerald-50"
+              }
             >
               <svg
                 aria-hidden
-                className="h-4 w-4 shrink-0 text-emerald-600"
+                className={`shrink-0 text-emerald-600 ${isMenuView ? "h-3.5 w-3.5" : "h-4 w-4"}`}
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -579,63 +631,96 @@ export default function SifaRehberiPage() {
             </Link>
           </div>
 
-          <div className="grid w-full grid-cols-3 gap-4 lg:w-auto">
-            <div className={uiStatCard}>
-              <div className="text-3xl font-black">{rows.length}</div>
-              <div className="text-sm font-bold text-slate-500">Kayıt</div>
+          <div
+            className={`grid w-full shrink-0 grid-cols-3 ${
+              isMenuView ? "gap-2 lg:w-auto lg:gap-3" : "gap-4 lg:w-auto"
+            }`}
+          >
+            <div className={isMenuView ? menuStatCard : uiStatCard}>
+              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+                {rows.length}
+              </div>
+              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+                Kayıt
+              </div>
             </div>
-            <div className={uiStatCard}>
-              <div className="text-3xl font-black">{categoryCount}</div>
-              <div className="text-sm font-bold text-slate-500">Kategori</div>
+            <div className={isMenuView ? menuStatCard : uiStatCard}>
+              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+                {categoryCount}
+              </div>
+              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+                Kategori
+              </div>
             </div>
-            <div className={uiStatCard}>
-              <div className="text-3xl font-black">{filteredRows.length}</div>
-              <div className="text-sm font-bold text-slate-500">Görünen</div>
+            <div className={isMenuView ? menuStatCard : uiStatCard}>
+              <div className={isMenuView ? "text-xl font-black lg:text-2xl" : "text-3xl font-black"}>
+                {filteredRows.length}
+              </div>
+              <div className={isMenuView ? "text-[10px] font-bold text-slate-500" : "text-sm font-bold text-slate-500"}>
+                Görünen
+              </div>
             </div>
           </div>
         </header>
 
         {errorMessage ? (
-          <div className="rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+          <div
+            className={`rounded-2xl bg-rose-50 font-black text-rose-700 ring-1 ring-rose-100 ${
+              isMenuView ? "shrink-0 px-4 py-2 text-[12px]" : "px-5 py-3 text-[13px]"
+            }`}
+          >
             {errorMessage}
           </div>
         ) : null}
 
         {successMessage && !errorMessage ? (
-          <div className="rounded-2xl bg-emerald-50 px-5 py-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
+          <div
+            className={`rounded-2xl bg-emerald-50 font-black text-emerald-700 ring-1 ring-emerald-100 ${
+              isMenuView ? "shrink-0 px-4 py-2 text-[12px]" : "px-5 py-3 text-[13px]"
+            }`}
+          >
             {successMessage}
           </div>
         ) : null}
 
         {pageView === "menu" ? (
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+          <section className="grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
             <button
               type="button"
               onClick={openNewRecord}
               className={`${uiMenuCardBase} border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70`}
             >
-              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-emerald-300/25 blur-3xl transition group-hover:bg-emerald-300/35" />
-              <div className="relative flex flex-1 flex-col">
-                <span className="inline-flex w-fit rounded-full border border-emerald-200/80 bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-800 shadow-sm">
-                  Manuel kayıt
-                </span>
-                <span className="mt-6 text-[56px] leading-none" aria-hidden>
-                  🌿
-                </span>
-                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 xl:text-4xl">
-                  Yeni Rahatsızlık Kaydı
-                </h2>
-                <p className="mt-3 max-w-md text-base font-medium leading-relaxed text-slate-600">
-                  Bölümlü form ile tıbbi nedenler, bitkisel yöntemler, doğaltaş ve destekleyici
-                  uygulamaları tek kayıtta toplayın.
-                </p>
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
-                  <span className="rounded-full bg-emerald-600 px-4 py-1.5 text-[12px] font-black text-white shadow-md ring-1 ring-emerald-500/30">
-                    {FORM_TABS.length} bölüm
+              <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-300/25 blur-2xl transition group-hover:bg-emerald-300/35" />
+              <div className="relative flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5">
+                <div className="flex shrink-0 items-center gap-3 lg:w-[88px] lg:flex-col lg:justify-center lg:gap-2 lg:py-1">
+                  <span className="inline-flex w-fit rounded-full border border-emerald-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-800 shadow-sm lg:hidden">
+                    Manuel
                   </span>
-                  <span className="rounded-full border border-emerald-200 bg-white/90 px-4 py-1.5 text-[12px] font-black text-emerald-800">
-                    Görsel destekli
+                  <span className="text-[40px] leading-none lg:text-[44px]" aria-hidden>
+                    🌿
                   </span>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="hidden rounded-full border border-emerald-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-800 shadow-sm lg:inline-flex">
+                      Manuel kayıt
+                    </span>
+                    <h2 className="text-xl font-black tracking-tight text-slate-950 lg:mt-1.5 lg:text-2xl">
+                      Yeni Rahatsızlık Kaydı
+                    </h2>
+                    <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600">
+                      Bölümlü form ile nedenler, bitkisel yöntemler ve destekleyici uygulamaları tek
+                      kayıtta toplayın.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-emerald-500/30">
+                      {FORM_TABS.length} bölüm
+                    </span>
+                    <span className="rounded-full border border-emerald-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
+                      Görsel destekli
+                    </span>
+                  </div>
                 </div>
               </div>
             </button>
@@ -645,28 +730,36 @@ export default function SifaRehberiPage() {
               onClick={openList}
               className={`${uiMenuCardBase} border-violet-300/55 bg-gradient-to-br from-violet-50 via-indigo-50/95 to-sky-50/85 hover:border-violet-400/70 focus-visible:ring-violet-300/40`}
             >
-              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-violet-300/25 blur-3xl transition group-hover:bg-violet-300/35" />
-              <div className="relative flex flex-1 flex-col">
-                <span className="inline-flex w-fit rounded-full border border-violet-200/80 bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-violet-800 shadow-sm">
-                  Kütüphane
-                </span>
-                <span className="mt-6 text-[56px] leading-none" aria-hidden>
-                  📚
-                </span>
-                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 xl:text-4xl">
-                  Kayıtlı Şifa Rehberi Listesi
-                </h2>
-                <p className="mt-3 max-w-md text-base font-medium leading-relaxed text-slate-600">
-                  Tüm rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin ve
-                  detay sayfasına geçin.
-                </p>
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
-                  <span className="rounded-full bg-violet-600 px-4 py-1.5 text-[12px] font-black text-white shadow-md ring-1 ring-violet-500/30">
-                    {loading ? "…" : `${rows.length} kayıt`}
+              <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-violet-300/25 blur-2xl transition group-hover:bg-violet-300/35" />
+              <div className="relative flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5">
+                <div className="flex shrink-0 items-center gap-3 lg:w-[88px] lg:flex-col lg:justify-center lg:gap-2 lg:py-1">
+                  <span className="inline-flex w-fit rounded-full border border-violet-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-800 shadow-sm lg:hidden">
+                    Kütüphane
                   </span>
-                  <span className="rounded-full border border-violet-200 bg-white/90 px-4 py-1.5 text-[12px] font-black text-violet-800">
-                    {categoryCount} kategori
+                  <span className="text-[40px] leading-none lg:text-[44px]" aria-hidden>
+                    📚
                   </span>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="hidden rounded-full border border-violet-200/80 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-800 shadow-sm lg:inline-flex">
+                      Kütüphane
+                    </span>
+                    <h2 className="text-xl font-black tracking-tight text-slate-950 lg:mt-1.5 lg:text-2xl">
+                      Kayıtlı Şifa Rehberi Listesi
+                    </h2>
+                    <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600">
+                      Rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-violet-500/30">
+                      {loading ? "…" : `${rows.length} kayıt`}
+                    </span>
+                    <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">
+                      {categoryCount} kategori
+                    </span>
+                  </div>
                 </div>
               </div>
             </button>
