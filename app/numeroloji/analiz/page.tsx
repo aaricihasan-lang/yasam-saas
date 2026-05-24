@@ -36,14 +36,17 @@ function collapseSpaces(value: string): string {
 function formatFirstNameTurkish(value: string): string {
   const s = collapseSpaces(value.trimStart());
   if (!s) return "";
-  return s
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => {
-      const lower = word.toLocaleLowerCase("tr-TR");
-      return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
-    })
-    .join(" ");
+  const trailingSpace = s.endsWith(" ") ? " " : "";
+  return (
+    s
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => {
+        const lower = word.toLocaleLowerCase("tr-TR");
+        return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
+      })
+      .join(" ") + trailingSpace
+  );
 }
 
 function formatLastNameTurkish(value: string): string {
