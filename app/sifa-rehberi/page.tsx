@@ -3,9 +3,15 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import {
+  countListFilledSections,
+  fetchHealingGuideList,
+  listRowPreview,
+  matchesListSearch,
+  type HealingGuideListRow,
+} from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type GuideImage = {
   id: string;
@@ -214,34 +220,6 @@ const FORM_TABS: {
   },
 ];
 
-const SEARCH_KEYS: (keyof HealingGuideRecord)[] = [
-  "name",
-  "category",
-  "general_summary",
-  "medical_causes",
-  "subconscious_causes",
-  "temperament_causes",
-  "other_causes",
-  "iridology_match",
-  "hand_analysis_match",
-  "cupping_leech",
-  "reflexology",
-  "diet_recommendations",
-  "herbal_methods",
-  "stone_recommendations",
-  "aromatherapy",
-  "meditation",
-  "breathwork",
-  "bioenergy",
-  "massage",
-  "daily_routine",
-  "sleep_routine",
-  "supportive_alternative_methods",
-  "islamic_recommendations",
-];
-
-const COUNT_KEYS: (keyof HealingGuideRecord)[] = SEARCH_KEYS.filter((k) => k !== "name" && k !== "category");
-
 function trimOrNull(value: string) {
   const t = value.trim();
   return t.length > 0 ? t : null;
@@ -254,26 +232,6 @@ function formatDate(iso: string | null | undefined) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(iso));
-}
-
-function countFilledSections(record: HealingGuideRecord) {
-  return COUNT_KEYS.filter((key) => {
-    const v = record[key];
-    return typeof v === "string" && v.trim().length > 0;
-  }).length;
-}
-
-function shortPreview(record: HealingGuideRecord, limit = 140) {
-  const chunk =
-    (record.general_summary && record.general_summary.trim()) ||
-    COUNT_KEYS.map((k) => record[k])
-      .find((v) => typeof v === "string" && v && v.trim().length > 0)
-      ?.toString()
-      .replace(/\s+/g, " ")
-      .trim();
-
-  if (!chunk) return "Henüz özet eklenmedi.";
-  return chunk.length > limit ? `${chunk.slice(0, limit)}…` : chunk;
 }
 
 const pageBg =
@@ -298,7 +256,8 @@ const uiContentCard =
 const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 
 export default function SifaRehberiPage() {
-  const [rows, setRows] = useState<HealingGuideRecord[]>([]);
+  const [rows, setRows] = useState<HealingGuideListRow[]>([]);
+  const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -317,29 +276,36 @@ export default function SifaRehberiPage() {
   const [uploadTargetSection, setUploadTargetSection] = useState<FormTabId | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
-  async function loadGuides() {
+  async function loadGuides(tenantId: string) {
     setLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
 
-    const { data, error } = await supabase
-      .from("healing_guides")
-      .select("*")
-      .eq("tenant_id", TENANT_ID);
+    const { rows: nextRows, error } = await fetchHealingGuideList(tenantId);
 
     setLoading(false);
 
     if (error) {
-      setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+      setErrorMessage(`Kayıtlar alınamadı: ${error}`);
       return;
     }
 
-    setRows((data || []) as HealingGuideRecord[]);
+    setRows(nextRows);
   }
 
   useEffect(() => {
     runInEffect(() => {
-      loadGuides();
+      void (async () => {
+        const tenantId = await getSyncedTenantId();
+        setQueryTenantId(tenantId);
+        if (!tenantId) {
+          setLoading(false);
+          setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+          setRows([]);
+          return;
+        }
+        await loadGuides(tenantId);
+      })();
     });
   }, []);
 
@@ -354,18 +320,7 @@ export default function SifaRehberiPage() {
   }, [showForm]);
 
   const filteredRows = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("tr-TR");
-    let list = rows;
-
-    if (keyword) {
-      list = rows.filter((row) => {
-        const text = SEARCH_KEYS.map((k) => row[k] ?? "")
-          .join(" ")
-          .toLocaleLowerCase("tr-TR");
-        return text.includes(keyword);
-      });
-    }
-
+    const list = rows.filter((row) => matchesListSearch(row, search));
     return [...list].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "tr-TR")
     );
@@ -407,7 +362,12 @@ export default function SifaRehberiPage() {
 
     const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "") || "jpg";
     const basename = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
-    const file_path = `healing-guides/${TENANT_ID}/${basename}`;
+    if (!queryTenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
+    const file_path = `healing-guides/${queryTenantId}/${basename}`;
 
     const { error: upErr } = await supabase.storage.from("stone-photos").upload(file_path, file, {
       cacheControl: "3600",
@@ -487,8 +447,14 @@ export default function SifaRehberiPage() {
 
     const now = new Date().toISOString();
 
+    if (!queryTenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      setSaving(false);
+      return;
+    }
+
     const { error: insertError } = await supabase.from("healing_guides").insert({
-      tenant_id: TENANT_ID,
+      tenant_id: queryTenantId,
       name: nameTrim,
       category: trimOrNull(form.category),
       general_summary: trimOrNull(form.general_summary),
@@ -526,7 +492,7 @@ export default function SifaRehberiPage() {
     resetForm();
     setShowForm(false);
     setSuccessMessage("Şifa rehberi kaydı oluşturuldu.");
-    await loadGuides();
+    await loadGuides(queryTenantId);
     resetForm();
   }
 
@@ -618,7 +584,9 @@ export default function SifaRehberiPage() {
               </button>
               <button
                 type="button"
-                onClick={loadGuides}
+                onClick={() => {
+                  if (queryTenantId) void loadGuides(queryTenantId);
+                }}
                 className={`${uiViewBtn} ${uiViewBtnIdle}`}
               >
                 Yenile
@@ -840,9 +808,13 @@ export default function SifaRehberiPage() {
           ) : filteredRows.length === 0 ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
               <div className="text-6xl">✶</div>
-              <h3 className="mt-4 text-4xl font-black text-slate-900">Kayıt bulunamadı</h3>
+              <h3 className="mt-4 text-4xl font-black text-slate-900">
+                {search.trim() ? "Kayıt bulunamadı" : "Henüz kayıt yok"}
+              </h3>
               <p className="mt-3 text-lg text-slate-500">
-                Aramayı değiştirin veya yeni bir rahatsızlık rehberi ekleyin.
+                {search.trim()
+                  ? "Aramayı değiştirin veya yeni bir rahatsızlık rehberi ekleyin."
+                  : "Admin toplu veri aktarımı sonrası kayıtlar burada listelenir. Yeni kayıt da ekleyebilirsiniz."}
               </p>
             </div>
           ) : viewMode === "list" ? (
@@ -858,7 +830,7 @@ export default function SifaRehberiPage() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {filteredRows.map((row) => {
-                    const filled = countFilledSections(row);
+                    const filled = countListFilledSections(row);
                     return (
                       <div
                         key={row.id}
@@ -872,7 +844,7 @@ export default function SifaRehberiPage() {
                         </div>
                         <div className="font-bold text-slate-600">{filled}</div>
                         <div className="min-w-0 text-[12px] leading-5 text-slate-500">
-                          <span className="line-clamp-2 block">{shortPreview(row, 100)}</span>
+                          <span className="line-clamp-2 block">{listRowPreview(row, 100)}</span>
                         </div>
                         <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
                           {formatDate(row.updated_at || row.created_at)}
@@ -894,7 +866,7 @@ export default function SifaRehberiPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredRows.map((row) => {
-                const filled = countFilledSections(row);
+                const filled = countListFilledSections(row);
                 return (
                   <article
                     key={row.id}
@@ -911,7 +883,7 @@ export default function SifaRehberiPage() {
                       ) : null}
                     </div>
                     <h2 className="text-[18px] font-black leading-snug text-slate-950">{row.name}</h2>
-                    <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">{shortPreview(row)}</p>
+                    <p className="mt-3 flex-1 text-[12px] leading-6 text-slate-600">{listRowPreview(row)}</p>
                     <p className="mt-2 text-[11px] font-bold text-slate-400">
                       Son güncelleme: {formatDate(row.updated_at || row.created_at)}
                     </p>

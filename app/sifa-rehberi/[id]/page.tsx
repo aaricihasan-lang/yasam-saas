@@ -4,9 +4,17 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
+import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import {
+  fetchHealingGuideDetail,
+  firstSectionTabWithContent,
+  groupSectionsByType,
+  HEALING_SECTION_DISPLAY,
+  type HealingGuideDetail,
+  type HealingGuideSectionRow,
+} from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { supabase } from "@/lib/supabase";
-
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 type GuideImage = {
   id: string;
@@ -191,6 +199,40 @@ function normalizeImages(raw: HealingGuideRecord["images"]): GuideImage[] {
   return [];
 }
 
+function detailToRecord(detail: HealingGuideDetail): HealingGuideRecord {
+  const l = detail.guide.legacy;
+  return {
+    id: detail.guide.id,
+    tenant_id: detail.guide.tenant_id,
+    name: detail.guide.name,
+    category: detail.guide.category,
+    general_summary: l.general_summary ?? null,
+    medical_causes: l.medical_causes ?? null,
+    subconscious_causes: l.subconscious_causes ?? null,
+    temperament_causes: l.temperament_causes ?? null,
+    other_causes: l.other_causes ?? null,
+    iridology_match: l.iridology_match ?? null,
+    hand_analysis_match: l.hand_analysis_match ?? null,
+    cupping_leech: l.cupping_leech ?? null,
+    reflexology: l.reflexology ?? null,
+    diet_recommendations: l.diet_recommendations ?? null,
+    herbal_methods: l.herbal_methods ?? null,
+    stone_recommendations: l.stone_recommendations ?? null,
+    aromatherapy: l.aromatherapy ?? null,
+    meditation: l.meditation ?? null,
+    breathwork: l.breathwork ?? null,
+    bioenergy: l.bioenergy ?? null,
+    massage: l.massage ?? null,
+    daily_routine: l.daily_routine ?? null,
+    sleep_routine: l.sleep_routine ?? null,
+    supportive_alternative_methods: l.supportive_alternative_methods ?? null,
+    islamic_recommendations: l.islamic_recommendations ?? null,
+    images: normalizeImages(detail.guide.images as HealingGuideRecord["images"]),
+    created_at: detail.guide.created_at,
+    updated_at: detail.guide.updated_at,
+  };
+}
+
 function recordToDraft(r: HealingGuideRecord): Draft {
   const s = (v: string | null | undefined) => (typeof v === "string" ? v : v ?? "") || "";
   return {
@@ -229,9 +271,13 @@ export default function SifaRehberiDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [record, setRecord] = useState<HealingGuideRecord | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [symptoms, setSymptoms] = useState<string | null>(null);
+  const [sections, setSections] = useState<HealingGuideSectionRow[]>([]);
   const [tab, setTab] = useState<DetailTabId>("rahatsizlik");
+  const [sectionTab, setSectionTab] = useState<HealingGuideSectionType>("reasons");
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -247,6 +293,17 @@ export default function SifaRehberiDetailPage() {
     () => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0],
     [tab]
   );
+
+  const useSectionView = sections.length > 0 && !editEnabled;
+
+  const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
+
+  const activeSectionMeta = useMemo(
+    () => HEALING_SECTION_DISPLAY.find((t) => t.type === sectionTab) ?? HEALING_SECTION_DISPLAY[0],
+    [sectionTab]
+  );
+
+  const sectionsInActiveTab = groupedSections[sectionTab] ?? [];
 
   const tabImages = useMemo(
     () => (draft?.images ?? []).filter((img) => img.section === tab),
@@ -266,33 +323,49 @@ export default function SifaRehberiDetailPage() {
     setErrorMessage("");
     setNotFound(false);
 
-    const { data, error } = await supabase
-      .from("healing_guides")
-      .select("*")
-      .eq("tenant_id", TENANT_ID)
-      .eq("id", id)
-      .maybeSingle();
-
-    setLoading(false);
-
-    if (error) {
-      setErrorMessage(`Kayıt yüklenemedi: ${error.message}`);
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       setRecord(null);
       setDraft(null);
+      setSections([]);
       setNotFound(false);
       return;
     }
 
-    if (!data) {
-      setNotFound(true);
+    setQueryTenantId(tenantId);
+
+    const { detail, error, notFound: missing } = await fetchHealingGuideDetail(tenantId, id);
+
+    setLoading(false);
+
+    if (error) {
+      setErrorMessage(`Kayıt yüklenemedi: ${error}`);
       setRecord(null);
       setDraft(null);
+      setSections([]);
+      setNotFound(false);
       return;
     }
 
-    const row = data as HealingGuideRecord;
+    if (missing || !detail) {
+      setNotFound(true);
+      setRecord(null);
+      setDraft(null);
+      setSections([]);
+      setSymptoms(null);
+      return;
+    }
+
+    const row = detailToRecord(detail);
     setRecord(row);
     setDraft(recordToDraft(row));
+    setSymptoms(detail.guide.symptoms);
+    setSections(detail.sections);
+    if (detail.sections.length > 0) {
+      setSectionTab(firstSectionTabWithContent(groupSectionsByType(detail.sections)));
+    }
     setNotFound(false);
   }, [id]);
 
@@ -307,14 +380,14 @@ export default function SifaRehberiDetailPage() {
   }
 
   async function persistImages(nextImages: GuideImage[]) {
-    if (!id) return { error: new Error("id yok") as unknown as Error };
+    if (!id || !queryTenantId) return { error: new Error("id yok") as unknown as Error };
     const { error } = await supabase
       .from("healing_guides")
       .update({
         images: nextImages.length > 0 ? nextImages : null,
         updated_at: new Date().toISOString(),
       })
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", queryTenantId)
       .eq("id", id);
     return { error };
   }
@@ -336,7 +409,12 @@ export default function SifaRehberiDetailPage() {
 
     const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "") || "jpg";
     const basename = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}.${ext}`;
-    const file_path = `healing-guides/${TENANT_ID}/${id}/${section}/${basename}`;
+    if (!queryTenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
+    const file_path = `healing-guides/${queryTenantId}/${id}/${section}/${basename}`;
 
     const { error: upErr } = await supabase.storage.from("stone-photos").upload(file_path, file, {
       cacheControl: "3600",
@@ -426,6 +504,12 @@ export default function SifaRehberiDetailPage() {
 
     const now = new Date().toISOString();
 
+    if (!queryTenantId) {
+      setSaving(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
     const { error } = await supabase
       .from("healing_guides")
       .update({
@@ -455,7 +539,7 @@ export default function SifaRehberiDetailPage() {
         images: draft.images.length > 0 ? draft.images : null,
         updated_at: now,
       })
-      .eq("tenant_id", TENANT_ID)
+      .eq("tenant_id", queryTenantId)
       .eq("id", id);
 
     setSaving(false);
@@ -485,7 +569,17 @@ export default function SifaRehberiDetailPage() {
     if (!id) return;
     setDeleting(true);
     setErrorMessage("");
-    const { error } = await supabase.from("healing_guides").delete().eq("tenant_id", TENANT_ID).eq("id", id);
+    if (!queryTenantId) {
+      setDeleting(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("healing_guides")
+      .delete()
+      .eq("tenant_id", queryTenantId)
+      .eq("id", id);
     setDeleting(false);
     if (error) {
       setErrorMessage(`Silinemedi: ${error.message}`);
@@ -563,6 +657,16 @@ export default function SifaRehberiDetailPage() {
                   </span>
                 )}
               </div>
+              {!editEnabled && symptoms?.trim() ? (
+                <div className="mt-3 rounded-2xl border border-emerald-100/90 bg-emerald-50/50 px-4 py-3 ring-1 ring-emerald-100/60">
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-800">
+                    Belirtiler
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-6 text-slate-700">
+                    {symptoms.trim()}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
@@ -612,24 +716,53 @@ export default function SifaRehberiDetailPage() {
         <section className="flex max-h-[min(92vh,900px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 lg:max-h-[min(88vh,960px)] lg:flex-row">
           <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 lg:w-[210px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
             <div className="space-y-1.5 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-2 ring-1 ring-white/90">
-              {DETAIL_TABS.map((t) => {
-                const active = tab === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[12px] font-black transition lg:min-w-0 ${
-                      active
-                        ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
-                        : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
-                    }`}
-                  >
-                    <span className="text-[16px] leading-none">{t.icon}</span>
-                    <span className="leading-tight">{t.label}</span>
-                  </button>
-                );
-              })}
+              {useSectionView
+                ? HEALING_SECTION_DISPLAY.map((t) => {
+                    const active = sectionTab === t.type;
+                    const count = groupedSections[t.type]?.length ?? 0;
+                    return (
+                      <button
+                        key={t.type}
+                        type="button"
+                        onClick={() => setSectionTab(t.type)}
+                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[12px] font-black transition lg:min-w-0 ${
+                          active
+                            ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
+                            : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
+                        }`}
+                      >
+                        <span className="text-[16px] leading-none">{t.icon}</span>
+                        <span className="flex-1 leading-tight">{t.label}</span>
+                        {count > 0 ? (
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                              active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })
+                : DETAIL_TABS.map((t) => {
+                    const active = tab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTab(t.id)}
+                        className={`flex w-full min-w-[156px] items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[12px] font-black transition lg:min-w-0 ${
+                          active
+                            ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.35)] ring-1 ring-emerald-500/40"
+                            : "bg-white/70 text-slate-700 ring-1 ring-emerald-100/60 hover:bg-white hover:ring-emerald-200/80"
+                        }`}
+                      >
+                        <span className="text-[16px] leading-none">{t.icon}</span>
+                        <span className="leading-tight">{t.label}</span>
+                      </button>
+                    );
+                  })}
             </div>
           </nav>
 
@@ -643,8 +776,12 @@ export default function SifaRehberiDetailPage() {
             />
 
             <div className="rounded-[22px] border border-white bg-white/80 p-5 shadow-md">
-              <h2 className="text-[18px] font-black tracking-tight text-slate-950">{activeTab.label}</h2>
-              <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-500">{activeTab.desc}</p>
+              <h2 className="text-[18px] font-black tracking-tight text-slate-950">
+                {useSectionView ? activeSectionMeta.label : activeTab.label}
+              </h2>
+              <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-500">
+                {useSectionView ? activeSectionMeta.desc : activeTab.desc}
+              </p>
 
               {editEnabled ? (
                 <div className="mt-4">
@@ -697,36 +834,81 @@ export default function SifaRehberiDetailPage() {
               ) : null}
 
               <div className="mt-6 space-y-5">
-                {activeTab.keys.map((key) => {
-                  const label = FIELD_LABELS[key];
-                  const value = draft[key];
-                  return (
-                    <div
-                      key={key}
-                      className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm ring-1 ring-slate-50/80"
-                    >
-                      <div className="mb-2 flex items-center gap-2 text-[13px] font-black tracking-tight text-slate-800">
-                        <span
-                          className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-sm ring-4 ring-emerald-100/90"
-                          aria-hidden
-                        />
-                        {label}
-                      </div>
-                      {editEnabled ? (
-                        <textarea
-                          value={value}
-                          onChange={(e) => setDraftField(key, e.target.value)}
-                          rows={6}
-                          className="w-full resize-y rounded-xl border border-slate-200/90 bg-white p-3 text-[13px] leading-6 text-slate-900 outline-none transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/50"
-                        />
-                      ) : (
-                        <div className="min-h-[72px] whitespace-pre-wrap rounded-xl border border-slate-100/90 bg-slate-50/50 p-3 text-[13px] leading-6 text-slate-700">
-                          {value.trim() ? value : <span className="text-slate-400">—</span>}
-                        </div>
-                      )}
+                {useSectionView ? (
+                  sectionsInActiveTab.length === 0 ? (
+                    <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                      <p className="text-[14px] font-black text-slate-700">Henüz kayıt yok</p>
+                      <p className="mt-1 text-[12px] font-medium text-slate-500">
+                        Bu bölüm için içerik henüz eklenmemiş.
+                      </p>
                     </div>
-                  );
-                })}
+                  ) : (
+                    sectionsInActiveTab.map((section) => (
+                      <div
+                        key={section.id}
+                        className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm ring-1 ring-slate-50/80"
+                      >
+                        {section.title?.trim() ? (
+                          <h3 className="text-[14px] font-black text-slate-900">{section.title.trim()}</h3>
+                        ) : null}
+                        {section.mode?.trim() ? (
+                          <p className="mt-1 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-700">
+                            {section.mode.trim()}
+                          </p>
+                        ) : null}
+                        {section.note?.trim() ? (
+                          <div className="mt-3 whitespace-pre-wrap rounded-xl border border-slate-100/90 bg-slate-50/50 p-3 text-[13px] leading-6 text-slate-700">
+                            {section.note.trim()}
+                          </div>
+                        ) : null}
+                        {section.source?.trim() ? (
+                          <p className="mt-2 text-[12px] font-medium text-slate-500">
+                            Kaynak: {section.source.trim()}
+                          </p>
+                        ) : null}
+                        {!section.title?.trim() &&
+                        !section.mode?.trim() &&
+                        !section.note?.trim() &&
+                        !section.source?.trim() ? (
+                          <p className="text-[13px] text-slate-400">Henüz kayıt yok</p>
+                        ) : null}
+                      </div>
+                    ))
+                  )
+                ) : (
+                  activeTab.keys.map((key) => {
+                    const label = FIELD_LABELS[key];
+                    const value = draft[key];
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm ring-1 ring-slate-50/80"
+                      >
+                        <div className="mb-2 flex items-center gap-2 text-[13px] font-black tracking-tight text-slate-800">
+                          <span
+                            className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-sm ring-4 ring-emerald-100/90"
+                            aria-hidden
+                          />
+                          {label}
+                        </div>
+                        {editEnabled ? (
+                          <textarea
+                            value={value}
+                            onChange={(e) => setDraftField(key, e.target.value)}
+                            rows={6}
+                            className="w-full resize-y rounded-xl border border-slate-200/90 bg-white p-3 text-[13px] leading-6 text-slate-900 outline-none transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/50"
+                          />
+                        ) : (
+                          <div className="min-h-[72px] whitespace-pre-wrap rounded-xl border border-slate-100/90 bg-slate-50/50 p-3 text-[13px] leading-6 text-slate-700">
+                            {value.trim() ? value : (
+                              <span className="text-slate-400">Henüz kayıt yok</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
