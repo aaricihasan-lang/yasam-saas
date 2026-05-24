@@ -255,6 +255,29 @@ const uiContentCard =
   "w-full rounded-[34px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_50px_rgba(16,185,129,0.14)] backdrop-blur-xl xl:p-8";
 const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 
+type PageView = "menu" | "new" | "list";
+
+const uiMenuCardBase =
+  "group relative flex min-h-[300px] flex-col overflow-hidden rounded-[34px] border-[3px] p-8 text-left shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_28px_80px_rgba(15,23,42,0.14)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40";
+
+function SifaRehberiMainMenuButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-emerald-400/50 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_14px_36px_-10px_rgba(5,150,105,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.03] hover:border-emerald-300/70 hover:shadow-[0_18px_44px_-8px_rgba(16,185,129,0.65)] sm:w-auto sm:justify-start sm:px-7 sm:text-[17px]"
+    >
+      <span
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
+        aria-hidden
+      >
+        🏠
+      </span>
+      <span>← Şifa Rehberi Ana Menü</span>
+    </button>
+  );
+}
+
 export default function SifaRehberiPage() {
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -263,7 +286,7 @@ export default function SifaRehberiPage() {
   const [search, setSearch] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [pageView, setPageView] = useState<PageView>("menu");
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [largeEditorKey, setLargeEditorKey] = useState<keyof GuideForm | null>(null);
@@ -310,14 +333,35 @@ export default function SifaRehberiPage() {
   }, []);
 
   useEffect(() => {
-    if (showForm) return;
+    if (pageView === "new") return;
     runInEffect(() => {
       setLargeEditorKey(null);
       setLargeEditorLabel("");
       setLargeEditorValue("");
       setFormTab("rahatsizlik");
     });
-  }, [showForm]);
+  }, [pageView]);
+
+  function goToMainMenu() {
+    setPageView("menu");
+    resetForm();
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLightbox(null);
+  }
+
+  function openNewRecord() {
+    resetForm();
+    setErrorMessage("");
+    setSuccessMessage("");
+    setPageView("new");
+  }
+
+  function openList() {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setPageView("list");
+  }
 
   const filteredRows = useMemo(() => {
     const list = rows.filter((row) => matchesListSearch(row, search));
@@ -490,10 +534,9 @@ export default function SifaRehberiPage() {
     }
 
     resetForm();
-    setShowForm(false);
     setSuccessMessage("Şifa rehberi kaydı oluşturuldu.");
     await loadGuides(queryTenantId);
-    resetForm();
+    setPageView("list");
   }
 
   return (
@@ -513,7 +556,11 @@ export default function SifaRehberiPage() {
             </h1>
 
             <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
-              Rahatsızlık bazlı bütünsel şifa rehberi — listeleyin, arayın ve yeni kayıt ekleyin.
+              {pageView === "menu"
+                ? "Yeni kayıt oluşturun veya kayıtlı şifa rehberi listenize geçin."
+                : pageView === "new"
+                  ? "Rahatsızlık bazlı yeni şifa rehberi kaydı oluşturun."
+                  : "Kayıtlı şifa rehberlerinizi arayın, listeleyin ve detaylarını açın."}
             </p>
 
             <Link
@@ -548,6 +595,87 @@ export default function SifaRehberiPage() {
           </div>
         </header>
 
+        {errorMessage ? (
+          <div className="rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {successMessage && !errorMessage ? (
+          <div className="rounded-2xl bg-emerald-50 px-5 py-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
+            {successMessage}
+          </div>
+        ) : null}
+
+        {pageView === "menu" ? (
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+            <button
+              type="button"
+              onClick={openNewRecord}
+              className={`${uiMenuCardBase} border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70`}
+            >
+              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-emerald-300/25 blur-3xl transition group-hover:bg-emerald-300/35" />
+              <div className="relative flex flex-1 flex-col">
+                <span className="inline-flex w-fit rounded-full border border-emerald-200/80 bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-800 shadow-sm">
+                  Manuel kayıt
+                </span>
+                <span className="mt-6 text-[56px] leading-none" aria-hidden>
+                  🌿
+                </span>
+                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 xl:text-4xl">
+                  Yeni Rahatsızlık Kaydı
+                </h2>
+                <p className="mt-3 max-w-md text-base font-medium leading-relaxed text-slate-600">
+                  Bölümlü form ile tıbbi nedenler, bitkisel yöntemler, doğaltaş ve destekleyici
+                  uygulamaları tek kayıtta toplayın.
+                </p>
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
+                  <span className="rounded-full bg-emerald-600 px-4 py-1.5 text-[12px] font-black text-white shadow-md ring-1 ring-emerald-500/30">
+                    {FORM_TABS.length} bölüm
+                  </span>
+                  <span className="rounded-full border border-emerald-200 bg-white/90 px-4 py-1.5 text-[12px] font-black text-emerald-800">
+                    Görsel destekli
+                  </span>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={openList}
+              className={`${uiMenuCardBase} border-violet-300/55 bg-gradient-to-br from-violet-50 via-indigo-50/95 to-sky-50/85 hover:border-violet-400/70 focus-visible:ring-violet-300/40`}
+            >
+              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-violet-300/25 blur-3xl transition group-hover:bg-violet-300/35" />
+              <div className="relative flex flex-1 flex-col">
+                <span className="inline-flex w-fit rounded-full border border-violet-200/80 bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-violet-800 shadow-sm">
+                  Kütüphane
+                </span>
+                <span className="mt-6 text-[56px] leading-none" aria-hidden>
+                  📚
+                </span>
+                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 xl:text-4xl">
+                  Kayıtlı Şifa Rehberi Listesi
+                </h2>
+                <p className="mt-3 max-w-md text-base font-medium leading-relaxed text-slate-600">
+                  Tüm rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin ve
+                  detay sayfasına geçin.
+                </p>
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
+                  <span className="rounded-full bg-violet-600 px-4 py-1.5 text-[12px] font-black text-white shadow-md ring-1 ring-violet-500/30">
+                    {loading ? "…" : `${rows.length} kayıt`}
+                  </span>
+                  <span className="rounded-full border border-violet-200 bg-white/90 px-4 py-1.5 text-[12px] font-black text-violet-800">
+                    {categoryCount} kategori
+                  </span>
+                </div>
+              </div>
+            </button>
+          </section>
+        ) : null}
+
+        {pageView !== "menu" ? <SifaRehberiMainMenuButton onClick={goToMainMenu} /> : null}
+
+        {pageView === "list" ? (
         <section className={uiFilterCard}>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="relative min-w-0 w-full flex-1">
@@ -593,11 +721,7 @@ export default function SifaRehberiPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm((v) => !v);
-                  setErrorMessage("");
-                  setSuccessMessage("");
-                }}
+                onClick={openNewRecord}
                 className={uiNewBtn}
               >
                 + Yeni Rahatsızlık
@@ -618,8 +742,9 @@ export default function SifaRehberiPage() {
             )}
           </div>
         </section>
+        ) : null}
 
-        {showForm && (
+        {pageView === "new" ? (
           <section className="mb-4 flex max-h-[min(92vh,920px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90">
             <div className="shrink-0 border-b border-slate-100/90 bg-white/60 px-5 py-5 backdrop-blur-sm lg:px-6">
               <h2 className="text-4xl font-black text-slate-950">Yeni rahatsızlık kaydı</h2>
@@ -773,12 +898,7 @@ export default function SifaRehberiPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                    setErrorMessage("");
-                    setSuccessMessage("");
-                  }}
+                  onClick={goToMainMenu}
                   className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200"
                 >
                   Kapat
@@ -786,20 +906,9 @@ export default function SifaRehberiPage() {
               </div>
             </div>
           </section>
-        )}
+        ) : null}
 
-        {errorMessage && (
-          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
-            {errorMessage}
-          </div>
-        )}
-
-        {successMessage && !errorMessage && (
-          <div className="mb-4 rounded-2xl bg-emerald-50 px-5 py-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
-            {successMessage}
-          </div>
-        )}
-
+        {pageView === "list" ? (
         <section className={uiContentCard}>
           {loading ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center text-base font-bold text-slate-500">
@@ -899,6 +1008,7 @@ export default function SifaRehberiPage() {
             </div>
           )}
         </section>
+        ) : null}
       </div>
 
       {lightbox && (
@@ -934,7 +1044,7 @@ export default function SifaRehberiPage() {
         </div>
       )}
 
-      {largeEditorKey && showForm && (
+      {largeEditorKey && pageView === "new" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
           <div
             className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.26)] ring-1 ring-white"
