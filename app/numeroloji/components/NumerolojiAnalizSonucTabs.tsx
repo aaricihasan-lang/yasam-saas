@@ -465,13 +465,10 @@ export function TabSonucOzeti({
 }
 
 function DetayCard({ title, children }: { title: string; children: ReactNode }) {
-  const typo = useContentTypography();
   return (
-    <section
-      className={`min-w-0 border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding}`}
-    >
-      <h3 className="border-b border-violet-100/80 pb-4 text-lg font-black tracking-wide text-slate-950">{title}</h3>
-      <div className="w-full min-w-0 pt-5">{children}</div>
+    <section className="min-w-0 rounded-[16px] border border-violet-200/70 bg-white/85 p-4 shadow-[0_0_14px_rgba(139,92,246,0.07)] sm:p-5">
+      <h3 className="border-b border-violet-100/60 pb-2 text-sm font-black uppercase tracking-wider text-slate-600">{title}</h3>
+      <div className="w-full min-w-0 pt-3">{children}</div>
     </section>
   );
 }
@@ -562,7 +559,7 @@ function NumeroCardBody({
   const stepsPre = `mt-2 whitespace-pre-wrap border-t border-slate-100 pt-3 ${typo.pre} text-slate-800`;
   return (
     <div className="space-y-2">
-      <p className={`${typo.display} text-violet-900`}>{nrDisplay(r)}</p>
+      <p className="text-4xl font-black text-violet-900">{nrDisplay(r)}</p>
       {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>Anahtar: {k}</p> : null}
       {r.steps?.length ? (
         <pre
@@ -582,7 +579,8 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
   const typo = useContentTypography();
   return (
     <pre
-      className={`min-w-0 w-full whitespace-pre-wrap border-[3px] border-violet-200/90 bg-white/85 shadow-[0_0_32px_rgba(139,92,246,0.10)] ${typo.boxPadding} ${typo.pre}`}
+      className={`min-w-0 w-full whitespace-pre-wrap rounded-[18px] border border-violet-200/70 bg-white/85 p-4 shadow-[0_0_18px_rgba(139,92,246,0.07)] sm:p-5 ${typo.pre}`}
+      style={{ lineHeight: "1.65" }}
     >
       {buildPlainAnalizFull(out)}
     </pre>
@@ -656,7 +654,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       ? `mb-3 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`
       : `mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`;
   return (
-    <div className="flex flex-col gap-4 sm:gap-5">
+    <div className="flex flex-col gap-2 sm:gap-3">
       <DetayCard title="Ana Kulvar">
         <NumeroCardBody
           r={out.anaKulvar}
