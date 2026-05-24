@@ -27,7 +27,8 @@ function StatBox({ label, value }: { label: string; value: number }) {
 
 const SECTION_TYPE_LABELS: Record<string, string> = {
   reasons: "Nedenler",
-  herbal: "Bitkisel",
+  applications: "Uygulamalar",
+  herbal: "Bitkisel (eski)",
   stones_details: "Taş Detayları",
   islamic_suggestions: "İslami Öneriler",
   supportive: "Destekleyici",

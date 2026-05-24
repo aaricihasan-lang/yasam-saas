@@ -58,10 +58,10 @@ export const HEALING_SECTION_DISPLAY: {
     desc: "Tıbbi, bilinçaltı ve diğer olası nedenler.",
   },
   {
-    type: "herbal",
-    label: "Bitkisel Yöntemler",
-    icon: "🌿",
-    desc: "Bitkisel uygulama ve öneriler.",
+    type: "applications",
+    label: "Uygulamalar / Yöntemler",
+    icon: "🙌",
+    desc: "Hacamat, diyet, refleksoloji, bitkisel ve diğer yöntemler.",
   },
   {
     type: "stones_details",
@@ -379,6 +379,7 @@ export function groupSectionsByType(
 ): Record<HealingGuideSectionType, HealingGuideSectionRow[]> {
   const grouped: Record<HealingGuideSectionType, HealingGuideSectionRow[]> = {
     reasons: [],
+    applications: [],
     herbal: [],
     stones_details: [],
     islamic_suggestions: [],
@@ -386,6 +387,10 @@ export function groupSectionsByType(
   };
 
   for (const section of sections) {
+    if (section.section_type === "herbal" || section.section_type === "applications") {
+      grouped.applications.push(section);
+      continue;
+    }
     if (grouped[section.section_type]) {
       grouped[section.section_type].push(section);
     }

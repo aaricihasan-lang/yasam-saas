@@ -2,11 +2,42 @@ import { supabase } from "@/lib/supabase";
 
 export const HEALING_GUIDE_SECTION_TYPES = [
   "reasons",
+  "applications",
   "herbal",
   "stones_details",
   "islamic_suggestions",
   "supportive",
 ] as const;
+
+/** Nedenler / Sebepler — yalnızca bu mode değerleri reasons kalır */
+const REASON_ONLY_MODES = new Set(["bilincalti", "mizac", "tibbi", "diger"]);
+
+/** Uygulama/yöntem mode → applications + varsayılan başlık */
+const APPLICATION_MODE_TITLES: Record<string, string> = {
+  hacamat_suluk: "Hacamat & Sülük",
+  hacamat: "Hacamat & Sülük",
+  cupping_leech: "Hacamat & Sülük",
+  diyet: "Diyet Önerileri",
+  diet_recommendations: "Diyet Önerileri",
+  refleksoloji: "Refleksoloji",
+  reflexology: "Refleksoloji",
+  uygulama: "Uygulama",
+  masaj: "Masaj",
+  massage: "Masaj",
+  nefes: "Nefes",
+  breathwork: "Nefes",
+  bioenerji: "Biyoenerji",
+  bioenergy: "Biyoenerji",
+  bitkisel: "Bitkisel Yöntemler",
+  herbal_methods: "Bitkisel Yöntemler",
+};
+
+const LEGACY_HERBAL_FIELD_META: Record<string, { mode: string; title: string }> = {
+  cupping_leech: { mode: "hacamat_suluk", title: "Hacamat & Sülük" },
+  reflexology: { mode: "refleksoloji", title: "Refleksoloji" },
+  diet_recommendations: { mode: "diyet", title: "Diyet Önerileri" },
+  herbal_methods: { mode: "bitkisel", title: "Bitkisel Yöntemler" },
+};
 
 export type HealingGuideSectionType = (typeof HEALING_GUIDE_SECTION_TYPES)[number];
 
@@ -172,6 +203,71 @@ function humanizeKey(key: string): string {
     .replace(/\b\w/g, (char) => char.toLocaleUpperCase("tr-TR"));
 }
 
+function normalizeModeKey(mode: string | null | undefined): string {
+  const raw = textValue(mode);
+  if (!raw) return "";
+  return raw
+    .toLocaleLowerCase("tr-TR")
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+}
+
+function defaultTitleForApplicationMode(modeKey: string): string {
+  return APPLICATION_MODE_TITLES[modeKey] ?? humanizeKey(modeKey);
+}
+
+function isApplicationModeKey(modeKey: string): boolean {
+  if (!modeKey) return false;
+  if (REASON_ONLY_MODES.has(modeKey)) return false;
+  return modeKey in APPLICATION_MODE_TITLES;
+}
+
+function finalizeImportedSection(
+  section: Omit<HealingGuideSectionInsert, "guide_id">,
+  sourceBlock: HealingGuideSectionType,
+): Omit<HealingGuideSectionInsert, "guide_id"> {
+  if (
+    sourceBlock === "supportive" ||
+    sourceBlock === "stones_details" ||
+    sourceBlock === "islamic_suggestions"
+  ) {
+    return { ...section, section_type: sourceBlock };
+  }
+
+  const modeKey = normalizeModeKey(section.mode);
+
+  if (REASON_ONLY_MODES.has(modeKey)) {
+    return { ...section, section_type: "reasons" };
+  }
+
+  if (isApplicationModeKey(modeKey)) {
+    return {
+      ...section,
+      section_type: "applications",
+      title: textValue(section.title) || defaultTitleForApplicationMode(modeKey),
+    };
+  }
+
+  if (sourceBlock === "herbal" || section.section_type === "herbal") {
+    return {
+      ...section,
+      section_type: "applications",
+      title: textValue(section.title) || "Bitkisel Yöntemler",
+      mode: section.mode || "bitkisel",
+    };
+  }
+
+  if (sourceBlock === "applications") {
+    return {
+      ...section,
+      section_type: "applications",
+      title: textValue(section.title) || (modeKey ? defaultTitleForApplicationMode(modeKey) : null),
+    };
+  }
+
+  return section;
+}
+
 function sectionFromParts(
   sectionType: HealingGuideSectionType,
   parts: {
@@ -227,22 +323,34 @@ function parseSectionEntry(
   });
 }
 
+function pushFinalizedSection(
+  bucket: Omit<HealingGuideSectionInsert, "guide_id">[],
+  section: Omit<HealingGuideSectionInsert, "guide_id">,
+  sourceBlock: HealingGuideSectionType,
+) {
+  bucket.push(finalizeImportedSection(section, sourceBlock));
+}
+
 function normalizeSectionBlock(
   value: unknown,
   sectionType: HealingGuideSectionType,
+  sourceBlock: HealingGuideSectionType = sectionType,
 ): Omit<HealingGuideSectionInsert, "guide_id">[] {
   if (value == null) return [];
 
   if (typeof value === "string") {
     const single = sectionFromParts(sectionType, { note: value });
-    return single ? [single] : [];
+    if (!single) return [];
+    const sections: Omit<HealingGuideSectionInsert, "guide_id">[] = [];
+    pushFinalizedSection(sections, single, sourceBlock);
+    return sections;
   }
 
   if (Array.isArray(value)) {
     const sections: Omit<HealingGuideSectionInsert, "guide_id">[] = [];
     for (const entry of value) {
       const parsed = parseSectionEntry(entry, sectionType);
-      if (parsed) sections.push(parsed);
+      if (parsed) pushFinalizedSection(sections, parsed, sourceBlock);
     }
     return sections;
   }
@@ -260,7 +368,7 @@ function normalizeSectionBlock(
             title: label,
             note: sub,
           });
-          if (parsed) sections.push(parsed);
+          if (parsed) pushFinalizedSection(sections, parsed, "supportive");
           continue;
         }
 
@@ -269,7 +377,7 @@ function normalizeSectionBlock(
             const parsed =
               parseSectionEntry(entry, "supportive", mode) ??
               sectionFromParts("supportive", { mode, title: label, note: textValue(entry) });
-            if (parsed) sections.push(parsed);
+            if (parsed) pushFinalizedSection(sections, parsed, "supportive");
           }
           continue;
         }
@@ -282,14 +390,17 @@ function normalizeSectionBlock(
               title: textValue((sub as Record<string, unknown>).title) || label,
               note: textValue((sub as Record<string, unknown>).note),
             });
-          if (parsed) sections.push(parsed);
+          if (parsed) pushFinalizedSection(sections, parsed, "supportive");
         }
       }
       return sections;
     }
 
     const single = parseSectionEntry(value, sectionType);
-    return single ? [single] : [];
+    if (!single) return [];
+    const sections: Omit<HealingGuideSectionInsert, "guide_id">[] = [];
+    pushFinalizedSection(sections, single, sourceBlock);
+    return sections;
   }
 
   return [];
@@ -299,17 +410,19 @@ function legacyStringSections(
   item: Record<string, unknown>,
   fields: readonly string[],
   sectionType: HealingGuideSectionType,
+  sourceBlock: HealingGuideSectionType = sectionType,
 ): Omit<HealingGuideSectionInsert, "guide_id">[] {
   const sections: Omit<HealingGuideSectionInsert, "guide_id">[] = [];
   for (const field of fields) {
     const text = textValue(item[field]);
     if (!text) continue;
+    const herbalMeta = LEGACY_HERBAL_FIELD_META[field];
     const parsed = sectionFromParts(sectionType, {
-      mode: humanizeKey(field),
-      title: SUPPORTIVE_SUBKEY_LABELS[field] ?? humanizeKey(field),
+      mode: herbalMeta?.mode ?? field,
+      title: herbalMeta?.title ?? SUPPORTIVE_SUBKEY_LABELS[field] ?? humanizeKey(field),
       note: text,
     });
-    if (parsed) sections.push(parsed);
+    if (parsed) pushFinalizedSection(sections, parsed, sourceBlock);
   }
   return sections;
 }
@@ -352,12 +465,17 @@ export function mapHealingGuideJsonItem(item: Record<string, unknown>): HealingG
 
   const sections: Omit<HealingGuideSectionInsert, "guide_id">[] = [];
 
-  for (const sectionType of HEALING_GUIDE_SECTION_TYPES) {
-    sections.push(...normalizeSectionBlock(item[sectionType], sectionType));
-  }
+  sections.push(...normalizeSectionBlock(item.reasons, "reasons", "reasons"));
+  sections.push(...normalizeSectionBlock(item.herbal, "applications", "herbal"));
+  sections.push(...normalizeSectionBlock(item.applications, "applications", "applications"));
+  sections.push(...normalizeSectionBlock(item.stones_details, "stones_details", "stones_details"));
+  sections.push(
+    ...normalizeSectionBlock(item.islamic_suggestions, "islamic_suggestions", "islamic_suggestions"),
+  );
+  sections.push(...normalizeSectionBlock(item.supportive, "supportive", "supportive"));
 
-  sections.push(...legacyStringSections(item, LEGACY_REASON_FIELDS, "reasons"));
-  sections.push(...legacyStringSections(item, LEGACY_HERBAL_FIELDS, "herbal"));
+  sections.push(...legacyStringSections(item, LEGACY_REASON_FIELDS, "reasons", "reasons"));
+  sections.push(...legacyStringSections(item, LEGACY_HERBAL_FIELDS, "applications", "applications"));
 
   const stoneText = textValue(item.stone_recommendations);
   if (stoneText) {
@@ -433,6 +551,7 @@ export function computeHealingGuideImportStats(
 ): HealingGuideImportStats {
   const sectionTypeCounts: Record<HealingGuideSectionType, number> = {
     reasons: 0,
+    applications: 0,
     herbal: 0,
     stones_details: 0,
     islamic_suggestions: 0,
