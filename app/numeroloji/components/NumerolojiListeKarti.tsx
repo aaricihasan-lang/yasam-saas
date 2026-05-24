@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { extractSummaryFromAnalysisData } from "../utils/analysisJson";
+import { extractMotorFromAnalysisJson } from "../utils/analysisJson";
+import { nrDisplay } from "../utils/numerolojiPlainMetin";
 
 export type NumerolojiListeSatir = {
   id: string;
@@ -12,41 +13,66 @@ export type NumerolojiListeSatir = {
   analysis_data?: unknown;
 };
 
+function NrChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+      <span className="text-sm font-black text-violet-700">{value}</span>
+    </span>
+  );
+}
+
 export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
-  const summary = extractSummaryFromAnalysisData(row.analysis_data);
+  const motor = extractMotorFromAnalysisJson(row.analysis_data);
+
+  const pin = motor?.pinKodu;
+  const pinStr = pin
+    ? [pin.k1, pin.k2, pin.k3, pin.k4, pin.k5].join(" · ")
+    : null;
 
   return (
     <li>
       <Link
         href={`/numeroloji/liste/${row.id}`}
-        className="group relative block overflow-hidden rounded-[30px] border-[3px] border-violet-300/45 bg-white/80 p-7 no-underline shadow-[0_0_40px_rgba(139,92,246,0.14)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-fuchsia-400 hover:shadow-[0_0_50px_rgba(217,70,239,0.18)]"
+        className="group relative block overflow-hidden rounded-[18px] border border-violet-200/70 bg-white/80 px-5 py-3.5 no-underline backdrop-blur-xl transition-all duration-200 hover:border-violet-300 hover:bg-white/95 hover:shadow-[0_4px_16px_rgba(139,92,246,0.10)]"
       >
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-500/[0.06] via-transparent to-fuchsia-500/[0.05] opacity-0 transition group-hover:opacity-100"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-500/[0.03] via-transparent to-fuchsia-500/[0.03] opacity-0 transition group-hover:opacity-100"
           aria-hidden
         />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-3xl font-black text-slate-950">{adSoyad}</h2>
-          <span className="inline-flex shrink-0 items-center rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-7 py-4 text-base font-black tracking-wide text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 group-hover:-translate-y-1">
+
+        <div className="relative flex items-center justify-between gap-3">
+          <h2 className="text-lg font-black leading-tight text-slate-900">{adSoyad}</h2>
+          <span className="inline-flex shrink-0 items-center rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3.5 py-1 text-[11px] font-black tracking-wide text-white shadow-[0_2px_8px_rgba(139,92,246,0.22)]">
             DETAY
           </span>
         </div>
-        <p className="relative mt-4 text-lg font-black text-slate-700">
-          Doğum tarihi: {row.birth_date}
-        </p>
-        {summary ? (
-          <p className="relative mt-4 text-base font-semibold leading-8 text-slate-600 xl:text-lg">
-            {summary}
-          </p>
+
+        <div className="relative mt-0.5 flex flex-wrap gap-x-4 gap-y-0 text-xs font-medium text-slate-400">
+          <span>Doğum: {row.birth_date}</span>
+          <span>
+            {new Date(row.created_at).toLocaleString("tr-TR", {
+              dateStyle: "short",
+              timeStyle: "short",
+            })}
+          </span>
+        </div>
+
+        {motor ? (
+          <div className="relative mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-violet-100 pt-2.5">
+            <NrChip label="Ana" value={nrDisplay(motor.anaKulvar)} />
+            <NrChip label="Yan" value={nrDisplay(motor.yanKulvar)} />
+            <NrChip label="İfade" value={nrDisplay(motor.ifadeSayisi)} />
+            <NrChip label="Hayat Yolu" value={nrDisplay(motor.hayatYolu)} />
+            {pinStr ? (
+              <span className="ml-auto text-[11px] font-medium text-slate-400">
+                PIN{" "}
+                <span className="font-black text-slate-600">{pinStr}</span>
+              </span>
+            ) : null}
+          </div>
         ) : null}
-        <p className="relative mt-4 text-sm font-semibold text-slate-500 xl:text-base">
-          Oluşturulma:{" "}
-          {new Date(row.created_at).toLocaleString("tr-TR", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </p>
       </Link>
     </li>
   );
