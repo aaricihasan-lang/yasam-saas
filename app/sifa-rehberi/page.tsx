@@ -3,7 +3,15 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
   countListFilledSections,
@@ -477,6 +485,20 @@ function FormFieldMiniCard({
 }
 
 export default function SifaRehberiPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#dcfce7_0%,#ecfeff_35%,#f8fafc_100%)] text-sm font-bold text-slate-500">
+          Yükleniyor…
+        </div>
+      }
+    >
+      <SifaRehberiContent />
+    </Suspense>
+  );
+}
+
+function SifaRehberiContent() {
   const searchParams = useSearchParams();
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
