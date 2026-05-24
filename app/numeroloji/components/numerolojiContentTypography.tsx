@@ -70,7 +70,7 @@ export function useContentTypography(): ContentTypography {
 }
 
 const fontBtnBase =
-  "inline-flex items-center justify-center rounded-xl px-5 py-3 text-base font-black transition-all";
+  "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-bold transition-all";
 
 export function NumerolojiFontSizeControl({
   value,
@@ -97,11 +97,11 @@ export function NumerolojiFontSizeControl({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-violet-200 bg-white/80 p-3 shadow-sm sm:gap-3"
+      className="flex flex-wrap items-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 p-2 shadow-sm sm:gap-2"
       role="group"
       aria-label="Yazı boyutu"
     >
-      <span className="hidden text-base font-black text-slate-700 sm:inline">Yazı boyutu</span>
+      <span className="hidden text-sm font-bold text-slate-600 sm:inline">Yazı boyutu</span>
       <button
         type="button"
         onClick={decrease}
@@ -117,7 +117,7 @@ export function NumerolojiFontSizeControl({
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
-            className={`rounded-xl px-5 py-3 text-base font-black transition ${
+            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${
               value === opt.id ? "bg-violet-500 text-white shadow-sm" : "text-slate-700 hover:bg-violet-50"
             }`}
           >
