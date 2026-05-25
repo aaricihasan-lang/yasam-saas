@@ -254,6 +254,8 @@ function DogaltasListesiPageContent() {
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneListItem | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
@@ -441,6 +443,18 @@ function DogaltasListesiPageContent() {
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    if (stoneToDelete) setMobileDeleteStep(1);
+  }, [stoneToDelete]);
 
   const isSearchActive = Boolean(debouncedSearch);
   const activeSearch = debouncedSearch;
@@ -757,9 +771,9 @@ function DogaltasListesiPageContent() {
               )}
             </div>
           ) : viewMode === "list" ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[700px]">
-              <div className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+            <div>
+              {/* Column headers — desktop only */}
+              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
                 <div className="w-8" aria-hidden />
                 <div>Taş</div>
                 <div>Açıklama</div>
@@ -781,144 +795,71 @@ function DogaltasListesiPageContent() {
                   const displayDescription = safeText(stone.short_description);
 
                   return (
-                    <div
-                      key={stone.id}
-                      className={`relative grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 ${
-                        isSelected ? "bg-violet-50/60" : ""
-                      } ${
-                        isViewedInSearch
-                          ? "border-l-4 border-rose-600"
-                          : isSearchActive
-                            ? "border-l-4 border-amber-400"
-                            : ""
-                      }`}
-                    >
-                      {isViewedInSearch ? (
-                        <span
-                          className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-                          aria-hidden
-                        />
-                      ) : null}
-                      <div className="flex items-center">
+                    <Fragment key={stone.id}>
+                      {/* Mobile row: checkbox + image/name + delete only */}
+                      <div
+                        className={`relative flex items-center gap-3 border-b border-cyan-100 px-4 py-3.5 transition-colors hover:bg-cyan-50/70 md:hidden ${
+                          isSelected ? "bg-violet-50/60" : ""
+                        } ${
+                          isViewedInSearch
+                            ? "border-l-4 border-rose-600"
+                            : isSearchActive
+                              ? "border-l-4 border-amber-400"
+                              : ""
+                        }`}
+                      >
+                        {isViewedInSearch ? (
+                          <span className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600" aria-hidden />
+                        ) : null}
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleStoneSelection(stone.id)}
                           onClick={(event) => event.stopPropagation()}
-                          aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                          aria-label={`${displayName} seç`}
                           className={uiRowCheckbox}
                         />
-                      </div>
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          if (isSearchActive) handleStoneNavigate(stone.id);
-                        }}
-                        className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
-                      >
-                        <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
-                          {coverImageUrl ? (
-                            <img
-                              src={coverImageUrl}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[20px]">
-                              💎
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          {isSearchActive ? (
-                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                              {isViewedInSearch ? (
-                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                  Bakıldı
-                                </span>
-                              ) : null}
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex min-w-0 flex-1 items-center gap-3 ${isViewedInSearch ? "pl-1" : ""}`}
+                        >
+                          <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                            {coverImageUrl ? (
+                              <img
+                                src={coverImageUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-[20px]">
+                                💎
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {isSearchActive ? (
+                              <div className="mb-0.5 flex flex-wrap items-center gap-1">
+                                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
+                                {isViewedInSearch ? (
+                                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-rose-800 ring-1 ring-rose-200">
+                                    Bakıldı
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <div className="truncate text-sm font-black text-slate-950">
+                              {isSearchActive
+                                ? renderHighlightedText(displayName, activeSearch)
+                                : displayName}
                             </div>
-                          ) : null}
-                          <div className="truncate text-base font-black text-slate-950 xl:text-lg">
-                            {isSearchActive
-                              ? renderHighlightedText(displayName, activeSearch)
-                              : displayName}
+                            <div className="mt-0.5 text-xs font-bold text-cyan-700">Detayı aç →</div>
                           </div>
-
-                          <div className="mt-0.5 text-xs font-bold text-cyan-700 hover:text-violet-700 xl:text-sm">
-                            Detayı aç →
-                          </div>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          if (isSearchActive) handleStoneNavigate(stone.id);
-                        }}
-                        className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-                      >
-                        {isSearchActive
-                          ? renderHighlightedText(displayDescription, activeSearch)
-                          : displayDescription}
-                      </Link>
-
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          if (isSearchActive) handleStoneNavigate(stone.id);
-                        }}
-                        className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
-                      >
-                        <div className="flex flex-wrap gap-1.5">
-                          {(stone.chakras || []).slice(0, 2).map((chakra) => (
-                            <span
-                              key={chakra}
-                              className={uiBadgeChakra}
-                            >
-                              {chakra}
-                            </span>
-                          ))}
-
-                          {(stone.chakras || []).length === 0 && (
-                            <span className="text-[11px] font-bold text-slate-300">
-                              -
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          if (isSearchActive) handleStoneNavigate(stone.id);
-                        }}
-                        className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
-                      >
-                        <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
-
-                        {imageCount > 0 && (
-                          <span className={uiBadgeImage}>
-                            {imageCount} görsel
-                          </span>
-                        )}
-                      </Link>
-
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          if (isSearchActive) handleStoneNavigate(stone.id);
-                        }}
-                        className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-                      >
-                        {formatDate(stone.updated_at)}
-                      </Link>
-
-                      <div className="flex flex-col items-end justify-center">
+                        </Link>
                         <button
                           type="button"
                           onClick={(event) => {
@@ -926,15 +867,166 @@ function DogaltasListesiPageContent() {
                             event.stopPropagation();
                             setStoneToDelete(stone);
                           }}
-                          className={uiDeleteBtn}
+                          className="min-h-[44px] shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                         >
                           Sil
                         </button>
                       </div>
-                    </div>
+
+                      {/* Desktop row: all 7 columns */}
+                      <div
+                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 md:grid ${
+                          isSelected ? "bg-violet-50/60" : ""
+                        } ${
+                          isViewedInSearch
+                            ? "border-l-4 border-rose-600"
+                            : isSearchActive
+                              ? "border-l-4 border-amber-400"
+                              : ""
+                        }`}
+                      >
+                        {isViewedInSearch ? (
+                          <span
+                            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                            aria-hidden
+                          />
+                        ) : null}
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleStoneSelection(stone.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                            className={uiRowCheckbox}
+                          />
+                        </div>
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
+                          <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                            {coverImageUrl ? (
+                              <img
+                                src={coverImageUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-[20px]">
+                                💎
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            {isSearchActive ? (
+                              <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                                {isViewedInSearch ? (
+                                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                                    Bakıldı
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <div className="truncate text-base font-black text-slate-950 xl:text-lg">
+                              {isSearchActive
+                                ? renderHighlightedText(displayName, activeSearch)
+                                : displayName}
+                            </div>
+
+                            <div className="mt-0.5 text-xs font-bold text-cyan-700 hover:text-violet-700 xl:text-sm">
+                              Detayı aç →
+                            </div>
+                          </div>
+                        </Link>
+
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
+                          {isSearchActive
+                            ? renderHighlightedText(displayDescription, activeSearch)
+                            : displayDescription}
+                        </Link>
+
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
+                          <div className="flex flex-wrap gap-1.5">
+                            {(stone.chakras || []).slice(0, 2).map((chakra) => (
+                              <span
+                                key={chakra}
+                                className={uiBadgeChakra}
+                              >
+                                {chakra}
+                              </span>
+                            ))}
+
+                            {(stone.chakras || []).length === 0 && (
+                              <span className="text-[11px] font-bold text-slate-300">
+                                -
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
+                          <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
+
+                          {imageCount > 0 && (
+                            <span className={uiBadgeImage}>
+                              {imageCount} görsel
+                            </span>
+                          )}
+                        </Link>
+
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
+                        >
+                          {formatDate(stone.updated_at)}
+                        </Link>
+
+                        <div className="flex flex-col items-end justify-center">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setStoneToDelete(stone);
+                            }}
+                            className={uiDeleteBtn}
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </div>
+                    </Fragment>
                   );
                 })}
-              </div>
               </div>
             </div>
           ) : (
@@ -1107,41 +1199,98 @@ function DogaltasListesiPageContent() {
       {stoneToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
           <div className="w-full max-w-[430px] rounded-[28px] bg-white p-6 text-center shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
-              ⚠️
-            </div>
-
-            <h2 className="mt-4 text-[22px] font-black text-slate-950">
-              Taşı Sil
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-              <b>{stoneToDelete.stone_name || "İsimsiz taş"}</b> kaydını silmek istediğinizden emin misiniz?
-            </p>
-
-            <p className="mt-2 text-[12px] font-bold text-rose-600">
-              Bu işlem geri alınamaz.
-            </p>
-
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setStoneToDelete(null)}
-                disabled={deleteLoading}
-                className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
-              >
-                Vazgeç
-              </button>
-
-              <button
-                type="button"
-                onClick={deleteStone}
-                disabled={deleteLoading}
-                className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
-              >
-                {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
-              </button>
-            </div>
+            {isMobile && mobileDeleteStep === 2 ? (
+              <>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-[28px] ring-1 ring-rose-200">
+                  🚨
+                </div>
+                <h2 className="mt-4 text-[22px] font-black text-slate-950">
+                  Son Onay
+                </h2>
+                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
+                  Bu işlem <b>geri alınamaz.</b> Kalıcı olarak silinsin mi?
+                </p>
+                <div className="mt-6 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStoneToDelete(null)}
+                    disabled={deleteLoading}
+                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteStone}
+                    disabled={deleteLoading}
+                    className="min-h-[44px] rounded-2xl bg-rose-700 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-800 disabled:opacity-60"
+                  >
+                    {deleteLoading ? "Siliniyor..." : "Evet, Kalıcı Sil"}
+                  </button>
+                </div>
+              </>
+            ) : isMobile ? (
+              <>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
+                  ⚠️
+                </div>
+                <h2 className="mt-4 text-[22px] font-black text-slate-950">
+                  Taşı Sil
+                </h2>
+                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
+                  <b>{stoneToDelete.stone_name || "İsimsiz taş"}</b> kaydını silmek istiyor musunuz?
+                </p>
+                <div className="mt-6 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStoneToDelete(null)}
+                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200"
+                  >
+                    Hayır
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileDeleteStep(2)}
+                    className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
+                  >
+                    Evet
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
+                  ⚠️
+                </div>
+                <h2 className="mt-4 text-[22px] font-black text-slate-950">
+                  Taşı Sil
+                </h2>
+                <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
+                  <b>{stoneToDelete.stone_name || "İsimsiz taş"}</b> kaydını silmek istediğinizden emin misiniz?
+                </p>
+                <p className="mt-2 text-[12px] font-bold text-rose-600">
+                  Bu işlem geri alınamaz.
+                </p>
+                <div className="mt-6 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStoneToDelete(null)}
+                    disabled={deleteLoading}
+                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteStone}
+                    disabled={deleteLoading}
+                    className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
+                  >
+                    {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1154,11 +1303,7 @@ function DogaltasListesiPageFallback() {
     <main className={pageBg}>
       <div className={pageContent}>
         <div className={`${uiTableCard} p-0`}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[700px]">
-              <ListSkeletonRows count={8} />
-            </div>
-          </div>
+          <ListSkeletonRows count={8} />
         </div>
       </div>
     </main>
