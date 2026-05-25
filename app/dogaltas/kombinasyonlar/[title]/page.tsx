@@ -141,22 +141,22 @@ function formatDate(value: string | null | undefined) {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-6 xl:px-10 2xl:px-14";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-violet-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
+  "rounded-[28px] border-[3px] border-violet-400/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 lg:p-8";
 const uiVariantCard =
-  "w-full rounded-[34px] border-[3px] border-cyan-300/45 bg-white/78 p-8 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+  "w-full rounded-[28px] border-[3px] border-cyan-300/45 bg-white/78 p-4 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 lg:p-8";
 const uiFieldBox =
-  "rounded-[26px] border-[3px] border-violet-200 bg-gradient-to-br from-white/85 to-violet-50/70 p-6 shadow-[0_0_30px_rgba(139,92,246,0.10)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.16)]";
-const uiFieldLabel = "text-sm font-black uppercase tracking-[0.18em] text-violet-700";
-const uiFieldContent = "mt-4 text-lg font-semibold leading-8 text-slate-800";
+  "rounded-[20px] border-[2px] border-violet-200 bg-gradient-to-br from-white/85 to-violet-50/70 p-4 shadow-[0_0_20px_rgba(139,92,246,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.14)] sm:rounded-[26px] sm:border-[3px] sm:p-6 sm:shadow-[0_0_30px_rgba(139,92,246,0.10)]";
+const uiFieldLabel = "text-xs font-black uppercase tracking-[0.12em] text-violet-700 sm:text-sm sm:tracking-[0.18em]";
+const uiFieldContent = "mt-3 text-base font-semibold leading-relaxed text-slate-800 sm:mt-4 sm:text-lg sm:leading-8";
 const uiEmptyText = "text-slate-400 italic font-medium";
 const uiDatesBox =
-  "rounded-[26px] border-[3px] border-amber-200 bg-gradient-to-br from-white/85 to-amber-50/70 p-6 shadow-[0_0_30px_rgba(245,158,11,0.12)]";
+  "rounded-[20px] border-[2px] border-amber-200 bg-gradient-to-br from-white/85 to-amber-50/70 p-3 shadow-[0_0_20px_rgba(245,158,11,0.10)] sm:rounded-[26px] sm:border-[3px] sm:p-5 lg:p-6";
 const uiComboBadge =
-  "inline-flex items-center rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2 text-sm font-black text-white shadow-md";
+  "inline-flex items-center rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-black text-white shadow-md sm:px-5 sm:py-2 sm:text-sm";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-4 py-1.5 text-sm font-black text-cyan-900";
+  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900 sm:px-4 sm:py-1.5 sm:text-sm";
 
 function FieldBlock({
   label,
@@ -225,7 +225,7 @@ function VariantCard({
 
   return (
     <article className={cardClass}>
-      <div className="flex flex-col gap-3 border-b border-cyan-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-cyan-100 pb-4 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className={uiComboBadge}>{positionLabel}</span>
@@ -251,7 +251,7 @@ function VariantCard({
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
         <FieldBlock
           label="Kaynak"
           text={row.source}
@@ -423,12 +423,12 @@ function KombinasyonDetayPageContent() {
           )}
         >
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
+            <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black tracking-[0.18em] text-violet-700 sm:px-5 sm:py-2 sm:text-sm">
               KOMBİNASYON DETAY
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+              <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
                 {hasHighlight
                   ? renderHighlightedText(decodedIssue, highlightQuery)
                   : decodedIssue}
@@ -454,7 +454,7 @@ function KombinasyonDetayPageContent() {
               </p>
             ) : null}
 
-            <p className="mt-3 text-lg font-medium text-slate-600">
+            <p className="mt-3 text-sm font-medium text-slate-600 sm:text-base lg:text-lg">
               {loading
                 ? "Kayıtlar yükleniyor..."
                 : rows.length === 0
@@ -466,7 +466,7 @@ function KombinasyonDetayPageContent() {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href={listBackHref}
-              className="rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
+              className="min-h-[44px] rounded-2xl border-2 border-violet-200 bg-white px-4 py-3 font-black text-slate-800 shadow-md hover:bg-violet-50 sm:px-6 sm:py-4"
             >
               {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
@@ -474,7 +474,7 @@ function KombinasyonDetayPageContent() {
             <button
               type="button"
               onClick={() => void loadRows()}
-              className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
+              className="min-h-[44px] rounded-2xl border-2 border-cyan-200 bg-white px-4 py-3 font-black text-slate-800 shadow-md hover:bg-cyan-50 sm:px-6 sm:py-4"
             >
               Yenile
             </button>
