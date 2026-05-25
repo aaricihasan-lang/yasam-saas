@@ -505,6 +505,57 @@ export default function KombinasyonlarPage() {
     await loadCombinations();
   }, [confirm, isMobile, selectedIds, showToast]);
 
+  const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
+    const firstConfirmed = await confirm({
+      title: "Bu kombinasyonu silmek istiyor musunuz?",
+      message: `"${issueKey}" grubundaki tüm kayıtlar silinecek`,
+      tone: "danger",
+      confirmText: "Evet",
+      cancelText: "Hayır",
+    });
+    if (!firstConfirmed) return;
+
+    const secondConfirmed = await confirm({
+      title: "Son Onay",
+      message: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+      tone: "danger",
+      confirmText: "Evet, Kalıcı Sil",
+      cancelText: "Vazgeç",
+    });
+    if (!secondConfirmed) return;
+
+    setDeleteLoading(true);
+    setErrorMessage("");
+
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) {
+      setDeleteLoading(false);
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("combinations")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("issue", issueKey);
+
+    setDeleteLoading(false);
+
+    if (error) {
+      setErrorMessage(`Kombinasyon silinemedi: ${error.message}`);
+      return;
+    }
+
+    showToast({ type: "success", message: `"${issueKey}" silindi` });
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(issueKey);
+      return next;
+    });
+    void loadCombinations();
+  }, [confirm, showToast]);
+
   return (
     <main className={pageBg}>
       <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
@@ -751,20 +802,20 @@ export default function KombinasyonlarPage() {
 
                   return (
                     <Fragment key={issue}>
-                      {/* Mobile row: checkbox + issue name + detail button */}
+                      {/* Mobile row: slim list style */}
                       <div
-                        className={`relative flex items-center gap-3 px-3 py-3.5 transition hover:bg-cyan-50/45 md:hidden ${
-                          isSelected ? "bg-violet-50/60" : ""
+                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition hover:bg-cyan-50/45 md:hidden ${
+                          isSelected ? "bg-violet-50/40" : ""
                         } ${
                           isViewedInSearch
-                            ? "border-l-4 border-rose-600"
+                            ? "border-l-4 border-rose-500"
                             : isSearchActive
                               ? "border-l-4 border-amber-400"
                               : ""
                         }`}
                       >
                         {isViewedInSearch ? (
-                          <span className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600" aria-hidden />
+                          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
                         ) : null}
                         <input
                           type="checkbox"
@@ -774,32 +825,31 @@ export default function KombinasyonlarPage() {
                           aria-label={`${issue} seç`}
                           className={uiRowCheckbox}
                         />
-                        <div className={`min-w-0 flex-1 ${isViewedInSearch ? "pl-1" : ""}`}>
-                          {isSearchActive ? (
-                            <div className="mb-0.5 flex flex-wrap items-center gap-1">
-                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
-                              {isViewedInSearch ? (
-                                <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-rose-800 ring-1 ring-rose-200">
-                                  Bakıldı
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <div className="line-clamp-2 text-sm font-black leading-snug text-slate-950">
-                            {isSearchActive
-                              ? renderHighlightedText(issue, activeSearch)
-                              : issue}
-                          </div>
-                        </div>
+                        <span className="min-w-0 flex-1 line-clamp-1 text-sm font-black text-slate-900">
+                          {isSearchActive
+                            ? renderHighlightedText(issue, activeSearch)
+                            : issue}
+                        </span>
                         <Link
                           href={detailHref}
                           onClick={() => {
                             if (isSearchActive) handleCombinationNavigate(issue);
                           }}
-                          className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-md transition hover:bg-violet-700"
+                          className="shrink-0 text-xs font-bold text-cyan-600 hover:text-violet-700"
                         >
-                          Detay →
+                          Detay→
                         </Link>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleMobileDeleteGroup(issue);
+                          }}
+                          className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
+                        >
+                          Sil
+                        </button>
                       </div>
 
                       {/* Desktop row: all 7 columns */}

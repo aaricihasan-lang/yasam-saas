@@ -796,20 +796,20 @@ function DogaltasListesiPageContent() {
 
                   return (
                     <Fragment key={stone.id}>
-                      {/* Mobile row: checkbox + image/name + delete only */}
+                      {/* Mobile row: slim list style */}
                       <div
-                        className={`relative flex items-center gap-3 border-b border-cyan-100 px-4 py-3.5 transition-colors hover:bg-cyan-50/70 md:hidden ${
-                          isSelected ? "bg-violet-50/60" : ""
+                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-cyan-50/50 md:hidden ${
+                          isSelected ? "bg-violet-50/40" : ""
                         } ${
                           isViewedInSearch
-                            ? "border-l-4 border-rose-600"
+                            ? "border-l-4 border-rose-500"
                             : isSearchActive
                               ? "border-l-4 border-amber-400"
                               : ""
                         }`}
                       >
                         {isViewedInSearch ? (
-                          <span className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600" aria-hidden />
+                          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
                         ) : null}
                         <input
                           type="checkbox"
@@ -824,9 +824,9 @@ function DogaltasListesiPageContent() {
                           onClick={() => {
                             if (isSearchActive) handleStoneNavigate(stone.id);
                           }}
-                          className={`flex min-w-0 flex-1 items-center gap-3 ${isViewedInSearch ? "pl-1" : ""}`}
+                          className="flex min-w-0 flex-1 items-center gap-2"
                         >
-                          <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-cyan-50 ring-1 ring-cyan-100">
                             {coverImageUrl ? (
                               <img
                                 src={coverImageUrl}
@@ -836,29 +836,25 @@ function DogaltasListesiPageContent() {
                                 decoding="async"
                               />
                             ) : (
-                              <span className="flex h-full w-full items-center justify-center text-[20px]">
+                              <span className="flex h-full w-full items-center justify-center text-base">
                                 💎
                               </span>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            {isSearchActive ? (
-                              <div className="mb-0.5 flex flex-wrap items-center gap-1">
-                                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
-                                {isViewedInSearch ? (
-                                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-rose-800 ring-1 ring-rose-200">
-                                    Bakıldı
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            <div className="truncate text-sm font-black text-slate-950">
-                              {isSearchActive
-                                ? renderHighlightedText(displayName, activeSearch)
-                                : displayName}
-                            </div>
-                            <div className="mt-0.5 text-xs font-bold text-cyan-700">Detayı aç →</div>
-                          </div>
+                          <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
+                            {isSearchActive
+                              ? renderHighlightedText(displayName, activeSearch)
+                              : displayName}
+                          </span>
+                        </Link>
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleStoneNavigate(stone.id);
+                          }}
+                          className="shrink-0 text-xs font-bold text-cyan-600 hover:text-violet-700"
+                        >
+                          Detay→
                         </Link>
                         <button
                           type="button"
@@ -867,7 +863,7 @@ function DogaltasListesiPageContent() {
                             event.stopPropagation();
                             setStoneToDelete(stone);
                           }}
-                          className="min-h-[44px] shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                          className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
                         >
                           Sil
                         </button>
