@@ -216,9 +216,9 @@ function ListSkeletonRows({ count = 6 }: { count?: number }) {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-6 px-4 py-6 sm:px-6 xl:px-10 2xl:px-14";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/90 p-8 shadow-lg";
+  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg sm:p-6 lg:p-8";
 const uiFilterCard =
   "rounded-[30px] border-[3px] border-violet-300/45 bg-white/90 p-5 shadow-md";
 const uiTableCard =
@@ -228,15 +228,15 @@ const uiSearchInput =
 const uiViewBtn =
   "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
-  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-8 py-4 text-center shadow-md";
+  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-2 py-3 text-center shadow-md sm:px-5 sm:py-4 lg:px-8";
 const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiDeleteBtn =
-  "rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
+  "min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
 const uiSelectActionBtn =
-  "rounded-2xl px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[44px] rounded-2xl px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
@@ -518,18 +518,18 @@ function DogaltasListesiPageContent() {
               💎 DOĞALTAŞ KÜTÜPHANESİ
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
               Doğaltaş Listesi
             </h1>
 
-            <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
+            <p className="mt-2 text-sm font-medium text-slate-600 sm:mt-3 sm:text-base lg:text-lg xl:text-xl">
               Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/"
-                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-6 font-black text-slate-700 shadow-md transition hover:bg-cyan-50"
+                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-black text-slate-700 shadow-md transition hover:bg-cyan-50 sm:h-14 sm:px-6"
               >
                 <svg
                   aria-hidden
@@ -544,7 +544,7 @@ function DogaltasListesiPageContent() {
 
               <Link
                 href="/dogaltas"
-                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-xl border-2 border-cyan-200 bg-cyan-50 px-6 font-black text-slate-700 shadow-sm transition hover:bg-cyan-100"
+                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-xl border-2 border-cyan-200 bg-cyan-50 px-4 font-black text-slate-700 shadow-sm transition hover:bg-cyan-100 sm:h-14 sm:px-6"
               >
                 <span className="shrink-0 text-base leading-none" aria-hidden>
                   💎
@@ -556,17 +556,17 @@ function DogaltasListesiPageContent() {
 
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{totalCount}</div>
+              <div className="text-xl font-black text-slate-950 sm:text-2xl">{totalCount}</div>
               <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{stones.length}</div>
+              <div className="text-xl font-black text-slate-950 sm:text-2xl">{stones.length}</div>
               <div className="text-xs font-bold text-slate-500">Yüklü</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{loadedImages}</div>
+              <div className="text-xl font-black text-slate-950 sm:text-2xl">{loadedImages}</div>
               <div className="text-xs font-bold text-slate-500">Görsel (yüklü)</div>
             </div>
           </div>
@@ -695,7 +695,11 @@ function DogaltasListesiPageContent() {
 
         <section className={uiTableCard}>
           {listLoading && filteredStones.length === 0 ? (
-            <ListSkeletonRows count={8} />
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                <ListSkeletonRows count={8} />
+              </div>
+            </div>
           ) : filteredStones.length === 0 ? (
             <div className="flex h-[330px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
               <div className="text-[54px]">💎</div>
@@ -753,7 +757,8 @@ function DogaltasListesiPageContent() {
               )}
             </div>
           ) : viewMode === "list" ? (
-            <div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
               <div className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
                 <div className="w-8" aria-hidden />
                 <div>Taş</div>
@@ -929,6 +934,7 @@ function DogaltasListesiPageContent() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           ) : (
@@ -1122,7 +1128,7 @@ function DogaltasListesiPageContent() {
                 type="button"
                 onClick={() => setStoneToDelete(null)}
                 disabled={deleteLoading}
-                className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
               >
                 Vazgeç
               </button>
@@ -1131,7 +1137,7 @@ function DogaltasListesiPageContent() {
                 type="button"
                 onClick={deleteStone}
                 disabled={deleteLoading}
-                className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
+                className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
               >
                 {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
               </button>
@@ -1148,7 +1154,11 @@ function DogaltasListesiPageFallback() {
     <main className={pageBg}>
       <div className={pageContent}>
         <div className={`${uiTableCard} p-0`}>
-          <ListSkeletonRows count={8} />
+          <div className="overflow-x-auto">
+            <div className="min-w-[700px]">
+              <ListSkeletonRows count={8} />
+            </div>
+          </div>
         </div>
       </div>
     </main>
