@@ -549,7 +549,7 @@ export default function Home() {
             <button
               type="button"
               onClick={logout}
-              className="absolute right-4 top-4 z-10 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-base font-bold text-white transition duration-200 hover:bg-white/20 sm:right-6 sm:top-5"
+              className="absolute right-4 top-4 z-10 min-h-[44px] rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white transition duration-200 hover:bg-white/20 sm:right-6 sm:top-5 sm:px-5 sm:py-3 sm:text-base"
             >
               Çıkış Yap
             </button>
@@ -567,7 +567,7 @@ export default function Home() {
                     Bütüncül Yaşam Analiz Platformu
                   </h1>
 
-                  <p className="mt-2 text-3xl font-black tracking-tight text-yellow-300 sm:text-4xl lg:text-[2.75rem]">
+                  <p className="mt-2 break-words text-2xl font-black tracking-tight text-yellow-300 sm:text-3xl lg:text-[2.75rem]">
                     {displayName}
                   </p>
 
@@ -677,7 +677,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <h3 className="mt-3 text-2xl font-black text-slate-900 md:text-3xl">
+                    <h3 className="mt-3 text-xl font-black text-slate-900 sm:text-2xl md:text-3xl">
                       {item.title}
                     </h3>
 
@@ -810,7 +810,7 @@ export default function Home() {
               ✨ Profesyonel danışmanlık yönetim sistemi
             </div>
 
-            <h2 className="mt-7 max-w-none text-4xl font-black leading-snug tracking-tight text-slate-950 md:text-5xl xl:text-6xl">
+            <h2 className="mt-7 max-w-none break-words text-3xl font-black leading-snug tracking-tight text-slate-950 sm:text-4xl md:text-5xl xl:text-6xl">
               Profesyonel danışmanlar için{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">
                 bütünsel yönetim ve analiz
@@ -884,7 +884,7 @@ export default function Home() {
               Tüm çalışma alanları tek platformda
             </h3>
           </div>
-          <div className="grid w-full grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {landingModules.map((item) => (
             <div
               key={item.title}
@@ -1018,7 +1018,7 @@ export default function Home() {
             onMouseLeave={handleLoginBackdropMouseLeave}
           />
           <div
-            className="relative z-10 w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:max-w-[560px] md:p-10"
+            className="relative z-10 w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl sm:p-8 md:max-w-[560px] md:p-10"
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-modal-title"
@@ -1037,7 +1037,7 @@ export default function Home() {
 
                 <h3
                   id="login-modal-title"
-                  className="mt-4 text-3xl font-black text-slate-950 md:text-4xl"
+                  className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl md:text-4xl"
                 >
                   Giriş Yap
                 </h3>
