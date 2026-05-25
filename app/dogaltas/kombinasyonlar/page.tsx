@@ -250,11 +250,11 @@ function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-6 px-3 py-6 sm:px-6 xl:px-10 2xl:px-14";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
+  "rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl sm:p-6 lg:p-8";
 const uiStatCard =
-  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-8 py-5 text-center shadow-md";
+  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-2 py-3 text-center shadow-md sm:px-5 sm:py-4 lg:px-8";
 const uiFilterCard =
   "rounded-[30px] border-[3px] border-cyan-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(34,211,238,0.14)] backdrop-blur-xl";
 const uiSearchInput =
@@ -272,7 +272,7 @@ const uiCategoryPill =
 const uiComboBtn =
   "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-violet-700";
 const uiSelectActionBtn =
-  "rounded-2xl border-2 px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[44px] rounded-2xl border-2 px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
@@ -288,6 +288,7 @@ export default function KombinasyonlarPage() {
   const [viewedIssueKeys, setViewedIssueKeys] = useState<Set<string>>(() => new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
+  const [isMobile, setIsMobile] = useState(false);
 
   const clearSearch = useCallback(() => {
     if (readUrlSearchQuery()) {
@@ -367,6 +368,14 @@ export default function KombinasyonlarPage() {
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const isSearchActive = Boolean(searchTerm.trim());
   const activeSearch = searchTerm.trim();
 
@@ -444,15 +453,26 @@ export default function KombinasyonlarPage() {
     const issueKeys = Array.from(selectedIds);
     const deleteCount = issueKeys.length;
 
-    const confirmed = await confirm({
-      title: "Kombinasyonları sil",
+    const firstConfirmed = await confirm({
+      title: isMobile ? "Bu kaydı silmek istiyor musunuz?" : "Kombinasyonları sil",
       message: `Seçili ${deleteCount} kombinasyon silinecek`,
       tone: "danger",
-      confirmText: "Evet Sil",
-      cancelText: "Vazgeç",
+      confirmText: isMobile ? "Evet" : "Evet Sil",
+      cancelText: isMobile ? "Hayır" : "Vazgeç",
     });
 
-    if (!confirmed) return;
+    if (!firstConfirmed) return;
+
+    if (isMobile) {
+      const secondConfirmed = await confirm({
+        title: "Son Onay",
+        message: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+        tone: "danger",
+        confirmText: "Evet, Kalıcı Sil",
+        cancelText: "Vazgeç",
+      });
+      if (!secondConfirmed) return;
+    }
 
     setDeleteLoading(true);
     setErrorMessage("");
@@ -483,7 +503,7 @@ export default function KombinasyonlarPage() {
     });
     setSelectedIds(new Set());
     await loadCombinations();
-  }, [confirm, selectedIds, showToast]);
+  }, [confirm, isMobile, selectedIds, showToast]);
 
   return (
     <main className={pageBg}>
@@ -497,18 +517,18 @@ export default function KombinasyonlarPage() {
               ✶ TAŞ KOMBİNASYONLARI
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
               Taş Kombinasyonları
             </h1>
 
-            <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
+            <p className="mt-2 text-sm font-medium text-slate-600 sm:mt-3 sm:text-base lg:text-lg xl:text-xl">
               Rahatsızlık başlığına göre gruplanmış kombinasyon bilgi bankası.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/"
-                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-6 font-black text-slate-800 shadow-md transition hover:bg-cyan-50"
+                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-black text-slate-800 shadow-md transition hover:bg-cyan-50 sm:h-14 sm:px-6"
               >
                 <svg
                   aria-hidden
@@ -523,7 +543,7 @@ export default function KombinasyonlarPage() {
 
               <Link
                 href="/dogaltas"
-                className="inline-flex h-14 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-cyan-50 px-6 font-black text-slate-800 shadow-md transition hover:bg-cyan-100"
+                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-cyan-50 px-4 font-black text-slate-800 shadow-md transition hover:bg-cyan-100 sm:h-14 sm:px-6"
               >
                 <span className="shrink-0 text-base leading-none" aria-hidden>
                   💎
@@ -535,18 +555,18 @@ export default function KombinasyonlarPage() {
 
           <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
             <div className={uiStatCard}>
-              <div className="text-3xl font-black text-slate-950">{rows.length}</div>
-              <div className="text-sm font-bold text-slate-500">Variant</div>
+              <div className="text-xl font-black text-slate-950 sm:text-3xl">{rows.length}</div>
+              <div className="text-xs font-bold text-slate-500 sm:text-sm">Variant</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-3xl font-black text-slate-950">{uniqueIssues}</div>
-              <div className="text-sm font-bold text-slate-500">Sorun / Issue</div>
+              <div className="text-xl font-black text-slate-950 sm:text-3xl">{uniqueIssues}</div>
+              <div className="text-xs font-bold text-slate-500 sm:text-sm">Sorun / Issue</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-3xl font-black text-slate-950">{groups.length}</div>
-              <div className="text-sm font-bold text-slate-500">Görünen grup</div>
+              <div className="text-xl font-black text-slate-950 sm:text-3xl">{groups.length}</div>
+              <div className="text-xs font-bold text-slate-500 sm:text-sm">Görünen grup</div>
             </div>
           </div>
         </header>
@@ -701,38 +721,90 @@ export default function KombinasyonlarPage() {
               </p>
             </div>
           ) : viewMode === "list" ? (
-            <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
-              <div className="min-w-[800px]">
-                <div className="grid grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  <div className="w-8" aria-hidden />
-                  <div>Issue</div>
-                  <div>Kategori</div>
-                  <div>Kombinasyon</div>
-                  <div>Kaynak</div>
-                  <div>Son kayıt</div>
-                  <div className="text-right">İşlem</div>
-                </div>
+            <div className="overflow-hidden rounded-[24px] bg-white/86 ring-1 ring-slate-100">
+              {/* Column headers — desktop only */}
+              <div className="hidden grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid">
+                <div className="w-8" aria-hidden />
+                <div>Issue</div>
+                <div>Kategori</div>
+                <div>Kombinasyon</div>
+                <div>Kaynak</div>
+                <div>Son kayıt</div>
+                <div className="text-right">İşlem</div>
+              </div>
 
-                <div className="divide-y divide-slate-100">
-                  {groups.map(({ issue, rows: groupRows }) => {
-                    const sourceLine = firstSourceInGroup(groupRows);
-                    const category = groupDescription(groupRows);
-                    const ts = latestDisplayTimestamp(groupRows);
-                    const count = groupRows.length;
-                    const isViewedInSearch =
-                      isSearchActive && viewedIssueKeys.has(issue);
-                    const detailHref = combinationDetailHref(
-                      issue,
-                      activeSearch,
-                      isSearchActive,
-                    );
-                    const sourceDisplay = sourceLine || "Kaynak belirtilmedi";
-                    const isSelected = selectedIds.has(issue);
+              <div className="divide-y divide-slate-100">
+                {groups.map(({ issue, rows: groupRows }) => {
+                  const sourceLine = firstSourceInGroup(groupRows);
+                  const category = groupDescription(groupRows);
+                  const ts = latestDisplayTimestamp(groupRows);
+                  const count = groupRows.length;
+                  const isViewedInSearch =
+                    isSearchActive && viewedIssueKeys.has(issue);
+                  const detailHref = combinationDetailHref(
+                    issue,
+                    activeSearch,
+                    isSearchActive,
+                  );
+                  const sourceDisplay = sourceLine || "Kaynak belirtilmedi";
+                  const isSelected = selectedIds.has(issue);
 
-                    return (
+                  return (
+                    <Fragment key={issue}>
+                      {/* Mobile row: checkbox + issue name + detail button */}
                       <div
-                        key={issue}
-                        className={`relative grid grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 ${
+                        className={`relative flex items-center gap-3 px-3 py-3.5 transition hover:bg-cyan-50/45 md:hidden ${
+                          isSelected ? "bg-violet-50/60" : ""
+                        } ${
+                          isViewedInSearch
+                            ? "border-l-4 border-rose-600"
+                            : isSearchActive
+                              ? "border-l-4 border-amber-400"
+                              : ""
+                        }`}
+                      >
+                        {isViewedInSearch ? (
+                          <span className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600" aria-hidden />
+                        ) : null}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleGroupSelection(issue)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${issue} seç`}
+                          className={uiRowCheckbox}
+                        />
+                        <div className={`min-w-0 flex-1 ${isViewedInSearch ? "pl-1" : ""}`}>
+                          {isSearchActive ? (
+                            <div className="mb-0.5 flex flex-wrap items-center gap-1">
+                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
+                              {isViewedInSearch ? (
+                                <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-rose-800 ring-1 ring-rose-200">
+                                  Bakıldı
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <div className="line-clamp-2 text-sm font-black leading-snug text-slate-950">
+                            {isSearchActive
+                              ? renderHighlightedText(issue, activeSearch)
+                              : issue}
+                          </div>
+                        </div>
+                        <Link
+                          href={detailHref}
+                          onClick={() => {
+                            if (isSearchActive) handleCombinationNavigate(issue);
+                          }}
+                          className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-md transition hover:bg-violet-700"
+                        >
+                          Detay →
+                        </Link>
+                      </div>
+
+                      {/* Desktop row: all 7 columns */}
+                      <div
+                        className={`relative hidden grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 md:grid ${
                           isSelected ? "bg-violet-50/60" : ""
                         } ${
                           isViewedInSearch
@@ -813,9 +885,9 @@ export default function KombinasyonlarPage() {
                           </Link>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </Fragment>
+                  );
+                })}
               </div>
             </div>
           ) : (
