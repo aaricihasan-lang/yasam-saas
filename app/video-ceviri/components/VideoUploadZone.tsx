@@ -37,8 +37,9 @@ const ACCEPT = [
   "audio/aac", "audio/x-aac",
   "audio/ogg",
   "audio/amr", "audio/amr-wb",
+  "audio/3gpp", "audio/3gpp2",
   // Uzantı fallback (özellikle AMR için gerekli)
-  ".amr", ".mp3", ".m4a", ".wav", ".aac",
+  ".amr", ".3gp", ".3gpp", ".mp3", ".m4a", ".wav", ".aac",
 ].join(",");
 
 const PHASE_LABEL: Record<UploadPhase, string> = {
@@ -143,10 +144,11 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     // Uzantıya göre doğru MIME'e eşle ve File nesnesini yeniden oluştur.
     // Not: contentType option'ı yeterli değil; File'ın .type özelliği Supabase tarafından kullanılabilir.
     const EXT_MIME: Record<string, string> = {
-      amr: "audio/amr",  mp3: "audio/mpeg", m4a: "audio/mp4",
-      wav: "audio/wav",  aac: "audio/aac",  ogg: "audio/ogg",
-      mp4: "video/mp4",  webm: "video/webm", mov: "video/quicktime",
-      avi: "video/x-msvideo", mkv: "video/x-matroska",
+      amr:  "audio/amr",   "3gp": "audio/3gpp",  "3gpp": "audio/3gpp",
+      mp3:  "audio/mpeg",  m4a:  "audio/mp4",
+      wav:  "audio/wav",   aac:  "audio/aac",     ogg: "audio/ogg",
+      mp4:  "video/mp4",   webm: "video/webm",    mov: "video/quicktime",
+      avi:  "video/x-msvideo", mkv: "video/x-matroska",
     };
     const fileExt = selectedFile.name.split(".").pop()?.toLowerCase() ?? "";
     // MIME tipini normalize et (audio/AMR → audio/amr); sonra eşleştir

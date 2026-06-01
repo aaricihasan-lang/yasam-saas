@@ -34,7 +34,7 @@ export const ALLOWED_VIDEO_MIME_TYPES = new Set([
 /** AMR ve az tanınan formatlar için uzantı tabanlı ikincil kontrol */
 const ALLOWED_EXTENSIONS = new Set([
   "mp4", "webm", "mov", "avi", "mkv", "mpeg", "mpg", "ogg",
-  "mp3", "m4a", "wav", "aac", "amr",
+  "mp3", "m4a", "wav", "aac", "amr", "3gp", "3gpp",
 ]);
 
 export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
