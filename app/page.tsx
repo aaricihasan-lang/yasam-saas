@@ -43,6 +43,7 @@ import {
   ShieldCheck,
   Sparkles,
   UsersRound,
+  Video,
 } from "lucide-react";
 
 type ModuleTheme = {
@@ -240,6 +241,20 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-violet-500 to-indigo-600",
       cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
       border: "border-indigo-200/70",
+    },
+  },
+  {
+    title: "Video → Türkçe Word/PDF",
+    desc: "Videolardan Türkçe transkript, çeviri ve eğitim dokümanı üretme merkezi.",
+    count: "Aktif",
+    badge: "YENİ",
+    href: "/video-ceviri",
+    permissionKey: "video_ceviri",
+    Icon: Video,
+    theme: {
+      iconWrap: "from-rose-500 to-pink-600",
+      cardBg: "from-rose-100/90 via-pink-50/95 to-white",
+      border: "border-rose-200/70",
     },
   },
 ];
