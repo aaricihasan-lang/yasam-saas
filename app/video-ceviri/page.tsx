@@ -5,11 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Clock,
+  Download,
+  FileDown,
   FileText,
+  Languages,
   Loader2,
   Mic,
   Video,
 } from "lucide-react";
+import { downloadTranscriptAsPdf } from "@/lib/video-ceviri/exportHelpers";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import VideoUploadZone from "./components/VideoUploadZone";
@@ -50,7 +54,9 @@ export default function VideoCeviriPage() {
   const [tenantId, setTenantId]           = useState<string | null>(null);
   const [jobs, setJobs]                   = useState<VideoJobRow[]>([]);
   const [jobsLoading, setJobsLoading]     = useState(true);
-  const [transcribingId, setTranscribingId] = useState<string | null>(null);
+  const [transcribingId, setTranscribingId]   = useState<string | null>(null);
+  const [translatingId, setTranslatingId]     = useState<string | null>(null);
+  const [pdfGeneratingId, setPdfGeneratingId] = useState<string | null>(null);
 
   const loadJobs = useCallback(async (tid: string) => {
     setJobsLoading(true);
@@ -69,6 +75,46 @@ export default function VideoCeviriPage() {
 
   function handleUploadSuccess() {
     if (tenantId) void loadJobs(tenantId);
+  }
+
+  function handleDownloadWord(job: VideoJobRow) {
+    if (!tenantId || !job.transcript_original) return;
+    const url = `/api/video-ceviri/export-word?jobId=${encodeURIComponent(job.id)}&tenantId=${encodeURIComponent(tenantId)}`;
+    window.open(url, "_blank");
+  }
+
+  async function handleDownloadPdf(job: VideoJobRow) {
+    if (!job.transcript_original || pdfGeneratingId) return;
+    setPdfGeneratingId(job.id);
+    try {
+      const safeName = job.original_filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+      await downloadTranscriptAsPdf(job.transcript_original, `${safeName}_transkript.pdf`);
+    } catch {
+      showToast({ title: "PDF oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
+    } finally {
+      setPdfGeneratingId(null);
+    }
+  }
+
+  async function handleTranslate(job: VideoJobRow) {
+    if (!tenantId || !job.transcript_original || translatingId) return;
+    setTranslatingId(job.id);
+    try {
+      const res = await fetch("/api/video-ceviri/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: job.id, tenantId }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!data.ok) {
+        showToast({ title: "Çeviri başarısız", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+      }
+    } catch {
+      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    } finally {
+      setTranslatingId(null);
+      if (tenantId) void loadJobs(tenantId);
+    }
   }
 
   async function handleTranscribe(job: VideoJobRow) {
@@ -293,18 +339,82 @@ export default function VideoCeviriPage() {
                         </p>
                       )}
 
-                      {/* transkript preview — sadece completed */}
+                      {/* tamamlanmış iş — transkript + export + çeviri */}
                       {job.status === "completed" && job.transcript_original && (
-                        <div className="mt-3 rounded-xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3">
-                          <p className="mb-1 text-xs font-black uppercase tracking-wider text-emerald-700">
-                            Transkript
-                          </p>
-                          <p className="text-sm leading-relaxed text-slate-700">
-                            {job.transcript_original.length > 300
-                              ? `${job.transcript_original.slice(0, 300)}…`
-                              : job.transcript_original}
-                          </p>
-                        </div>
+                        <>
+                          {/* transkript preview */}
+                          <div className="mt-3 rounded-xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3">
+                            <p className="mb-1 text-xs font-black uppercase tracking-wider text-emerald-700">
+                              Transkript
+                            </p>
+                            <p className="text-sm leading-relaxed text-slate-700">
+                              {job.transcript_original.length > 300
+                                ? `${job.transcript_original.slice(0, 300)}…`
+                                : job.transcript_original}
+                            </p>
+                          </div>
+
+                          {/* export + çeviri butonları */}
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadWord(job)}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                            >
+                              <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
+                              Word İndir
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => void handleDownloadPdf(job)}
+                              disabled={pdfGeneratingId === job.id}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {pdfGeneratingId === job.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
+                              )}
+                              PDF İndir
+                            </button>
+
+                            {!job.transcript_tr && (
+                              <button
+                                type="button"
+                                onClick={() => void handleTranslate(job)}
+                                disabled={!!translatingId}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {translatingId === job.id ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Çevriliyor…
+                                  </>
+                                ) : (
+                                  <>
+                                    <Languages className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                    Türkçeye Çevir
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Türkçe çeviri alanı */}
+                          {job.transcript_tr && (
+                            <div className="mt-3 rounded-xl border border-blue-200/70 bg-blue-50/70 px-4 py-3">
+                              <p className="mb-1 text-xs font-black uppercase tracking-wider text-blue-700">
+                                Türkçe Çeviri
+                              </p>
+                              <p className="text-sm leading-relaxed text-slate-700">
+                                {job.transcript_tr.length > 300
+                                  ? `${job.transcript_tr.slice(0, 300)}…`
+                                  : job.transcript_tr}
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   );
