@@ -32,6 +32,7 @@ export const ADMIN_MODULE_UI_KEYS = [
   "energy_body",
   "aromatherapy",
   "personal_archive",
+  "video_ceviri",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -49,6 +50,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   energy_body: "Biyoenerji",
   aromatherapy: "Aromaterapi",
   personal_archive: "Kişisel Arşiv",
+  video_ceviri: "Video → Türkçe Dönüşüm",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -62,6 +64,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   energy_body: false,
   aromatherapy: false,
   personal_archive: false,
+  video_ceviri: false,
 };
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {

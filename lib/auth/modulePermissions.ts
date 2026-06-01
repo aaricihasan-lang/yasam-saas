@@ -84,6 +84,7 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "energy_body",
   "aromatherapy",
   "personal_archive",
+  "video_ceviri",
   "danisan_yonetimi",
   "ajanda",
   "numeroloji",
