@@ -8,6 +8,7 @@ import {
   UploadCloud,
   Video,
 } from "lucide-react";
+import { Upload as TusUpload } from "tus-js-client";
 import { supabase } from "@/lib/supabase";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -18,6 +19,55 @@ import {
   updateVideoJobTempPath,
   validateVideoFile,
 } from "@/lib/video-ceviri/videoJobHelpers";
+
+/** 100 MB üzerindeki dosyalar için TUS resumable upload kullanılır */
+const RESUMABLE_THRESHOLD = 100 * 1024 * 1024;
+
+/**
+ * Supabase TUS endpoint'ine parçalı (resumable) yükleme yapar.
+ * 6 MB chunk, otomatik retry, kesintisiz devam desteği.
+ */
+function uploadWithTus(
+  file: File,
+  storagePath: string,
+  contentType: string,
+  onProgress?: (pct: number) => void,
+): Promise<void> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+
+  return new Promise((resolve, reject) => {
+    const upload = new TusUpload(file, {
+      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${supabaseKey}`,
+        "x-upsert": "false",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: "video-temp",
+        objectName: storagePath,
+        contentType,
+        cacheControl: "3600",
+      },
+      chunkSize: 6 * 1024 * 1024,
+      onProgress: (uploaded, total) => {
+        if (onProgress && total > 0) {
+          onProgress(Math.round((uploaded / total) * 100));
+        }
+      },
+      onError: (err) => reject(err),
+      onSuccess: () => resolve(),
+    });
+
+    void upload.findPreviousUploads().then((prev) => {
+      if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
+      upload.start();
+    });
+  });
+}
 
 type UploadPhase =
   | "idle"
@@ -58,6 +108,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
@@ -158,25 +209,41 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         ? (EXT_MIME[fileExt] ?? normalizedType) // uzantı eşleşiyorsa uzantıya göre override
         : (EXT_MIME[fileExt] ?? "application/octet-stream");
 
-    // MIME tipi değiştiyse doğru type'a sahip yeni bir File oluştur
-    const fileToUpload =
-      resolvedMime !== selectedFile.type
-        ? new File([selectedFile], selectedFile.name, { type: resolvedMime })
-        : selectedFile;
+    setUploadProgress(0);
 
-    const { error: upErr } = await supabase.storage
-      .from("video-temp")
-      .upload(storagePath, fileToUpload, {
-        upsert: false,
-        cacheControl: "3600",
-        contentType: resolvedMime,
-      });
+    if (selectedFile.size > RESUMABLE_THRESHOLD) {
+      // ── Büyük dosya: TUS resumable upload (6 MB chunk) ──────────────
+      try {
+        await uploadWithTus(
+          selectedFile,
+          storagePath,
+          resolvedMime,
+          (pct) => setUploadProgress(pct),
+        );
+      } catch (tusErr) {
+        const msg =
+          tusErr instanceof Error ? tusErr.message : "Yükleme başarısız.";
+        await updateVideoJobStatus(jobId, "failed", msg);
+        setErrorMsg(`Dosya yüklenemedi: ${msg}`);
+        setPhase("error");
+        return;
+      }
+    } else {
+      // ── Küçük dosya: standart tek parça upload ───────────────────────
+      const { error: upErr } = await supabase.storage
+        .from("video-temp")
+        .upload(storagePath, selectedFile, {
+          upsert: false,
+          cacheControl: "3600",
+          contentType: resolvedMime,
+        });
 
-    if (upErr) {
-      await updateVideoJobStatus(jobId, "failed", upErr.message);
-      setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
-      setPhase("error");
-      return;
+      if (upErr) {
+        await updateVideoJobStatus(jobId, "failed", upErr.message);
+        setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
+        setPhase("error");
+        return;
+      }
     }
 
     // 5. Update job record with storage path
@@ -223,8 +290,18 @@ export default function VideoUploadZone({ onSuccess }: Props) {
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
             <p className="text-sm font-bold text-slate-600">
-              {PHASE_LABEL[phase]}
+              {phase === "uploading" && uploadProgress > 0
+                ? `Yükleniyor… %${uploadProgress}`
+                : PHASE_LABEL[phase]}
             </p>
+            {phase === "uploading" && uploadProgress > 0 && (
+              <div className="h-1.5 w-48 overflow-hidden rounded-full bg-violet-100">
+                <div
+                  className="h-full rounded-full bg-violet-500 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
