@@ -59,7 +59,17 @@ function uploadWithTus(
           onProgress(Math.round((uploaded / total) * 100));
         }
       },
-      onError: (err) => reject(err),
+      onError: (err) => {
+        // TUS DetailedError: originalResponse üzerinden tam HTTP yanıtı okunabilir
+        const status  = (err as { originalResponse?: { getStatus?: () => number } })
+          ?.originalResponse?.getStatus?.() ?? "?";
+        const body    = (err as { originalResponse?: { getBody?: () => string } })
+          ?.originalResponse?.getBody?.() ?? "";
+        console.error("[TUS] onError — status:", status);
+        console.error("[TUS] onError — body:", body);
+        console.error("[TUS] onError — message:", err.message);
+        reject(err);
+      },
       onSuccess: () => resolve(),
     });
 
@@ -245,16 +255,12 @@ export default function VideoUploadZone({ onSuccess }: Props) {
           (pct) => setUploadProgress(pct),
         );
       } catch (tusErr) {
+        // Ham Supabase/TUS hatasını aynen göster — kaynağı net görmek için wrapper yok
         const raw = tusErr instanceof Error ? tusErr.message : String(tusErr);
-        const isOverLimit =
-          raw.includes("413") ||
-          raw.toLowerCase().includes("maximum size") ||
-          raw.toLowerCase().includes("exceeded");
-        const userMsg = isOverLimit
-          ? "Büyük dosya yükleme sınırına takıldı. Lütfen daha küçük dosya deneyin veya videoyu sıkıştırın."
-          : `Yükleme başarısız: ${raw}`;
-        await updateVideoJobStatus(jobId, "failed", userMsg);
-        setErrorMsg(userMsg);
+        console.error("[TUS] catch — raw error:", raw);
+        console.error("[TUS] catch — full object:", tusErr);
+        await updateVideoJobStatus(jobId, "failed", raw);
+        setErrorMsg(`Yükleme hatası: ${raw}`);
         setPhase("error");
         return;
       }
