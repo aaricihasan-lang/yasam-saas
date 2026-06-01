@@ -139,26 +139,33 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     setPhase("uploading");
     const storagePath = buildVideoTempPath(tenantId, jobId, selectedFile.name);
 
-    // application/octet-stream (WhatsApp AMR vb.) Supabase tarafından reddedilebilir;
-    // uzantıya göre doğru MIME tipine eşle.
+    // application/octet-stream (WhatsApp AMR vb.) Supabase Storage tarafından reddedilir.
+    // Uzantıya göre doğru MIME'e eşle ve File nesnesini yeniden oluştur.
+    // Not: contentType option'ı yeterli değil; File'ın .type özelliği Supabase tarafından kullanılabilir.
     const EXT_MIME: Record<string, string> = {
-      amr: "audio/amr", mp3: "audio/mpeg", m4a: "audio/mp4",
+      amr: "audio/amr",  mp3: "audio/mpeg", m4a: "audio/mp4",
       wav: "audio/wav",  aac: "audio/aac",  ogg: "audio/ogg",
       mp4: "video/mp4",  webm: "video/webm", mov: "video/quicktime",
       avi: "video/x-msvideo", mkv: "video/x-matroska",
     };
     const fileExt = selectedFile.name.split(".").pop()?.toLowerCase() ?? "";
-    const contentType =
+    const resolvedMime =
       selectedFile.type && selectedFile.type !== "application/octet-stream"
         ? selectedFile.type
-        : EXT_MIME[fileExt] ?? "application/octet-stream";
+        : (EXT_MIME[fileExt] ?? "application/octet-stream");
+
+    // MIME tipi değiştiyse doğru type'a sahip yeni bir File oluştur
+    const fileToUpload =
+      resolvedMime !== selectedFile.type
+        ? new File([selectedFile], selectedFile.name, { type: resolvedMime })
+        : selectedFile;
 
     const { error: upErr } = await supabase.storage
       .from("video-temp")
-      .upload(storagePath, selectedFile, {
+      .upload(storagePath, fileToUpload, {
         upsert: false,
         cacheControl: "3600",
-        contentType,
+        contentType: resolvedMime,
       });
 
     if (upErr) {
