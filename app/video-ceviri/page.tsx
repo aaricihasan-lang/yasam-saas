@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
+  AlignLeft,
   ArrowLeft,
   ChevronDown,
   Clock,
   Download,
   FileText,
   Languages,
+  List,
   Loader2,
   Mic,
+  Sparkles,
   Video,
 } from "lucide-react";
 import {
@@ -78,6 +81,8 @@ export default function VideoCeviriPage() {
   const [translatingId, setTranslatingId]       = useState<string | null>(null);
   const [pdfGeneratingId, setPdfGeneratingId]   = useState<string | null>(null);
   const [dropdownOpenId, setDropdownOpenId]     = useState<string | null>(null);
+  const [summarizingId, setSummarizingId]       = useState<string | null>(null);
+  const [headliningId, setHeadliningId]         = useState<string | null>(null);
 
   const loadJobs = useCallback(async (tid: string) => {
     setJobsLoading(true);
@@ -156,6 +161,48 @@ export default function VideoCeviriPage() {
       showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
     } finally {
       setTranslatingId(null);
+      if (tenantId) void loadJobs(tenantId);
+    }
+  }
+
+  async function handleSummarize(job: VideoJobRow) {
+    if (!tenantId || !job.transcript_tr || summarizingId) return;
+    setSummarizingId(job.id);
+    try {
+      const res = await fetch("/api/video-ceviri/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: job.id, tenantId }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!data.ok) {
+        showToast({ title: "Özet oluşturulamadı", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+      }
+    } catch {
+      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    } finally {
+      setSummarizingId(null);
+      if (tenantId) void loadJobs(tenantId);
+    }
+  }
+
+  async function handleHeadings(job: VideoJobRow) {
+    if (!tenantId || !job.transcript_tr || headliningId) return;
+    setHeadliningId(job.id);
+    try {
+      const res = await fetch("/api/video-ceviri/headings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: job.id, tenantId }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!data.ok) {
+        showToast({ title: "Başlıklar oluşturulamadı", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+      }
+    } catch {
+      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    } finally {
+      setHeadliningId(null);
       if (tenantId) void loadJobs(tenantId);
     }
   }
@@ -554,16 +601,87 @@ export default function VideoCeviriPage() {
 
                           {/* Türkçe çeviri alanı */}
                           {job.transcript_tr && (
-                            <div className="mt-3 rounded-xl border border-blue-200/70 bg-blue-50/70 px-4 py-3">
-                              <p className="mb-1 text-xs font-black uppercase tracking-wider text-blue-700">
-                                Türkçe Çeviri
-                              </p>
-                              <p className="text-sm leading-relaxed text-slate-700">
-                                {job.transcript_tr.length > 300
-                                  ? `${job.transcript_tr.slice(0, 300)}…`
-                                  : job.transcript_tr}
-                              </p>
-                            </div>
+                            <>
+                              <div className="mt-3 rounded-xl border border-blue-200/70 bg-blue-50/70 px-4 py-3">
+                                <p className="mb-1 text-xs font-black uppercase tracking-wider text-blue-700">
+                                  Türkçe Çeviri
+                                </p>
+                                <p className="text-sm leading-relaxed text-slate-700">
+                                  {job.transcript_tr.length > 300
+                                    ? `${job.transcript_tr.slice(0, 300)}…`
+                                    : job.transcript_tr}
+                                </p>
+                              </div>
+
+                              {/* Özet Çıkar / Başlıklandır butonları */}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleSummarize(job)}
+                                  disabled={!!summarizingId || !!headliningId}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 text-xs font-bold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {summarizingId === job.id ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Özet hazırlanıyor…
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                      Özet Çıkar
+                                    </>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => void handleHeadings(job)}
+                                  disabled={!!summarizingId || !!headliningId}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-4 text-xs font-bold text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {headliningId === job.id ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Başlıklar oluşturuluyor…
+                                    </>
+                                  ) : (
+                                    <>
+                                      <List className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                      Başlıklandır
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* Kısa Özet alanı */}
+                              {job.summary_text && (
+                                <div className="mt-3 rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/60 px-4 py-3">
+                                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-emerald-700">
+                                    Kısa Özet
+                                  </p>
+                                  <div className="space-y-1.5 text-sm leading-relaxed text-slate-700">
+                                    {job.summary_text.split("\n").filter(Boolean).map((line, i) => (
+                                      <p key={i}>{line}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Bölüm Başlıkları alanı */}
+                              {job.headings_text && (
+                                <div className="mt-3 rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 to-violet-50/60 px-4 py-3">
+                                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-indigo-700">
+                                    Bölüm Başlıkları
+                                  </p>
+                                  <div className="space-y-1.5 text-sm leading-relaxed text-slate-700">
+                                    {job.headings_text.split("\n").filter(Boolean).map((line, i) => (
+                                      <p key={i} className="font-medium">{line}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                         </>
                       )}

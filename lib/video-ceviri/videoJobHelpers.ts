@@ -23,6 +23,8 @@ export type VideoJobRow = {
   error_message: string | null;
   transcript_original: string | null;
   transcript_tr: string | null;
+  summary_text: string | null;
+  headings_text: string | null;
   processing_started_at: string | null;
   processing_completed_at: string | null;
   video_deleted_at: string | null;
@@ -171,7 +173,7 @@ export async function fetchVideoJobs(tenantId: string): Promise<VideoJobRow[]> {
   const { data, error } = await supabase
     .from("video_transcription_jobs")
     .select(
-      "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, transcript_tr, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
+      "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, transcript_tr, summary_text, headings_text, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
     )
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
