@@ -322,9 +322,22 @@ export default function VideoCeviriPage() {
                 <FileText className="h-5 w-5 text-violet-600" strokeWidth={2.25} />
                 Desteklenen Formatlar
               </h3>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Video
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {["MP4", "MOV", "WEBM", "MKV", "AVI", "OGG"].map((fmt) => (
-                  <div key={fmt} className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2 text-center text-xs font-black text-violet-700">
+                  <div key={fmt} className="rounded-xl border border-violet-100 bg-white/80 px-2 py-1.5 text-center text-[11px] font-black text-violet-700">
+                    {fmt}
+                  </div>
+                ))}
+              </div>
+              <p className="mb-2 mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Ses
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {["MP3", "M4A", "WAV", "AAC", "AMR", "OGG"].map((fmt) => (
+                  <div key={fmt} className="rounded-xl border border-indigo-100 bg-white/80 px-2 py-1.5 text-center text-[11px] font-black text-indigo-600">
                     {fmt}
                   </div>
                 ))}

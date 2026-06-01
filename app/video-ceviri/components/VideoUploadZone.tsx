@@ -28,20 +28,24 @@ type UploadPhase =
   | "error";
 
 const ACCEPT = [
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "video/x-msvideo",
-  "video/x-matroska",
-  "video/mpeg",
-  "video/ogg",
+  // Video MIME
+  "video/mp4", "video/webm", "video/quicktime",
+  "video/x-msvideo", "video/x-matroska", "video/mpeg", "video/ogg",
+  // Ses MIME
+  "audio/mpeg", "audio/mp4", "audio/x-m4a",
+  "audio/wav", "audio/x-wav",
+  "audio/aac", "audio/x-aac",
+  "audio/ogg",
+  "audio/amr", "audio/amr-wb",
+  // Uzantı fallback (özellikle AMR için gerekli)
+  ".amr", ".mp3", ".m4a", ".wav", ".aac",
 ].join(",");
 
 const PHASE_LABEL: Record<UploadPhase, string> = {
   idle: "",
   validating: "Dosya kontrol ediliyor…",
   inserting: "Kayıt oluşturuluyor…",
-  uploading: "Video yükleniyor…",
+  uploading: "Dosya yükleniyor…",
   done: "",
   error: "",
 };
@@ -140,7 +144,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
     if (upErr) {
       await updateVideoJobStatus(jobId, "failed", upErr.message);
-      setErrorMsg(`Video yüklenemedi: ${upErr.message}`);
+      setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
       setPhase("error");
       return;
     }
@@ -201,14 +205,14 @@ export default function VideoUploadZone({ onSuccess }: Props) {
               strokeWidth={1.75}
             />
             <p className="text-sm font-bold text-emerald-700">
-              Video başarıyla yüklendi.
+              Dosya başarıyla yüklendi.
             </p>
             <button
               type="button"
               onClick={resetToIdle}
               className="mt-1 text-xs font-bold text-violet-600 underline underline-offset-2 transition hover:text-violet-800"
             >
-              Yeni video yükle
+              Yeni dosya yükle
             </button>
           </div>
         )}
@@ -242,13 +246,16 @@ export default function VideoUploadZone({ onSuccess }: Props) {
             ) : (
               <>
                 <p className="text-sm font-black text-slate-700">
-                  Videoyu buraya sürükleyin
+                  Video veya ses dosyanızı sürükleyin
                 </p>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   veya dosya seçin
                 </p>
                 <p className="mt-3 text-xs font-semibold text-slate-400">
-                  MP4, MOV, WEBM, MKV, AVI, OGG — maks. 200 MB
+                  Video: MP4, MOV, WEBM, MKV, AVI, OGG
+                </p>
+                <p className="text-xs font-semibold text-slate-400">
+                  Ses: MP3, M4A, WAV, AAC, AMR — maks. 200 MB
                 </p>
               </>
             )}

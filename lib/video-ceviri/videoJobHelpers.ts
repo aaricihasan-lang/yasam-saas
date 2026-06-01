@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 export const ALLOWED_VIDEO_MIME_TYPES = new Set([
+  // Video
   "video/mp4",
   "video/webm",
   "video/quicktime",
@@ -8,6 +9,27 @@ export const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "video/x-matroska",
   "video/mpeg",
   "video/ogg",
+  // Ses
+  "audio/mpeg",    // mp3
+  "audio/mp3",
+  "audio/mp4",     // m4a
+  "audio/x-m4a",
+  "audio/m4a",
+  "audio/wav",     // wav
+  "audio/x-wav",
+  "audio/wave",
+  "audio/aac",     // aac
+  "audio/x-aac",
+  "audio/ogg",     // ogg ses
+  "audio/amr",     // amr — bazı tarayıcılarda boş MIME döner, ek kontrol var
+  "audio/amr-wb",
+  "audio/x-amr",
+]);
+
+/** AMR ve az tanınan formatlar için uzantı tabanlı ikincil kontrol */
+const ALLOWED_EXTENSIONS = new Set([
+  "mp4", "webm", "mov", "avi", "mkv", "mpeg", "mpg", "ogg",
+  "mp3", "m4a", "wav", "aac", "amr",
 ]);
 
 export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
@@ -45,9 +67,12 @@ export type InsertVideoJobResult =
   | { jobId: null; error: string };
 
 export function validateVideoFile(file: File): string | null {
-  if (!ALLOWED_VIDEO_MIME_TYPES.has(file.type)) {
-    const ext = file.name.split(".").pop()?.toUpperCase() ?? "?";
-    return `.${ext} desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG, MPEG.`;
+  const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+  const mimeOk = ALLOWED_VIDEO_MIME_TYPES.has(file.type);
+  const extOk  = ALLOWED_EXTENSIONS.has(ext);
+
+  if (!mimeOk && !extOk) {
+    return `Bu format desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.`;
   }
   if (file.size === 0) {
     return "Dosya boş görünüyor.";
