@@ -24,6 +24,8 @@ export const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "audio/amr",     // amr — bazı tarayıcılarda boş MIME döner, ek kontrol var
   "audio/amr-wb",
   "audio/x-amr",
+  // WhatsApp ve bazı sistemlerde generic MIME tipi; uzantı kontrolü ek güvenlik sağlar
+  "application/octet-stream",
 ]);
 
 /** AMR ve az tanınan formatlar için uzantı tabanlı ikincil kontrol */
@@ -73,6 +75,11 @@ export function validateVideoFile(file: File): string | null {
 
   if (!mimeOk && !extOk) {
     return `Bu format desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.`;
+  }
+
+  // application/octet-stream yalnızca bilinen uzantılarla kabul edilir
+  if (file.type === "application/octet-stream" && !extOk) {
+    return `Dosya tipi belirlenemiyor (.${ext || "?"} uzantısı desteklenmiyor). Kabul edilen ses formatları: MP3, M4A, WAV, AAC, AMR.`;
   }
   if (file.size === 0) {
     return "Dosya boş görünüyor.";

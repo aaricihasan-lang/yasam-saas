@@ -138,9 +138,28 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     // 4. Upload to video-temp bucket
     setPhase("uploading");
     const storagePath = buildVideoTempPath(tenantId, jobId, selectedFile.name);
+
+    // application/octet-stream (WhatsApp AMR vb.) Supabase tarafından reddedilebilir;
+    // uzantıya göre doğru MIME tipine eşle.
+    const EXT_MIME: Record<string, string> = {
+      amr: "audio/amr", mp3: "audio/mpeg", m4a: "audio/mp4",
+      wav: "audio/wav",  aac: "audio/aac",  ogg: "audio/ogg",
+      mp4: "video/mp4",  webm: "video/webm", mov: "video/quicktime",
+      avi: "video/x-msvideo", mkv: "video/x-matroska",
+    };
+    const fileExt = selectedFile.name.split(".").pop()?.toLowerCase() ?? "";
+    const contentType =
+      selectedFile.type && selectedFile.type !== "application/octet-stream"
+        ? selectedFile.type
+        : EXT_MIME[fileExt] ?? "application/octet-stream";
+
     const { error: upErr } = await supabase.storage
       .from("video-temp")
-      .upload(storagePath, selectedFile, { upsert: false, cacheControl: "3600" });
+      .upload(storagePath, selectedFile, {
+        upsert: false,
+        cacheControl: "3600",
+        contentType,
+      });
 
     if (upErr) {
       await updateVideoJobStatus(jobId, "failed", upErr.message);
