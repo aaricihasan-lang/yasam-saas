@@ -154,13 +154,17 @@ export async function POST(request: Request) {
         : undefined;
 
     let transcript: string;
+    let detectedLanguage = "auto";
     try {
-      const response = await openai.audio.transcriptions.create({
+      const response = (await openai.audio.transcriptions.create({
         file,
         model: "whisper-1",
+        response_format: "verbose_json",
         ...(language ? { language } : {}),
-      });
+      })) as { text: string; language: string };
       transcript = response.text;
+      detectedLanguage =
+        (response.language ?? "").toLowerCase().trim() || "auto";
     } catch (whisperErr) {
       const msg =
         whisperErr instanceof Error
@@ -173,12 +177,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
 
-    // Transkripti ve tamamlanma bilgisini kaydet
+    // Transkripti, tespit edilen dili ve tamamlanma bilgisini kaydet
     await db
       .from(TABLE)
       .update({
         status: "completed",
         transcript_original: transcript,
+        source_language: detectedLanguage,
         processing_completed_at: new Date().toISOString(),
         error_message: null,
       })

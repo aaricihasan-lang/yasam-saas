@@ -52,6 +52,23 @@ const STATUS_LABEL: Record<string, string> = {
   failed:       "Başarısız",
 };
 
+const LANGUAGE_DISPLAY: Record<string, string> = {
+  de: "Almanca",
+  en: "İngilizce",
+  fr: "Fransızca",
+  es: "İspanyolca",
+  tr: "Türkçe",
+  ar: "Arapça",
+  ru: "Rusça",
+  it: "İtalyanca",
+  pt: "Portekizce",
+  nl: "Felemenkçe",
+  pl: "Lehçe",
+  ja: "Japonca",
+  zh: "Çince",
+  ko: "Korece",
+};
+
 export default function VideoCeviriPage() {
   const { showToast } = useToast();
   const [tenantId, setTenantId]           = useState<string | null>(null);
@@ -125,9 +142,15 @@ export default function VideoCeviriPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobId: job.id, tenantId }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string };
+      const data = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        alreadyTurkish?: boolean;
+      };
       if (!data.ok) {
         showToast({ title: "Çeviri başarısız", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+      } else if (data.alreadyTurkish) {
+        showToast({ title: "Zaten Türkçe", message: "Bu metin zaten Türkçe görünüyor.", type: "warning" });
       }
     } catch {
       showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
@@ -310,6 +333,11 @@ export default function VideoCeviriPage() {
                             <p className="text-xs font-medium text-slate-400">
                               {formatFileSizeTr(job.file_size_bytes)} · {formatJobDateTr(job.created_at)}
                             </p>
+                            {job.source_language && job.source_language !== "auto" && (
+                              <span className="mt-0.5 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                                Algılanan Dil: {LANGUAGE_DISPLAY[job.source_language] ?? job.source_language.toUpperCase()}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -497,24 +525,30 @@ export default function VideoCeviriPage() {
 
                             {/* Türkçeye Çevir */}
                             {!job.transcript_tr && (
-                              <button
-                                type="button"
-                                onClick={() => void handleTranslate(job)}
-                                disabled={!!translatingId}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {translatingId === job.id ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    Çevriliyor…
-                                  </>
-                                ) : (
-                                  <>
-                                    <Languages className="h-3.5 w-3.5" strokeWidth={2.25} />
-                                    Türkçeye Çevir
-                                  </>
-                                )}
-                              </button>
+                              job.source_language === "tr" ? (
+                                <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-medium text-slate-400">
+                                  Metin zaten Türkçe görünüyor.
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleTranslate(job)}
+                                  disabled={!!translatingId}
+                                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {translatingId === job.id ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Çevriliyor…
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Languages className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                      Türkçeye Çevir
+                                    </>
+                                  )}
+                                </button>
+                              )
                             )}
                           </div>
 
