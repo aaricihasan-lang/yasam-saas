@@ -260,6 +260,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
     "aromaterapi",
   ],
   personal_archive: ["kisisel_arsiv"],
+  video_ceviri: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {

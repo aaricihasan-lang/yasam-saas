@@ -12,7 +12,8 @@ export type ModulePermissionKey =
   | "stok"
   | "sifa_rehberi"
   | "energy_body"
-  | "personal_archive";
+  | "personal_archive"
+  | "video_ceviri";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -25,6 +26,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "sifa_rehberi",
   "energy_body",
   "personal_archive",
+  "video_ceviri",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -36,6 +38,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   sifa_rehberi: "Şifa Rehberi",
   energy_body: "Enerji & Beden",
   personal_archive: "Kişisel Arşiv",
+  video_ceviri: "Video → Türkçe Dönüşüm",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -47,6 +50,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   sifa_rehberi: false,
   energy_body: false,
   personal_archive: false,
+  video_ceviri: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
@@ -103,6 +107,7 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "energy_body",
   "personal_archive",
   "numerology",
+  "video_ceviri",
 ];
 
 export function isPremiumExpertUser(
