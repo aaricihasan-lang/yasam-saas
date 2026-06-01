@@ -11,8 +11,18 @@ function escapeHtml(str: string): string {
 
 export async function downloadTranscriptAsPdf(
   transcript: string,
-  filename = "transkript.pdf",
+  filename = "rapor.pdf",
+  transcriptTr?: string | null,
 ): Promise<void> {
+  const trSection =
+    transcriptTr?.trim()
+      ? `<h2 style="font-size:15px;font-weight:bold;margin:32px 0 10px;color:#1e3a8a;
+                   border-top:2px solid #1e3a8a;padding-top:12px;">
+           TÜRKÇE ÇEVİRİ
+         </h2>
+         <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(transcriptTr)}</div>`
+      : "";
+
   const container = document.createElement("div");
   Object.assign(container.style, {
     position: "fixed",
@@ -26,13 +36,18 @@ export async function downloadTranscriptAsPdf(
     color: "#111111",
     background: "#ffffff",
     boxSizing: "border-box",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
   });
 
   container.innerHTML = `
-    <h1 style="font-size:18px;font-weight:bold;margin:0 0 16px;color:#1e1b4b;">Transkript</h1>
-    <div>${escapeHtml(transcript)}</div>
+    <h1 style="font-size:20px;font-weight:bold;margin:0 0 8px;color:#1e1b4b;">
+      Video Çeviri Raporu
+    </h1>
+    <h2 style="font-size:15px;font-weight:bold;margin:24px 0 10px;color:#1e3a8a;
+               border-top:2px solid #1e3a8a;padding-top:12px;">
+      ORİJİNAL TRANSKRİPT
+    </h2>
+    <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(transcript)}</div>
+    ${trSection}
   `;
   document.body.appendChild(container);
 

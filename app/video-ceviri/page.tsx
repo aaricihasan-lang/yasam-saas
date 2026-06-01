@@ -88,7 +88,7 @@ export default function VideoCeviriPage() {
     setPdfGeneratingId(job.id);
     try {
       const safeName = job.original_filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-      await downloadTranscriptAsPdf(job.transcript_original, `${safeName}_transkript.pdf`);
+      await downloadTranscriptAsPdf(job.transcript_original, `${safeName}_rapor.pdf`, job.transcript_tr);
     } catch {
       showToast({ title: "PDF oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
     } finally {

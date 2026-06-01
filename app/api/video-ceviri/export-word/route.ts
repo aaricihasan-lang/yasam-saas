@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
   const { data: jobData, error: jobErr } = await db
     .from("video_transcription_jobs")
-    .select("id, tenant_id, original_filename, transcript_original")
+    .select("id, tenant_id, original_filename, transcript_original, transcript_tr")
     .eq("id", jobId)
     .eq("tenant_id", tenantId)
     .single();
@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     tenant_id: string;
     original_filename: string;
     transcript_original: string | null;
+    transcript_tr: string | null;
   };
 
   if (!job.transcript_original) {
@@ -64,49 +65,58 @@ export async function GET(request: Request) {
     );
   }
 
-  const bodyParagraphs = job.transcript_original
-    .split(/\n+/)
-    .filter((line) => line.trim().length > 0)
-    .map(
-      (line) =>
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: line.trim(),
-              size: 24,
-              font: "Calibri",
-            }),
-          ],
-          spacing: { after: 200 },
-        }),
-    );
-
-  const doc = new Document({
-    sections: [
-      {
-        properties: {},
-        children: [
-          new Paragraph({
-            text: "Transkript",
-            heading: HeadingLevel.HEADING_1,
-            spacing: { after: 300 },
-          }),
+  function textToParagraphs(text: string): Paragraph[] {
+    return text
+      .split(/\n+/)
+      .filter((line) => line.trim().length > 0)
+      .map(
+        (line) =>
           new Paragraph({
             children: [
-              new TextRun({
-                text: `Kaynak: ${job.original_filename}`,
-                size: 20,
-                color: "666666",
-                italics: true,
-              }),
+              new TextRun({ text: line.trim(), size: 24, font: "Calibri" }),
             ],
-            spacing: { after: 500 },
+            spacing: { after: 200 },
           }),
-          ...bodyParagraphs,
-        ],
-      },
-    ],
-  });
+      );
+  }
+
+  const children: Paragraph[] = [
+    new Paragraph({
+      text: "Video Çeviri Raporu",
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 300 },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `Kaynak: ${job.original_filename}`,
+          size: 20,
+          color: "666666",
+          italics: true,
+        }),
+      ],
+      spacing: { after: 600 },
+    }),
+    new Paragraph({
+      text: "ORİJİNAL TRANSKRİPT",
+      heading: HeadingLevel.HEADING_2,
+      spacing: { after: 300 },
+    }),
+    ...textToParagraphs(job.transcript_original),
+  ];
+
+  if (job.transcript_tr?.trim()) {
+    children.push(
+      new Paragraph({
+        text: "TÜRKÇE ÇEVİRİ",
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 600, after: 300 },
+      }),
+      ...textToParagraphs(job.transcript_tr),
+    );
+  }
+
+  const doc = new Document({ sections: [{ properties: {}, children }] });
 
   const buffer = await Packer.toBuffer(doc);
   const safeName = job.original_filename
@@ -118,7 +128,7 @@ export async function GET(request: Request) {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="${safeName}_transkript.docx"`,
+      "Content-Disposition": `attachment; filename="${safeName}_rapor.docx"`,
       "Content-Length": String(buffer.length),
     },
   });
