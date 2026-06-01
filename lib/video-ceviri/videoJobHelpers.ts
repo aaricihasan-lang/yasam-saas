@@ -37,7 +37,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "mp3", "m4a", "wav", "aac", "amr", "3gp", "3gpp",
 ]);
 
-export const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
+export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
 export type VideoJobRow = {
   id: string;
@@ -91,7 +91,7 @@ export function validateVideoFile(file: File): string | null {
   }
   if (file.size > MAX_VIDEO_SIZE_BYTES) {
     const mb = (file.size / 1024 / 1024).toFixed(1);
-    return `Dosya çok büyük (${mb} MB). Maksimum 200 MB yüklenebilir.`;
+    return `Dosya çok büyük (${mb} MB). Maksimum 5 GB yüklenebilir.`;
   }
   return null;
 }

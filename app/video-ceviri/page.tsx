@@ -343,7 +343,7 @@ export default function VideoCeviriPage() {
                 ))}
               </div>
               <p className="mt-3 text-xs font-medium text-slate-500">
-                Maksimum: 200 MB yükleme · 25 MB Whisper limiti
+                Maksimum: 5 GB yükleme · 25 MB Whisper limiti
               </p>
             </div>
           </div>

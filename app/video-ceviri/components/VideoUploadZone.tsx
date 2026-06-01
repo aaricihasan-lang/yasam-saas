@@ -285,7 +285,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
                   Video: MP4, MOV, WEBM, MKV, AVI, OGG
                 </p>
                 <p className="text-xs font-semibold text-slate-400">
-                  Ses: MP3, M4A, WAV, AAC, AMR — maks. 200 MB
+                  Ses: MP3, M4A, WAV, AAC, AMR — maks. 5 GB
                 </p>
               </>
             )}
