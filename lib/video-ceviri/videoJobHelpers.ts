@@ -21,9 +21,12 @@ export const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "audio/aac",     // aac
   "audio/x-aac",
   "audio/ogg",     // ogg ses
-  "audio/amr",     // amr — bazı tarayıcılarda boş MIME döner, ek kontrol var
+  "audio/amr",     // amr — tarayıcı/cihaza göre farklı yazılabilir
   "audio/amr-wb",
   "audio/x-amr",
+  "audio/AMR",     // büyük harf varyant (normalize ediliyor ama yedek olarak)
+  "audio/3gpp",    // .amr / .3gp WhatsApp formatı
+  "audio/3gpp2",
   // WhatsApp ve bazı sistemlerde generic MIME tipi; uzantı kontrolü ek güvenlik sağlar
   "application/octet-stream",
 ]);
@@ -70,7 +73,9 @@ export type InsertVideoJobResult =
 
 export function validateVideoFile(file: File): string | null {
   const ext = (file.name.split(".").pop() ?? "").toLowerCase();
-  const mimeOk = ALLOWED_VIDEO_MIME_TYPES.has(file.type);
+  // MIME tipini lowercase'e normalize et (audio/AMR → audio/amr)
+  const normalizedMime = (file.type ?? "").toLowerCase();
+  const mimeOk = ALLOWED_VIDEO_MIME_TYPES.has(file.type) || ALLOWED_VIDEO_MIME_TYPES.has(normalizedMime);
   const extOk  = ALLOWED_EXTENSIONS.has(ext);
 
   if (!mimeOk && !extOk) {
@@ -78,7 +83,7 @@ export function validateVideoFile(file: File): string | null {
   }
 
   // application/octet-stream yalnızca bilinen uzantılarla kabul edilir
-  if (file.type === "application/octet-stream" && !extOk) {
+  if (normalizedMime === "application/octet-stream" && !extOk) {
     return `Dosya tipi belirlenemiyor (.${ext || "?"} uzantısı desteklenmiyor). Kabul edilen ses formatları: MP3, M4A, WAV, AAC, AMR.`;
   }
   if (file.size === 0) {

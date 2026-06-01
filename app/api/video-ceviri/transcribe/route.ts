@@ -132,9 +132,20 @@ export async function POST(request: Request) {
     // Blob'u OpenAI SDK'nın beklediği File nesnesine çevir
     const ext =
       job.video_temp_path.split(".").pop()?.toLowerCase() ?? "mp4";
-    const file = await toFile(blob, `audio.${ext}`, {
-      type: blob.type || `video/${ext}`,
-    });
+
+    // Ses formatları için doğru MIME eşlemesi — varsayılan `video/${ext}` yanlış
+    const EXT_MIME: Record<string, string> = {
+      amr: "audio/amr",  mp3: "audio/mpeg", m4a: "audio/mp4",
+      wav: "audio/wav",  aac: "audio/aac",  ogg: "audio/ogg",
+      mp4: "video/mp4",  webm: "video/webm", mov: "video/quicktime",
+      avi: "video/x-msvideo", mkv: "video/x-matroska",
+    };
+    const resolvedType =
+      blob.type && blob.type !== "application/octet-stream"
+        ? blob.type
+        : (EXT_MIME[ext] ?? `video/${ext}`);
+
+    const file = await toFile(blob, `audio.${ext}`, { type: resolvedType });
 
     // OpenAI Whisper çağrısı
     if (!process.env.OPENAI_API_KEY) {

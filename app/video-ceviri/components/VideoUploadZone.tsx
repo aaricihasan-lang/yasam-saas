@@ -149,9 +149,11 @@ export default function VideoUploadZone({ onSuccess }: Props) {
       avi: "video/x-msvideo", mkv: "video/x-matroska",
     };
     const fileExt = selectedFile.name.split(".").pop()?.toLowerCase() ?? "";
+    // MIME tipini normalize et (audio/AMR → audio/amr); sonra eşleştir
+    const normalizedType = (selectedFile.type ?? "").toLowerCase();
     const resolvedMime =
-      selectedFile.type && selectedFile.type !== "application/octet-stream"
-        ? selectedFile.type
+      normalizedType && normalizedType !== "application/octet-stream"
+        ? (EXT_MIME[fileExt] ?? normalizedType) // uzantı eşleşiyorsa uzantıya göre override
         : (EXT_MIME[fileExt] ?? "application/octet-stream");
 
     // MIME tipi değiştiyse doğru type'a sahip yeni bir File oluştur
