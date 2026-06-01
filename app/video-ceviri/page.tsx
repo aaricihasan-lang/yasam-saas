@@ -409,10 +409,10 @@ export default function VideoCeviriPage() {
                                   />
 
                                   {/* menü paneli */}
-                                  <div className="absolute left-0 top-full z-20 mt-1.5 w-52 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/96 shadow-xl backdrop-blur-sm">
+                                  <div className="absolute left-0 top-full z-[9999] mt-1.5 min-w-[240px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                                     {/* WORD grubu */}
-                                    <div className="px-3 pb-1 pt-2.5">
-                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                    <div className="px-3 pb-1 pt-3">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
                                         Word
                                       </p>
                                     </div>
@@ -434,10 +434,10 @@ export default function VideoCeviriPage() {
                                             setDropdownOpenId(null);
                                             handleDownloadWord(job, mode);
                                           }}
-                                          className={`w-full px-3 py-2 text-left text-xs font-semibold transition ${
+                                          className={`w-full px-4 py-2 text-left text-xs font-semibold transition ${
                                             disabled
                                               ? "cursor-not-allowed text-slate-300"
-                                              : "text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                                              : "text-slate-800 hover:bg-violet-50 hover:text-violet-800"
                                           }`}
                                         >
                                           {label}
@@ -449,7 +449,7 @@ export default function VideoCeviriPage() {
 
                                     {/* PDF grubu */}
                                     <div className="px-3 pb-1">
-                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-600">
                                         PDF
                                       </p>
                                     </div>
@@ -479,10 +479,10 @@ export default function VideoCeviriPage() {
                                             setDropdownOpenId(null);
                                             void handleDownloadPdf(job, mode);
                                           }}
-                                          className={`w-full px-3 py-2 text-left text-xs font-semibold transition ${
+                                          className={`w-full px-4 py-2 text-left text-xs font-semibold transition ${
                                             disabled
                                               ? "cursor-not-allowed text-slate-300"
-                                              : "text-slate-700 hover:bg-rose-50 hover:text-rose-700"
+                                              : "text-slate-800 hover:bg-rose-50 hover:text-rose-700"
                                           }`}
                                         >
                                           {isGenerating ? "Oluşturuluyor…" : label}
