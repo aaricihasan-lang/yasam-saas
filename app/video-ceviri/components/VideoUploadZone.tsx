@@ -25,23 +25,24 @@ const RESUMABLE_THRESHOLD = 100 * 1024 * 1024;
 
 /**
  * Supabase TUS endpoint'ine parçalı (resumable) yükleme yapar.
+ * authToken: API route'dan createSignedUploadUrl ile alınan kısa ömürlü JWT.
  * 6 MB chunk, otomatik retry, kesintisiz devam desteği.
  */
 function uploadWithTus(
   file: File,
   storagePath: string,
   contentType: string,
+  authToken: string,
   onProgress?: (pct: number) => void,
 ): Promise<void> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 
   return new Promise((resolve, reject) => {
     const upload = new TusUpload(file, {
       endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
-        authorization: `Bearer ${supabaseKey}`,
+        authorization: `Bearer ${authToken}`,
         "x-upsert": "false",
       },
       uploadDataDuringCreation: true,
@@ -212,17 +213,39 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     setUploadProgress(0);
 
     if (selectedFile.size > RESUMABLE_THRESHOLD) {
-      // ── Büyük dosya: TUS resumable upload (6 MB chunk) ──────────────
+      // ── Büyük dosya: TUS resumable upload ────────────────────────────
+      // Adım 1: API route'dan kısa ömürlü upload token al (service role key server'da kalır)
+      let tusToken: string;
+      try {
+        const tokenRes = await fetch("/api/video-ceviri/get-upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storagePath, jobId, tenantId }),
+        });
+        const tokenData = (await tokenRes.json()) as { ok: boolean; token?: string; error?: string };
+        if (!tokenData.ok || !tokenData.token) {
+          throw new Error(tokenData.error ?? "Upload token alınamadı.");
+        }
+        tusToken = tokenData.token;
+      } catch (tokenErr) {
+        const msg = tokenErr instanceof Error ? tokenErr.message : "Upload token hatası.";
+        await updateVideoJobStatus(jobId, "failed", msg);
+        setErrorMsg(`Yükleme başlatılamadı: ${msg}`);
+        setPhase("error");
+        return;
+      }
+
+      // Adım 2: TUS upload (6 MB chunk)
       try {
         await uploadWithTus(
           selectedFile,
           storagePath,
           resolvedMime,
+          tusToken,
           (pct) => setUploadProgress(pct),
         );
       } catch (tusErr) {
-        const msg =
-          tusErr instanceof Error ? tusErr.message : "Yükleme başarısız.";
+        const msg = tusErr instanceof Error ? tusErr.message : "Yükleme başarısız.";
         await updateVideoJobStatus(jobId, "failed", msg);
         setErrorMsg(`Dosya yüklenemedi: ${msg}`);
         setPhase("error");
