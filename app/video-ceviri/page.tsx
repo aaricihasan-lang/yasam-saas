@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
+  ChevronDown,
   Clock,
   Download,
-  FileDown,
   FileText,
   Languages,
   Loader2,
   Mic,
   Video,
 } from "lucide-react";
-import { downloadTranscriptAsPdf } from "@/lib/video-ceviri/exportHelpers";
+import {
+  downloadTranscriptAsPdf,
+  type ExportMode,
+} from "@/lib/video-ceviri/exportHelpers";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import VideoUploadZone from "./components/VideoUploadZone";
@@ -54,9 +57,10 @@ export default function VideoCeviriPage() {
   const [tenantId, setTenantId]           = useState<string | null>(null);
   const [jobs, setJobs]                   = useState<VideoJobRow[]>([]);
   const [jobsLoading, setJobsLoading]     = useState(true);
-  const [transcribingId, setTranscribingId]   = useState<string | null>(null);
-  const [translatingId, setTranslatingId]     = useState<string | null>(null);
-  const [pdfGeneratingId, setPdfGeneratingId] = useState<string | null>(null);
+  const [transcribingId, setTranscribingId]     = useState<string | null>(null);
+  const [translatingId, setTranslatingId]       = useState<string | null>(null);
+  const [pdfGeneratingId, setPdfGeneratingId]   = useState<string | null>(null);
+  const [dropdownOpenId, setDropdownOpenId]     = useState<string | null>(null);
 
   const loadJobs = useCallback(async (tid: string) => {
     setJobsLoading(true);
@@ -77,18 +81,34 @@ export default function VideoCeviriPage() {
     if (tenantId) void loadJobs(tenantId);
   }
 
-  function handleDownloadWord(job: VideoJobRow) {
+  function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
     if (!tenantId || !job.transcript_original) return;
-    const url = `/api/video-ceviri/export-word?jobId=${encodeURIComponent(job.id)}&tenantId=${encodeURIComponent(tenantId)}`;
+    if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
+    const url =
+      `/api/video-ceviri/export-word` +
+      `?jobId=${encodeURIComponent(job.id)}` +
+      `&tenantId=${encodeURIComponent(tenantId)}` +
+      `&mode=${mode}`;
     window.open(url, "_blank");
   }
 
-  async function handleDownloadPdf(job: VideoJobRow) {
+  async function handleDownloadPdf(job: VideoJobRow, mode: ExportMode) {
     if (!job.transcript_original || pdfGeneratingId) return;
-    setPdfGeneratingId(job.id);
+    if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
+    const key = `${job.id}-${mode}`;
+    setPdfGeneratingId(key);
     try {
-      const safeName = job.original_filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-      await downloadTranscriptAsPdf(job.transcript_original, `${safeName}_rapor.pdf`, job.transcript_tr);
+      const safeName = job.original_filename
+        .replace(/\.[^.]+$/, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+      const suffix =
+        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      await downloadTranscriptAsPdf(
+        job.transcript_original,
+        job.transcript_tr,
+        mode,
+        `${safeName}_${suffix}.pdf`,
+      );
     } catch {
       showToast({ title: "PDF oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
     } finally {
@@ -354,31 +374,128 @@ export default function VideoCeviriPage() {
                             </p>
                           </div>
 
-                          {/* export + çeviri butonları */}
+                          {/* export dropdown + çeviri butonu */}
                           <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadWord(job)}
-                              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
-                            >
-                              <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
-                              Word İndir
-                            </button>
 
-                            <button
-                              type="button"
-                              onClick={() => void handleDownloadPdf(job)}
-                              disabled={pdfGeneratingId === job.id}
-                              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {pdfGeneratingId === job.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
+                            {/* ── İndir dropdown ── */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDropdownOpenId(
+                                    dropdownOpenId === job.id ? null : job.id,
+                                  )
+                                }
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 text-xs font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                              >
+                                {pdfGeneratingId?.startsWith(`${job.id}-`) ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                )}
+                                İndir
+                                <ChevronDown
+                                  className={`h-3 w-3 transition-transform ${dropdownOpenId === job.id ? "rotate-180" : ""}`}
+                                  strokeWidth={2.5}
+                                />
+                              </button>
+
+                              {dropdownOpenId === job.id && (
+                                <>
+                                  {/* tıklama dışı kapanma için şeffaf overlay */}
+                                  <div
+                                    className="fixed inset-0 z-10"
+                                    onClick={() => setDropdownOpenId(null)}
+                                  />
+
+                                  {/* menü paneli */}
+                                  <div className="absolute left-0 top-full z-20 mt-1.5 w-52 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/96 shadow-xl backdrop-blur-sm">
+                                    {/* WORD grubu */}
+                                    <div className="px-3 pb-1 pt-2.5">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                        Word
+                                      </p>
+                                    </div>
+                                    {(
+                                      [
+                                        { label: "Orijinal Word", mode: "original" as ExportMode, needsTr: false },
+                                        { label: "Türkçe Word", mode: "turkish" as ExportMode, needsTr: true },
+                                        { label: "Karşılaştırmalı Word", mode: "comparison" as ExportMode, needsTr: true },
+                                      ] as const
+                                    ).map(({ label, mode, needsTr }) => {
+                                      const disabled = needsTr && !job.transcript_tr;
+                                      return (
+                                        <button
+                                          key={label}
+                                          type="button"
+                                          disabled={disabled}
+                                          title={disabled ? "Önce Türkçeye Çevir" : undefined}
+                                          onClick={() => {
+                                            setDropdownOpenId(null);
+                                            handleDownloadWord(job, mode);
+                                          }}
+                                          className={`w-full px-3 py-2 text-left text-xs font-semibold transition ${
+                                            disabled
+                                              ? "cursor-not-allowed text-slate-300"
+                                              : "text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                                          }`}
+                                        >
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+
+                                    <div className="mx-3 my-1.5 border-t border-slate-100" />
+
+                                    {/* PDF grubu */}
+                                    <div className="px-3 pb-1">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                        PDF
+                                      </p>
+                                    </div>
+                                    {(
+                                      [
+                                        { label: "Orijinal PDF", mode: "original" as ExportMode, needsTr: false },
+                                        { label: "Türkçe PDF", mode: "turkish" as ExportMode, needsTr: true },
+                                        { label: "Karşılaştırmalı PDF", mode: "comparison" as ExportMode, needsTr: true },
+                                      ] as const
+                                    ).map(({ label, mode, needsTr }) => {
+                                      const isGenerating =
+                                        pdfGeneratingId === `${job.id}-${mode}`;
+                                      const disabled =
+                                        (needsTr && !job.transcript_tr) ||
+                                        !!pdfGeneratingId;
+                                      return (
+                                        <button
+                                          key={label}
+                                          type="button"
+                                          disabled={disabled}
+                                          title={
+                                            needsTr && !job.transcript_tr
+                                              ? "Önce Türkçeye Çevir"
+                                              : undefined
+                                          }
+                                          onClick={() => {
+                                            setDropdownOpenId(null);
+                                            void handleDownloadPdf(job, mode);
+                                          }}
+                                          className={`w-full px-3 py-2 text-left text-xs font-semibold transition ${
+                                            disabled
+                                              ? "cursor-not-allowed text-slate-300"
+                                              : "text-slate-700 hover:bg-rose-50 hover:text-rose-700"
+                                          }`}
+                                        >
+                                          {isGenerating ? "Oluşturuluyor…" : label}
+                                        </button>
+                                      );
+                                    })}
+                                    <div className="h-1.5" />
+                                  </div>
+                                </>
                               )}
-                              PDF İndir
-                            </button>
+                            </div>
 
+                            {/* Türkçeye Çevir */}
                             {!job.transcript_tr && (
                               <button
                                 type="button"

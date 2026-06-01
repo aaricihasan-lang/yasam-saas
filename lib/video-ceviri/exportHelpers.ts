@@ -2,6 +2,8 @@
 
 import jsPDF from "jspdf";
 
+export type ExportMode = "original" | "turkish" | "comparison";
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -9,20 +11,60 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export async function downloadTranscriptAsPdf(
-  transcript: string,
-  filename = "rapor.pdf",
-  transcriptTr?: string | null,
-): Promise<void> {
-  const trSection =
-    transcriptTr?.trim()
-      ? `<h2 style="font-size:15px;font-weight:bold;margin:32px 0 10px;color:#1e3a8a;
-                   border-top:2px solid #1e3a8a;padding-top:12px;">
-           TÜRKÇE ÇEVİRİ
-         </h2>
-         <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(transcriptTr)}</div>`
-      : "";
+const SECTION_HEADING_STYLE =
+  "font-size:14px;font-weight:bold;margin:28px 0 10px;color:#1e3a8a;" +
+  "border-top:2px solid #1e3a8a;padding-top:10px;";
 
+const CONTENT_STYLE = "white-space:pre-wrap;word-break:break-word;";
+
+function buildHtml(
+  transcript: string | null,
+  transcriptTr: string | null | undefined,
+  mode: ExportMode,
+  sourceFilename?: string,
+): string {
+  const titleMap: Record<ExportMode, string> = {
+    original: "Orijinal Transkript",
+    turkish: "Türkçe Çeviri",
+    comparison: "Video Çeviri Raporu",
+  };
+
+  const header = `
+    <h1 style="font-size:20px;font-weight:bold;margin:0 0 8px;color:#1e1b4b;">
+      ${titleMap[mode]}
+    </h1>
+    ${
+      sourceFilename
+        ? `<p style="font-size:11px;color:#888;margin:0 0 20px;font-style:italic;">
+             Kaynak: ${escapeHtml(sourceFilename)}
+           </p>`
+        : ""
+    }`;
+
+  if (mode === "original") {
+    return `${header}
+      <div style="${CONTENT_STYLE}">${escapeHtml(transcript ?? "")}</div>`;
+  }
+
+  if (mode === "turkish") {
+    return `${header}
+      <div style="${CONTENT_STYLE}">${escapeHtml(transcriptTr ?? "")}</div>`;
+  }
+
+  // comparison
+  return `${header}
+    <h2 style="${SECTION_HEADING_STYLE}">ORİJİNAL TRANSKRİPT</h2>
+    <div style="${CONTENT_STYLE}">${escapeHtml(transcript ?? "")}</div>
+    <h2 style="${SECTION_HEADING_STYLE}">TÜRKÇE ÇEVİRİ</h2>
+    <div style="${CONTENT_STYLE}">${escapeHtml(transcriptTr ?? "")}</div>`;
+}
+
+export async function downloadTranscriptAsPdf(
+  transcript: string | null,
+  transcriptTr: string | null | undefined,
+  mode: ExportMode,
+  filename = "rapor.pdf",
+): Promise<void> {
   const container = document.createElement("div");
   Object.assign(container.style, {
     position: "fixed",
@@ -38,17 +80,7 @@ export async function downloadTranscriptAsPdf(
     boxSizing: "border-box",
   });
 
-  container.innerHTML = `
-    <h1 style="font-size:20px;font-weight:bold;margin:0 0 8px;color:#1e1b4b;">
-      Video Çeviri Raporu
-    </h1>
-    <h2 style="font-size:15px;font-weight:bold;margin:24px 0 10px;color:#1e3a8a;
-               border-top:2px solid #1e3a8a;padding-top:12px;">
-      ORİJİNAL TRANSKRİPT
-    </h2>
-    <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(transcript)}</div>
-    ${trSection}
-  `;
+  container.innerHTML = buildHtml(transcript, transcriptTr, mode);
   document.body.appendChild(container);
 
   try {
