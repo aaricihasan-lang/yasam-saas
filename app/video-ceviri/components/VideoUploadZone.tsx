@@ -245,9 +245,16 @@ export default function VideoUploadZone({ onSuccess }: Props) {
           (pct) => setUploadProgress(pct),
         );
       } catch (tusErr) {
-        const msg = tusErr instanceof Error ? tusErr.message : "Yükleme başarısız.";
-        await updateVideoJobStatus(jobId, "failed", msg);
-        setErrorMsg(`Dosya yüklenemedi: ${msg}`);
+        const raw = tusErr instanceof Error ? tusErr.message : String(tusErr);
+        const isOverLimit =
+          raw.includes("413") ||
+          raw.toLowerCase().includes("maximum size") ||
+          raw.toLowerCase().includes("exceeded");
+        const userMsg = isOverLimit
+          ? "Büyük dosya yükleme sınırına takıldı. Lütfen daha küçük dosya deneyin veya videoyu sıkıştırın."
+          : `Yükleme başarısız: ${raw}`;
+        await updateVideoJobStatus(jobId, "failed", userMsg);
+        setErrorMsg(userMsg);
         setPhase("error");
         return;
       }
