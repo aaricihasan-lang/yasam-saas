@@ -21,6 +21,7 @@ export type VideoJobRow = {
   file_size_bytes: number | null;
   source_language: string;
   error_message: string | null;
+  transcript_original: string | null;
   processing_started_at: string | null;
   processing_completed_at: string | null;
   video_deleted_at: string | null;
@@ -148,11 +149,28 @@ export async function updateVideoJobStatus(
   }
 }
 
+export async function saveTranscriptOriginal(
+  jobId: string,
+  transcript: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("video_transcription_jobs")
+    .update({
+      transcript_original: transcript,
+      status: "completed",
+      processing_completed_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+  if (error) {
+    console.error("[videoJobHelpers] saveTranscriptOriginal:", error);
+  }
+}
+
 export async function fetchVideoJobs(tenantId: string): Promise<VideoJobRow[]> {
   const { data, error } = await supabase
     .from("video_transcription_jobs")
     .select(
-      "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
+      "id, tenant_id, user_id, status, original_filename, file_size_bytes, source_language, error_message, transcript_original, processing_started_at, processing_completed_at, video_deleted_at, created_at, updated_at",
     )
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
