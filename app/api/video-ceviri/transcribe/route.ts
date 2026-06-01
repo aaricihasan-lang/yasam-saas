@@ -2,12 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { writeFile, readFile, unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import ffmpegPath from "ffmpeg-static";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,48 +9,11 @@ export const maxDuration = 60;
 const MAX_WHISPER_BYTES = 25 * 1024 * 1024;
 const TABLE = "video_transcription_jobs";
 
-/** Whisper'ın desteklemediği formatlar; WAV'a çevrilmesi gerekiyor. */
-const NEEDS_CONVERSION = new Set(["amr", "3gp", "3gpp"]);
-
-const execFileAsync = promisify(execFile);
-
 /**
- * AMR / 3GP dosyasını WAV'a dönüştürür.
- * Vercel'de /tmp dizini kullanılabilir (512 MB).
- * ffmpeg-static Vercel Pro'da (250 MB limit) çalışır.
+ * Whisper'ın desteklemediği formatlar.
+ * Bu formatlar için kullanıcıya dönüştürme talebi gösterilir.
  */
-async function convertToWav(
-  inputBuffer: Buffer,
-  ext: string,
-  jobId: string,
-): Promise<Buffer> {
-  if (!ffmpegPath) {
-    throw new Error(
-      "FFmpeg bulunamadı. Sunucu yapılandırmasını kontrol edin.",
-    );
-  }
-
-  const tmp = tmpdir();
-  const inputFile  = join(tmp, `vc_${jobId}.${ext}`);
-  const outputFile = join(tmp, `vc_${jobId}.wav`);
-
-  await writeFile(inputFile, inputBuffer);
-
-  try {
-    await execFileAsync(ffmpegPath, [
-      "-y",                // mevcut dosyanın üzerine yaz
-      "-i", inputFile,
-      "-ar", "16000",      // 16 kHz — Whisper için optimal
-      "-ac", "1",          // mono
-      "-c:a", "pcm_s16le", // standart WAV codec
-      outputFile,
-    ]);
-    return await readFile(outputFile);
-  } finally {
-    await unlink(inputFile).catch(() => undefined);
-    await unlink(outputFile).catch(() => undefined);
-  }
-}
+const UNSUPPORTED_BY_WHISPER = new Set(["amr", "3gp", "3gpp"]);
 
 export async function POST(request: Request) {
   try {
@@ -64,7 +21,7 @@ export async function POST(request: Request) {
       jobId?: unknown;
       tenantId?: unknown;
     };
-    const jobId   = String(body.jobId   ?? "").trim();
+    const jobId    = String(body.jobId    ?? "").trim();
     const tenantId = String(body.tenantId ?? "").trim();
 
     if (!jobId || !tenantId) {
@@ -131,6 +88,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // AMR / 3GP için erken çıkış — Whisper bu formatları desteklemiyor
+    const ext = job.video_temp_path.split(".").pop()?.toLowerCase() ?? "";
+    if (UNSUPPORTED_BY_WHISPER.has(ext)) {
+      const msg =
+        `WhatsApp AMR formatı henüz desteklenmiyor. ` +
+        `Lütfen dosyayı MP3, M4A veya WAV formatına dönüştürüp tekrar yükleyin.`;
+      await db
+        .from(TABLE)
+        .update({ status: "failed", error_message: msg })
+        .eq("id", jobId);
+      return NextResponse.json({ ok: false, error: msg }, { status: 422 });
+    }
+
     if (job.file_size_bytes && job.file_size_bytes > MAX_WHISPER_BYTES) {
       const mb  = (job.file_size_bytes / 1024 / 1024).toFixed(1);
       const msg = `Dosya (${mb} MB) Whisper 25 MB limitini aşıyor. Daha kısa dosya yükleyin.`;
@@ -172,44 +142,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: msg }, { status: 422 });
     }
 
-    const ext = job.video_temp_path.split(".").pop()?.toLowerCase() ?? "mp4";
-
     const EXT_MIME: Record<string, string> = {
-      amr:  "audio/amr",   "3gp": "audio/3gpp", "3gpp": "audio/3gpp",
       mp3:  "audio/mpeg",  m4a:  "audio/mp4",
       wav:  "audio/wav",   aac:  "audio/aac",   ogg: "audio/ogg",
       mp4:  "video/mp4",   webm: "video/webm",  mov: "video/quicktime",
       avi:  "video/x-msvideo", mkv: "video/x-matroska",
     };
+    const resolvedType =
+      blob.type && blob.type !== "application/octet-stream"
+        ? blob.type
+        : (EXT_MIME[ext] ?? `video/${ext}`);
 
-    let whisperFile: Awaited<ReturnType<typeof toFile>>;
-
-    if (NEEDS_CONVERSION.has(ext)) {
-      // AMR / 3GP → WAV dönüşümü (Whisper bu formatları desteklemiyor)
-      let wavBuffer: Buffer;
-      try {
-        const inputBuffer = Buffer.from(await blob.arrayBuffer());
-        wavBuffer = await convertToWav(inputBuffer, ext, jobId);
-      } catch (convErr) {
-        const msg =
-          convErr instanceof Error
-            ? `Format dönüşümü başarısız: ${convErr.message}`
-            : "AMR/3GP → WAV dönüşümü başarısız.";
-        await db
-          .from(TABLE)
-          .update({ status: "failed", error_message: msg })
-          .eq("id", jobId);
-        return NextResponse.json({ ok: false, error: msg }, { status: 500 });
-      }
-      whisperFile = await toFile(wavBuffer, "audio.wav", { type: "audio/wav" });
-    } else {
-      // Whisper'ın desteklediği formatlar doğrudan gönderilir
-      const resolvedType =
-        blob.type && blob.type !== "application/octet-stream"
-          ? blob.type
-          : (EXT_MIME[ext] ?? `video/${ext}`);
-      whisperFile = await toFile(blob, `audio.${ext}`, { type: resolvedType });
-    }
+    const file = await toFile(blob, `audio.${ext}`, { type: resolvedType });
 
     if (!process.env.OPENAI_API_KEY) {
       const msg = "OpenAI API anahtarı yapılandırılmamış.";
@@ -231,7 +175,7 @@ export async function POST(request: Request) {
     let detectedLanguage = "auto";
     try {
       const response = (await openai.audio.transcriptions.create({
-        file: whisperFile,
+        file,
         model: "whisper-1",
         response_format: "verbose_json",
         ...(language ? { language } : {}),
