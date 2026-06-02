@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   ArrowLeft,
   BookOpen,
@@ -77,12 +78,20 @@ const CARDS: CardDef[] = [
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
+const ENDPOINT: Partial<Record<CardId, string>> = {
+  "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
+  "word-to-pdf": "/api/belge-ceviri/word-to-pdf",
+};
+
 export default function BelgeCeviriPage() {
+  const { showToast } = useToast();
+
   const [selectedFiles, setSelectedFiles] = useState<Record<CardId, File | null>>({
     "pdf-to-word": null,
     "word-to-pdf": null,
     "belge-ceviri": null,
   });
+  const [submitting, setSubmitting] = useState<CardId | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const inputRefs = useRef<Record<CardId, HTMLInputElement | null>>({
@@ -101,6 +110,36 @@ export default function BelgeCeviriPage() {
     setSelectedFiles((prev) => ({ ...prev, [cardId]: null }));
   }
 
+  async function handleSubmit(cardId: CardId) {
+    const file = selectedFiles[cardId];
+    const endpoint = ENDPOINT[cardId];
+    if (!file || !endpoint || submitting) return;
+
+    setSubmitting(cardId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch(endpoint, { method: "POST", body: form });
+      const data = (await res.json()) as { success: boolean; message: string; fileName?: string };
+
+      if (!data.success) {
+        showToast({ title: "Hata", message: data.message, type: "error" });
+      } else {
+        showToast({
+          title: "Dosya alındı",
+          message: "Dosya başarıyla alındı. Dönüşüm altyapısı hazırlanıyor.",
+          type: "success",
+        });
+        clearFile(cardId);
+      }
+    } catch {
+      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       {/* arka plan ışıkları */}
@@ -108,7 +147,7 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-sky-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 pb-24 pt-5 sm:px-6 lg:px-8 xl:px-12 lg:pt-7">
+      <div className="relative z-10 mx-auto w-full max-w-[1800px] px-4 pb-24 pt-5 sm:px-6 lg:px-6 xl:px-8 2xl:px-10 lg:pt-7">
 
         {/* nav */}
         <nav className="mb-8 flex items-center justify-between gap-4" aria-label="Üst navigasyon">
@@ -218,17 +257,29 @@ export default function BelgeCeviriPage() {
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file}
-                  className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                  disabled={!file || !!submitting || card.id === "belge-ceviri"}
+                  onClick={() => { if (card.id !== "belge-ceviri") void handleSubmit(card.id); }}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
-                  {card.id === "pdf-to-word" && "Word'e Dönüştür"}
-                  {card.id === "word-to-pdf" && "PDF'e Dönüştür"}
-                  {card.id === "belge-ceviri" && "Belgeyi Çevir"}
+                  {submitting === card.id ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Gönderiliyor…
+                    </>
+                  ) : (
+                    <>
+                      {card.id === "pdf-to-word" && "Word'e Dönüştür"}
+                      {card.id === "word-to-pdf" && "PDF'e Dönüştür"}
+                      {card.id === "belge-ceviri" && "Belgeyi Çevir"}
+                    </>
+                  )}
                 </button>
 
                 {/* yakında notu */}
                 <p className="mt-2 text-center text-xs font-medium text-slate-400">
-                  Bu özellik yakında aktif olacak.
+                  {card.id === "belge-ceviri"
+                    ? "Bu özellik yakında aktif olacak."
+                    : "Altyapı hazırlanıyor — kısa sürede aktif."}
                 </p>
               </div>
             );
