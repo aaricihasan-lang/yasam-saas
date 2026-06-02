@@ -31,6 +31,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
+  BookOpen,
   ChartColumn,
   Check,
   FolderArchive,
@@ -257,6 +258,20 @@ const dashboardModules: ModuleCard[] = [
       border: "border-rose-200/70",
     },
   },
+  {
+    title: "Belge Çeviri Merkezi",
+    desc: "PDF ve Word belgelerini dönüştür, çevir ve yönet.",
+    count: "Aktif",
+    badge: "YENİ",
+    href: "/belge-ceviri",
+    permissionKey: "belge_ceviri",
+    Icon: BookOpen,
+    theme: {
+      iconWrap: "from-sky-500 to-cyan-600",
+      cardBg: "from-sky-100/90 via-cyan-50/95 to-white",
+      border: "border-sky-200/70",
+    },
+  },
 ];
 
 /** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
@@ -276,6 +291,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   ],
   personal_archive: ["kisisel_arsiv"],
   video_ceviri: [],
+  belge_ceviri: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {
