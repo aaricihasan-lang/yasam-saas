@@ -10,6 +10,8 @@ export const maxDuration = 60;
 // ── Sabitler ───────────────────────────────────────────────────────────────────
 const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES = 200;
+// GEÇİCİ: timeout doğrulaması için 50 sayfa limiti — doğrulandıktan sonra kaldır
+const TEMP_DEBUG_PAGE_LIMIT = 50;
 const CHUNK_CONCURRENCY = 4;
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -53,7 +55,14 @@ Kurallar:
 - Özel isimler, teknik terimler ve kısaltmaları değiştirme.
 - Türkçeye doğal ve akıcı çeviri yap.`;
 
-async function translateChunk(text: string, openai: OpenAI): Promise<string> {
+async function translateChunk(
+  text: string,
+  openai: OpenAI,
+  index: number,
+  total: number,
+): Promise<string> {
+  const t0 = Date.now();
+  console.log(`[pdf-to-turkce-word] chunk ${index + 1}/${total} başladı (${text.length} karakter)`);
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -62,14 +71,20 @@ async function translateChunk(text: string, openai: OpenAI): Promise<string> {
     ],
     temperature: 0.3,
   });
-  return response.choices[0]?.message?.content ?? text;
+  const result = response.choices[0]?.message?.content ?? text;
+  console.log(`[pdf-to-turkce-word] chunk ${index + 1}/${total} bitti — ${Date.now() - t0}ms`);
+  return result;
 }
 
 async function translateAllChunks(chunks: string[], openai: OpenAI): Promise<string[]> {
   const results: string[] = new Array(chunks.length).fill("");
   for (let i = 0; i < chunks.length; i += CHUNK_CONCURRENCY) {
-    const batch = chunks.slice(i, Math.min(i + CHUNK_CONCURRENCY, chunks.length));
-    const batchResults = await Promise.all(batch.map((c) => translateChunk(c, openai)));
+    const batchEnd = Math.min(i + CHUNK_CONCURRENCY, chunks.length);
+    const batch = chunks.slice(i, batchEnd);
+    console.log(`[pdf-to-turkce-word] batch ${Math.floor(i / CHUNK_CONCURRENCY) + 1}: chunk ${i + 1}–${batchEnd} paralel işleniyor`);
+    const batchResults = await Promise.all(
+      batch.map((c, j) => translateChunk(c, openai, i + j, chunks.length)),
+    );
     batchResults.forEach((r, j) => { results[i + j] = r; });
   }
   return results;
@@ -77,6 +92,9 @@ async function translateAllChunks(chunks: string[], openai: OpenAI): Promise<str
 
 // ── Route handler ──────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
+  const reqStart = Date.now();
+  console.log("[pdf-to-turkce-word] istek alındı");
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");
@@ -111,12 +129,15 @@ export async function POST(request: Request) {
     }
 
     // ── Metin çıkarma ──────────────────────────────────────────────────────────
+    const t0 = Date.now();
     const arrayBuffer = await file.arrayBuffer();
     const { text: pages, totalPages } = await extractText(
       new Uint8Array(arrayBuffer),
       { mergePages: false },
     );
+    console.log(`[pdf-to-turkce-word] metin çıkarma: ${Date.now() - t0}ms | toplam sayfa: ${totalPages}`);
 
+    // Kalıcı limit
     if (totalPages > MAX_PAGES) {
       return NextResponse.json(
         {
@@ -127,19 +148,32 @@ export async function POST(request: Request) {
       );
     }
 
+    // GEÇİCİ DEBUG: timeout'ın sayfa sayısından kaynaklandığını doğrulamak için
+    // Bu blok doğrulandıktan sonra kaldırılacak
+    if (totalPages > TEMP_DEBUG_PAGE_LIMIT) {
+      console.log(`[pdf-to-turkce-word] DEBUG limit: ${totalPages} sayfa > ${TEMP_DEBUG_PAGE_LIMIT} — erken dönülüyor`);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Bu sürümde maksimum ${TEMP_DEBUG_PAGE_LIMIT} sayfa destekleniyor. Büyük Dosya Modu hazırlanıyor.`,
+          debug: { totalPages },
+        },
+        { status: 422 },
+      );
+    }
+
     // ── Sayfa metinlerini birleştir ────────────────────────────────────────────
     const pageList = Array.isArray(pages) ? pages : [pages as string];
     const lines: string[] = [];
-
     for (const pageText of pageList) {
       for (const raw of pageText.split("\n")) {
         const line = normalizeTurkishText(cleanLine(raw));
         if (line) lines.push(line);
       }
-      lines.push(""); // sayfa sonu boş satır
+      lines.push("");
     }
-
     const fullText = lines.join("\n").trim();
+    const totalChars = fullText.length;
 
     if (!fullText) {
       return NextResponse.json(
@@ -151,13 +185,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Chunk'lara böl ve çevir ────────────────────────────────────────────────
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const chunks = splitIntoChunks(fullText);
+    console.log(`[pdf-to-turkce-word] toplam karakter: ${totalChars} | toplam chunk: ${chunks.length}`);
+
+    // ── Çeviri ────────────────────────────────────────────────────────────────
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const tTranslate = Date.now();
     const translatedChunks = await translateAllChunks(chunks, openai);
+    const translateMs = Date.now() - tTranslate;
+    console.log(`[pdf-to-turkce-word] toplam çeviri süresi: ${translateMs}ms`);
+
     const translatedText = translatedChunks.join("\n\n");
 
     // ── DOCX oluştur ───────────────────────────────────────────────────────────
+    const tDocx = Date.now();
     const children: Paragraph[] = [];
     for (const raw of translatedText.split("\n")) {
       const line = raw.trim();
@@ -179,6 +220,9 @@ export async function POST(request: Request) {
     });
 
     const docxBuffer = await Packer.toBuffer(doc);
+    console.log(`[pdf-to-turkce-word] docx oluşturma: ${Date.now() - tDocx}ms`);
+    console.log(`[pdf-to-turkce-word] toplam süre: ${Date.now() - reqStart}ms`);
+
     const baseName = file.name.replace(/\.pdf$/i, "") + "_turkce";
 
     return new Response(new Uint8Array(docxBuffer), {
@@ -191,7 +235,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("[pdf-to-turkce-word]", err);
+    console.error(`[pdf-to-turkce-word] hata (${Date.now() - reqStart}ms):`, err);
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
       { success: false, message: `İşlem hatası: ${message}` },
