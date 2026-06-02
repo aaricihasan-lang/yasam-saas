@@ -21,6 +21,27 @@ function cleanLine(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
 }
 
+// Eski PDF encoder'larının Türkçe karakterleri yanlış kodladığı bilinen durumlar.
+// Yalnızca bozuk→doğru eşleşmeleri içerir; standart Türkçe karakterlere dokunulmaz.
+const TURKISH_CHAR_MAP: Record<string, string> = {
+  "Đ": "İ", // U+0110 Latin Capital Letter D with Stroke → İ
+  "đ": "i", // U+0111 Latin Small Letter D with Stroke → i
+  "Ð": "İ", // U+00D0 Latin Capital Letter Eth → İ (bazı PDF encoder'ları)
+  "ð": "i", // U+00F0 Latin Small Letter Eth → i
+  "İ": "İ", // U+0130 zaten İ — ama bazı font'lar farklı noktaya encode eder
+};
+
+const TURKISH_CHAR_REGEX = new RegExp(
+  Object.keys(TURKISH_CHAR_MAP)
+    .map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|"),
+  "g",
+);
+
+function normalizeTurkishText(text: string): string {
+  return text.replace(TURKISH_CHAR_REGEX, (ch) => TURKISH_CHAR_MAP[ch] ?? ch);
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -70,7 +91,7 @@ export async function POST(request: Request) {
       const rawLines = pageList[p].split("\n");
 
       for (const raw of rawLines) {
-        const line = cleanLine(raw);
+        const line = normalizeTurkishText(cleanLine(raw));
         if (!line) continue;
         children.push(
           new Paragraph({
