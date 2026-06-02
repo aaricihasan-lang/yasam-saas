@@ -95,6 +95,8 @@ const ENDPOINT: Partial<Record<CardId, string>> = {
   "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
 };
 
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
 export default function BelgeCeviriPage() {
@@ -300,10 +302,17 @@ export default function BelgeCeviriPage() {
                   />
                 </div>
 
+                {/* boyut uyarısı */}
+                {file && !disabled && file.size > MAX_FILE_BYTES && (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-amber-800">
+                    Bu işlem için maksimum dosya boyutu 50 MB. Büyük PDF dosyaları için yakında Büyük Dosya Modu eklenecek.
+                  </p>
+                )}
+
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file || !!submitting || disabled}
+                  disabled={!file || !!submitting || disabled || (!!file && file.size > MAX_FILE_BYTES)}
                   onClick={() => void handleSubmit(card.id)}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
