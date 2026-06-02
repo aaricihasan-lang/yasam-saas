@@ -2,7 +2,44 @@ import { NextResponse } from "next/server";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import OpenAI from "openai";
-import { splitIntoChunks } from "@/lib/video-ceviri/translationHelpers";
+// Belge çevirisi için küçük chunk'lar — video modülündeki 2500 kelimelik
+// helper'dan bağımsız, timeout riskini önlemek için 500 kelime kullanılır.
+const WORDS_PER_CHUNK = 500;
+
+function splitIntoSmallChunks(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  if (wordCount <= WORDS_PER_CHUNK) return [trimmed];
+
+  const sentences = trimmed.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+
+  if (sentences.length <= 1) {
+    const words = trimmed.split(/\s+/);
+    const chunks: string[] = [];
+    for (let i = 0; i < words.length; i += WORDS_PER_CHUNK) {
+      chunks.push(words.slice(i, i + WORDS_PER_CHUNK).join(" "));
+    }
+    return chunks;
+  }
+
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let currentWords = 0;
+  for (const sentence of sentences) {
+    const wc = sentence.split(/\s+/).filter(Boolean).length;
+    if (currentWords + wc > WORDS_PER_CHUNK && current.length > 0) {
+      chunks.push(current.join(" "));
+      current = [sentence];
+      currentWords = wc;
+    } else {
+      current.push(sentence);
+      currentWords += wc;
+    }
+  }
+  if (current.length > 0) chunks.push(current.join(" "));
+  return chunks;
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -177,7 +214,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const chunks = splitIntoChunks(fullText);
+    const chunks = splitIntoSmallChunks(fullText);
     console.log(`[pdf-to-turkce-word] toplam karakter: ${totalChars} | toplam chunk: ${chunks.length}`);
 
     // ── Çeviri ────────────────────────────────────────────────────────────────
