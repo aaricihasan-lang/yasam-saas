@@ -49,7 +49,7 @@ const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES = 200;
 // GEÇİCİ: pipeline doğrulaması için ilk 5 sayfa — onaylandıktan sonra kaldır
 const TEMP_TEST_PAGE_LIMIT = 30;
-const CHUNK_CONCURRENCY = 4;
+const CHUNK_CONCURRENCY = 8;
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
