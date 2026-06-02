@@ -10,8 +10,8 @@ export const maxDuration = 60;
 // ── Sabitler ───────────────────────────────────────────────────────────────────
 const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES = 200;
-// GEÇİCİ: timeout doğrulaması için 50 sayfa limiti — doğrulandıktan sonra kaldır
-const TEMP_DEBUG_PAGE_LIMIT = 50;
+// GEÇİCİ: pipeline doğrulaması için ilk 5 sayfa — onaylandıktan sonra kaldır
+const TEMP_TEST_PAGE_LIMIT = 5;
 const CHUNK_CONCURRENCY = 4;
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -148,22 +148,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // GEÇİCİ DEBUG: timeout'ın sayfa sayısından kaynaklandığını doğrulamak için
-    // Bu blok doğrulandıktan sonra kaldırılacak
-    if (totalPages > TEMP_DEBUG_PAGE_LIMIT) {
-      console.log(`[pdf-to-turkce-word] DEBUG limit: ${totalPages} sayfa > ${TEMP_DEBUG_PAGE_LIMIT} — erken dönülüyor`);
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Bu sürümde maksimum ${TEMP_DEBUG_PAGE_LIMIT} sayfa destekleniyor. Büyük Dosya Modu hazırlanıyor.`,
-          debug: { totalPages },
-        },
-        { status: 422 },
-      );
-    }
-
     // ── Sayfa metinlerini birleştir ────────────────────────────────────────────
-    const pageList = Array.isArray(pages) ? pages : [pages as string];
+    // GEÇİCİ: pipeline doğrulaması için sadece ilk 5 sayfa işleniyor
+    // Onaylandıktan sonra slice kaldırılacak
+    const allPages = Array.isArray(pages) ? pages : [pages as string];
+    const pageList = allPages.slice(0, TEMP_TEST_PAGE_LIMIT);
+    if (totalPages > TEMP_TEST_PAGE_LIMIT) {
+      console.log(`[pdf-to-turkce-word] GEÇİCİ: ${totalPages} sayfadan ilk ${TEMP_TEST_PAGE_LIMIT} sayfa işleniyor`);
+    }
     const lines: string[] = [];
     for (const pageText of pageList) {
       for (const raw of pageText.split("\n")) {
