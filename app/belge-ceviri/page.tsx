@@ -47,8 +47,8 @@ const CARDS: CardDef[] = [
     gradient: "from-violet-50/90 via-white to-indigo-50/80",
     border: "border-violet-200/70",
     iconWrap: "from-violet-500 to-indigo-600",
-    badge: "Yakında",
-    badgeColor: "bg-violet-100 text-violet-700",
+    badge: "Aktif",
+    badgeColor: "bg-green-100 text-green-700",
   },
   {
     id: "pdf-to-turkce-word",
@@ -91,8 +91,9 @@ const CARDS: CardDef[] = [
   },
 ];
 
-// ── Endpoint tablosu (gerçek dönüşüm hazır olduğunda doldurulacak) ─────────
-const ENDPOINT: Partial<Record<CardId, string>> = {};
+const ENDPOINT: Partial<Record<CardId, string>> = {
+  "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
+};
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
@@ -314,9 +315,11 @@ export default function BelgeCeviriPage() {
                   )}
                 </button>
 
-                <p className="mt-2 text-center text-xs font-medium text-slate-400">
-                  Bu özellik yakında aktif olacak.
-                </p>
+                {isDisabled(card.id) && (
+                  <p className="mt-2 text-center text-xs font-medium text-slate-400">
+                    Bu özellik yakında aktif olacak.
+                  </p>
+                )}
               </div>
             );
           })}
