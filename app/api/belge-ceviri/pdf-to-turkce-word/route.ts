@@ -48,7 +48,7 @@ export const maxDuration = 60;
 const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES = 200;
 // GEÇİCİ: pipeline doğrulaması için ilk 5 sayfa — onaylandıktan sonra kaldır
-const TEMP_TEST_PAGE_LIMIT = 20;
+const TEMP_TEST_PAGE_LIMIT = 50;
 const CHUNK_CONCURRENCY = 4;
 
 const ALLOWED_MIME_TYPES = new Set([
