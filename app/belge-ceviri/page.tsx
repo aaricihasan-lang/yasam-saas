@@ -139,8 +139,14 @@ export default function BelgeCeviriPage() {
       const res = await fetch(endpoint, { method: "POST", body: form });
 
       if (!res.ok) {
-        const data = (await res.json()) as { success: false; message: string };
-        showToast({ title: "Hata", message: data.message, type: "error" });
+        let errorMsg = `Sunucu hatası (HTTP ${res.status})`;
+        try {
+          const data = (await res.json()) as { message?: string };
+          if (data.message) errorMsg = data.message;
+        } catch {
+          // non-JSON hata sayfası (örn. Vercel 500 HTML)
+        }
+        showToast({ title: "Hata", message: errorMsg, type: "error" });
         return;
       }
 
@@ -168,8 +174,9 @@ export default function BelgeCeviriPage() {
           showToast({ title: "Hata", message: data.message, type: "error" });
         }
       }
-    } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
     } finally {
       setSubmitting(null);
     }
