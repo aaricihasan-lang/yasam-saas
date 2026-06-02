@@ -8,15 +8,17 @@ import {
   BookOpen,
   ChevronRight,
   Clock,
+  FileCheck,
   FileText,
   FileUp,
   Languages,
+  ScanLine,
   X,
 } from "lucide-react";
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
-type CardId = "pdf-to-word" | "word-to-pdf" | "belge-ceviri";
+type CardId = "pdf-to-word" | "pdf-to-turkce-word" | "pdf-to-turkce-pdf" | "ocr";
 
 type CardDef = {
   id: CardId;
@@ -49,12 +51,12 @@ const CARDS: CardDef[] = [
     badgeColor: "bg-violet-100 text-violet-700",
   },
   {
-    id: "word-to-pdf",
-    title: "Word → PDF",
-    subtitle: "Word belgenini profesyonel PDF formatına çevir.",
-    icon: <FileUp className="h-7 w-7" strokeWidth={1.75} />,
-    accept: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    acceptLabel: "DOC / DOCX",
+    id: "pdf-to-turkce-word",
+    title: "PDF → Türkçe Word",
+    subtitle: "PDF içeriğini Türkçeye çevir, düzenlenebilir Word belgesi olarak indir.",
+    icon: <Languages className="h-7 w-7" strokeWidth={1.75} />,
+    accept: ".pdf,application/pdf",
+    acceptLabel: "PDF",
     gradient: "from-sky-50/90 via-white to-cyan-50/80",
     border: "border-sky-200/70",
     iconWrap: "from-sky-500 to-cyan-600",
@@ -62,42 +64,55 @@ const CARDS: CardDef[] = [
     badgeColor: "bg-sky-100 text-sky-700",
   },
   {
-    id: "belge-ceviri",
-    title: "Belge Çeviri",
-    subtitle: "Belgenin içeriğini başka bir dile çevir, formatı koru.",
-    icon: <Languages className="h-7 w-7" strokeWidth={1.75} />,
-    accept: ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    acceptLabel: "PDF / DOC / DOCX",
+    id: "pdf-to-turkce-pdf",
+    title: "PDF → Türkçe PDF",
+    subtitle: "PDF belgesini Türkçeye çevir, PDF formatında indir.",
+    icon: <FileCheck className="h-7 w-7" strokeWidth={1.75} />,
+    accept: ".pdf,application/pdf",
+    acceptLabel: "PDF",
     gradient: "from-emerald-50/90 via-white to-teal-50/80",
     border: "border-emerald-200/70",
     iconWrap: "from-emerald-500 to-teal-600",
     badge: "Yakında",
     badgeColor: "bg-emerald-100 text-emerald-700",
   },
+  {
+    id: "ocr",
+    title: "OCR Okuma",
+    subtitle: "Taranmış PDF veya görüntüdeki yazıları dijital metne dönüştür.",
+    icon: <ScanLine className="h-7 w-7" strokeWidth={1.75} />,
+    accept: ".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp",
+    acceptLabel: "PDF / Görüntü",
+    gradient: "from-amber-50/90 via-white to-orange-50/80",
+    border: "border-amber-200/70",
+    iconWrap: "from-amber-500 to-orange-500",
+    badge: "Yakında",
+    badgeColor: "bg-amber-100 text-amber-700",
+  },
 ];
 
-// ── Bileşen ───────────────────────────────────────────────────────────────────
+// ── Endpoint tablosu (gerçek dönüşüm hazır olduğunda doldurulacak) ─────────
+const ENDPOINT: Partial<Record<CardId, string>> = {};
 
-const ENDPOINT: Partial<Record<CardId, string>> = {
-  "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
-  "word-to-pdf": "/api/belge-ceviri/word-to-pdf",
-};
+// ── Bileşen ───────────────────────────────────────────────────────────────────
 
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
 
   const [selectedFiles, setSelectedFiles] = useState<Record<CardId, File | null>>({
     "pdf-to-word": null,
-    "word-to-pdf": null,
-    "belge-ceviri": null,
+    "pdf-to-turkce-word": null,
+    "pdf-to-turkce-pdf": null,
+    ocr: null,
   });
   const [submitting, setSubmitting] = useState<CardId | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const inputRefs = useRef<Record<CardId, HTMLInputElement | null>>({
     "pdf-to-word": null,
-    "word-to-pdf": null,
-    "belge-ceviri": null,
+    "pdf-to-turkce-word": null,
+    "pdf-to-turkce-pdf": null,
+    ocr: null,
   });
 
   function handleFileChange(cardId: CardId, e: React.ChangeEvent<HTMLInputElement>) {
@@ -121,17 +136,36 @@ export default function BelgeCeviriPage() {
       form.append("file", file);
 
       const res = await fetch(endpoint, { method: "POST", body: form });
-      const data = (await res.json()) as { success: boolean; message: string; fileName?: string };
 
-      if (!data.success) {
+      if (!res.ok) {
+        const data = (await res.json()) as { success: false; message: string };
         showToast({ title: "Hata", message: data.message, type: "error" });
-      } else {
-        showToast({
-          title: "Dosya alındı",
-          message: "Dosya başarıyla alındı. Dönüşüm altyapısı hazırlanıyor.",
-          type: "success",
-        });
+        return;
+      }
+
+      const contentType = res.headers.get("content-type") ?? "";
+
+      if (contentType.includes("application/pdf") || contentType.includes("application/vnd.openxmlformats")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ext = contentType.includes("application/pdf") ? ".pdf" : ".docx";
+        a.href = url;
+        a.download = file.name.replace(/\.[^.]+$/, "") + ext;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast({ title: "Başarılı", message: "Dosya oluşturuldu ve indirildi.", type: "success" });
         clearFile(cardId);
+      } else {
+        const data = (await res.json()) as { success: boolean; message: string };
+        if (data.success) {
+          showToast({ title: "Başarılı", message: data.message, type: "success" });
+          clearFile(cardId);
+        } else {
+          showToast({ title: "Hata", message: data.message, type: "error" });
+        }
       }
     } catch {
       showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
@@ -139,6 +173,8 @@ export default function BelgeCeviriPage() {
       setSubmitting(null);
     }
   }
+
+  const isDisabled = (cardId: CardId) => !ENDPOINT[cardId];
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
@@ -180,14 +216,15 @@ export default function BelgeCeviriPage() {
             </span>
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            PDF ve Word belgelerini dönüştür, farklı dillere çevir. Tüm işlemler güvenli sunucuda gerçekleşir.
+            PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
           </p>
         </header>
 
-        {/* 3 kart — masaüstü 3 sütun, mobil tek sütun */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {/* 4 kart — masaüstü 4 sütun, tablet 2 sütun, mobil tek sütun */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {CARDS.map((card) => {
             const file = selectedFiles[card.id];
+            const disabled = isDisabled(card.id);
             return (
               <div
                 key={card.id}
@@ -204,15 +241,14 @@ export default function BelgeCeviriPage() {
                 </div>
 
                 {/* başlık */}
-                <h2 className="mt-5 text-2xl font-black text-slate-900">{card.title}</h2>
+                <h2 className="mt-5 text-xl font-black text-slate-900">{card.title}</h2>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
                 <div className="mt-6 space-y-2">
-                  {/* dosya seçme butonu — her zaman görünür */}
                   <button
                     type="button"
-                    disabled={card.id === "belge-ceviri"}
+                    disabled={disabled}
                     onClick={() => inputRefs.current[card.id]?.click()}
                     className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-slate-300/70 bg-white/60 px-5 py-4 text-sm font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -223,8 +259,7 @@ export default function BelgeCeviriPage() {
                     <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
                   </button>
 
-                  {/* seçilen dosya adı — butonun altında */}
-                  {file && card.id !== "belge-ceviri" && (
+                  {file && !disabled && (
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -260,29 +295,27 @@ export default function BelgeCeviriPage() {
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file || !!submitting || card.id === "belge-ceviri"}
-                  onClick={() => { if (card.id !== "belge-ceviri") void handleSubmit(card.id); }}
+                  disabled={!file || !!submitting || disabled}
+                  onClick={() => void handleSubmit(card.id)}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting === card.id ? (
                     <>
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Dosya yükleniyor...
+                      İşleniyor...
                     </>
                   ) : (
                     <>
                       {card.id === "pdf-to-word" && "Word'e Dönüştür"}
-                      {card.id === "word-to-pdf" && "PDF'e Dönüştür"}
-                      {card.id === "belge-ceviri" && "Belgeyi Çevir"}
+                      {card.id === "pdf-to-turkce-word" && "Türkçeye Çevir + Word"}
+                      {card.id === "pdf-to-turkce-pdf" && "Türkçeye Çevir + PDF"}
+                      {card.id === "ocr" && "Metni Oku"}
                     </>
                   )}
                 </button>
 
-                {/* yakında notu */}
                 <p className="mt-2 text-center text-xs font-medium text-slate-400">
-                  {card.id === "belge-ceviri"
-                    ? "Bu özellik yakında aktif olacak."
-                    : "Altyapı hazırlanıyor — kısa sürede aktif."}
+                  Bu özellik yakında aktif olacak.
                 </p>
               </div>
             );
@@ -313,7 +346,6 @@ export default function BelgeCeviriPage() {
       {historyOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-8 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-[32px] border border-white/80 bg-white shadow-2xl">
-            {/* modal header */}
             <div className="flex items-center justify-between gap-4 rounded-t-[32px] border-b border-slate-100 px-7 py-5">
               <div>
                 <h2 className="text-xl font-black text-slate-900">Çevrilen Belgeler</h2>
@@ -330,14 +362,13 @@ export default function BelgeCeviriPage() {
               </button>
             </div>
 
-            {/* boş durum */}
             <div className="flex flex-col items-center justify-center px-7 py-20 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400">
                 <BookOpen className="h-8 w-8" strokeWidth={1.75} />
               </div>
               <p className="mt-5 text-lg font-black text-slate-700">Henüz çevrilmiş belge yok.</p>
               <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-slate-400">
-                PDF veya Word dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.
+                PDF dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.
               </p>
               <button
                 type="button"
