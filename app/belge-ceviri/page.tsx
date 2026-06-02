@@ -60,8 +60,8 @@ const CARDS: CardDef[] = [
     gradient: "from-sky-50/90 via-white to-cyan-50/80",
     border: "border-sky-200/70",
     iconWrap: "from-sky-500 to-cyan-600",
-    badge: "Yakında",
-    badgeColor: "bg-sky-100 text-sky-700",
+    badge: "Aktif",
+    badgeColor: "bg-green-100 text-green-700",
   },
   {
     id: "pdf-to-turkce-pdf",
@@ -93,9 +93,11 @@ const CARDS: CardDef[] = [
 
 const ENDPOINT: Partial<Record<CardId, string>> = {
   "pdf-to-word": "/api/belge-ceviri/pdf-to-word",
+  "pdf-to-turkce-word": "/api/belge-ceviri/pdf-to-turkce-word",
 };
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+const LARGE_FILE_BYTES = 3 * 1024 * 1024; // ~50+ sayfa heuristic
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
@@ -302,10 +304,15 @@ export default function BelgeCeviriPage() {
                   />
                 </div>
 
-                {/* boyut uyarısı */}
+                {/* boyut uyarıları */}
                 {file && !disabled && file.size > MAX_FILE_BYTES && (
                   <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-amber-800">
                     Bu işlem için maksimum dosya boyutu 50 MB. Büyük PDF dosyaları için yakında Büyük Dosya Modu eklenecek.
+                  </p>
+                )}
+                {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= MAX_FILE_BYTES && (
+                  <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-sky-800">
+                    Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.
                   </p>
                 )}
 
@@ -319,7 +326,7 @@ export default function BelgeCeviriPage() {
                   {submitting === card.id ? (
                     <>
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      İşleniyor...
+                      {card.id === "pdf-to-turkce-word" ? "Çeviriliyor..." : "İşleniyor..."}
                     </>
                   ) : (
                     <>
