@@ -208,16 +208,32 @@ export default function BelgeCeviriPage() {
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
-                <div className="mt-6">
-                  {file ? (
-                    /* seçili dosya gösterimi */
-                    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3">
-                      <FileText className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={1.75} />
+                <div className="mt-6 space-y-2">
+                  {/* dosya seçme butonu — her zaman görünür */}
+                  <button
+                    type="button"
+                    disabled={card.id === "belge-ceviri"}
+                    onClick={() => inputRefs.current[card.id]?.click()}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-slate-300/70 bg-white/60 px-5 py-4 text-sm font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FileUp className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                      {file ? "Dosyayı Değiştir" : `${card.acceptLabel} Seç`}
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                  </button>
+
+                  {/* seçilen dosya adı — butonun altında */}
+                  {file && card.id !== "belge-ceviri" && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-700" title={file.name}>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Seçilen Dosya
+                        </p>
+                        <p className="mt-0.5 truncate text-sm font-bold text-slate-700" title={file.name}>
                           {file.name}
                         </p>
-                        <p className="text-xs font-medium text-slate-400">
+                        <p className="text-[11px] font-medium text-slate-400">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
@@ -230,19 +246,6 @@ export default function BelgeCeviriPage() {
                         <X className="h-3.5 w-3.5" strokeWidth={2.5} />
                       </button>
                     </div>
-                  ) : (
-                    /* dosya seçme butonu */
-                    <button
-                      type="button"
-                      onClick={() => inputRefs.current[card.id]?.click()}
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-slate-300/70 bg-white/60 px-5 py-4 text-sm font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileUp className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-                        {card.acceptLabel} Seç
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                    </button>
                   )}
 
                   <input
@@ -264,7 +267,7 @@ export default function BelgeCeviriPage() {
                   {submitting === card.id ? (
                     <>
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Gönderiliyor…
+                      Dosya yükleniyor...
                     </>
                   ) : (
                     <>
