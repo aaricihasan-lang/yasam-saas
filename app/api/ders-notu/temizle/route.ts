@@ -49,10 +49,10 @@ function isNavigationSentence(s: string): boolean {
 function isLikelySynthesisSentence(s: string): boolean {
   const t = s.trim();
 
-  // "35-36 Kanalı değişim ve kriz kanalıdır." kalıbı:
-  // Kanal adı + "Kanalı" + tek kelime + "ve" + tek kelime + "kanalıdır/kapılarıdır"
-  // \S+ kullanılır — \w Türkçe harf (ğüşıöç) eşleştirmez
-  if (/\bKanalı\s+\S+\s+ve\s+\S+\s+(kanalıdır|kapılarıdır)\.?$/i.test(t)) return true;
+  // "35-36 Kanalı değişim ve kriz kanalıdır/temsil eder/olarak bilinir..." kalıbı:
+  // Cümle rakamla başlayan bir kanal adıyla açılıyor → Kanalı → kelime → ve → kelime
+  // Sona bakılmaksızın yakalanır: "kanalıdır", "temsil eder", "kapılarıdır" vb.
+  if (/^\d[\d\-]+\s+Kanalı\s+\S+\s+ve\s+\S+/i.test(t)) return true;
 
   // Belirgin sentez başlangıçları
   const bannedStarts: RegExp[] = [
