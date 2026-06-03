@@ -284,7 +284,15 @@ export async function POST(request: Request) {
 
     // ── DOCX oluştur ───────────────────────────────────────────────────────────
     const tDocx = Date.now();
-    const children: Paragraph[] = [];
+    const modeLabel = mode === "academic" ? "Akademik Çeviri" : "Standart Çeviri";
+    const children: Paragraph[] = [
+      new Paragraph({
+        children: [
+          new TextRun({ text: `Çeviri Modu: ${modeLabel}`, size: 18, italics: true, color: "888888" }),
+        ],
+        spacing: { after: 240 },
+      }),
+    ];
     for (const raw of translatedText.split("\n")) {
       const line = raw.trim();
       children.push(
