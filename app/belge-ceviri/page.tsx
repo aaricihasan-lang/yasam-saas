@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ArrowLeft,
   BookOpen,
+  CheckCircle,
   ChevronRight,
   Clock,
+  Download,
   FileCheck,
   FileText,
   FileUp,
@@ -19,6 +21,18 @@ import {
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
 type CardId = "pdf-to-word" | "pdf-to-turkce-word" | "pdf-to-turkce-pdf" | "ocr";
+
+type JobStatus = "pending" | "processing" | "completed" | "failed";
+
+type ActiveJob = {
+  jobId: string;
+  cardId: CardId;
+  status: JobStatus;
+  doneChunks: number;
+  totalChunks: number;
+  downloadUrl: string | null;
+  errorMessage: string | null;
+};
 
 type CardDef = {
   id: CardId;
@@ -113,6 +127,32 @@ export default function BelgeCeviriPage() {
   const [submitting, setSubmitting] = useState<CardId | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [translationMode, setTranslationMode] = useState<"standard" | "academic">("standard");
+  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
+
+  // Job polling — 3 saniyede bir durum kontrolü
+  useEffect(() => {
+    if (!activeJob) return;
+    if (activeJob.status === "completed" || activeJob.status === "failed") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/belge-ceviri/job-status/${activeJob.jobId}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          status: JobStatus;
+          doneChunks: number;
+          totalChunks: number;
+          downloadUrl: string | null;
+          errorMessage: string | null;
+        };
+        setActiveJob((prev) => prev ? { ...prev, ...data } : null);
+      } catch {
+        // polling hatalarını sessizce geç
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeJob?.jobId, activeJob?.status]);
 
   const inputRefs = useRef<Record<CardId, HTMLInputElement | null>>({
     "pdf-to-word": null,
@@ -155,6 +195,36 @@ export default function BelgeCeviriPage() {
           // non-JSON hata sayfası (örn. Vercel 500 HTML)
         }
         showToast({ title: "Hata", message: errorMsg, type: "error" });
+        return;
+      }
+
+      // PDF → Türkçe Word: async job akışı
+      if (cardId === "pdf-to-turkce-word") {
+        const data = (await res.json()) as {
+          success: boolean;
+          jobId?: string;
+          totalPages?: number;
+          message?: string;
+        };
+        if (!data.success || !data.jobId) {
+          showToast({ title: "Hata", message: data.message ?? "Bilinmeyen hata", type: "error" });
+          return;
+        }
+        setActiveJob({
+          jobId: data.jobId,
+          cardId,
+          status: "pending",
+          doneChunks: 0,
+          totalChunks: 0,
+          downloadUrl: null,
+          errorMessage: null,
+        });
+        clearFile(cardId);
+        showToast({
+          title: "Kuyruğa alındı",
+          message: `${data.totalPages ?? "?"} sayfalık belge çeviri kuyruğuna eklendi.`,
+          type: "success",
+        });
         return;
       }
 
@@ -363,7 +433,7 @@ export default function BelgeCeviriPage() {
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file || !!submitting || disabled || (!!file && file.size > MAX_FILE_BYTES)}
+                  disabled={!file || !!submitting || disabled || (!!file && file.size > MAX_FILE_BYTES) || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
@@ -386,6 +456,73 @@ export default function BelgeCeviriPage() {
                   <p className="mt-2 text-center text-xs font-medium text-slate-400">
                     Bu özellik yakında aktif olacak.
                   </p>
+                )}
+
+                {/* Job takip paneli */}
+                {activeJob && activeJob.cardId === card.id && (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        {activeJob.status === "pending" && (
+                          <p className="text-sm font-bold text-slate-700">Kuyruğa alındı...</p>
+                        )}
+                        {activeJob.status === "processing" && (
+                          <>
+                            <p className="text-sm font-bold text-sky-700">Çevriliyor...</p>
+                            {activeJob.totalChunks > 0 && (
+                              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                {activeJob.doneChunks} / {activeJob.totalChunks} bölüm tamamlandı
+                              </p>
+                            )}
+                            {activeJob.totalChunks > 0 && (
+                              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full bg-sky-500 transition-all"
+                                  style={{ width: `${Math.round((activeJob.doneChunks / activeJob.totalChunks) * 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {activeJob.status === "completed" && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.25} />
+                            <p className="text-sm font-bold text-emerald-700">Çeviri tamamlandı</p>
+                          </div>
+                        )}
+                        {activeJob.status === "failed" && (
+                          <p className="text-sm font-bold text-red-600">
+                            Hata: {activeJob.errorMessage ?? "Bilinmeyen hata"}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveJob(null)}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-400 transition hover:bg-slate-100"
+                        aria-label="Kapat"
+                      >
+                        <X className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                    </div>
+
+                    {activeJob.status === "completed" && activeJob.downloadUrl && (
+                      <a
+                        href={activeJob.downloadUrl}
+                        download
+                        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
+                      >
+                        <Download className="h-4 w-4" strokeWidth={2.25} />
+                        DOCX İndir
+                      </a>
+                    )}
+
+                    {(activeJob.status === "pending" || activeJob.status === "processing") && (
+                      <p className="mt-2 text-[11px] font-medium text-slate-400">
+                        Sayfayı kapatmayın — işlem arka planda devam ediyor.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             );
