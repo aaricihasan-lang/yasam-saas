@@ -79,22 +79,9 @@ const CARDS: CardDef[] = [
     badgeColor: "bg-green-100 text-green-700",
   },
   {
-    id: "pdf-to-turkce-pdf",
-    title: "PDF → Türkçe PDF",
-    subtitle: "PDF belgesini Türkçeye çevir, PDF formatında indir.",
-    icon: <FileCheck className="h-7 w-7" strokeWidth={1.75} />,
-    accept: ".pdf,application/pdf",
-    acceptLabel: "PDF",
-    gradient: "from-emerald-50/90 via-white to-teal-50/80",
-    border: "border-emerald-200/70",
-    iconWrap: "from-emerald-500 to-teal-600",
-    badge: "Yakında",
-    badgeColor: "bg-emerald-100 text-emerald-700",
-  },
-  {
     id: "ocr",
-    title: "OCR Okuma",
-    subtitle: "Taranmış PDF veya görüntüdeki yazıları dijital metne dönüştür.",
+    title: "📷 Görsel / Belge OCR",
+    subtitle: "Fotoğraf, ekran görüntüsü veya taranmış belgelerdeki yazıları dijital metne dönüştürün.",
     icon: <ScanLine className="h-7 w-7" strokeWidth={1.75} />,
     accept: ".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp",
     acceptLabel: "PDF / Görüntü",
@@ -309,8 +296,8 @@ export default function BelgeCeviriPage() {
           </p>
         </header>
 
-        {/* 4 kart — masaüstü 4 sütun, tablet 2 sütun, mobil tek sütun */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {/* 3 kart — masaüstü 3 sütun, tablet 2 sütun, mobil tek sütun */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {CARDS.map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
@@ -449,7 +436,6 @@ export default function BelgeCeviriPage() {
                     <>
                       {card.id === "pdf-to-word" && "Word'e Dönüştür"}
                       {card.id === "pdf-to-turkce-word" && "Türkçeye Çevir + Word"}
-                      {card.id === "pdf-to-turkce-pdf" && "Türkçeye Çevir + PDF"}
                       {card.id === "ocr" && "Metni Oku"}
                     </>
                   )}
