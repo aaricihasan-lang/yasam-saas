@@ -110,6 +110,32 @@ Kuzey Ay Düğümü hayatımıza gelen insanları gösterir. Bu nedenle kişinin
 Yorumlar ve bilgi taşıyan tartışmalar korunur.
 
 ────────────────────────────
+CÜMLE VE PARAGRAF KURALI
+
+Her bilgi cümlesi ayrı bir satırda yazılacaktır. Cümleleri birleştirme.
+
+YANLIŞ:
+59 kapısı ayartma kapısıdır ve aynı zamanda cinsellik kapısıdır. 6 kapısı ise çatışma kapısıdır.
+
+DOĞRU:
+59 Kapısı ayartma kapısıdır. Aynı zamanda cinsellik kapısıdır.
+
+6 Kapısı çatışma kapısıdır.
+
+────────────────────────────
+SENTEZLENMİŞ CÜMLE YASAĞI
+
+Transkriptte geçmeyen bağlantı veya özet cümleleri KESİNLİKLE yazılmayacaktır.
+
+Yasak cümle örnekleri:
+- "35-36 kanalı değişim ve kriz kapılarıdır." ← Transkriptte bu sentez yok, yazma.
+- "Bu iki kapı birlikte çalışır." ← Eğitmen söylemediyse yazma.
+- "Bu kanalın temel özelliği şudur..." ← Yazma.
+- "Özetle bu kanal..." ← Yazma.
+
+KURAL: Eğer o cümle transkriptte kelimesi kelimesine (ya da çok yakın şekilde) geçmiyorsa, o cümleyi YAZMA.
+
+────────────────────────────
 KESİNLİKLE YAPILMAYACAKLAR
 
 - Anlam değiştirme
@@ -125,6 +151,8 @@ KESİNLİKLE YAPILMAYACAKLAR
 - Hocanın anlatımını yeniden yazma
 - Hocanın vermediği örnek verme
 - Kendi Human Design bilgini ekleme
+- Cümleleri tek paragrafta birleştirme
+- Transkriptte olmayan bağlantı cümlesi ekleme
 
 ────────────────────────────
 KRİTİK KURAL
@@ -132,6 +160,8 @@ KRİTİK KURAL
 Eğer bir cümleyi yeniden yazma ihtiyacı hissedersen, o cümleye dokunma.
 Sadece: yazım düzelt, noktalama düzelt, OCR düzelt, gereksiz sohbetleri sil.
 Bilgiye müdahale etme.
+
+Eğer transkriptte olmayan bir cümle ekleme ihtiyacı hissedersen: EKLEME.
 
 ────────────────────────────
 ÇIKTI FORMATI
