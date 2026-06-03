@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BookOpen,
   CheckCircle,
+  ChevronDown,
   ChevronRight,
   Clock,
   Download,
@@ -110,8 +111,9 @@ const ENDPOINT: Partial<Record<CardId, string>> = {
   "pdf-to-turkce-word": "/api/belge-ceviri/pdf-to-turkce-word",
 };
 
-const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
-const LARGE_FILE_BYTES = 3 * 1024 * 1024; // ~50+ sayfa heuristic
+const MAX_FILE_BYTES = 50 * 1024 * 1024;        // 50 MB — sunucu limiti
+const LARGE_FILE_BYTES = 3 * 1024 * 1024;       // ~50+ sayfa heuristic (çeviri uyarısı)
+const RECOMMENDED_MAX_BYTES = 80 * 1024 * 1024; // 80 MB — önerilen üst sınır (bilgilendirme)
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +130,7 @@ export default function BelgeCeviriPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [translationMode, setTranslationMode] = useState<"standard" | "academic">("standard");
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Job polling — 3 saniyede bir durum kontrolü
   useEffect(() => {
@@ -419,12 +422,12 @@ export default function BelgeCeviriPage() {
                 )}
 
                 {/* boyut uyarıları */}
-                {file && !disabled && file.size > MAX_FILE_BYTES && (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-amber-800">
-                    Bu işlem için maksimum dosya boyutu 50 MB. Büyük PDF dosyaları için yakında Büyük Dosya Modu eklenecek.
+                {file && !disabled && file.size > RECOMMENDED_MAX_BYTES && (
+                  <p className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-yellow-800">
+                    Bu PDF 80 MB üzerindedir. Yükleme devam edebilir ancak büyük dosyalarda yükleme süresi uzayabilir. Sorun yaşarsanız PDF'i sıkıştırmanız önerilir.
                   </p>
                 )}
-                {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= MAX_FILE_BYTES && (
+                {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= RECOMMENDED_MAX_BYTES && (
                   <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-sky-800">
                     Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.
                   </p>
@@ -433,7 +436,7 @@ export default function BelgeCeviriPage() {
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file || !!submitting || disabled || (!!file && file.size > MAX_FILE_BYTES) || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
+                  disabled={!file || !!submitting || disabled || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
@@ -527,6 +530,101 @@ export default function BelgeCeviriPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Büyük PDF Yardım Accordion */}
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={() => setHelpOpen((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-2xl border border-violet-200/70 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md"
+          >
+            <span className="text-base">📄</span>
+            Büyük PDF Yardımı
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${helpOpen ? "rotate-180" : ""}`}
+              strokeWidth={2.25}
+            />
+          </button>
+
+          {helpOpen && (
+            <div className="mt-3 overflow-hidden rounded-[24px] border border-violet-100 bg-white/90 shadow-md">
+              <div className="px-7 py-6">
+                <h3 className="text-base font-black text-slate-900">📄 Büyük PDF Yükleme Rehberi</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Belge Çeviri Merkezi yüksek boyutlu PDF dosyalarını çevirebilir. Ancak bazı PDF'ler yüksek
+                  çözünürlüklü taramalar ve büyük görseller nedeniyle çok yüksek dosya boyutlarına ulaşabilir.
+                </p>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
+                  Önerilen PDF boyutu: 80 MB ve altı
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {[
+                    {
+                      n: "1",
+                      title: "PDF Sıkıştırma",
+                      body: "PDF dosyanızı bir PDF sıkıştırma aracı ile optimize edin. Çoğu durumda kalite kaybı yaşamadan dosya boyutu ciddi şekilde azaltılabilir.",
+                    },
+                    {
+                      n: "2",
+                      title: "PDF'i Bölümlere Ayırma",
+                      body: "Büyük PDF'leri birkaç parçaya bölerek ayrı ayrı çevirebilirsiniz.",
+                      list: ["1–100 sayfa", "101–200 sayfa", "201–300 sayfa"],
+                    },
+                    {
+                      n: "3",
+                      title: "Görsel Kalitesini Azaltma",
+                      body: "Bazı PDF'lerde dosya boyutunu yüksek çözünürlüklü görseller oluşturur. PDF optimizasyonu sonrasında aynı içerik çok daha düşük boyutlarda yüklenebilir.",
+                    },
+                  ].map((item) => (
+                    <div key={item.n} className="flex gap-3">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">
+                        {item.n}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-800">{item.title}</p>
+                        <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{item.body}</p>
+                        {item.list && (
+                          <ul className="mt-1.5 space-y-0.5">
+                            {item.list.map((l) => (
+                              <li key={l} className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                                <span className="h-1 w-1 rounded-full bg-slate-400" />
+                                {l}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-5">
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">Sık Sorulan Sorular</p>
+                  {[
+                    {
+                      q: "PDF'im çok büyük. Çevrilir mi?",
+                      a: "Çoğu durumda evet. Ancak büyük dosyalarda yükleme süresi uzayabilir.",
+                    },
+                    {
+                      q: "Taranmış kitapları çevirebilir miyim?",
+                      a: "Evet. Sistem OCR kullanarak metni algılamaya çalışır.",
+                    },
+                    {
+                      q: "Tablolu PDF'leri çevirebilir miyim?",
+                      a: "Evet. Basit tablolar genellikle korunur. Karmaşık tablolarda düzen farklılıkları oluşabilir.",
+                    },
+                  ].map((faq) => (
+                    <div key={faq.q} className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                      <p className="text-xs font-bold text-slate-700">{faq.q}</p>
+                      <p className="mt-0.5 text-xs font-medium leading-relaxed text-slate-500">{faq.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* bilgi şeridi */}
