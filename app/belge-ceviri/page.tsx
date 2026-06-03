@@ -625,7 +625,14 @@ export default function BelgeCeviriPage() {
                           </button>
                         </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      // isTurkish=false ama çeviri gelmedi (API hatası)
+                      !ocrResult.isTurkish && (
+                        <p className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-700">
+                          Metin yabancı dilde görünüyor ancak çeviri alınamadı. Lütfen tekrar deneyin.
+                        </p>
+                      )
+                    )}
 
                   </div>
                 )}
