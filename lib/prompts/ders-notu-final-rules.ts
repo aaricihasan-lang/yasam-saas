@@ -147,6 +147,18 @@ Cevap bölümünde cümlenin başındaki "Evet," veya "Hayır," ifadesi yalnızc
 Anlam taşıyorsa (karşıt iki görüş arasında netleştirme yapıyorsa) bırakılabilir.
 
 ────────────────────────────
+SENTEZ CÜMLESİ FİLTRESİ
+
+Model aşağıdaki gibi transkriptte geçmeyen birleştirici cümleler üretirse bunlar sistem tarafından otomatik olarak silinir.
+Bu nedenle bu tür cümleleri hiç üretme:
+- "[Kanal Adı] Kanalı X ve Y kanalıdır." (ör. "35-36 Kanalı değişim ve kriz kanalıdır.")
+- "Özetle ..."
+- "Genel olarak ..."
+- "Bu iki kapı birlikte ..."
+- "Bu kanalın temel özelliği ..."
+- "Bu nedenle bu kanal ..."
+
+────────────────────────────
 SENTEZLENMİŞ CÜMLE YASAĞI
 
 Transkriptte geçmeyen bağlantı veya özet cümleleri KESİNLİKLE yazılmayacaktır.

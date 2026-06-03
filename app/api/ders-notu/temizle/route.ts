@@ -42,6 +42,31 @@ function isNavigationSentence(s: string): boolean {
   return /^[^.!?]{0,80}\b(kanalına|kapısına|konusuna)\s+(bakalım|geçelim|geçiyoruz|dönelim|inceleyelim)\.?$/i.test(s.trim());
 }
 
+/**
+ * Transkriptte geçmeyen çok belirgin AI sentez cümlelerini tespit eder.
+ * Agresif değildir — yalnızca kalıp eşleşmesi varsa siler.
+ */
+function isLikelySynthesisSentence(s: string): boolean {
+  const t = s.trim();
+
+  // "35-36 Kanalı değişim ve kriz kanalıdır." kalıbı:
+  // Kanal adı + "Kanalı" + tek kelime + "ve" + tek kelime + "kanalıdır/kapılarıdır"
+  // \S+ kullanılır — \w Türkçe harf (ğüşıöç) eşleştirmez
+  if (/\bKanalı\s+\S+\s+ve\s+\S+\s+(kanalıdır|kapılarıdır)\.?$/i.test(t)) return true;
+
+  // Belirgin sentez başlangıçları
+  const bannedStarts: RegExp[] = [
+    /^Özetle\b/i,
+    /^Genel olarak\b/i,
+    /^Bu iki kapı birlikte\b/i,
+    /^Bu kanalın temel özelliği\b/i,
+    /^Bu nedenle bu kanal\b/i,
+  ];
+  if (bannedStarts.some((r) => r.test(t))) return true;
+
+  return false;
+}
+
 /** Cevap başındaki "Evet, X" → "X"; standalone "Evet." → "" */
 function stripFiller(s: string): string {
   const t = s.trim();
@@ -79,6 +104,7 @@ function postProcess(raw: string): string {
 
     for (const part of parts) {
       if (isNavigationSentence(part)) continue;
+      if (isLikelySynthesisSentence(part)) continue;
       const cleaned = stripFiller(part);
       if (cleaned) staging.push(cleaned);
     }
