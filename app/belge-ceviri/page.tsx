@@ -560,44 +560,57 @@ export default function BelgeCeviriPage() {
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  {[
-                    {
-                      n: "1",
-                      title: "PDF Sıkıştırma",
-                      body: "PDF dosyanızı bir PDF sıkıştırma aracı ile optimize edin. Çoğu durumda kalite kaybı yaşamadan dosya boyutu ciddi şekilde azaltılabilir.",
-                    },
-                    {
-                      n: "2",
-                      title: "PDF'i Bölümlere Ayırma",
-                      body: "Büyük PDF'leri birkaç parçaya bölerek ayrı ayrı çevirebilirsiniz.",
-                      list: ["1–100 sayfa", "101–200 sayfa", "201–300 sayfa"],
-                    },
-                    {
-                      n: "3",
-                      title: "Görsel Kalitesini Azaltma",
-                      body: "Bazı PDF'lerde dosya boyutunu yüksek çözünürlüklü görseller oluşturur. PDF optimizasyonu sonrasında aynı içerik çok daha düşük boyutlarda yüklenebilir.",
-                    },
-                  ].map((item) => (
-                    <div key={item.n} className="flex gap-3">
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">
-                        {item.n}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-800">{item.title}</p>
-                        <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{item.body}</p>
-                        {item.list && (
-                          <ul className="mt-1.5 space-y-0.5">
-                            {item.list.map((l) => (
-                              <li key={l} className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                                <span className="h-1 w-1 rounded-full bg-slate-400" />
-                                {l}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                  {/* Bölüm 1 — PDF Sıkıştırma */}
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</div>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">PDF Sıkıştırma</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">Windows Kullanıcıları İçin:</p>
+                      <ol className="mt-1.5 space-y-1">
+                        {[
+                          "PDF dosyanızı bilgisayarınıza kaydedin.",
+                          "Bir PDF sıkıştırma aracı açın.",
+                          "Orta Kalite veya Yüksek Kalite seçeneğini tercih edin.",
+                          "Yeni PDF dosyasını kaydedin.",
+                          "Yeni PDF dosyasını sisteme tekrar yükleyin.",
+                        ].map((step, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-xs font-medium text-slate-600">
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">{i + 1}</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                      <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-700">
+                        Çoğu durumda 100–200 MB boyutundaki PDF dosyaları kalite kaybı yaşamadan çok daha düşük boyutlara indirilebilir.
+                      </p>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Bölüm 2 — PDF'i Bölümlere Ayırma */}
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">2</div>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">PDF'i Bölümlere Ayırma</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">Büyük PDF'leri birkaç parçaya bölerek ayrı ayrı çevirebilirsiniz.</p>
+                      <ul className="mt-1.5 space-y-0.5">
+                        {["1–100 sayfa", "101–200 sayfa", "201–300 sayfa"].map((l) => (
+                          <li key={l} className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                            <span className="h-1 w-1 rounded-full bg-slate-400" />
+                            {l}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Bölüm 3 — Görsel Kalitesini Azaltma */}
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">3</div>
+                    <div>
+                      <p className="text-sm font-black text-slate-800">Görsel Kalitesini Azaltma</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">Bazı PDF'lerde dosya boyutunu yüksek çözünürlüklü görseller oluşturur. PDF optimizasyonu sonrasında aynı içerik çok daha düşük boyutlarda yüklenebilir.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-5">
@@ -621,6 +634,19 @@ export default function BelgeCeviriPage() {
                       <p className="mt-0.5 text-xs font-medium leading-relaxed text-slate-500">{faq.a}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* Önerilen araçlar */}
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">📌 Önerilen PDF Sıkıştırma Araçları</p>
+                  <p className="mt-1.5 text-xs font-medium text-slate-500">Bu araçlar PDF dosyalarının boyutunu azaltmak için kullanılabilir.</p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {["Adobe Acrobat", "SmallPDF", "ILovePDF"].map((tool) => (
+                      <span key={tool} className="rounded-full border border-violet-200/70 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                        {tool}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
