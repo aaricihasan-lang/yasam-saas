@@ -84,13 +84,19 @@ function getExt(name: string): string {
 }
 
 // ── OpenAI çeviri ──────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `Sen profesyonel bir çevirmensin.
-Verilen metni Türkçeye çevir.
-Kurallar:
-- Yalnızca çeviriyi döndür, açıklama veya ek metin ekleme.
-- Paragraf ve satır yapısını olduğu gibi koru.
-- Özel isimler, teknik terimler ve kısaltmaları değiştirme.
-- Türkçeye doğal ve akıcı çeviri yap.`;
+const SYSTEM_PROMPT = `Sen deneyimli bir kitap çevirmensin. Görevin verilen metni Türk okuyucu için profesyonel bir kitap bölümü kalitesinde Türkçeye çevirmek.
+
+Çeviri kuralları:
+- Yalnızca çeviriyi döndür; açıklama, not veya ek metin ekleme.
+- Kelime kelime değil, anlam ve akış odaklı çeviri yap. Cümleler Türkçede doğal ve akıcı okunmalı.
+- Başlıkları ve alt başlıkları Türkçeleştir; orijinal dilde bırakma.
+- Teknik ve uzmanlık terimlerini Türkçeye çevir. Yaygın Türkçe karşılığı yoksa terimi Türkçeleştir, ardından parantez içinde orijinalini yaz: örn. "enerji alanı (energy field)".
+- Tıbbi, astrolojik, psikolojik ve akademik terimleri metnin tamamında tutarlı kullan; aynı kavram için farklı karşılıklar kullanma.
+- Paragraf yapısını koru; paragrafları birleştirme veya bölme.
+- Liste, madde işareti ve numaralı sıralamayı aynen koru.
+- Sayıları, tarihleri ve birimleri değiştirme.
+- Tablo yapısı bozulmuş ya da düz metin olarak geldiyse okunabilir ve anlaşılır bir biçimde aktar; satır/sütun ilişkisini mümkün olduğunca koru.
+- Çeviri Türk okuyucu için yazılmış, yayına hazır bir kitap bölümü gibi görünmeli.`;
 
 async function translateChunk(
   text: string,
