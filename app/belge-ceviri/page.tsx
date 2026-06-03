@@ -112,6 +112,7 @@ export default function BelgeCeviriPage() {
   });
   const [submitting, setSubmitting] = useState<CardId | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [translationMode, setTranslationMode] = useState<"standard" | "academic">("standard");
 
   const inputRefs = useRef<Record<CardId, HTMLInputElement | null>>({
     "pdf-to-word": null,
@@ -139,6 +140,9 @@ export default function BelgeCeviriPage() {
     try {
       const form = new FormData();
       form.append("file", file);
+      if (cardId === "pdf-to-turkce-word") {
+        form.append("mode", translationMode);
+      }
 
       const res = await fetch(endpoint, { method: "POST", body: form });
 
@@ -303,6 +307,46 @@ export default function BelgeCeviriPage() {
                     onChange={(e) => handleFileChange(card.id, e)}
                   />
                 </div>
+
+                {/* çeviri modu seçici — sadece pdf-to-turkce-word */}
+                {card.id === "pdf-to-turkce-word" && !disabled && (
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Çeviri Modu
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {(["standard", "academic"] as const).map((m) => (
+                        <label
+                          key={m}
+                          className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 transition ${
+                            translationMode === m
+                              ? "bg-slate-100 ring-1 ring-slate-300"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`mode-${card.id}`}
+                            value={m}
+                            checked={translationMode === m}
+                            onChange={() => setTranslationMode(m)}
+                            className="mt-0.5 accent-slate-800"
+                          />
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">
+                              {m === "standard" ? "Standart Çeviri" : "Akademik Çeviri"}
+                            </p>
+                            <p className="text-[11px] font-medium text-slate-500">
+                              {m === "standard"
+                                ? "gpt-4o-mini · Hızlı ve ekonomik"
+                                : "gpt-4.1 · Kitap, tez ve araştırma metinleri"}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* boyut uyarıları */}
                 {file && !disabled && file.size > MAX_FILE_BYTES && (

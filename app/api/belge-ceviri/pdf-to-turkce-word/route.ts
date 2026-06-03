@@ -83,8 +83,8 @@ function getExt(name: string): string {
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
 }
 
-// ── OpenAI çeviri ──────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `Sen deneyimli bir kitap çevirmensin. Görevin verilen metni Türk okuyucu için profesyonel bir kitap bölümü kalitesinde Türkçeye çevirmek.
+// ── OpenAI çeviri modları ──────────────────────────────────────────────────────
+const STANDARD_PROMPT = `Sen deneyimli bir kitap çevirmensin. Görevin verilen metni Türk okuyucu için profesyonel bir kitap bölümü kalitesinde Türkçeye çevirmek.
 
 Çeviri kuralları:
 - Yalnızca çeviriyi döndür; açıklama, not veya ek metin ekleme.
@@ -98,18 +98,59 @@ const SYSTEM_PROMPT = `Sen deneyimli bir kitap çevirmensin. Görevin verilen me
 - Tablo yapısı bozulmuş ya da düz metin olarak geldiyse okunabilir ve anlaşılır bir biçimde aktar; satır/sütun ilişkisini mümkün olduğunca koru.
 - Çeviri Türk okuyucu için yazılmış, yayına hazır bir kitap bölümü gibi görünmeli.`;
 
+const ACADEMIC_PROMPT = `Sen profesyonel akademik çevirmen ve editörsün.
+
+Metni yalnızca çevirmekle kalma.
+
+Türkçeyi:
+- doğal,
+- akıcı,
+- akademik,
+- yayınlanabilir kitap kalitesinde
+
+oluştur.
+
+Kelime kelime çeviri yapma.
+
+Anlamı koru.
+
+Teknik terimlerde Türkçeyi tercih et.
+
+Gerekirse ilk kullanımda:
+Türkçe Terim (Original Term)
+
+formatını kullan.
+
+Başlıkları profesyonel Türkçeleştir.
+
+Paragraf yapısını koru.
+
+Sonuç bir yapay zeka çevirisi gibi değil,
+Türkçe yazılmış özgün akademik eser gibi okunmalıdır.
+
+Yalnızca çeviriyi döndür; açıklama veya ek metin ekleme.`;
+
+const MODE_CONFIG = {
+  standard: { model: "gpt-4o-mini", prompt: STANDARD_PROMPT },
+  academic:  { model: "gpt-4.1",    prompt: ACADEMIC_PROMPT  },
+} as const;
+
+type TranslationMode = keyof typeof MODE_CONFIG;
+
 async function translateChunk(
   text: string,
   openai: OpenAI,
   index: number,
   total: number,
+  model: string,
+  systemPrompt: string,
 ): Promise<string> {
   const t0 = Date.now();
   console.log(`[pdf-to-turkce-word] chunk ${index + 1}/${total} başladı (${text.length} karakter)`);
   const response = await openai.chat.completions.create({
-    model: "gpt-4.1",
+    model,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: text },
     ],
     temperature: 0.3,
@@ -119,14 +160,19 @@ async function translateChunk(
   return result;
 }
 
-async function translateAllChunks(chunks: string[], openai: OpenAI): Promise<string[]> {
+async function translateAllChunks(
+  chunks: string[],
+  openai: OpenAI,
+  model: string,
+  systemPrompt: string,
+): Promise<string[]> {
   const results: string[] = new Array(chunks.length).fill("");
   for (let i = 0; i < chunks.length; i += CHUNK_CONCURRENCY) {
     const batchEnd = Math.min(i + CHUNK_CONCURRENCY, chunks.length);
     const batch = chunks.slice(i, batchEnd);
     console.log(`[pdf-to-turkce-word] batch ${Math.floor(i / CHUNK_CONCURRENCY) + 1}: chunk ${i + 1}–${batchEnd} paralel işleniyor`);
     const batchResults = await Promise.all(
-      batch.map((c, j) => translateChunk(c, openai, i + j, chunks.length)),
+      batch.map((c, j) => translateChunk(c, openai, i + j, chunks.length, model, systemPrompt)),
     );
     batchResults.forEach((r, j) => { results[i + j] = r; });
   }
@@ -141,6 +187,10 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const rawMode = formData.get("mode");
+    const mode: TranslationMode = rawMode === "academic" ? "academic" : "standard";
+    const { model, prompt: systemPrompt } = MODE_CONFIG[mode];
+    console.log(`[pdf-to-turkce-word] mod: ${mode} | model: ${model}`);
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -226,7 +276,7 @@ export async function POST(request: Request) {
     // ── Çeviri ────────────────────────────────────────────────────────────────
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const tTranslate = Date.now();
-    const translatedChunks = await translateAllChunks(chunks, openai);
+    const translatedChunks = await translateAllChunks(chunks, openai, model, systemPrompt);
     const translateMs = Date.now() - tTranslate;
     console.log(`[pdf-to-turkce-word] toplam çeviri süresi: ${translateMs}ms`);
 
