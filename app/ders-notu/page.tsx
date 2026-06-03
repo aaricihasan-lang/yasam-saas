@@ -319,7 +319,7 @@ export default function DersNotuPage() {
                   readOnly
                   value={result}
                   rows={20}
-                  className="mt-4 w-full resize-y rounded-2xl border border-emerald-200/80 bg-white/90 px-4 py-3 text-sm font-medium leading-relaxed text-slate-700 shadow-sm focus:outline-none"
+                  className="mt-4 w-full resize-y rounded-2xl border border-emerald-200/80 bg-white/90 px-4 py-3 text-base font-medium leading-7 text-slate-700 shadow-sm focus:outline-none"
                 />
 
                 {/* Aksiyon butonları */}
