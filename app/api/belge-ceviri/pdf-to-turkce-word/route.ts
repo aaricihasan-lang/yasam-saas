@@ -78,8 +78,12 @@ export async function POST(request: Request) {
 
     // ── Sayfa sayısı kontrolü ──────────────────────────────────────────────────
     const arrayBuffer = await file.arrayBuffer();
+
+    // arrayBuffer.slice(0) bağımsız bir kopya oluşturur.
+    // pdfjs-dist ArrayBuffer'ı internal olarak detach/transfer edebiliyor;
+    // kopya vererek orijinali Storage upload için koruyoruz.
     const { totalPages } = await extractText(
-      new Uint8Array(arrayBuffer),
+      new Uint8Array(arrayBuffer.slice(0)),
       { mergePages: false },
     );
     console.log(`[pdf-to-turkce-word] toplam sayfa: ${totalPages} | mod: ${mode}`);
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
 
     const { error: uploadError } = await db.storage
       .from(STORAGE_BUCKET)
-      .upload(sourcePath, Buffer.from(arrayBuffer), {
+      .upload(sourcePath, Buffer.from(arrayBuffer), {  // orijinal — pdfjs dokunmadı
         contentType: "application/pdf",
         upsert: false,
       });
