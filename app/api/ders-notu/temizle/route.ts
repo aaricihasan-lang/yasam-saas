@@ -34,6 +34,85 @@ function applyChannelMap(text: string): string {
   return result;
 }
 
+// ── Post-processing ────────────────────────────────────────────────────────────
+// AI cümleleri birleştirirse bile çıktıyı satır satır hale getirir.
+
+/** "35-36 kanalına bakalım." gibi geçiş/navigasyon cümlelerini tespit eder */
+function isNavigationSentence(s: string): boolean {
+  return /^[^.!?]{0,80}\b(kanalına|kapısına|konusuna)\s+(bakalım|geçelim|geçiyoruz|dönelim|inceleyelim)\.?$/i.test(s.trim());
+}
+
+/** Cevap başındaki "Evet, X" → "X"; standalone "Evet." → "" */
+function stripFiller(s: string): string {
+  const t = s.trim();
+  if (/^(Evet|Hayır)[.,]?\s*$/i.test(t)) return "";
+  return t.replace(/^(Evet|Hayır),\s+/i, "");
+}
+
+/**
+ * Geçiş 1: Her satırı bağımsız cümlelere ayırır ve navigasyonu / dolguyu temizler.
+ * Geçiş 2: Her cümleyi kendi paragrafına koyar; başlıklar ve etiketler korunur.
+ */
+function postProcess(raw: string): string {
+  // ── Geçiş 1: normalize ───────────────────────────────────────────────────────
+  const staging: string[] = [];
+
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+
+    if (t === "") {
+      staging.push("");
+      continue;
+    }
+
+    // Başlıklar ve etiketler değişmeden geçer
+    if (t.startsWith("#") || t === "Soru:" || t === "Cevap:") {
+      staging.push(t);
+      continue;
+    }
+
+    // Normal metin: nokta/soru/ünlem sonrası boşluğa göre parçala
+    const parts = t
+      .split(/(?<=[.?!])\s+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    for (const part of parts) {
+      if (isNavigationSentence(part)) continue;
+      const cleaned = stripFiller(part);
+      if (cleaned) staging.push(cleaned);
+    }
+  }
+
+  // ── Geçiş 2: boş satır ekleme ───────────────────────────────────────────────
+  const result: string[] = [];
+
+  for (const cur of staging) {
+    const prev = result.length > 0 ? result[result.length - 1] : null;
+
+    if (cur === "") {
+      if (prev !== "") result.push("");
+      continue;
+    }
+
+    // Başlık: kendisi + ardından boş satır
+    if (cur.startsWith("#")) {
+      result.push(cur);
+      result.push("");
+      continue;
+    }
+
+    // Metin / etiket: önceki satır doluysa araya boş satır ekle
+    if (prev !== null && prev !== "" && !prev.startsWith("#")) {
+      result.push("");
+    }
+    result.push(cur);
+  }
+
+  // ── 3+ ardışık boş satırı 2'ye indir ────────────────────────────────────────
+  return result.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -73,14 +152,17 @@ export async function POST(request: Request) {
       max_tokens: 16000,
     });
 
-    const cleaned = response.choices[0]?.message?.content ?? "";
+    const raw = response.choices[0]?.message?.content ?? "";
 
-    if (!cleaned.trim()) {
+    if (!raw.trim()) {
       return NextResponse.json(
         { success: false, message: "İşlem tamamlandı ancak çıktı boş geldi. Lütfen tekrar deneyin." },
         { status: 422 },
       );
     }
+
+    // AI cümleleri birleştirse bile çıktıyı satır satır hale getir
+    const cleaned = postProcess(raw);
 
     return NextResponse.json({ success: true, text: cleaned });
   } catch (err) {

@@ -112,15 +112,39 @@ Yorumlar ve bilgi taşıyan tartışmalar korunur.
 ────────────────────────────
 CÜMLE VE PARAGRAF KURALI
 
-Her bilgi cümlesi ayrı bir satırda yazılacaktır. Cümleleri birleştirme.
+Her bilgi cümlesi ayrı bir satırda yazılacaktır.
+Aynı paragrafta birden fazla cümle OLMAYACAKTIR.
+Her nokta işaretinden sonra yeni satıra geçilecektir.
+Başlıklar (# ile başlayanlar), Soru: ve Cevap: etiketleri, madde listeleri bu kuraldan muaftır.
 
 YANLIŞ:
-59 kapısı ayartma kapısıdır ve aynı zamanda cinsellik kapısıdır. 6 kapısı ise çatışma kapısıdır.
+# 59-6 Kanalı
+59-6 Kanalı uzlaşma kanalı olarak geçiyor. 59 Kapısı ayartma kapısıdır. Aynı zamanda cinsellik kapısıdır. 6 Kapısı çatışma kapısıdır.
 
 DOĞRU:
-59 Kapısı ayartma kapısıdır. Aynı zamanda cinsellik kapısıdır.
+# 59-6 Kanalı
+
+59-6 Kanalı uzlaşma kanalı olarak geçer.
+
+59 Kapısı ayartma kapısıdır.
+
+Aynı zamanda cinsellik kapısıdır.
 
 6 Kapısı çatışma kapısıdır.
+
+GEÇİŞ FRAGMENTLERİ SİLİNECEK:
+"kanalına bakalım", "şimdi … geçelim", "bakalım", "geçiyoruz", "dönelim" gibi
+yalnızca geçişi sağlayan ve bilgi taşımayan cümleler/fragmanlar silinecektir.
+Örnekler:
+- "35-36 kanalına bakalım." → SİL
+- "Şimdi 59-6 kanalına geçiyoruz." → SİL
+- "Bir sonraki konuya bakalım." → SİL
+
+CEVAP BAŞI DOLGU KURALI:
+Cevap bölümünde cümlenin başındaki "Evet," veya "Hayır," ifadesi yalnızca dolgu ise kaldırılacaktır.
+- "Evet, 57 Kapısı sağ kulakla ilişkilendirilebilir." → "57 Kapısı sağ kulakla ilişkilendirilebilir."
+- "Evet." tek başına geçiyorsa → SİL
+Anlam taşıyorsa (karşıt iki görüş arasında netleştirme yapıyorsa) bırakılabilir.
 
 ────────────────────────────
 SENTEZLENMİŞ CÜMLE YASAĞI
