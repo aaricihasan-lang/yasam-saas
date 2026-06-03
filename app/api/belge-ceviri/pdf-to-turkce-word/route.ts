@@ -107,7 +107,7 @@ async function translateChunk(
   const t0 = Date.now();
   console.log(`[pdf-to-turkce-word] chunk ${index + 1}/${total} başladı (${text.length} karakter)`);
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: text },
