@@ -121,8 +121,8 @@ export default function BelgeCeviriPage() {
   const [translationMode, setTranslationMode] = useState<"standard" | "academic">("standard");
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [ocrResult, setOcrResult] = useState<string | null>(null);
-  const [downloadingWord, setDownloadingWord] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{ text: string; isTurkish: boolean; translation?: string } | null>(null);
+  const [downloadingWord, setDownloadingWord] = useState<"original" | "translation" | null>(null);
 
   // Job polling — 3 saniyede bir durum kontrolü
   useEffect(() => {
@@ -163,24 +163,24 @@ export default function BelgeCeviriPage() {
     e.target.value = "";
   }
 
-  function downloadTxt(text: string) {
+  function downloadTxt(text: string, filename = "ocr-metin.txt") {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ocr-metin.txt";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
-  async function handleOcrWordDownload() {
-    if (!ocrResult || downloadingWord) return;
-    setDownloadingWord(true);
+  async function handleOcrWordDownload(text: string, which: "original" | "translation", filename = "ocr-metin.docx") {
+    if (downloadingWord) return;
+    setDownloadingWord(which);
     try {
       const form = new FormData();
-      form.append("text", ocrResult);
+      form.append("text", text);
       const res = await fetch("/api/belge-ceviri/ocr-to-word", { method: "POST", body: form });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { message?: string };
@@ -191,7 +191,7 @@ export default function BelgeCeviriPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "ocr-metin.docx";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -200,7 +200,7 @@ export default function BelgeCeviriPage() {
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
       showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
     } finally {
-      setDownloadingWord(false);
+      setDownloadingWord(null);
     }
   }
 
@@ -265,14 +265,20 @@ export default function BelgeCeviriPage() {
         return;
       }
 
-      // OCR: JSON ile metin döner, UI'da gösterilir
+      // OCR: JSON ile metin + dil bilgisi döner
       if (cardId === "ocr") {
-        const data = (await res.json()) as { success: boolean; text?: string; message?: string };
+        const data = (await res.json()) as {
+          success: boolean;
+          text?: string;
+          isTurkish?: boolean;
+          translation?: string;
+          message?: string;
+        };
         if (!data.success || !data.text) {
           showToast({ title: "Hata", message: data.message ?? "Metin çıkarılamadı.", type: "error" });
           return;
         }
-        setOcrResult(data.text);
+        setOcrResult({ text: data.text, isTurkish: data.isTurkish ?? true, translation: data.translation });
         clearFile(cardId);
         showToast({ title: "Başarılı", message: "Metin başarıyla çıkarıldı.", type: "success" });
         return;
@@ -510,6 +516,8 @@ export default function BelgeCeviriPage() {
                 {/* OCR sonuç paneli */}
                 {card.id === "ocr" && ocrResult && (
                   <div className="mt-3 space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+
+                    {/* Başlık + kapat */}
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-bold text-amber-800">Çıkarılan Metin</p>
                       <button
@@ -522,18 +530,20 @@ export default function BelgeCeviriPage() {
                       </button>
                     </div>
 
+                    {/* Orijinal metin */}
                     <textarea
                       readOnly
-                      value={ocrResult}
+                      value={ocrResult.text}
                       rows={8}
                       className="w-full resize-y rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed text-slate-700 focus:outline-none"
                     />
 
+                    {/* Orijinal metin butonları */}
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          void navigator.clipboard.writeText(ocrResult);
+                          void navigator.clipboard.writeText(ocrResult.text);
                           showToast({ title: "Kopyalandı", message: "Metin panoya kopyalandı.", type: "success" });
                         }}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
@@ -543,7 +553,7 @@ export default function BelgeCeviriPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => downloadTxt(ocrResult)}
+                        onClick={() => downloadTxt(ocrResult.text)}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                       >
                         <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
@@ -551,11 +561,11 @@ export default function BelgeCeviriPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleOcrWordDownload()}
-                        disabled={downloadingWord}
+                        onClick={() => void handleOcrWordDownload(ocrResult.text, "original")}
+                        disabled={downloadingWord === "original"}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                       >
-                        {downloadingWord ? (
+                        {downloadingWord === "original" ? (
                           <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         ) : (
                           <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
@@ -563,6 +573,60 @@ export default function BelgeCeviriPage() {
                         Word İndir
                       </button>
                     </div>
+
+                    {/* Dil durumu ve çeviri */}
+                    {ocrResult.isTurkish ? (
+                      <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                        Metin Türkçe görünüyor — çeviri yapılmadı.
+                      </p>
+                    ) : ocrResult.translation ? (
+                      <div className="space-y-2 border-t border-amber-200 pt-3">
+                        <p className="text-sm font-bold text-amber-800">Türkçe Çeviri</p>
+
+                        <textarea
+                          readOnly
+                          value={ocrResult.translation}
+                          rows={8}
+                          className="w-full resize-y rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed text-slate-700 focus:outline-none"
+                        />
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(ocrResult.translation ?? "");
+                              showToast({ title: "Kopyalandı", message: "Çeviri panoya kopyalandı.", type: "success" });
+                            }}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                          >
+                            <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
+                            Çeviriyi Kopyala
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadTxt(ocrResult.translation ?? "", "ocr-ceviri.txt")}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                          >
+                            <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
+                            TXT İndir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
+                            disabled={downloadingWord === "translation"}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                          >
+                            {downloadingWord === "translation" ? (
+                              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                            ) : (
+                              <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
+                            )}
+                            Word İndir
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
                   </div>
                 )}
 

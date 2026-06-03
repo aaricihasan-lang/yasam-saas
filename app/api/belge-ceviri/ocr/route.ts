@@ -86,7 +86,38 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, text });
+    // Dil tespiti + koşullu çeviri (ayrı çağrı, OCR sonucunu etkilemez)
+    let isTurkish = true;
+    let translation: string | undefined;
+
+    try {
+      const langResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: `Verilen metnin ana dilini analiz et.
+Önemli: Türkçe bir metinde geçen birkaç İngilizce kelime/terim (örn. "download", "chakra", "OpenAI", "medical") metni yabancı dil saydırmamalı. Metnin genel çoğunluğuna bak.
+- Metin çoğunlukla Türkçe ise: {"isTurkish": true}
+- Metnin ana dili başka bir dilse, tüm metni doğal akıcı Türkçeye çevir ve döndür: {"isTurkish": false, "translation": "<çevrilmiş metin>"}
+Yalnızca geçerli JSON döndür, başka hiçbir şey ekleme.`,
+          },
+          { role: "user", content: text },
+        ],
+        max_tokens: 4096,
+      });
+
+      const raw = langResponse.choices[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(raw) as { isTurkish?: boolean; translation?: string };
+      isTurkish = parsed.isTurkish !== false;
+      if (!isTurkish && parsed.translation) translation = parsed.translation;
+    } catch {
+      // Dil tespiti başarısız — çeviri yapılmamış gibi dön, OCR metni bozulmaz
+      isTurkish = true;
+    }
+
+    return NextResponse.json({ success: true, text, isTurkish, translation });
   } catch (err) {
     console.error("[ocr] hata:", err);
     const message = err instanceof Error ? err.message : String(err);
