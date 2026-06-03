@@ -34,6 +34,7 @@ import {
   BookOpen,
   ChartColumn,
   Check,
+  ClipboardList,
   FolderArchive,
   Gem,
   Leaf,
@@ -272,6 +273,20 @@ const dashboardModules: ModuleCard[] = [
       border: "border-sky-200/70",
     },
   },
+  {
+    title: "Ders Notu Merkezi",
+    desc: "Ham transkripti temizle, ders notuna dönüştür. Human Design uyumlu.",
+    count: "Aktif",
+    badge: "YENİ",
+    href: "/ders-notu",
+    permissionKey: "ders_notu",
+    Icon: ClipboardList,
+    theme: {
+      iconWrap: "from-teal-600 to-emerald-700",
+      cardBg: "from-teal-50/90 via-emerald-50/95 to-white",
+      border: "border-teal-200/70",
+    },
+  },
 ];
 
 /** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
@@ -292,6 +307,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   personal_archive: ["kisisel_arsiv"],
   video_ceviri: [],
   belge_ceviri: [],
+  ders_notu: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {
