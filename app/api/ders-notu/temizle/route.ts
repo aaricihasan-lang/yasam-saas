@@ -163,16 +163,43 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ön işlem: bilinen kanal numaralarını düzelt
+    // ── Temizleme parametreleri ────────────────────────────────────────────────
+    const cleanLevelRaw = formData.get("cleanLevel");
+    const keepBookRecsRaw = formData.get("keepBookRecs");
+
+    const cleanLevel: "minimal" | "balanced" | "strict" =
+      cleanLevelRaw === "minimal" || cleanLevelRaw === "balanced" || cleanLevelRaw === "strict"
+        ? cleanLevelRaw
+        : "balanced";
+
+    const keepBookRecs = keepBookRecsRaw !== "false";
+
+    console.log(`[ders-notu/temizle] cleanLevel=${cleanLevel} keepBookRecs=${keepBookRecs}`);
+
+    // ── Temizleme profili metni ───────────────────────────────────────────────
+    const CLEAN_PROFILES: Record<"minimal" | "balanced" | "strict", string> = {
+      minimal:
+        "MİNİMAL TEMİZLİK: Sadece teknik konuşmaları, mikrofon/bağlantı/yoklama gibi tamamen ders dışı bölümleri kaldır. Bilgi taşıyan sohbetleri, kaynak önerilerini, kitap önerilerini ve eğitmen deneyimlerini koru. Metne en yakın çıktı üret.",
+      balanced:
+        "DENGELİ TEMİZLİK: Teknik konuşmaları ve ders dışı kişisel sohbetleri kaldır. Dersle ilgili kaynak önerileri, kitap önerileri, öğrenci soruları, eğitmen deneyimleri ve örnekleri koru.",
+      strict:
+        "SIKI DERS NOTU: Teknik konuşmaları, ders organizasyonlarını, kişisel sohbetleri ve konu dışı bölümleri kaldır. Ancak ders bilgisini, örnekleri, soru-cevapları ve konuya hizmet eden açıklamaları koru. Bilgi kaybı yapma.",
+    };
+
+    const bookRecsInstruction = keepBookRecs
+      ? "Kitap önerileri ve kaynak tavsiyeleri bilgi değeri taşıyorsa koru."
+      : "Kitap önerileri, kaynak tavsiyeleri, fiyat/sahaf/PDF paylaşımı gibi kaynak sohbetlerini kaldır.";
+
+    // ── Ön işlem: bilinen kanal numaralarını düzelt ───────────────────────────
     const preprocessed = applyChannelMap(trimmed);
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // Kullanıcı mesajı: kısa bir çerçeve + transkript
-    // System prompt'u pekiştirmek için kullanıcı mesajında da minimum-edit talimatı verilir.
     const userMessage =
-      `Aşağıdaki ham transkripti MİNİMUM EDİT modunda temizle.\n` +
-      `Kural: Cümleleri yeniden YAZMA. Sadece gereksiz teknik/kişisel konuşmaları çıkar. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${preprocessed}`;
+      `${CLEAN_PROFILES[cleanLevel]}\n` +
+      `${bookRecsInstruction}\n\n` +
+      `Aşağıdaki ham transkripti bu profile göre temizle.\n` +
+      `Kural: Cümleleri yeniden YAZMA. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${preprocessed}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -196,23 +223,31 @@ export async function POST(request: Request) {
     // AI cümleleri birleştirse bile çıktıyı satır satır hale getir
     const cleaned = postProcess(raw);
 
-    // Length guard: gpt-4o ile beklenen oran ~%92 — %70 altı özetleme sinyalidir.
-    // Kısa metinlerde (< 1000 karakter) guard yanlış tetiklenebileceği için atla.
-    const MIN_RATIO = 0.70;
-    if (preprocessed.length >= 1000 && cleaned.length < preprocessed.length * MIN_RATIO) {
+    // ── Length guard ─────────────────────────────────────────────────────────
+    // keepBookRecs=false durumunda büyük kaynak bölümleri meşru olarak silinir →
+    // eşik düşük tutulur (0.40). Minimal mod metne en yakın olduğu için yüksek (0.85).
+    let MIN_RATIO: number;
+    if (cleanLevel === "minimal")        MIN_RATIO = 0.75;
+    else if (!keepBookRecs)              MIN_RATIO = 0.40;
+    else if (cleanLevel === "strict")    MIN_RATIO = 0.55;
+    else                                 MIN_RATIO = 0.70;  // balanced + keepBookRecs=true
+
+    const ratio = cleaned.length / preprocessed.length;
+
+    if (preprocessed.length >= 1000 && ratio < MIN_RATIO) {
       console.warn(
-        `[ders-notu/temizle] length guard: cleaned=${cleaned.length} < preprocessed*0.70=${Math.floor(preprocessed.length * MIN_RATIO)}`,
+        `[ders-notu/temizle] length guard: mod=${cleanLevel} keepBooks=${keepBookRecs} cleaned=${cleaned.length} preprocessed=${preprocessed.length} oran=%${Math.round(ratio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`,
       );
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Çıktı fazla kısaldı. Model metni özetlemiş olabilir. Lütfen daha kısa parça ile tekrar deneyin.",
+          message: `Çıktı fazla kısaldı. Mod: ${cleanLevel}, kitap önerileri: ${keepBookRecs ? "açık" : "kapalı"}, oran: %${Math.round(ratio * 100)}. Lütfen daha kısa parça ile tekrar deneyin.`,
         },
         { status: 422 },
       );
     }
 
+    console.log(`[ders-notu/temizle] tamam: mod=${cleanLevel} oran=%${Math.round(ratio * 100)}`);
     return NextResponse.json({ success: true, text: cleaned });
   } catch (err) {
     console.error("[ders-notu/temizle] hata:", err);

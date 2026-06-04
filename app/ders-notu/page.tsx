@@ -119,6 +119,8 @@ export default function DersNotuPage() {
     try {
       const form = new FormData();
       form.append("text", trimmed);
+      form.append("cleanLevel", cleanLevel);
+      form.append("keepBookRecs", String(keepBookRecs));
       const res = await fetch("/api/ders-notu/temizle", { method: "POST", body: form });
 
       if (!res.ok) {
