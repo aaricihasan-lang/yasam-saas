@@ -415,7 +415,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -496,11 +496,11 @@ export default function Home() {
   }, [loginModalOpen]);
 
   useEffect(() => {
-    if (lightboxIdx === null) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightboxIdx(null); };
+    if (!numerologiPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNumerologiPreviewOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lightboxIdx]);
+  }, [numerologiPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -921,23 +921,13 @@ export default function Home() {
             tek platformda, profesyonel akışa uygun.
           </p>
 
-          {/* CTAs */}
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setMessage("");
-                setLoginModalOpen(true);
-              }}
-              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200/80 bg-white px-6 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-violet-300/70 hover:text-violet-900"
-            >
-              Giriş Yap
-            </button>
+          {/* CTA */}
+          <div className="mt-7 flex justify-center">
             <Link
               href="/register"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-7 text-sm font-bold text-white no-underline shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white no-underline shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
             >
-              Keşfet →
+              Modülleri Keşfet →
             </Link>
           </div>
         </section>
@@ -1076,277 +1066,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── NUMEROLOJİ MODÜLÜ VİTRİNİ ──────────────────────────── */}
-        <section data-fade className="mt-12 w-full">
-
-          {/* Section header */}
-          <div className="mb-8 text-center">
-            <span className="inline-flex items-center rounded-full border border-violet-200/70 bg-violet-50 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
-              Numeroloji Modülü
-            </span>
-            <h3 className="mt-4 text-2xl font-black leading-snug tracking-tight text-slate-950 sm:text-3xl">
-              Numeroloji Analizi ile{" "}
-              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
-                Yaşam Haritanızı Keşfedin
-              </span>
-            </h3>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">
-              Doğum bilgilerinden kişisel sayılarınızı, çakra omurganızı, element dengenizi,
-              taş önerilerinizi ve görsel raporunuzu oluşturun.
-            </p>
-          </div>
-
-          {/* Screen grid sub-header */}
-          <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200/60 bg-white/60 px-5 py-3.5">
-            <p className="text-sm font-black text-slate-900">Numeroloji Analizi — Gerçek Ürün Ekranları</p>
-            <p className="mt-0.5 text-xs text-slate-500">Doğum tarihinizden yaşam haritanızı çıkarın, detaylı analizleri gözlemleyin.</p>
-          </div>
-
-          {/* 2×2 screen mockup grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {[
-              {
-                title: "Analiz Hesaplama",
-                node: (
-                  <div className="flex min-h-[220px] flex-col rounded-xl border border-slate-200/70 bg-white">
-                    {/* app nav */}
-                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-3 py-2">
-                      <span className="text-[10px] font-semibold text-violet-600">← Modül seçimi</span>
-                      <div className="text-center">
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">YAŞAM SİSTEMİ · NUMEROLOJİ</p>
-                      </div>
-                      <span className="text-[10px] font-semibold text-violet-600">Kayıtlı analizler</span>
-                    </div>
-                    {/* form */}
-                    <div className="flex flex-1 flex-col px-4 py-3">
-                      <p className="text-center text-sm font-black text-slate-900">Numeroloji Analizi</p>
-                      <p className="mt-0.5 text-center text-[10px] leading-4 text-slate-500">Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun.</p>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <div>
-                          <p className="mb-1 text-[10px] text-slate-500">Ad</p>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">Ali</div>
-                        </div>
-                        <div>
-                          <p className="mb-1 text-[10px] text-slate-500">Soyad</p>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">AL</div>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <p className="mb-1 text-[10px] text-slate-500">Doğum Tarihi</p>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">05/06/1986</div>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <div className="flex-1 rounded-lg bg-violet-600 py-1.5 text-center text-[11px] font-bold text-white">HESAPLA</div>
-                        <div className="flex-1 rounded-lg border border-slate-200 py-1.5 text-center text-[11px] font-bold text-slate-600">KAYDET</div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Sonuç Özeti",
-                node: (
-                  <div className="flex min-h-[220px] flex-col rounded-xl border border-slate-200/70 bg-white">
-                    {/* tabs */}
-                    <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 py-2">
-                      {["SONUÇ ÖZETİ", "ANALİZ", "TAŞ AÇIKL.", "GÖRSEL RAPOR"].map((t, i) => (
-                        <div key={t} className={`shrink-0 rounded-md px-2 py-1 text-[9px] font-bold ${i === 0 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>{t}</div>
-                      ))}
-                    </div>
-                    <div className="flex flex-1 flex-col px-3 py-3">
-                      <div className="mb-2.5 rounded-lg border border-violet-100/80 bg-violet-50/60 px-3 py-2">
-                        <p className="text-[8px] font-black uppercase tracking-wider text-violet-600">NUMEROLOJİK SONUÇ ÖZETİ</p>
-                        <p className="mt-0.5 text-sm font-black text-slate-900">Ali AL</p>
-                        <p className="text-[9px] text-slate-500">Doğum: 05/06/1986</p>
-                      </div>
-                      <div className="grid grid-cols-4 divide-x divide-slate-100 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                        {[
-                          { v: "2", l: "ANA KULVAR" },
-                          { v: "6", l: "YAN KULVAR" },
-                          { v: "8", l: "İFADE" },
-                          { v: "35/8", l: "HAYAT YOLU" },
-                        ].map((s) => (
-                          <div key={s.l} className="flex flex-col items-center py-2">
-                            <span className="text-sm font-black tabular-nums text-violet-700">{s.v}</span>
-                            <span className="text-[7px] font-medium text-slate-400">{s.l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Harflerin Yankılanışı & Elementler",
-                node: (
-                  <div className="flex min-h-[220px] flex-col rounded-xl border border-slate-200/70 bg-white px-3 py-3">
-                    <p className="mb-2 text-[10px] font-black text-slate-800">Harflerin Yankılanışı</p>
-                    <div className="mb-3 flex gap-0 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50">
-                      {[
-                        { l: "A", n: "1", y: "0 yaş" },
-                        { l: "L", n: "3", y: "1–3" },
-                        { l: "I", n: "9", y: "6–12" },
-                        { l: "A", n: "1", y: "13 yaş" },
-                        { l: "L", n: "3", y: "14–16" },
-                        { l: "A", n: "1", y: "17 yaş" },
-                        { l: "L", n: "3", y: "18–29" },
-                        { l: "A", n: "1", y: "30 yaş" },
-                        { l: "L", n: "3", y: "35–37" },
-                        { l: "A", n: "1", y: "38 yaş" },
-                        { l: "L", n: "3", y: "35–37" },
-                        { l: "I", n: "9", y: "39–48", akif: true },
-                      ].map((item, idx) => (
-                        <div key={idx} className={`flex shrink-0 flex-col items-center border-r border-slate-100 px-1.5 py-1 last:border-r-0 ${item.akif ? "bg-violet-50" : ""}`}>
-                          {item.akif && <span className="mb-0.5 rounded bg-violet-600 px-1 text-[6px] font-bold text-white">AKİF</span>}
-                          <span className="text-[10px] font-black text-slate-800">{item.l}</span>
-                          <span className="text-[8px] font-semibold text-violet-600">{item.n}</span>
-                          <span className="text-[7px] text-slate-400">{item.y}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mb-1.5 text-[10px] font-black text-slate-800">Elementler</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { el: "Hava", val: 2, color: "bg-sky-400", w: "40%" },
-                        { el: "Su", val: 1, color: "bg-blue-500", w: "20%" },
-                        { el: "Ateş", val: 3, color: "bg-orange-500", w: "60%" },
-                        { el: "Toprak", val: 2, color: "bg-amber-600", w: "40%" },
-                      ].map((e) => (
-                        <div key={e.el} className="flex items-center gap-2">
-                          <span className="w-9 text-[9px] font-medium text-slate-500">{e.el}</span>
-                          <div className="flex-1 overflow-hidden rounded-full bg-slate-100">
-                            <div className={`h-1.5 rounded-full ${e.color}`} style={{ width: e.w }} />
-                          </div>
-                          <span className="w-3 text-right text-[9px] font-bold text-slate-600">{e.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Çakra Sütunu & Çakra Omurgası",
-                node: (
-                  <div className="flex min-h-[220px] flex-col rounded-xl border border-slate-200/70 bg-white px-3 py-3">
-                    <p className="mb-3 text-[10px] font-black text-slate-800">Çakra Sütunu & Çakra Omurgası</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { no: "10. Çakra", dots: [] },
-                        { no: "9. Çakra", dots: ["bg-violet-400"] },
-                        { no: "8. Çakra", dots: [] },
-                        { no: "7. Çakra", dots: [] },
-                        { no: "6. Çakra", dots: ["bg-indigo-400", "bg-indigo-300"] },
-                        { no: "5. Çakra", dots: [] },
-                        { no: "4. Çakra", dots: [] },
-                        { no: "3. Çakra", dots: ["bg-amber-400", "bg-amber-400"] },
-                        { no: "2. Çakra", dots: [] },
-                        { no: "1. Çakra", dots: ["bg-rose-400", "bg-rose-400"] },
-                      ].map((c) => (
-                        <div key={c.no} className="flex items-center gap-2">
-                          <span className="w-16 text-right text-[9px] text-slate-500">{c.no}</span>
-                          <div className="flex items-center gap-1">
-                            {c.dots.length === 0 ? (
-                              <div className="h-px w-12 bg-slate-200" />
-                            ) : (
-                              <>
-                                <div className="h-px w-6 bg-slate-200" />
-                                {c.dots.map((dot, di) => (
-                                  <div key={di} className={`h-3 w-3 rounded-full ${dot}`} />
-                                ))}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              },
-            ].map((screen, i) => (
-              <div
-                key={i}
-                className="group cursor-zoom-in"
-                onClick={() => setLightboxIdx(i)}
-                role="button"
-                aria-label={`${screen.title} ekranını büyüt`}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLightboxIdx(i); } }}
-              >
-                <div className="overflow-hidden rounded-xl ring-1 ring-slate-200/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-violet-300/60 group-hover:shadow-[0_6px_18px_rgba(109,40,217,0.09)]">
-                  {screen.node}
-                </div>
-                <p className="mt-2 text-xs font-medium text-slate-500">
-                  <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-black text-slate-700">{i + 1}</span>
-                  {screen.title}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Features grid */}
-          <div className="mt-10">
-            <div className="mb-6 text-center">
-              <h4 className="text-lg font-black text-slate-950 sm:text-xl">
-                Numeroloji Modülü ile{" "}
-                <span className="text-violet-700">Neler Yapabilirsiniz?</span>
-              </h4>
-              <div className="mx-auto mt-2 h-0.5 w-10 rounded-full bg-violet-400/60" />
-            </div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {numerologiFeatures.map((f) => (
-                <div key={f.title} className="flex items-start gap-3 rounded-xl border border-slate-200/60 bg-white/70 px-4 py-3.5">
-                  <span className="mt-0.5 shrink-0 text-lg leading-none">{f.icon}</span>
-                  <div>
-                    <p className="text-sm font-black text-slate-900">{f.title}</p>
-                    <p className="mt-0.5 text-xs leading-4 text-slate-500">{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CTA Banner */}
-          <div className="mt-8 overflow-hidden rounded-2xl border border-violet-200/60 bg-violet-50/80 px-5 py-5 sm:px-7">
-            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-lg text-white shadow-sm">
-                  ✨
-                </div>
-                <div>
-                  <p className="text-sm font-black text-slate-900">Kendi yaşam haritanızı keşfetmeye hazır mısınız?</p>
-                  <p className="mt-0.5 text-xs text-slate-500">Yaşam Sistemi ile numerolojinizi çözün, potansiyelinizi keşfedin ve yolculuğunuzu bilinçle yönetin.</p>
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => { setMessage(""); setLoginModalOpen(true); }}
-                  className="inline-flex h-9 items-center rounded-xl border border-violet-300/70 bg-white px-5 text-sm font-bold text-violet-900 transition hover:bg-violet-50"
-                >
-                  Giriş Yap
-                </button>
-                <Link
-                  href="/register"
-                  className="inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-sm font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)]"
-                >
-                  Hemen Keşfet →
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Trust strip */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            {["⚙️ Profesyonel Analiz", "🛡️ Güvenli & Gizli", "⏰ 7/24 Erişim", "🔄 Sürekli Güncellenen Altyapı"].map((item, i, arr) => (
-              <span key={item} className="flex items-center gap-4 text-[11px] font-medium text-slate-400">
-                {item}
-                {i < arr.length - 1 && <span className="hidden h-3 w-px bg-slate-200 sm:block" aria-hidden />}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {/* ─────────────────────────────────────────────────────────── */}
 
         {/* — Problem Section — */}
         <div data-fade className="mt-10 w-full">
@@ -1417,10 +1136,32 @@ export default function Home() {
                 {item.desc}
               </p>
 
-              <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
-                Keşfet
-                <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-              </span>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                {item.title === "Numeroloji" ? (
+                  <Link
+                    href="/numeroloji"
+                    className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 no-underline transition-all duration-200 hover:gap-2 hover:text-violet-800"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Keşfet
+                    <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
+                    Keşfet
+                    <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                  </span>
+                )}
+                {item.title === "Numeroloji" && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setNumerologiPreviewOpen(true); }}
+                    className="shrink-0 rounded-lg border border-violet-200/70 bg-violet-50/80 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100"
+                  >
+                    Ön İzleme
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           </div>
@@ -1526,137 +1267,43 @@ export default function Home() {
         </footer>
       </div>
 
-      {lightboxIdx !== null && (
+      {numerologiPreviewOpen && (
         <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm"
-          onClick={() => setLightboxIdx(null)}
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/75 p-4 pb-10 backdrop-blur-sm"
+          onClick={() => setNumerologiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Ekran önizlemesi"
+          aria-label="Numeroloji modülü ön izlemesi"
         >
           <div
-            className="relative w-full max-w-2xl"
+            className="relative mt-6 w-full max-w-4xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => setLightboxIdx(null)}
+              onClick={() => setNumerologiPreviewOpen(false)}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
               aria-label="Kapat"
             >
               ×
             </button>
-            {[
-              {
-                title: "Analiz Hesaplama",
-                node: (
-                  <div className="flex flex-col rounded-xl border border-slate-200/70 bg-white">
-                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
-                      <span className="text-xs font-semibold text-violet-600">← Modül seçimi</span>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">YAŞAM SİSTEMİ · NUMEROLOJİ</p>
-                      <span className="text-xs font-semibold text-violet-600">Kayıtlı analizler</span>
-                    </div>
-                    <div className="flex flex-col px-6 py-5">
-                      <p className="text-center text-lg font-black text-slate-900">Numeroloji Analizi</p>
-                      <p className="mt-1 text-center text-sm text-slate-500">Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun.</p>
-                      <div className="mt-5 grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="mb-1.5 text-xs text-slate-500">Ad</p>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">Ali</div>
-                        </div>
-                        <div>
-                          <p className="mb-1.5 text-xs text-slate-500">Soyad</p>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">AL</div>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <p className="mb-1.5 text-xs text-slate-500">Doğum Tarihi</p>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">05/06/1986</div>
-                      </div>
-                      <div className="mt-5 flex gap-3">
-                        <div className="flex-1 rounded-xl bg-violet-600 py-2.5 text-center text-sm font-bold text-white">HESAPLA</div>
-                        <div className="flex-1 rounded-xl border border-slate-200 py-2.5 text-center text-sm font-bold text-slate-600">KAYDET</div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Sonuç Özeti",
-                node: (
-                  <div className="flex flex-col rounded-xl border border-slate-200/70 bg-white">
-                    <div className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-3 py-2.5">
-                      {["SONUÇ ÖZETİ", "ANALİZ (ÖZETSIZ)", "ANALİZ (ÖZETLİ)", "TAŞ AÇIKLAMALARI", "GÖRSEL RAPOR"].map((t, i) => (
-                        <div key={t} className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-bold ${i === 0 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>{t}</div>
-                      ))}
-                    </div>
-                    <div className="flex flex-col px-5 py-4">
-                      <div className="mb-4 rounded-xl border border-violet-100/80 bg-violet-50/60 px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-violet-600">NUMEROLOJİK SONUÇ ÖZETİ</p>
-                        <p className="mt-1 text-base font-black text-slate-900">Ali AL</p>
-                        <p className="text-xs text-slate-500">Doğum: 05/06/1986</p>
-                      </div>
-                      <div className="grid grid-cols-4 divide-x divide-slate-100 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
-                        {[{ v: "2", l: "ANA KULVAR" }, { v: "6", l: "YAN KULVAR" }, { v: "8", l: "İFADE SAYISI" }, { v: "35/8", l: "HAYAT YOLU/DM" }].map((s) => (
-                          <div key={s.l} className="flex flex-col items-center py-3.5">
-                            <span className="text-xl font-black tabular-nums text-violet-700">{s.v}</span>
-                            <span className="mt-0.5 text-[9px] font-medium text-slate-400">{s.l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Harflerin Yankılanışı & Elementler",
-                node: (
-                  <div className="flex flex-col rounded-xl border border-slate-200/70 bg-white px-5 py-4">
-                    <p className="mb-3 text-sm font-black text-slate-800">Harflerin Yankılanışı</p>
-                    <div className="mb-5 flex gap-0 overflow-x-auto rounded-xl border border-slate-100 bg-slate-50">
-                      {[{ l: "A", n: "1", y: "0 yaş" }, { l: "L", n: "3", y: "1–3" }, { l: "I", n: "9", y: "6–12" }, { l: "A", n: "1", y: "13 yaş" }, { l: "L", n: "3", y: "14–16" }, { l: "A", n: "1", y: "17 yaş" }, { l: "L", n: "3", y: "18–29" }, { l: "A", n: "1", y: "30 yaş" }, { l: "L", n: "3", y: "35–37" }, { l: "A", n: "1", y: "38 yaş" }, { l: "L", n: "3", y: "35–37" }, { l: "I", n: "9", y: "39–48", akif: true }].map((item, idx) => (
-                        <div key={idx} className={`flex shrink-0 flex-col items-center border-r border-slate-100 px-2.5 py-2 last:border-r-0 ${item.akif ? "bg-violet-50" : ""}`}>
-                          {item.akif && <span className="mb-0.5 rounded bg-violet-600 px-1.5 text-[7px] font-bold text-white">AKİF</span>}
-                          <span className="text-sm font-black text-slate-800">{item.l}</span>
-                          <span className="text-xs font-semibold text-violet-600">{item.n}</span>
-                          <span className="text-[9px] text-slate-400">{item.y}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mb-2 text-sm font-black text-slate-800">Elementler</p>
-                    <div className="space-y-2.5">
-                      {[{ el: "Hava", val: 2, color: "bg-sky-400", w: "40%" }, { el: "Su", val: 1, color: "bg-blue-500", w: "20%" }, { el: "Ateş", val: 3, color: "bg-orange-500", w: "60%" }, { el: "Toprak", val: 2, color: "bg-amber-600", w: "40%" }].map((e) => (
-                        <div key={e.el} className="flex items-center gap-3">
-                          <span className="w-12 text-xs font-medium text-slate-500">{e.el}</span>
-                          <div className="flex-1 overflow-hidden rounded-full bg-slate-100">
-                            <div className={`h-2 rounded-full ${e.color}`} style={{ width: e.w }} />
-                          </div>
-                          <span className="w-4 text-right text-xs font-bold text-slate-600">{e.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                title: "Çakra Sütunu & Çakra Omurgası",
-                node: (
-                  <div className="flex flex-col rounded-xl border border-slate-200/70 bg-white px-5 py-4">
-                    <p className="mb-4 text-sm font-black text-slate-800">Çakra Sütunu & Çakra Omurgası</p>
-                    <div className="space-y-2.5">
-                      {[{ no: "10. Çakra", dots: [] }, { no: "9. Çakra", dots: ["bg-violet-400"] }, { no: "8. Çakra", dots: [] }, { no: "7. Çakra", dots: [] }, { no: "6. Çakra", dots: ["bg-indigo-400", "bg-indigo-300"] }, { no: "5. Çakra", dots: [] }, { no: "4. Çakra", dots: [] }, { no: "3. Çakra", dots: ["bg-amber-400", "bg-amber-400"] }, { no: "2. Çakra", dots: [] }, { no: "1. Çakra", dots: ["bg-rose-400", "bg-rose-400"] }].map((c) => (
-                        <div key={c.no} className="flex items-center gap-3">
-                          <span className="w-20 text-right text-xs text-slate-500">{c.no}</span>
-                          <div className="flex items-center gap-1.5">
-                            {c.dots.length === 0 ? <div className="h-px w-16 bg-slate-200" /> : (<><div className="h-px w-8 bg-slate-200" />{c.dots.map((d, di) => <div key={di} className={`h-4 w-4 rounded-full ${d}`} />)}</>)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              },
-            ][lightboxIdx]?.node}
+            {/* Modal header */}
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center rounded-full border border-violet-200/70 bg-violet-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
+                Numeroloji Modülü
+              </span>
+              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
+                Numeroloji Analizi — Ürün Ön İzlemesi
+              </h4>
+              <p className="mt-1 text-sm text-slate-400">Doğum tarihinizden yaşam haritanızı çıkarın, detaylı analizleri gözlemleyin.</p>
+            </div>
+            <div className="overflow-hidden rounded-xl">
+              <img
+                src="/assets/numeroloji-preview.png"
+                alt="Numeroloji Modülü — Ön İzleme"
+                className="w-full rounded-xl"
+              />
+            </div>
           </div>
         </div>
       )}
