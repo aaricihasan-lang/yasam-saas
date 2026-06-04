@@ -274,8 +274,8 @@ YAPILMAYACAKLAR:
 
     // ── Length guard eşiği ───────────────────────────────────────────────────
     let MIN_RATIO: number;
-    if (!keepBookRecs)                MIN_RATIO = 0.20;
-    else if (cleanLevel === "strict") MIN_RATIO = 0.25;
+    if (!keepBookRecs)                MIN_RATIO = 0.12;
+    else if (cleanLevel === "strict") MIN_RATIO = 0.15;
     else                              MIN_RATIO = 0.30;  // balanced + keepBookRecs=true
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
