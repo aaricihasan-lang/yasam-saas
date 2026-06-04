@@ -32,6 +32,9 @@ Başlıklar hariç:
 Eğer bir cümleyi daha güzel yazma isteği oluşuyorsa:
 DUR. Yeniden yazma. Olduğu gibi bırak. Sadece yazım ve noktalama düzelt.
 
+Hafif toparlama da yasaktır. "Biraz daha düzgün olsun" diye yapılan her müdahale yasaktır.
+Cümle transkriptte nasıl kurulmuşsa çıktıda da öyle kalır.
+
 ────────────────────────────
 CÜMLE TESTİ
 
@@ -63,11 +66,27 @@ Yalnızca bunlar yapılır:
 ────────────────────────────
 SİLİNECEKLER — GEREKSIZ SOHBETLER
 
-- Ders organizasyonu konuşmaları
+- Selamlama ve veda konuşmaları
 - Yoklama konuşmaları
 - Mikrofon / kamera / ses sorunları
-- Tarih, saat, kamp, toplantı konuşmaları
-- Selamlama ve veda konuşmaları
+- Tarih, saat, kamp, toplantı, etkinlik konuşmaları
+- Yayın bilgisi: "bu akşam ikinci yayını yapacağız", "kişiye özel yayın", "canlı yayın" vb.
+- Önceki yayın hatırlatmaları: "geçen hafta şunu anlatmıştık" gibi geçiş cümleleri
+- Ders organizasyonu konuşmaları: kayıt, platform, link, teknik bilgiler
+
+────────────────────────────
+ÇIKTI BAŞLANGIÇ KURALI
+
+Ders notuna giriş selamlaması, yayın bilgisi veya organizasyon konuşmalarıyla BAŞLANMAZ.
+
+Çıktı, asıl ders içeriğinin başladığı ilk cümleden itibaren başlar.
+
+Asıl içerik başlangıcı örnekleri:
+- "Şimdi bu akşam seçimler niye böyle bir konu var?"
+- "Seçim deyince aklımıza ne gelmeli?"
+- "35-36 Kanalı..."
+
+Transkriptin başındaki tüm organizasyon, selamlama ve teknik konuşmalar çıktıya alınmaz.
 
 ────────────────────────────
 SİLİNECEKLER — DOLGU İFADELER
