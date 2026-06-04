@@ -6,6 +6,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_CHARS = 40_000;
+const CHUNK_THRESHOLD = 12_000;   // bu uzunluğun üzerinde chunk moduna geç
+const CHUNK_TARGET_SIZE = 9_000;  // hedef parça boyutu
 
 // Bilinen kanal numarası dönüşümleri — agresif regex yerine güvenli map
 const CHANNEL_MAP: Record<string, string> = {
@@ -32,6 +34,47 @@ function applyChannelMap(text: string): string {
     result = result.replace(regex, formatted);
   }
   return result;
+}
+
+// ── Chunk bölme ────────────────────────────────────────────────────────────────
+// Cümlenin ortasında kesmemek için \n\n → \n → ". " öncelik sırasıyla böler.
+function splitIntoChunks(text: string, targetSize: number): string[] {
+  if (text.length <= targetSize) return [text];
+
+  const chunks: string[] = [];
+  let start = 0;
+
+  while (start < text.length) {
+    if (text.length - start <= targetSize) {
+      const last = text.slice(start).trim();
+      if (last) chunks.push(last);
+      break;
+    }
+
+    const searchStart = start + Math.floor(targetSize * 0.7);
+    const searchEnd = start + targetSize;
+    const window = text.slice(searchStart, searchEnd);
+
+    let localSplit = -1;
+    const nnIdx = window.lastIndexOf("\n\n");
+    if (nnIdx !== -1) {
+      localSplit = nnIdx + 2;
+    } else {
+      const nIdx = window.lastIndexOf("\n");
+      if (nIdx !== -1) {
+        localSplit = nIdx + 1;
+      } else {
+        const pIdx = window.lastIndexOf(". ");
+        if (pIdx !== -1) localSplit = pIdx + 2;
+      }
+    }
+
+    const splitAt = localSplit !== -1 ? searchStart + localSplit : start + targetSize;
+    chunks.push(text.slice(start, splitAt).trim());
+    start = splitAt;
+  }
+
+  return chunks.filter((c) => c.length > 0);
 }
 
 // ── Post-processing ────────────────────────────────────────────────────────────
@@ -193,62 +236,114 @@ export async function POST(request: Request) {
     // ── Ön işlem: bilinen kanal numaralarını düzelt ───────────────────────────
     const preprocessed = applyChannelMap(trimmed);
 
+    // ── Length guard eşiği (mod + kitap seçeneğine göre) ─────────────────────
+    let MIN_RATIO: number;
+    if (cleanLevel === "minimal")     MIN_RATIO = 0.60;
+    else if (!keepBookRecs)           MIN_RATIO = 0.30;
+    else if (cleanLevel === "strict") MIN_RATIO = 0.35;
+    else                              MIN_RATIO = 0.50;  // balanced + keepBookRecs=true
+
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const userMessage =
-      `${CLEAN_PROFILES[cleanLevel]}\n` +
-      `${bookRecsInstruction}\n\n` +
-      `Aşağıdaki ham transkripti bu profile göre temizle.\n` +
-      `Kural: Cümleleri yeniden YAZMA. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${preprocessed}`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 0,
-      messages: [
-        { role: "system", content: DERS_NOTU_SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 16000,
-    });
-
-    const raw = response.choices[0]?.message?.content ?? "";
-
-    if (!raw.trim()) {
-      return NextResponse.json(
-        { success: false, message: "İşlem tamamlandı ancak çıktı boş geldi. Lütfen tekrar deneyin." },
-        { status: 422 },
-      );
+    // Kullanıcı mesajı şablonu (chunk için parça etiketi eklenir)
+    function buildMsg(text: string, chunkLabel?: string): string {
+      return (chunkLabel ? `${chunkLabel}\n` : "") +
+        `${CLEAN_PROFILES[cleanLevel]}\n` +
+        `${bookRecsInstruction}\n\n` +
+        `Aşağıdaki ham transkripti bu profile göre temizle.\n` +
+        `Kural: Cümleleri yeniden YAZMA. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${text}`;
     }
 
-    // AI cümleleri birleştirse bile çıktıyı satır satır hale getir
-    const cleaned = postProcess(raw);
+    // ── TEK PARÇA (≤ 12.000 karakter) ────────────────────────────────────────
+    if (preprocessed.length <= CHUNK_THRESHOLD) {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        temperature: 0,
+        messages: [
+          { role: "system", content: DERS_NOTU_SYSTEM_PROMPT },
+          { role: "user",   content: buildMsg(preprocessed) },
+        ],
+        max_tokens: 16000,
+      });
 
-    // ── Length guard ─────────────────────────────────────────────────────────
-    // keepBookRecs=false durumunda büyük kaynak bölümleri meşru olarak silinir →
-    // eşik düşük tutulur (0.40). Minimal mod metne en yakın olduğu için yüksek (0.85).
-    let MIN_RATIO: number;
-    if (cleanLevel === "minimal")        MIN_RATIO = 0.75;
-    else if (!keepBookRecs)              MIN_RATIO = 0.40;
-    else if (cleanLevel === "strict")    MIN_RATIO = 0.55;
-    else                                 MIN_RATIO = 0.70;  // balanced + keepBookRecs=true
+      const raw = response.choices[0]?.message?.content ?? "";
+      if (!raw.trim()) {
+        return NextResponse.json(
+          { success: false, message: "İşlem tamamlandı ancak çıktı boş geldi. Lütfen tekrar deneyin." },
+          { status: 422 },
+        );
+      }
 
-    const ratio = cleaned.length / preprocessed.length;
+      const cleaned = postProcess(raw);
+      const ratio = cleaned.length / preprocessed.length;
 
-    if (preprocessed.length >= 1000 && ratio < MIN_RATIO) {
-      console.warn(
-        `[ders-notu/temizle] length guard: mod=${cleanLevel} keepBooks=${keepBookRecs} cleaned=${cleaned.length} preprocessed=${preprocessed.length} oran=%${Math.round(ratio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`,
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Çıktı fazla kısaldı. Mod: ${cleanLevel}, kitap önerileri: ${keepBookRecs ? "açık" : "kapalı"}, oran: %${Math.round(ratio * 100)}. Lütfen daha kısa parça ile tekrar deneyin.`,
-        },
-        { status: 422 },
-      );
+      if (preprocessed.length >= 1000 && ratio < MIN_RATIO) {
+        console.warn(`[ders-notu/temizle] guard (tek): mod=${cleanLevel} keepBooks=${keepBookRecs} oran=%${Math.round(ratio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`);
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa parça deneyin veya daha düşük temizlik seviyesi seçin. (Mod: ${cleanLevel}, oran: %${Math.round(ratio * 100)})`,
+          },
+          { status: 422 },
+        );
+      }
+
+      console.log(`[ders-notu/temizle] tek parça tamam: mod=${cleanLevel} oran=%${Math.round(ratio * 100)}`);
+      return NextResponse.json({ success: true, text: cleaned });
     }
 
-    console.log(`[ders-notu/temizle] tamam: mod=${cleanLevel} oran=%${Math.round(ratio * 100)}`);
-    return NextResponse.json({ success: true, text: cleaned });
+    // ── CHUNK MODU (> 12.000 karakter) ───────────────────────────────────────
+    const chunks = splitIntoChunks(preprocessed, CHUNK_TARGET_SIZE);
+    console.log(`[ders-notu/temizle] chunk modu: ${chunks.length} parça, toplam ${preprocessed.length} karakter`);
+
+    const rawChunks: string[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const label = `[PARÇA ${i + 1}/${chunks.length}]`;
+
+      const chunkResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        temperature: 0,
+        messages: [
+          { role: "system", content: DERS_NOTU_SYSTEM_PROMPT },
+          { role: "user",   content: buildMsg(chunk, label) },
+        ],
+        max_tokens: 16000,
+      });
+
+      const chunkRaw = chunkResponse.choices[0]?.message?.content ?? "";
+      if (!chunkRaw.trim()) {
+        return NextResponse.json(
+          { success: false, message: `Parça ${i + 1}/${chunks.length} işlenemedi. Lütfen tekrar deneyin.` },
+          { status: 422 },
+        );
+      }
+
+      // Chunk başına length guard
+      if (chunk.length >= 1000) {
+        const chunkRatio = chunkRaw.length / chunk.length;
+        if (chunkRatio < MIN_RATIO) {
+          console.warn(`[ders-notu/temizle] guard (chunk ${i + 1}): oran=%${Math.round(chunkRatio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`);
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa parça deneyin veya daha düşük temizlik seviyesi seçin. (Mod: ${cleanLevel}, oran: %${Math.round(chunkRatio * 100)})`,
+            },
+            { status: 422 },
+          );
+        }
+      }
+
+      rawChunks.push(chunkRaw);
+      console.log(`[ders-notu/temizle] chunk ${i + 1}/${chunks.length} tamam (${chunkRaw.length} karakter)`);
+    }
+
+    const combined = rawChunks.join("\n\n");
+    const cleaned = postProcess(combined);
+
+    console.log(`[ders-notu/temizle] chunk mod tamamlandı: ${chunks.length} parça → ${cleaned.length} karakter`);
+    return NextResponse.json({ success: true, text: cleaned, chunked: true, chunkCount: chunks.length });
   } catch (err) {
     console.error("[ders-notu/temizle] hata:", err);
     const message = err instanceof Error ? err.message : String(err);
