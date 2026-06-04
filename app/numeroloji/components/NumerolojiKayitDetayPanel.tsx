@@ -405,8 +405,8 @@ export function NumerolojiKayitDetayPanel({
                 onPngIndir={() => void handleGorselPngIndir()}
               />
             </div>
-            <div className="min-w-0 w-full flex-1 overflow-x-auto py-1 sm:py-2">
-              <div className="inline-block origin-top-left scale-[0.48] sm:scale-[0.52] lg:scale-[0.55] xl:scale-[0.58]">
+            <div className="min-w-0 w-full flex-1 overflow-x-clip py-1 sm:py-2">
+              <div className="[zoom:0.22] sm:[zoom:0.42] lg:[zoom:0.38] xl:[zoom:0.54] 2xl:[zoom:0.70]">
                 <GorselRaporInfografik
                   out={out}
                   isimGoster={isimGoster}

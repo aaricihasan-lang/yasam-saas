@@ -168,8 +168,8 @@ export function AdminNumerologyReadonlyDetay({
 
         <section className={`${panelClass} border-indigo-200/80`}>
           <h2 className="text-xl font-black text-slate-950">Görsel Rapor</h2>
-          <div className="mt-4 overflow-x-auto py-2">
-            <div className="inline-block origin-top-left scale-[0.48] sm:scale-[0.52] lg:scale-[0.55] xl:scale-[0.58]">
+          <div className="mt-4 overflow-x-clip py-2">
+            <div className="[zoom:0.22] sm:[zoom:0.37] md:[zoom:0.44] lg:[zoom:0.62] xl:[zoom:0.77] 2xl:[zoom:0.90]">
               <GorselRaporInfografik
                 out={out}
                 isimGoster={isimGoster}
