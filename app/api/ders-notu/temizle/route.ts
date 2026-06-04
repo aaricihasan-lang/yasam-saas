@@ -216,76 +216,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Temizleme parametreleri ────────────────────────────────────────────────
-    const cleanLevelRaw = formData.get("cleanLevel");
-    const keepBookRecsRaw = formData.get("keepBookRecs");
-
-    const cleanLevel: "balanced" | "strict" =
-      cleanLevelRaw === "balanced" || cleanLevelRaw === "strict"
-        ? cleanLevelRaw
-        : "balanced";
-
-    const keepBookRecs = keepBookRecsRaw !== "false";
-
-    console.log(`[ders-notu/temizle] cleanLevel=${cleanLevel} keepBookRecs=${keepBookRecs}`);
-
-    // ── Temizleme profili metni ───────────────────────────────────────────────
-    const CLEAN_PROFILES: Record<"balanced" | "strict", string> = {
-      balanced: `DENGELİ DERS NOTU modu:
-YAPILACAKLAR:
-- Yazım, noktalama ve paragraf düzenini iyileştir.
-- Gereksiz teknik konuşmaları (mikrofon, bağlantı, yoklama vb.) ve ders dışı kişisel sohbetleri kaldır.
-- Gereksiz dolgu ifadelerini azalt.
-- Eğitmenin verdiği somut örnekleri, hayattan anlatıları ve benzetmeleri "Örnek:" etiketiyle işaretle.
-  Format: boş satır, ardından tek başına "Örnek:" satırı, ardından örnek içeriği.
-
-YAPILMAYACAKLAR:
-- Anlam değiştirme.
-- Bilgi ekleme veya çıkarma.
-- Cümleleri yeniden yazma.
-- Örnekleri silme.
-- Öğretmenin vermediği açıklama ekleme.
-Bilgi taşıyan cümleleri mümkün olduğunca eğitmenin orijinal ifadesiyle koru.`,
-
-      strict: `SIKI DERS NOTU modu:
-YAPILACAKLAR:
-- Teknik konuşmaları, ders organizasyonlarını, kişisel sohbetleri ve konu dışı bölümleri kaldır.
-- Başlıkları belirginleştir ve doğru konumlarına taşı. Konu geçişlerini düzenle.
-- Gereksiz tekrarları kaldır.
-- Soru-cevap bölümlerini ve önemli vurguları koru.
-- Yazım ve noktalama düzeltmelerini yap.
-- Eğitmenin verdiği somut örnekleri, hayattan anlatıları ve benzetmeleri "Örnek:" etiketiyle işaretle.
-  Format: boş satır, ardından tek başına "Örnek:" satırı, ardından örnek içeriği.
-
-YAPILMAYACAKLAR:
-- Bilgi kaybı yapma.
-- Örnekleri silme.
-- Öğretmenin anlatmadığı bilgi ekleme.
-- Cümleleri kendi yorumunla yeniden kurma.
-- Anlam değiştirme.`,
-    };
-
-    const bookRecsInstruction = keepBookRecs
-      ? "Kitap önerileri ve kaynak tavsiyeleri bilgi değeri taşıyorsa koru."
-      : "Kitap önerileri, kaynak tavsiyeleri, fiyat/sahaf/PDF paylaşımı gibi kaynak sohbetlerini kaldır.";
-
     // ── Ön işlem: bilinen kanal numaralarını düzelt ───────────────────────────
     const preprocessed = applyChannelMap(trimmed);
 
     // ── Length guard eşiği ───────────────────────────────────────────────────
-    let MIN_RATIO: number;
-    if (!keepBookRecs)                MIN_RATIO = 0.12;
-    else if (cleanLevel === "strict") MIN_RATIO = 0.15;
-    else                              MIN_RATIO = 0.30;  // balanced + keepBookRecs=true
+    const MIN_RATIO = 0.15;
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // Kullanıcı mesajı şablonu (chunk için parça etiketi eklenir)
     function buildMsg(text: string, chunkLabel?: string): string {
       return (chunkLabel ? `${chunkLabel}\n` : "") +
-        `${CLEAN_PROFILES[cleanLevel]}\n` +
-        `${bookRecsInstruction}\n\n` +
-        `Aşağıdaki ham transkripti bu profile göre temizle.\n` +
+        `Aşağıdaki ham transkripti temizle.\n` +
         `Kural: Cümleleri yeniden YAZMA. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${text}`;
     }
 
@@ -313,17 +255,17 @@ YAPILMAYACAKLAR:
       const ratio = cleaned.length / preprocessed.length;
 
       if (preprocessed.length >= 1000 && ratio < MIN_RATIO) {
-        console.warn(`[ders-notu/temizle] guard (tek): mod=${cleanLevel} keepBooks=${keepBookRecs} oran=%${Math.round(ratio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`);
+        console.warn(`[ders-notu/temizle] guard (tek): oran=%${Math.round(ratio * 100)} eşik=%${Math.round(MIN_RATIO * 100)}`);
         return NextResponse.json(
           {
             success: false,
-            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa bir metin parçası deneyin veya örnek/kitap önerilerini koru seçeneğini kapatarak tekrar deneyin. (Mod: ${cleanLevel}, oran: %${Math.round(ratio * 100)})`,
+            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(ratio * 100)})`,
           },
           { status: 422 },
         );
       }
 
-      console.log(`[ders-notu/temizle] tek parça tamam: mod=${cleanLevel} oran=%${Math.round(ratio * 100)}`);
+      console.log(`[ders-notu/temizle] tek parça tamam: oran=%${Math.round(ratio * 100)}`);
       return NextResponse.json({ success: true, text: withExampleNote(cleaned) });
     }
 
@@ -363,7 +305,7 @@ YAPILMAYACAKLAR:
           return NextResponse.json(
             {
               success: false,
-              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa bir metin parçası deneyin veya örnek/kitap önerilerini koru seçeneğini kapatarak tekrar deneyin. (Mod: ${cleanLevel}, oran: %${Math.round(chunkRatio * 100)})`,
+              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(chunkRatio * 100)})`,
             },
             { status: 422 },
           );
