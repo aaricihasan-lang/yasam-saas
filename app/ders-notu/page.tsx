@@ -12,7 +12,9 @@ import {
   FileCheck,
   FileDown,
   FileUp,
+  ListChecks,
   Loader2,
+  SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 
@@ -37,6 +39,8 @@ export default function DersNotuPage() {
   const [result, setResult] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [downloadingWord, setDownloadingWord] = useState(false);
+  const [cleanLevel, setCleanLevel] = useState<"minimal" | "balanced" | "strict">("balanced");
+  const [keepBookRecs, setKeepBookRecs] = useState(true);
 
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
 
@@ -294,6 +298,68 @@ export default function DersNotuPage() {
                 ))}
               </ul>
             </div>
+
+            {/* Temizleme Seviyesi kartı */}
+            <div className="rounded-[24px] border border-teal-200/70 bg-white/80 px-6 py-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-teal-600" strokeWidth={2} />
+                <p className="text-xs font-black uppercase tracking-wider text-teal-600">Temizleme Seviyesi</p>
+              </div>
+              <div className="space-y-1.5">
+                {(
+                  [
+                    { value: "minimal",  label: "Minimal Temizlik",  desc: "Sadece teknik konuşmalar silinir, metin olduğu gibi bırakılır" },
+                    { value: "balanced", label: "Dengeli Temizlik",   desc: "Teknik konuşmalar + dolgu ifadeler temizlenir" },
+                    { value: "strict",   label: "Sıkı Ders Notu",     desc: "Kapsamlı temizlik, başlıklar ve format düzenlenir" },
+                  ] as const
+                ).map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 transition ${
+                      cleanLevel === opt.value
+                        ? "bg-teal-50 ring-1 ring-teal-300"
+                        : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="cleanLevel"
+                      value={opt.value}
+                      checked={cleanLevel === opt.value}
+                      onChange={() => setCleanLevel(opt.value)}
+                      className="mt-0.5 accent-teal-600"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{opt.label}</p>
+                      <p className="text-[11px] font-medium text-slate-500">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Ek Seçenekler kartı */}
+            <div className="rounded-[24px] border border-teal-100 bg-white/80 px-6 py-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-teal-600" strokeWidth={2} />
+                <p className="text-xs font-black uppercase tracking-wider text-teal-600">Ek Seçenekler</p>
+              </div>
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={keepBookRecs}
+                  onChange={(e) => setKeepBookRecs(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-teal-600"
+                />
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Kitap önerilerini koru</p>
+                  <p className="text-[11px] font-medium text-slate-500">
+                    Eğitmenin ders içindeki kitap önerileri silinmez
+                  </p>
+                </div>
+              </label>
+            </div>
+
           </section>
 
           {/* ── Sağ: Sonuç ── */}
