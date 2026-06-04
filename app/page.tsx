@@ -34,6 +34,7 @@ import {
   BookOpen,
   ChartColumn,
   Check,
+  ChevronDown,
   ClipboardList,
   FolderArchive,
   Gem,
@@ -809,10 +810,11 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(155deg,#f3eeff_0%,#e8f4ff_40%,#fff9f0_75%,#fff5f8_100%)] text-slate-950">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(160deg,#f0ebff_0%,#e9f2ff_38%,#fafbff_68%,#fef9ff_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-20 top-0 h-80 w-80 rounded-full bg-violet-400/18 blur-3xl" />
-        <div className="absolute right-0 top-[12%] h-72 w-72 rounded-full bg-sky-300/20 blur-3xl" />
+        <div className="absolute -left-24 -top-8 h-[520px] w-[520px] rounded-full bg-violet-400/[0.13] blur-[100px]" />
+        <div className="absolute right-0 top-[8%] h-80 w-80 rounded-full bg-sky-300/[0.17] blur-3xl" />
+        <div className="absolute left-1/2 top-[8%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-violet-300/[0.07] blur-[90px]" />
       </div>
 
       <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
@@ -848,13 +850,15 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-16 flex w-full max-w-2xl flex-col items-center pb-2 text-center xl:mt-20">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/60 bg-white/70 px-3.5 py-1.5 text-xs font-medium text-violet-600 backdrop-blur-sm">
+        <section className="mx-auto mt-10 flex w-full max-w-2xl flex-col items-center text-center xl:mt-12">
+          {/* Kicker */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/50 bg-white/55 px-3.5 py-1.5 text-xs font-medium text-violet-600 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-violet-500" aria-hidden />
             Profesyonel danışmanlık yönetim sistemi
           </div>
 
-          <h2 className="mt-6 text-[2.25rem] font-black leading-[1.12] tracking-tight text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
+          {/* Headline */}
+          <h2 className="mt-6 text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
             Profesyonel danışmanlar için{" "}
             <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
               bütünsel yönetim
@@ -862,31 +866,34 @@ export default function Home() {
             platformu
           </h2>
 
-          <p className="mt-5 max-w-md text-[0.9375rem] leading-7 text-slate-500">
+          {/* Subtitle */}
+          <p className="mt-5 max-w-[400px] text-base leading-[1.75] text-slate-500">
             Numeroloji, doğaltaş, biyoenerji, refleksoloji ve danışan yönetimi —
             tek platformda, profesyonel akışa uygun.
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+          {/* CTAs */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => {
                 setMessage("");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-violet-300 hover:text-violet-900 hover:shadow"
+              className="inline-flex h-12 items-center justify-center rounded-[14px] border border-slate-200/80 bg-white px-7 text-sm font-semibold text-slate-800 shadow-[0_2px_10px_rgba(0,0,0,0.07)] ring-1 ring-slate-100/80 transition hover:border-violet-300/60 hover:shadow-[0_4px_20px_rgba(91,33,182,0.11)] hover:text-violet-900"
             >
               Giriş Yap
             </button>
             <Link
               href="/register"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-7 text-sm font-bold text-white no-underline shadow-[0_6px_22px_rgba(109,40,217,0.38)] ring-1 ring-violet-400/30 transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.46)]"
+              className="inline-flex h-12 items-center justify-center rounded-[14px] bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white no-underline shadow-[0_8px_28px_rgba(109,40,217,0.42)] ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(109,40,217,0.52)]"
             >
               Keşfet →
             </Link>
           </div>
 
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          {/* Trust chips */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
               Güvenli veri yapısı
@@ -902,10 +909,23 @@ export default function Home() {
               Offline çalışma desteği
             </span>
           </div>
+
+          {/* Scroll indicator */}
+          <div className="mt-12 flex flex-col items-center gap-2.5 opacity-50" aria-hidden>
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
+              Modülleri keşfet
+            </span>
+            <div className="relative flex h-[26px] w-4 items-start justify-center rounded-[8px] border-[1.5px] border-slate-400/60 pt-[5px]">
+              <span
+                className="h-1.5 w-[3px] animate-bounce rounded-full bg-slate-500"
+                style={{ animationDuration: "1.8s" }}
+              />
+            </div>
+          </div>
         </section>
 
         {/* — Modules grid — */}
-        <section className="mt-14 w-full max-w-none xl:mt-16">
+        <section className="mt-10 w-full max-w-none xl:mt-12">
           <div className="mb-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
               Modüller
