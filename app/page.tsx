@@ -403,6 +403,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -481,6 +482,42 @@ export default function Home() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [loginModalOpen]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const els = document.querySelectorAll<HTMLElement>("[data-fade]");
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            const el = e.target as HTMLElement;
+            el.style.opacity = "1";
+            el.style.transform = "none";
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.06, rootMargin: "0px 0px -24px 0px" },
+    );
+    els.forEach((el) => {
+      if (el.getBoundingClientRect().top >= window.innerHeight - 80) {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(10px)";
+        el.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+      }
+      io.observe(el);
+    });
+    return () => io.disconnect();
+  }, []);
 
   const handleLogin = async () => {
     const trimmedEmail = email.trim();
@@ -818,7 +855,7 @@ export default function Home() {
 
       <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
         {/* — Nav — */}
-        <header className="sticky top-3 z-50 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/70 bg-white/85 px-4 py-2.5 shadow-sm backdrop-blur-md sm:px-6">
+        <header className={`sticky top-3 z-50 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border px-4 py-2.5 sm:px-6 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/50 bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] backdrop-blur-xl" : "border-white/70 bg-white/85 shadow-sm backdrop-blur-md"}`}>
           <div className="flex min-w-0 shrink-0 items-center gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-base text-white shadow-sm shadow-violet-300/30">
               ✨
@@ -915,8 +952,91 @@ export default function Home() {
           </div>
         </div>
 
+        {/* — Problem Section — */}
+        <div data-fade className="mt-10 w-full">
+          <div className="mb-5">
+            <h3 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+              Bilgileriniz farklı dosyalarda mı dağınık duruyor?
+            </h3>
+            <p className="mt-2.5 max-w-2xl text-sm leading-[1.7] text-slate-500">
+              Birçok uzman yıllar boyunca oluşturduğu Word dosyalarını, PDF arşivlerini, danışan
+              notlarını ve çalışma kayıtlarını farklı klasörlerde saklıyor. Zamanla bilgiye ulaşmak
+              zorlaşıyor ve aynı araştırmalar tekrar tekrar yapılıyor.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              { icon: "📂", text: "Yüzlerce Word ve PDF dosyası arasında bilgi aramak" },
+              { icon: "🔍", text: "Aynı konuyu tekrar tekrar araştırmak zorunda kalmak" },
+              { icon: "📝", text: "Danışan notlarının farklı klasörlerde bulunması" },
+              { icon: "📅", text: "Randevu, seans ve kayıtların dağınık olması" },
+              {
+                icon: "💎",
+                text: "Doğaltaş, numeroloji ve çalışma notlarının ayrı yerlerde tutulması",
+              },
+            ].map((item) => (
+              <div
+                key={item.text}
+                className="flex items-start gap-3 rounded-xl border border-slate-200/60 bg-white/70 px-4 py-3.5"
+              >
+                <span className="mt-0.5 shrink-0 text-base leading-none">{item.icon}</span>
+                <p className="text-sm leading-5 text-slate-600">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* — Solution Section — */}
+        <div data-fade className="mt-8 w-full">
+          <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-600">
+                Çözüm
+              </p>
+              <h3 className="mt-2 text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+                Tüm çalışma sisteminiz tek merkezde
+              </h3>
+              <p className="mt-3 max-w-lg text-sm leading-[1.7] text-slate-500">
+                Yaşam Sistemi; danışan kayıtlarını, analizleri, notları, seansları, randevuları ve
+                bilgi bankanızı tek merkezde toplar. Her şey birbiriyle bağlantılı, her an
+                erişilebilir.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white/70 p-5">
+              <ol className="list-none p-0">
+                {[
+                  { icon: "👤", label: "Danışan Kaydı" },
+                  { icon: "🔢", label: "Analizler" },
+                  { icon: "📝", label: "Seans Notları" },
+                  { icon: "📅", label: "Randevular" },
+                  { icon: "📂", label: "Bilgi Bankası" },
+                  { icon: "🌐", label: "Web ve Mobil Erişim" },
+                ].map((step, i, arr) => (
+                  <li key={step.label}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-white text-base shadow-sm">
+                        {step.icon}
+                      </div>
+                      <span className="text-sm font-semibold text-slate-800">{step.label}</span>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="my-1 ml-[18px] h-4 w-px bg-slate-300/55" />
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll line */}
+        <div className="mx-auto mt-4 flex justify-center" aria-hidden>
+          <div className="h-6 w-px bg-gradient-to-b from-slate-300/55 to-transparent" />
+        </div>
+
         {/* — Modules grid — */}
-        <section className="mt-5 w-full max-w-none xl:mt-6">
+        <section data-fade className="mt-3 w-full max-w-none xl:mt-4">
           <div className="mb-3.5 flex items-baseline justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-950 sm:text-xl">
@@ -931,9 +1051,9 @@ export default function Home() {
           {landingModules.map((item) => (
             <div
               key={item.title}
-              className="group relative flex flex-col rounded-[22px] border border-slate-200/80 bg-white/90 p-4 shadow-sm ring-1 ring-white/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200/80 hover:shadow-md"
+              className="group relative flex flex-col rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm ring-1 ring-white/50 transition-all duration-200 hover:-translate-y-1 hover:border-violet-200/60 hover:shadow-[0_8px_20px_rgba(109,40,217,0.08)] hover:ring-violet-100/50"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/30 transition group-hover:scale-105">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                 {item.icon}
               </div>
 
@@ -945,7 +1065,7 @@ export default function Home() {
                 {item.desc}
               </p>
 
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700/80 transition group-hover:gap-2 group-hover:text-violet-800">
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
                 Keşfet
                 <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
               </span>
@@ -955,7 +1075,7 @@ export default function Home() {
         </section>
 
         {/* — Features dark band — */}
-        <section className="mt-8 w-full max-w-none rounded-[24px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_16px_56px_rgba(30,27,75,0.35)] xl:mt-9">
+        <section data-fade className="mt-8 w-full max-w-none rounded-[24px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_16px_56px_rgba(30,27,75,0.35)] xl:mt-9">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {featureItems.map((item, index) => (
             <div
@@ -983,6 +1103,7 @@ export default function Home() {
 
         {/* — Trust section — */}
         <section
+          data-fade
           className="relative mt-8 w-full max-w-none overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-5 shadow-md ring-1 ring-violet-200/50 sm:p-7 xl:mt-9"
           aria-labelledby="trust-principles-heading"
         >
