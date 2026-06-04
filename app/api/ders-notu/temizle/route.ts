@@ -175,8 +175,8 @@ export async function POST(request: Request) {
       `Kural: Cümleleri yeniden YAZMA. Sadece gereksiz teknik/kişisel konuşmaları çıkar. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${preprocessed}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
+      model: "gpt-4o",
+      temperature: 0,
       messages: [
         { role: "system", content: DERS_NOTU_SYSTEM_PROMPT },
         { role: "user", content: userMessage },
@@ -196,11 +196,12 @@ export async function POST(request: Request) {
     // AI cümleleri birleştirse bile çıktıyı satır satır hale getir
     const cleaned = postProcess(raw);
 
-    // Length guard: temizlenmiş çıktı ham metnin %55'inden kısaysa özet yapılmış demektir
-    const MIN_RATIO = 0.55;
-    if (cleaned.length < preprocessed.length * MIN_RATIO) {
+    // Length guard: gpt-4o ile beklenen oran ~%92 — %70 altı özetleme sinyalidir.
+    // Kısa metinlerde (< 1000 karakter) guard yanlış tetiklenebileceği için atla.
+    const MIN_RATIO = 0.70;
+    if (preprocessed.length >= 1000 && cleaned.length < preprocessed.length * MIN_RATIO) {
       console.warn(
-        `[ders-notu/temizle] length guard: cleaned=${cleaned.length} < preprocessed*0.55=${Math.floor(preprocessed.length * MIN_RATIO)}`,
+        `[ders-notu/temizle] length guard: cleaned=${cleaned.length} < preprocessed*0.70=${Math.floor(preprocessed.length * MIN_RATIO)}`,
       );
       return NextResponse.json(
         {
