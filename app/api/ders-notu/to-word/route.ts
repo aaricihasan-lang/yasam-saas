@@ -5,9 +5,13 @@ export const maxDuration = 30;
 
 function buildParagraphs(text: string): Paragraph[] {
   const children: Paragraph[] = [];
+  let inExample = false;
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trimEnd();
+
+    // Başlık veya boş satır örnek bloğunu kapatır
+    if (line.trim() === "" || line.startsWith("#")) inExample = false;
 
     if (line.startsWith("# ")) {
       children.push(
@@ -32,8 +36,30 @@ function buildParagraphs(text: string): Paragraph[] {
           spacing: { before: 200, after: 60 },
         }),
       );
+    } else if (line === "Örnek:") {
+      inExample = true;
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: "Örnek:", bold: true, size: 22, color: "92400e", highlight: "yellow" })],
+          spacing: { before: 200, after: 60 },
+        }),
+      );
     } else if (line.trim() === "") {
       children.push(new Paragraph({ children: [], spacing: { after: 80 } }));
+    } else if (inExample) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: line, size: 22, highlight: "yellow" })],
+          spacing: { after: 120 },
+        }),
+      );
+    } else if (line.startsWith("Not: ") || line.startsWith("Not:")) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: line, size: 20, italics: true, color: "6b7280" })],
+          spacing: { after: 120 },
+        }),
+      );
     } else {
       children.push(
         new Paragraph({

@@ -36,6 +36,16 @@ function applyChannelMap(text: string): string {
   return result;
 }
 
+// Çıktıda "Örnek:" etiketi varsa başa bilgi notu ekler
+function withExampleNote(text: string): string {
+  if (!/(?:^|\n)Örnek:\n/m.test(text)) return text;
+  return (
+    `Not: Bu çıktıda eğitmenin verdiği örneklemeler "Örnek:" etiketiyle işaretlenmiştir. ` +
+    `Örnekler konuyu anlamayı kolaylaştırabilir. İsterseniz manuel olarak kaldırabilirsiniz.\n\n` +
+    text
+  );
+}
+
 // ── Chunk bölme ────────────────────────────────────────────────────────────────
 // Cümlenin ortasında kesmemek için \n\n → \n → ". " öncelik sırasıyla böler.
 function splitIntoChunks(text: string, targetSize: number): string[] {
@@ -210,8 +220,8 @@ export async function POST(request: Request) {
     const cleanLevelRaw = formData.get("cleanLevel");
     const keepBookRecsRaw = formData.get("keepBookRecs");
 
-    const cleanLevel: "minimal" | "balanced" | "strict" =
-      cleanLevelRaw === "minimal" || cleanLevelRaw === "balanced" || cleanLevelRaw === "strict"
+    const cleanLevel: "balanced" | "strict" =
+      cleanLevelRaw === "balanced" || cleanLevelRaw === "strict"
         ? cleanLevelRaw
         : "balanced";
 
@@ -220,13 +230,39 @@ export async function POST(request: Request) {
     console.log(`[ders-notu/temizle] cleanLevel=${cleanLevel} keepBookRecs=${keepBookRecs}`);
 
     // ── Temizleme profili metni ───────────────────────────────────────────────
-    const CLEAN_PROFILES: Record<"minimal" | "balanced" | "strict", string> = {
-      minimal:
-        "MİNİMAL TEMİZLİK: Sadece teknik konuşmaları, mikrofon/bağlantı/yoklama gibi tamamen ders dışı bölümleri kaldır. Bilgi taşıyan sohbetleri, kaynak önerilerini, kitap önerilerini ve eğitmen deneyimlerini koru. Metne en yakın çıktı üret.",
-      balanced:
-        "DENGELİ TEMİZLİK: Teknik konuşmaları ve ders dışı kişisel sohbetleri kaldır. Dersle ilgili kaynak önerileri, kitap önerileri, öğrenci soruları, eğitmen deneyimleri ve örnekleri koru.",
-      strict:
-        "SIKI DERS NOTU: Teknik konuşmaları, ders organizasyonlarını, kişisel sohbetleri ve konu dışı bölümleri kaldır. Ancak ders bilgisini, örnekleri, soru-cevapları ve konuya hizmet eden açıklamaları koru. Bilgi kaybı yapma.",
+    const CLEAN_PROFILES: Record<"balanced" | "strict", string> = {
+      balanced: `DENGELİ DERS NOTU modu:
+YAPILACAKLAR:
+- Yazım, noktalama ve paragraf düzenini iyileştir.
+- Gereksiz teknik konuşmaları (mikrofon, bağlantı, yoklama vb.) ve ders dışı kişisel sohbetleri kaldır.
+- Gereksiz dolgu ifadelerini azalt.
+- Eğitmenin verdiği somut örnekleri, hayattan anlatıları ve benzetmeleri "Örnek:" etiketiyle işaretle.
+  Format: boş satır, ardından tek başına "Örnek:" satırı, ardından örnek içeriği.
+
+YAPILMAYACAKLAR:
+- Anlam değiştirme.
+- Bilgi ekleme veya çıkarma.
+- Cümleleri yeniden yazma.
+- Örnekleri silme.
+- Öğretmenin vermediği açıklama ekleme.
+Bilgi taşıyan cümleleri mümkün olduğunca eğitmenin orijinal ifadesiyle koru.`,
+
+      strict: `SIKI DERS NOTU modu:
+YAPILACAKLAR:
+- Teknik konuşmaları, ders organizasyonlarını, kişisel sohbetleri ve konu dışı bölümleri kaldır.
+- Başlıkları belirginleştir ve doğru konumlarına taşı. Konu geçişlerini düzenle.
+- Gereksiz tekrarları kaldır.
+- Soru-cevap bölümlerini ve önemli vurguları koru.
+- Yazım ve noktalama düzeltmelerini yap.
+- Eğitmenin verdiği somut örnekleri, hayattan anlatıları ve benzetmeleri "Örnek:" etiketiyle işaretle.
+  Format: boş satır, ardından tek başına "Örnek:" satırı, ardından örnek içeriği.
+
+YAPILMAYACAKLAR:
+- Bilgi kaybı yapma.
+- Örnekleri silme.
+- Öğretmenin anlatmadığı bilgi ekleme.
+- Cümleleri kendi yorumunla yeniden kurma.
+- Anlam değiştirme.`,
     };
 
     const bookRecsInstruction = keepBookRecs
@@ -236,10 +272,9 @@ export async function POST(request: Request) {
     // ── Ön işlem: bilinen kanal numaralarını düzelt ───────────────────────────
     const preprocessed = applyChannelMap(trimmed);
 
-    // ── Length guard eşiği (mod + kitap seçeneğine göre) ─────────────────────
+    // ── Length guard eşiği ───────────────────────────────────────────────────
     let MIN_RATIO: number;
-    if (cleanLevel === "minimal")     MIN_RATIO = 0.60;
-    else if (!keepBookRecs)           MIN_RATIO = 0.30;
+    if (!keepBookRecs)                MIN_RATIO = 0.30;
     else if (cleanLevel === "strict") MIN_RATIO = 0.35;
     else                              MIN_RATIO = 0.50;  // balanced + keepBookRecs=true
 
@@ -289,7 +324,7 @@ export async function POST(request: Request) {
       }
 
       console.log(`[ders-notu/temizle] tek parça tamam: mod=${cleanLevel} oran=%${Math.round(ratio * 100)}`);
-      return NextResponse.json({ success: true, text: cleaned });
+      return NextResponse.json({ success: true, text: withExampleNote(cleaned) });
     }
 
     // ── CHUNK MODU (> 12.000 karakter) ───────────────────────────────────────
@@ -343,7 +378,7 @@ export async function POST(request: Request) {
     const cleaned = postProcess(combined);
 
     console.log(`[ders-notu/temizle] chunk mod tamamlandı: ${chunks.length} parça → ${cleaned.length} karakter`);
-    return NextResponse.json({ success: true, text: cleaned, chunked: true, chunkCount: chunks.length });
+    return NextResponse.json({ success: true, text: withExampleNote(cleaned), chunked: true, chunkCount: chunks.length });
   } catch (err) {
     console.error("[ders-notu/temizle] hata:", err);
     const message = err instanceof Error ? err.message : String(err);

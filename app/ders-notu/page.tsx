@@ -39,7 +39,7 @@ export default function DersNotuPage() {
   const [result, setResult] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [downloadingWord, setDownloadingWord] = useState(false);
-  const [cleanLevel, setCleanLevel] = useState<"minimal" | "balanced" | "strict">("balanced");
+  const [cleanLevel, setCleanLevel] = useState<"balanced" | "strict">("balanced");
   const [keepBookRecs, setKeepBookRecs] = useState(true);
 
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
@@ -310,9 +310,8 @@ export default function DersNotuPage() {
               <div className="space-y-1.5">
                 {(
                   [
-                    { value: "minimal",  label: "Minimal Temizlik",  desc: "Sadece teknik konuşmalar silinir, metin olduğu gibi bırakılır" },
-                    { value: "balanced", label: "Dengeli Temizlik",   desc: "Teknik konuşmalar + dolgu ifadeler temizlenir" },
-                    { value: "strict",   label: "Sıkı Ders Notu",     desc: "Kapsamlı temizlik, başlıklar ve format düzenlenir" },
+                    { value: "balanced", label: "Dengeli Ders Notu", desc: "Yazım ve paragraf düzeltilir, gereksiz sohbetler kaldırılır. Bilgi ve örnekler korunur." },
+                    { value: "strict",   label: "Sıkı Ders Notu",    desc: "Kapsamlı düzenleme. Başlıklar, konu geçişleri ve tekrarlar optimize edilir." },
                   ] as const
                 ).map((opt) => (
                   <label
