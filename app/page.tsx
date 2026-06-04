@@ -1119,51 +1119,69 @@ export default function Home() {
             </div>
           </div>
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {landingModules.map((item) => (
-            <div
-              key={item.title}
-              className="group relative flex flex-col rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm ring-1 ring-white/50 transition-all duration-200 hover:-translate-y-1 hover:border-violet-200/60 hover:shadow-[0_8px_20px_rgba(109,40,217,0.08)] hover:ring-violet-100/50"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                {item.icon}
+          {landingModules.map((item) =>
+            item.title === "Numeroloji" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(109,40,217,0.14)]"
+              >
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Örnek Analiz Var
+                </span>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  {item.title}
+                </h3>
+
+                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
+                  Ali AL örneğiyle analiz ekranlarını inceleyin.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setNumerologiPreviewOpen(true); }}
+                  className="mt-3 w-full rounded-xl bg-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-violet-700"
+                >
+                  Örnek Analizi Gör
+                </button>
+
+                <Link
+                  href="/numeroloji"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-violet-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                </Link>
               </div>
+            ) : (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm ring-1 ring-white/50 transition-all duration-200 hover:-translate-y-1 hover:border-violet-200/60 hover:shadow-[0_8px_20px_rgba(109,40,217,0.08)] hover:ring-violet-100/50"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
 
-              <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                {item.title}
-              </h3>
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  {item.title}
+                </h3>
 
-              <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                {item.desc}
-              </p>
+                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
+                  {item.desc}
+                </p>
 
-              <div className="mt-3 flex items-center justify-between gap-2">
-                {item.title === "Numeroloji" ? (
-                  <Link
-                    href="/numeroloji"
-                    className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 no-underline transition-all duration-200 hover:gap-2 hover:text-violet-800"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Keşfet
-                    <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                  </Link>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
-                    Keşfet
-                    <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                  </span>
-                )}
-                {item.title === "Numeroloji" && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setNumerologiPreviewOpen(true); }}
-                    className="shrink-0 rounded-lg border border-violet-200/70 bg-violet-50/80 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100"
-                  >
-                    Ön İzleme
-                  </button>
-                )}
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
+                  Keşfet
+                  <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                </span>
               </div>
-            </div>
-          ))}
+            )
+          )}
           </div>
         </section>
 
