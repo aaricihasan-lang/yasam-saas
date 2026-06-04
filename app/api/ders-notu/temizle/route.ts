@@ -274,9 +274,9 @@ YAPILMAYACAKLAR:
 
     // ── Length guard eşiği ───────────────────────────────────────────────────
     let MIN_RATIO: number;
-    if (!keepBookRecs)                MIN_RATIO = 0.30;
-    else if (cleanLevel === "strict") MIN_RATIO = 0.35;
-    else                              MIN_RATIO = 0.50;  // balanced + keepBookRecs=true
+    if (!keepBookRecs)                MIN_RATIO = 0.20;
+    else if (cleanLevel === "strict") MIN_RATIO = 0.25;
+    else                              MIN_RATIO = 0.30;  // balanced + keepBookRecs=true
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -317,7 +317,7 @@ YAPILMAYACAKLAR:
         return NextResponse.json(
           {
             success: false,
-            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa parça deneyin veya daha düşük temizlik seviyesi seçin. (Mod: ${cleanLevel}, oran: %${Math.round(ratio * 100)})`,
+            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa bir metin parçası deneyin veya örnek/kitap önerilerini koru seçeneğini kapatarak tekrar deneyin. (Mod: ${cleanLevel}, oran: %${Math.round(ratio * 100)})`,
           },
           { status: 422 },
         );
@@ -363,7 +363,7 @@ YAPILMAYACAKLAR:
           return NextResponse.json(
             {
               success: false,
-              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa parça deneyin veya daha düşük temizlik seviyesi seçin. (Mod: ${cleanLevel}, oran: %${Math.round(chunkRatio * 100)})`,
+              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından yapılmış olabilir. Lütfen daha kısa bir metin parçası deneyin veya örnek/kitap önerilerini koru seçeneğini kapatarak tekrar deneyin. (Mod: ${cleanLevel}, oran: %${Math.round(chunkRatio * 100)})`,
             },
             { status: 422 },
           );
