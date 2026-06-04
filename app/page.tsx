@@ -589,81 +589,83 @@ export default function Home() {
           aria-hidden
         />
 
-        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1800px] flex-col px-6 pt-3 pb-24 lg:px-10 lg:pt-4 lg:pb-24 xl:px-14">
+        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1800px] flex-col px-4 pt-3 pb-16 lg:px-8 lg:pt-3 lg:pb-16 xl:px-10">
+          {/* — Profile banner — */}
           <div
-            className="relative w-full shrink-0 overflow-hidden rounded-[32px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-6 py-5 text-white shadow-xl sm:px-8 sm:py-6 lg:py-7"
+            className="relative w-full shrink-0 overflow-hidden rounded-[24px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-5 py-3 text-white shadow-xl sm:px-6 sm:py-3"
             aria-label="Uzman ve kurum profili"
           >
             <button
               type="button"
               onClick={logout}
-              className="absolute right-4 top-4 z-10 min-h-[44px] rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white transition duration-200 hover:bg-white/20 sm:right-6 sm:top-5 sm:px-5 sm:py-3 sm:text-base"
+              className="absolute right-3 top-3 z-10 min-h-[36px] rounded-xl border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition duration-200 hover:bg-white/20 sm:right-4 sm:top-3 sm:px-4 sm:py-2 sm:text-sm"
             >
               Çıkış Yap
             </button>
 
-            <div className="relative flex flex-col gap-5 pr-20 sm:flex-row sm:items-center sm:gap-6 sm:pr-28">
-                <div
-                  className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-[5px] border-yellow-300/85 bg-slate-950/85 text-6xl font-light text-yellow-200 shadow-[0_16px_40px_rgba(0,0,0,0.35)] ring-2 ring-yellow-200/25 sm:h-32 sm:w-32 sm:text-7xl"
-                  aria-hidden
-                >
-                  {avatarInitial}
-                </div>
+            <div className="relative flex flex-col gap-3 pr-14 sm:flex-row sm:items-center sm:gap-4 sm:pr-20">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-yellow-300/85 bg-slate-950/85 text-3xl font-light text-yellow-200 shadow-[0_8px_24px_rgba(0,0,0,0.30)] ring-1 ring-yellow-200/25 sm:h-20 sm:w-20 sm:text-4xl"
+                aria-hidden
+              >
+                {avatarInitial}
+              </div>
 
-                <div className="min-w-0">
-                  <h1 className="text-2xl font-black leading-tight sm:text-3xl lg:text-[2.35rem] lg:leading-tight">
-                    Bütüncül Yaşam Analiz Platformu
-                  </h1>
+              <div className="min-w-0">
+                <h1 className="text-sm font-black leading-tight text-white/80 sm:text-base lg:text-lg">
+                  Bütüncül Yaşam Analiz Platformu
+                </h1>
 
-                  <p className="mt-2 break-words text-2xl font-black tracking-tight text-yellow-300 sm:text-3xl lg:text-[2.75rem]">
-                    {displayName}
-                  </p>
+                <p className="mt-0.5 break-words text-xl font-black tracking-tight text-yellow-300 sm:text-2xl lg:text-2xl">
+                  {displayName}
+                </p>
 
-                  <p className="mt-2 text-sm font-medium text-white/90 sm:text-base">
-                    Doğaltaş • Enerji • Akademi
-                  </p>
-                </div>
+                <p className="mt-0.5 text-xs font-medium text-white/80">
+                  Doğaltaş • Enerji • Akademi
+                </p>
+              </div>
             </div>
           </div>
 
+          {/* — Module section — */}
           <section className="mt-3 flex w-full flex-col">
             {isAdminUser(user) ? (
               <Link
                 href="/admin"
-                className="mb-3 block shrink-0 text-inherit no-underline"
+                className="mb-2.5 block shrink-0 text-inherit no-underline"
               >
-                <div className="group flex items-center gap-4 rounded-[24px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-5 py-4 shadow-md transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-rose-700 text-white shadow-md">
-                    <Shield className="h-6 w-6" strokeWidth={2.25} />
+                <div className="group flex items-center gap-3 rounded-[18px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-rose-700 text-white shadow-sm">
+                    <Shield className="h-4 w-4" strokeWidth={2.25} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-700">
                       Sistem Sahibi
                     </p>
-                    <p className="text-lg font-black text-slate-900">Admin Paneli</p>
-                    <p className="text-xs font-medium text-slate-600">
+                    <p className="text-sm font-black text-slate-900">Admin Paneli</p>
+                    <p className="text-[11px] font-medium text-slate-600">
                       Toplu aktarım, kullanıcı ve sistem yönetimi
                     </p>
                   </div>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105">
-                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105">
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
                   </span>
                 </div>
               </Link>
             ) : null}
 
             <div className="mb-2 shrink-0">
-              <h2 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
+              <h2 className="text-lg font-black tracking-tight text-slate-900 md:text-xl">
                 Modüller
               </h2>
-              <p className="text-base font-medium text-slate-600 md:text-lg">
+              <p className="text-sm font-medium text-slate-600">
                 Yaşam Sistemi içindeki ana çalışma alanları.
               </p>
             </div>
 
             {membershipExpired ? (
-              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-10 text-center shadow-sm">
-                <p className="text-lg font-black text-rose-950">
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-8 text-center shadow-sm">
+                <p className="text-base font-black text-rose-950">
                   Üyelik süreniz doldu
                 </p>
                 <p className="mt-2 max-w-md text-sm font-medium text-rose-900/90">
@@ -672,8 +674,8 @@ export default function Home() {
                 </p>
               </div>
             ) : expertModulesEmpty ? (
-              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-10 text-center shadow-sm">
-                <p className="text-lg font-black text-slate-900">
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-8 text-center shadow-sm">
+                <p className="text-base font-black text-slate-900">
                   Henüz modül izniniz tanımlanmamış
                 </p>
                 <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
@@ -682,7 +684,7 @@ export default function Home() {
                 </p>
               </div>
             ) : (
-            <div className="grid w-full grid-cols-1 gap-3 pb-4 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4">
+            <div className="grid w-full grid-cols-1 gap-2.5 pb-4 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-3">
               {visibleDashboardModules.map((item) => {
                 const hasHref = item.href !== "#";
                 const lockReason = getModuleLockReason(
@@ -697,45 +699,45 @@ export default function Home() {
 
                 const card = (
                   <div
-                    className={`group relative flex min-h-[170px] flex-col rounded-[28px] border bg-gradient-to-br p-6 shadow-md transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                    className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                       isOpen
-                        ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg"
+                        ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
                         : isLocked
                           ? "cursor-not-allowed"
                           : "cursor-default opacity-90"
                     }`}
                   >
                     {isLocked ? (
-                      <span className="absolute left-4 top-4 z-10 rounded-full border border-red-200/90 bg-red-50 px-2.5 py-1 text-sm font-bold text-red-700 shadow-sm ring-1 ring-red-100">
+                      <span className="absolute left-3 top-3 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700 shadow-sm ring-1 ring-red-100">
                         {lockReason === "permission"
                           ? "🔒 Yetki yok"
                           : "🔒 Üyelik gerekli"}
                       </span>
                     ) : null}
 
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div
-                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md transition-all duration-200 group-hover:scale-105 ${theme.iconWrap}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-all duration-200 group-hover:scale-105 ${theme.iconWrap}`}
                       >
-                        <Icon className="h-8 w-8" strokeWidth={2.25} />
+                        <Icon className="h-5 w-5" strokeWidth={2.25} />
                       </div>
 
-                      <span className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
+                      <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
                         {item.badge}
                       </span>
                     </div>
 
-                    <h3 className="mt-3 text-xl font-black text-slate-900 sm:text-2xl md:text-3xl">
+                    <h3 className="mt-2 text-sm font-black text-slate-900 sm:text-base">
                       {item.title}
                     </h3>
 
-                    <p className="mt-1 line-clamp-2 flex-1 text-base leading-relaxed text-slate-700 md:text-lg">
+                    <p className="mt-0.5 line-clamp-2 flex-1 text-xs leading-5 text-slate-600">
                       {item.desc}
                     </p>
 
-                    <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="mt-2.5 flex items-center justify-between gap-2">
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
                           isLocked
                             ? "bg-rose-100 text-rose-800 ring-rose-200/80"
                             : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
@@ -749,12 +751,12 @@ export default function Home() {
                       </span>
 
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition group-hover:scale-105 ${
+                        className={`flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105 ${
                           isOpen ? "" : "opacity-50"
                         }`}
                         aria-hidden
                       >
-                        <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                        <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
                       </span>
                     </div>
                   </div>
@@ -813,24 +815,25 @@ export default function Home() {
         <div className="absolute right-0 top-[12%] h-72 w-72 rounded-full bg-sky-300/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-none px-6 py-6 md:px-10 xl:px-16 2xl:px-20">
-        <header className="sticky top-4 z-50 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/90 px-6 py-7 shadow-lg sm:px-8">
-          <div className="flex min-w-[min(100%,420px)] shrink-0 items-center gap-4 sm:min-w-[420px]">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg shadow-violet-300/50">
+      <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
+        {/* — Nav — */}
+        <header className="sticky top-3 z-50 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/80 bg-white/90 px-4 py-3 shadow-md sm:px-6">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-lg text-white shadow-md shadow-violet-300/40">
               ✨
             </div>
             <div>
-              <p className="text-2xl font-black tracking-wide text-slate-950">
+              <p className="text-base font-black tracking-wide text-slate-950">
                 YAŞAM SİSTEMİ
               </p>
-              <p className="mt-1 text-sm font-semibold leading-snug text-slate-600 opacity-80">
+              <p className="text-[11px] font-semibold leading-snug text-slate-500">
                 Profesyonel bütünsel yönetim platformu
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <span className="hidden rounded-2xl border border-cyan-200/80 bg-cyan-50/95 px-4 py-2.5 text-base font-bold text-cyan-900 lg:inline-flex">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="hidden rounded-xl border border-cyan-200/80 bg-cyan-50/95 px-3 py-1.5 text-xs font-bold text-cyan-900 lg:inline-flex">
               ☁️ Web & Mobil Destek
             </span>
             <button
@@ -839,26 +842,27 @@ export default function Home() {
                 setMessage("");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border-2 border-violet-300/90 bg-white px-7 text-base font-bold text-violet-950 shadow-[0_8px_24px_rgba(91,33,182,0.12)] ring-1 ring-violet-100 transition hover:border-violet-400 hover:bg-violet-50/80 md:h-14 md:px-8"
+              className="inline-flex h-9 items-center justify-center rounded-xl border-2 border-violet-300/90 bg-white px-5 text-sm font-bold text-violet-950 shadow-[0_4px_12px_rgba(91,33,182,0.10)] ring-1 ring-violet-100 transition hover:border-violet-400 hover:bg-violet-50/80 md:h-10 md:px-6"
             >
               Giriş Yap
             </button>
             <Link
               href="/register"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-base font-bold text-white shadow-[0_12px_36px_rgba(109,40,217,0.45)] no-underline ring-2 ring-violet-300/40 transition hover:-translate-y-0.5 hover:shadow-[0_16px_44px_rgba(109,40,217,0.5)] md:h-14 md:px-10 md:text-lg"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-sm font-bold text-white shadow-[0_6px_20px_rgba(109,40,217,0.40)] no-underline ring-2 ring-violet-300/40 transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)] md:h-10 md:px-7"
             >
               Kayıt Ol
             </Link>
           </div>
         </header>
 
-        <section className="mt-10 grid w-full max-w-none grid-cols-1 items-start gap-16 xl:grid-cols-[1.7fr_1fr] xl:mt-14 xl:gap-24">
+        {/* — Hero — */}
+        <section className="mt-6 grid w-full max-w-none grid-cols-1 items-start gap-8 xl:grid-cols-[1.7fr_1fr] xl:mt-8 xl:gap-14">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-4 py-1.5 text-xs font-bold text-violet-800 shadow-sm">
               ✨ Profesyonel danışmanlık yönetim sistemi
             </div>
 
-            <h2 className="mt-7 max-w-none break-words text-3xl font-black leading-snug tracking-tight text-slate-950 sm:text-4xl md:text-5xl xl:text-6xl">
+            <h2 className="mt-4 max-w-none break-words text-[1.75rem] font-black leading-snug tracking-tight text-slate-950 sm:text-3xl md:text-4xl xl:text-[3rem]">
               Profesyonel danışmanlar için{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">
                 bütünsel yönetim ve analiz
@@ -866,117 +870,118 @@ export default function Home() {
               platformu
             </h2>
 
-            <p className="mt-6 max-w-none text-lg leading-8 text-slate-600">
+            <p className="mt-3 max-w-none text-[0.9375rem] leading-6 text-slate-600">
               Numeroloji, doğaltaş, biyoenerji, refleksoloji, aromaterapi,
               danışan yönetimi, seans takibi ve analiz sistemleri tek merkezde birleşir.
             </p>
 
-            <ul className="mt-8 flex flex-wrap gap-3 text-base font-bold text-slate-700 md:text-lg">
-              <li className="rounded-2xl border border-white/90 bg-white/75 px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+            <ul className="mt-4 flex flex-wrap gap-2 text-sm font-bold text-slate-700">
+              <li className="rounded-xl border border-white/90 bg-white/75 px-3.5 py-2 shadow-[0_4px_16px_rgba(15,23,42,0.06)] backdrop-blur-sm">
                 🔒 Güvenli veri yapısı
               </li>
-              <li className="rounded-2xl border border-white/90 bg-white/75 px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+              <li className="rounded-xl border border-white/90 bg-white/75 px-3.5 py-2 shadow-[0_4px_16px_rgba(15,23,42,0.06)] backdrop-blur-sm">
                 ☁️ Web & mobil erişim
               </li>
-              <li className="rounded-2xl border border-white/90 bg-white/75 px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+              <li className="rounded-xl border border-white/90 bg-white/75 px-3.5 py-2 shadow-[0_4px_16px_rgba(15,23,42,0.06)] backdrop-blur-sm">
                 💻 Offline çalışma desteği
               </li>
             </ul>
           </div>
 
           <div className="relative w-full">
-            <div className="relative flex flex-col rounded-[32px] border border-white/90 bg-white/90 p-7 shadow-lg ring-1 ring-violet-100/60 sm:p-9">
-              <div className="inline-flex w-fit rounded-full bg-violet-100 px-4 py-1.5 text-sm font-black uppercase tracking-wide text-violet-800">
+            <div className="relative flex flex-col rounded-[24px] border border-white/90 bg-white/90 p-5 shadow-md ring-1 ring-violet-100/60 sm:p-6">
+              <div className="inline-flex w-fit rounded-full bg-violet-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-violet-800">
                 Çalışma Seçenekleri
               </div>
 
-              <h3 className="mt-5 text-xl font-black leading-tight text-slate-950">
+              <h3 className="mt-3 text-base font-black leading-tight text-slate-950">
                 Size uygun kullanım modeli
               </h3>
 
-              <p className="mt-4 max-w-none text-base leading-7 text-slate-600 md:text-lg md:leading-8">
+              <p className="mt-2 max-w-none text-sm leading-6 text-slate-600">
                 Masaüstü ya da web/mobil çalışma modelini seçebilirsiniz. Her iki
                 yapı da profesyonel danışman akışına uyumludur.
               </p>
 
-              <div className="mt-auto grid gap-5 pt-8 sm:grid-cols-2">
-                <div className="rounded-[24px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/90 p-6 shadow-[0_12px_40px_rgba(16,185,129,0.08)]">
-                  <div className="text-xl font-black text-emerald-800">
+              <div className="mt-auto grid gap-3 pt-5 sm:grid-cols-2">
+                <div className="rounded-[18px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/90 p-4 shadow-[0_6px_20px_rgba(16,185,129,0.07)]">
+                  <div className="text-sm font-black text-emerald-800">
                     💻 Offline Masaüstü
                   </div>
-                  <p className="mt-3 text-base font-medium leading-7 text-emerald-800/90 md:text-lg">
+                  <p className="mt-1.5 text-xs font-medium leading-5 text-emerald-800/90">
                     İnternetsiz kullanım, lokal veri, gizlilik odaklı çalışma.
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-white to-sky-50/90 p-6 shadow-[0_12px_40px_rgba(14,165,233,0.08)]">
-                  <div className="text-xl font-black text-cyan-800">
+                <div className="rounded-[18px] border border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-white to-sky-50/90 p-4 shadow-[0_6px_20px_rgba(14,165,233,0.07)]">
+                  <div className="text-sm font-black text-cyan-800">
                     ☁️ Web & Mobil
                   </div>
-                  <p className="mt-3 text-base font-medium leading-7 text-cyan-800/90 md:text-lg">
+                  <p className="mt-1.5 text-xs font-medium leading-5 text-cyan-800/90">
                     Telefon, tablet ve bilgisayardan erişilebilir çalışma alanı.
                   </p>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
 
-        <section className="mt-16 w-full max-w-none xl:mt-20">
-          <div className="mb-8">
-            <p className="text-base font-black uppercase tracking-[0.18em] text-violet-700">
+        {/* — Modules grid — */}
+        <section className="mt-9 w-full max-w-none xl:mt-10">
+          <div className="mb-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
               Modüller
             </p>
-            <h3 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
+            <h3 className="mt-1.5 text-xl font-black text-slate-950 sm:text-2xl">
               Tüm çalışma alanları tek platformda
             </h3>
           </div>
-          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {landingModules.map((item) => (
             <div
               key={item.title}
-              className="group relative flex min-h-[220px] flex-col rounded-[28px] border border-slate-200/80 bg-white/90 p-6 shadow-md ring-1 ring-white/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200/80 hover:shadow-lg"
+              className="group relative flex flex-col rounded-[22px] border border-slate-200/80 bg-white/90 p-4 shadow-sm ring-1 ring-white/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200/80 hover:shadow-md"
             >
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-3xl text-white shadow-lg shadow-violet-300/40 transition group-hover:scale-105">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/30 transition group-hover:scale-105">
                 {item.icon}
               </div>
 
-              <h3 className="mt-6 text-lg font-black leading-snug text-slate-950 md:text-xl">
+              <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
                 {item.title}
               </h3>
 
-              <p className="mt-3 flex-1 text-base leading-7 text-slate-600 md:text-lg">
+              <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
                 {item.desc}
               </p>
 
-              <span className="mt-5 inline-flex items-center gap-1.5 text-base font-bold uppercase tracking-wider text-violet-700/80 transition group-hover:gap-2.5 group-hover:text-violet-800">
+              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700/80 transition group-hover:gap-2 group-hover:text-violet-800">
                 Keşfet
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
               </span>
             </div>
           ))}
           </div>
         </section>
 
-        <section className="mt-14 w-full max-w-none rounded-[32px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_28px_80px_rgba(30,27,75,0.4)] xl:mt-16">
+        {/* — Features dark band — */}
+        <section className="mt-8 w-full max-w-none rounded-[24px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_16px_56px_rgba(30,27,75,0.35)] xl:mt-9">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {featureItems.map((item, index) => (
             <div
               key={item.title}
-              className={`flex flex-col gap-4 p-7 sm:p-8 ${
+              className={`flex flex-col gap-3 p-5 ${
                 index !== featureItems.length - 1
                   ? "xl:border-r xl:border-white/10"
                   : ""
               }`}
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-3xl ring-1 ring-white/25">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-xl ring-1 ring-white/25">
                 {item.icon}
               </div>
 
               <div>
-                <h4 className="text-lg font-black text-white md:text-xl">{item.title}</h4>
-                <p className="mt-2.5 text-base leading-7 text-indigo-100/95 md:text-lg">
+                <h4 className="text-sm font-black text-white">{item.title}</h4>
+                <p className="mt-1.5 text-xs leading-5 text-indigo-100/90">
                   {item.desc}
                 </p>
               </div>
@@ -985,65 +990,66 @@ export default function Home() {
           </div>
         </section>
 
+        {/* — Trust section — */}
         <section
-          className="relative mt-14 w-full max-w-none overflow-hidden rounded-[36px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-6 shadow-lg ring-1 ring-violet-200/50 sm:p-10 xl:mt-16 xl:p-12"
+          className="relative mt-8 w-full max-w-none overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-5 shadow-md ring-1 ring-violet-200/50 sm:p-7 xl:mt-9"
           aria-labelledby="trust-principles-heading"
         >
-          <div className="relative z-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-12 xl:gap-16">
+          <div className="relative z-10 grid grid-cols-1 items-center gap-7 lg:grid-cols-[1.35fr_1fr] lg:gap-10 xl:gap-12">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-800/90 md:text-base">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-800/90">
                 🔒 Güven İlkemiz
               </p>
               <h3
                 id="trust-principles-heading"
-                className="mt-4 text-2xl font-black leading-snug text-slate-950 sm:text-3xl xl:text-4xl"
+                className="mt-2 text-xl font-black leading-snug text-slate-950 sm:text-2xl xl:text-[1.75rem]"
               >
                 Yaşam Sistemi yalnızca bir yazılım değil, uzmanların yıllarca
                 oluşturduğu emek ve bilgi birikimini koruyan güvenli bir çalışma
                 alanıdır.
               </h3>
 
-              <ul className="mt-8 space-y-4">
+              <ul className="mt-4 space-y-2">
                 {trustPrinciples.map((item) => (
                   <li
                     key={item}
-                    className="flex items-start gap-4 rounded-[22px] border border-white/80 bg-white/80 px-5 py-4 shadow-sm transition duration-200 hover:border-violet-200/80 hover:bg-white/95"
+                    className="flex items-start gap-3 rounded-[18px] border border-white/80 bg-white/80 px-4 py-2.5 shadow-sm transition duration-200 hover:border-violet-200/80 hover:bg-white/95"
                   >
                     <span
-                      className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-emerald-600 text-white shadow-md"
+                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-emerald-600 text-white shadow-sm"
                       aria-hidden
                     >
-                      <Check className="h-5 w-5" strokeWidth={2.75} />
+                      <Check className="h-3.5 w-3.5" strokeWidth={2.75} />
                     </span>
-                    <span className="text-base font-bold leading-relaxed text-slate-800 md:text-lg md:leading-8">
+                    <span className="text-sm font-bold leading-5 text-slate-800">
                       {item}
                     </span>
                   </li>
                 ))}
               </ul>
 
-              <p className="mt-8 border-t border-violet-200/60 pt-6 text-sm font-semibold italic text-slate-600 md:text-base">
+              <p className="mt-4 border-t border-violet-200/60 pt-4 text-xs font-semibold italic text-slate-600">
                 &ldquo;Güven bizim için özellik değil, sistemin temelidir.&rdquo;
               </p>
             </div>
 
             <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-              <div className="relative flex aspect-square max-h-[420px] flex-col items-center justify-center rounded-[32px] border border-white/80 bg-gradient-to-br from-white/85 via-violet-50/80 to-cyan-50/70 p-8 shadow-lg sm:max-h-none sm:min-h-[360px] lg:min-h-[400px]">
-                <div className="relative flex h-44 w-44 items-center justify-center sm:h-52 sm:w-52">
-                  <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-lg ring-4 ring-white/50 sm:h-32 sm:w-32">
-                    <ShieldCheck className="h-14 w-14 sm:h-16 sm:w-16" strokeWidth={1.75} />
+              <div className="relative flex aspect-square max-h-[320px] flex-col items-center justify-center rounded-[24px] border border-white/80 bg-gradient-to-br from-white/85 via-violet-50/80 to-cyan-50/70 p-6 shadow-md sm:max-h-none sm:min-h-[260px] lg:min-h-[280px]">
+                <div className="relative flex h-32 w-32 items-center justify-center">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-md ring-4 ring-white/50">
+                    <ShieldCheck className="h-10 w-10" strokeWidth={1.75} />
                   </div>
-                  <div className="absolute -left-2 top-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-violet-700 shadow-lg backdrop-blur-sm sm:h-16 sm:w-16">
-                    <Lock className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.25} />
+                  <div className="absolute -left-1 top-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/90 bg-white/90 text-violet-700 shadow-md backdrop-blur-sm">
+                    <Lock className="h-5 w-5" strokeWidth={2.25} />
                   </div>
-                  <div className="absolute -right-1 bottom-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-emerald-700 shadow-lg backdrop-blur-sm sm:h-16 sm:w-16">
-                    <Shield className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.25} />
+                  <div className="absolute -right-1 bottom-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/90 bg-white/90 text-emerald-700 shadow-md backdrop-blur-sm">
+                    <Shield className="h-5 w-5" strokeWidth={2.25} />
                   </div>
                 </div>
-                <p className="mt-6 text-center text-sm font-black uppercase tracking-[0.2em] text-violet-800/90">
+                <p className="mt-5 text-center text-xs font-black uppercase tracking-[0.2em] text-violet-800/90">
                   Gizlilik · Güven · Saygı
                 </p>
-                <p className="mt-2 max-w-[240px] text-center text-base font-semibold leading-relaxed text-slate-600">
+                <p className="mt-1.5 max-w-[220px] text-center text-sm font-semibold leading-5 text-slate-600">
                   Uzman emeğiniz ve danışan mahremiyetiniz önceliğimizdir.
                 </p>
               </div>
@@ -1051,7 +1057,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-12 border-t border-slate-200/60 py-10 text-center text-base font-semibold text-slate-500">
+        <footer className="mt-6 border-t border-slate-200/60 py-5 text-center text-sm font-semibold text-slate-500">
           © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
         </footer>
       </div>
@@ -1066,7 +1072,7 @@ export default function Home() {
             onMouseLeave={handleLoginBackdropMouseLeave}
           />
           <div
-            className="relative z-10 w-full max-w-[520px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl sm:p-8 md:max-w-[560px] md:p-10"
+            className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-modal-title"
@@ -1085,12 +1091,12 @@ export default function Home() {
 
                 <h3
                   id="login-modal-title"
-                  className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl md:text-4xl"
+                  className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl"
                 >
                   Giriş Yap
                 </h3>
 
-                <p className="mt-2 text-base leading-7 text-slate-500 md:text-lg">
+                <p className="mt-1.5 text-sm leading-6 text-slate-500">
                   Yetkili hesabınızla giriş yaparak çalışma panelinize ulaşabilirsiniz.
                 </p>
               </div>
@@ -1098,15 +1104,15 @@ export default function Home() {
               <button
                 type="button"
                 onClick={closeLoginModal}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-slate-500 shadow-sm transition hover:bg-slate-50"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-black text-slate-500 shadow-sm transition hover:bg-slate-50"
               >
                 ×
               </button>
             </div>
 
-            <div className="relative z-10 mt-6 space-y-4">
+            <div className="relative z-10 mt-5 space-y-3.5">
               <div>
-                <label className="mb-2 block text-base font-semibold text-slate-700">
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   E-Posta
                 </label>
 
@@ -1115,13 +1121,13 @@ export default function Home() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="uzman@test.com"
-                  className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-base font-semibold text-slate-700">
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Şifre
                 </label>
 
@@ -1130,7 +1136,7 @@ export default function Home() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       handleLogin();
@@ -1138,7 +1144,7 @@ export default function Home() {
                   }}
                 />
 
-                <div className="mt-2.5 flex items-center justify-between gap-4">
+                <div className="mt-2 flex items-center justify-between gap-4">
                   <Link
                     href="/register"
                     onClick={() => setLoginModalOpen(false)}
@@ -1163,13 +1169,13 @@ export default function Home() {
               type="button"
               onClick={handleLogin}
               disabled={loading}
-              className="relative z-10 mt-6 flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+              className="relative z-10 mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? "Giriş Yapılıyor..." : "Uzman Paneline Gir →"}
             </button>
 
             {message && (
-              <div className="relative z-10 mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+              <div className="relative z-10 mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
                 {message}
               </div>
             )}
