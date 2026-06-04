@@ -923,32 +923,137 @@ export default function Home() {
           </div>
         </section>
 
-        {/* — Platform Avantajları — */}
-        <div className="mx-auto mt-6 w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200/60 bg-white/70">
-          <div className="border-b border-slate-100 px-5 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Platform avantajları
+        {/* — Product Mockup — */}
+        <div data-fade className="mt-8 w-full">
+          <div className="mb-4">
+            <h3 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+              Yaşam Sistemi İçinde Bir Danışan
+            </h3>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Bir danışanın tüm çalışma geçmişi tek ekranda görüntülenebilir.
             </p>
           </div>
-          <div className="grid grid-cols-1 p-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              "Web & Mobil Erişim",
-              "Güvenli Veri Altyapısı",
-              "Modüler Yapı",
-              "Profesyonel Analiz Sistemleri",
-              "Offline Masaüstü Desteği",
-              "Danışan & Seans Yönetimi",
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-2.5 rounded-lg px-3 py-2">
-                <span
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
-                  aria-hidden
-                >
-                  <Check className="h-3 w-3" strokeWidth={2.75} />
-                </span>
-                <span className="text-sm font-medium text-slate-700">{item}</span>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
+
+            {/* Window chrome */}
+            <div className="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+              <div className="flex gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-full bg-rose-400/75" />
+                <div className="h-2.5 w-2.5 rounded-full bg-amber-400/75" />
+                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/75" />
               </div>
-            ))}
+              <p className="ml-2 text-xs text-slate-400">Danışan Yolculuğu — Ahmet Yılmaz</p>
+            </div>
+
+            {/* App layout */}
+            <div className="flex flex-col sm:flex-row">
+
+              {/* Left sidebar */}
+              <div className="shrink-0 border-b border-slate-100 bg-slate-50/50 sm:w-56 sm:border-b-0 sm:border-r">
+
+                {/* Client card */}
+                <div className="border-b border-slate-100 px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm">
+                      AY
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-900">Ahmet Yılmaz</p>
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Aktif Danışan
+                      </span>
+                    </div>
+                  </div>
+                  <dl className="mt-3 space-y-1.5">
+                    {[
+                      { label: "Son görüşme", value: "04.06.2026" },
+                      { label: "Kayıtlı çalışma", value: "5 kayıt" },
+                      { label: "Yaklaşan randevu", value: "2 randevu" },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-2">
+                        <dt className="text-[11px] text-slate-400">{row.label}</dt>
+                        <dd className="text-[11px] font-semibold text-slate-600">{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+
+                {/* Nav tabs */}
+                <nav className="flex gap-0.5 overflow-x-auto p-2 sm:flex-col" aria-label="Danışan sekmeleri">
+                  {[
+                    { label: "Genel Bilgiler", active: true },
+                    { label: "Numeroloji" },
+                    { label: "Refleksoloji" },
+                    { label: "Doğaltaş" },
+                    { label: "Notlar" },
+                    { label: "Randevular" },
+                    { label: "Dosyalar" },
+                  ].map((tab) => (
+                    <div
+                      key={tab.label}
+                      className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium ${
+                        tab.active
+                          ? "bg-violet-600 text-white"
+                          : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      {tab.label}
+                    </div>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Right content */}
+              <div className="min-w-0 flex-1">
+
+                {/* Danışan Özeti */}
+                <div className="grid grid-cols-4 divide-x divide-slate-100 border-b border-slate-100">
+                  {[
+                    { value: "5", label: "Analiz" },
+                    { value: "8", label: "Seans" },
+                    { value: "3", label: "Dosya" },
+                    { value: "4", label: "Not" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="flex flex-col items-center gap-0.5 py-3">
+                      <span className="text-base font-black tabular-nums text-slate-900">{stat.value}</span>
+                      <span className="text-[10px] font-medium text-slate-400">{stat.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Son Çalışmalar */}
+                <div className="p-4">
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Son Çalışmalar
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      { text: "Numeroloji Analizi Tamamlandı", detail: "Kişisel yıl & yaşam yolu hesabı", date: "2 gün önce", dot: "bg-violet-400" },
+                      { text: "Refleksoloji Protokolü Eklendi", detail: "Ayak haritası · 3 bölge", date: "4 gün önce", dot: "bg-fuchsia-400" },
+                      { text: "Doğaltaş Önerisi Kaydedildi", detail: "Ametist, Labradorit kombinasyonu", date: "1 hafta önce", dot: "bg-teal-400" },
+                      { text: "Seans Notu Eklendi", detail: "45 dk · 3. seans", date: "1 hafta önce", dot: "bg-sky-400" },
+                      { text: "Yeni Randevu Oluşturuldu", detail: "12 Haziran 2026, 14:00", date: "2 hafta önce", dot: "bg-emerald-400" },
+                    ].map((item) => (
+                      <div
+                        key={item.text}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <div className={`h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-semibold text-slate-800">{item.text}</p>
+                            <p className="truncate text-[11px] text-slate-400">{item.detail}</p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px] text-slate-400">{item.date}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -983,50 +1088,6 @@ export default function Home() {
                 <p className="text-sm leading-5 text-slate-600">{item.text}</p>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* — Solution Section — */}
-        <div data-fade className="mt-8 w-full">
-          <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-600">
-                Çözüm
-              </p>
-              <h3 className="mt-2 text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
-                Tüm çalışma sisteminiz tek merkezde
-              </h3>
-              <p className="mt-3 max-w-lg text-sm leading-[1.7] text-slate-500">
-                Yaşam Sistemi; danışan kayıtlarını, analizleri, notları, seansları, randevuları ve
-                bilgi bankanızı tek merkezde toplar. Her şey birbiriyle bağlantılı, her an
-                erişilebilir.
-              </p>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white/70 p-5">
-              <ol className="list-none p-0">
-                {[
-                  { icon: "👤", label: "Danışan Kaydı" },
-                  { icon: "🔢", label: "Analizler" },
-                  { icon: "📝", label: "Seans Notları" },
-                  { icon: "📅", label: "Randevular" },
-                  { icon: "📂", label: "Bilgi Bankası" },
-                  { icon: "🌐", label: "Web ve Mobil Erişim" },
-                ].map((step, i, arr) => (
-                  <li key={step.label}>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-white text-base shadow-sm">
-                        {step.icon}
-                      </div>
-                      <span className="text-sm font-semibold text-slate-800">{step.label}</span>
-                    </div>
-                    {i < arr.length - 1 && (
-                      <div className="my-1 ml-[18px] h-4 w-px bg-slate-300/55" />
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
           </div>
         </div>
 
