@@ -416,6 +416,7 @@ export default function Home() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
+  const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -501,6 +502,13 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [numerologiPreviewOpen]);
+
+  useEffect(() => {
+    if (!dogaltasPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDogaltasPreviewOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dogaltasPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1158,6 +1166,44 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
+            ) : item.title === "Doğaltaş" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-teal-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(20,184,166,0.14)]"
+              >
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-teal-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Örnek Ekranlar Var
+                </span>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 text-xl text-white shadow-md shadow-teal-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  {item.title}
+                </h3>
+
+                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
+                  348 taş kaydı, mineral bankası ve kombinasyonları tek merkezde.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setDogaltasPreviewOpen(true); }}
+                  className="mt-3 w-full rounded-xl bg-teal-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-teal-700"
+                >
+                  Örnek Ekranları Gör
+                </button>
+
+                <Link
+                  href="/dogaltas"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-teal-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                </Link>
+              </div>
             ) : (
               <div
                 key={item.title}
@@ -1321,6 +1367,85 @@ export default function Home() {
                 alt="Numeroloji Modülü — Ön İzleme"
                 className="w-full rounded-xl"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dogaltasPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/75 p-4 pb-10 backdrop-blur-sm"
+          onClick={() => setDogaltasPreviewOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Doğaltaş modülü ön izlemesi"
+        >
+          <div
+            className="relative mt-6 w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setDogaltasPreviewOpen(false)}
+              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
+              aria-label="Kapat"
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center rounded-full border border-teal-400/40 bg-teal-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-teal-300">
+                Doğaltaş Modülü
+              </span>
+              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
+                Doğaltaş Modülü — Gerçek Ürün Ekranları
+              </h4>
+              <p className="mt-1 text-sm text-slate-400">
+                Kayıt, arama, filtreleme, kombinasyon ve bilgi yönetimini tek merkezden yönetin.
+              </p>
+            </div>
+
+            {/* Preview image */}
+            <div className="overflow-hidden rounded-xl">
+              <img
+                src="/assets/dogaltas-preview.png"
+                alt="Doğaltaş Modülü — Ön İzleme"
+                className="w-full rounded-xl"
+              />
+            </div>
+
+            {/* Description + feature badges */}
+            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
+              <h5 className="text-base font-black text-white">
+                Doğaltaş Modülü ile Tüm Taş Verilerinizi Tek Merkezden Yönetin
+              </h5>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Doğaltaş Modülü; taş kayıtları, mineral bankası, kombinasyon yönetimi, gelişmiş
+                arama ve filtreleme araçlarıyla tüm verilerinizi tek merkezde toplar. Yüzlerce
+                kayıt arasında saniyeler içinde arama yapabilir, kategorilere göre filtreleme
+                uygulayabilir ve detaylı taş bilgilerine kolayca erişebilirsiniz.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  "Taş Kayıt Yönetimi",
+                  "Mineral Bankası",
+                  "Kombinasyon Yönetimi",
+                  "Akıllı Arama",
+                  "Kategori Filtreleme",
+                  "Detay Sayfaları",
+                  "İstatistikler",
+                  "Görsel Arşivi",
+                ].map((feat) => (
+                  <div
+                    key={feat}
+                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
+                  >
+                    <Check className="h-3 w-3 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                    {feat}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
