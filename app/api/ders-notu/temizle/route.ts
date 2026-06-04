@@ -168,12 +168,18 @@ export async function POST(request: Request) {
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+    // Kullanıcı mesajı: kısa bir çerçeve + transkript
+    // System prompt'u pekiştirmek için kullanıcı mesajında da minimum-edit talimatı verilir.
+    const userMessage =
+      `Aşağıdaki ham transkripti MİNİMUM EDİT modunda temizle.\n` +
+      `Kural: Cümleleri yeniden YAZMA. Sadece gereksiz teknik/kişisel konuşmaları çıkar. Bilgi içeren her cümleyi AYNEN koru.\n\n---\n\n${preprocessed}`;
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.15,
+      temperature: 0.1,
       messages: [
         { role: "system", content: DERS_NOTU_SYSTEM_PROMPT },
-        { role: "user", content: preprocessed },
+        { role: "user", content: userMessage },
       ],
       max_tokens: 16000,
     });
@@ -189,6 +195,22 @@ export async function POST(request: Request) {
 
     // AI cümleleri birleştirse bile çıktıyı satır satır hale getir
     const cleaned = postProcess(raw);
+
+    // Length guard: temizlenmiş çıktı ham metnin %55'inden kısaysa özet yapılmış demektir
+    const MIN_RATIO = 0.55;
+    if (cleaned.length < preprocessed.length * MIN_RATIO) {
+      console.warn(
+        `[ders-notu/temizle] length guard: cleaned=${cleaned.length} < preprocessed*0.55=${Math.floor(preprocessed.length * MIN_RATIO)}`,
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Çıktı fazla kısaldı. Model metni özetlemiş olabilir. Lütfen daha kısa parça ile tekrar deneyin.",
+        },
+        { status: 422 },
+      );
+    }
 
     return NextResponse.json({ success: true, text: cleaned });
   } catch (err) {
