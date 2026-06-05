@@ -525,6 +525,7 @@ export default function ClientDetailPage() {
               clientName={fullName || "Danışan"}
               clientPhone={client.telefon}
               clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
+              onNavigate={setActiveTab}
             />
           )}
 

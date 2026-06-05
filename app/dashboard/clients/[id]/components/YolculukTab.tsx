@@ -1,112 +1,102 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
+// ─── Public type — ileride parent'tan gerçek veri beslenir ───────────────────
+export type TimelineEntry = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  type: string;
+  href?: string;
+};
+
+// ─── Props ───────────────────────────────────────────────────────────────────
 type YolculukTabProps = {
   clientName: string;
   clientPhone?: string;
   clientLastSession?: string;
   clientNextAppointment?: string;
+  /** Gerçek veri bağlandığında dışarıdan beslenir. Şimdilik boş. */
+  entries?: TimelineEntry[];
+  /** Özet sayaçlar — gerçek veri bağlandığında dışarıdan beslenir. */
+  counts?: {
+    analizler: number;
+    seanslar: number;
+    randevular: number;
+    notlar: number;
+  };
+  /** Danışan yolculuğu sol menüsünden üst sekmeye geçiş için callback. */
+  onNavigate?: (tabId: string) => void;
 };
 
+// ─── Sol menü tanımları ──────────────────────────────────────────────────────
+// tabId: mevcut detay sayfasındaki gerçek sekme key'i. null = henüz sekme yok.
 type MenuItem = {
   id: string;
   label: string;
   icon: string;
   color: string;
-};
-
-type TimelineItem = {
-  id: string;
-  title: string;
-  subtitle: string;
-  detail: string;
-  color: string;
-  accent: string;
-  icon: string;
-  date: string;
+  tabId: string | null;
 };
 
 const menuItems: MenuItem[] = [
-  { id: "genel", label: "Genel Bilgiler", icon: "◈", color: "#2563eb" },
-  { id: "numeroloji", label: "Numeroloji", icon: "∞", color: "#7c3aed" },
-  { id: "dogaltas", label: "Doğaltaş", icon: "◆", color: "#0891b2" },
-  { id: "refleksoloji", label: "Refleksoloji", icon: "◎", color: "#db2777" },
-  { id: "biyoenerji", label: "Biyoenerji", icon: "⚡", color: "#ea580c" },
-  { id: "notlar", label: "Notlar", icon: "✎", color: "#6d28d9" },
-  { id: "randevular", label: "Randevular", icon: "◷", color: "#16a34a" },
-  { id: "dosyalar", label: "Dosyalar", icon: "▣", color: "#475569" },
+  { id: "genel",       label: "Genel Bilgiler", icon: "◈", color: "#2563eb", tabId: "genel" },
+  { id: "numeroloji",  label: "Numeroloji",     icon: "∞", color: "#7c3aed", tabId: null },
+  { id: "dogaltas",    label: "Doğaltaş",       icon: "◆", color: "#0891b2", tabId: "taslar" },
+  { id: "refleksoloji",label: "Refleksoloji",   icon: "◎", color: "#db2777", tabId: null },
+  { id: "biyoenerji",  label: "Biyoenerji",     icon: "⚡", color: "#ea580c", tabId: null },
+  { id: "notlar",      label: "Notlar",          icon: "✎", color: "#6d28d9", tabId: "notlar" },
+  { id: "randevular",  label: "Randevular",     icon: "◷", color: "#16a34a", tabId: "randevular" },
+  { id: "dosyalar",    label: "Dosyalar",        icon: "▣", color: "#475569", tabId: null },
 ];
 
-const timelineItems: TimelineItem[] = [
-  {
-    id: "1",
-    title: "Numeroloji Analizi Tamamlandı",
-    subtitle: "Kişisel yıl ve yaşam yolu hesabı",
-    detail: "Kişisel Yıl: 7 · Yaşam Yolu: 33",
-    color: "#7c3aed",
-    accent: "#ede9fe",
-    icon: "∞",
-    date: "28 Mayıs 2026",
-  },
-  {
-    id: "2",
-    title: "Refleksoloji Protokolü Eklendi",
-    subtitle: "Ayak haritası · 3 bölge",
-    detail: "Karaciğer · Böbrek · Lenf sistemi",
-    color: "#db2777",
-    accent: "#fce7f3",
-    icon: "◎",
-    date: "22 Mayıs 2026",
-  },
-  {
-    id: "3",
-    title: "Doğaltaş Önerisi Kaydedildi",
-    subtitle: "Ametist + Labradorit kombinasyonu",
-    detail: "Zihinsel berraklık ve enerji dengesi protokolü",
-    color: "#0891b2",
-    accent: "#e0f2fe",
-    icon: "◆",
-    date: "15 Mayıs 2026",
-  },
-  {
-    id: "4",
-    title: "Seans Notu Eklendi",
-    subtitle: "45 dk · 3. seans",
-    detail: "Duygusal blokaj üzerine çalışma",
-    color: "#16a34a",
-    accent: "#dcfce7",
-    icon: "✎",
-    date: "8 Mayıs 2026",
-  },
-  {
-    id: "5",
-    title: "Yeni Randevu Oluşturuldu",
-    subtitle: "12 Haziran 2026 · 14:00",
-    detail: "4. seans · Online",
-    color: "#9333ea",
-    accent: "#f3e8ff",
-    icon: "◷",
-    date: "5 Mayıs 2026",
-  },
-];
+// ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
+const TYPE_META: Record<string, { color: string; accent: string; icon: string }> = {
+  numeroloji:  { color: "#7c3aed", accent: "#ede9fe", icon: "∞" },
+  dogaltas:    { color: "#0891b2", accent: "#e0f2fe", icon: "◆" },
+  refleksoloji:{ color: "#db2777", accent: "#fce7f3", icon: "◎" },
+  biyoenerji:  { color: "#ea580c", accent: "#fff7ed", icon: "⚡" },
+  not:         { color: "#6d28d9", accent: "#ede9fe", icon: "✎" },
+  seans:       { color: "#16a34a", accent: "#dcfce7", icon: "◈" },
+  randevu:     { color: "#9333ea", accent: "#f3e8ff", icon: "◷" },
+};
 
+const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈" };
+
+function getMeta(type: string) {
+  return TYPE_META[type] ?? DEFAULT_META;
+}
+
+// ─── Bileşen ─────────────────────────────────────────────────────────────────
 export default function YolculukTab({
   clientName,
   clientPhone,
   clientLastSession,
   clientNextAppointment,
+  entries = [],
+  counts = { analizler: 0, seanslar: 0, randevular: 0, notlar: 0 },
+  onNavigate,
 }: YolculukTabProps) {
   const [activeMenu, setActiveMenu] = useState("genel");
+
+  function handleMenuClick(item: MenuItem) {
+    setActiveMenu(item.id);
+    if (item.tabId && onNavigate) {
+      onNavigate(item.tabId);
+    }
+  }
 
   return (
     <div style={wrapper}>
       {/* Üst özet kartlar */}
       <div style={statsRow}>
-        <SummaryCard label="Analizler" value={5} color="#7c3aed" bg="#faf5ff" icon="∞" />
-        <SummaryCard label="Seanslar" value={8} color="#16a34a" bg="#f0fdf4" icon="◈" />
-        <SummaryCard label="Randevular" value={3} color="#db2777" bg="#fdf2f8" icon="◷" />
-        <SummaryCard label="Notlar" value={12} color="#2563eb" bg="#eff6ff" icon="✎" />
+        <SummaryCard label="Analizler"  value={counts.analizler}  color="#7c3aed" bg="#faf5ff" icon="∞" />
+        <SummaryCard label="Seanslar"   value={counts.seanslar}   color="#16a34a" bg="#f0fdf4" icon="◈" />
+        <SummaryCard label="Randevular" value={counts.randevular} color="#db2777" bg="#fdf2f8" icon="◷" />
+        <SummaryCard label="Notlar"     value={counts.notlar}     color="#2563eb" bg="#eff6ff" icon="✎" />
       </div>
 
       {/* Ana içerik: sol panel + orta alan */}
@@ -141,10 +131,12 @@ export default function YolculukTab({
           <nav style={menuList}>
             {menuItems.map((item) => {
               const isActive = activeMenu === item.id;
+              const hasTab = Boolean(item.tabId && onNavigate);
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveMenu(item.id)}
+                  onClick={() => handleMenuClick(item)}
+                  title={!hasTab ? "Bu modül henüz mevcut sekmede açılmıyor" : undefined}
                   style={{
                     ...menuBtn,
                     background: isActive ? `${item.color}12` : "transparent",
@@ -152,18 +144,23 @@ export default function YolculukTab({
                       ? `3px solid ${item.color}`
                       : "3px solid transparent",
                     color: isActive ? item.color : "#475569",
+                    opacity: hasTab || isActive ? 1 : 0.55,
+                    cursor: hasTab ? "pointer" : "default",
                   }}
                 >
                   <span
                     style={{
                       ...menuIcon,
                       color: item.color,
-                      opacity: isActive ? 1 : 0.6,
+                      opacity: isActive ? 1 : 0.65,
                     }}
                   >
                     {item.icon}
                   </span>
                   {item.label}
+                  {hasTab && (
+                    <span style={menuArrow}>→</span>
+                  )}
                 </button>
               );
             })}
@@ -180,12 +177,35 @@ export default function YolculukTab({
             </p>
           </div>
 
-          <div style={timelineList}>
-            {timelineItems.map((item, idx) => (
-              <TimelineCard key={item.id} item={item} isLast={idx === timelineItems.length - 1} />
-            ))}
-          </div>
+          {entries.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div style={timelineList}>
+              {entries.map((entry, idx) => (
+                <TimelineCard
+                  key={entry.id}
+                  entry={entry}
+                  isLast={idx === entries.length - 1}
+                />
+              ))}
+            </div>
+          )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── Alt bileşenler ───────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div style={emptyBox}>
+      <div style={emptyIcon}>◌</div>
+      <div style={emptyTitle}>Bu danışan için henüz kayıtlı çalışma yok.</div>
+      <div style={emptyDesc}>
+        Numeroloji, doğaltaş, refleksoloji, biyoenerji, not veya randevu
+        eklendiğinde burada kronolojik olarak görünecek.
       </div>
     </div>
   );
@@ -205,13 +225,7 @@ function SummaryCard({
   icon: string;
 }) {
   return (
-    <div
-      style={{
-        ...summaryCard,
-        background: bg,
-        borderColor: `${color}22`,
-      }}
-    >
+    <div style={{ ...summaryCard, background: bg, borderColor: `${color}22` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span
           style={{
@@ -247,12 +261,50 @@ function SummaryCard({
 }
 
 function TimelineCard({
-  item,
+  entry,
   isLast,
 }: {
-  item: TimelineItem;
+  entry: TimelineEntry;
   isLast: boolean;
 }) {
+  const meta = getMeta(entry.type);
+
+  const cardContent = (
+    <div
+      style={{
+        ...timelineCard,
+        borderColor: `${meta.color}22`,
+        cursor: entry.href ? "pointer" : "default",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ ...timelineTag, background: meta.accent, color: meta.color }}>
+              {entry.type}
+            </span>
+          </div>
+          <div style={timelineCardTitle}>{entry.title}</div>
+          <div style={timelineCardDetail}>{entry.description}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <div style={{ ...timelineDate, color: `${meta.color}cc` }}>{entry.date}</div>
+          {entry.href && (
+            <span style={{ fontSize: 10, color: meta.color, fontWeight: 850 }}>Detay →</span>
+          )}
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          height: 2,
+          borderRadius: 999,
+          background: `linear-gradient(90deg, ${meta.color}55, transparent)`,
+        }}
+      />
+    </div>
+  );
+
   return (
     <div style={timelineRow}>
       {/* Zaman çizgisi */}
@@ -260,56 +312,28 @@ function TimelineCard({
         <div
           style={{
             ...timelineDot,
-            background: item.color,
-            boxShadow: `0 0 0 4px ${item.accent}`,
+            background: meta.color,
+            boxShadow: `0 0 0 4px ${meta.accent}`,
           }}
         >
-          <span style={{ fontSize: 11, color: "white", lineHeight: 1 }}>{item.icon}</span>
+          <span style={{ fontSize: 11, color: "white", lineHeight: 1 }}>{meta.icon}</span>
         </div>
-        {!isLast && <div style={{ ...timelineLine, background: `${item.color}22` }} />}
+        {!isLast && <div style={{ ...timelineLine, background: `${meta.color}22` }} />}
       </div>
 
-      {/* Kart */}
-      <div
-        style={{
-          ...timelineCard,
-          borderColor: `${item.color}22`,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span
-                style={{
-                  ...timelineTag,
-                  background: item.accent,
-                  color: item.color,
-                }}
-              >
-                {item.subtitle}
-              </span>
-            </div>
-            <div style={timelineCardTitle}>{item.title}</div>
-            <div style={timelineCardDetail}>{item.detail}</div>
-          </div>
-          <div style={{ ...timelineDate, color: `${item.color}cc` }}>{item.date}</div>
-        </div>
-
-        {/* Alt renk çubuğu */}
-        <div
-          style={{
-            marginTop: 14,
-            height: 2,
-            borderRadius: 999,
-            background: `linear-gradient(90deg, ${item.color}55, transparent)`,
-          }}
-        />
-      </div>
+      {/* Kart — href varsa link, yoksa div */}
+      {entry.href ? (
+        <Link href={entry.href} style={{ flex: 1, minWidth: 0, textDecoration: "none" }}>
+          {cardContent}
+        </Link>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>{cardContent}</div>
+      )}
     </div>
   );
 }
 
-/* ─── Styles ─── */
+/* ─── Styles ─────────────────────────────────────────────────────────────────*/
 
 const wrapper: React.CSSProperties = {
   display: "flex",
@@ -329,7 +353,6 @@ const summaryCard: React.CSSProperties = {
   border: "1px solid #e2e8f0",
   padding: "16px 18px",
   boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
-  transition: "box-shadow 0.2s",
 };
 
 const mainLayout: React.CSSProperties = {
@@ -426,11 +449,11 @@ const menuBtn: React.CSSProperties = {
   padding: "9px 14px",
   fontSize: 12,
   fontWeight: 850,
-  cursor: "pointer",
   border: "none",
   borderRadius: 0,
   transition: "background 0.15s, color 0.15s",
   textAlign: "left",
+  width: "100%",
 };
 
 const menuIcon: React.CSSProperties = {
@@ -438,6 +461,13 @@ const menuIcon: React.CSSProperties = {
   width: 18,
   textAlign: "center",
   lineHeight: 1,
+  flexShrink: 0,
+};
+
+const menuArrow: React.CSSProperties = {
+  marginLeft: "auto",
+  fontSize: 11,
+  opacity: 0.5,
 };
 
 const centerArea: React.CSSProperties = {
@@ -478,6 +508,39 @@ const timelineSubtitle: React.CSSProperties = {
   color: "#64748b",
   fontWeight: 750,
   margin: 0,
+};
+
+const emptyBox: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 12,
+  padding: "48px 24px",
+  background: "white",
+  borderRadius: 16,
+  border: "1px dashed #cbd5e1",
+  textAlign: "center",
+};
+
+const emptyIcon: React.CSSProperties = {
+  fontSize: 40,
+  color: "#cbd5e1",
+  lineHeight: 1,
+};
+
+const emptyTitle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 900,
+  color: "#334155",
+};
+
+const emptyDesc: React.CSSProperties = {
+  fontSize: 12,
+  color: "#94a3b8",
+  fontWeight: 750,
+  maxWidth: 360,
+  lineHeight: 1.6,
 };
 
 const timelineList: React.CSSProperties = {
@@ -539,6 +602,7 @@ const timelineTag: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 900,
   letterSpacing: "0.02em",
+  textTransform: "capitalize",
 };
 
 const timelineCardTitle: React.CSSProperties = {
