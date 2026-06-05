@@ -99,9 +99,14 @@ const landingModules: LandingModule[] = [
     icon: "🦶",
   },
   {
+    title: "Şifa Rehberi",
+    desc: "Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici öneriler.",
+    icon: "🌿",
+  },
+  {
     title: "Aromaterapi",
     desc: "Uçucu yağ, sabit yağ ve karışım yönetim sistemi.",
-    icon: "🌿",
+    icon: "🌸",
   },
   {
     title: "Danışan Yönetimi",
@@ -144,6 +149,15 @@ const featureItems: FeatureItem[] = [
     desc: "İhtiyaca göre genişleyen çalışma alanları ve modüller.",
     icon: "🧩",
   },
+];
+
+const sifaRehberiGallerySlides = [
+  { label: "Şifa Rehberi Tanıtım",     src: "/assets/sifa-rehberi-tanitim.png" },
+  { label: "Ana Menü",                 src: "/assets/sifa-rehberi-ana-menu.png" },
+  { label: "Yeni Rahatsızlık Kaydı",   src: "/assets/sifa-rehberi-yeni-kayit.png" },
+  { label: "Destekleyici Öneriler",    src: "/assets/sifa-rehberi-destekleyici.png" },
+  { label: "Kayıtlı Rehber Listesi",   src: "/assets/sifa-rehberi-liste.png" },
+  { label: "Detay Görünümü",           src: "/assets/sifa-rehberi-detay.png" },
 ];
 
 const refleksolojiGallerySlides = [
@@ -442,6 +456,8 @@ export default function Home() {
   const [biyoenerjiSlide, setBiyoenerjiSlide] = useState(0);
   const [refleksolojiPreviewOpen, setRefleksolojiPreviewOpen] = useState(false);
   const [refleksolojiSlide, setRefleksolojiSlide] = useState(0);
+  const [sifaRehberiPreviewOpen, setSifaRehberiPreviewOpen] = useState(false);
+  const [sifaRehberiSlide, setSifaRehberiSlide] = useState(0);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -556,6 +572,17 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [refleksolojiPreviewOpen]);
+
+  useEffect(() => {
+    if (!sifaRehberiPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSifaRehberiPreviewOpen(false);
+      if (e.key === "ArrowLeft") setSifaRehberiSlide(s => (s - 1 + sifaRehberiGallerySlides.length) % sifaRehberiGallerySlides.length);
+      if (e.key === "ArrowRight") setSifaRehberiSlide(s => (s + 1) % sifaRehberiGallerySlides.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sifaRehberiPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1308,6 +1335,62 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
+            ) : item.title === "Şifa Rehberi" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-emerald-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(16,185,129,0.16)]"
+              >
+                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_right,rgba(6,182,212,0.07)_0%,transparent_65%)]" aria-hidden />
+
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Örnek Ekranlar Var
+                </span>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 text-xl text-white shadow-md shadow-emerald-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  Şifa Rehberi
+                </h3>
+
+                <p className="mt-1.5 text-xs leading-5 text-slate-600">
+                  Rahatsızlık kayıtları, belirtiler, uygulamalar, doğaltaş, aromaterapi ve destekleyici önerileri tek merkezden yönetin.
+                </p>
+
+                <ul className="mt-2.5 flex flex-col gap-0.5">
+                  {[
+                    "Yeni Rahatsızlık Kaydı",
+                    "Kayıtlı Şifa Rehberi",
+                    "Belirtiler / Sebepler",
+                    "Uygulamalar / Yöntemler",
+                    "Doğaltaş & Mineral",
+                    "Aromaterapi",
+                  ].map((feat) => (
+                    <li key={feat} className="flex items-center gap-1.5">
+                      <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setSifaRehberiSlide(0); setSifaRehberiPreviewOpen(true); }}
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-emerald-400 hover:to-teal-400 hover:shadow-md"
+                >
+                  Örnek Ekranları Gör
+                </button>
+
+                <Link
+                  href="/sifa-rehberi"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-emerald-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                </Link>
+              </div>
             ) : item.title === "Refleksoloji" ? (
               <div
                 key={item.title}
@@ -1595,6 +1678,110 @@ export default function Home() {
                   "İstatistikler",
                   "Görsel Arşivi",
                 ].map((feat) => (
+                  <div
+                    key={feat}
+                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
+                  >
+                    <Check className="h-3 w-3 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sifaRehberiPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
+          onClick={() => setSifaRehberiPreviewOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Şifa Rehberi modülü ön izlemesi"
+        >
+          <div
+            className="relative mt-6 w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSifaRehberiPreviewOpen(false)}
+              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
+              aria-label="Kapat"
+            >
+              ×
+            </button>
+
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                Şifa Rehberi Modülü
+              </span>
+              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
+                Şifa Rehberi — Gerçek Ürün Ekranları
+              </h4>
+              <p className="mt-1 text-sm text-slate-400">
+                Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici önerileri tek merkezden yönetin.
+              </p>
+            </div>
+
+            <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
+              <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-emerald-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
+                <span className="text-[11px] font-bold text-emerald-300">
+                  {sifaRehberiGallerySlides[sifaRehberiSlide].label}
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {sifaRehberiSlide + 1} / {sifaRehberiGallerySlides.length}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSifaRehberiSlide((s) => (s - 1 + sifaRehberiGallerySlides.length) % sifaRehberiGallerySlides.length)}
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-emerald-400/40 hover:bg-slate-800/80 hover:text-white"
+                aria-label="Önceki ekran"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setSifaRehberiSlide((s) => (s + 1) % sifaRehberiGallerySlides.length)}
+                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-emerald-400/40 hover:bg-slate-800/80 hover:text-white"
+                aria-label="Sonraki ekran"
+              >
+                ›
+              </button>
+
+              <img
+                key={sifaRehberiGallerySlides[sifaRehberiSlide].src}
+                src={sifaRehberiGallerySlides[sifaRehberiSlide].src}
+                alt={"Şifa Rehberi — " + sifaRehberiGallerySlides[sifaRehberiSlide].label}
+                className="w-full"
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              {sifaRehberiGallerySlides.map((slide, idx) => (
+                <button
+                  key={slide.label}
+                  type="button"
+                  onClick={() => setSifaRehberiSlide(idx)}
+                  className={"rounded-full transition-all duration-200 " + (idx === sifaRehberiSlide ? "h-1.5 w-5 bg-emerald-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400")}
+                  aria-label={slide.label}
+                />
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
+              <h5 className="text-base font-black text-white">
+                Şifa Rehberi ile Kapsamlı Destek Yönetimi
+              </h5>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Rahatsızlık kayıtları, belirtiler, sebepler, uygulamalar, doğaltaş ve aromaterapi
+                önerilerini tek merkezden yönetin.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {["Yeni Rahatsızlık Kaydı", "Kayıtlı Şifa Rehberi", "Belirtiler / Sebepler", "Uygulamalar / Yöntemler", "Doğaltaş & Mineral", "Aromaterapi"].map((feat) => (
                   <div
                     key={feat}
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
