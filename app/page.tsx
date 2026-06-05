@@ -146,6 +146,16 @@ const featureItems: FeatureItem[] = [
   },
 ];
 
+const biyoenerjiGallerySlides = [
+  { label: "Biyoenerji Ana Sayfa" },
+  { label: "Biyoenerji Seansları" },
+  { label: "Enerji Bedenleri" },
+  { label: "Bilinçaltı Sebepleri" },
+  { label: "İmajinasyon Kütüphanesi" },
+  { label: "Sembol Dili Kütüphanesi" },
+  { label: "Çakra Kütüphanesi" },
+];
+
 const numerologiFeatures = [
   { icon: "📊", title: "Detaylı Hesaplamalar", desc: "Doğum tarihinden kişisel sayılarınızı çıkarın ve anlamlandırın." },
   { icon: "🧘", title: "Çakra Analizi", desc: "Çakra omurgası ve enerji dengesini görüntüleyin." },
@@ -417,6 +427,8 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
+  const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
+  const [biyoenerjiSlide, setBiyoenerjiSlide] = useState(0);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -509,6 +521,17 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [dogaltasPreviewOpen]);
+
+  useEffect(() => {
+    if (!biyoenerjiPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setBiyoenerjiPreviewOpen(false);
+      if (e.key === "ArrowLeft") setBiyoenerjiSlide(s => (s - 1 + biyoenerjiGallerySlides.length) % biyoenerjiGallerySlides.length);
+      if (e.key === "ArrowRight") setBiyoenerjiSlide(s => (s + 1) % biyoenerjiGallerySlides.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [biyoenerjiPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1204,6 +1227,63 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
+            ) : item.title === "Biyoenerji" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-cyan-400/25 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4 shadow-xl shadow-indigo-950/40 ring-1 ring-cyan-400/10 transition-all duration-200 hover:-translate-y-1 hover:border-cyan-400/45 hover:shadow-[0_14px_36px_rgba(6,182,212,0.22)]"
+              >
+                {/* radial glow */}
+                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_left,rgba(6,182,212,0.10)_0%,transparent_65%)]" aria-hidden />
+
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Örnek Ekranlar Var
+                </span>
+
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-xl text-white shadow-md shadow-cyan-500/30 ring-1 ring-cyan-300/20 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-white">
+                  Biyoenerji
+                </h3>
+
+                <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                  Enerji analizleri, bilinçaltı çalışmaları, sembol dili, çakra kütüphanesi ve seans yönetimini tek merkezden yönetin.
+                </p>
+
+                <ul className="mt-2.5 flex flex-col gap-0.5">
+                  {[
+                    "Biyoenerji Seansları",
+                    "Enerji Bedenleri",
+                    "Bilinçaltı Sebepleri",
+                    "İmajinasyon Kütüphanesi",
+                    "Sembol Dili",
+                    "Çakra Kütüphanesi",
+                  ].map((feat) => (
+                    <li key={feat} className="flex items-center gap-1.5">
+                      <Check className="h-2.5 w-2.5 shrink-0 text-cyan-400" strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-300">{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setBiyoenerjiSlide(0); setBiyoenerjiPreviewOpen(true); }}
+                  className="relative mt-3.5 w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 py-2 text-xs font-bold text-white shadow-sm shadow-cyan-500/25 transition duration-200 hover:from-cyan-400 hover:to-indigo-500 hover:shadow-md hover:shadow-cyan-400/35"
+                >
+                  Örnek Ekranları Gör
+                </button>
+
+                <Link
+                  href="/enerji-beden"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-cyan-400"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                </Link>
+              </div>
             ) : (
               <div
                 key={item.title}
@@ -1442,6 +1522,126 @@ export default function Home() {
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
                   >
                     <Check className="h-3 w-3 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {biyoenerjiPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/82 p-4 pb-10 backdrop-blur-sm"
+          onClick={() => setBiyoenerjiPreviewOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Biyoenerji modülü ön izlemesi"
+        >
+          <div
+            className="relative mt-6 w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close */}
+            <button
+              type="button"
+              onClick={() => setBiyoenerjiPreviewOpen(false)}
+              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
+              aria-label="Kapat"
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center rounded-full border border-cyan-400/40 bg-cyan-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">
+                Biyoenerji Modülü
+              </span>
+              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
+                Biyoenerji — Gerçek Ürün Ekranları
+              </h4>
+              <p className="mt-1 text-sm text-slate-400">
+                Seans yönetimi, enerji bedenleri, bilinçaltı, semboller ve çakralardan oluşan kapsamlı çalışma sistemi.
+              </p>
+            </div>
+
+            {/* Gallery */}
+            <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
+              {/* Slide label + counter */}
+              <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
+                <span className="text-[11px] font-bold text-cyan-300">
+                  {biyoenerjiGallerySlides[biyoenerjiSlide].label}
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {biyoenerjiSlide + 1}&thinsp;/&thinsp;{biyoenerjiGallerySlides.length}
+                </span>
+              </div>
+
+              {/* Prev */}
+              <button
+                type="button"
+                onClick={() => setBiyoenerjiSlide(s => (s - 1 + biyoenerjiGallerySlides.length) % biyoenerjiGallerySlides.length)}
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-cyan-400/40 hover:text-white hover:bg-slate-800/80"
+                aria-label="Önceki ekran"
+              >
+                ‹
+              </button>
+
+              {/* Next */}
+              <button
+                type="button"
+                onClick={() => setBiyoenerjiSlide(s => (s + 1) % biyoenerjiGallerySlides.length)}
+                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-cyan-400/40 hover:text-white hover:bg-slate-800/80"
+                aria-label="Sonraki ekran"
+              >
+                ›
+              </button>
+
+              <img
+                src="/assets/biyoenerji-preview.png"
+                alt={`Biyoenerji Modülü — ${biyoenerjiGallerySlides[biyoenerjiSlide].label}`}
+                className="w-full"
+              />
+            </div>
+
+            {/* Dot indicators */}
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              {biyoenerjiGallerySlides.map((slide, idx) => (
+                <button
+                  key={slide.label}
+                  type="button"
+                  onClick={() => setBiyoenerjiSlide(idx)}
+                  className={`rounded-full transition-all duration-200 ${idx === biyoenerjiSlide ? "h-1.5 w-5 bg-cyan-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400"}`}
+                  aria-label={slide.label}
+                  aria-current={idx === biyoenerjiSlide ? "true" : undefined}
+                />
+              ))}
+            </div>
+
+            {/* Feature panel */}
+            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
+              <h5 className="text-base font-black text-white">
+                Biyoenerji Modülü ile Kapsamlı Enerji Çalışması
+              </h5>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Biyoenerji Modülü; seans yönetimi, enerji bedenleri analizi, bilinçaltı sebepleri kütüphanesi,
+                imajinasyon rehberleri, sembol dili ve çakra kütüphanesiyle bütünsel bir çalışma sistemi sunar.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {[
+                  "Biyoenerji Seansları",
+                  "Enerji Bedenleri",
+                  "Bilinçaltı Sebepleri",
+                  "İmajinasyon Kütüphanesi",
+                  "Sembol Dili",
+                  "Çakra Kütüphanesi",
+                ].map((feat) => (
+                  <div
+                    key={feat}
+                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
+                  >
+                    <Check className="h-3 w-3 shrink-0 text-cyan-400" strokeWidth={2.5} />
                     {feat}
                   </div>
                 ))}
