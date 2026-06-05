@@ -156,8 +156,6 @@ const featureItems: FeatureItem[] = [
   },
 ];
 
-const videoCeviriPreviewSrc = "/assets/video-ceviri-preview.png";
-
 const danisanYonetimiGallerySlides = [
   { label: "Danışan Yolculuğu",       src: "/assets/danisan-yolculugu.png",    cover: true },
   { label: "Yeni Danışan Kaydı",      src: "/assets/danisan-yeni-kayit.png",   cover: false },
@@ -1376,8 +1374,6 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-violet-300/50 bg-gradient-to-br from-slate-900 via-violet-950/80 to-indigo-950 p-4 shadow-lg shadow-violet-950/30 ring-1 ring-violet-400/10 transition-all duration-200 hover:border-violet-400/40 hover:shadow-[0_10px_28px_rgba(109,40,217,0.18)]"
               >
-                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12)_0%,transparent_65%)]" aria-hidden />
-
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Yakında
                 </span>
@@ -1410,17 +1406,13 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <button
-                  type="button"
-                  disabled
-                  className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-slate-600/50 bg-slate-700/50 py-2 text-xs font-bold text-slate-400"
-                >
+                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-slate-600/50 bg-slate-700/50 py-2 text-center text-xs font-bold text-slate-400">
                   Yakında Kullanıma Açılacak
-                </button>
+                </div>
 
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setVideoCeviriPreviewOpen(true); }}
+                  onClick={() => setVideoCeviriPreviewOpen(true)}
                   className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-violet-400"
                 >
                   Ekrana Göz At
@@ -1876,7 +1868,7 @@ export default function Home() {
 
             <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
               <img
-                src={videoCeviriPreviewSrc}
+                src="/assets/video-ceviri-preview.png"
                 alt="Video Çeviri — Modül Ekranı"
                 className="w-full"
               />
