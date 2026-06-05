@@ -147,7 +147,7 @@ const featureItems: FeatureItem[] = [
 ];
 
 const refleksolojiGallerySlides = [
-  { label: "Refleksoloji Tanıtım",    src: "/assets/refleksoloji-tanitim.png" },
+  { label: "Kolaj Görünüm",           src: "/assets/refleksoloji-tanitim.png" },
   { label: "Ana Menü",                src: "/assets/refleksoloji-anamenu.png" },
   { label: "Bölge Haritası",          src: "/assets/refleksoloji-bolge-haritasi.png" },
   { label: "Kayıtlı Atlas",           src: "/assets/refleksoloji-kayitli-atlas.png" },
@@ -1611,7 +1611,7 @@ export default function Home() {
 
       {refleksolojiPreviewOpen && (
         <div
-          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/82 p-4 pb-10 backdrop-blur-sm"
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
           onClick={() => setRefleksolojiPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -1621,6 +1621,7 @@ export default function Home() {
             className="relative mt-6 w-full max-w-4xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Kapat */}
             <button
               type="button"
               onClick={() => setRefleksolojiPreviewOpen(false)}
@@ -1630,6 +1631,7 @@ export default function Home() {
               ×
             </button>
 
+            {/* Header */}
             <div className="mb-4 text-center">
               <span className="inline-flex items-center rounded-full border border-violet-400/40 bg-violet-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">
                 Refleksoloji Modülü
@@ -1642,54 +1644,61 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Galeri */}
             <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
+              {/* Slide etiketi */}
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-violet-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
                 <span className="text-[11px] font-bold text-violet-300">
                   {refleksolojiGallerySlides[refleksolojiSlide].label}
                 </span>
                 <span className="text-[10px] text-slate-500">
-                  {refleksolojiSlide + 1}&thinsp;/&thinsp;{refleksolojiGallerySlides.length}
+                  {refleksolojiSlide + 1} / {refleksolojiGallerySlides.length}
                 </span>
               </div>
 
+              {/* Önceki */}
               <button
                 type="button"
-                onClick={() => setRefleksolojiSlide(s => (s - 1 + refleksolojiGallerySlides.length) % refleksolojiGallerySlides.length)}
+                onClick={() => setRefleksolojiSlide((s) => (s - 1 + refleksolojiGallerySlides.length) % refleksolojiGallerySlides.length)}
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:bg-slate-800/80 hover:text-white"
                 aria-label="Önceki ekran"
               >
                 ‹
               </button>
+
+              {/* Sonraki */}
               <button
                 type="button"
-                onClick={() => setRefleksolojiSlide(s => (s + 1) % refleksolojiGallerySlides.length)}
+                onClick={() => setRefleksolojiSlide((s) => (s + 1) % refleksolojiGallerySlides.length)}
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:bg-slate-800/80 hover:text-white"
                 aria-label="Sonraki ekran"
               >
                 ›
               </button>
 
+              {/* Görsel */}
               <img
                 key={refleksolojiGallerySlides[refleksolojiSlide].src}
                 src={refleksolojiGallerySlides[refleksolojiSlide].src}
-                alt={`Refleksoloji — ${refleksolojiGallerySlides[refleksolojiSlide].label}`}
+                alt={"Refleksoloji — " + refleksolojiGallerySlides[refleksolojiSlide].label}
                 className="w-full"
               />
             </div>
 
+            {/* Nokta göstergeler */}
             <div className="mt-3 flex items-center justify-center gap-1.5">
               {refleksolojiGallerySlides.map((slide, idx) => (
                 <button
                   key={slide.label}
                   type="button"
                   onClick={() => setRefleksolojiSlide(idx)}
-                  className={`rounded-full transition-all duration-200 ${idx === refleksolojiSlide ? "h-1.5 w-5 bg-violet-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400"}`}
+                  className={"rounded-full transition-all duration-200 " + (idx === refleksolojiSlide ? "h-1.5 w-5 bg-violet-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400")}
                   aria-label={slide.label}
-                  aria-current={idx === refleksolojiSlide ? "true" : undefined}
                 />
               ))}
             </div>
 
+            {/* Özellik paneli */}
             <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
               <h5 className="text-base font-black text-white">
                 Refleksoloji Modülü ile Profesyonel Seans Sistemi
