@@ -1047,30 +1047,72 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-10 flex w-full max-w-2xl flex-col items-center text-center xl:mt-12">
-          {/* Headline */}
-          <h2 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
-            Profesyonel danışmanlar için{" "}
-            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
-              bütünsel yönetim
-            </span>{" "}
-            platformu
-          </h2>
+        <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12">
+          <div className="relative flex w-full items-center justify-center">
+            {/* Dekoratif sol kartlar */}
+            <div className="pointer-events-none absolute left-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
+              {[
+                { label: "10+ Modül", icon: "🧩", sub: "Tek Panel" },
+                { label: "Tek Panel", icon: "🖥️", sub: "Her yerden erişim" },
+              ].map((c) => (
+                <div
+                  key={c.label}
+                  className="flex items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-sm backdrop-blur-sm"
+                >
+                  <span className="text-lg">{c.icon}</span>
+                  <div>
+                    <p className="text-xs font-black text-slate-800">{c.label}</p>
+                    <p className="text-[10px] text-slate-400">{c.sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-          {/* Subtitle */}
-          <p className="mt-5 max-w-[420px] text-[0.9375rem] leading-[1.75] text-slate-500">
-            Numeroloji, doğaltaş, biyoenerji, refleksoloji ve danışan yönetimi —
-            tek platformda, profesyonel akışa uygun.
-          </p>
+            {/* Center text */}
+            <div className="flex max-w-2xl flex-col items-center">
+              <h2 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
+                Danışan, analiz ve seans süreçlerinizi{" "}
+                <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
+                  tek merkezden
+                </span>{" "}
+                yönetin
+              </h2>
 
-          {/* CTA */}
-          <div className="mt-7 flex justify-center">
-            <Link
-              href="/register"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white no-underline shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
-            >
-              Modülleri Keşfet →
-            </Link>
+              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500">
+                Numeroloji, doğaltaş, biyoenerji, refleksoloji, şifa rehberi, belge çeviri ve danışan yönetimi modülleriyle profesyonel çalışma akışınızı düzenleyin.
+              </p>
+
+              <div className="mt-7 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById("calisma-alanlari")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
+                >
+                  Modülleri Keşfet ↓
+                </button>
+              </div>
+            </div>
+
+            {/* Dekoratif sağ kartlar */}
+            <div className="pointer-events-none absolute right-0 hidden flex-col gap-2.5 lg:flex" aria-hidden>
+              {[
+                { label: "Güvenli Kayıt", icon: "🔒", sub: "Verileriniz korumalı" },
+                { label: "AI Destekli", icon: "✨", sub: "Akıllı analiz" },
+              ].map((c) => (
+                <div
+                  key={c.label}
+                  className="flex items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-sm backdrop-blur-sm"
+                >
+                  <span className="text-lg">{c.icon}</span>
+                  <div>
+                    <p className="text-xs font-black text-slate-800">{c.label}</p>
+                    <p className="text-[10px] text-slate-400">{c.sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1249,7 +1291,7 @@ export default function Home() {
         </div>
 
         {/* — Modules grid — */}
-        <section data-fade className="mt-3 w-full max-w-none xl:mt-4">
+        <section id="calisma-alanlari" data-fade className="mt-3 w-full max-w-none xl:mt-4">
           <div className="mb-3.5 flex items-baseline justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-950 sm:text-xl">
