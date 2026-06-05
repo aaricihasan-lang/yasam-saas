@@ -147,6 +147,7 @@ const featureItems: FeatureItem[] = [
 ];
 
 const biyoenerjiGallerySlides = [
+  { label: "Biyoenerji Tanıtım",        src: "/assets/biyoenerji-tanitim.png" },
   { label: "Biyoenerji Ana Sayfa",      src: "/assets/biyoenerji-anasayfa.png" },
   { label: "Biyoenerji Seansları",      src: "/assets/biyoenerji-seanslar.png" },
   { label: "Enerji Bedenleri",          src: "/assets/biyoenerji-enerji-bedenleri.png" },
