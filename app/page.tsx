@@ -147,13 +147,13 @@ const featureItems: FeatureItem[] = [
 ];
 
 const biyoenerjiGallerySlides = [
-  { label: "Biyoenerji Ana Sayfa" },
-  { label: "Biyoenerji Seansları" },
-  { label: "Enerji Bedenleri" },
-  { label: "Bilinçaltı Sebepleri" },
-  { label: "İmajinasyon Kütüphanesi" },
-  { label: "Sembol Dili Kütüphanesi" },
-  { label: "Çakra Kütüphanesi" },
+  { label: "Biyoenerji Ana Sayfa",      src: "/assets/biyoenerji-anasayfa.png" },
+  { label: "Biyoenerji Seansları",      src: "/assets/biyoenerji-seanslar.png" },
+  { label: "Enerji Bedenleri",          src: "/assets/biyoenerji-enerji-bedenleri.png" },
+  { label: "Bilinçaltı Sebepleri",      src: "/assets/biyoenerji-bilincoltu.png" },
+  { label: "İmajinasyon Kütüphanesi",   src: "/assets/biyoenerji-imajinasyon.png" },
+  { label: "Sembol Dili Kütüphanesi",   src: "/assets/biyoenerji-sembol.png" },
+  { label: "Çakra Kütüphanesi",         src: "/assets/biyoenerji-cakra.png" },
 ];
 
 const numerologiFeatures = [
@@ -1599,7 +1599,8 @@ export default function Home() {
               </button>
 
               <img
-                src="/assets/biyoenerji-preview.png"
+                key={biyoenerjiGallerySlides[biyoenerjiSlide].src}
+                src={biyoenerjiGallerySlides[biyoenerjiSlide].src}
                 alt={`Biyoenerji Modülü — ${biyoenerjiGallerySlides[biyoenerjiSlide].label}`}
                 className="w-full"
               />
