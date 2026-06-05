@@ -1412,8 +1412,8 @@ export default function Home() {
 
                 <button
                   type="button"
-                  onClick={() => setVideoCeviriPreviewOpen(true)}
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-violet-400"
+                  onClick={() => { console.log("video preview clicked"); setVideoCeviriPreviewOpen(true); }}
+                  className="relative z-10 mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-violet-400"
                 >
                   Ekrana Göz At
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
@@ -1834,7 +1834,7 @@ export default function Home() {
 
       {videoCeviriPreviewOpen && (
         <div
-          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
           onClick={() => setVideoCeviriPreviewOpen(false)}
           role="dialog"
           aria-modal="true"
