@@ -1412,8 +1412,8 @@ export default function Home() {
 
                 <button
                   type="button"
-                  onClick={() => { console.log("video preview clicked"); setVideoCeviriPreviewOpen(true); }}
-                  className="relative z-10 mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-violet-400"
+                  onClick={() => setVideoCeviriPreviewOpen(true)}
+                  className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 text-[11px] font-semibold text-cyan-200 transition hover:text-white hover:underline"
                 >
                   Ekrana Göz At
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
