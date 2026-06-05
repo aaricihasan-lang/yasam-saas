@@ -109,6 +109,11 @@ const landingModules: LandingModule[] = [
     icon: "🌸",
   },
   {
+    title: "Video Çeviri",
+    desc: "Video ve ses dosyalarını metne çevirip Türkçeye aktaran yapay zekâ destekli modül.",
+    icon: "🎬",
+  },
+  {
     title: "Danışan Yönetimi",
     desc: "Danışan kayıtları, notlar, analizler ve randevu sistemi.",
     icon: "👥",
@@ -150,6 +155,8 @@ const featureItems: FeatureItem[] = [
     icon: "🧩",
   },
 ];
+
+const videoCeviriPreviewSrc = "/assets/video-ceviri-preview.png";
 
 const danisanYonetimiGallerySlides = [
   { label: "Danışan Yolculuğu",       src: "/assets/danisan-yolculugu.png",    cover: true },
@@ -468,6 +475,7 @@ export default function Home() {
   const [sifaRehberiSlide, setSifaRehberiSlide] = useState(0);
   const [danisanYonetimiPreviewOpen, setDanisanYonetimiPreviewOpen] = useState(false);
   const [danisanYonetimiSlide, setDanisanYonetimiSlide] = useState(0);
+  const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -604,6 +612,13 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [danisanYonetimiPreviewOpen]);
+
+  useEffect(() => {
+    if (!videoCeviriPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setVideoCeviriPreviewOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [videoCeviriPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1356,6 +1371,62 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
+            ) : item.title === "Video Çeviri" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-violet-300/50 bg-gradient-to-br from-slate-900 via-violet-950/80 to-indigo-950 p-4 shadow-lg shadow-violet-950/30 ring-1 ring-violet-400/10 transition-all duration-200 hover:border-violet-400/40 hover:shadow-[0_10px_28px_rgba(109,40,217,0.18)]"
+              >
+                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12)_0%,transparent_65%)]" aria-hidden />
+
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Yakında
+                </span>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 via-indigo-500 to-cyan-500 text-xl text-white shadow-md shadow-violet-500/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-white">
+                  Video Çeviri
+                </h3>
+
+                <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                  Video ve ses dosyalarını metne çevirip Türkçeye aktararak Word/PDF çıktısı hazırlayan yapay zekâ destekli modül.
+                </p>
+
+                <ul className="mt-2.5 flex flex-col gap-0.5">
+                  {[
+                    "Video → Metin",
+                    "Otomatik Dil Algılama",
+                    "Türkçeye Çeviri",
+                    "Word/PDF Çıktı",
+                    "Eğitim İçeriği Hazırlama",
+                    "Gizlilik Odaklı İşlem",
+                  ].map((feat) => (
+                    <li key={feat} className="flex items-center gap-1.5">
+                      <Check className="h-2.5 w-2.5 shrink-0 text-violet-400" strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-300">{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  disabled
+                  className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-slate-600/50 bg-slate-700/50 py-2 text-xs font-bold text-slate-400"
+                >
+                  Yakında Kullanıma Açılacak
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setVideoCeviriPreviewOpen(true); }}
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-violet-400"
+                >
+                  Ekrana Göz At
+                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                </button>
+              </div>
             ) : item.title === "Danışan Yönetimi" ? (
               <div
                 key={item.title}
@@ -1760,6 +1831,77 @@ export default function Home() {
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
                   >
                     <Check className="h-3 w-3 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {videoCeviriPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
+          onClick={() => setVideoCeviriPreviewOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Video Çeviri modülü ön izlemesi"
+        >
+          <div
+            className="relative mt-6 w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setVideoCeviriPreviewOpen(false)}
+              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
+              aria-label="Kapat"
+            >
+              ×
+            </button>
+
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Yakında — Geliştirme Aşamasında
+              </span>
+              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
+                Video Çeviri — Modül Ön İzlemesi
+              </h4>
+              <p className="mt-1 text-sm text-slate-400">
+                Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
+              <img
+                src={videoCeviriPreviewSrc}
+                alt="Video Çeviri — Modül Ekranı"
+                className="w-full"
+              />
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-base">
+                  ⚠️
+                </span>
+                <div>
+                  <p className="text-sm font-black text-white">Geliştirme Aşamasında</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    Bu modül aktif kullanıma açılmadan önce altyapı ve üyelik planları tamamlanacaktır.
+                    Dosya limitleri altyapı paketine göre artırılacaktır.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {["Video → Metin", "Otomatik Dil Algılama", "Türkçeye Çeviri", "Word/PDF Çıktı", "Eğitim İçeriği Hazırlama", "Gizlilik Odaklı İşlem"].map((feat) => (
+                  <div
+                    key={feat}
+                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
+                  >
+                    <Check className="h-3 w-3 shrink-0 text-violet-400" strokeWidth={2.5} />
                     {feat}
                   </div>
                 ))}
