@@ -12,6 +12,7 @@ import SessionsTab from "./components/SessionsTab";
 import HomeworkTab from "./components/HomeworkTab";
 import AnalizlerTab from "./components/AnalizlerTab";
 import YolculukTab from "./components/YolculukTab";
+import { BirthDateInput } from "@/components/ui/BirthDateInput";
 
 type Client = {
   id: string;
@@ -132,6 +133,9 @@ export default function ClientDetailPage() {
   const [oneriler, setOneriler] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
+  const [editDogum, setEditDogum] = useState("");
+  const [savingDogum, setSavingDogum] = useState(false);
+
   const [noteText, setNoteText] = useState("");
   const [savingClientNotes, setSavingClientNotes] = useState(false);
 
@@ -160,6 +164,7 @@ export default function ClientDetailPage() {
       }
 
       setClient(data);
+      setEditDogum(data.dogum || "");
 
       const { data: notesData, error: notesError } = await supabase
         .from("client_notes")
@@ -188,6 +193,37 @@ export default function ClientDetailPage() {
       fetchClient();
     }
   }, [clientId, tenantId]);
+
+  async function saveDogum() {
+    if (!tenantId || !client) return;
+
+    setSavingDogum(true);
+
+    const { error } = await supabase
+      .from("clients")
+      .update({ dogum: editDogum || null })
+      .eq("id", client.id)
+      .eq("tenant_id", tenantId);
+
+    if (error) {
+      showToast({
+        title: "İşlem başarısız",
+        message: "Doğum tarihi kaydedilemedi: " + error.message,
+        type: "error",
+      });
+      setSavingDogum(false);
+      return;
+    }
+
+    setClient((prev) => (prev ? { ...prev, dogum: editDogum || undefined } : prev));
+
+    showToast({
+      title: "Başarılı",
+      message: "Doğum tarihi güncellendi.",
+      type: "success",
+    });
+    setSavingDogum(false);
+  }
 
   async function saveGeneralNotes() {
     if (!tenantId) return;
@@ -383,6 +419,28 @@ export default function ClientDetailPage() {
                   <div style={bluePill}>Genel Bilgiler</div>
                   <h2 style={sectionTitle}>Danışan Genel Kayıtları</h2>
                 </div>
+              </div>
+
+              <div style={{ ...formColumn, marginBottom: 18 }}>
+                <div>
+                  <label style={textareaLabel}>Doğum Tarihi</label>
+                  <BirthDateInput
+                    value={editDogum}
+                    onChange={setEditDogum}
+                    style={inputStyle}
+                  />
+                </div>
+                <button
+                  onClick={saveDogum}
+                  disabled={savingDogum}
+                  style={{
+                    ...saveButton,
+                    background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                    opacity: savingDogum ? 0.7 : 1,
+                  }}
+                >
+                  {savingDogum ? "Kaydediliyor..." : "Doğum Tarihini Güncelle"}
+                </button>
               </div>
 
               <div style={formColumn}>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
+import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
@@ -398,11 +399,10 @@ export default function ClientsPage() {
             </Field>
 
             <Field label="Doğum Tarihi">
-              <PremiumDatePicker
+              <BirthDateInput
                 value={dogum}
                 onChange={setDogum}
-                inputClassName={inputClassName}
-                alignRight
+                className={inputClassName}
               />
             </Field>
 
