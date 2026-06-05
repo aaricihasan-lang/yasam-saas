@@ -79,9 +79,9 @@ type FeatureItem = {
 
 const landingModules: LandingModule[] = [
   {
-    title: "Numeroloji",
-    desc: "Profesyonel numeroloji analizleri ve danışan kayıt sistemi.",
-    icon: "🔢",
+    title: "Danışan Yönetimi",
+    desc: "Danışan kayıtları, notlar, analizler ve randevu sistemi.",
+    icon: "👥",
   },
   {
     title: "Doğaltaş",
@@ -99,24 +99,19 @@ const landingModules: LandingModule[] = [
     icon: "🦶",
   },
   {
-    title: "Şifa Rehberi",
-    desc: "Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici öneriler.",
-    icon: "🌿",
-  },
-  {
     title: "Aromaterapi",
     desc: "Uçucu yağ, sabit yağ ve karışım yönetim sistemi.",
     icon: "🌸",
   },
   {
-    title: "Kişisel Arşiv",
-    desc: "Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın.",
-    icon: "🗂️",
+    title: "Şifa Rehberi",
+    desc: "Rahatsızlık kayıtları, belirtiler, uygulamalar ve destekleyici öneriler.",
+    icon: "🌿",
   },
   {
-    title: "Belge Çeviri",
-    desc: "PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi.",
-    icon: "📄",
+    title: "Numeroloji",
+    desc: "Profesyonel numeroloji analizleri ve danışan kayıt sistemi.",
+    icon: "🔢",
   },
   {
     title: "Video Çeviri",
@@ -124,9 +119,14 @@ const landingModules: LandingModule[] = [
     icon: "🎬",
   },
   {
-    title: "Danışan Yönetimi",
-    desc: "Danışan kayıtları, notlar, analizler ve randevu sistemi.",
-    icon: "👥",
+    title: "Belge Çeviri",
+    desc: "PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi.",
+    icon: "📄",
+  },
+  {
+    title: "Kişisel Arşiv",
+    desc: "Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın.",
+    icon: "🗂️",
   },
 ];
 
@@ -1265,13 +1265,13 @@ export default function Home() {
             item.title === "Numeroloji" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(109,40,217,0.14)]"
+                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-blue-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(109,40,217,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Analiz Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1309,7 +1309,7 @@ export default function Home() {
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 text-xl text-white shadow-md shadow-teal-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-xl text-white shadow-md shadow-teal-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1341,24 +1341,21 @@ export default function Home() {
             ) : item.title === "Biyoenerji" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-cyan-400/25 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4 shadow-xl shadow-indigo-950/40 ring-1 ring-cyan-400/10 transition-all duration-200 hover:-translate-y-1 hover:border-cyan-400/45 hover:shadow-[0_14px_36px_rgba(6,182,212,0.22)]"
+                className="group relative flex flex-col rounded-[22px] border border-cyan-200/70 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-cyan-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(6,182,212,0.16)]"
               >
-                {/* radial glow */}
-                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_left,rgba(6,182,212,0.10)_0%,transparent_65%)]" aria-hidden />
-
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-xl text-white shadow-md shadow-cyan-500/30 ring-1 ring-cyan-300/20 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-xl text-white shadow-md shadow-cyan-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
-                <h3 className="mt-3 text-sm font-black leading-snug text-white">
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
                   Biyoenerji
                 </h3>
 
-                <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                <p className="mt-1.5 text-xs leading-5 text-slate-600">
                   Enerji analizleri, bilinçaltı çalışmaları, sembol dili, çakra kütüphanesi ve seans yönetimini tek merkezden yönetin.
                 </p>
 
@@ -1372,8 +1369,8 @@ export default function Home() {
                     "Çakra Kütüphanesi",
                   ].map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-cyan-400" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-300">{feat}</span>
+                      <Check className="h-2.5 w-2.5 shrink-0 text-cyan-500" strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
                     </li>
                   ))}
                 </ul>
@@ -1381,14 +1378,14 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setBiyoenerjiSlide(0); setBiyoenerjiPreviewOpen(true); }}
-                  className="relative mt-3.5 w-full overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 py-2 text-xs font-bold text-white shadow-sm shadow-cyan-500/25 transition duration-200 hover:from-cyan-400 hover:to-indigo-500 hover:shadow-md hover:shadow-cyan-400/35"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-sky-400 hover:to-cyan-500 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
 
                 <Link
                   href="/enerji-beden"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-cyan-400"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-cyan-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1398,13 +1395,13 @@ export default function Home() {
             ) : item.title === "Kişisel Arşiv" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-violet-50/60 p-4 shadow-md ring-1 ring-amber-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(245,158,11,0.14)]"
+                className="group relative flex flex-col rounded-[22px] border border-yellow-200/70 bg-gradient-to-br from-yellow-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-yellow-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(234,179,8,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-yellow-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-orange-400 to-violet-500 text-xl text-white shadow-md shadow-amber-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-xl text-white shadow-md shadow-yellow-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1435,7 +1432,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setKisiselArsivPreviewOpen(true)}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-amber-500 to-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-amber-400 hover:to-violet-500 hover:shadow-md"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-yellow-400 hover:to-amber-400 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
@@ -1452,13 +1449,13 @@ export default function Home() {
             ) : item.title === "Belge Çeviri" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-sky-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(14,165,233,0.16)]"
+                className="group relative flex flex-col rounded-[22px] border border-blue-200/70 bg-gradient-to-br from-blue-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-blue-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(59,130,246,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-sky-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-blue-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-indigo-500 to-cyan-500 text-xl text-white shadow-md shadow-sky-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-xl text-white shadow-md shadow-blue-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1489,7 +1486,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setBelgeCeviriPreviewOpen(true)}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-sky-500 hover:to-indigo-500 hover:shadow-md"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-blue-500 hover:to-cyan-500 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
@@ -1506,21 +1503,21 @@ export default function Home() {
             ) : item.title === "Video Çeviri" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-violet-300/50 bg-gradient-to-br from-slate-900 via-violet-950/80 to-indigo-950 p-4 shadow-lg shadow-violet-950/30 ring-1 ring-violet-400/10 transition-all duration-200 hover:border-violet-400/40 hover:shadow-[0_10px_28px_rgba(109,40,217,0.18)]"
+                className="group relative flex flex-col rounded-[22px] border border-orange-200/70 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-orange-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(249,115,22,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Yakında
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 via-indigo-500 to-cyan-500 text-xl text-white shadow-md shadow-violet-500/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-xl text-white shadow-md shadow-orange-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
-                <h3 className="mt-3 text-sm font-black leading-snug text-white">
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
                   Video Çeviri
                 </h3>
 
-                <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                <p className="mt-1.5 text-xs leading-5 text-slate-600">
                   Video ve ses dosyalarını metne çevirip Türkçeye aktararak Word/PDF çıktısı hazırlayan yapay zekâ destekli modül.
                 </p>
 
@@ -1534,20 +1531,20 @@ export default function Home() {
                     "Gizlilik Odaklı İşlem",
                   ].map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-violet-400" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-300">{feat}</span>
+                      <Check className="h-2.5 w-2.5 shrink-0 text-orange-500" strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
                     </li>
                   ))}
                 </ul>
 
-                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-slate-600/50 bg-slate-700/50 py-2 text-center text-xs font-bold text-slate-400">
+                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-orange-200/60 bg-orange-100/50 py-2 text-center text-xs font-bold text-orange-400">
                   Yakında Kullanıma Açılacak
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setVideoCeviriPreviewOpen(true)}
-                  className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 text-[11px] font-semibold text-cyan-200 transition hover:text-white hover:underline"
+                  className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 text-[11px] font-semibold text-orange-600 transition hover:text-orange-800 hover:underline"
                 >
                   Ekrana Göz At
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
@@ -1556,15 +1553,13 @@ export default function Home() {
             ) : item.title === "Danışan Yönetimi" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/60 p-4 shadow-md ring-1 ring-indigo-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(79,70,229,0.16)]"
+                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(124,58,237,0.14)]"
               >
-                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.07)_0%,transparent_65%)]" aria-hidden />
-
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 text-xl text-white shadow-md shadow-indigo-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-xl text-white shadow-md shadow-violet-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1586,7 +1581,7 @@ export default function Home() {
                     "Takip Süreci",
                   ].map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-indigo-500" strokeWidth={2.75} />
+                      <Check className="h-2.5 w-2.5 shrink-0 text-violet-600" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
                     </li>
                   ))}
@@ -1595,7 +1590,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setDanisanYonetimiSlide(0); setDanisanYonetimiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-indigo-500 hover:to-violet-500 hover:shadow-md"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-violet-600 hover:to-indigo-600 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
@@ -1612,15 +1607,13 @@ export default function Home() {
             ) : item.title === "Şifa Rehberi" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-emerald-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(16,185,129,0.16)]"
+                className="group relative flex flex-col rounded-[22px] border border-green-200/70 bg-gradient-to-br from-green-50/90 via-white to-mint-50/60 p-4 shadow-md ring-1 ring-green-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(34,197,94,0.14)]"
               >
-                <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_top_right,rgba(6,182,212,0.07)_0%,transparent_65%)]" aria-hidden />
-
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-green-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 text-xl text-white shadow-md shadow-emerald-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-xl text-white shadow-md shadow-green-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1642,7 +1635,7 @@ export default function Home() {
                     "Aromaterapi",
                   ].map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" strokeWidth={2.75} />
+                      <Check className="h-2.5 w-2.5 shrink-0 text-green-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
                     </li>
                   ))}
@@ -1651,14 +1644,14 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setSifaRehberiSlide(0); setSifaRehberiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-emerald-400 hover:to-teal-400 hover:shadow-md"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-green-500 hover:to-emerald-400 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
 
                 <Link
                   href="/sifa-rehberi"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-emerald-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-green-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1668,13 +1661,13 @@ export default function Home() {
             ) : item.title === "Refleksoloji" ? (
               <div
                 key={item.title}
-                className="group relative flex flex-col rounded-[22px] border border-purple-200/70 bg-gradient-to-br from-purple-50/90 via-white to-violet-50/60 p-4 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(124,58,237,0.14)]"
+                className="group relative flex flex-col rounded-[22px] border border-pink-200/70 bg-gradient-to-br from-pink-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-pink-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(236,72,153,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-pink-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-xl text-white shadow-md shadow-pink-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
 
@@ -1696,7 +1689,7 @@ export default function Home() {
                     "Seans Takibi",
                   ].map((feat) => (
                     <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-violet-500" strokeWidth={2.75} />
+                      <Check className="h-2.5 w-2.5 shrink-0 text-pink-500" strokeWidth={2.75} />
                       <span className="text-[10px] font-medium text-slate-700">{feat}</span>
                     </li>
                   ))}
@@ -1705,19 +1698,41 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setRefleksolojiSlide(0); setRefleksolojiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-purple-500 hover:to-violet-500 hover:shadow-md"
+                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-pink-500 hover:to-purple-500 hover:shadow-md"
                 >
                   Örnek Ekranları Gör
                 </button>
 
                 <Link
                   href="/refleksoloji"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-violet-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-pink-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
+              </div>
+            ) : item.title === "Aromaterapi" ? (
+              <div
+                key={item.title}
+                className="group relative flex flex-col rounded-[22px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-fuchsia-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.12)]"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-xl text-white shadow-md shadow-fuchsia-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  {item.title}
+                </h3>
+
+                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
+                  {item.desc}
+                </p>
+
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-fuchsia-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-fuchsia-800">
+                  Keşfet
+                  <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                </span>
               </div>
             ) : (
               <div
