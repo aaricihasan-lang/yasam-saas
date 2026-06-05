@@ -146,16 +146,6 @@ const featureItems: FeatureItem[] = [
   },
 ];
 
-const refleksolojiGallerySlides = [
-  { label: "Refleksoloji Tanıtım",        src: "/assets/refleksoloji-tanitim.png" },
-  { label: "Ana Menü",                    src: "/assets/refleksoloji-anamenu.png" },
-  { label: "Bölge Haritası",              src: "/assets/refleksoloji-bolge-haritasi.png" },
-  { label: "Kayıtlı Atlas",               src: "/assets/refleksoloji-kayitli-atlas.png" },
-  { label: "Protokol Haritası",           src: "/assets/refleksoloji-protokol-haritasi.png" },
-  { label: "Kayıtlı Protokoller",         src: "/assets/refleksoloji-kayitli-protokoller.png" },
-  { label: "Klinik Notlar",               src: "/assets/refleksoloji-klinik-notlar.png" },
-];
-
 const biyoenerjiGallerySlides = [
   { label: "Biyoenerji Tanıtım",        src: "/assets/biyoenerji-tanitim.png" },
   { label: "Biyoenerji Ana Sayfa",      src: "/assets/biyoenerji-anasayfa.png" },
@@ -440,8 +430,6 @@ export default function Home() {
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
   const [biyoenerjiSlide, setBiyoenerjiSlide] = useState(0);
-  const [refleksolojiPreviewOpen, setRefleksolojiPreviewOpen] = useState(false);
-  const [refleksolojiSlide, setRefleksolojiSlide] = useState(0);
   const loginBackdropPressed = useRef(false);
 
   const closeLoginModal = () => {
@@ -545,17 +533,6 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [biyoenerjiPreviewOpen]);
-
-  useEffect(() => {
-    if (!refleksolojiPreviewOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setRefleksolojiPreviewOpen(false);
-      if (e.key === "ArrowLeft") setRefleksolojiSlide(s => (s - 1 + refleksolojiGallerySlides.length) % refleksolojiGallerySlides.length);
-      if (e.key === "ArrowRight") setRefleksolojiSlide(s => (s + 1) % refleksolojiGallerySlides.length);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [refleksolojiPreviewOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1308,95 +1285,6 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.title === "Refleksoloji" ? (
-              <div
-                key={item.title}
-                className="col-span-full group relative flex flex-col overflow-hidden rounded-[22px] border border-purple-200/60 bg-gradient-to-br from-purple-50/90 via-white to-violet-50/70 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:shadow-[0_10px_28px_rgba(124,58,237,0.14)] sm:flex-row"
-              >
-                {/* Left: info */}
-                <div className="relative flex flex-col justify-between p-5 sm:w-72 sm:shrink-0 xl:w-80">
-                  <span className="absolute right-4 top-4 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                    Örnek Ekranlar Var
-                  </span>
-
-                  <div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                      {item.icon}
-                    </div>
-
-                    <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                      Refleksoloji
-                    </h3>
-
-                    <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                      Ayak refleksoloji atlası, protokoller, kayıtlı atlaslar, klinik notlar ve seans çalışma alanı.
-                    </p>
-
-                    <ul className="mt-2.5 flex flex-col gap-0.5">
-                      {[
-                        "Bölge Haritası",
-                        "Kayıtlı Atlas",
-                        "Protokol Haritası",
-                        "Kayıtlı Protokoller",
-                        "Klinik Notlar",
-                        "Seans Takibi",
-                      ].map((feat) => (
-                        <li key={feat} className="flex items-center gap-1.5">
-                          <Check className="h-2.5 w-2.5 shrink-0 text-violet-500" strokeWidth={2.75} />
-                          <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-5 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setRefleksolojiSlide(0); setRefleksolojiPreviewOpen(true); }}
-                      className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-purple-500 hover:to-violet-500 hover:shadow-md"
-                    >
-                      Örnek Ekranları Gör
-                    </button>
-                    <Link
-                      href="/refleksoloji"
-                      className="inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-violet-700"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Modüle Git
-                      <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Right: collage */}
-                <div className="hidden min-h-[200px] flex-1 overflow-hidden border-l border-purple-100/50 p-3 sm:flex">
-                  <div className="grid h-full w-full grid-cols-3 gap-2">
-                    <div className="col-span-2 overflow-hidden rounded-xl shadow-sm">
-                      <img
-                        src="/assets/refleksoloji-bolge-haritasi.png"
-                        alt="Bölge Haritası"
-                        className="h-full w-full object-cover object-top"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex-1 overflow-hidden rounded-xl shadow-sm">
-                        <img
-                          src="/assets/refleksoloji-anamenu.png"
-                          alt="Ana Menü"
-                          className="h-full w-full object-cover object-top"
-                        />
-                      </div>
-                      <div className="flex-1 overflow-hidden rounded-xl shadow-sm">
-                        <img
-                          src="/assets/refleksoloji-kayitli-atlas.png"
-                          alt="Kayıtlı Atlas"
-                          className="h-full w-full object-cover object-top"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             ) : (
               <div
                 key={item.title}
@@ -1635,123 +1523,6 @@ export default function Home() {
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
                   >
                     <Check className="h-3 w-3 shrink-0 text-emerald-400" strokeWidth={2.5} />
-                    {feat}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {refleksolojiPreviewOpen && (
-        <div
-          className="fixed inset-0 z-[9998] flex items-start justify-center overflow-y-auto bg-slate-950/82 p-4 pb-10 backdrop-blur-sm"
-          onClick={() => setRefleksolojiPreviewOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Refleksoloji modülü ön izlemesi"
-        >
-          <div
-            className="relative mt-6 w-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close */}
-            <button
-              type="button"
-              onClick={() => setRefleksolojiPreviewOpen(false)}
-              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label="Kapat"
-            >
-              ×
-            </button>
-
-            {/* Header */}
-            <div className="mb-4 text-center">
-              <span className="inline-flex items-center rounded-full border border-violet-400/40 bg-violet-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">
-                Refleksoloji Modülü
-              </span>
-              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                Refleksoloji — Gerçek Ürün Ekranları
-              </h4>
-              <p className="mt-1 text-sm text-slate-400">
-                Atlas, protokol, klinik notlar ve bölge haritasından oluşan profesyonel seans sistemi.
-              </p>
-            </div>
-
-            {/* Gallery */}
-            <div className="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
-              <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-violet-400/25 bg-slate-900/85 px-3 py-1.5 backdrop-blur-sm">
-                <span className="text-[11px] font-bold text-violet-300">
-                  {refleksolojiGallerySlides[refleksolojiSlide].label}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  {refleksolojiSlide + 1}&thinsp;/&thinsp;{refleksolojiGallerySlides.length}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setRefleksolojiSlide(s => (s - 1 + refleksolojiGallerySlides.length) % refleksolojiGallerySlides.length)}
-                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:text-white hover:bg-slate-800/80"
-                aria-label="Önceki ekran"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                onClick={() => setRefleksolojiSlide(s => (s + 1) % refleksolojiGallerySlides.length)}
-                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 bg-slate-900/80 text-xl font-light text-slate-300 backdrop-blur-sm transition hover:border-violet-400/40 hover:text-white hover:bg-slate-800/80"
-                aria-label="Sonraki ekran"
-              >
-                ›
-              </button>
-
-              <img
-                key={refleksolojiGallerySlides[refleksolojiSlide].src}
-                src={refleksolojiGallerySlides[refleksolojiSlide].src}
-                alt={`Refleksoloji Modülü — ${refleksolojiGallerySlides[refleksolojiSlide].label}`}
-                className="w-full"
-              />
-            </div>
-
-            {/* Dots */}
-            <div className="mt-3 flex items-center justify-center gap-1.5">
-              {refleksolojiGallerySlides.map((slide, idx) => (
-                <button
-                  key={slide.label}
-                  type="button"
-                  onClick={() => setRefleksolojiSlide(idx)}
-                  className={`rounded-full transition-all duration-200 ${idx === refleksolojiSlide ? "h-1.5 w-5 bg-violet-400" : "h-1.5 w-1.5 bg-slate-600 hover:bg-slate-400"}`}
-                  aria-label={slide.label}
-                  aria-current={idx === refleksolojiSlide ? "true" : undefined}
-                />
-              ))}
-            </div>
-
-            {/* Feature panel */}
-            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
-              <h5 className="text-base font-black text-white">
-                Refleksoloji Modülü ile Profesyonel Seans Sistemi
-              </h5>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Refleksoloji Modülü; bölge haritası, kayıtlı atlas, protokol yönetimi, klinik notlar ve
-                seans takibiyle eksiksiz bir refleksoloji çalışma ortamı sunar.
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {[
-                  "Bölge Haritası",
-                  "Kayıtlı Atlas",
-                  "Protokol Haritası",
-                  "Kayıtlı Protokoller",
-                  "Klinik Notlar",
-                  "Seans Takibi",
-                ].map((feat) => (
-                  <div
-                    key={feat}
-                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
-                  >
-                    <Check className="h-3 w-3 shrink-0 text-violet-400" strokeWidth={2.5} />
                     {feat}
                   </div>
                 ))}
