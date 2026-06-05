@@ -1866,11 +1866,11 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900">
+            <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
               <img
                 src="/assets/video-ceviri-preview.png"
-                alt="Video Çeviri — Modül Ekranı"
-                className="w-full"
+                alt="Video Çeviri Önizleme"
+                className="w-full max-h-[75vh] object-contain rounded-2xl"
               />
             </div>
 
