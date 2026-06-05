@@ -11,6 +11,7 @@ import StonesTab from "./components/StonesTab";
 import SessionsTab from "./components/SessionsTab";
 import HomeworkTab from "./components/HomeworkTab";
 import AnalizlerTab from "./components/AnalizlerTab";
+import YolculukTab from "./components/YolculukTab";
 
 type Client = {
   id: string;
@@ -371,6 +372,7 @@ export default function ClientDetailPage() {
           <Tab label="Seanslar" id="seanslar" activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
           <Tab label="Ödevler" id="odevler" activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
           <Tab label="Analizler" id="analizler" activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
+          <Tab label="✦ Danışan Yolculuğu" id="yolculuk" activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
         </div>
 
         <div style={contentBox}>
@@ -457,6 +459,14 @@ export default function ClientDetailPage() {
             <AnalizlerTab
               clientId={client.id}
               clientName={fullName || "Danışan"}
+            />
+          )}
+
+          {activeTab === "yolculuk" && (
+            <YolculukTab
+              clientName={fullName || "Danışan"}
+              clientPhone={client.telefon}
+              clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
             />
           )}
 
