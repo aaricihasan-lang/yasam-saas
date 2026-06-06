@@ -143,14 +143,14 @@ const emptyAssignmentInputs: AssignmentInputs = {
 const uiCard =
   "rounded-[32px] border-[3px] border-cyan-400/70 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 bg-white/55 shadow-[0_0_35px_rgba(34,211,238,0.25)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01]";
 const uiInput =
-  "w-full h-16 rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-6 text-[17px] text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "w-full h-10 rounded-xl border-2 border-cyan-300/50 bg-white/90 px-4 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiTextarea =
-  "w-full min-h-[170px] resize-none rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-6 py-5 text-[17px] leading-relaxed text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
-const uiLabel = "mb-2 block text-[15px] font-bold text-slate-700";
+  "w-full min-h-[100px] resize-none rounded-xl border-2 border-cyan-300/50 bg-white/90 px-4 py-3 text-sm leading-relaxed text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+const uiLabel = "mb-1.5 block text-[13px] font-bold text-slate-700";
 const uiPanel =
   "rounded-3xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 shadow-md transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1";
 const uiBtn =
-  "inline-flex h-14 items-center justify-center rounded-2xl px-8 text-base font-black transition";
+  "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-black transition";
 
 function safeFileName(fileName: string) {
   return fileName
@@ -442,30 +442,23 @@ export default function DogaltasKayitPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-32 text-slate-950">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-20 text-slate-950">
       <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-300/20 blur-[150px]" />
       <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-violet-300/20 blur-[150px]" />
 
-      <div className="relative w-full px-6 py-6 xl:px-10 2xl:px-14">
-        <header className="mb-5 flex items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dogaltas"
-              className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 text-xl text-slate-800 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              ←
-            </Link>
-
+      <div className="relative w-full px-5 py-4 xl:px-8 2xl:px-10">
+        <header className="mb-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <div>
-              <div className="mb-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-black tracking-[0.12em] text-emerald-700">
+              <div className="mb-1.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700">
                 💎 DOĞALTAŞ MODÜLÜ
               </div>
 
-              <h1 className="text-5xl font-black tracking-tight text-slate-950">
+              <h1 className="text-2xl font-black tracking-tight text-slate-950">
                 Doğaltaş Kayıt
               </h1>
 
-              <p className="mt-2 text-lg text-slate-600">
+              <p className="mt-1 text-sm text-slate-600">
                 Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin.
               </p>
             </div>
@@ -484,15 +477,15 @@ export default function DogaltasKayitPage() {
           )}
         </header>
 
-        <section className="space-y-6">
-          <div className={`${uiCard} p-6`}>
-            <div className="mb-4 flex items-center justify-between gap-4">
+        <section className="space-y-4">
+          <div className={`${uiCard} p-4`}>
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-2xl ring-1 ring-cyan-100">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-lg ring-1 ring-cyan-100">
                   💎
                 </span>
                 <div>
-                <h2 className="text-xl font-black tracking-wide text-slate-950">Temel Bilgi</h2>
+                <h2 className="text-base font-black tracking-wide text-slate-950">Temel Bilgi</h2>
                 <p className="mt-0.5 text-slate-500">
                   Masaüstündeki temel kayıt alanının sade web uyarlaması.
                 </p>
@@ -504,7 +497,7 @@ export default function DogaltasKayitPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
               <div className="space-y-4">
                 <div>
                   <label className={uiLabel}>
@@ -539,17 +532,17 @@ export default function DogaltasKayitPage() {
                   Görsel Alanı
                 </label>
 
-                <div className="rounded-3xl border-2 border-dashed border-cyan-300 bg-gradient-to-br from-cyan-50/90 to-violet-50/80 p-5 text-center shadow-md">
-                  <div className="flex min-h-[320px] flex-col items-center justify-center">
-                    <div className="text-6xl">💎</div>
-                    <p className="mt-3 text-lg font-black text-slate-800">
+                <div className="rounded-2xl border-2 border-dashed border-cyan-300 bg-gradient-to-br from-cyan-50/90 to-violet-50/80 p-4 text-center shadow-md">
+                  <div className="flex min-h-[200px] flex-col items-center justify-center">
+                    <div className="text-4xl">💎</div>
+                    <p className="mt-2 text-base font-black text-slate-800">
                       Birden fazla taş görseli ekle
                     </p>
-                    <p className="mt-2 max-w-[280px] text-base leading-relaxed text-slate-600">
-                      Şimdilik dosya adı Supabase’e kaydolur. Storage bağlantısını sonraki adımda yapacağız.
+                    <p className="mt-1 max-w-[260px] text-sm leading-relaxed text-slate-500">
+                      Dosya adı Supabase’e kaydolur.
                     </p>
 
-                    <label className={`${uiBtn} mt-5 cursor-pointer bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
+                    <label className={`${uiBtn} mt-3 cursor-pointer bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
                       Resim Seç
                       <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                     </label>
@@ -579,13 +572,13 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className={`${uiCard} p-6`}>
-            <div className="mb-4 flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-2xl ring-1 ring-violet-100">
+          <div className={`${uiCard} p-4`}>
+            <div className="mb-3 flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-lg ring-1 ring-violet-100">
                 📋
               </span>
               <div>
-                <h2 className="text-xl font-black tracking-wide text-slate-950">Genel Bilgi</h2>
+                <h2 className="text-base font-black tracking-wide text-slate-950">Genel Bilgi</h2>
                 <p className="mt-0.5 text-slate-500">
                   Bilgi paneli / tablo / özet mantığının sade web karşılığı.
                 </p>
@@ -614,11 +607,11 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {effectSections.map((section) => (
               <div
                 key={section.title}
-                className={`${uiCard} flex min-h-[220px] flex-col border-l-[8px] p-5 ${
+                className={`${uiCard} flex min-h-[160px] flex-col border-l-[8px] p-4 ${
                   section.accent === "cyan"
                     ? "border-l-cyan-500"
                     : section.accent === "violet"
@@ -628,7 +621,7 @@ export default function DogaltasKayitPage() {
               >
                 <div className="mb-3 flex items-start gap-3">
                   <span
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ring-1 ${
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-base ring-1 ${
                       section.accent === "cyan"
                         ? "bg-cyan-50 ring-cyan-100"
                         : section.accent === "violet"
@@ -639,7 +632,7 @@ export default function DogaltasKayitPage() {
                     {section.icon}
                   </span>
                   <div>
-                    <h3 className="text-xl font-black tracking-wide text-slate-950">{section.title}</h3>
+                    <h3 className="text-base font-black tracking-wide text-slate-950">{section.title}</h3>
                     <p className="mt-0.5 text-slate-500">{section.desc}</p>
                   </div>
                 </div>
@@ -655,14 +648,14 @@ export default function DogaltasKayitPage() {
             ))}
           </div>
 
-          <div className={`${uiCard} p-6`}>
-            <div className="mb-4 flex items-center justify-between gap-4">
+          <div className={`${uiCard} p-4`}>
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-2xl ring-1 ring-rose-100">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-lg ring-1 ring-rose-100">
                   ⚠️
                 </span>
                 <div>
-                  <h2 className="text-xl font-black tracking-wide text-slate-950">Uyarılar</h2>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">Uyarılar</h2>
                   <p className="mt-0.5 text-slate-500">Klinik ve güvenlik notları.</p>
                 </div>
               </div>
@@ -693,14 +686,14 @@ export default function DogaltasKayitPage() {
 
                 <div className="grid grid-cols-2 gap-2.5">
                   {warningTypes.map((warning) => (
-                    <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-3 px-4 py-3`}>
+                    <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-2.5 px-3 py-2`}>
                       <input
                         type="checkbox"
                         checked={selectedWarnings.includes(warning)}
                         onChange={() => toggleWarning(warning)}
                         className="h-5 w-5 accent-rose-600"
                       />
-                      <span className="text-[15px] font-bold text-slate-700">{warning}</span>
+                      <span className="text-[13px] font-bold text-slate-700">{warning}</span>
                     </label>
                   ))}
                 </div>
@@ -708,21 +701,21 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className={`${uiCard} p-6`}>
-            <div className="mb-4 flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-2xl ring-1 ring-emerald-100">
+          <div className={`${uiCard} p-4`}>
+            <div className="mb-3 flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-lg ring-1 ring-emerald-100">
                 🧘
               </span>
               <div>
-                <h2 className="text-xl font-black tracking-wide text-slate-950">Kullanım / Uygulama Alanları</h2>
+                <h2 className="text-base font-black tracking-wide text-slate-950">Kullanım / Uygulama Alanları</h2>
                 <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
               {usageSections.map((item) => (
-                <div key={item.key} className={`${uiPanel} p-5`}>
-                  <p className="mb-3 text-[15px] font-bold text-slate-800">{item.title}</p>
+                <div key={item.key} className={`${uiPanel} p-4`}>
+                  <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
 
                   <textarea
                     value={formData[item.key as keyof FormData]}
@@ -736,14 +729,14 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-            <div className={`${uiCard} p-6`}>
-              <div className="mb-4 flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-2xl ring-1 ring-indigo-100">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
+            <div className={`${uiCard} p-4`}>
+              <div className="mb-3 flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg ring-1 ring-indigo-100">
                   🔗
                 </span>
                 <div>
-                  <h2 className="text-xl font-black tracking-wide text-slate-950">Atamalar</h2>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
                   <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
                 </div>
               </div>
@@ -754,13 +747,13 @@ export default function DogaltasKayitPage() {
                     key={item.title}
                     type="button"
                     onClick={() => setAssignmentTitle(item.title)}
-                    className={`${uiPanel} flex w-full items-center justify-between px-5 py-4 text-left`}
+                    className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
                   >
                     <span className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-xl ring-1 ring-cyan-100">{item.icon}</span>
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">{item.icon}</span>
                       <span>
-                        <span className="block text-[15px] font-bold text-slate-800">{item.title}</span>
-                        <span className="block text-base text-slate-500">Düzenle / ekle</span>
+                        <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
+                        <span className="block text-xs text-slate-500">Düzenle / ekle</span>
                       </span>
                     </span>
                     <span className="text-lg font-black text-cyan-600">→</span>
@@ -769,27 +762,27 @@ export default function DogaltasKayitPage() {
               </div>
             </div>
 
-            <div className={`${uiCard} p-6`}>
-              <div className="mb-4 flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-2xl ring-1 ring-cyan-100">
+            <div className={`${uiCard} p-4`}>
+              <div className="mb-3 flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-lg ring-1 ring-cyan-100">
                   🌀
                 </span>
                 <div>
-                  <h2 className="text-xl font-black tracking-wide text-slate-950">Çakra Atama</h2>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">Çakra Atama</h2>
                   <p className="mt-0.5 text-slate-500">Desktop’taki checkbox yapısının web karşılığı.</p>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2.5">
                 {chakraOptions.map((chakra) => (
-                  <label key={chakra} className={`${uiPanel} flex cursor-pointer items-center gap-3 px-5 py-4`}>
+                  <label key={chakra} className={`${uiPanel} flex cursor-pointer items-center gap-3 px-4 py-2.5`}>
                     <input
                       type="checkbox"
                       checked={selectedChakras.includes(chakra)}
                       onChange={() => toggleChakra(chakra)}
                       className="h-5 w-5 accent-cyan-600"
                     />
-                    <span className="text-[15px] font-bold text-slate-700">{chakra}</span>
+                    <span className="text-[13px] font-bold text-slate-700">{chakra}</span>
                   </label>
                 ))}
               </div>
@@ -798,10 +791,10 @@ export default function DogaltasKayitPage() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-6 py-4 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-10 2xl:px-14">
-        <div className="flex w-full items-center justify-between gap-4">
-          <p className="text-base font-semibold text-slate-600">
-            Değişiklikleri kaydetmeden çıkarsanız bu sayfadaki taslak bilgiler kaybolabilir.
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 py-2.5 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
+        <div className="flex w-full items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-500">
+            Kaydedilmeden ayrılırsanız taslak kaybolabilir.
           </p>
 
           <div className="flex items-center gap-3">
