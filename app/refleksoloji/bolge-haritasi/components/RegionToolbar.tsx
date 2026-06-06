@@ -14,9 +14,9 @@ type RegionToolbarProps = {
 };
 
 const btnBase =
-  "inline-flex h-12 min-w-[110px] shrink-0 items-center justify-center rounded-2xl border px-6 text-sm font-bold shadow-md transition-all duration-200 hover:scale-[1.03]";
+  "inline-flex h-7 shrink-0 items-center justify-center rounded-lg border px-2.5 text-[11px] font-bold shadow-sm transition-all duration-200 hover:scale-[1.02]";
 
-const activeRing = "ring-2 ring-purple-300 scale-[1.03]";
+const activeRing = "ring-2 ring-purple-300 scale-[1.02]";
 
 function btnClass(idle: string, active: boolean) {
   return `${btnBase} ${idle} ${active ? activeRing : ""}`;
@@ -38,13 +38,13 @@ export function RegionToolbar({
   const isMove = toolMode === "move";
 
   return (
-    <div className="flex w-full shrink-0 justify-center px-8 pb-3">
+    <div className="flex w-full shrink-0 justify-center px-2 pb-2">
       <div
-        className="mx-auto w-fit max-w-[calc(100vw-120px)] rounded-[28px] border border-purple-100/90 bg-white/80 px-5 py-4 backdrop-blur-md"
+        className="w-full rounded-2xl border border-purple-100/90 bg-white/80 px-3 py-2 backdrop-blur-md"
         role="toolbar"
         aria-label="Bölge haritası araçları"
       >
-        <div className="flex flex-nowrap items-center justify-center gap-3 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:thin]">
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
         <button
           type="button"
           onClick={() => setToolMode("add")}
@@ -121,7 +121,7 @@ export function RegionToolbar({
           Temizle
         </button>
 
-        <span className="mx-1 hidden h-10 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"
@@ -147,7 +147,7 @@ export function RegionToolbar({
           Sağ Ayak
         </button>
 
-        <span className="mx-1 hidden h-10 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         <button
           type="button"

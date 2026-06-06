@@ -49,25 +49,15 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full max-w-none flex-col px-2 py-1.5 sm:px-3">
-        <div className="flex max-h-[90px] shrink-0 items-center gap-3 pb-1">
-          <Link
-            href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 border-violet-300/95 bg-white/90 px-3 py-2 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white hover:shadow-lg sm:px-3.5"
-          >
-            <span aria-hidden>←</span>
-            <span className="hidden sm:inline">Ana Menü</span>
-          </Link>
+      <div className="relative z-10 flex h-full w-full max-w-none flex-col px-2 py-1 sm:px-3">
+        <div className="flex max-h-[60px] shrink-0 items-center gap-2 pb-1">
           <header className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-violet-700/90 sm:text-xs">
+            <p className="text-[9px] font-black uppercase tracking-[0.26em] text-violet-700/90">
               Refleksoloji · Bölge Haritası
             </p>
-            <h1 className="truncate text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl">
+            <h1 className="truncate text-base font-black leading-tight tracking-tight text-slate-900 sm:text-lg">
               Bölge Haritası
             </h1>
-            <p className="line-clamp-1 text-sm font-medium text-slate-600">
-              Organ ekleyin, çizin, kaydedin — atlas localStorage&apos;a yazılır.
-            </p>
           </header>
         </div>
 

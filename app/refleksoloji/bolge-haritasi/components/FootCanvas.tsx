@@ -810,15 +810,15 @@ export function FootCanvas({
       className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md"
       aria-label="Ayak haritası çalışma alanı"
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100/80 px-3 py-1.5 sm:px-4">
-        <span className="inline-flex items-center gap-2.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-4 py-1.5 text-sm font-black tracking-wide text-violet-950 shadow-[0_6px_24px_-6px_rgba(91,33,182,0.32)] ring-1 ring-inset ring-white/95 backdrop-blur-md sm:px-5 sm:text-base">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-b border-violet-100/80 px-2.5 py-1 sm:px-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-2.5 py-0.5 text-xs font-black tracking-wide text-violet-950 shadow-[0_4px_14px_-4px_rgba(91,33,182,0.28)] ring-1 ring-inset ring-white/95 backdrop-blur-md">
           <span
-            className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-400 shadow-[0_0_8px_rgba(139,92,246,0.7)]"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-400 shadow-[0_0_6px_rgba(139,92,246,0.7)]"
             aria-hidden
           />
           {canvasBadge}
         </span>
-        <p className="text-sm font-semibold text-slate-700">
+        <p className="text-xs font-semibold text-slate-700">
           {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
           {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
           {isAddMode ? " · Çizim modu" : isMoveMode ? " · Düzenleme modu" : null}
