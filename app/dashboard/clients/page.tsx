@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -273,80 +272,62 @@ export default function ClientsPage() {
   }
 
   const inputClassName =
-    "h-16 w-full rounded-2xl border-2 border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
+    "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
 
   return (
-    <main className="relative flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.16),transparent_28%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.14),transparent_30%),radial-gradient(circle_at_50%_85%,rgba(45,212,191,0.12),transparent_32%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-6 py-8 text-slate-900 antialiased lg:px-10 xl:px-14">
+    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.16),transparent_28%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.14),transparent_30%),radial-gradient(circle_at_50%_85%,rgba(45,212,191,0.12),transparent_32%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-5 py-5 text-slate-900 antialiased sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-24 h-[480px] w-[480px] rounded-full bg-indigo-400/14 blur-[150px]" />
         <div className="absolute -right-20 top-0 h-[420px] w-[420px] rounded-full bg-pink-400/12 blur-[150px]" />
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-full flex-1 flex-col xl:max-w-[1760px]">
-      <header className="mb-10 flex flex-wrap items-start justify-between gap-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
+      <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-5 flex flex-wrap items-center gap-4">
-            <Link
-              href="/"
-              className="rounded-2xl border border-blue-200 bg-gradient-to-r from-slate-50 to-blue-50 px-6 py-4 font-black text-slate-800 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]"
-            >
-              ← Ana Panele Dön
-            </Link>
-
-            <button
-              type="button"
-              onClick={loadClients}
-              className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.03]"
-            >
-              Yenile
-            </button>
-          </div>
-
-          <h1 className="text-5xl font-black tracking-tight text-slate-950">Danışanlar</h1>
-
-          <p className="mt-3 max-w-3xl text-base text-slate-600">
+          <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Danışanlar</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
             Danışan kayıtları, doğum bilgileri, görüşme tarihleri, kan grubu ve mizaç bilgileri.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-          <div className="min-w-[130px] rounded-2xl border border-white/80 bg-white/80 px-6 py-4 text-center shadow-md backdrop-blur-sm">
-            <strong className="block text-3xl font-black text-slate-950">{clients.length}</strong>
-            <span className="mt-1 block text-sm font-bold uppercase tracking-wide text-slate-500">
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-[100px] rounded-xl border border-white/80 bg-white/80 px-4 py-3 text-center shadow-sm backdrop-blur-sm">
+            <strong className="block text-2xl font-black text-slate-950">{clients.length}</strong>
+            <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
               Danışan
             </span>
           </div>
 
           <div
-            className={`min-w-[130px] rounded-2xl border px-6 py-4 text-center shadow-md backdrop-blur-sm ${
+            className={`min-w-[100px] rounded-xl border px-4 py-3 text-center shadow-sm backdrop-blur-sm ${
               totalExpiredHomework > 0
                 ? "border-red-200/80 bg-red-50/90"
                 : "border-blue-200/80 bg-blue-50/90"
             }`}
           >
             <strong
-              className={`block text-3xl font-black ${
+              className={`block text-2xl font-black ${
                 totalExpiredHomework > 0 ? "text-red-600" : "text-blue-600"
               }`}
             >
               {totalExpiredHomework}
             </strong>
-            <span className="mt-1 block text-sm font-bold uppercase tracking-wide text-slate-500">
+            <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
               Aktif Uyarı
             </span>
           </div>
         </div>
       </header>
 
-      <section className="mb-8 flex gap-3 rounded-[28px] border border-white/80 bg-white/75 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <section className="mb-4 flex gap-2 rounded-xl border border-white/80 bg-white/75 p-2 shadow-md backdrop-blur-sm">
           <button
             type="button"
             onClick={() => setActiveMainTab("new")}
-            className={`rounded-2xl px-7 py-4 font-black transition-all ${
+            className={`rounded-lg px-5 py-2 text-sm font-black transition-all ${
               activeMainTab === "new"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"
-                : "border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 hover:scale-[1.03] hover:bg-emerald-100"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                : "border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 hover:scale-[1.02]"
             }`}
           >
             + Yeni Danışan Kaydı
@@ -355,10 +336,10 @@ export default function ClientsPage() {
           <button
             type="button"
             onClick={() => setActiveMainTab("list")}
-            className={`rounded-2xl px-7 py-4 font-black transition-all ${
+            className={`rounded-lg px-5 py-2 text-sm font-black transition-all ${
               activeMainTab === "list"
-                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
-                : "border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:scale-[1.03] hover:bg-blue-100"
+                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
+                : "border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:scale-[1.02]"
             }`}
           >
             Danışan Listesi
@@ -374,18 +355,18 @@ export default function ClientsPage() {
       ) : null}
 
       {activeMainTab === "new" && (
-        <section className="mb-6 max-w-full overflow-visible rounded-[36px] border border-emerald-200/80 bg-white/75 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-          <div className="mb-6">
-            <span className="inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
+        <section className="mb-4 overflow-visible rounded-2xl border border-emerald-200/80 bg-white/75 p-5 shadow-lg backdrop-blur-sm">
+          <div className="mb-4">
+            <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
               Yeni Danışan Kaydı
             </span>
-            <h2 className="mt-4 text-3xl font-black text-slate-950">Danışanı Kaydet</h2>
-            <p className="mt-2 text-base text-slate-600">
+            <h2 className="mt-2 text-xl font-black text-slate-950">Danışanı Kaydet</h2>
+            <p className="mt-1 text-xs text-slate-600">
               Doğum tarihi girilince burç otomatik hesaplanır.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Ad">
               <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} />
             </Field>
@@ -455,33 +436,33 @@ export default function ClientsPage() {
             type="button"
             onClick={saveClient}
             disabled={saving}
-            className="mt-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-8 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-1 hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
           </button>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
-              <p className="text-base font-black text-emerald-800">Kayıt güvenliği</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-3 shadow-sm">
+              <p className="text-sm font-black text-emerald-800">Kayıt güvenliği</p>
+              <p className="mt-1 text-xs font-medium text-slate-600">
                 Verileriniz güvenli şekilde saklanır.
               </p>
             </div>
-            <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
-              <p className="text-base font-black text-violet-800">Otomatik burç hesaplama</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-3 shadow-sm">
+              <p className="text-sm font-black text-violet-800">Otomatik burç hesaplama</p>
+              <p className="mt-1 text-xs font-medium text-slate-600">
                 Doğum tarihinden burç otomatik belirlenir.
               </p>
             </div>
-            <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
-              <p className="text-base font-black text-cyan-800">Danışan süreci</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">
+            <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-3 shadow-sm">
+              <p className="text-sm font-black text-cyan-800">Danışan süreci</p>
+              <p className="mt-1 text-xs font-medium text-slate-600">
                 Kayıt sonrası detay sayfasına geçebilirsiniz.
               </p>
             </div>
-            <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-md transition-all hover:-translate-y-1 hover:scale-[1.03]">
-              <p className="text-base font-black text-amber-800">Gizlilik</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">
+            <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3 shadow-sm">
+              <p className="text-sm font-black text-amber-800">Gizlilik</p>
+              <p className="mt-1 text-xs font-medium text-slate-600">
                 Kişisel veriler yalnızca yetkili kullanımdadır.
               </p>
             </div>
@@ -999,31 +980,31 @@ const mainTabButtonStyle: React.CSSProperties = {
 
 const panelStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.75)",
-  padding: 32,
-  borderRadius: 32,
-  marginBottom: 32,
+  padding: 20,
+  borderRadius: 16,
+  marginBottom: 16,
   border: "1px solid rgba(255,255,255,0.8)",
-  boxShadow: "0 25px 70px rgba(15,23,42,0.08)",
+  boxShadow: "0 8px 24px rgba(15,23,42,0.07)",
   backdropFilter: "blur(12px)",
 };
 
 const panelHeaderStyle: React.CSSProperties = {
-  marginBottom: 24,
+  marginBottom: 16,
 };
 
 const bluePillStyle: React.CSSProperties = {
   display: "inline-flex",
   background: "#dbeafe",
   color: "#1d4ed8",
-  padding: "6px 14px",
+  padding: "4px 10px",
   borderRadius: 999,
-  fontSize: 14,
+  fontSize: 12,
   fontWeight: 800,
 };
 
 const panelTitleStyle: React.CSSProperties = {
-  margin: "12px 0 8px",
-  fontSize: 30,
+  margin: "8px 0 4px",
+  fontSize: 18,
   fontWeight: 900,
   color: "#020617",
 };
@@ -1031,40 +1012,40 @@ const panelTitleStyle: React.CSSProperties = {
 const panelSubTextStyle: React.CSSProperties = {
   margin: 0,
   color: "#475569",
-  fontSize: 16,
+  fontSize: 13,
   lineHeight: 1.5,
 };
 
 const listPanelStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.75)",
-  padding: 32,
-  borderRadius: 32,
+  padding: 20,
+  borderRadius: 16,
   border: "1px solid rgba(255,255,255,0.8)",
-  boxShadow: "0 25px 70px rgba(15,23,42,0.08)",
+  boxShadow: "0 8px 24px rgba(15,23,42,0.07)",
   backdropFilter: "blur(12px)",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 28,
+  fontSize: 18,
   fontWeight: 900,
   marginTop: 0,
-  marginBottom: 20,
+  marginBottom: 14,
   color: "#020617",
 };
 
 const filterGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: 20,
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 14,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  height: 56,
-  padding: "0 16px",
-  borderRadius: 16,
+  height: 44,
+  padding: "0 14px",
+  borderRadius: 10,
   border: "1px solid #e2e8f0",
-  fontSize: 16,
+  fontSize: 14,
   outline: "none",
   background: "white",
   boxSizing: "border-box",
@@ -1086,18 +1067,18 @@ const loadingStyle: React.CSSProperties = {
 
 const cardsStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-  gap: 20,
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: 14,
 };
 
 const cardStyle: React.CSSProperties = {
-  padding: 24,
-  borderRadius: 24,
+  padding: 16,
+  borderRadius: 14,
   background: "white",
   border: "1px solid #e2e8f0",
   cursor: "pointer",
-  transition: "all 0.3s ease",
-  boxShadow: "0 12px 34px rgba(15,23,42,0.06)",
+  transition: "all 0.2s ease",
+  boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
 };
 
 const cardHeaderStyle: React.CSSProperties = {
@@ -1105,11 +1086,11 @@ const cardHeaderStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: 8,
-  marginBottom: 12,
+  marginBottom: 8,
 };
 
 const cardNameStyle: React.CSSProperties = {
-  fontSize: 22,
+  fontSize: 17,
   fontWeight: 900,
 };
 
@@ -1134,13 +1115,13 @@ const detailBadgeStyle: React.CSSProperties = {
 };
 
 const cardFooterStyle: React.CSSProperties = {
-  marginTop: 16,
+  marginTop: 10,
   display: "flex",
   justifyContent: "flex-end",
 };
 
 const cardMetaStyle: React.CSSProperties = {
-  marginTop: 8,
+  marginTop: 5,
   color: "#475569",
-  fontSize: 15,
+  fontSize: 13,
 };
