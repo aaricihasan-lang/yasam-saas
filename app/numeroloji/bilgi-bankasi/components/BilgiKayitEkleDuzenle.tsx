@@ -6,15 +6,15 @@ import { getKnowledgeRecord, saveKnowledgeRecord } from "../helpers/bilgiBankaKa
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
 
 const fieldBase =
-  "w-full rounded-2xl border-2 border-violet-200/90 bg-white px-6 font-medium text-slate-900 shadow-md outline-none ring-1 ring-purple-200 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/50";
+  "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
 
-const selectClass = `h-16 ${fieldBase} text-lg`;
+const selectClass = `h-9 ${fieldBase} text-sm`;
 
-const inputClass = `h-16 ${fieldBase} text-lg placeholder:text-slate-400`;
+const inputClass = `h-9 ${fieldBase} text-sm placeholder:text-slate-400`;
 
-const textareaClass = `${fieldBase} min-h-[300px] resize-y py-5 text-lg leading-relaxed placeholder:text-slate-400`;
+const textareaClass = `${fieldBase} min-h-[140px] resize-y py-2 text-sm leading-relaxed placeholder:text-slate-400`;
 
-const labelClass = "mb-3 block text-lg font-bold text-slate-800";
+const labelClass = "mb-1 block text-xs font-bold text-slate-700";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -133,8 +133,8 @@ export function BilgiKayitEkleDuzenle() {
   }
 
   return (
-    <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 p-10 shadow-xl ring-1 ring-purple-200 backdrop-blur-md">
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
+    <div className="rounded-2xl border border-violet-200/80 bg-white/95 p-4 shadow-sm ring-1 ring-purple-200/60 backdrop-blur-md">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
             Analiz Türü
@@ -219,18 +219,18 @@ export function BilgiKayitEkleDuzenle() {
             id="bilgi-aciklama"
             value={aciklamaMetni}
             onChange={(e) => setAciklamaMetni(e.target.value)}
-            rows={10}
-            placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
+            rows={6}
+            placeholder="Numeroloji açıklama ve yorum metnini buraya yazın..."
             className={textareaClass}
           />
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-4 border-t-2 border-violet-100/90 pt-8 sm:mt-10">
+      <div className="mt-4 flex flex-wrap gap-2.5 border-t border-violet-100/90 pt-4">
         <button
           type="button"
           onClick={handleYeni}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-200/90 bg-white px-8 py-3 text-base font-black uppercase tracking-wide text-violet-900 shadow-md ring-2 ring-violet-100/50 transition hover:border-violet-300 hover:bg-violet-50/80"
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
           Yeni
         </button>
@@ -238,9 +238,9 @@ export function BilgiKayitEkleDuzenle() {
           type="button"
           disabled={kaydediliyor}
           onClick={() => void handleKaydet()}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.45)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_6px_20px_-4px_rgba(91,33,182,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
+          {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
         </button>
       </div>
     </div>
