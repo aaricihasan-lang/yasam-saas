@@ -124,13 +124,6 @@ export default function RegisterPage() {
 
       <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-5 py-10 md:px-8">
         <div className="w-full max-w-[560px] md:max-w-[620px]">
-        <Link
-          href="/"
-          className="mb-6 inline-flex w-fit items-center gap-2 text-sm font-black text-violet-700 no-underline hover:text-violet-900"
-        >
-          ← Ana sayfaya dön
-        </Link>
-
         <div className="relative overflow-hidden rounded-[30px] border border-white/80 bg-white/92 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:p-10">
           <div className="pointer-events-none absolute right-[-70px] top-[-80px] h-[180px] w-[180px] rounded-full bg-violet-200/70 blur-3xl" />
           <div className="pointer-events-none absolute bottom-[-80px] left-[-80px] h-[180px] w-[180px] rounded-full bg-cyan-200/50 blur-3xl" />

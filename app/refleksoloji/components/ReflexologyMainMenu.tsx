@@ -184,7 +184,7 @@ function ReflexologyMainMenu() {
         <div className="absolute left-[48%] top-[38%] h-48 w-48 -translate-x-1/2 rounded-full bg-indigo-300/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex h-full w-[92vw] max-w-[1650px] flex-col px-4 py-2 sm:px-5 lg:px-6 lg:py-3">
+      <div className="relative z-10 flex h-full w-full flex-col px-4 py-2 sm:px-6 lg:px-8 xl:px-12 lg:py-3">
         <div className="flex shrink-0 items-start justify-between gap-4">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-violet-700/90 sm:text-[11px]">
@@ -201,13 +201,6 @@ function ReflexologyMainMenu() {
             </p>
           </header>
 
-          <Link
-            href="/"
-            className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-violet-200/90 bg-white/80 px-3.5 py-2 text-xs font-black text-violet-900 shadow-md ring-1 ring-white/70 backdrop-blur-sm transition hover:border-violet-300 hover:bg-white sm:px-4 sm:text-sm"
-          >
-            <span aria-hidden>←</span>
-            Ana Sayfaya Dön
-          </Link>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col justify-center pt-2 pb-3 lg:pt-3 lg:pb-4">

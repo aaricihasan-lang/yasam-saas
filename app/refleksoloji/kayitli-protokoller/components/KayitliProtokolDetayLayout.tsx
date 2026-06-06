@@ -292,7 +292,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         <div className="absolute bottom-0 left-[20%] h-64 w-64 rounded-full bg-cyan-200/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1800px] px-6 py-6 sm:px-8 lg:px-10">
+      <div className="relative z-10 w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
         <nav
           className="rounded-[24px] border-2 border-violet-200/70 bg-white/70 p-4 shadow-[0_12px_36px_-14px_rgba(139,92,246,0.25)] ring-1 ring-violet-100/80 backdrop-blur-md sm:p-5"
           aria-label="Sayfa gezintisi"
@@ -308,7 +308,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               <span className={navBtnIconWrap} aria-hidden>
                 ←
               </span>
-              <span>Refleksoloji Ana Sayfasına Dön</span>
+              <span>Refleksoloji&apos;ye Dön</span>
             </Link>
             <Link
               href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}

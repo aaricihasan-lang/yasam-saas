@@ -48,61 +48,51 @@ export default function EnerjiBedenPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto flex h-full min-h-[calc(100vh-90px)] w-[98vw] max-w-none flex-col overflow-hidden px-6 py-5">
-        <Link
-          href="/"
-          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-6 py-3 text-base font-semibold text-white shadow-md transition duration-200 hover:border-cyan-300/40 hover:bg-white/15"
-        >
-          <span className="text-xl leading-none" aria-hidden>
-            ←
-          </span>
-          Ana Sayfaya Dön
-        </Link>
-
-        <header className="shrink-0 py-6 text-center">
-          <p className="text-sm font-bold uppercase tracking-[8px] text-cyan-300/90">
+      <div className="relative z-10 flex h-full min-h-[calc(100vh-90px)] w-full flex-col overflow-hidden px-4 py-4 sm:px-6 xl:px-10">
+        <header className="shrink-0 py-4 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-cyan-300/90">
             YAŞAM SİSTEMİ
           </p>
-          <h1 className="mt-4 bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-blue-400 bg-clip-text text-7xl font-black tracking-tight text-transparent">
-            Enerji & Beden
+          <h1 className="mt-2 bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-blue-400 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl xl:text-6xl">
+            Enerji &amp; Beden
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
             Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları
           </p>
           <div
-            className="mx-auto mt-6 h-1 w-[500px] max-w-full rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent"
+            className="mx-auto mt-4 h-1 w-full max-w-sm rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent"
             aria-hidden
           />
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-8 pb-2 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-5 pb-2 lg:grid-cols-3">
           {energyFolders.map((folder) => (
             <Link
               key={folder.title}
               href={folder.href}
-              className={`group flex h-[520px] max-h-full flex-col overflow-hidden rounded-3xl border bg-gradient-to-br shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${folder.gradient} ${folder.border}`}
+              className={`group flex h-auto flex-col overflow-hidden rounded-2xl border bg-gradient-to-br shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${folder.gradient} ${folder.border}`}
             >
-              <div className="flex flex-1 flex-col items-center justify-center px-8 pt-10 text-center">
+              <div className="flex flex-1 flex-col items-center justify-center px-5 pt-6 text-center">
                 <span
-                  className="flex h-32 w-32 items-center justify-center rounded-[28px] bg-white/60 text-7xl shadow-sm"
+                  className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/60 text-4xl shadow-sm"
                   aria-hidden
                 >
                   {folder.icon}
                 </span>
                 <span
-                  className={`mt-6 rounded-full bg-white/60 px-4 py-1 text-xs font-bold backdrop-blur ${folder.accent}`}
+                  className={`mt-4 rounded-full bg-white/60 px-3 py-0.5 text-xs font-bold backdrop-blur ${folder.accent}`}
                 >
                   {folder.badge}
                 </span>
-                <h2 className={`mt-5 text-3xl font-bold ${folder.accent}`}>{folder.title}</h2>
-                <p className="mt-4 max-w-xs text-base leading-relaxed text-slate-700/90">
+                <h2 className={`mt-3 text-2xl font-bold ${folder.accent}`}>{folder.title}</h2>
+                <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-700/90">
                   {folder.desc}
                 </p>
               </div>
 
-              <div className="shrink-0 p-8 pt-0">
+              <div className="shrink-0 p-5 pt-4">
                 <span
-                  className={`block w-full rounded-2xl py-4 text-center text-base font-bold shadow-md transition ${folder.button}`}
+                  className={`block w-full rounded-xl py-2.5 text-center text-sm font-bold shadow-md transition ${folder.button}`}
                 >
                   Klasöre Git →
                 </span>

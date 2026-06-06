@@ -342,7 +342,7 @@ export default function AjandaPage() {
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
+      <div className="relative z-10 w-full">
         <header className="mb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

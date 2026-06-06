@@ -186,7 +186,7 @@ export default function DanisanYolculuguPage() {
         <div className="absolute -right-24 -top-16 h-72 w-72 rounded-full bg-pink-300/12 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px]">
+      <div className="relative z-10 w-full">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_1fr] lg:items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-4">

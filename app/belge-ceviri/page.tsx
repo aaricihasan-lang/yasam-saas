@@ -325,16 +325,10 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-sky-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1800px] px-4 pb-24 pt-5 sm:px-6 lg:px-6 xl:px-8 2xl:px-10 lg:pt-7">
+      <div className="relative z-10 w-full px-4 pb-24 pt-5 sm:px-6 lg:px-8 xl:px-12 lg:pt-7">
 
         {/* nav */}
-        <nav className="mb-8 flex items-center justify-between gap-4" aria-label="Üst navigasyon">
-          <Link href="/"
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-violet-200/80 bg-white/90 px-5 text-sm font-bold text-slate-700 shadow-sm no-underline transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md">
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-            Ana Panele Dön
-          </Link>
-
+        <nav className="mb-8 flex items-center justify-end gap-4" aria-label="Üst navigasyon">
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}

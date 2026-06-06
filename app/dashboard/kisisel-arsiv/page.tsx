@@ -973,13 +973,13 @@ export default function KisiselArsivPage() {
   }
 
   const searchInputClass =
-    "h-14 w-full rounded-2xl border-2 border-violet-200 bg-white/90 py-0 pl-11 pr-5 text-base font-semibold text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
+    "h-9 w-full rounded-xl border-2 border-violet-200 bg-white/90 py-0 pl-9 pr-4 text-sm font-semibold text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-300/30";
 
   const modalLabelClass =
     "mb-2 block text-[13px] font-semibold tracking-tight text-slate-800";
 
   const modalFieldClass =
-    "w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-[14px] font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+    "h-9 w-full rounded-xl border border-slate-300 bg-white px-3 py-0 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
 
   const searchLabelClass =
     "mb-2 block text-sm font-black tracking-[0.18em] text-slate-600";
@@ -1003,33 +1003,24 @@ export default function KisiselArsivPage() {
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
 
       <div className="relative z-10 flex w-full flex-col gap-6 px-6 py-6 xl:px-10 2xl:px-14">
-        <div>
-          <Link
-            href="/"
-            className="inline-flex h-14 items-center gap-2 rounded-2xl border-2 border-violet-200 bg-white px-8 text-base font-black text-slate-800 shadow-md transition-all hover:scale-[1.03] hover:bg-violet-50"
-          >
-            ← Ana panele dön
-          </Link>
-        </div>
-
-        <header className="rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl">
+        <header className="rounded-2xl border-2 border-violet-300/45 bg-white/75 p-5 shadow-[0_0_30px_rgba(139,92,246,0.12)] backdrop-blur-xl">
           <div>
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
                 <div
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-violet-200/80 bg-gradient-to-br from-violet-100 to-sky-100 text-4xl shadow-lg shadow-violet-300/40 ring-2 ring-white/90 sm:h-20 sm:w-20 sm:text-[2.75rem]"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-100 to-sky-100 text-2xl shadow-md ring-2 ring-white/90"
                   aria-hidden
                 >
                   📁
                 </div>
                 <div className="min-w-0">
-                  <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
+                  <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black tracking-[0.18em] text-violet-700">
                     ARŞİV
                   </div>
-                  <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+                  <h1 className="mt-1.5 text-3xl font-black tracking-tight text-slate-950 xl:text-4xl">
                     Kişisel Arşiv
                   </h1>
-                  <p className="mt-3 text-lg font-medium text-slate-600 xl:text-xl">
+                  <p className="mt-1 text-sm font-medium text-slate-600">
                     Ses • Video • Belge • Resim • Not • Her türlü kişisel kayıt
                   </p>
                 </div>
@@ -1041,29 +1032,29 @@ export default function KisiselArsivPage() {
                     setInfo(null);
                     setIsCreateModalOpen(true);
                   }}
-                  className="shrink-0 self-start rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-7 py-4 font-black text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 hover:-translate-y-1"
+                  className="shrink-0 self-start rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-2 text-sm font-black text-white shadow-md transition-all duration-300 hover:-translate-y-0.5"
                 >
                   + Yeni Kayıt
                 </button>
               ) : null}
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
-                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Toplam Kayıt</p>
-                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border-2 border-cyan-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-xs font-black tracking-[0.16em] text-slate-500">Toplam Kayıt</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-violet-700">
                   {stats.totalArchives}
                 </p>
               </div>
-              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
-                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Toplam Dosya</p>
-                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
+              <div className="rounded-xl border-2 border-cyan-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-xs font-black tracking-[0.16em] text-slate-500">Toplam Dosya</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-violet-700">
                   {stats.totalFiles}
                 </p>
               </div>
-              <div className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md">
-                <p className="text-sm font-black tracking-[0.16em] text-slate-500">Kategori</p>
-                <p className="mt-2 text-3xl font-black tabular-nums text-violet-700">
+              <div className="rounded-xl border-2 border-cyan-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-xs font-black tracking-[0.16em] text-slate-500">Kategori</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-violet-700">
                   {stats.categoryKinds}
                 </p>
               </div>

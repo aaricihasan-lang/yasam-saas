@@ -282,7 +282,7 @@ export default function ClientsPage() {
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
+      <div className="relative z-10 w-full">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Danışanlar</h1>
