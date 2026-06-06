@@ -264,13 +264,13 @@ const uiCategorySelect =
 const uiViewBtn =
   "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiComboCard =
-  "relative flex flex-col overflow-hidden rounded-[18px] border-[3px] border-cyan-300/45 bg-white/80 p-4 shadow-[0_0_28px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_38px_rgba(139,92,246,0.16)]";
+  "relative flex flex-col overflow-hidden rounded-[14px] border-[3px] border-cyan-300/45 bg-white/80 p-3 shadow-[0_0_22px_rgba(34,211,238,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_30px_rgba(139,92,246,0.14)]";
 const uiComboBadge =
-  "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1 text-xs font-black text-white shadow-sm";
+  "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-black text-white shadow-sm";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900";
+  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-900";
 const uiComboBtn =
-  "mt-3 inline-flex w-fit items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-md transition hover:bg-violet-700";
+  "mt-2 inline-flex w-fit items-center justify-center rounded-lg bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700";
 const uiSelectActionBtn =
   "min-h-[32px] rounded-xl border-2 px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
@@ -906,7 +906,7 @@ export default function KombinasyonlarPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {groups.map(({ issue, rows: groupRows }) => {
                 const sourceLine = firstSourceInGroup(groupRows);
                 const category = groupDescription(groupRows);
@@ -942,7 +942,7 @@ export default function KombinasyonlarPage() {
                       />
                     ) : null}
                     <div
-                      className={`absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg bg-white/90 px-2 py-1 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-5" : ""}`}
+                      className={`absolute left-2 top-2 z-10 flex items-center gap-1.5 rounded-md bg-white/90 px-1.5 py-0.5 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-4" : ""}`}
                     >
                       <input
                         type="checkbox"
@@ -950,28 +950,28 @@ export default function KombinasyonlarPage() {
                         onChange={() => toggleGroupSelection(issue)}
                         onClick={(event) => event.stopPropagation()}
                         aria-label={`${issue} seç`}
-                        className={uiRowCheckbox}
+                        className="h-4 w-4 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40"
                       />
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
                         Seç
                       </span>
                     </div>
-                    <div className={`flex gap-3 pt-8 ${isViewedInSearch ? "pl-2" : ""}`}>
+                    <div className={`flex gap-2 pt-6 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_5px_14px_rgba(139,92,246,0.10)] ring-1 ring-white/90"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_10px_rgba(139,92,246,0.08)] ring-1 ring-white/90"
                         aria-hidden
                       >
                         ✦
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                        <div className="mb-1 flex flex-wrap items-center gap-1">
                           <span className={uiComboBadge}>{count} kombinasyon</span>
                           {isSearchActive ? (
-                            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">🔎 Eşleşme</span>
                           ) : null}
                           {isViewedInSearch ? (
-                            <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
                               Bakıldı
                             </span>
                           ) : null}
@@ -984,13 +984,13 @@ export default function KombinasyonlarPage() {
                           ) : null}
                         </div>
 
-                        <h2 className="mt-2 text-lg font-black text-slate-950">
+                        <h2 className="mt-1 text-sm font-black text-slate-950">
                           {isSearchActive
                             ? renderHighlightedText(issue, activeSearch)
                             : issue}
                         </h2>
 
-                        <p className="mt-2 line-clamp-2 text-sm font-bold text-cyan-700">
+                        <p className="mt-1 line-clamp-1 text-[11px] font-bold text-cyan-700">
                           {sourceLine ? (
                             <>
                               <span>Kaynak: </span>
@@ -1003,13 +1003,13 @@ export default function KombinasyonlarPage() {
                           )}
                         </p>
 
-                        <p className="mt-2 flex-1 text-sm leading-6 text-slate-700">
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-600">
                           {isSearchActive
                             ? renderHighlightedText(preview, activeSearch)
                             : preview}
                         </p>
 
-                        <p className="mt-2 text-sm font-medium text-slate-500">
+                        <p className="mt-1 text-[10px] font-medium text-slate-400">
                           {ts ? `Son kayıt: ${formatListCardDate(ts)}` : "Son kayıt: —"}
                         </p>
 
