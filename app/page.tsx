@@ -362,7 +362,7 @@ const dashboardModules: ModuleCard[] = [
     desc: "Kapı, kanal, merkez, tip ve otorite yorumları — Bilgi Bankası yönetimi",
     count: "Aktif",
     badge: "YENİ",
-    href: "/human-design/bilgi-bankasi",
+    href: "/human-design",
     permissionKey: "human_design",
     Icon: Compass,
     theme: {
