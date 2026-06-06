@@ -47,37 +47,23 @@ export function KayitliProtokollerLayout() {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-none px-6 py-6 xl:px-10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-4">
-            <Link
-              href="/refleksoloji"
-              className="inline-flex w-full shrink-0 items-center justify-center gap-3 rounded-2xl border-2 border-violet-400/50 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_14px_36px_-10px_rgba(91,33,182,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.04] hover:border-violet-300/70 hover:shadow-[0_18px_44px_-8px_rgba(139,92,246,0.7)] hover:shadow-violet-500/30 sm:w-auto sm:justify-start sm:px-7 sm:py-4 sm:text-[17px]"
-            >
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
-                aria-hidden
-              >
-                🏠
-              </span>
-              <span>← Refleksoloji Ana Menü</span>
-            </Link>
-            <header className="min-w-0">
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
-                Refleksoloji · Kayıtlı Protokoller
-              </p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                Kayıtlı Protokoller
-              </h1>
-              <p className="mt-1 max-w-3xl text-base font-medium text-slate-600 sm:text-lg">
-                Supabase protokol kütüphanesinden {protocols.length} kayıt listeleniyor.
-              </p>
-            </header>
-          </div>
+      <div className="relative z-10 w-full px-4 py-4 lg:px-8 xl:px-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <header className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
+              Refleksoloji &middot; Kayıtlı Protokoller
+            </p>
+            <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
+              Kayıtlı Protokoller
+            </h1>
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
+              {protocols.length} kayıt listeleniyor.
+            </p>
+          </header>
 
           <Link
             href="/refleksoloji/protokol-haritasi"
-            className="shrink-0 rounded-xl border border-emerald-300/80 bg-emerald-500 px-5 py-3 text-base font-bold text-white shadow-md transition hover:bg-emerald-600"
+            className="shrink-0 rounded-xl border border-emerald-300/80 bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
           >
             + Yeni Protokol Oluştur
           </Link>
@@ -85,7 +71,7 @@ export function KayitliProtokollerLayout() {
 
         {loadErrorMessage ? (
           <p
-            className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-base font-semibold text-rose-900"
+            className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
             role="alert"
           >
             {loadErrorMessage}
@@ -93,36 +79,36 @@ export function KayitliProtokollerLayout() {
         ) : null}
 
         {protocols.length > 0 ? (
-          <div className="mt-6">
+          <div className="mt-3">
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Başlık, hedef, organ veya nota göre ara..."
-              className="w-full max-w-xl rounded-xl border border-violet-200/90 bg-white/90 px-4 py-3 text-base font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2"
+              className="h-9 w-full rounded-xl border border-violet-200/90 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2"
             />
           </div>
         ) : null}
 
         {!loadErrorMessage && protocols.length === 0 ? (
-          <section className="mt-8 flex flex-col items-center justify-center rounded-[28px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-20 text-center shadow-sm ring-1 ring-violet-100/60">
-            <p className="text-2xl font-bold text-violet-900">Henüz protokol yok</p>
-            <p className="mt-3 max-w-lg text-base font-medium text-slate-600">
+          <section className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/60">
+            <p className="text-lg font-bold text-violet-900">Henüz protokol yok</p>
+            <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
               Toplu veri aktarımı veya Protokol Haritası ile yeni kayıt ekleyebilirsiniz.
             </p>
             <Link
               href="/refleksoloji/protokol-haritasi"
-              className="mt-6 rounded-xl border border-emerald-300/80 bg-emerald-500 px-6 py-3 text-base font-bold text-white shadow-md transition hover:bg-emerald-600"
+              className="mt-4 rounded-xl border border-emerald-300/80 bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
             >
               + Yeni Protokol Oluştur
             </Link>
           </section>
         ) : !loadErrorMessage && filtered.length === 0 ? (
-          <p className="mt-8 rounded-2xl border border-violet-100 bg-white/80 px-6 py-10 text-center text-base font-medium text-slate-600">
+          <p className="mt-5 rounded-xl border border-violet-100 bg-white/80 px-5 py-6 text-center text-sm font-medium text-slate-600">
             Aramanızla eşleşen protokol bulunamadı.
           </p>
         ) : !loadErrorMessage ? (
-          <section className="mt-6 grid grid-cols-1 gap-5 pb-10 md:grid-cols-2 xl:grid-cols-3">
+          <section className="mt-3 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((protocol) => (
               <ProtocolListCard
                 key={protocol.id}
