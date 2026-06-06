@@ -193,7 +193,7 @@ function ListSkeletonRows({ count = 6 }: { count?: number }) {
       {Array.from({ length: count }, (_, i) => (
         <div
           key={`sk-${i}`}
-          className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-5 py-5"
+          className="grid grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 px-4 py-3"
         >
           <div className="h-5 w-5 animate-pulse rounded-md bg-slate-200" />
           <div className="flex gap-3">
@@ -216,27 +216,27 @@ function ListSkeletonRows({ count = 6 }: { count?: number }) {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-4 py-6 sm:px-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-4 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg sm:p-6 lg:p-8";
+  "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg";
 const uiFilterCard =
-  "rounded-[30px] border-[3px] border-violet-300/45 bg-white/90 p-5 shadow-md";
+  "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md";
 const uiTableCard =
-  "w-full min-h-[520px] overflow-hidden rounded-[34px] border-[3px] border-cyan-400/45 bg-white/92 shadow-lg";
+  "w-full min-h-[360px] overflow-hidden rounded-[22px] border-[3px] border-cyan-400/45 bg-white/92 shadow-lg";
 const uiSearchInput =
-  "h-14 w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-5 pl-12 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "h-10 w-full rounded-xl border-2 border-cyan-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiViewBtn =
-  "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
+  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
-  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-2 py-3 text-center shadow-md sm:px-5 sm:py-4 lg:px-8";
+  "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
 const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiDeleteBtn =
-  "min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-5 py-3 font-black text-red-600 shadow-sm transition hover:bg-red-100";
+  "min-h-[32px] rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100";
 const uiSelectActionBtn =
-  "min-h-[44px] rounded-2xl px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[32px] rounded-xl px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
@@ -528,66 +528,39 @@ function DogaltasListesiPageContent() {
       <div className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-cyan-700">
+            <div className="mb-1.5 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
               💎 DOĞALTAŞ KÜTÜPHANESİ
             </div>
 
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">
               Doğaltaş Listesi
             </h1>
 
-            <p className="mt-2 text-sm font-medium text-slate-600 sm:mt-3 sm:text-base lg:text-lg xl:text-xl">
+            <p className="mt-1 text-sm font-medium text-slate-600">
               Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
             </p>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/"
-                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-black text-slate-700 shadow-md transition hover:bg-cyan-50 sm:h-14 sm:px-6"
-              >
-                <svg
-                  aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
-                </svg>
-                <span className="truncate">Ana Panele Dön</span>
-              </Link>
-
-              <Link
-                href="/dogaltas"
-                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-xl border-2 border-cyan-200 bg-cyan-50 px-4 font-black text-slate-700 shadow-sm transition hover:bg-cyan-100 sm:h-14 sm:px-6"
-              >
-                <span className="shrink-0 text-base leading-none" aria-hidden>
-                  💎
-                </span>
-                <span className="truncate">Doğaltaş Sayfasına Dön</span>
-              </Link>
-            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
+          <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-2xl">{totalCount}</div>
+              <div className="text-lg font-black text-slate-950">{totalCount}</div>
               <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-2xl">{stones.length}</div>
+              <div className="text-lg font-black text-slate-950">{stones.length}</div>
               <div className="text-xs font-bold text-slate-500">Yüklü</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-2xl">{loadedImages}</div>
+              <div className="text-lg font-black text-slate-950">{loadedImages}</div>
               <div className="text-xs font-bold text-slate-500">Görsel (yüklü)</div>
             </div>
           </div>
         </header>
 
         <section className={uiFilterCard}>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <form
               className="relative w-full"
               onSubmit={(event) => event.preventDefault()}
@@ -610,7 +583,7 @@ function DogaltasListesiPageContent() {
               />
             </form>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
@@ -633,14 +606,6 @@ function DogaltasListesiPageContent() {
                 }`}
               >
                 Kart
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className={`${uiViewBtn} border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
-              >
-                Yenile
               </button>
 
               <Link
@@ -669,8 +634,8 @@ function DogaltasListesiPageContent() {
           </div>
 
           {!listLoading && filteredStones.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-800 shadow-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800 shadow-sm">
                 Seçili: {selectedCount}
               </span>
               <button
@@ -773,7 +738,7 @@ function DogaltasListesiPageContent() {
           ) : viewMode === "list" ? (
             <div>
               {/* Column headers — desktop only */}
-              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-5 py-5 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
+              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
                 <div className="w-8" aria-hidden />
                 <div>Taş</div>
                 <div>Açıklama</div>
@@ -871,7 +836,7 @@ function DogaltasListesiPageContent() {
 
                       {/* Desktop row: all 7 columns */}
                       <div
-                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-5 py-5 transition-colors hover:bg-cyan-50/70 md:grid ${
+                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-4 py-3 transition-colors hover:bg-cyan-50/70 md:grid ${
                           isSelected ? "bg-violet-50/60" : ""
                         } ${
                           isViewedInSearch
@@ -904,7 +869,7 @@ function DogaltasListesiPageContent() {
                           }}
                           className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
                         >
-                          <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-cyan-50 ring-1 ring-cyan-100">
                             {coverImageUrl ? (
                               <img
                                 src={coverImageUrl}
@@ -931,7 +896,7 @@ function DogaltasListesiPageContent() {
                                 ) : null}
                               </div>
                             ) : null}
-                            <div className="truncate text-base font-black text-slate-950 xl:text-lg">
+                            <div className="truncate text-sm font-black text-slate-950 xl:text-base">
                               {isSearchActive
                                 ? renderHighlightedText(displayName, activeSearch)
                                 : displayName}
@@ -1026,7 +991,7 @@ function DogaltasListesiPageContent() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredStones.map((stone) => {
                 const imageCount = stoneListImageCount(stone.images);
                 const coverImageUrl = getFirstStoneImageUrl(stone.images);
@@ -1040,7 +1005,7 @@ function DogaltasListesiPageContent() {
                 return (
                   <div
                     key={stone.id}
-                    className={`relative overflow-hidden rounded-[28px] border-[3px] bg-white/85 p-5 text-left shadow-[0_0_35px_rgba(34,211,238,0.12)] transition-all duration-300 hover:-translate-y-1 ${
+                    className={`relative overflow-hidden rounded-[18px] border-[3px] bg-white/85 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.10)] transition-all duration-300 hover:-translate-y-0.5 ${
                       isSelected
                         ? "border-violet-400/70 bg-violet-50/50"
                         : "border-cyan-300/40 hover:border-violet-300/50"
@@ -1176,7 +1141,7 @@ function DogaltasListesiPageContent() {
           )}
 
           {hasMore && filteredStones.length > 0 ? (
-            <div className="flex justify-center border-t border-cyan-100 bg-white/80 px-5 py-6">
+            <div className="flex justify-center border-t border-cyan-100 bg-white/80 px-5 py-4">
               <button
                 type="button"
                 disabled={loadingMore || listLoading}
