@@ -145,9 +145,6 @@ const journeyFolders: {
   },
 ];
 
-const uiBackHomeBtn =
-  "inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 ring-1 ring-white/30 transition duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-violet-500/35 sm:w-auto sm:justify-start";
-
 function SummaryStatCard({
   label,
   value,
@@ -182,7 +179,7 @@ function SummaryStatCard({
 
 export default function DanisanYolculuguPage() {
   return (
-    <main className="relative min-h-screen w-full bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-5 py-5 text-slate-900 antialiased sm:px-8 lg:px-10 xl:px-12">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f7f2ff_45%,#fff3fb_100%)] px-5 py-4 text-slate-900 antialiased sm:px-8 lg:px-10 xl:px-12">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.09),transparent_30%)]" />
         <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-blue-400/15 blur-3xl" />
@@ -190,17 +187,7 @@ export default function DanisanYolculuguPage() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px]">
-        <Link href="/" className={uiBackHomeBtn}>
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/30 bg-white/20 text-sm"
-            aria-hidden
-          >
-            ←
-          </span>
-          <span>Ana Sayfaya Dön</span>
-        </Link>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_1fr] lg:items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-4">
             {/* Hero Header */}
