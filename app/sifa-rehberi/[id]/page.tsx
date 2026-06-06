@@ -679,7 +679,7 @@ export default function SifaRehberiDetailPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-        <div className="mx-auto flex max-w-[1380px] items-center justify-center px-5 py-24">
+        <div className="flex w-full items-center justify-center px-4 py-24 lg:px-8">
           <p className="text-[15px] font-bold text-slate-500">Yükleniyor...</p>
         </div>
       </main>
@@ -689,7 +689,7 @@ export default function SifaRehberiDetailPage() {
   if (notFound || !record || !draft) {
     return (
       <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-        <div className="mx-auto max-w-[1380px] px-5 py-10">
+        <div className="w-full px-4 py-10 lg:px-8 xl:px-12">
           <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white/72 p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
             <div className="text-[52px]">✶</div>
             <h1 className="mt-3 text-[22px] font-black text-slate-900">Kayıt bulunamadı</h1>
@@ -711,7 +711,7 @@ export default function SifaRehberiDetailPage() {
 
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="mx-auto max-w-[1380px] px-5 py-4">
+      <div className="w-full px-4 py-4 lg:px-8 xl:px-12">
         <header className="mb-4 rounded-[28px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-white/80 lg:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">

@@ -297,24 +297,24 @@ function pageViewFromQueryParam(value: string | null): PageView | null {
 }
 
 const uiMenuCardBase =
-  "group relative flex h-[360px] w-full flex-col overflow-hidden rounded-[30px] border-2 p-8 text-left shadow-[0_14px_40px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_22px_55px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 lg:p-10";
+  "group relative flex h-auto min-h-[200px] w-full flex-col overflow-hidden rounded-2xl border-2 p-5 text-left shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_14px_36px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 lg:p-6";
 
 const uiMenuBadge =
   "inline-flex rounded-full border bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm";
 
-const uiMenuTitle = "text-[22px] font-black leading-tight tracking-tight text-slate-950 lg:text-2xl";
+const uiMenuTitle = "text-lg font-black leading-tight tracking-tight text-slate-950";
 
 const uiMenuDesc =
-  "mt-2 max-w-[300px] text-sm font-medium leading-snug text-slate-600 line-clamp-2";
+  "mt-1 text-xs font-medium leading-snug text-slate-600 line-clamp-2";
 
 function NewRecordMenuIcon() {
   return (
     <span
-      className="relative flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border border-emerald-200/80 bg-white/80 text-[42px] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
+      className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-200/80 bg-white/80 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
       aria-hidden
     >
       <span className="leading-none">🌿</span>
-      <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-base font-black text-white shadow-md ring-2 ring-white">
+      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-xs font-black text-white shadow-md ring-2 ring-white">
         +
       </span>
     </span>
@@ -324,7 +324,7 @@ function NewRecordMenuIcon() {
 function ListMenuIcon() {
   return (
     <span
-      className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border border-violet-200/80 bg-white/80 text-[42px] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
+      className="flex h-12 w-12 items-center justify-center rounded-xl border border-violet-200/80 bg-white/80 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
       aria-hidden
     >
       📚
@@ -384,14 +384,14 @@ function MenuChoiceCard({
           <span className={`${uiMenuBadge} ${badgeTone}`}>{badgeLabel}</span>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-1 py-3 text-center">
-          <div className="mb-3 shrink-0">{icon}</div>
+        <div className="flex flex-1 flex-col items-center justify-center px-1 py-2 text-center">
+          <div className="mb-2 shrink-0">{icon}</div>
           <h2 className={uiMenuTitle}>{title}</h2>
           <p className={uiMenuDesc}>{description}</p>
         </div>
 
-        <div className="shrink-0 space-y-3">
-          <div className="flex min-h-[26px] flex-wrap items-center justify-center gap-2">
+        <div className="shrink-0 space-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
             {statBadges.map((badge) => (
               <span key={badge.label} className={menuStatBadgeClass(badge)}>
                 {badge.label}
@@ -399,7 +399,7 @@ function MenuChoiceCard({
             ))}
           </div>
           <span
-            className={`block w-full rounded-2xl py-3.5 text-center text-[15px] font-black shadow-md ring-1 transition group-hover:brightness-105 ${ctaTone}`}
+            className={`block w-full rounded-xl py-2 text-center text-[13px] font-black shadow-md ring-1 transition group-hover:brightness-105 ${ctaTone}`}
           >
             {ctaLabel}
           </span>
@@ -893,7 +893,7 @@ function SifaRehberiContent() {
 
             <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white/85 shadow-xl">
               <div className={`${newViewScrollArea} p-6`}>
-                <div className="mx-auto max-w-5xl space-y-5 pb-4">
+                <div className="space-y-4 pb-4">
                   {formTab === "rahatsizlik" ? (
                     <>
                       <header className="border-b border-emerald-100/80 pb-4">
@@ -1127,10 +1127,10 @@ function SifaRehberiContent() {
             <h1
               className={
                 isMenuView
-                  ? "text-3xl font-black tracking-tight text-slate-950 lg:text-4xl"
+                  ? "text-2xl font-black tracking-tight text-slate-950 lg:text-3xl"
                   : isListView
-                    ? "text-4xl font-black tracking-tight text-slate-950 xl:text-5xl"
-                    : "text-5xl font-black tracking-tight text-slate-950 xl:text-6xl"
+                    ? "text-2xl font-black tracking-tight text-slate-950"
+                    : "text-3xl font-black tracking-tight text-slate-950 xl:text-4xl"
               }
             >
               Şifa Rehberi
@@ -1150,24 +1150,6 @@ function SifaRehberiContent() {
                 : "Kayıtlı şifa rehberlerinizi arayın, listeleyin ve detaylarını açın."}
             </p>
 
-            <Link
-              href="/"
-              className={
-                isMenuView || isListView
-                  ? "mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-800 shadow-sm transition hover:bg-emerald-50"
-                  : "mt-4 inline-flex items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md transition hover:bg-emerald-50"
-              }
-            >
-              <svg
-                aria-hidden
-                className={`shrink-0 text-emerald-600 ${isMenuView || isListView ? "h-3.5 w-3.5" : "h-4 w-4"}`}
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
-              </svg>
-              <span className="truncate">Ana Panele Dön</span>
-            </Link>
           </div>
 
           <div
@@ -1266,7 +1248,7 @@ function SifaRehberiContent() {
 
         {pageView === "menu" ? (
           <section className="flex min-h-0 flex-1 items-center justify-center">
-            <div className="grid w-full max-w-[1280px] grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-6">
+            <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
               <MenuChoiceCard
                 onClick={openNewRecord}
                 cardTone="border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70"
