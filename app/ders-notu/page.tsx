@@ -153,31 +153,31 @@ export default function DersNotuPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-emerald-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[35%] h-64 w-64 rounded-full bg-cyan-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pb-24 pt-5 sm:px-6 lg:px-8 xl:px-12 lg:pt-7">
+      <div className="relative z-10 w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8 xl:px-12">
 
         {/* header */}
-        <header className="mb-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/80 bg-teal-50/95 px-5 py-2 text-sm font-bold text-teal-800 shadow-sm">
-            <ClipboardList className="h-4 w-4" aria-hidden />
+        <header className="mb-4">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-teal-50/95 px-3 py-1 text-xs font-bold text-teal-800 shadow-sm">
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
             Transkript Düzenleme
           </div>
-          <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+          <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
             Temizlenmiş{" "}
             <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent">
               Ders Notu Merkezi
             </span>
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            Ham transkripti yapıştır veya TXT olarak yükle. Sistem gereksiz konuşmaları temizler, ders notuna dönüştürür — eğitmenin bilgisine dokunmadan.
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+            Ham transkripti yapıştır veya TXT olarak yükle. Sistem gereksiz konuşmaları temizler, ders notuna dönüştürür.
           </p>
         </header>
 
         {/* Ana grid: mobil tek sütun, masaüstü iki sütun */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
           {/* ── Sol: Girdi ── */}
-          <section className="flex flex-col gap-4">
-            <div className="flex flex-col rounded-[32px] border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/80 p-6 shadow-md">
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-col rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/80 p-4 shadow-sm">
 
               {/* Başlık + TXT yükle */}
               <div className="flex items-center justify-between gap-3">
@@ -213,8 +213,8 @@ export default function DersNotuPage() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Ham transkripti buraya yapıştırın..."
-                rows={20}
-                className="mt-4 w-full resize-y rounded-2xl border border-teal-200/80 bg-white/90 px-4 py-3 text-sm font-medium leading-relaxed text-slate-700 placeholder-slate-400 shadow-sm transition focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                rows={14}
+                className="mt-3 w-full resize-y rounded-xl border border-teal-200/80 bg-white/90 px-3 py-2 text-sm font-medium leading-relaxed text-slate-700 placeholder-slate-400 shadow-sm transition focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100"
               />
 
               {/* Karakter sayacı */}
@@ -251,7 +251,7 @@ export default function DersNotuPage() {
                 type="button"
                 disabled={!canSubmit}
                 onClick={() => void handleSubmit()}
-                className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {processing ? (
                   <>
@@ -268,9 +268,9 @@ export default function DersNotuPage() {
             </div>
 
             {/* Bilgi kartı */}
-            <div className="rounded-[24px] border border-teal-100 bg-white/80 px-6 py-5 shadow-sm">
+            <div className="rounded-2xl border border-teal-100 bg-white/80 px-4 py-3 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wider text-teal-600">Bu modül nedir?</p>
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-2 space-y-1.5">
                 {[
                   "Ham transkript temizlenir, ders notu formatına dönüştürülür",
                   "Eğitmenin bilgisine dokunulmaz — sadece gereksiz konuşmalar silinir",
@@ -290,7 +290,7 @@ export default function DersNotuPage() {
           {/* ── Sağ: Sonuç ── */}
           <section className="flex flex-col">
             {result ? (
-              <div className="flex flex-col rounded-[32px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/80 p-6 shadow-md">
+              <div className="flex flex-col rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/80 p-4 shadow-sm">
 
                 {/* Başlık */}
                 <div className="flex items-center gap-2">
@@ -309,8 +309,8 @@ export default function DersNotuPage() {
                 <textarea
                   readOnly
                   value={result}
-                  rows={20}
-                  className="mt-4 w-full resize-y rounded-2xl border border-emerald-200/80 bg-white/90 px-4 py-3 text-base font-medium leading-7 text-slate-700 shadow-sm focus:outline-none"
+                  rows={14}
+                  className="mt-3 w-full resize-y rounded-xl border border-emerald-200/80 bg-white/90 px-3 py-2 text-sm font-medium leading-relaxed text-slate-700 shadow-sm focus:outline-none"
                 />
 
                 {/* Aksiyon butonları */}
@@ -353,20 +353,20 @@ export default function DersNotuPage() {
               </div>
             ) : (
               /* Boş durum */
-              <div className="flex h-full min-h-[300px] flex-col items-center justify-center rounded-[32px] border-2 border-dashed border-teal-200/70 bg-white/60 px-8 py-16 text-center lg:min-h-0">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-100 to-emerald-100 text-teal-400">
-                  <ClipboardList className="h-8 w-8" strokeWidth={1.75} />
+              <div className="flex h-full min-h-[180px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-200/70 bg-white/60 px-6 py-8 text-center lg:min-h-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 text-teal-400">
+                  <ClipboardList className="h-6 w-6" strokeWidth={1.75} />
                 </div>
-                <p className="mt-5 text-base font-black text-slate-600">
+                <p className="mt-3 text-sm font-black text-slate-600">
                   {processing ? "İşleniyor..." : "Temizlenmiş not burada görünecek"}
                 </p>
-                <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-slate-400">
+                <p className="mt-1.5 max-w-xs text-xs font-medium leading-relaxed text-slate-400">
                   {processing
-                    ? "Yapay zekâ transkripti işliyor. Bu işlem birkaç dakika sürebilir."
-                    : "Sol taraftaki alana transkripti yapıştırın ve «Ders Notunu Temizle» butonuna tıklayın."}
+                    ? "Yapay zeka transkripti işliyor. Bu işlem birkaç dakika sürebilir."
+                    : "Sol taraftaki alana transkripti yapıştırın ve temizle butonuna tıklayın."}
                 </p>
                 {processing && (
-                  <Loader2 className="mt-6 h-8 w-8 animate-spin text-teal-500" />
+                  <Loader2 className="mt-4 h-6 w-6 animate-spin text-teal-500" />
                 )}
               </div>
             )}
@@ -374,18 +374,18 @@ export default function DersNotuPage() {
         </div>
 
         {/* Bilgi şeridi */}
-        <div className="mt-10 overflow-hidden rounded-[28px] border border-teal-900/20 bg-gradient-to-r from-teal-950 via-emerald-900 to-teal-950 shadow-lg">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-r from-teal-950 via-emerald-900 to-teal-950 shadow-sm">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
               { icon: "🎯", title: "Bilgi Korunur", desc: "Eğitmenin anlattıkları değiştirilmez, yalnızca gereksiz konuşmalar temizlenir." },
               { icon: "⚡", title: "Human Design Uyumlu", desc: "Kanal ve kapı numaraları, terimler otomatik olarak doğru yazılır." },
               { icon: "📄", title: "Word & TXT Çıktı", desc: "Temizlenmiş notu Word veya TXT formatında indirebilirsiniz." },
             ].map((item, i) => (
-              <div key={item.title} className={`flex flex-col items-center gap-3 px-6 py-7 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-3xl" aria-hidden>{item.icon}</span>
+              <div key={item.title} className={`flex flex-col items-center gap-2 px-4 py-4 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-xl" aria-hidden>{item.icon}</span>
                 <div>
-                  <p className="text-sm font-black text-white">{item.title}</p>
-                  <p className="mt-1 text-xs font-medium leading-relaxed text-teal-200/80">{item.desc}</p>
+                  <p className="text-xs font-black text-white">{item.title}</p>
+                  <p className="mt-0.5 text-[10px] font-medium leading-relaxed text-teal-200/80">{item.desc}</p>
                 </div>
               </div>
             ))}
