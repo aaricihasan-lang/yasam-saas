@@ -80,6 +80,21 @@ export type HumanDesignReport = {
   updated_at:        string;
 };
 
+export type HumanDesignClient = {
+  id:                 string;
+  tenant_id:          string | null;
+  user_id:            string | null;
+  name:               string;
+  birth_date:         string | null;
+  birth_time:         string | null;
+  birth_place:        string | null;
+  chart_image_url:    string | null;
+  external_chart_url: string | null;
+  notes:              string | null;
+  created_at:         string;
+  updated_at:         string;
+};
+
 // -------------------------------------------------------
 // Insert payload tipleri (id + tarihler otomatik)
 // -------------------------------------------------------
@@ -96,5 +111,10 @@ export type HumanDesignChartInsert = Omit<
 
 export type HumanDesignReportInsert = Omit<
   HumanDesignReport,
+  "id" | "created_at" | "updated_at"
+>;
+
+export type HumanDesignClientInsert = Omit<
+  HumanDesignClient,
   "id" | "created_at" | "updated_at"
 >;
