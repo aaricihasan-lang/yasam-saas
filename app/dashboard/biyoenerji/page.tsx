@@ -24,18 +24,18 @@ export default function BiyoenerjiFolderPage() {
           </Link>
         </div>
 
-        <header className="mb-8 text-center sm:mb-10">
-          <p className="text-xs font-bold uppercase tracking-[0.35em] text-cyan-300/90 sm:text-sm">
-            ENERJİ & BEDEN
+        <header className="mb-4 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-cyan-300/90">
+            ENERJİ &amp; BEDEN
           </p>
-          <h1 className="mt-3 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl xl:text-6xl">
+          <h1 className="mt-1.5 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-3xl xl:text-4xl">
             Biyoenerji
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-base font-medium text-slate-400 sm:text-lg">
+          <p className="mx-auto mt-1.5 max-w-xl text-xs font-medium text-slate-400 sm:text-sm">
             Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir
           </p>
           <div
-            className="mx-auto mt-5 h-1 w-full max-w-md rounded-full bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent"
+            className="mx-auto mt-3 h-px w-full max-w-xs rounded-full bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent"
             aria-hidden
           />
         </header>
