@@ -265,6 +265,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
                 <button
                   key={gate.code}
                   type="button"
+                  title={gate.label}
                   onClick={() => toggleGate(gate.code)}
                   className={`flex h-8 w-full items-center justify-center rounded-lg text-xs font-bold transition-all ${
                     sel
