@@ -35,6 +35,7 @@ import {
   ChartColumn,
   Check,
   ClipboardList,
+  Compass,
   FolderArchive,
   Gem,
   Leaf,
@@ -354,6 +355,20 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-teal-600 to-emerald-700",
       cardBg: "from-teal-50/90 via-emerald-50/95 to-white",
       border: "border-teal-200/70",
+    },
+  },
+  {
+    title: "Human Design",
+    desc: "Kapı, kanal, merkez, tip ve otorite yorumları — Bilgi Bankası yönetimi",
+    count: "Aktif",
+    badge: "YENİ",
+    href: "/human-design/bilgi-bankasi",
+    permissionKey: "human_design",
+    Icon: Compass,
+    theme: {
+      iconWrap: "from-purple-600 to-indigo-700",
+      cardBg: "from-purple-50/90 via-indigo-50/95 to-white",
+      border: "border-purple-200/70",
     },
   },
 ];
