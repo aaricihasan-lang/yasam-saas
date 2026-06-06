@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "stock_movements_v1";
@@ -8,13 +7,10 @@ const STORAGE_KEY = "stock_movements_v1";
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(226,232,240,0.45),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(161,161,170,0.18),transparent_30%),linear-gradient(160deg,#f8fafc_0%,#f4f4f5_42%,#fafafa_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14";
+const pageShell = "relative z-10 w-full px-4 py-4 lg:px-8 xl:px-12";
 
 const panelClass =
-  "w-full rounded-[28px] border-2 border-slate-200/80 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
-
-const btnSecondary =
-  "inline-flex h-12 min-h-[48px] items-center justify-center rounded-2xl border-2 border-slate-200 bg-slate-50 px-6 text-sm font-black text-slate-800 transition hover:bg-slate-100 no-underline";
+  "w-full rounded-2xl border-2 border-slate-200/80 bg-white/85 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.07)] backdrop-blur-xl sm:p-5";
 
 type StockMovement = {
   id?: string;
@@ -93,25 +89,25 @@ function MovementCard({ m, index }: { m: StockMovement; index: number }) {
   const isOut = typeof qtyNum === "number" && qtyNum < 0;
 
   return (
-    <article className="rounded-[24px] border-2 border-slate-100 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
+    <article className="rounded-xl border-2 border-slate-100 bg-white p-3 shadow-sm sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             {cat ? (
-              <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-700">
+              <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-xs font-black uppercase tracking-wide text-slate-700">
                 {cat}
               </span>
             ) : null}
             <span
-              className={`rounded-xl px-3 py-1 text-xs font-black uppercase ${
+              className={`rounded-lg px-2.5 py-0.5 text-xs font-black uppercase ${
                 isOut ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"
               }`}
             >
               {movementTypeLabel(m)}
             </span>
           </div>
-          <h2 className="text-lg font-black text-slate-900 sm:text-xl">{movementName(m)}</h2>
-          {m.note ? <p className="text-sm font-medium text-slate-600">{m.note}</p> : null}
+          <h2 className="text-base font-black text-slate-900">{movementName(m)}</h2>
+          {m.note ? <p className="text-xs font-medium text-slate-600">{m.note}</p> : null}
           {m.source || m.reference ? (
             <p className="text-xs font-semibold text-slate-500">
               {[m.source, m.reference].filter(Boolean).join(" · ")}
@@ -120,7 +116,7 @@ function MovementCard({ m, index }: { m: StockMovement; index: number }) {
         </div>
         <div className="shrink-0 text-right">
           <p
-            className={`rounded-2xl border-2 px-4 py-3 text-xl font-black sm:text-2xl ${
+            className={`rounded-xl border-2 px-3 py-2 text-lg font-black ${
               isOut
                 ? "border-rose-200 bg-rose-50 text-rose-900"
                 : "border-emerald-200 bg-emerald-50 text-emerald-900"
@@ -129,9 +125,9 @@ function MovementCard({ m, index }: { m: StockMovement; index: number }) {
             {qty}
           </p>
           {time ? (
-            <p className="mt-2 text-xs font-bold text-slate-500">{time}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">{time}</p>
           ) : (
-            <p className="mt-2 text-xs font-bold text-slate-400">#{index + 1}</p>
+            <p className="mt-1 text-xs font-bold text-slate-400">#{index + 1}</p>
           )}
         </div>
       </div>
@@ -172,8 +168,8 @@ export default function StokHareketleriPage() {
   if (!hydrated) {
     return (
       <main className={pageBg}>
-        <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-slate-600">
-          Yükleniyor…
+        <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
+          Yukleniyor&hellip;
         </div>
       </main>
     );
@@ -187,41 +183,28 @@ export default function StokHareketleriPage() {
       </div>
 
       <div className={pageShell}>
-        <div className="mb-6 flex flex-wrap justify-between gap-3">
-          <Link href="/urun-stok" className={btnSecondary}>
-            ← Ürün & Stok Merkezi
-          </Link>
-          <Link href="/urun-stok" className={btnSecondary}>
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className={`${panelClass} mb-6`}>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-slate-600">Geçmiş</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl xl:text-5xl">Stok Hareketleri</h1>
-          <p className="mt-3 text-base text-slate-600 sm:text-lg">
-            Ürün girişleri, satışlar ve stok değişim kayıtları tek listede.
+        <header className={`${panelClass} mb-3`}>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-600">Gecmis</p>
+          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Stok Hareketleri</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Urun girisleri, satislar ve stok degisim kayitlari tek listede.
           </p>
         </header>
 
         {sorted.length === 0 ? (
-          <section className={`${panelClass} py-16 text-center`}>
-            <p className="text-5xl" aria-hidden>
+          <section className={`${panelClass} py-12 text-center`}>
+            <p className="text-4xl" aria-hidden>
               📊
             </p>
-            <h2 className="mt-4 text-2xl font-black text-slate-800">Stok hareketi yok</h2>
-            <p className="mx-auto mt-3 max-w-lg text-base text-slate-600">
-              Henüz stok hareketi oluşmadı. Ürün girişleri ve satış işlemleri yapıldıkça burada
-              listelenecek.
+            <h2 className="mt-3 text-xl font-black text-slate-800">Stok hareketi yok</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Henuz stok hareketi olusmadir. Urun girisleri ve satis islemleri yapildikca burada listelenecek.
             </p>
-            <Link href="/urun-stok" className={`${btnSecondary} mt-8 inline-flex`}>
-              Ürün & Stok Merkezine dön
-            </Link>
           </section>
         ) : (
-          <div className="space-y-4">
-            <p className="text-sm font-semibold text-slate-500">
-              Toplam <span className="font-black text-slate-800">{sorted.length}</span> kayıt
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500">
+              Toplam <span className="font-black text-slate-800">{sorted.length}</span> kayit
             </p>
             {sorted.map((m, i) => (
               <MovementCard key={m.id || `${movementTime(m)}-${i}`} m={m} index={i} />

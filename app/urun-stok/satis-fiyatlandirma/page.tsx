@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CATEGORY_LABELS,
@@ -20,19 +19,19 @@ import {
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(245,208,254,0.28),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(244,114,182,0.12),transparent_30%),linear-gradient(160deg,#fdf4ff_0%,#fff1f2_40%,#f5f3ff_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14 pointer-events-auto";
+const pageShell = "relative z-10 w-full px-4 py-4 lg:px-8 xl:px-12 pointer-events-auto";
 
 const panelClass =
-  "w-full rounded-[28px] border-2 border-fuchsia-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "w-full rounded-2xl border-2 border-fuchsia-200/80 bg-white/85 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.07)] backdrop-blur-xl sm:p-5";
 
 const inputClass =
-  "h-14 w-full rounded-2xl border-2 border-fuchsia-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-200/50";
+  "h-9 w-full rounded-xl border-2 border-fuchsia-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-200/50";
 
 const btnPrimary =
-  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-fuchsia-400 bg-gradient-to-r from-fuchsia-100 to-pink-100 px-8 text-base font-black text-fuchsia-950 shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-9 items-center justify-center rounded-xl border-2 border-fuchsia-400 bg-gradient-to-r from-fuchsia-100 to-pink-100 px-5 text-sm font-black text-fuchsia-950 shadow-md transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50";
 
 const btnSecondary =
-  "inline-flex h-12 items-center justify-center rounded-2xl border-2 border-fuchsia-200 bg-fuchsia-50 px-6 text-sm font-black text-slate-800 transition hover:bg-fuchsia-100 no-underline disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-8 items-center justify-center rounded-xl border-2 border-fuchsia-200 bg-fuchsia-50 px-4 text-xs font-black text-slate-800 transition hover:bg-fuchsia-100 no-underline disabled:cursor-not-allowed disabled:opacity-50";
 
 function productOptionLabel(p: UnifiedProduct): string {
   const unit = p.baseUnit ?? p.unitLabel ?? "adet";
@@ -125,7 +124,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     }
     setSaleLabel(`${p.name} — ${CATEGORY_LABELS[p.category]}`);
     setProfitPct(String(p.profitPct > 0 ? p.profitPct : 100));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca ürün değişince varsayılanları yükle
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnizca urun degisince varsayilanlari yukle
   }, [pickKey, filtered, catalogProducts]);
 
   const preview = useMemo(() => {
@@ -148,7 +147,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   function addToBasket() {
     if (!picked) {
       setMsgOk(false);
-      setMsg("Ürün seçin.");
+      setMsg("Urun secin.");
       return;
     }
     const line = calcUnifiedSale(
@@ -192,14 +191,14 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setProfitPct("100");
     setSaleLabel("");
     setMsgOk(true);
-    setMsg("Satış başarıyla kaydedildi. Stoklar ve geçmişler güncellendi.");
+    setMsg("Satis basariyla kaydedildi. Stoklar ve gecmisler guncellendi.");
   }
 
   if (!hydrated) {
     return (
       <main className={pageBg}>
-        <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-slate-600">
-          Yükleniyor…
+        <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
+          Yukleniyor&hellip;
         </div>
       </main>
     );
@@ -213,32 +212,22 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       </div>
 
       <div className={pageShell}>
-        <div className="mb-8 flex flex-wrap justify-between gap-4">
-          <Link href="/urun-stok" className={btnSecondary}>
-            ← Ürün & Stok Merkezi
-          </Link>
-          <Link href="/urun-stok" className={btnSecondary}>
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className={`${panelClass} mb-6`}>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satış</p>
-          <h1 className="mt-3 text-4xl font-black xl:text-5xl">Satış & Fiyatlandırma</h1>
-          <p className="mt-4 text-lg text-slate-600">
-            Ürün ekleme yapılmaz — modül stoklarından canlı seçim. Satış ilgili envanterden düşer; merkezi ve kategori
-            geçmişine + stok hareketlerine yazılır.
+        <header className={`${panelClass} mb-3`}>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satis</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Satis &amp; Fiyatlandirma</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Urun ekleme yapilmaz &mdash; modul stoklarindan canli secim. Satis ilgili envanterden duser; merkezi ve kategori gecmisine + stok hareketlerine yazilir.
           </p>
         </header>
 
-        <section className={`${panelClass} mb-6 !p-5`}>
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-fuchsia-800">Canlı ürün kaynakları</h2>
-          <p className="mt-1 text-sm text-slate-600">Stoklu ürün sayıları (anlık)</p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <section className={`${panelClass} mb-3`}>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-800">Canli urun kaynaklari</h2>
+          <p className="mt-0.5 text-xs text-slate-600">Stoklu urun sayilari (anlik)</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
-              <div key={c} className="rounded-2xl border-2 border-fuchsia-100 bg-fuchsia-50/70 px-4 py-3 text-center">
+              <div key={c} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 px-3 py-2 text-center">
                 <p className="text-xs font-black uppercase text-slate-500">{CATEGORY_LABELS[c]}</p>
-                <p className="mt-1 text-2xl font-black text-fuchsia-900">{liveCounts[c]}</p>
+                <p className="mt-0.5 text-xl font-black text-fuchsia-900">{liveCounts[c]}</p>
               </div>
             ))}
           </div>
@@ -246,7 +235,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
 
         {msg ? (
           <p
-            className={`mb-4 rounded-xl border px-4 py-3 text-base font-semibold ${
+            className={`mb-3 rounded-xl border px-3 py-2 text-xs font-semibold ${
               msgOk
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                 : "border-amber-200 bg-amber-50 text-amber-900"
@@ -257,17 +246,17 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         ) : null}
 
         <section className={`${panelClass} relative z-20 mb-2`}>
-          <h2 className="text-xl font-black text-fuchsia-900">Satış paneli</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Kategori filtreleyin, ürün seçin, miktar ve kâr oranı ile sepete ekleyin.
+          <h2 className="text-base font-black text-fuchsia-900">Satis paneli</h2>
+          <p className="mt-0.5 text-xs text-slate-600">
+            Kategori filtreleyin, urun secin, miktar ve kar orani ile sepete ekleyin.
           </p>
         </section>
 
-        <div className="relative z-20 grid w-full gap-6 xl:grid-cols-[1.65fr_1fr]">
-          <section className={`${panelClass} relative z-20 space-y-6 pointer-events-auto`}>
-            <div className="grid gap-4 md:grid-cols-2">
+        <div className="relative z-20 grid w-full gap-4 xl:grid-cols-[1.65fr_1fr]">
+          <section className={`${panelClass} relative z-20 space-y-4 pointer-events-auto`}>
+            <div className="grid gap-3 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-sm font-black">Kategori</span>
+                <span className="mb-1 block text-xs font-black">Kategori</span>
                 <select
                   className={inputClass}
                   value={categoryFilter}
@@ -276,7 +265,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     setPickKey("");
                   }}
                 >
-                  <option value="all">Tümü</option>
+                  <option value="all">Tumu</option>
                   {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                     <option key={c} value={c}>
                       {CATEGORY_LABELS[c]}
@@ -285,7 +274,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-black">Dolar kuru (Doğaltaş $)</span>
+                <span className="mb-1 block text-xs font-black">Dolar kuru (Dogaltas $)</span>
                 <input
                   className={inputClass}
                   type="number"
@@ -298,24 +287,24 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </div>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-black">Ürün ara</span>
+              <span className="mb-1 block text-xs font-black">Urun ara</span>
               <input
                 className={inputClass}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Ürün adı, tür, grup, model…"
+                placeholder="Urun adi, tur, grup, model..."
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-black">Ürün seç</span>
+              <span className="mb-1 block text-xs font-black">Urun sec</span>
               <select
                 key={`product-pick-${categoryFilter}-${filtered.length}`}
                 className={inputClass}
                 value={pickKey}
                 onChange={(e) => setPickKey(e.target.value)}
               >
-                <option value="">— Ürün seçin —</option>
+                <option value="">— Urun secin —</option>
                 {filtered.map((p) => (
                   <option key={p.productId} value={p.productId}>
                     {productOptionLabel(p)}
@@ -323,72 +312,72 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 ))}
               </select>
               {categoryFilter !== "all" && filtered.length === 0 ? (
-                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
-                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-2 text-xs font-semibold text-slate-600">
+                  Henuz satisa hazir urun bulunamadi. Once ilgili urun/stok modulunden urun ekleyin.
                 </p>
               ) : catalogProducts.length === 0 ? (
-                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-3 text-sm font-semibold text-slate-600">
-                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+                <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-2 text-xs font-semibold text-slate-600">
+                  Henuz satisa hazir urun bulunamadi. Once ilgili urun/stok modulunden urun ekleyin.
                 </p>
               ) : categoryFilter === "all" && filtered.length === 0 && catalogProducts.length > 0 ? (
-                <p className="mt-2 text-sm font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Filtreye uygun urun yok.</p>
               ) : null}
             </label>
 
             {picked ? (
-              <div className="rounded-2xl border-2 border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-pink-50 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+              <div className="rounded-xl border-2 border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-pink-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   {pickedPhotos[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={pickedPhotos[0]}
                       alt=""
-                      className="h-24 w-24 shrink-0 rounded-2xl border-2 border-white object-cover shadow-md"
+                      className="h-16 w-16 shrink-0 rounded-xl border-2 border-white object-cover shadow-md"
                     />
                   ) : (
-                    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-2 border-fuchsia-100 bg-white text-3xl font-black text-fuchsia-300">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-fuchsia-100 bg-white text-2xl font-black text-fuchsia-300">
                       {(picked.name[0] || "?").toUpperCase()}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black uppercase text-fuchsia-700">Seçili ürün</p>
-                    <p className="mt-1 text-2xl font-black text-slate-900">{picked.name}</p>
-                    <p className="text-sm font-semibold text-slate-600">
-                      {CATEGORY_LABELS[picked.category]} · {picked.subtitle}
+                    <p className="text-xs font-black uppercase text-fuchsia-700">Secili urun</p>
+                    <p className="mt-0.5 text-lg font-black text-slate-900">{picked.name}</p>
+                    <p className="text-xs font-semibold text-slate-600">
+                      {CATEGORY_LABELS[picked.category]} &middot; {picked.subtitle}
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-xl border border-white bg-white/90 px-3 py-2">
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
                     <p className="text-xs font-black text-slate-500">Mevcut stok</p>
-                    <p className="font-black">{picked.stockDisplay}</p>
+                    <p className="text-sm font-black">{picked.stockDisplay}</p>
                   </div>
-                  <div className="rounded-xl border border-white bg-white/90 px-3 py-2">
+                  <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
                     <p className="text-xs font-black text-slate-500">Birim</p>
-                    <p className="font-black">{picked.unitLabel}</p>
+                    <p className="text-sm font-black">{picked.unitLabel}</p>
                   </div>
-                  <div className="rounded-xl border border-white bg-white/90 px-3 py-2">
+                  <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
                     <p className="text-xs font-black text-slate-500">Maliyet (birim)</p>
-                    <p className="font-black">{fmtUnifiedUnitCost(picked)}</p>
+                    <p className="text-sm font-black">{fmtUnifiedUnitCost(picked)}</p>
                   </div>
-                  <div className="rounded-xl border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Satış fiyatı (birim)</p>
-                    <p className="font-black">
+                  <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
+                    <p className="text-xs font-black text-slate-500">Satis fiyati (birim)</p>
+                    <p className="text-sm font-black">
                       {preview && !("error" in preview)
                         ? fmtMoney(preview.lineSale / (preview.saleQty || 1))
                         : fmtUnifiedUnitCost({ ...picked, costPerUnit: picked.salePerUnit })}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white bg-white/90 px-3 py-2 sm:col-span-2">
-                    <p className="text-xs font-black text-slate-500">Fotoğraf</p>
-                    <p className="font-black">{picked.photoCount} adet</p>
+                  <div className="rounded-lg border border-white bg-white/90 px-3 py-2 sm:col-span-2">
+                    <p className="text-xs font-black text-slate-500">Fotograf</p>
+                    <p className="text-sm font-black">{picked.photoCount} adet</p>
                   </div>
                 </div>
               </div>
             ) : null}
 
             <label className="block">
-              <span className="mb-2 block text-sm font-black">Satış etiketi</span>
+              <span className="mb-1 block text-xs font-black">Satis etiketi</span>
               <input
                 className={inputClass}
                 value={saleLabel}
@@ -396,10 +385,10 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               />
             </label>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
-                <span className="mb-2 block text-sm font-black">
-                  {picked?.saleMode === "measure" ? "Satış miktarı" : "Satış adedi"}
+                <span className="mb-1 block text-xs font-black">
+                  {picked?.saleMode === "measure" ? "Satis miktari" : "Satis adedi"}
                 </span>
                 <input
                   className={inputClass}
@@ -412,7 +401,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               </label>
               {picked?.saleMode === "measure" ? (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Birim</span>
+                  <span className="mb-1 block text-xs font-black">Birim</span>
                   <select
                     className={inputClass}
                     value={saleUnit}
@@ -427,7 +416,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 </label>
               ) : null}
               <label className="block">
-                <span className="mb-2 block text-sm font-black">Kâr oranı %</span>
+                <span className="mb-1 block text-xs font-black">Kar orani %</span>
                 <input
                   className={inputClass}
                   value={profitPct}
@@ -439,19 +428,19 @@ export default function MerkeziSatisFiyatlandirmaPage() {
 
             {preview && !("error" in preview) ? (
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-center font-black">
+                <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3 text-center text-sm font-black">
                   Maliyet: {fmtMoney(preview.lineCost)}
                 </div>
-                <div className="rounded-2xl border border-pink-200 bg-pink-50 p-4 text-center font-black">
-                  Satış: {fmtMoney(preview.lineSale)}
+                <div className="rounded-xl border border-pink-200 bg-pink-50 p-3 text-center text-sm font-black">
+                  Satis: {fmtMoney(preview.lineSale)}
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center text-sm font-semibold">
-                  Kâr: {fmtMoney(preview.lineSale - preview.lineCost)} · Stok −{preview.saleBaseQty}{" "}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
+                  Kar: {fmtMoney(preview.lineSale - preview.lineCost)} &middot; Stok &minus;{preview.saleBaseQty}{" "}
                   {picked?.unitLabel}
                 </div>
               </div>
             ) : preview && "error" in preview ? (
-              <p className="font-semibold text-red-700">{preview.error}</p>
+              <p className="text-sm font-semibold text-red-700">{preview.error}</p>
             ) : null}
 
             <button
@@ -465,33 +454,33 @@ export default function MerkeziSatisFiyatlandirmaPage() {
           </section>
 
           <section className={`${panelClass} relative z-20 flex flex-col`}>
-            <h2 className="mb-4 text-xl font-black">Sepet</h2>
-            <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto">
+            <h2 className="mb-3 text-base font-black">Sepet</h2>
+            <div className="min-h-[160px] flex-1 space-y-2 overflow-y-auto">
               {basket.length === 0 ? (
-                <p className="py-12 text-center text-slate-500">Sepet boş</p>
+                <p className="py-10 text-center text-sm text-slate-500">Sepet bos</p>
               ) : (
                 basket.map((rec, i) => {
                   const ln = rec.lines[0];
                   const profit = rec.sale_price - rec.total_cost;
                   return (
-                    <div key={i} className="rounded-2xl border-2 border-fuchsia-100 bg-fuchsia-50/70 p-4">
-                      <p className="font-black text-slate-900">{ln?.productName || rec.name}</p>
+                    <div key={i} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 p-3">
+                      <p className="text-sm font-black text-slate-900">{ln?.productName || rec.name}</p>
                       {ln ? (
-                        <p className="mt-1 text-xs font-bold text-fuchsia-800">
-                          {CATEGORY_LABELS[ln.category]} · {ln.saleQty} {ln.saleUnit}
+                        <p className="mt-0.5 text-xs font-bold text-fuchsia-800">
+                          {CATEGORY_LABELS[ln.category]} &middot; {ln.saleQty} {ln.saleUnit}
                         </p>
                       ) : null}
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+                      <div className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
                         <div>
-                          <p className="text-xs text-slate-500">Maliyet</p>
+                          <p className="text-slate-500">Maliyet</p>
                           <p className="font-black">{fmtMoney(rec.total_cost)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-slate-500">Satış</p>
+                          <p className="text-slate-500">Satis</p>
                           <p className="font-black">{fmtMoney(rec.sale_price)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-slate-500">Kâr</p>
+                          <p className="text-slate-500">Kar</p>
                           <p className={`font-black ${profit < 0 ? "text-rose-700" : "text-emerald-700"}`}>
                             {fmtMoney(profit)}
                           </p>
@@ -499,38 +488,38 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                       </div>
                       <button
                         type="button"
-                        className="mt-3 text-sm font-black text-red-600"
+                        className="mt-2 text-xs font-black text-red-600"
                         onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}
                       >
-                        Sepetten kaldır
+                        Sepetten kaldir
                       </button>
                     </div>
                   );
                 })
               )}
             </div>
-            <div className="mt-4 space-y-2 border-t-2 border-fuchsia-100 pt-4">
-              <p className="flex justify-between text-sm font-semibold text-slate-600">
+            <div className="mt-3 space-y-1.5 border-t-2 border-fuchsia-100 pt-3">
+              <p className="flex justify-between text-xs font-semibold text-slate-600">
                 <span>Toplam maliyet</span>
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalCost)}</span>
               </p>
-              <p className="flex justify-between text-sm font-semibold text-slate-600">
-                <span>Toplam satış</span>
+              <p className="flex justify-between text-xs font-semibold text-slate-600">
+                <span>Toplam satis</span>
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalSale)}</span>
               </p>
-              <p className="flex justify-between text-base font-black">
-                <span>Toplam kâr</span>
+              <p className="flex justify-between text-sm font-black">
+                <span>Toplam kar</span>
                 <span className={basketTotals.totalProfit < 0 ? "text-rose-700" : "text-emerald-700"}>
                   {fmtMoney(basketTotals.totalProfit)}
                 </span>
               </p>
             </div>
-            <div className="mt-6 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-2">
               <button type="button" className={btnSecondary} onClick={() => setBasket([])} disabled={!basket.length}>
                 Sepeti Temizle
               </button>
               <button type="button" className={btnPrimary} onClick={commitSale} disabled={!basket.length}>
-                Satışı Kaydet
+                Satisi Kaydet
               </button>
             </div>
           </section>

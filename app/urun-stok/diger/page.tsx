@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MEASURE_TYPES,
@@ -45,24 +44,24 @@ type TabId = "stock" | "pricing" | "history";
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(217,249,157,0.32),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(250,204,21,0.14),transparent_30%),linear-gradient(160deg,#f7fee7_0%,#fefce8_40%,#f5f3ff_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14";
+const pageShell = "relative z-10 w-full px-4 py-4 lg:px-8 xl:px-12";
 
 const panelClass =
-  "w-full rounded-[28px] border-2 border-lime-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "w-full rounded-2xl border-2 border-lime-200/80 bg-white/85 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.07)] backdrop-blur-xl sm:p-5";
 
 const inputClass =
-  "h-14 w-full rounded-2xl border-2 border-lime-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-lime-500 focus:ring-4 focus:ring-lime-200/50";
+  "h-9 w-full rounded-xl border-2 border-lime-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-lime-500 focus:ring-2 focus:ring-lime-200/50";
 
 const btnPrimary =
-  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-lime-400 bg-gradient-to-r from-lime-100 to-yellow-100 px-8 text-base font-black text-lime-900 shadow-md transition hover:scale-[1.02]";
+  "inline-flex h-9 items-center justify-center rounded-xl border-2 border-lime-400 bg-gradient-to-r from-lime-100 to-yellow-100 px-5 text-sm font-black text-lime-900 shadow-md transition hover:scale-[1.02]";
 
 const btnSecondary =
-  "inline-flex h-12 items-center justify-center rounded-2xl border-2 border-lime-200 bg-lime-50 px-6 text-sm font-black text-slate-800 transition hover:bg-lime-100";
+  "inline-flex h-8 items-center justify-center rounded-xl border-2 border-lime-200 bg-lime-50 px-4 text-xs font-black text-slate-800 transition hover:bg-lime-100";
 
 const tabBtn = (active: boolean) =>
-  `rounded-2xl px-6 py-3 text-base font-black transition ${
+  `rounded-xl px-4 py-2 text-sm font-black transition ${
     active
-      ? "bg-gradient-to-r from-lime-500 to-yellow-500 text-white shadow-lg"
+      ? "bg-gradient-to-r from-lime-500 to-yellow-500 text-white shadow-md"
       : "border-2 border-lime-200 bg-white/90 text-slate-700 hover:border-lime-400"
   }`;
 
@@ -77,10 +76,9 @@ function normMeasureText(...parts: string[]): string {
     .join(" ")
     .toLocaleLowerCase("tr-TR")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[̀-ͯ]/g, "");
 }
 
-/** Ürün grubu / ad / alt kategoriye göre başlangıç ölçü tipi */
 function inferMeasureType(productGroup: string, productName: string, subCategory: string): OtMeasureType {
   const text = normMeasureText(productGroup, productName, subCategory);
 
@@ -131,22 +129,22 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
         <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-xl border px-4 py-2 text-sm font-black">
           Kapat
         </button>
-        <h3 className="mb-4 text-xl font-black">Fotoğraf</h3>
+        <h3 className="mb-4 text-xl font-black">Fotograf</h3>
         {safe.length ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={safe[idx]} alt="" className="mx-auto max-h-[60vh] rounded-2xl object-contain" />
             <div className="mt-4 flex justify-center gap-3">
               <button type="button" className={btnSecondary} onClick={() => setIdx((i) => (i - 1 + safe.length) % safe.length)}>
-                ◀
+                &#9664;
               </button>
               <button type="button" className={btnSecondary} onClick={() => setIdx((i) => (i + 1) % safe.length)}>
-                ▶
+                &#9654;
               </button>
             </div>
           </>
         ) : (
-          <p className="py-12 text-center text-slate-500">Fotoğraf yok</p>
+          <p className="py-12 text-center text-slate-500">Fotograf yok</p>
         )}
       </div>
     </div>
@@ -159,28 +157,28 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
     <>
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-md">
         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border-2 bg-white shadow-2xl">
-          <div className="border-b p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-2xl font-black">{record.name}</h3>
+          <div className="border-b p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-lg font-black">{record.name}</h3>
               <button type="button" className={btnSecondary} onClick={() => setGallery(record.photos || [])}>
                 Foto ({record.photos?.length || 0})
               </button>
             </div>
           </div>
-          <div className="overflow-auto p-6">
-            <table className="w-full text-base">
+          <div className="overflow-auto p-4">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-sm font-black text-lime-800">
-                  <th className="py-2">Ürün</th>
+                <tr className="text-left text-xs font-black text-lime-800">
+                  <th className="py-1.5">Urun</th>
                   <th>Miktar</th>
                   <th>Maliyet</th>
-                  <th>Satış</th>
+                  <th>Satis</th>
                 </tr>
               </thead>
               <tbody>
                 {record.lines.map((ln, i) => (
                   <tr key={i} className="border-t">
-                    <td className="py-3 font-semibold">{ln.productName}</td>
+                    <td className="py-2 font-semibold">{ln.productName}</td>
                     <td>
                       {fmtQty(ln.saleQty, 2)} {ln.saleUnit} ({fmtQty(ln.saleBaseQty, 0)} {ln.saleUnit === "litre" ? "ml" : ln.saleUnit === "kg" ? "g" : "baz"})
                     </td>
@@ -190,11 +188,11 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
                 ))}
               </tbody>
             </table>
-            <p className="mt-4 text-right font-black">
-              Toplam: {fmtMoney(record.total_cost)} → {fmtMoney(record.sale_price)}
+            <p className="mt-3 text-right text-sm font-black">
+              Toplam: {fmtMoney(record.total_cost)} &rarr; {fmtMoney(record.sale_price)}
             </p>
           </div>
-          <div className="border-t p-4 text-right">
+          <div className="border-t p-3 text-right">
             <button type="button" className={btnSecondary} onClick={onClose}>
               Kapat
             </button>
@@ -225,7 +223,6 @@ export default function DigerUrunStokPage() {
   const [photoModal, setPhotoModal] = useState<string[] | null>(null);
   const [saleDetail, setSaleDetail] = useState<OtherSaleRecord | null>(null);
 
-  // —— Stok formu ——
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState<string>(PRODUCT_GROUPS[0]);
@@ -245,7 +242,7 @@ export default function DigerUrunStokPage() {
   const [addDelta, setAddDelta] = useState(true);
 
   const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState("Ürün (A→Z)");
+  const [sortMode, setSortMode] = useState("Urun (A->Z)");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const displayed = useMemo(
@@ -343,22 +340,21 @@ export default function DigerUrunStokPage() {
     saveOtherInventory(result.items);
     setInventory(result.items);
     resetForm();
-    setMsg(editId ? "Kayıt güncellendi." : "Kayıt eklendi.");
+    setMsg(editId ? "Kayit guncellendi." : "Kayit eklendi.");
   }
 
   function deleteSelected() {
     if (!selectedIds.size) {
-      setMsg("Silmek için seçim yapın.");
+      setMsg("Silmek icin secim yapin.");
       return;
     }
     const next = inventory.filter((i) => !selectedIds.has(i.id));
     saveOtherInventory(next);
     setInventory(next);
     setSelectedIds(new Set());
-    setMsg(`${selectedIds.size} kayıt silindi.`);
+    setMsg(`${selectedIds.size} kayit silindi.`);
   }
 
-  // —— Satış ——
   const [pickId, setPickId] = useState("");
   const [saleQty, setSaleQty] = useState("1");
   const [saleUnit, setSaleUnit] = useState<OtInputUnit>("ml");
@@ -392,7 +388,7 @@ export default function DigerUrunStokPage() {
 
   function addToBasket() {
     if (!picked) {
-      setMsg("Ürün seçin.");
+      setMsg("Urun secin.");
       return;
     }
     const calc = calcLineAmounts(picked, toFloat(saleQty, 0), saleUnit);
@@ -430,7 +426,7 @@ export default function DigerUrunStokPage() {
 
   function commitSale() {
     if (!basket.length) {
-      setMsg("Sepet boş.");
+      setMsg("Sepet bos.");
       return;
     }
     const deductLines = basket.flatMap((r) =>
@@ -442,7 +438,7 @@ export default function DigerUrunStokPage() {
     appendOtherSales(basket);
     reloadSales();
     setBasket([]);
-    setMsg("Satış kaydedildi, stok düşüldü.");
+    setMsg("Satis kaydedildi, stok dusuldu.");
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());
@@ -456,7 +452,7 @@ export default function DigerUrunStokPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yükleniyor…
+          Yukleniyor&hellip;
         </div>
       </main>
     );
@@ -470,51 +466,42 @@ export default function DigerUrunStokPage() {
       </div>
 
       <div className={pageShell}>
-        <div className="mb-8 flex flex-wrap justify-between gap-4">
-          <Link href="/urun-stok" className={`${btnSecondary} no-underline`}>
-            ← Ürün & Stok Merkezi
-          </Link>
-          <Link href="/" className={`${btnSecondary} no-underline`}>
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className={`${panelClass} mb-8`}>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-lime-700">Diğer Ürünler</p>
-          <h1 className="mt-3 text-4xl font-black xl:text-5xl">Diğer Ürünler</h1>
-          <p className="mt-4 text-lg text-slate-600">
-            Kategoriye sığmayan tüm ürünler — esnek grup, varyasyon ve ölçü — adet, gram/kg ve ml/litre — birim maliyet otomatik; birim maliyet satış miktarına göre hesaplanır.
+        <header className={`${panelClass} mb-3`}>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-lime-700">Diger Urunler</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Diger Urunler</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Kategoriye sigmayan tum urunler &mdash; esnek grup, varyasyon ve olcu &mdash; adet, gram/kg ve ml/litre &mdash; birim maliyet otomatik hesaplanir.
           </p>
         </header>
 
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-3 flex flex-wrap gap-2">
           {(["stock", "pricing", "history"] as TabId[]).map((t) => (
             <button key={t} type="button" className={tabBtn(tab === t)} onClick={() => setTab(t)}>
-              {t === "stock" ? "Ürün/Stok" : t === "pricing" ? "Satış & Fiyatlandırma" : "Satış Geçmişi"}
+              {t === "stock" ? "Urun/Stok" : t === "pricing" ? "Satis & Fiyatlandirma" : "Satis Gecmisi"}
             </button>
           ))}
         </div>
 
         {msg ? (
-          <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
             {msg}
           </p>
         ) : null}
 
         {tab === "stock" && (
-          <div className="w-full space-y-6">
+          <div className="w-full space-y-4">
             <section className={panelClass}>
-              <h2 className="mb-2 text-xl font-black">{editId ? "Kayıt Düzenle" : "Yeni Ürün Kaydı"}</h2>
-              <p className="mb-6 text-sm font-semibold text-slate-600">
-                Beden, renk, model gibi varyasyonlar için ayrı stok satırı açabilirsiniz.
+              <h2 className="mb-1 text-base font-black">{editId ? "Kayit Duzenle" : "Yeni Urun Kaydi"}</h2>
+              <p className="mb-3 text-xs font-semibold text-slate-600">
+                Beden, renk, model gibi varyasyonlar icin ayri stok satiri acabilirsiniz.
               </p>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <label className="block sm:col-span-2">
-                  <span className="mb-2 block text-sm font-black">Ürün adı</span>
+                  <span className="mb-1 block text-xs font-black">Urun adi</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Ürün grubu</span>
+                  <span className="mb-1 block text-xs font-black">Urun grubu</span>
                   <select className={inputClass} value={productGroup} onChange={(e) => setProductGroup(e.target.value)}>
                     {PRODUCT_GROUPS.map((t) => (
                       <option key={t}>{t}</option>
@@ -522,11 +509,11 @@ export default function DigerUrunStokPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Alt kategori / ürün tipi</span>
-                  <input className={inputClass} value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="Örn. Tişört, Mum, Workshop" />
+                  <span className="mb-1 block text-xs font-black">Alt kategori / urun tipi</span>
+                  <input className={inputClass} value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="Orn. Tisort, Mum, Workshop" />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Ölçü tipi</span>
+                  <span className="mb-1 block text-xs font-black">Olcu tipi</span>
                   <select
                     className={inputClass}
                     value={measureType}
@@ -541,11 +528,11 @@ export default function DigerUrunStokPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Stok miktarı</span>
+                  <span className="mb-1 block text-xs font-black">Stok miktari</span>
                   <input className={inputClass} type="number" step="any" value={stockQty} onChange={(e) => setStockQty(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Birim</span>
+                  <span className="mb-1 block text-xs font-black">Birim</span>
                   <select className={inputClass} value={inputUnit} onChange={(e) => setInputUnit(e.target.value as OtInputUnit)}>
                     {unitsForMeasure(measureType).map((u) => (
                       <option key={u} value={u}>
@@ -555,22 +542,22 @@ export default function DigerUrunStokPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Alış maliyeti (₺, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">Alis maliyeti (TL, toplam)</span>
                   <input className={inputClass} type="number" step="0.01" value={costTotal} onChange={(e) => setCostTotal(e.target.value)} />
-                  <span className="mt-1 block text-xs font-semibold text-slate-500">
-                    Litre/kg girseniz bile birim maliyet ml veya gram üzerinden hesaplanır.
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    Litre/kg girsenz bile birim maliyet ml veya gram uzerinden hesaplanir.
                   </span>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Satış fiyatı (₺, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">Satis fiyati (TL, toplam)</span>
                   <input className={inputClass} type="number" step="0.01" value={salePriceTotal} onChange={(e) => setSalePriceTotal(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Kâr oranı %</span>
+                  <span className="mb-1 block text-xs font-black">Kar orani %</span>
                   <input className={inputClass} type="number" value={profitPct} onChange={(e) => setProfitPct(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Varyasyon türü</span>
+                  <span className="mb-1 block text-xs font-black">Varyasyon turu</span>
                   <select className={inputClass} value={variationKind} onChange={(e) => setVariationKind(e.target.value)}>
                     {VARIATION_KINDS.map((p) => (
                       <option key={p}>{p}</option>
@@ -578,51 +565,51 @@ export default function DigerUrunStokPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Varyasyon değeri</span>
+                  <span className="mb-1 block text-xs font-black">Varyasyon degeri</span>
                   <input
                     className={inputClass}
-                    placeholder="M, Kırmızı, Set-A…"
+                    placeholder="M, Kirmizi, Set-A..."
                     value={variationDetail}
                     onChange={(e) => setVariationDetail(e.target.value)}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black">Barkod / ürün kodu (opsiyonel)</span>
+                  <span className="mb-1 block text-xs font-black">Barkod / urun kodu (opsiyonel)</span>
                   <input className={inputClass} value={barcode} onChange={(e) => setBarcode(e.target.value)} />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-2 block text-sm font-black">Not</span>
+                  <span className="mb-1 block text-xs font-black">Not</span>
                   <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
                 </label>
               </div>
               {stockUnitPreview ? (
-                <div className="mt-4 rounded-2xl border-2 border-lime-200/90 bg-gradient-to-r from-lime-50/90 to-yellow-50/80 p-5">
-                  <p className="text-sm font-black uppercase tracking-wide text-lime-800">Birim maliyet özeti</p>
+                <div className="mt-3 rounded-xl border-2 border-lime-200/90 bg-gradient-to-r from-lime-50/90 to-yellow-50/80 p-3">
+                  <p className="text-xs font-black uppercase tracking-wide text-lime-800">Birim maliyet ozeti</p>
                   {stockUnitPreview.canonicalHint ? (
-                    <p className="mt-2 text-sm font-semibold text-slate-700">{stockUnitPreview.canonicalHint}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-700">{stockUnitPreview.canonicalHint}</p>
                   ) : null}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {stockUnitPreview.costPer != null ? (
-                      <div className="rounded-xl border border-lime-200 bg-white/90 px-4 py-3">
+                      <div className="rounded-lg border border-lime-200 bg-white/90 px-3 py-2">
                         <p className="text-xs font-black text-lime-700">Birim maliyet</p>
-                        <p className="mt-1 text-lg font-black text-slate-900">
+                        <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.costPer, stockUnitPreview.base)}
                         </p>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-500 sm:col-span-2">Alış maliyeti ve stok girildiğinde birim maliyet hesaplanır.</p>
+                      <p className="text-xs text-slate-500 sm:col-span-2">Alis maliyeti ve stok girildiginde birim maliyet hesaplanir.</p>
                     )}
                     {stockUnitPreview.salePer != null ? (
-                      <div className="rounded-xl border border-yellow-200 bg-white/90 px-4 py-3">
-                        <p className="text-xs font-black text-yellow-700">Birim satış</p>
-                        <p className="mt-1 text-lg font-black text-slate-900">
+                      <div className="rounded-lg border border-yellow-200 bg-white/90 px-3 py-2">
+                        <p className="text-xs font-black text-yellow-700">Birim satis</p>
+                        <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.salePer, stockUnitPreview.base)}
                         </p>
                       </div>
                     ) : stockUnitPreview.suggestedSalePer != null ? (
-                      <div className="rounded-xl border border-violet-200 bg-white/90 px-4 py-3">
-                        <p className="text-xs font-black text-violet-700">Kâr %{profitPct} ile birim satış</p>
-                        <p className="mt-1 text-lg font-black text-slate-900">
+                      <div className="rounded-lg border border-violet-200 bg-white/90 px-3 py-2">
+                        <p className="text-xs font-black text-violet-700">Kar %{profitPct} ile birim satis</p>
+                        <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.suggestedSalePer, stockUnitPreview.base)}
                         </p>
                       </div>
@@ -630,10 +617,10 @@ export default function DigerUrunStokPage() {
                   </div>
                 </div>
               ) : null}
-              <div className="mt-6 flex flex-wrap items-center gap-4">
-                <label className="flex items-center gap-2 font-bold">
-                  <input type="checkbox" checked={addDelta} onChange={(e) => setAddDelta(e.target.checked)} className="h-5 w-5" />
-                  Mevcut stoğa ekle / düş (işaretli)
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-sm font-bold">
+                  <input type="checkbox" checked={addDelta} onChange={(e) => setAddDelta(e.target.checked)} className="h-4 w-4" />
+                  Mevcut stoga ekle / dus (isaretli)
                 </label>
                 <label className="cursor-pointer">
                   <span className={btnSecondary}> ({photos.length}) Foto</span>
@@ -650,39 +637,39 @@ export default function DigerUrunStokPage() {
                   />
                 </label>
                 <button type="button" className={btnPrimary} onClick={handleSaveStock}>
-                  {editId ? "Güncelle" : "Ekle"}
+                  {editId ? "Guncelle" : "Ekle"}
                 </button>
                 {editId ? (
                   <button type="button" className={btnSecondary} onClick={resetForm}>
-                    İptal
+                    Iptal
                   </button>
                 ) : null}
-                <p className="ml-auto font-black text-lime-900">Stok değeri: {fmtMoney(stockValue)}</p>
+                <p className="ml-auto text-sm font-black text-lime-900">Stok degeri: {fmtMoney(stockValue)}</p>
               </div>
             </section>
 
             <section className={panelClass}>
-              <div className="mb-4 grid gap-4 md:grid-cols-2">
-                <input className={inputClass} placeholder="Ara…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <div className="mb-3 grid gap-3 md:grid-cols-2">
+                <input className={inputClass} placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
                 <select className={inputClass} value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
-                  <option>Ürün (A→Z)</option>
-                  <option>Ürün (Z→A)</option>
-                  <option>Stok (Az→Çok)</option>
-                  <option>Stok (Çok→Az)</option>
+                  <option>Urun (A-&gt;Z)</option>
+                  <option>Urun (Z-&gt;A)</option>
+                  <option>Stok (Az-&gt;Cok)</option>
+                  <option>Stok (Cok-&gt;Az)</option>
                 </select>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1320px] text-base">
+                <table className="w-full min-w-[1320px] text-sm">
                   <thead>
-                    <tr className="text-sm font-black uppercase text-lime-800">
-                      <th className="p-2">Seç</th>
+                    <tr className="text-xs font-black uppercase text-lime-800">
+                      <th className="p-1.5">Sec</th>
                       <th>No</th>
                       <th>Varyant</th>
                       <th>Grup</th>
                       <th>Alt kategori</th>
                       <th>Stok</th>
                       <th>Birim maliyet</th>
-                      <th>Birim satış</th>
+                      <th>Birim satis</th>
                       <th>Varyasyon</th>
                       <th>Barkod</th>
                       <th>Foto</th>
@@ -692,10 +679,10 @@ export default function DigerUrunStokPage() {
                   <tbody>
                     {displayed.map((it, idx) => (
                       <tr key={it.id} className="border-t bg-white/80">
-                        <td className="p-3 text-center">
+                        <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            className="h-5 w-5"
+                            className="h-4 w-4"
                             checked={selectedIds.has(it.id)}
                             onChange={(e) => {
                               setSelectedIds((prev) => {
@@ -707,23 +694,23 @@ export default function DigerUrunStokPage() {
                             }}
                           />
                         </td>
-                        <td className="p-3 text-center font-bold">{idx + 1}</td>
-                        <td className="p-3 font-black">{formatVariantLabel(it)}</td>
-                        <td className="p-3">{it.productGroup}</td>
-                        <td className="p-3">{it.subCategory || "—"}</td>
-                        <td className="p-3 font-semibold">{formatStockDisplay(it)}</td>
-                        <td className="p-3 font-semibold">{fmtUnitCost(it.costPerBase, it.baseUnit)}</td>
-                        <td className="p-3 font-semibold">{fmtUnitCost(it.salePerBase, it.baseUnit)}</td>
-                        <td className="p-3">{it.variationDetail ? `${it.variationDetail} (${it.variationKind})` : it.variationKind}</td>
-                        <td className="p-3">{it.barcode || "—"}</td>
-                        <td className="p-3">
+                        <td className="p-2 text-center font-bold">{idx + 1}</td>
+                        <td className="p-2 font-black">{formatVariantLabel(it)}</td>
+                        <td className="p-2">{it.productGroup}</td>
+                        <td className="p-2">{it.subCategory || "—"}</td>
+                        <td className="p-2 font-semibold">{formatStockDisplay(it)}</td>
+                        <td className="p-2 font-semibold">{fmtUnitCost(it.costPerBase, it.baseUnit)}</td>
+                        <td className="p-2 font-semibold">{fmtUnitCost(it.salePerBase, it.baseUnit)}</td>
+                        <td className="p-2">{it.variationDetail ? `${it.variationDetail} (${it.variationKind})` : it.variationKind}</td>
+                        <td className="p-2">{it.barcode || "—"}</td>
+                        <td className="p-2">
                           <button type="button" className="font-black text-lime-700 underline" onClick={() => setPhotoModal(it.photos)}>
                             {it.photos.length}
                           </button>
                         </td>
-                        <td className="p-3">
-                          <button type="button" className="text-sm font-black text-violet-700" onClick={() => loadToForm(it)}>
-                            Düzenle
+                        <td className="p-2">
+                          <button type="button" className="text-xs font-black text-violet-700" onClick={() => loadToForm(it)}>
+                            Duzenle
                           </button>
                         </td>
                       </tr>
@@ -731,19 +718,19 @@ export default function DigerUrunStokPage() {
                   </tbody>
                 </table>
               </div>
-              <button type="button" className={`${btnSecondary} mt-4`} onClick={deleteSelected}>
-                Seçilenleri Sil
+              <button type="button" className={`${btnSecondary} mt-3`} onClick={deleteSelected}>
+                Secilenleri Sil
               </button>
             </section>
           </div>
         )}
 
         {tab === "pricing" && (
-          <div className="grid w-full gap-6 xl:grid-cols-[1.55fr_1fr]">
-            <section className={`${panelClass} space-y-6`}>
-              <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid w-full gap-4 xl:grid-cols-[1.55fr_1fr]">
+            <section className={`${panelClass} space-y-4`}>
+              <div className="grid gap-3 lg:grid-cols-2">
                 <select className={inputClass} value={pickId} onChange={(e) => setPickId(e.target.value)}>
-                  <option value="">— Ürün seç —</option>
+                  <option value="">— Urun sec —</option>
                   {inventory.map((it) => (
                     <option key={it.id} value={it.id}>
                       {formatVariantLabel(it)} — {formatStockDisplay(it)}
@@ -752,32 +739,32 @@ export default function DigerUrunStokPage() {
                 </select>
                 <input
                   className={inputClass}
-                  placeholder="Satış etiketi / ürün adı"
+                  placeholder="Satis etiketi / urun adi"
                   value={saleLabel}
                   onChange={(e) => setSaleLabel(turkishUpper(e.target.value))}
                 />
               </div>
               {picked ? (
-                <div className="rounded-2xl border border-lime-200 bg-lime-50/80 px-5 py-4">
-                  <p className="text-sm font-black text-lime-800">Kayıtlı birim maliyet</p>
-                  <p className="mt-1 text-lg font-black text-slate-900">
+                <div className="rounded-xl border border-lime-200 bg-lime-50/80 px-4 py-3">
+                  <p className="text-xs font-black text-lime-800">Kayitli birim maliyet</p>
+                  <p className="mt-0.5 text-base font-black text-slate-900">
                     {fmtUnitCost(picked.costPerBase, picked.baseUnit)}
-                    <span className="mx-2 text-slate-400">·</span>
-                    Satış: {fmtUnitCost(picked.salePerBase, picked.baseUnit)}
+                    <span className="mx-2 text-slate-400">&middot;</span>
+                    Satis: {fmtUnitCost(picked.salePerBase, picked.baseUnit)}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-slate-600">
-                    Satışta miktar otomatik ml/gram/adet bazına çevrilir; stok aynı birimle düşer.
+                  <p className="mt-0.5 text-xs font-semibold text-slate-600">
+                    Satista miktar otomatik ml/gram/adet bazina cevrilir; stok ayni birimle duser.
                   </p>
                 </div>
               ) : null}
               {picked ? (
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <label className="block">
-                    <span className="mb-2 block text-sm font-black">Satılacak miktar</span>
+                    <span className="mb-1 block text-xs font-black">Satilacak miktar</span>
                     <input className={inputClass} type="number" step="any" value={saleQty} onChange={(e) => setSaleQty(e.target.value)} />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-sm font-black">Birim</span>
+                    <span className="mb-1 block text-xs font-black">Birim</span>
                     <select className={inputClass} value={saleUnit} onChange={(e) => setSaleUnit(e.target.value as OtInputUnit)}>
                       {unitsForMeasure(picked.measureType).map((u) => (
                         <option key={u} value={u}>
@@ -787,30 +774,30 @@ export default function DigerUrunStokPage() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-sm font-black">Ek kâr % (opsiyonel)</span>
+                    <span className="mb-1 block text-xs font-black">Ek kar % (opsiyonel)</span>
                     <input className={inputClass} value={checkoutProfitPct} onChange={(e) => setCheckoutProfitPct(e.target.value)} placeholder={String(picked.profitPct)} />
                   </label>
                 </div>
               ) : null}
               {previewLine && !("error" in previewLine) && picked ? (
-                <div className="space-y-3">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-lime-200 bg-lime-50 p-4 text-center font-black">
+                <div className="space-y-2">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-lime-200 bg-lime-50 p-3 text-center text-sm font-black">
                       Maliyet: {fmtMoney(previewLine.lineCost)}
                     </div>
-                    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-center font-black">
-                      Satış:{" "}
+                    <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-center text-sm font-black">
+                      Satis:{" "}
                       {fmtMoney(
                         toFloat(checkoutProfitPct, 0) > 0
                           ? previewLine.lineCost * (1 + toFloat(checkoutProfitPct, 0) / 100)
                           : previewLine.lineSale,
                       )}
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center text-sm font-semibold">
-                      İç stok düşümü: {fmtQty(previewLine.saleBaseQty, 2)} {picked.baseUnit}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
+                      Ic stok dusumu: {fmtQty(previewLine.saleBaseQty, 2)} {picked.baseUnit}
                     </div>
                   </div>
-                  <p className="rounded-xl border border-lime-100 bg-white/90 px-4 py-3 text-center text-sm font-bold text-slate-800">
+                  <p className="rounded-lg border border-lime-100 bg-white/90 px-3 py-2 text-center text-xs font-bold text-slate-800">
                     {formatLineCostBreakdown(
                       previewLine.costPerBase,
                       toFloat(saleQty, 0),
@@ -821,10 +808,10 @@ export default function DigerUrunStokPage() {
                   </p>
                 </div>
               ) : previewLine && "error" in previewLine ? (
-                <p className="text-red-700 font-semibold">{previewLine.error}</p>
+                <p className="text-sm font-semibold text-red-700">{previewLine.error}</p>
               ) : null}
               <label className="cursor-pointer inline-block">
-                <span className={btnSecondary}>({salePhotos.length}) Ürün fotoğrafı</span>
+                <span className={btnSecondary}>({salePhotos.length}) Urun fotografi</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -841,29 +828,29 @@ export default function DigerUrunStokPage() {
               </button>
             </section>
             <section className={panelClass}>
-              <h2 className="mb-4 text-xl font-black">Sepet</h2>
-              <div className="space-y-3">
+              <h2 className="mb-3 text-base font-black">Sepet</h2>
+              <div className="space-y-2">
                 {basket.map((rec, i) => (
-                  <div key={i} className="rounded-2xl border bg-lime-50/50 p-4">
-                    <p className="font-black">{rec.name}</p>
-                    <p className="text-sm">
-                      {fmtMoney(rec.total_cost)} → {fmtMoney(rec.sale_price)}
+                  <div key={i} className="rounded-xl border bg-lime-50/50 p-3">
+                    <p className="text-sm font-black">{rec.name}</p>
+                    <p className="text-xs">
+                      {fmtMoney(rec.total_cost)} &rarr; {fmtMoney(rec.sale_price)}
                     </p>
-                    <button type="button" className="mt-2 text-sm font-black text-red-600" onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}>
+                    <button type="button" className="mt-1 text-xs font-black text-red-600" onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}>
                       Sil
                     </button>
                   </div>
                 ))}
               </div>
-              <p className="mt-4 font-black">
-                Toplam satış: {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}
+              <p className="mt-3 text-sm font-black">
+                Toplam satis: {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}
               </p>
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="mt-4 flex flex-col gap-2">
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
                 <button type="button" className={btnPrimary} onClick={commitSale}>
-                  Satışı Kaydet
+                  Satisi Kaydet
                 </button>
               </div>
             </section>
@@ -872,17 +859,17 @@ export default function DigerUrunStokPage() {
 
         {tab === "history" && (
           <section className={panelClass}>
-            <div className="mb-6 flex flex-wrap gap-6 text-lg font-black">
-              <span>Toplam Satış: {fmtMoney(histSummary.totalSale)}</span>
-              <span>Toplam Kâr: {fmtMoney(histSummary.profit)}</span>
-              <span>Satılan: {histSummary.count}</span>
+            <div className="mb-4 flex flex-wrap gap-4 text-sm font-black">
+              <span>Toplam Satis: {fmtMoney(histSummary.totalSale)}</span>
+              <span>Toplam Kar: {fmtMoney(histSummary.profit)}</span>
+              <span>Satilan: {histSummary.count}</span>
             </div>
             <button
               type="button"
-              className={`${btnSecondary} mb-4`}
+              className={`${btnSecondary} mb-3`}
               onClick={() => {
                 if (!histSel.size) {
-                  setMsg("Silmek için seçin.");
+                  setMsg("Silmek icin secin.");
                   return;
                 }
                 const next = sales.filter((_, i) => !histSel.has(i));
@@ -891,29 +878,29 @@ export default function DigerUrunStokPage() {
                 setHistSel(new Set());
               }}
             >
-              Seçilenleri Sil
+              Secilenleri Sil
             </button>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-base">
+              <table className="w-full min-w-[800px] text-sm">
                 <thead>
-                  <tr className="text-sm font-black uppercase text-lime-800">
-                    <th className="p-2">No</th>
-                    <th>Seç</th>
+                  <tr className="text-xs font-black uppercase text-lime-800">
+                    <th className="p-1.5">No</th>
+                    <th>Sec</th>
                     <th>Tarih</th>
-                    <th>Ürün</th>
+                    <th>Urun</th>
                     <th>Maliyet</th>
-                    <th>Satış</th>
+                    <th>Satis</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {sales.map((rec, i) => (
                     <tr key={i} className="border-t">
-                      <td className="p-3 text-center">{i + 1}</td>
-                      <td className="p-3 text-center">
+                      <td className="p-2 text-center">{i + 1}</td>
+                      <td className="p-2 text-center">
                         <input
                           type="checkbox"
-                          className="h-5 w-5"
+                          className="h-4 w-4"
                           checked={histSel.has(i)}
                           onChange={(e) => {
                             setHistSel((prev) => {
@@ -925,11 +912,11 @@ export default function DigerUrunStokPage() {
                           }}
                         />
                       </td>
-                      <td className="p-3">{rec.timestamp}</td>
-                      <td className="p-3 font-semibold">{rec.name}</td>
-                      <td className="p-3">{fmtMoney(rec.total_cost)}</td>
-                      <td className="p-3">{fmtMoney(rec.sale_price)}</td>
-                      <td className="p-3">
+                      <td className="p-2">{rec.timestamp}</td>
+                      <td className="p-2 font-semibold">{rec.name}</td>
+                      <td className="p-2">{fmtMoney(rec.total_cost)}</td>
+                      <td className="p-2">{fmtMoney(rec.sale_price)}</td>
+                      <td className="p-2">
                         <button type="button" className="font-black text-lime-700 underline" onClick={() => setSaleDetail(rec)}>
                           Detay
                         </button>
