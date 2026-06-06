@@ -67,7 +67,7 @@ const hubModules = [
 ] as const;
 
 const cardBase =
-  "group relative flex min-h-[220px] flex-col justify-between rounded-[28px] border-2 bg-gradient-to-br p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 backdrop-blur-xl transition-all duration-300";
+  "group relative flex min-h-[160px] flex-col justify-between rounded-[18px] border-2 bg-gradient-to-br p-5 shadow-[0_8px_28px_rgba(15,23,42,0.07)] ring-1 backdrop-blur-xl transition-all duration-300";
 
 function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
   const href = "href" in item ? item.href : undefined;
@@ -83,11 +83,11 @@ function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
     <>
       <div>
         <div className="flex items-start justify-between gap-3">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-3xl shadow-md ring-1 ring-white/60">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/90 text-xl shadow-md ring-1 ring-white/60">
             {item.icon}
           </span>
           <span
-            className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide ${
+            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${
               typeof badge === "object" && badge !== null && "color" in badge
                 ? (badge as { color: string }).color
                 : isActive
@@ -102,13 +102,13 @@ function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
                 : ""}
           </span>
         </div>
-        <h3 className="mt-5 text-xl font-black leading-tight text-slate-900 sm:text-2xl">
+        <h3 className="mt-3 text-base font-black leading-tight text-slate-900 sm:text-lg">
           {item.title}
         </h3>
-        <p className="mt-3 text-base leading-relaxed text-slate-600">{item.desc}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.desc}</p>
       </div>
       <span
-        className={`mt-6 inline-flex items-center gap-2 text-sm font-black uppercase tracking-[0.15em] ${
+        className={`mt-4 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.15em] ${
           isActive ? "text-cyan-700" : "text-slate-400"
         }`}
       >
@@ -148,52 +148,35 @@ export default function UrunStokHubPage() {
         <div className="absolute bottom-[-8%] left-[30%] h-72 w-72 rounded-full bg-cyan-200/30 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 pb-16 pt-8 xl:px-10">
-        <div className="mb-10">
-          <Link
-            href="/"
-            className="inline-flex h-14 items-center gap-3 rounded-full border border-violet-200 bg-gradient-to-r from-cyan-50 to-violet-50 px-8 text-base font-black text-slate-700 shadow-[0_8px_30px_rgba(139,92,246,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.03] hover:border-violet-400 hover:shadow-[0_12px_36px_rgba(139,92,246,0.22)] no-underline xl:text-lg"
-          >
-            <span className="text-xl" aria-hidden>
-              ←
-            </span>
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className="mb-12 rounded-[36px] border-2 border-white/90 bg-white/75 px-10 py-12 text-center shadow-[0_24px_70px_rgba(139,92,246,0.10)] backdrop-blur-xl sm:px-14 sm:py-14">
-          <p className="text-sm font-black uppercase tracking-[0.35em] text-amber-700/90">
+      <div className="relative z-10 w-full px-5 pb-8 pt-4 xl:px-10">
+        <header className="mb-5 rounded-[20px] border-2 border-white/90 bg-white/75 px-6 py-5 text-center shadow-[0_12px_40px_rgba(139,92,246,0.08)] backdrop-blur-xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-amber-700/90">
             Yaşam Sistemi
           </p>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem] lg:leading-tight">
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
             <span className="bg-[linear-gradient(90deg,#d97706_0%,#a855f7_50%,#0891b2_100%)] bg-clip-text text-transparent">
               Ürün & Stok
             </span>{" "}
             Merkezi
           </h1>
-          <div
-            className="mx-auto mt-6 h-px max-w-xl bg-gradient-to-r from-transparent via-amber-300/60 to-transparent"
-            aria-hidden
-          />
-          <p className="mx-auto mt-6 max-w-3xl text-lg font-medium leading-relaxed text-slate-600 sm:text-xl">
-            Tüm ürünlerinizi, stoklarınızı, satış ve fiyatlandırma süreçlerinizi tek merkezden
-            yönetin. Aşağıdan modül seçin.
+          <p className="mx-auto mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-600">
+            Tüm ürünlerinizi, stoklarınızı, satış ve fiyatlandırma süreçlerinizi tek merkezden yönetin.
           </p>
         </header>
 
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 sm:text-3xl">Modüller</h2>
-            <p className="mt-1 text-base font-medium text-slate-600">
+            <h2 className="text-lg font-black text-slate-900">Modüller</h2>
+            <p className="mt-0.5 text-sm font-medium text-slate-500">
               Alt modüller yakında aktif edilecek.
             </p>
           </div>
-          <span className="rounded-full border border-amber-200/90 bg-amber-50/90 px-5 py-2 text-sm font-black text-amber-900 shadow-sm">
+          <span className="rounded-full border border-amber-200/90 bg-amber-50/90 px-3 py-1 text-xs font-black text-amber-900 shadow-sm">
             9 modül
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {hubModules.map((item) => (
             <HubModuleCard key={item.title} item={item} />
           ))}
