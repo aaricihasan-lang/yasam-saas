@@ -62,6 +62,7 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   { prefix: "/sifa-rehberi", keys: ["sifa_rehberi", "healing"] },
   { prefix: "/video-ceviri", keys: ["video_ceviri"] },
   { prefix: "/belge-ceviri", keys: ["belge_ceviri"] },
+  { prefix: "/human-design", keys: ["human_design"] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PUBLIC_EXACT_PATHS = new Set(["/"]);
@@ -142,4 +143,5 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   aromatherapy: "/aromaterapi",
   video_ceviri: "/video-ceviri",
   belge_ceviri: "/belge-ceviri",
+  human_design: "/human-design",
 };

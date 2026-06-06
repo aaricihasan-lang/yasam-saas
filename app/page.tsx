@@ -377,6 +377,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   video_ceviri: [],
   belge_ceviri: [],
   ders_notu: [],
+  human_design: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {

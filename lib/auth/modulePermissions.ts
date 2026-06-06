@@ -15,7 +15,8 @@ export type ModulePermissionKey =
   | "personal_archive"
   | "video_ceviri"
   | "belge_ceviri"
-  | "ders_notu";
+  | "ders_notu"
+  | "human_design";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -31,6 +32,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
+  "human_design",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -45,6 +47,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   video_ceviri: "Video → Türkçe Dönüşüm",
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Temizlenmiş Ders Notu Merkezi",
+  human_design: "Human Design",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -59,6 +62,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   video_ceviri: false,
   belge_ceviri: false,
   ders_notu: false,
+  human_design: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
@@ -95,6 +99,7 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
+  "human_design",
   "danisan_yonetimi",
   "ajanda",
   "numeroloji",
@@ -121,6 +126,7 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
+  "human_design",
 ];
 
 export function isPremiumExpertUser(
