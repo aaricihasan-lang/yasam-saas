@@ -1360,7 +1360,7 @@ export default function Home() {
                 </h3>
 
                 <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  348 taş kaydı, mineral bankası ve kombinasyonları tek merkezde.
+                  Doğaltaş kayıtları, mineral bilgileri, kombinasyonlar ve stok yönetimi tek merkezde.
                 </p>
 
                 <button
