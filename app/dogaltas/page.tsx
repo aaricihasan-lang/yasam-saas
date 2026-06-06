@@ -578,26 +578,26 @@ function DogaltasPageContent() {
   const stockValueIsMessage = !loading && Boolean(stockValueMessage || stockValue == null);
 
   return (
-    <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
-      <div className="grid h-full w-full grid-cols-[430px_1fr] overflow-x-hidden">
-        <aside className="flex h-screen w-[430px] min-w-[430px] max-w-[430px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-6 py-6 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-          <div className="mb-4 flex h-16 items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-md ring-1 ring-slate-100">
+    <main className=”h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950”>
+      <div className=”grid h-full w-full grid-cols-[300px_1fr] overflow-x-hidden”>
+        <aside className=”flex h-screen w-[300px] min-w-[300px] max-w-[300px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-4 py-4 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl”>
+          <div className=”mb-3 flex h-11 items-center gap-3”>
+            <div className=”flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-md ring-1 ring-slate-100”>
               💎
             </div>
             <div>
-              <h2 className="text-[13px] font-black tracking-[0.22em] text-slate-950">
+              <h2 className=”text-[11px] font-black tracking-[0.22em] text-slate-950”>
                 YAŞAM SİSTEMİ
               </h2>
-              <p className="mt-0.5 text-[13px] font-bold text-emerald-700">Doğaltaş Modülü</p>
+              <p className=”mt-0.5 text-[11px] font-bold text-emerald-700”>Doğaltaş Modülü</p>
             </div>
           </div>
 
-          <div className="mb-4 shrink-0 text-[15px] font-black tracking-[0.24em] text-slate-400">
+          <div className=”mb-2 shrink-0 text-[11px] font-black tracking-[0.24em] text-slate-400”>
             MODÜLLER
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <nav className=”flex min-h-0 flex-1 flex-col gap-2 overflow-hidden”>
             {modules.map((item, index) => {
               const isFeatured = index === 0;
 
@@ -605,30 +605,30 @@ function DogaltasPageContent() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex h-[92px] w-full shrink-0 cursor-pointer items-center gap-5 rounded-[28px] border px-5 py-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.045] hover:border-cyan-300 hover:bg-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] ${
+                  className={`group flex h-[64px] w-full shrink-0 cursor-pointer items-center gap-3 rounded-[18px] border px-4 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-cyan-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(79,70,229,0.14)] ${
                     isFeatured
-                      ? "border-cyan-300 bg-gradient-to-r from-cyan-50 via-white to-blue-50 shadow-[0_18px_55px_rgba(14,165,233,0.18)]"
-                      : "border-white/80 bg-white/70"
+                      ? “border-cyan-300 bg-gradient-to-r from-cyan-50 via-white to-blue-50 shadow-[0_10px_28px_rgba(14,165,233,0.14)]”
+                      : “border-white/80 bg-white/70”
                   }`}
                 >
                   <span
-                    className={`flex h-16 w-16 min-w-16 shrink-0 items-center justify-center rounded-[24px] shadow-lg ring-1 ring-white/80 ${item.iconBg}`}
+                    className={`flex h-9 w-9 min-w-[36px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 ring-white/80 ${item.iconBg}`}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center text-2xl leading-none">
+                    <span className=”flex h-5 w-5 items-center justify-center text-base leading-none”>
                       {item.icon}
                     </span>
                   </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="block whitespace-normal text-[20px] font-black leading-tight text-slate-950">
+                  <span className=”min-w-0 flex-1”>
+                    <span className=”block truncate text-[13px] font-black leading-tight text-slate-950”>
                       {item.title}
                     </span>
-                    <span className="mt-1 block whitespace-normal text-[14px] font-semibold leading-snug text-slate-600">
+                    <span className=”mt-0.5 block truncate text-[11px] font-semibold leading-snug text-slate-500”>
                       {item.subtitle}
                     </span>
                   </span>
 
-                  <span className="ml-auto shrink-0 text-2xl font-black opacity-80 transition-transform duration-300 group-hover:translate-x-1">
+                  <span className=”ml-auto shrink-0 text-base font-black opacity-60 transition-transform duration-300 group-hover:translate-x-1”>
                     ›
                   </span>
                 </Link>
@@ -637,84 +637,69 @@ function DogaltasPageContent() {
           </nav>
         </aside>
 
-        <section className="relative h-screen min-w-0 overflow-hidden px-6 py-5">
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
-            <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl" />
-            <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl" />
+        <section className=”relative h-screen min-w-0 overflow-hidden px-5 py-4”>
+          <div className=”pointer-events-none absolute inset-0 overflow-hidden”>
+            <div className=”absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl” />
+            <div className=”absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl” />
+            <div className=”absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl” />
           </div>
 
-          <div className="relative flex h-full w-full max-w-none flex-col gap-3 overflow-y-auto">
-            <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[30px] border border-white/80 bg-white/65 px-8 py-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <div className="flex min-w-0 flex-1 items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center text-3xl leading-none">
-                  💎
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-4xl font-black tracking-tight text-slate-950">
-                    <span className="bg-[linear-gradient(90deg,#a855f7_0%,#38bdf8_45%,#34d399_100%)] bg-clip-text text-transparent">
-                      Doğaltaş
-                    </span>{" "}
-                    Yönetimi
-                  </h1>
-                  <p className="mt-0.5 text-base text-slate-600">
-                    Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden
-                    yönetin.
-                  </p>
-                </div>
+          <div className=”relative mx-auto flex h-full w-full max-w-5xl flex-col gap-2.5 overflow-y-auto”>
+            <header className=”flex shrink-0 items-center gap-3 rounded-2xl border border-white/80 bg-white/65 px-5 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl”>
+              <div className=”flex h-9 w-9 shrink-0 items-center justify-center text-xl leading-none”>
+                💎
               </div>
-              <Link
-                href="/"
-                className="inline-flex w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl border-2 border-violet-400/50 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-7 py-4 text-[16px] font-semibold text-white shadow-[0_14px_36px_-10px_rgba(91,33,182,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.04] hover:border-violet-300/70 hover:shadow-[0_18px_44px_-8px_rgba(139,92,246,0.65)] hover:shadow-violet-500/30 sm:w-auto sm:justify-start sm:text-[17px]"
-              >
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
-                  aria-hidden
-                >
-                  🏠
-                </span>
-                <span>← Ana Sayfaya Dön</span>
-              </Link>
+              <div className=”min-w-0”>
+                <h1 className=”text-2xl font-black tracking-tight text-slate-950”>
+                  <span className=”bg-[linear-gradient(90deg,#a855f7_0%,#38bdf8_45%,#34d399_100%)] bg-clip-text text-transparent”>
+                    Doğaltaş
+                  </span>{“ “}
+                  Yönetimi
+                </h1>
+                <p className=”mt-0.5 text-sm text-slate-500”>
+                  Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.
+                </p>
+              </div>
             </header>
 
             <form
-              className="w-full shrink-0 rounded-[26px] border border-white/80 bg-white/75 p-3 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+              className=”w-full shrink-0 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-[0_6px_20px_rgba(15,23,42,0.07)] backdrop-blur-xl”
               onSubmit={handleSearchSubmit}
             >
-              <div className="flex gap-3">
-                <div className="relative min-w-0 flex-1">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base text-slate-400">
+              <div className=”flex gap-2”>
+                <div className=”relative min-w-0 flex-1”>
+                  <span className=”absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400”>
                     ⌕
                   </span>
                   <input
-                    type="search"
+                    type=”search”
                     value={searchInput}
                     onChange={(event) => handleSearchInputChange(event.target.value)}
-                    placeholder="Taş adı veya içerikte ara (ör. mide, şifa)..."
-                    className="h-14 w-full rounded-2xl border border-slate-200/70 bg-white/90 pl-11 pr-4 text-base font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+                    placeholder=”Taş adı veya içerikte ara (ör. mide, şifa)...”
+                    className=”h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100”
                   />
                 </div>
                 <button
-                  type="submit"
+                  type=”submit”
                   disabled={searchLoading}
-                  className="h-14 shrink-0 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-7 text-sm font-black text-white shadow-lg transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                  className=”h-10 shrink-0 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 px-5 text-sm font-black text-white shadow-md transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60”
                 >
-                  {searchLoading ? "Aranıyor..." : "Ara"}
+                  {searchLoading ? “Aranıyor...” : “Ara”}
                 </button>
               </div>
             </form>
 
             {activeQuery.trim() ? (
-              <section className="shrink-0 rounded-[26px] border border-cyan-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-base font-black text-slate-900">
+              <section className=”shrink-0 rounded-[26px] border border-cyan-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl”>
+                <div className=”mb-3 flex flex-wrap items-center justify-between gap-2”>
+                  <h2 className=”text-base font-black text-slate-900”>
                     Arama Sonuçları
                     {!searchLoading && stonesForSearch
                       ? ` · ${searchResults.length} kayıt`
-                      : ""}
+                      : “”}
                   </h2>
                   {activeQuery ? (
-                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800 ring-1 ring-cyan-200">
+                    <span className=”rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800 ring-1 ring-cyan-200”>
                       “{activeQuery}”
                     </span>
                   ) : null}
@@ -722,23 +707,23 @@ function DogaltasPageContent() {
 
                 {searchError ? (
                   <p
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
-                    role="alert"
+                    className=”rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900”
+                    role=”alert”
                   >
                     {searchError}
                   </p>
                 ) : null}
 
                 {searchLoading ? (
-                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                  <p className=”py-6 text-center text-sm font-semibold text-slate-600”>
                     Yükleniyor...
                   </p>
                 ) : searchResults.length === 0 && !searchError ? (
-                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                  <p className=”py-6 text-center text-sm font-semibold text-slate-600”>
                     Bu arama için sonuç bulunamadı.
                   </p>
                 ) : (
-                  <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
+                  <div className=”max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1”>
                     {searchResults.map((result) => {
                       const isViewed = viewedStoneIds.has(result.id);
                       const detailHref = `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
@@ -748,44 +733,44 @@ function DogaltasPageContent() {
                           key={result.id}
                           className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
                             isViewed
-                              ? "border-rose-200/90 ring-1 ring-rose-100"
-                              : "border-slate-200/80"
+                              ? “border-rose-200/90 ring-1 ring-rose-100”
+                              : “border-slate-200/80”
                           }`}
                         >
                           {isViewed ? (
                             <span
-                              className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                              className=”absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600”
                               aria-hidden
                             />
                           ) : null}
 
-                          <div className={isViewed ? "pl-2" : ""}>
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <h3 className="text-lg font-black text-slate-950">
+                          <div className={isViewed ? “pl-2” : “”}>
+                            <div className=”flex flex-wrap items-start justify-between gap-2”>
+                              <h3 className=”text-lg font-black text-slate-950”>
                                 {result.stone_name}
                               </h3>
                               {isViewed ? (
-                                <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                                <span className=”rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200”>
                                   Bakıldı
                                 </span>
                               ) : null}
                             </div>
 
-                            <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600">
+                            <p className=”mt-1 line-clamp-2 text-sm font-medium text-slate-600”>
                               {result.short_description}
                             </p>
 
-                            <p className="mt-2 text-xs font-bold text-violet-700">
+                            <p className=”mt-2 text-xs font-bold text-violet-700”>
                               Eşleşme: {result.matchedField}
                             </p>
-                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
+                            <p className=”mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700”>
                               {result.snippet}
                             </p>
 
                             <Link
                               href={detailHref}
                               onClick={() => handleResultNavigate(result.id)}
-                              className="mt-3 inline-flex rounded-xl border border-cyan-300/80 bg-cyan-50 px-4 py-2 text-sm font-black text-cyan-950 transition hover:bg-cyan-100"
+                              className=”mt-3 inline-flex rounded-xl border border-cyan-300/80 bg-cyan-50 px-4 py-2 text-sm font-black text-cyan-950 transition hover:bg-cyan-100”
                             >
                               Detaya Git
                             </Link>
@@ -798,64 +783,64 @@ function DogaltasPageContent() {
               </section>
             ) : null}
 
-            <div className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white/70 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-              <div className="mb-4 flex shrink-0 items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base">
+            <div className=”flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[22px] border border-white/80 bg-white/70 p-4 shadow-[0_12px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl”>
+              <div className=”mb-3 flex shrink-0 items-center gap-2”>
+                <div className=”flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-sm”>
                   📊
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">Hesaplanmış Analizler</h2>
-                  <p className="text-xs text-slate-600">Supabase stones, minerals ve combinations verilerine göre</p>
+                  <h2 className=”text-base font-black text-slate-950”>Hesaplanmış Analizler</h2>
+                  <p className=”text-[11px] text-slate-500”>Supabase stones, minerals ve combinations verilerine göre</p>
                 </div>
               </div>
 
               {errorMessage ? (
                 <p
-                  className="mb-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
-                  role="alert"
+                  className=”mb-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900”
+                  role=”alert”
                 >
                   {errorMessage}
                 </p>
               ) : null}
 
-              <div className="grid shrink-0 grid-cols-3 gap-3">
-                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-base font-black text-slate-800">Stok Değeri</p>
-                  <p className="text-xs text-slate-500">Stones tablosu fiyat × stok</p>
+              <div className=”grid shrink-0 grid-cols-3 gap-2.5”>
+                <div className=”flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md”>
+                  <p className=”text-sm font-black text-slate-800”>Stok Değeri</p>
+                  <p className=”text-[11px] text-slate-500”>Stones tablosu fiyat × stok</p>
                   <h3
                     className={`mt-auto pt-2 font-black text-slate-950 ${
-                      stockValueIsMessage ? "text-sm leading-snug" : "text-3xl"
+                      stockValueIsMessage ? “text-sm leading-snug” : “text-2xl”
                     }`}
                   >
                     {stockValueDisplay}
                   </h3>
                 </div>
 
-                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-base font-black text-slate-800">Aylık Kayıt Trendi</p>
-                  <p className="text-xs text-slate-500">Son 6 ay · stones.created_at</p>
+                <div className=”flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md”>
+                  <p className=”text-sm font-black text-slate-800”>Aylık Kayıt Trendi</p>
+                  <p className=”text-[11px] text-slate-500”>Son 6 ay · stones.created_at</p>
                   {loading ? (
-                    <p className="mt-auto text-sm font-semibold text-slate-600">Yükleniyor...</p>
+                    <p className=”mt-auto text-sm font-semibold text-slate-600”>Yükleniyor...</p>
                   ) : (
                     <>
-                      <div className="mt-2 flex h-[88px] items-end gap-1.5">
+                      <div className=”mt-1.5 flex h-[62px] items-end gap-1”>
                         {monthlyTrend.map((bucket) => (
                           <div
                             key={bucket.label}
-                            className="flex h-full flex-1 flex-col justify-end"
+                            className=”flex h-full flex-1 flex-col justify-end”
                             title={`${bucket.label}: ${bucket.count} kayıt`}
                           >
                             <div
-                              className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
+                              className=”w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300”
                               style={{
-                                height: bucket.heightPct > 0 ? `${bucket.heightPct}%` : "4px",
-                                minHeight: "4px",
+                                height: bucket.heightPct > 0 ? `${bucket.heightPct}%` : “4px”,
+                                minHeight: “4px”,
                               }}
                             />
                           </div>
                         ))}
                       </div>
-                      <div className="mt-1.5 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500">
+                      <div className=”mt-1 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500”>
                         {monthlyTrend.map((bucket) => (
                           <span key={`${bucket.label}-lbl`}>{bucket.label}</span>
                         ))}
@@ -864,31 +849,31 @@ function DogaltasPageContent() {
                   )}
                 </div>
 
-                <div className="flex h-[210px] max-h-[230px] flex-col rounded-[24px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-5 shadow-md">
-                  <p className="text-base font-black text-slate-800">En Çok Satılan Taşlar</p>
-                  <p className="text-xs text-slate-500">Satış hareket tablosu</p>
-                  <p className="mt-auto text-sm font-semibold leading-relaxed text-slate-600">
-                    {loading ? "Yükleniyor..." : "Henüz satış verisi yok"}
+                <div className=”flex h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md”>
+                  <p className=”text-sm font-black text-slate-800”>En Çok Satılan Taşlar</p>
+                  <p className=”text-[11px] text-slate-500”>Satış hareket tablosu</p>
+                  <p className=”mt-auto text-sm font-semibold leading-relaxed text-slate-600”>
+                    {loading ? “Yükleniyor...” : “Henüz satış verisi yok”}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-3 grid shrink-0 grid-cols-3 gap-3">
-                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-teal-700">Toplam Taş Kaydı</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">
+              <div className=”mt-2.5 grid shrink-0 grid-cols-3 gap-2.5”>
+                <div className=”flex min-h-[72px] flex-col justify-center rounded-[16px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-3.5 shadow-md”>
+                  <p className=”text-xs font-black text-teal-700”>Toplam Taş Kaydı</p>
+                  <p className=”mt-0.5 text-xl font-black text-slate-950”>
                     {formatCount(stonesCount, loading)}
                   </p>
                 </div>
-                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-violet-700">Mineral Bankası</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">
+                <div className=”flex min-h-[72px] flex-col justify-center rounded-[16px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-3.5 shadow-md”>
+                  <p className=”text-xs font-black text-violet-700”>Mineral Bankası</p>
+                  <p className=”mt-0.5 text-xl font-black text-slate-950”>
                     {formatCount(mineralsCount, loading)}
                   </p>
                 </div>
-                <div className="flex min-h-[95px] flex-col justify-center rounded-[24px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-md">
-                  <p className="text-sm font-black text-amber-700">Aktif Kombinasyonlar</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950">
+                <div className=”flex min-h-[72px] flex-col justify-center rounded-[16px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3.5 shadow-md”>
+                  <p className=”text-xs font-black text-amber-700”>Aktif Kombinasyonlar</p>
+                  <p className=”mt-0.5 text-xl font-black text-slate-950”>
                     {formatCount(combinationsCount, loading)}
                   </p>
                 </div>
