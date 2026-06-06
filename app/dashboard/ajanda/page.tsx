@@ -335,99 +335,86 @@ export default function AjandaPage() {
   }, [tenantId]);
 
   return (
-    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_25%),radial-gradient(circle_at_85%_10%,rgba(236,72,153,0.10),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)] px-6 py-8 text-slate-950 antialiased lg:px-10 xl:px-14">
+    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_25%),radial-gradient(circle_at_85%_10%,rgba(236,72,153,0.10),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)] px-5 py-5 text-slate-950 antialiased sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-24 h-[480px] w-[480px] rounded-full bg-indigo-400/14 blur-[150px]" />
         <div className="absolute -right-20 top-0 h-[420px] w-[420px] rounded-full bg-pink-400/12 blur-[150px]" />
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-full xl:max-w-[1760px]">
-        <header className="mb-8">
-          <div className="mb-5 flex flex-wrap items-center gap-4">
-            <Link
-              href="/"
-              className="rounded-2xl border border-blue-200 bg-white/80 px-5 py-3 font-black text-slate-800 shadow-md backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white"
-            >
-              ← Ana Panele Dön
-            </Link>
-
-            <button
-              type="button"
-              onClick={loadAppointments}
-              className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 font-black text-white shadow-lg transition hover:-translate-y-0.5"
-            >
-              Yenile
-            </button>
+      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
+        <header className="mb-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                Ajanda & Randevu Merkezi
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
+                Bugünkü akışı ve tüm randevuları yönetin.
+              </p>
+            </div>
 
             <Link
               href="/dashboard/clients"
-              className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 font-black text-white shadow-lg transition hover:-translate-y-0.5"
+              className="shrink-0 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5"
             >
               + Yeni Kayıt
             </Link>
           </div>
 
-          <h1 className="text-5xl font-black tracking-tight text-slate-950">
-            Ajanda & Randevu Merkezi
-          </h1>
-          <p className="mt-3 max-w-3xl text-base font-medium text-slate-600">
-            Bugünkü akışı ve tüm randevuları yönetin.
-          </p>
-
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <div className="flex h-28 items-center gap-4 rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/60 px-5 shadow-lg transition-all hover:scale-[1.05]">
-              <Users className="h-8 w-8 shrink-0 text-indigo-600" strokeWidth={2.2} />
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <div className="flex items-center gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
+              <Users className="h-5 w-5 shrink-0 text-indigo-600" strokeWidth={2.2} />
               <div>
-                <div className="text-3xl font-black text-indigo-800">{appointments.length}</div>
-                <div className="text-sm font-black text-indigo-600">Toplam</div>
+                <div className="text-xl font-black leading-none text-indigo-800">{appointments.length}</div>
+                <div className="mt-0.5 text-xs font-bold text-indigo-600">Toplam</div>
               </div>
             </div>
 
-            <div className="flex h-28 items-center gap-4 rounded-3xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 px-5 shadow-lg transition-all hover:scale-[1.05]">
-              <Calendar className="h-8 w-8 shrink-0 text-emerald-600" strokeWidth={2.2} />
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
+              <Calendar className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2.2} />
               <div>
-                <div className="text-3xl font-black text-emerald-800">{todayCount}</div>
-                <div className="text-sm font-black text-emerald-600">Bugün</div>
+                <div className="text-xl font-black leading-none text-emerald-800">{todayCount}</div>
+                <div className="mt-0.5 text-xs font-bold text-emerald-600">Bugün</div>
               </div>
             </div>
 
-            <div className="flex h-28 items-center gap-4 rounded-3xl border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-violet-100/60 px-5 shadow-lg transition-all hover:scale-[1.05]">
-              <Clock3 className="h-8 w-8 shrink-0 text-violet-600" strokeWidth={2.2} />
+            <div className="flex items-center gap-3 rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-violet-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
+              <Clock3 className="h-5 w-5 shrink-0 text-violet-600" strokeWidth={2.2} />
               <div>
-                <div className="text-3xl font-black text-violet-800">{waitingCount}</div>
-                <div className="text-sm font-black text-violet-600">Bekliyor</div>
+                <div className="text-xl font-black leading-none text-violet-800">{waitingCount}</div>
+                <div className="mt-0.5 text-xs font-bold text-violet-600">Bekliyor</div>
               </div>
             </div>
 
-            <div className="flex h-28 items-center gap-4 rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-amber-100/60 px-5 shadow-lg transition-all hover:scale-[1.05]">
-              <CheckCircle className="h-8 w-8 shrink-0 text-amber-600" strokeWidth={2.2} />
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-amber-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
+              <CheckCircle className="h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.2} />
               <div>
-                <div className="text-3xl font-black text-amber-800">{completedCount}</div>
-                <div className="text-sm font-black text-amber-600">Biten</div>
+                <div className="text-xl font-black leading-none text-amber-800">{completedCount}</div>
+                <div className="mt-0.5 text-xs font-bold text-amber-600">Biten</div>
               </div>
             </div>
 
-            <div className="flex h-28 items-center gap-4 rounded-3xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-5 shadow-lg transition-all hover:scale-[1.05] md:col-span-3 xl:col-span-1">
-              <XCircle className="h-8 w-8 shrink-0 text-rose-600" strokeWidth={2.2} />
+            <div className="flex items-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02] sm:col-span-3 xl:col-span-1">
+              <XCircle className="h-5 w-5 shrink-0 text-rose-600" strokeWidth={2.2} />
               <div>
-                <div className="text-3xl font-black text-rose-800">{cancelledCount}</div>
-                <div className="text-sm font-black text-rose-600">İptal</div>
+                <div className="text-xl font-black leading-none text-rose-800">{cancelledCount}</div>
+                <div className="mt-0.5 text-xs font-bold text-rose-600">İptal</div>
               </div>
             </div>
           </div>
         </header>
 
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-4 flex flex-wrap gap-2">
           {FILTER_OPTIONS.map((option) => (
             <button
               key={option.key}
               type="button"
               onClick={() => setFilter(option.key)}
-              className={`rounded-full px-6 py-4 font-black transition-all ${
+              className={`rounded-full px-4 py-1.5 text-sm font-black transition-all ${
                 filter === option.key
-                  ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg"
-                  : "border border-white/80 bg-white/90 text-slate-700 shadow-sm hover:scale-[1.05]"
+                  ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md"
+                  : "border border-white/80 bg-white/90 text-slate-700 shadow-sm hover:scale-[1.03]"
               }`}
             >
               {option.label}
@@ -435,19 +422,19 @@ export default function AjandaPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.7fr_0.8fr]">
-          <section className="rounded-[34px] border border-white/80 bg-white/80 p-8 shadow-[0_20px_70px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-            <div className="mb-6">
-              <h2 className="text-3xl font-black text-slate-950">Tüm Randevu Akışı</h2>
-              <p className="mt-2 text-base text-slate-600">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_0.8fr]">
+          <section className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-lg backdrop-blur-xl">
+            <div className="mb-3">
+              <h2 className="text-xl font-black text-slate-950">Tüm Randevu Akışı</h2>
+              <p className="mt-0.5 text-xs text-slate-600">
                 Sistemdeki tüm randevular burada listelenir.
               </p>
-              <p className="mt-1 text-sm font-semibold text-indigo-600">
+              <p className="mt-0.5 text-xs font-semibold text-indigo-600">
                 {filteredAppointments.length} kayıt görüntüleniyor
               </p>
             </div>
 
-            <div className="max-h-[calc(100vh-340px)] space-y-4 overflow-y-auto pr-1">
+            <div className="max-h-[calc(100vh-310px)] space-y-2.5 overflow-y-auto pr-1">
               {filteredAppointments.map((item, index) => {
                 const statusInfo = getStatusInfo(item.status);
                 const borderClass = getLeftBorderClass(
@@ -460,47 +447,47 @@ export default function AjandaPage() {
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedAppointment(item)}
-                    className={`group flex min-h-[110px] w-full flex-col justify-between rounded-2xl border border-slate-200/80 border-l-[5px] bg-white/90 p-5 text-left shadow-md transition-all hover:-translate-y-2 hover:scale-[1.02] hover:shadow-xl ${borderClass}`}
+                    className={`group flex w-full flex-col rounded-xl border border-slate-200/80 border-l-[4px] bg-white/90 p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${borderClass}`}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-lg font-black text-white shadow-md">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-black text-white shadow-sm">
                           {index + 1}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
                               {formatDay(item.appointment_date)}
                             </span>
                             <span
-                              className={`rounded-full border px-3 py-1 text-sm font-black ${statusInfo.pill}`}
+                              className={`rounded-full border px-2 py-0.5 text-xs font-black ${statusInfo.pill}`}
                             >
                               {statusInfo.label}
                             </span>
                           </div>
 
-                          <div className="mt-2 text-xl font-black text-slate-950">
+                          <div className="mt-1 text-base font-black text-slate-950">
                             {item.title || "Görüşme"}
                           </div>
 
-                          <div className="mt-1 text-sm font-semibold text-slate-500">
+                          <div className="mt-0.5 text-xs font-semibold text-slate-500">
                             {item.client_id
                               ? clientMap.get(item.client_id) || "Danışan"
                               : "Danışan seçilmemiş"}
                           </div>
 
                           {item.notes && (
-                            <div className="mt-3 line-clamp-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                            <div className="mt-2 line-clamp-1 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
                               {item.notes}
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white shadow-md">
-                        <div className="text-xs font-bold text-slate-300">Tarih / Saat</div>
-                        <div className="mt-1 text-sm font-black">
+                      <div className="rounded-xl bg-slate-950 px-3 py-2 text-right text-white shadow-sm">
+                        <div className="text-[10px] font-bold text-slate-300">Tarih / Saat</div>
+                        <div className="mt-0.5 text-xs font-black">
                           {formatDate(item.appointment_date)}
                         </div>
                       </div>
@@ -510,14 +497,14 @@ export default function AjandaPage() {
               })}
 
               {filteredAppointments.length === 0 && (
-                <div className="rounded-3xl border-2 border-dashed border-slate-300 bg-white/70 p-10 text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 text-2xl">
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center">
+                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-xl">
                     ✨
                   </div>
-                  <div className="text-lg font-black text-slate-800">
+                  <div className="text-sm font-black text-slate-800">
                     Bu filtrede randevu yok.
                   </div>
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     Randevular danışan detayından oluşturulabilir.
                   </p>
                 </div>
@@ -525,12 +512,12 @@ export default function AjandaPage() {
             </div>
           </section>
 
-          <aside className="rounded-3xl border border-white/80 bg-white/75 p-6 shadow-xl backdrop-blur-xl">
-            <div className="mb-6">
-              <h2 className="text-2xl font-black text-slate-950">
+          <aside className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-lg backdrop-blur-xl">
+            <div className="mb-3">
+              <h2 className="text-lg font-black text-slate-950">
                 Yaklaşan İlk 10 Randevu
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-0.5 text-xs text-slate-600">
                 En yakın görüşmeler zaman çizelgesi.
               </p>
             </div>
@@ -540,42 +527,42 @@ export default function AjandaPage() {
                 const statusInfo = getStatusInfo(item.status);
 
                 return (
-                  <div key={item.id} className="relative pl-10">
+                  <div key={item.id} className="relative pl-9">
                     {index < upcomingTop10.length - 1 && (
                       <div
-                        className="absolute left-[17px] top-12 bottom-0 w-0.5 bg-gradient-to-b from-indigo-200 to-transparent"
+                        className="absolute left-[15px] top-10 bottom-0 w-0.5 bg-gradient-to-b from-indigo-200 to-transparent"
                         aria-hidden
                       />
                     )}
 
                     <div
-                      className="absolute left-0 top-4 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-indigo-100 shadow-sm"
+                      className="absolute left-0 top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-indigo-100 shadow-sm"
                       aria-hidden
                     >
-                      <Calendar className="h-4 w-4 text-indigo-600" strokeWidth={2.2} />
+                      <Calendar className="h-3.5 w-3.5 text-indigo-600" strokeWidth={2.2} />
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setSelectedAppointment(item)}
-                      className="mb-3 w-full rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-left shadow-sm transition-all hover:translate-x-2 hover:scale-[1.03] hover:border-indigo-200 hover:shadow-md"
+                      className="mb-2 w-full rounded-xl border border-slate-200/80 bg-white/90 p-3 text-left shadow-sm transition-all hover:translate-x-1 hover:border-indigo-200 hover:shadow-md"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-black text-indigo-700">
+                        <span className="text-xs font-black text-indigo-700">
                           {formatDateShort(item.appointment_date)}
                         </span>
-                        <span className="text-sm font-bold text-slate-600">
+                        <span className="text-xs font-bold text-slate-600">
                           {formatTime(item.appointment_date)}
                         </span>
                       </div>
 
-                      <div className="mt-2 text-sm font-bold text-slate-800">
+                      <div className="mt-1 text-sm font-bold text-slate-800">
                         {item.title || "Görüşme"}
                       </div>
 
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-1.5 flex items-center gap-1.5">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-xs font-black ${statusInfo.pill}`}
+                          className={`rounded-full border px-2 py-0.5 text-xs font-black ${statusInfo.pill}`}
                         >
                           {statusInfo.label}
                         </span>
@@ -591,7 +578,7 @@ export default function AjandaPage() {
               })}
 
               {upcomingTop10.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-6 text-center">
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-4 text-center">
                   <p className="text-sm font-black text-slate-700">
                     Yaklaşan randevu yok.
                   </p>
