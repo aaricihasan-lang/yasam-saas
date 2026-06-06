@@ -21,16 +21,16 @@ import {
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(221,214,254,0.35),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(129,140,248,0.14),transparent_30%),linear-gradient(160deg,#f5f3ff_0%,#eef2ff_40%,#faf5ff_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14";
+const pageShell = "relative z-10 w-full px-4 py-4 sm:px-5 lg:px-8 xl:px-12";
 
 const panelClass =
-  "w-full rounded-[28px] border-2 border-violet-200/80 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "w-full rounded-[18px] border-2 border-violet-200/80 bg-white/85 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl";
 
 const inputClass =
-  "h-14 w-full rounded-2xl border-2 border-violet-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-200/50";
+  "h-10 w-full rounded-xl border-2 border-violet-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-200/50";
 
 const btnSecondary =
-  "inline-flex h-12 min-h-[48px] items-center justify-center rounded-2xl border-2 border-violet-200 bg-violet-50 px-6 text-sm font-black text-slate-800 transition hover:bg-violet-100 no-underline";
+  "inline-flex h-9 min-h-[36px] items-center justify-center rounded-xl border-2 border-violet-200 bg-violet-50 px-4 text-sm font-black text-slate-800 transition hover:bg-violet-100 no-underline";
 
 type SortMode = "name" | "stock-asc" | "stock-desc";
 
@@ -59,11 +59,11 @@ function LetterPlaceholder({ letter }: { letter: string }) {
 function StockCard({ row }: { row: LiveStockRow }) {
   return (
     <article
-      className={`flex flex-col gap-4 rounded-[24px] border-2 bg-white p-4 shadow-md sm:flex-row sm:items-center sm:gap-6 sm:p-5 ${
+      className={`flex flex-col gap-3 rounded-[16px] border-2 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
         row.isCritical ? "border-rose-300 ring-2 ring-rose-100" : "border-violet-100"
       }`}
     >
-      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-violet-100 sm:h-28 sm:w-28">
+      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 border-violet-100 sm:h-20 sm:w-20">
         <ProductThumb photos={row.photos} name={row.name} />
       </div>
 
@@ -76,9 +76,9 @@ function StockCard({ row }: { row: LiveStockRow }) {
             <span className="rounded-xl bg-rose-100 px-3 py-1 text-xs font-black text-rose-800">Kritik stok</span>
           ) : null}
         </div>
-        <h2 className="text-xl font-black leading-tight text-slate-900 sm:text-2xl">{row.name}</h2>
-        <p className="text-sm font-semibold text-slate-600 sm:text-base">{row.groupLabel}</p>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm font-semibold text-slate-700 sm:text-base">
+        <h2 className="text-base font-black leading-tight text-slate-900 sm:text-lg">{row.name}</h2>
+        <p className="text-sm font-semibold text-slate-600">{row.groupLabel}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-slate-700">
           <span>Birim maliyet: {row.costPerUnitLabel}</span>
           <span>Tahmini değer: {fmtMoney(row.stockValue)}</span>
         </div>
@@ -89,13 +89,13 @@ function StockCard({ row }: { row: LiveStockRow }) {
           Mevcut stok
         </p>
         <div
-          className={`rounded-2xl border-2 px-5 py-4 text-center sm:min-w-[140px] ${
+          className={`rounded-xl border-2 px-4 py-3 text-center sm:min-w-[110px] ${
             row.isCritical
               ? "border-rose-400 bg-gradient-to-br from-rose-50 to-orange-50"
               : "border-violet-300 bg-gradient-to-br from-violet-50 to-indigo-50"
           }`}
         >
-          <p className="text-2xl font-black leading-none text-slate-900 sm:text-3xl">{row.stockDisplay}</p>
+          <p className="text-xl font-black leading-none text-slate-900 sm:text-2xl">{row.stockDisplay}</p>
           <p className="mt-1 text-xs font-bold text-slate-500">birim: {row.unitLabel}</p>
         </div>
       </div>
@@ -178,66 +178,40 @@ export default function CanliStokMerkeziPage() {
       </div>
 
       <div className={pageShell}>
-        <div className="mb-6 flex flex-wrap justify-between gap-3">
-          <Link href="/urun-stok" className={btnSecondary}>
-            ← Ürün & Stok Merkezi
-          </Link>
-          <Link href="/urun-stok" className={btnSecondary}>
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className={`${panelClass} mb-6`}>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-violet-700">Canlı depo</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl xl:text-5xl">Canlı Stok Merkezi</h1>
-          <p className="mt-3 text-base text-slate-600 sm:text-lg">
-            Tüm modüllerdeki gerçek stoklar tek ekranda — salt okunur. Satış veya manuel düzenleme burada yapılmaz;
-            stoklar ilgili modül envanterinden anlık okunur.
+        <header className={`${panelClass} mb-4`}>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-700">Canlı depo</p>
+          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Canlı Stok Merkezi</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Tüm modüllerdeki gerçek stoklar tek ekranda — salt okunur. Stoklar ilgili modül envanterinden anlık okunur.
           </p>
-          <div className="mt-4 rounded-xl border-2 border-amber-200/90 bg-amber-50/95 px-4 py-3 text-sm font-semibold text-amber-950">
-            <p className="font-black uppercase tracking-wide text-amber-900">Stok debug</p>
-            <ul className="mt-2 space-y-1 font-mono text-xs sm:text-sm">
-              <li>Okunan tablo: {inventoryDebug?.tableName ?? DOGALTAS_INVENTORY_TABLE}</li>
-              <li>Aktif oturum tenant_id: {inventoryDebug?.sessionTenantId ?? tenantId ?? "—"}</li>
-              <li>Son import tenant_id (önbellek): {inventoryDebug?.cachedImportTenantId ?? "—"}</li>
-              <li>Veri kaynağı: {inventorySource}</li>
-              <li>Supabase ham kayıt: {inventoryDebug?.supabaseRawCount ?? "—"}</li>
-              <li>localStorage yedek: {inventoryDebug?.localStorageCount ?? "—"}</li>
-              <li>adet &gt; 0 (gösterilebilir): {inventoryDebug?.adetPositiveCount ?? "—"}</li>
-              <li>Listede doğaltaş satırı: {rows.filter((r) => r.category === "dogaltas").length}</li>
-              {inventoryDebug?.supabaseError ? (
-                <li className="text-rose-800">Hata / uyarı: {inventoryDebug.supabaseError}</li>
-              ) : null}
-            </ul>
-          </div>
         </header>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className={`${panelClass} !p-5`}>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className={`${panelClass} !p-3`}>
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">Ürün çeşidi</p>
-            <p className="mt-2 text-3xl font-black text-violet-900">{summary.totalVarieties}</p>
+            <p className="mt-1.5 text-2xl font-black text-violet-900">{summary.totalVarieties}</p>
           </div>
-          <div className={`${panelClass} !p-5`}>
+          <div className={`${panelClass} !p-3`}>
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">Toplam stok miktarı</p>
-            <p className="mt-2 text-lg font-black leading-snug text-violet-900 sm:text-xl">
+            <p className="mt-1.5 text-base font-black leading-snug text-violet-900 sm:text-lg">
               {formatStockTotals(summary)}
             </p>
           </div>
-          <div className={`${panelClass} !p-5`}>
+          <div className={`${panelClass} !p-3`}>
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">Kritik stoktaki ürünler</p>
-            <p className="mt-2 text-3xl font-black text-rose-700">{summary.criticalCount}</p>
+            <p className="mt-1.5 text-2xl font-black text-rose-700">{summary.criticalCount}</p>
           </div>
-          <div className={`${panelClass} !p-5`}>
+          <div className={`${panelClass} !p-3`}>
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">Tahmini stok değeri</p>
-            <p className="mt-2 text-2xl font-black text-emerald-800 sm:text-3xl">{fmtMoney(summary.totalValue)}</p>
+            <p className="mt-1.5 text-xl font-black text-emerald-800 sm:text-2xl">{fmtMoney(summary.totalValue)}</p>
           </div>
         </div>
 
-        <section className={`${panelClass} mb-6 space-y-4`}>
-          <h2 className="text-lg font-black text-slate-800">Filtreler</h2>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className={`${panelClass} mb-4 space-y-3`}>
+          <h2 className="text-base font-black text-slate-800">Filtreler</h2>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-black">Ürün adı ara</span>
+              <span className="mb-1.5 block text-sm font-black">Ürün adı ara</span>
               <input
                 className={inputClass}
                 type="search"
@@ -247,7 +221,7 @@ export default function CanliStokMerkeziPage() {
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-black">Kategori</span>
+              <span className="mb-1.5 block text-sm font-black">Kategori</span>
               <select
                 className={inputClass}
                 value={category}
@@ -262,7 +236,7 @@ export default function CanliStokMerkeziPage() {
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-black">Doğaltaş USD kuru (₺)</span>
+              <span className="mb-1.5 block text-sm font-black">Doğaltaş USD kuru (₺)</span>
               <input
                 className={inputClass}
                 type="number"
@@ -274,7 +248,7 @@ export default function CanliStokMerkeziPage() {
             </label>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-3 text-sm font-black">
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-2 text-sm font-black">
               <input
                 type="checkbox"
                 className="h-5 w-5 accent-violet-600"
@@ -285,7 +259,7 @@ export default function CanliStokMerkeziPage() {
             </label>
             <button
               type="button"
-              className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${
+              className={`rounded-xl border-2 px-3 py-2 text-sm font-black transition ${
                 sortMode === "stock-asc"
                   ? "border-violet-500 bg-violet-100 text-violet-900"
                   : "border-violet-200 bg-white text-slate-700"
@@ -296,7 +270,7 @@ export default function CanliStokMerkeziPage() {
             </button>
             <button
               type="button"
-              className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${
+              className={`rounded-xl border-2 px-3 py-2 text-sm font-black transition ${
                 sortMode === "stock-desc"
                   ? "border-violet-500 bg-violet-100 text-violet-900"
                   : "border-violet-200 bg-white text-slate-700"
@@ -307,7 +281,7 @@ export default function CanliStokMerkeziPage() {
             </button>
             <button
               type="button"
-              className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${
+              className={`rounded-xl border-2 px-3 py-2 text-sm font-black transition ${
                 sortMode === "name"
                   ? "border-violet-500 bg-violet-100 text-violet-900"
                   : "border-violet-200 bg-white text-slate-700"
