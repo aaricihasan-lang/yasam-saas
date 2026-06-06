@@ -34,22 +34,22 @@ type TabId = "stock" | "pricing" | "history";
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.12),transparent_30%),linear-gradient(160deg,#fffbeb_0%,#f5f3ff_42%,#f0fdfa_100%)] text-slate-950";
 
-const pageShell = "relative z-10 w-full px-6 py-8 lg:px-10 xl:px-14";
+const pageShell = "relative z-10 w-full px-5 py-4 lg:px-8 xl:px-12";
 
 const panelClass =
-  "w-full rounded-[28px] border-2 border-sky-200/80 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "w-full rounded-[18px] border-2 border-sky-200/80 bg-white/85 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl";
 
 const inputClass =
-  "h-14 w-full rounded-2xl border-2 border-sky-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/40";
+  "h-10 w-full rounded-xl border-2 border-sky-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-200/40";
 
 const btnPrimary =
-  "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-100 to-green-100 px-8 text-base font-black text-emerald-900 shadow-md transition hover:scale-[1.02]";
+  "inline-flex h-10 items-center justify-center rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-100 to-green-100 px-6 text-sm font-black text-emerald-900 shadow-md transition hover:scale-[1.02]";
 
 const btnSecondary =
-  "inline-flex h-12 items-center justify-center rounded-2xl border-2 border-sky-200 bg-sky-50 px-6 text-sm font-black text-slate-800 transition hover:bg-sky-100";
+  "inline-flex h-9 items-center justify-center rounded-xl border-2 border-sky-200 bg-sky-50 px-4 text-sm font-black text-slate-800 transition hover:bg-sky-100";
 
 const tabBtn = (active: boolean) =>
-  `rounded-2xl px-6 py-3 text-base font-black transition ${
+  `rounded-xl px-4 py-2 text-sm font-black transition ${
     active
       ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg"
       : "border-2 border-violet-200 bg-white/90 text-slate-700 hover:border-violet-400"
@@ -459,30 +459,15 @@ export default function DogaltasUrunStokPage() {
       </div>
 
       <div className={pageShell}>
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/urun-stok"
-            className="inline-flex h-12 items-center gap-2 rounded-full border border-violet-200 bg-white/90 px-6 text-sm font-black text-slate-700 shadow-md no-underline"
-          >
-            ← Ürün & Stok Merkezi
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex h-12 items-center gap-2 rounded-full border border-violet-200 bg-gradient-to-r from-cyan-50 to-violet-50 px-6 text-sm font-black text-slate-700 shadow-md no-underline"
-          >
-            Ana Panele Dön
-          </Link>
-        </div>
-
-        <header className={`${panelClass} mb-8 w-full`}>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-cyan-800">Doğaltaş</p>
-          <h1 className="mt-3 text-4xl font-black text-slate-900 xl:text-5xl">Ürün / Stok Yönetimi</h1>
-          <p className="mt-4 max-w-none text-lg font-medium text-slate-600">
+        <header className={`${panelClass} mb-4 w-full`}>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-800">Doğaltaş</p>
+          <h1 className="mt-1 text-2xl font-black text-slate-900">Ürün / Stok Yönetimi</h1>
+          <p className="mt-1 text-sm font-medium text-slate-600">
             Mevcut taşlar, satış fiyatlandırma ve satış geçmişi — masaüstü stok mantığıyla.
           </p>
         </header>
 
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-4 flex flex-wrap gap-2">
           <button type="button" className={tabBtn(tab === "stock")} onClick={() => setTab("stock")}>
             Mevcut Taşlarım
           </button>
@@ -497,10 +482,10 @@ export default function DogaltasUrunStokPage() {
         {tab === "stock" && (
           <div className="w-full space-y-6">
             <section className={`${panelClass} w-full`}>
-              <h2 className="mb-6 text-xl font-black text-slate-900">Yeni Kayıt Ekle</h2>
-              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+              <h2 className="mb-3 text-base font-black text-slate-900">Yeni Kayıt Ekle</h2>
+              <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Taş adı</span>
+                  <span className="mb-1 block text-sm font-black text-slate-700">Taş adı</span>
                   <input
                     className={inputClass}
                     value={name}
@@ -509,7 +494,7 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Tür</span>
+                  <span className="mb-1 block text-sm font-black text-slate-700">Tür</span>
                   <select
                     className={inputClass}
                     value={stoneType}
@@ -523,7 +508,7 @@ export default function DogaltasUrunStokPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">Stok adedi (+/-)</span>
+                  <span className="mb-1 block text-sm font-black text-slate-700">Stok adedi (+/-)</span>
                   <input
                     className={inputClass}
                     type="number"
@@ -532,7 +517,7 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">
+                  <span className="mb-1 block text-sm font-black text-slate-700">
                     Dizi / ürün maliyeti TL
                   </span>
                   <input
@@ -544,7 +529,7 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">
+                  <span className="mb-1 block text-sm font-black text-slate-700">
                     Dizi / ürün maliyeti USD
                   </span>
                   <input
@@ -556,7 +541,7 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">
+                  <span className="mb-1 block text-sm font-black text-slate-700">
                     Dizi / ürün maliyeti EUR
                   </span>
                   <input
@@ -568,7 +553,7 @@ export default function DogaltasUrunStokPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-slate-700">
+                  <span className="mb-1 block text-sm font-black text-slate-700">
                     Adet ₺ (otomatik / manuel)
                   </span>
                   <input
@@ -581,18 +566,18 @@ export default function DogaltasUrunStokPage() {
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
-                <div className="rounded-2xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-4 shadow-sm">
-                  <p className="text-sm font-black uppercase tracking-wide text-violet-800">
+              <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr_1.2fr]">
+                <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3 shadow-sm">
+                  <p className="text-xs font-black uppercase tracking-wide text-violet-800">
                     Güncel kurlar
                   </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                      <span className="mb-1 block text-sm font-bold text-slate-700">
                         Dolar kuru
                       </span>
                       <input
-                        className="h-12 w-full rounded-xl border-2 border-sky-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-violet-400"
+                        className="h-9 w-full rounded-lg border-2 border-sky-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-violet-400"
                         type="number"
                         step="0.0001"
                         value={stockUsdRate}
@@ -601,11 +586,11 @@ export default function DogaltasUrunStokPage() {
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                      <span className="mb-1 block text-sm font-bold text-slate-700">
                         Euro kuru
                       </span>
                       <input
-                        className="h-12 w-full rounded-xl border-2 border-sky-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-violet-400"
+                        className="h-9 w-full rounded-lg border-2 border-sky-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-violet-400"
                         type="number"
                         step="0.0001"
                         value={stockEurRate}
@@ -615,12 +600,12 @@ export default function DogaltasUrunStokPage() {
                     </label>
                   </div>
                 </div>
-                <div className="rounded-2xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50/80 p-4 shadow-sm lg:col-span-2">
-                  <p className="text-sm font-black uppercase tracking-wide text-emerald-900">
+                <div className="rounded-xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50/80 p-3 shadow-sm lg:col-span-2">
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-900">
                     Anlık maliyet özeti
                   </p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <p className="text-base font-semibold text-slate-800">
+                  <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    <p className="text-sm font-semibold text-slate-800">
                       Toplam TL maliyet:{" "}
                       <span className="font-black text-emerald-900">
                         {fmtMoney(stockCostPreview.totalCostTry)}
@@ -653,7 +638,7 @@ export default function DogaltasUrunStokPage() {
                   ))}
                 </div>
               </div>
-              <div className="mt-6 flex flex-wrap items-center gap-4">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <label className="cursor-pointer">
                   <span className={`${btnSecondary} inline-flex`}>
                     ({pendingPhotos.length} foto) Foto Seç…
@@ -675,7 +660,7 @@ export default function DogaltasUrunStokPage() {
                 <button type="button" className={btnPrimary} onClick={handleAddStock}>
                   Ekle
                 </button>
-                <p className="ml-auto rounded-2xl border border-amber-200 bg-amber-50 px-6 py-3 text-base font-black text-amber-950">
+                <p className="ml-auto rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-black text-amber-950">
                   {formatTotalsCard(stockTotals.totalTl, stockTotals.totalUsd)}
                 </p>
               </div>
@@ -687,7 +672,7 @@ export default function DogaltasUrunStokPage() {
             </section>
 
             <section className={`${panelClass} w-full`}>
-              <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <div className="mb-3 grid gap-3 md:grid-cols-3">
                 <input
                   className={inputClass}
                   placeholder="Ara / Filtre…"
@@ -737,7 +722,7 @@ export default function DogaltasUrunStokPage() {
                           key={key}
                           className={`rounded-xl ${critical ? "bg-red-100/80" : "bg-white/90"} shadow-sm`}
                         >
-                          <td className="px-2 py-4 text-center">
+                          <td className="px-2 py-2 text-center">
                             <input
                               type="checkbox"
                               className="h-5 w-5"
@@ -752,23 +737,23 @@ export default function DogaltasUrunStokPage() {
                               }}
                             />
                           </td>
-                          <td className="px-2 py-4 text-center font-bold">{idx + 1}</td>
-                          <td className="px-4 py-4 font-black">{it.name}</td>
-                          <td className="px-4 py-4 font-semibold">{it.type}</td>
-                          <td className="px-4 py-4 text-center font-semibold">
+                          <td className="px-2 py-2 text-center font-bold">{idx + 1}</td>
+                          <td className="px-4 py-2 font-black">{it.name}</td>
+                          <td className="px-4 py-2 font-semibold">{it.type}</td>
+                          <td className="px-4 py-2 text-center font-semibold">
                             {Math.round(it.adet || 0)}
                           </td>
-                          <td className="px-4 py-4 text-center">{(it.dizi_price || 0).toFixed(2)}</td>
-                          <td className="px-4 py-4 text-center">{(it.dizi_price_usd || 0).toFixed(2)}</td>
-                          <td className="px-4 py-4 text-center">{(it.dizi_price_eur || 0).toFixed(2)}</td>
-                          <td className="px-4 py-4 text-center font-semibold text-emerald-900">
+                          <td className="px-4 py-2 text-center">{(it.dizi_price || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center">{(it.dizi_price_usd || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center">{(it.dizi_price_eur || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center font-semibold text-emerald-900">
                             {(it.total_cost_try || 0).toFixed(2)}
                           </td>
-                          <td className="px-4 py-4 text-center font-semibold text-emerald-800">
+                          <td className="px-4 py-2 text-center font-semibold text-emerald-800">
                             {(it.unit_cost_try || 0).toFixed(4)}
                           </td>
-                          <td className="px-4 py-4 text-center">{(it.adet_price || 0).toFixed(2)}</td>
-                          <td className="px-4 py-4 text-center">
+                          <td className="px-4 py-2 text-center">{(it.adet_price || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center">
                             <button
                               type="button"
                               className="font-black text-violet-700 underline"
@@ -783,7 +768,7 @@ export default function DogaltasUrunStokPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-3 flex flex-wrap gap-3">
                 <button type="button" className={btnSecondary} onClick={deleteSelectedStock}>
                   Seçilenleri Sil
                 </button>
@@ -793,8 +778,8 @@ export default function DogaltasUrunStokPage() {
         )}
 
         {tab === "pricing" && (
-          <div className="grid w-full gap-6 xl:grid-cols-[1.55fr_1fr] 2xl:grid-cols-[1.65fr_1fr]">
-            <section className={`${panelClass} w-full space-y-6`}>
+          <div className="grid w-full gap-4 xl:grid-cols-[1.55fr_1fr] 2xl:grid-cols-[1.65fr_1fr]">
+            <section className={`${panelClass} w-full space-y-4`}>
               <div className="grid w-full gap-4 lg:grid-cols-2 xl:grid-cols-2">
                 <input
                   className={inputClass}
@@ -855,13 +840,13 @@ export default function DogaltasUrunStokPage() {
                 />
               </label>
 
-              <div className="rounded-2xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-4">
-                <p className="text-sm font-black uppercase tracking-wide text-violet-800">
+              <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-violet-800">
                   Satış fiyatlandırma kurları
                 </p>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-base font-bold text-slate-700">
+                    <span className="mb-1 block text-sm font-bold text-slate-700">
                       Güncel Dolar Kuru
                     </span>
                     <input
@@ -873,7 +858,7 @@ export default function DogaltasUrunStokPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-base font-bold text-slate-700">
+                    <span className="mb-1 block text-sm font-bold text-slate-700">
                       Güncel Euro Kuru
                     </span>
                     <input
@@ -1001,7 +986,7 @@ export default function DogaltasUrunStokPage() {
                 Ürün: {basket.length} · Toplam Satış:{" "}
                 {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}
               </p>
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="mt-4 flex flex-col gap-2">
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
@@ -1015,7 +1000,7 @@ export default function DogaltasUrunStokPage() {
 
         {tab === "history" && (
           <section className={`${panelClass} w-full`}>
-            <div className="mb-6 flex flex-wrap gap-6 text-lg font-black">
+            <div className="mb-4 flex flex-wrap gap-4 text-base font-black">
               <span>Toplam Satış: {fmtMoney(salesSummary.totalSale)}</span>
               <span>Toplam Kâr: {fmtMoney(salesSummary.profit)}</span>
               <span>Satılan Ürün: {salesSummary.count}</span>
@@ -1039,8 +1024,8 @@ export default function DogaltasUrunStokPage() {
                 <tbody>
                   {sales.map((rec, i) => (
                     <tr key={i} className="border-t border-slate-100">
-                      <td className="px-2 py-4 text-center">{i + 1}</td>
-                      <td className="px-2 py-4 text-center">
+                      <td className="px-2 py-2 text-center">{i + 1}</td>
+                      <td className="px-2 py-2 text-center">
                         <input
                           type="checkbox"
                           className="h-5 w-5"
@@ -1055,11 +1040,11 @@ export default function DogaltasUrunStokPage() {
                           }}
                         />
                       </td>
-                      <td className="px-4 py-4">{rec.timestamp}</td>
-                      <td className="px-4 py-4 font-semibold">{rec.name}</td>
-                      <td className="px-4 py-4">{fmtMoney(rec.total_cost)}</td>
-                      <td className="px-4 py-4">{fmtMoney(rec.sale_price)}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-2">{rec.timestamp}</td>
+                      <td className="px-4 py-2 font-semibold">{rec.name}</td>
+                      <td className="px-4 py-2">{fmtMoney(rec.total_cost)}</td>
+                      <td className="px-4 py-2">{fmtMoney(rec.sale_price)}</td>
+                      <td className="px-4 py-2">
                         <button
                           type="button"
                           className="font-black text-violet-700 underline"
