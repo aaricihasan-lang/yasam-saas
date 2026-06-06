@@ -325,68 +325,68 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-sky-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pb-24 pt-5 sm:px-6 lg:px-8 xl:px-12 lg:pt-7">
+      <div className="relative z-10 w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8 xl:px-12">
 
         {/* nav */}
-        <nav className="mb-8 flex items-center justify-end gap-4" aria-label="Üst navigasyon">
+        <nav className="mb-4 flex items-center justify-end" aria-label="Üst navigasyon">
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-5 text-sm font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-4 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
           >
-            <Clock className="h-4 w-4" strokeWidth={2.25} />
+            <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
             Çevrilen Belgeler
           </button>
         </nav>
 
         {/* header */}
-        <header className="mb-12">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-50/95 px-5 py-2 text-sm font-bold text-sky-800 shadow-sm">
-            <BookOpen className="h-4 w-4" aria-hidden />
+        <header className="mb-5">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/80 bg-sky-50/95 px-3 py-1 text-xs font-bold text-sky-800 shadow-sm">
+            <BookOpen className="h-3.5 w-3.5" aria-hidden />
             Belge Dönüştürme ve Çeviri
           </div>
-          <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+          <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
             Belge{" "}
             <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
               Çeviri Merkezi
             </span>
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
             PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
           </p>
         </header>
 
-        {/* 3 kart — masaüstü 3 sütun, tablet 2 sütun, mobil tek sütun */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {/* kartlar — masaüstü 3 sütun, tablet 2 sütun, mobil tek sütun */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {CARDS.map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
             return (
               <div
                 key={card.id}
-                className={`flex flex-col rounded-[32px] border bg-gradient-to-br p-7 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg ${card.gradient} ${card.border}`}
+                className={`flex flex-col rounded-2xl border bg-gradient-to-br p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
               >
                 {/* ikon + badge */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md ${card.iconWrap}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${card.iconWrap}`}>
                     {card.icon}
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${card.badgeColor}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${card.badgeColor}`}>
                     {card.badge}
                   </span>
                 </div>
 
                 {/* başlık */}
-                <h2 className="mt-5 text-xl font-black text-slate-900">{card.title}</h2>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{card.subtitle}</p>
+                <h2 className="mt-3 text-base font-black text-slate-900">{card.title}</h2>
+                <p className="mt-1 flex-1 text-xs leading-relaxed text-slate-600">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
-                <div className="mt-6 space-y-2">
+                <div className="mt-4 space-y-2">
                   <button
                     type="button"
                     disabled={disabled}
                     onClick={() => inputRefs.current[card.id]?.click()}
-                    className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-slate-300/70 bg-white/60 px-5 py-4 text-sm font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-slate-300/70 bg-white/60 px-4 py-2.5 text-xs font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="flex items-center gap-2">
                       <FileUp className="h-4 w-4 shrink-0" strokeWidth={2.25} />
@@ -430,15 +430,15 @@ export default function BelgeCeviriPage() {
 
                 {/* çeviri modu seçici — sadece pdf-to-turkce-word */}
                 {card.id === "pdf-to-turkce-word" && !disabled && (
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3">
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="rounded-xl border border-slate-200/80 bg-white/70 p-2.5">
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Çeviri Modu
                     </p>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
                       {(["standard", "academic"] as const).map((m) => (
                         <label
                           key={m}
-                          className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 transition ${
+                          className={`flex cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 transition ${
                             translationMode === m
                               ? "bg-slate-100 ring-1 ring-slate-300"
                               : "hover:bg-slate-50"
@@ -453,10 +453,10 @@ export default function BelgeCeviriPage() {
                             className="mt-0.5 accent-slate-800"
                           />
                           <div>
-                            <p className="text-sm font-bold text-slate-800">
+                            <p className="text-xs font-bold text-slate-800">
                               {m === "standard" ? "Standart Çeviri" : "Akademik Çeviri"}
                             </p>
-                            <p className="text-[11px] font-medium text-slate-500">
+                            <p className="text-[10px] font-medium text-slate-500">
                               {m === "standard"
                                 ? "gpt-4o-mini · Hızlı ve ekonomik"
                                 : "gpt-4.1 · Kitap, tez ve araştırma metinleri"}
@@ -485,7 +485,7 @@ export default function BelgeCeviriPage() {
                   type="button"
                   disabled={!file || !!submitting || disabled || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting === card.id ? (
                     <>
