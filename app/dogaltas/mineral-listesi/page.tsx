@@ -167,25 +167,25 @@ function markViewedMineralId(id: string) {
 }
 
 const uiHeaderCard =
-  "rounded-[32px] border-[3px] border-emerald-400/40 bg-white/70 px-6 py-10 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
+  "rounded-[22px] border-[3px] border-emerald-400/40 bg-white/70 px-5 py-4 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
 const uiFilterCard =
-  "rounded-[28px] border-[3px] border-amber-300/40 bg-white/70 p-5 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
+  "rounded-[18px] border-[3px] border-amber-300/40 bg-white/70 p-3 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
 const uiContentCard =
-  "w-full min-h-[520px] rounded-[32px] border-[3px] border-emerald-400/40 bg-white/75 p-4 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
+  "w-full min-h-[360px] rounded-[22px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
 const uiField =
-  "h-14 rounded-2xl border-2 border-emerald-200 bg-white/90 px-5 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
+  "h-10 rounded-xl border-2 border-emerald-200 bg-white/90 px-4 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 const uiActionBtn =
-  "rounded-2xl px-6 py-4 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
+  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
-  "rounded-2xl border-2 border-amber-300/40 bg-white/80 px-8 py-4 text-center shadow-md";
+  "rounded-xl border-2 border-amber-300/40 bg-white/80 px-5 py-3 text-center shadow-md";
 const uiMineralCard =
-  "relative flex h-full flex-col overflow-hidden rounded-[32px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-amber-400 hover:shadow-[0_0_55px_rgba(245,158,11,0.18)]";
+  "relative flex h-full flex-col overflow-hidden rounded-[18px] border-[3px] border-emerald-300/45 bg-white/80 p-4 shadow-[0_0_28px_rgba(34,211,238,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-400 hover:shadow-[0_0_38px_rgba(245,158,11,0.16)]";
 const uiCategoryPill =
   "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
 const uiComboBtn =
-  "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-emerald-700";
+  "mt-3 inline-flex w-fit items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-md transition hover:bg-emerald-700";
 const uiLoadMoreBtn =
-  "rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-amber-50 px-8 py-4 text-sm font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-amber-100 disabled:opacity-60";
+  "rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-amber-50 px-5 py-2.5 text-sm font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-amber-100 disabled:opacity-60";
 const uiBackToDogaltasBtn =
   "inline-flex shrink-0 items-center gap-2.5 rounded-2xl border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-7 py-4 text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(16,185,129,0.5)] ring-2 ring-white/45 transition duration-200 hover:scale-[1.04] hover:border-emerald-300/80 hover:shadow-[0_18px_44px_-8px_rgba(34,211,238,0.55)] hover:shadow-cyan-400/25";
 
@@ -384,33 +384,29 @@ function MineralListesiPageContent() {
       <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-amber-300/20 blur-[150px]" />
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
 
-      <div className="relative z-10 w-full px-6 py-6 xl:px-10 2xl:px-14">
-        <header className={`${uiHeaderCard} mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+      <div className="relative z-10 w-full px-5 py-4 xl:px-8 2xl:px-10">
+        <header className={`${uiHeaderCard} mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <Link href="/dogaltas" className={uiBackToDogaltasBtn}>
-                <span aria-hidden>←</span>
-                <span>Doğaltaş Merkezine Dön</span>
-              </Link>
-              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-5 py-2 text-sm font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL LİSTESİ
               </span>
             </div>
-            <h1 className="text-6xl font-black tracking-tight text-slate-950 xl:text-7xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">
               Mineral Listesi
             </h1>
-            <p className="mt-3 text-xl font-medium text-slate-600">
+            <p className="mt-1 text-sm font-medium text-slate-600">
               public.minerals tablosundan mineral kayıtları.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
+          <div className="grid grid-cols-2 gap-2 lg:min-w-[200px]">
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{totalCount}</div>
+              <div className="text-xl font-black text-slate-950">{totalCount}</div>
               <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
             <div className={uiStatCard}>
-              <div className="text-2xl font-black text-slate-950">{filteredMinerals.length}</div>
+              <div className="text-xl font-black text-slate-950">{filteredMinerals.length}</div>
               <div className="text-xs font-bold text-slate-500">
                 {hasMore ? "Yüklü / toplam" : "Görünen sonuç"}
               </div>
@@ -418,7 +414,7 @@ function MineralListesiPageContent() {
           </div>
         </header>
 
-        <section className={`${uiFilterCard} mb-5`}>
+        <section className={`${uiFilterCard} mb-3`}>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <input
               type="search"
@@ -440,13 +436,6 @@ function MineralListesiPageContent() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className={`${uiActionBtn} border-2 border-emerald-200/80 bg-white/80 text-slate-700 hover:border-emerald-400`}
-            >
-              Yenile
-            </button>
             <Link
               href="/dogaltas/mineral-bankasi"
               className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
@@ -474,11 +463,11 @@ function MineralListesiPageContent() {
 
         <section className={uiContentCard}>
           {listLoading && filteredMinerals.length === 0 ? (
-            <div className="flex min-h-[520px] items-center justify-center text-base font-black text-slate-500">
+            <div className="flex min-h-[360px] items-center justify-center text-base font-black text-slate-500">
               Mineraller yükleniyor...
             </div>
           ) : isEmptyDatabase ? (
-            <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
               <div className="text-[54px]">⚗️</div>
               <h2 className="mt-3 text-[20px] font-black text-slate-950">Henüz mineral kaydı yok</h2>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
@@ -486,7 +475,7 @@ function MineralListesiPageContent() {
               </p>
             </div>
           ) : isEmptyFiltered ? (
-            <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
               <div className="text-[54px]">⚗️</div>
               <h2 className="mt-3 text-[20px] font-black text-slate-950">Sonuç bulunamadı</h2>
               <p className="mt-2 text-[13px] text-slate-500">
@@ -495,7 +484,7 @@ function MineralListesiPageContent() {
             </div>
           ) : (
             <>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filteredMinerals.map((mineral) => {
                 const categoryLabel = getCategoryLabel(mineral.kategori);
                 const showCategoryPill = categoryLabel !== UNCATEGORIZED_LABEL;
@@ -526,7 +515,7 @@ function MineralListesiPageContent() {
 
                     <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#d1fae5_0%,#fef3c7_48%,#fde68a_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(16,185,129,0.12)] ring-1 ring-white/90"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#d1fae5_0%,#fef3c7_48%,#fde68a_100%)] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_5px_14px_rgba(16,185,129,0.10)] ring-1 ring-white/90"
                         aria-hidden
                       >
                         ⚗️
@@ -544,24 +533,24 @@ function MineralListesiPageContent() {
                         ) : null}
 
                         {showCategoryPill ? (
-                          <span className={`${uiCategoryPill} mb-2 w-fit`}>
+                          <span className={`${uiCategoryPill} mb-1.5 w-fit`}>
                             {isSearchActive
                               ? renderHighlightedText(categoryLabel, activeSearch)
                               : categoryLabel}
                           </span>
                         ) : (
-                          <span className="mb-2 text-xs font-bold text-slate-400">
+                          <span className="mb-1.5 text-xs font-bold text-slate-400">
                             {isSearchActive
                               ? renderHighlightedText(categoryLabel, activeSearch)
                               : categoryLabel}
                           </span>
                         )}
-                        <h2 className="text-2xl font-black text-slate-950">
+                        <h2 className="text-base font-black text-slate-950">
                           {isSearchActive
                             ? renderHighlightedText(mineral.name, activeSearch)
                             : mineral.name}
                         </h2>
-                        <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
+                        <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
                           {isSearchActive
                             ? renderHighlightedText(descriptionPreview, activeSearch)
                             : descriptionPreview}
@@ -583,7 +572,7 @@ function MineralListesiPageContent() {
             </div>
 
             {hasMore && filteredMinerals.length > 0 ? (
-              <div className="mt-8 flex justify-center border-t border-emerald-100/80 pt-8">
+              <div className="mt-5 flex justify-center border-t border-emerald-100/80 pt-5">
                 <button
                   type="button"
                   disabled={loadingMore || listLoading}
