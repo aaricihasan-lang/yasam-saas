@@ -250,29 +250,29 @@ function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-3 py-6 sm:px-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-4 px-3 py-4 sm:px-5 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-violet-300/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl sm:p-6 lg:p-8";
+  "rounded-[24px] border-[3px] border-violet-300/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
 const uiStatCard =
-  "rounded-2xl border-2 border-cyan-200 bg-white/85 px-2 py-3 text-center shadow-md sm:px-5 sm:py-4 lg:px-8";
+  "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
 const uiFilterCard =
-  "rounded-[30px] border-[3px] border-cyan-300/45 bg-white/75 p-5 shadow-[0_0_40px_rgba(34,211,238,0.14)] backdrop-blur-xl";
+  "rounded-[20px] border-[3px] border-cyan-300/45 bg-white/75 p-3 shadow-[0_0_40px_rgba(34,211,238,0.14)] backdrop-blur-xl";
 const uiSearchInput =
-  "h-14 w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-5 pl-12 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "h-10 w-full rounded-xl border-2 border-cyan-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 const uiCategorySelect =
-  "h-14 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-white/90 px-4 font-bold text-slate-800 shadow-inner outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
+  "h-10 min-w-[160px] rounded-xl border-2 border-violet-200 bg-white/90 px-3 text-sm font-bold text-slate-800 shadow-inner outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
 const uiViewBtn =
-  "rounded-2xl px-6 py-4 font-black shadow-md transition-all duration-300 hover:-translate-y-1";
+  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiComboCard =
-  "relative flex flex-col overflow-hidden rounded-[32px] border-[3px] border-cyan-300/45 bg-white/80 p-6 shadow-[0_0_40px_rgba(34,211,238,0.15)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-violet-400 hover:shadow-[0_0_55px_rgba(139,92,246,0.18)]";
+  "relative flex flex-col overflow-hidden rounded-[18px] border-[3px] border-cyan-300/45 bg-white/80 p-4 shadow-[0_0_28px_rgba(34,211,238,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_38px_rgba(139,92,246,0.16)]";
 const uiComboBadge =
-  "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 font-black text-white shadow-md";
+  "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1 text-xs font-black text-white shadow-sm";
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900";
 const uiComboBtn =
-  "mt-4 inline-flex w-fit items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:bg-violet-700";
+  "mt-3 inline-flex w-fit items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-md transition hover:bg-violet-700";
 const uiSelectActionBtn =
-  "min-h-[44px] rounded-2xl border-2 px-5 py-3 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[32px] rounded-xl border-2 px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
@@ -564,66 +564,39 @@ export default function KombinasyonlarPage() {
       <div className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-violet-700">
+            <div className="mb-1.5 inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-violet-700">
               ✶ TAŞ KOMBİNASYONLARI
             </div>
 
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">
               Taş Kombinasyonları
             </h1>
 
-            <p className="mt-2 text-sm font-medium text-slate-600 sm:mt-3 sm:text-base lg:text-lg xl:text-xl">
+            <p className="mt-1 text-sm font-medium text-slate-600">
               Rahatsızlık başlığına göre gruplanmış kombinasyon bilgi bankası.
             </p>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/"
-                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-white px-4 font-black text-slate-800 shadow-md transition hover:bg-cyan-50 sm:h-14 sm:px-6"
-              >
-                <svg
-                  aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-cyan-600/90"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
-                </svg>
-                <span className="truncate">Ana Panele Dön</span>
-              </Link>
-
-              <Link
-                href="/dogaltas"
-                className="inline-flex h-12 max-w-full shrink-0 items-center gap-2 rounded-2xl border-2 border-cyan-200 bg-cyan-50 px-4 font-black text-slate-800 shadow-md transition hover:bg-cyan-100 sm:h-14 sm:px-6"
-              >
-                <span className="shrink-0 text-base leading-none" aria-hidden>
-                  💎
-                </span>
-                <span className="truncate">Doğaltaş Sayfasına Dön</span>
-              </Link>
-            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 lg:min-w-[480px]">
+          <div className="grid grid-cols-3 gap-2 lg:min-w-[280px]">
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-3xl">{rows.length}</div>
-              <div className="text-xs font-bold text-slate-500 sm:text-sm">Variant</div>
+              <div className="text-lg font-black text-slate-950">{rows.length}</div>
+              <div className="text-xs font-bold text-slate-500">Variant</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-3xl">{uniqueIssues}</div>
-              <div className="text-xs font-bold text-slate-500 sm:text-sm">Sorun / Issue</div>
+              <div className="text-lg font-black text-slate-950">{uniqueIssues}</div>
+              <div className="text-xs font-bold text-slate-500">Issue</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950 sm:text-3xl">{groups.length}</div>
-              <div className="text-xs font-bold text-slate-500 sm:text-sm">Görünen grup</div>
+              <div className="text-lg font-black text-slate-950">{groups.length}</div>
+              <div className="text-xs font-bold text-slate-500">Grup</div>
             </div>
           </div>
         </header>
 
         <section className={uiFilterCard}>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <form
               className="relative min-w-0 w-full flex-1"
               onSubmit={(event) => event.preventDefault()}
@@ -660,7 +633,7 @@ export default function KombinasyonlarPage() {
               ))}
             </select>
 
-            <div className="flex w-full shrink-0 flex-wrap items-center gap-3 xl:w-auto xl:justify-end">
+            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
@@ -684,14 +657,6 @@ export default function KombinasyonlarPage() {
               >
                 Kart
               </button>
-
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className={`${uiViewBtn} border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
-              >
-                Yenile
-              </button>
             </div>
           </div>
 
@@ -712,8 +677,8 @@ export default function KombinasyonlarPage() {
           </div>
 
           {!loading && groups.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-800 shadow-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800 shadow-sm">
                 Seçili: {selectedCount}
               </span>
               <button
@@ -941,7 +906,7 @@ export default function KombinasyonlarPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {groups.map(({ issue, rows: groupRows }) => {
                 const sourceLine = firstSourceInGroup(groupRows);
                 const category = groupDescription(groupRows);
@@ -977,7 +942,7 @@ export default function KombinasyonlarPage() {
                       />
                     ) : null}
                     <div
-                      className={`absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl bg-white/90 px-2 py-1.5 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-6" : ""}`}
+                      className={`absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg bg-white/90 px-2 py-1 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-5" : ""}`}
                     >
                       <input
                         type="checkbox"
@@ -991,16 +956,16 @@ export default function KombinasyonlarPage() {
                         Seç
                       </span>
                     </div>
-                    <div className={`flex gap-3 pt-10 ${isViewedInSearch ? "pl-2" : ""}`}>
+                    <div className={`flex gap-3 pt-8 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_20px_rgba(139,92,246,0.12)] ring-1 ring-white/90"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_5px_14px_rgba(139,92,246,0.10)] ring-1 ring-white/90"
                         aria-hidden
                       >
                         ✦
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                           <span className={uiComboBadge}>{count} kombinasyon</span>
                           {isSearchActive ? (
                             <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
@@ -1019,7 +984,7 @@ export default function KombinasyonlarPage() {
                           ) : null}
                         </div>
 
-                        <h2 className="mt-3 text-3xl font-black text-slate-950">
+                        <h2 className="mt-2 text-lg font-black text-slate-950">
                           {isSearchActive
                             ? renderHighlightedText(issue, activeSearch)
                             : issue}
@@ -1038,7 +1003,7 @@ export default function KombinasyonlarPage() {
                           )}
                         </p>
 
-                        <p className="mt-3 flex-1 text-base leading-7 text-slate-700">
+                        <p className="mt-2 flex-1 text-sm leading-6 text-slate-700">
                           {isSearchActive
                             ? renderHighlightedText(preview, activeSearch)
                             : preview}
