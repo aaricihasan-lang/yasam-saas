@@ -72,34 +72,34 @@ export function ProtocolFootMap({
   return (
     <div className={shellClass}>
       <div
-        className={`shrink-0 border-b border-violet-100/80 ${embedded ? "px-3 py-2.5" : "px-5 py-4"}`}
+        className={`shrink-0 border-b border-violet-100/80 ${embedded ? "px-2.5 py-2" : "px-3 py-2"}`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             {embedded ? (
-              <p className="text-sm font-bold text-violet-800">{imageLabel}</p>
+              <p className="text-xs font-bold text-violet-800">{imageLabel}</p>
             ) : (
               <>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-800">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-800">
                   Ayak Haritası Önizleme
                 </p>
-                <p className="mt-1 text-base font-semibold text-slate-600">{imageLabel}</p>
+                <p className="text-xs font-semibold text-slate-600">{imageLabel}</p>
               </>
             )}
           </div>
-          <div className={`flex gap-2 ${prominentControls ? "rounded-2xl bg-violet-100/60 p-1.5 ring-1 ring-violet-200/80" : ""}`}>
+          <div className={`flex gap-1.5 ${prominentControls ? "rounded-2xl bg-violet-100/60 p-1.5 ring-1 ring-violet-200/80" : ""}`}>
             <button
               type="button"
               onClick={() => onFootViewChange("taban")}
               aria-pressed={footView === "taban"}
               className={
                 prominentControls
-                  ? `rounded-xl border-2 px-5 py-2.5 text-[15px] font-black shadow-md transition ${
+                  ? `rounded-xl border-2 px-4 py-2 text-sm font-black shadow-md transition ${
                       footView === "taban"
                         ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
                         : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
                     }`
-                  : `rounded-lg border px-4 py-2 text-sm font-bold transition ${
+                  : `rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
                       footView === "taban"
                         ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
                         : "border-violet-200/80 bg-violet-50/80 text-violet-800"
@@ -114,12 +114,12 @@ export function ProtocolFootMap({
               aria-pressed={footView === "yan"}
               className={
                 prominentControls
-                  ? `rounded-xl border-2 px-5 py-2.5 text-[15px] font-black shadow-md transition ${
+                  ? `rounded-xl border-2 px-4 py-2 text-sm font-black shadow-md transition ${
                       footView === "yan"
                         ? "border-fuchsia-500 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white"
                         : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
                     }`
-                  : `rounded-lg border px-4 py-2 text-sm font-bold transition ${
+                  : `rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
                       footView === "yan"
                         ? "border-fuchsia-400/80 bg-fuchsia-100/90 text-fuchsia-950"
                         : "border-violet-200/80 bg-violet-50/80 text-violet-800"
@@ -133,11 +133,11 @@ export function ProtocolFootMap({
       </div>
 
       {missingOrgans.length > 0 ? (
-        <div className="shrink-0 border-b border-amber-200/80 bg-amber-50/95 px-5 py-3">
-          <p className="text-sm font-bold text-amber-950">
+        <div className="shrink-0 border-b border-amber-200/80 bg-amber-50/95 px-3 py-2">
+          <p className="text-xs font-bold text-amber-950">
             Atlas bulunamayan organlar: {missingOrgans.join(", ")}
           </p>
-          <p className="mt-1 text-sm font-medium text-amber-900/90">
+          <p className="mt-0.5 text-xs font-medium text-amber-900/90">
             Bu organ için atlas bölgesi kayıtlı değil. Önce{" "}
             <Link href="/refleksoloji/bolge-haritasi" className="font-bold underline hover:text-amber-950">
               Bölge Haritası

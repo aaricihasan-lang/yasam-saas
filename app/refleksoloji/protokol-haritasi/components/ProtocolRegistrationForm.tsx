@@ -15,8 +15,8 @@ type ProtocolRegistrationFormProps = {
 };
 
 const inputClass =
-  "w-full rounded-xl border border-violet-200/90 bg-white px-4 py-3 text-base font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2";
-const labelClass = "mb-2 block text-sm font-bold uppercase tracking-wide text-violet-900";
+  "w-full rounded-xl border border-violet-200/90 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2";
+const labelClass = "mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-900";
 
 function normalizeKey(name: string): string {
   return name.trim().toLocaleLowerCase("tr");
@@ -61,13 +61,13 @@ export function ProtocolRegistrationForm({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
-        <h2 className="text-2xl font-bold text-violet-900">Protokol Kaydı</h2>
-        <p className="mt-1 text-sm font-medium text-slate-500">
+        <h2 className="text-sm font-bold text-violet-900">Protokol Kaydı</h2>
+        <p className="mt-0.5 text-xs font-medium text-slate-500">
           Hedef, organlar ve uygulama notlarını girin
         </p>
       </div>
 
-      <div className="mt-5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
         <div>
           <label className={labelClass} htmlFor="protocol-title">
             Hedef / Sorun Adı
@@ -89,7 +89,7 @@ export function ProtocolRegistrationForm({
             id="protocol-description"
             value={draft.description}
             onChange={(e) => onDraftChange({ ...draft, description: e.target.value })}
-            rows={3}
+            rows={2}
             className={`${inputClass} resize-none`}
             placeholder="Protokolün amacı ve kapsamı"
           />
@@ -117,7 +117,7 @@ export function ProtocolRegistrationForm({
             <button
               type="button"
               onClick={() => addOrgan(organInput)}
-              className="shrink-0 rounded-xl border border-violet-300/80 bg-violet-100 px-4 py-3 text-sm font-bold text-violet-950 hover:bg-violet-200/90"
+              className="shrink-0 rounded-xl border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-950 hover:bg-violet-200/90"
             >
               Ekle
             </button>
@@ -136,7 +136,7 @@ export function ProtocolRegistrationForm({
               return (
                 <li key={name}>
                   <span
-                    className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold ${color.chipClass}`}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-bold ${color.chipClass}`}
                   >
                     {name}
                     <button
@@ -175,14 +175,14 @@ export function ProtocolRegistrationForm({
             onChange={(e) => onDraftChange({ ...draft, notes: e.target.value })}
             onFocus={openNotesModal}
             onClick={openNotesModal}
-            rows={4}
+            rows={3}
             className={`${inputClass} cursor-text resize-none`}
             placeholder="Tıklayarak geniş not alanını açın…"
           />
         </div>
 
         {validationMessage ? (
-          <p className="rounded-xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">
+          <p className="rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950">
             {validationMessage}
           </p>
         ) : null}
@@ -191,14 +191,14 @@ export function ProtocolRegistrationForm({
           <button
             type="button"
             onClick={onSave}
-            className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-emerald-600"
+            className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
           >
             Kaydet
           </button>
           <button
             type="button"
             onClick={onClear}
-            className="rounded-xl border border-violet-200/90 bg-violet-50 px-4 py-3 text-base font-bold text-violet-900 hover:bg-violet-100/90"
+            className="rounded-xl border border-violet-200/90 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-900 hover:bg-violet-100/90"
           >
             Temizle
           </button>
