@@ -442,32 +442,32 @@ export default function VideoCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-cyan-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-fuchsia-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pb-24 pt-5 sm:px-6 lg:px-8 xl:px-12 lg:pt-7">
+      <div className="relative z-10 w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8 xl:px-12">
 
         {/* header */}
-        <header className="mb-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/95 px-5 py-2 text-sm font-bold text-violet-800 shadow-sm">
-            <Video className="h-4 w-4" aria-hidden />
+        <header className="mb-4">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/80 bg-violet-50/95 px-3 py-1 text-xs font-bold text-violet-800 shadow-sm">
+            <Video className="h-3.5 w-3.5" aria-hidden />
             Yapay Zeka Destekli Çeviri
           </div>
-          <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+          <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
             Video{" "}
-            <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">→</span>{" "}
+            <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">&rarr;</span>{" "}
             Türkçe Word/PDF Merkezi
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
             Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.
           </p>
         </header>
 
         {/* adımlar */}
-        <section className="mb-10 overflow-hidden rounded-[28px] border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-lg" aria-label="İşlem adımları">
+        <section className="mb-4 overflow-hidden rounded-2xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-sm" aria-label="İşlem adımları">
           <div className="grid grid-cols-2 gap-0 sm:grid-cols-4">
             {STEPS.map((step, i) => (
-              <div key={step.label} className={`flex flex-col items-center gap-3 px-5 py-6 text-center ${i < STEPS.length - 1 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-3xl" aria-hidden>{step.icon}</span>
-                <p className="text-sm font-bold leading-snug text-indigo-100/90">
-                  <span className="mr-1.5 text-xs font-black text-white/50">{i + 1}.</span>
+              <div key={step.label} className={`flex flex-col items-center gap-1.5 px-3 py-3 text-center ${i < STEPS.length - 1 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-xl" aria-hidden>{step.icon}</span>
+                <p className="text-xs font-bold leading-snug text-indigo-100/90">
+                  <span className="mr-1 text-[10px] font-black text-white/50">{i + 1}.</span>
                   {step.label}
                 </p>
               </div>
@@ -481,31 +481,31 @@ export default function VideoCeviriPage() {
             <VideoUploadZone onSuccess={handleUploadSuccess} />
           </section>
 
-          <div className="flex flex-col gap-6">
-            <div className="rounded-[28px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/80 p-6 shadow-md">
-              <h3 className="mb-4 flex items-center gap-2.5 text-lg font-black text-slate-900">
-                <span className="text-xl" aria-hidden>🔒</span>Gizlilik & Güvenlik
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/80 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-slate-900">
+                <span className="text-base" aria-hidden>🔒</span>Gizlilik &amp; Güvenlik
               </h3>
-              <ul className="space-y-2.5 text-sm font-medium leading-relaxed text-slate-700">
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Yüklenen video işlem sonrası otomatik silinir</li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Metin ve çeviriler yalnızca size aittir</li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Yönetici içeriklerinize erişemez</li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Word ve PDF isteğe bağlı kaydedilebilir</li>
+              <ul className="space-y-1.5 text-xs font-medium leading-relaxed text-slate-700">
+                <li className="flex items-start gap-1.5"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Yüklenen video işlem sonrası otomatik silinir</li>
+                <li className="flex items-start gap-1.5"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Metin ve çeviriler yalnızca size aittir</li>
+                <li className="flex items-start gap-1.5"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Yönetici içeriklerinize erişemez</li>
+                <li className="flex items-start gap-1.5"><span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>Word ve PDF isteğe bağlı kaydedilebilir</li>
               </ul>
             </div>
 
-            <div className="rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/80 p-6 shadow-md">
-              <h3 className="mb-4 flex items-center gap-2.5 text-lg font-black text-slate-900">
-                <FileText className="h-5 w-5 text-violet-600" strokeWidth={2.25} />
+            <div className="rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/80 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-slate-900">
+                <FileText className="h-4 w-4 text-violet-600" strokeWidth={2.25} />
                 Desteklenen Formatlar
               </h3>
-              <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Video</p>
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Video</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {["MP4","MOV","WEBM","MKV","AVI","OGG"].map(f => (
                   <div key={f} className="rounded-xl border border-violet-100 bg-white/80 px-2 py-1.5 text-center text-[11px] font-black text-violet-700">{f}</div>
                 ))}
               </div>
-              <p className="mb-2 mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Ses</p>
+              <p className="mb-1.5 mt-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Ses</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {["MP3","M4A","WAV","AAC","AMR","OGG"].map(f => (
                   <div key={f} className="rounded-xl border border-indigo-100 bg-white/80 px-2 py-1.5 text-center text-[11px] font-black text-indigo-600">{f}</div>
@@ -517,8 +517,8 @@ export default function VideoCeviriPage() {
         </div>
 
         {/* ── Son Çevrilenler (kompakt) ──────────────────────────────────── */}
-        <section className="mt-8" aria-labelledby="recent-heading">
-          <div className="rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-md sm:p-7">
+        <section className="mt-4" aria-labelledby="recent-heading">
+          <div className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between gap-4">
               <h2 id="recent-heading" className="flex items-center gap-2.5 text-xl font-black text-slate-900">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-md">

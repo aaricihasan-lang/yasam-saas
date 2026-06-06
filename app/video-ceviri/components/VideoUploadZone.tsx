@@ -300,17 +300,17 @@ export default function VideoUploadZone({ onSuccess }: Props) {
   }
 
   return (
-    <div className="rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-md sm:p-8">
-      <h2 className="mb-5 flex items-center gap-2.5 text-xl font-black text-slate-900">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md">
-          <UploadCloud className="h-5 w-5" strokeWidth={2.25} />
+    <div className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm">
+      <h2 className="mb-3 flex items-center gap-2 text-base font-black text-slate-900">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
+          <UploadCloud className="h-4 w-4" strokeWidth={2.25} />
         </span>
         Video Yükle
       </h2>
 
       {/* drop zone */}
       <div
-        className={`relative flex min-h-[210px] flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-6 py-8 text-center transition ${
+        className={`relative flex min-h-[140px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-5 text-center transition ${
           isDragging
             ? "border-violet-400 bg-violet-50/90"
             : selectedFile && phase === "idle"
@@ -323,8 +323,8 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         onDrop={handleDrop}
       >
         {isBusy && (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
             <p className="text-sm font-bold text-slate-600">
               {phase === "uploading" && uploadProgress > 0
                 ? `Yükleniyor… %${uploadProgress}`
@@ -342,9 +342,9 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         )}
 
         {!isBusy && phase === "done" && (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <CheckCircle2
-              className="h-10 w-10 text-emerald-600"
+              className="h-7 w-7 text-emerald-600"
               strokeWidth={1.75}
             />
             <p className="text-sm font-bold text-emerald-700">
@@ -362,8 +362,8 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
         {!isBusy && phase !== "done" && (
           <>
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 text-violet-600 shadow-sm">
-              <Video className="h-7 w-7" strokeWidth={1.75} />
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 text-violet-600 shadow-sm">
+              <Video className="h-5 w-5" strokeWidth={1.75} />
             </div>
 
             {selectedFile ? (
@@ -406,9 +406,9 @@ export default function VideoUploadZone({ onSuccess }: Props) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-white px-5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
+              className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
             >
-              <UploadCloud className="h-4 w-4" strokeWidth={2.25} />
+              <UploadCloud className="h-3.5 w-3.5" strokeWidth={2.25} />
               Dosya Seç
             </button>
           </>
