@@ -1,0 +1,1029 @@
+{
+  "surum": 3,
+  "aciklama": "Human Design bilgi bankası. Yorum Oluştur ekranı kod alanını kullanarak kayıtları eşleştirir.",
+  "guncelleme_tarihi": "2026-04-28 21:08:52",
+  "kayitlar": [
+    {
+      "id": "044104b9-81c5-4ede-935e-0cd274fab173",
+      "kategori": "Tipler",
+      "baslik": "Generator",
+      "kod": "tip_generator",
+      "anahtarlar": [
+        "Tipler",
+        "Generator"
+      ],
+      "icerik": "JSON nerede oluşacak?\nMuhtemelen:\nhuman_design/veri/human_design_bilgi_bankasi.json\nveya proje içindeki veri klasörü.\n\nSana tavsiyem şimdi test et:\nTipler → Generator \nYorum yaz \nKaydet \nProgramı kapa aç \nKayıtlı İçerikler sekmesine bakfj",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-25 12:07:10",
+      "guncelleme_tarihi": "2026-04-25 12:28:04"
+    },
+    {
+      "id": "2695e58b-5554-49f0-9a0c-188d88a55fce",
+      "kategori": "Kapılar",
+      "baslik": "63. Kapı",
+      "kod": "kapi_63",
+      "anahtarlar": [
+        "Kapılar",
+        "63. Kapı",
+        "63",
+        "Kapı"
+      ],
+      "icerik": "63 KAPISI \n63 kapısı, kuşku kapısı, şüphe kapısı olarak geçiyor. Balık Burcu'na ait bir kapı. Epifiz Bezi, Pinal Gate oranın işleyişiyle sorumlu. \nKapı 63'ü olanlar dediğimizde zaman kapılarında kırmızı ya da siyah olanlar.   \nKırmızı olanlar benim anne karnımda doğmadan önce 88 gün önce getirdim bilgiler. Yani kırmızı gördüğümüz yerde anne karnımız ve benim potansiyelim benim bilinç altında olanlar. \nKırmızı alan Neptünyen çalışır. Yani balık burcu ile çalışır. Astroloji haritalarında 12. Ev anne karnı dönemini gösterir. O yüzden kırmızı alan direkt anne karnıyla alakalıdır. \nSiyah olanlar da ben bu dünyaya bunu yapmak için gelmişim demektir. Bunun sözleşmesini yapmak için gelmişim. Sınavlarım burada gelecek demektir. \nŞimdi kapı 63 olanlar yani orada kırmızı ya da siyah hiç fark etmez. \nBunlar biraz öfkeli olan insanlar. Durduk yere parlayıveren kişiler. Mantıklı olmak isterler. Mesela ben mantıksız bir şey söyledim hemen bir anda parlayıverir. Hani bir aralık bir kapı bırakmaz bun bu kişiler. \n Bu kapı kendi başına kuşku doludur ve kanıt ister. Yani mesela diyelim ki siz bana bir şey söylediniz. Ben buna inanmadan önce ben bana bunu kanıtla diye size sorarım. Mutlaka kanıt isterler. \nBu kapı doğal olarak bazı ilginç zorluklar yaşayabilir. Kuşku bir enerjidir ve insan tasarımı tablosundaki tüm enerjiler gibi bu enerjide neredeyse refleks olarak hareket eder. Yani eğer sizin bir şeylerle alakalı kuşkularınız varsa onun arkasına düşersiniz, araştırırsınız. Bakın sizi harekete geçiriyor. Burası şüphe kapısı olarak ta geçiyor. Yani bir şey yaptıktan sonra acaba doğru mu yaptım diye kişinin içine şüphe düşer. İhtimalleri taramaya başlar. \nKapı 63 sürekli bir şey yapıp sökme derdinde olan, ya ben bunu önceden fark etmemiştim, bu böyleymiş diyen, yeni yöntemler deneyen, sürekli kendisini yetersiz hisseden bir kapıdır. \nBir şeyi tamamlamadan önce sürekli bakma ihtiyacı vardır. Mesela evden çıktı kişi. Yaa ben kapıyı kilitlemiş miydim? Arabanın kapısı kapalı mıydı? Yemeğin altını söndürdüm mü? İşte kuşku ve şüphe kapısı yani 63 kapısı vardır. \nKapı 63'ün şifası şudur aslında. Hatasız kul olmaz, hatalarımla sev beni şarkısı bunlara göredir. İnsanların ve olayların hatasız olduğunu kabul etmeleri gerekir. Çünkü bunlar takıntılı ve her şeyden şüphe duyuyorlar. \nBir de kapı 63 burası biraz satürnyen çalışıyor. Satürn çok kuralcı bir gezegendir. Kural ister, disiplin ister. \n Aynı zamanda göz ve beynin sağ kısmı demektir. \nKapı 63’e sahip olanların kuşkulu olma durumları “karşı tarafa sen anlamıyorsun, sen geri zekalısın” gibi bir duygu hissettirir. Yani mesela ben Ebru'ya bir şey sordum ama verdiği cevaptan kuşku duyuyorum. Tekrar tekrar soruyorum. Ebru, bu beni salak zannediyor herhalde diyor. Ama ben ona kuşkularımı gidermek için soru soruyorum. Ebru ne diyor? Beni salak yerine koydu, geri zekalı olduğumu düşünüyor diyor. Ama 63'ün karşı tarafı salak yerine koymak gibi bir derdi yok. Hep bir şüphe. Hep bir kuşku içinde.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:48:06",
+      "guncelleme_tarihi": "2026-04-28 20:48:06"
+    },
+    {
+      "id": "59b9b7b6-e1a3-4e2b-835f-f75e753c91ad",
+      "kategori": "Kapılar",
+      "baslik": "61. Kapı",
+      "kod": "kapi_61",
+      "anahtarlar": [
+        "Kapılar",
+        "61. Kapı",
+        "61",
+        "Kapı"
+      ],
+      "icerik": "Şimdi kapı 61'e geçelim. Gizem kapısı. Astroloji'de Oğlak Burcu ile alakalıdır. Aynı zamanda Gerçek Kapısı olarak ta geçiyor. Bildiğin şeyin değerli olup olmadığını bilmek için doğru zamanlamayı beklemelidir. Yani şimdi bir şeyi biliyorum ben, bir şeyi öğrendim, doğru mu öğrendim, yanlış mı öğrendim? Arkasına düşmeyecek. Zamanını bekleyecek. Zaman ona gösterecek. \nBu kapıya sahip olanlar sürekli bir şeyler öğrenmek, bir gizemini anlamak istiyor ama bilinmeyeni bilmek için de değişiklik yapacak bir baskı oluşturuyorlar. \nKapı 61 hisseder. Ruh'tan gelen bilgiyi çok güzel okur. Gizemli bulduğu her şeyi baskı unsuru olarak kullanılır. \nBir örnek verelim. Mesela kapı 61'i olan bir annenin oğlu dışarıya çıkıyor. Kocası dışarıya çıkıyor. Çıkarken de parfüm sıktı. Sen niye parfüm sıktın? Biriyle mi buluşacaksın? Birinin yanına mı gideceksin? Aslında o hisseder. Onun gerçekten birinin yanına gideceğini hisseder ve o parfüm kokusundan o gerçeği yakalar. Ama eğer bu içsel görüşünü daha olumlu kullanırsak çok iyi bir şifacı, çok iyi bir medyum, çok iyi bir okuyucu olabilirler. Gölgeye düşürmeyecek kendilerini. Yani bu kapı 61'in gizemli olayları çözmek gibi bir durumu var. Bunların gözüne hiçbir şey kaçmaz. Bunları kandıramazsınız.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:48:21",
+      "guncelleme_tarihi": "2026-04-28 20:48:21"
+    },
+    {
+      "id": "57b49520-6112-406d-b3e6-bff389098fa4",
+      "kategori": "Kapılar",
+      "baslik": "64. Kapı",
+      "kod": "kapi_64",
+      "anahtarlar": [
+        "Kapılar",
+        "64. Kapı",
+        "64",
+        "Kapı"
+      ],
+      "icerik": "Kapı 64'te karışıklık kapısı olarak geçiyor. Astrolojide Başak Burcu ile alakalıdır. 64 sol gözün, beynin sağ kısmı çapraz çalışıyor. Diğerinde de sol kısmıydı. Bilgi ve ilham büyük parçalar ve yüklemeler haline gelir. Görünüşte onu bulacak bir bilgi yoktur ama bir anda bilgi akmaya başlar. Beyninden, zihninden konuştuklarından. Birisi bir şey konuşur, oradan bir ilham yakalar, başka birisi bir şey der, aklına bir şey gelmeye başlar. Bilgiler sürekli kapı 64'e akmaya başlar. Çünkü; kapı 64 en son kapı. Bütün kapıların bilgisini içeriyor. \nKapı 64'ün karışık olması nedeni bütün kapıların bilgisine sahip olmasından kaynaklıdır. 1'Den 64'e kadar bütün bilgi birikimi 64'te vardır. \nÖrnek olarak diyelim ki siz kendi haritalarınıza baktınız. Hocam benim içsel bilgim gerçekten var mı? Hani alttan bilgi bana geliyor mu? Ben bilgilere sahip miyim diye düşündüğünüzde 64 kapısı var mı? Siz de bir bakmanız gerekiyor. Varsa bütün bilgileri bilir ve dinlediğiniz bilgileri öğrenmez hatırlarsınız. Bu anahtar cümle. Mesela ben bir şey anlattım. Kapı 64'de olanlar o bilgiyi öğrenmez hatırlar çünkü o bilgiyi zaten biliyor. \n Bu kapının zorluğu bir şeylerin nasıl olacağını öğrenmeye çalışması. Sürekli bir şeyleri öğrenmeye çalışıyor. Zaman içinde bu kapıya sahip olanlar ayrıntıları tahmin etmeyi ya da sessiz kalmayı öğrenirler. O kadar çok zorlanırlar ki tamam artık ben sessiz kaldım, akışta kaldım. Hani bazıları diyor ya, tamam ben artık bir şeye karışmıyorum, akıştayım ben. Tevekkül ettiğinden değil, işin içinden çıkamıyor. \nBu kapıya sahip olanlar çoğunlukla büyük fikirleri hayata geçirmeye çalışmakla meşguller. Bu kapı enerjisi sahip olan çocuklar, mesela bu bilim fuarında bir şeyler yapanlar, icatları olan, mucitleri olan, çocuk yaşlarından itibaren sürekli bir şeyleri üretmeye çalışan çocukların genelde Human Design haritalarında 64 kapısı siyah ya da kırmızıdır. Ayrıca burası balık burcu gibi çalışır, balık enerjisi gibi çalışıyor. Başak ama balık enerjisi gibi çalışıyor. Çünkü balık burcu salak bir burç değildir. Herkes balık burcunu salak zannediyor. Şehla şehla baktığını zannediyor. Bir şeyden anlamadığını, alık alık olduğunu zannediyorlar. Balık burcu çok bilgiye sahiptir. O kadar çok bilgiye sahiptir ve bunun sessiz posu arasında kalır. Kapı 64 balık burcu gibi çalışır. \nNOT: Oğlak dediğimizde aklınıza nasıl çalışıyor diye yengeç gelecek, boğa dediğimiz zaman akrep gelecek. Yani karşıt burcu ile beraber. \nKapı 63'e sahip olanlar keşke yapsaydım, keşke baksaydım, keşke bir daha kontrol etseydim der. Kapı 64'e sahip olanlar ise mesela bir çamaşır suyu olacak 10 tane marketi dolaşır ondan sonra alır. Dağınık çünkü karışıklık yaşıyor. Nereden ne alacağını bilemiyor. Bir yerden alıp çıkamaz.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:49:19",
+      "guncelleme_tarihi": "2026-04-28 20:49:19"
+    },
+    {
+      "id": "679554c7-eb5a-4a2e-913a-ab109e10948c",
+      "kategori": "Kapılar",
+      "baslik": "58. Kapı",
+      "kod": "kapi_58",
+      "anahtarlar": [
+        "Kapılar",
+        "58. Kapı",
+        "58",
+        "Kapı"
+      ],
+      "icerik": "Burası oğlak enerjisinde. Sevinç kapısı olarak da geçiyor. Kapı 58 yaşam sevinci enerjisi. Bu enerjiye sahip olanlar insanların eğer stratejilerini doğru yaşıyorlarsa yüzlerinde hep bir gülümseme vardır. Polyanadır bunlar. Her şeyde iyi bir taraf bulurlar. Sevinç var. Yaşama sevinci var. Sezgisel olarak bir şeyin iyi ya da kötüsü olduğunu da anlayabilirler. Aynı zamanda her şeyi çok ciddiye alma eğiliminde de olurlar. Kapı 58'de coşku var. Kıpır kıpır bir enerji var. Bunların içinde kelebek kaçmış. \nEğer burada kişisel gezegenler varsa bu önemli. Birisi size geldi. Su içiyorum yarıyor. Ekmek yemiyorum. Ne yaparsam yapayım kilo veremiyorum diyenler kapı 58 olanlardır. Kapı 58'i özellikle baktığınızda Merkür 58'de, Venüs 58'de, Ay 58'de kişisel gezegenler kapı 58'deyse bunlarda obesite yani kilo almaya eğilim vardır ve hayatta kalma ile ilgili bir problemleri vardır. Her hastalık geçirdiğinde sağlıkla kalma ve yeniden hayata başlama gibi bir takıntıları vardır. \nKök merkez; Dalak merkezle, Sakral merkezle ve solar plexussla tanımlanıyor. Kök merkezin nereyle tanımlandığı çok önemli.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:49:41",
+      "guncelleme_tarihi": "2026-04-28 20:49:41"
+    },
+    {
+      "id": "d9b443f2-388c-43e2-aab7-fd6aa3eb5244",
+      "kategori": "Kapılar",
+      "baslik": "38. Kapı",
+      "kod": "kapi_38",
+      "anahtarlar": [
+        "Kapılar",
+        "38. Kapı",
+        "38",
+        "Kapı"
+      ],
+      "icerik": "İkinci kapımız 38 kapısı. Mücadele, savaşçı kapısı, muhalefet kapısı olarak da geçer. Burası Oğlak Burcu ile alakalı. 38 varsa mücadele kapısı her şeye muhalefet olur. Eleştirir, sürekli karşılıklı enerjisi çalıştırır ya da karşılıklı yaşayacağı şeylere çekilir. Yani ders alıyordur, onun karşısında hep bir muhalefet olacak kişiler çıkar. Ya da kendisi hep bir şeylere muhalefet olur. Hep bir mücadele içindedir. Hayatta her şeyi bir sınırda ve mücadele ederek yaşarlar. Kapı 38'in uğrunda savaşmaya değer olduğunu bilmek ve hayatın anlamını bulmak için çabalamaya ve adrenalin hareketi burada harcamaya devam eder. Kapı 38'i olanlar der ki; biz neden buradayız ve amacımızın yansıtan hayatı nasıl yaşayabiliriz? Hayatta gerçekten değerli olan şey nedir derdine düşer. \n Kapı 38'in enerjisine sahip olanlar biraz inatçı olabilirler. Bir şeyin değerli olduğuna karar verdiklerinde ona tutunurlar. Onun için savaşırlar, onu bırakmazlar. Diyelim ki bir arkadaşı var hata yapsa bile onu savunmaya devam eder. Kapı 38'iniz varsa mücadele kapısı olarak geçer.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:49:58",
+      "guncelleme_tarihi": "2026-04-28 20:49:58"
+    },
+    {
+      "id": "ed8eb10f-ab2e-4ae7-80e4-87b5f604e21f",
+      "kategori": "Kapılar",
+      "baslik": "54. Kapı",
+      "kod": "kapi_54",
+      "anahtarlar": [
+        "Kapılar",
+        "54. Kapı",
+        "54",
+        "Kapı"
+      ],
+      "icerik": "Diğer bir kapımız 54 kapısı yine kök merkezinde dürtü kapısı olarak geçiyor. \nEğer 54 kapısı varsa yani o kapının olduğu yerde siyah ya da kırmızı bir çizgi varsa burası oğlak burcuyla alakalı yine. Burası ihtirasın yeri. Hayallerini gerçekleştirmek ve tanımak için çok çalışacaklardır. Aslında bakacak olursanız burası çok fazla enerjiye sahip olan bir kapı değil. \nBu kapı irade enerjisine dayandığından ve enerjiyi sağlamak için çalıştığından sonunu görüne kadar hiç dinlenmeden çalışacaktır ve kendisine sağlık problemlerini çekecektir. Bu kapının yüksek yanı oldukça güzel olabilir. Onun hayalleri desteklendiğinde ve tanındığında yeteneklerini keşfedebilir ve aydınlanma yaşayabilir. Güdülsel bir kapı, yakınlaşma var, temas var. Bunlar dokunsaldır, dokunmak isterler. Yani kapı 54'e sahip olan insanlar seni seviyorum demez. Dokunur, mıncıklar, sürtünür, kedi gibi sürtünürler. \nBurası güdüsel bir kapı, yakınlaşma kapısı, temas var burada. Bunlar ilişkisiz yapamıyorlar. Kapı 54 olanlar hayatlarında hep birilerini istiyorlar. Hep sevgili olsun, flörtü olsun, hayat arkadaşı olsun istiyorlar. Ayrıca cinselikte hayatlarında mutlaka olması gerekiyor. Dokunma ve dokunulma isteği var bu kişilerde. \nKapı 54 olanlar bulunduğu bütün ortamda ilginin kendilerinde olmasını isterler. İlgi manyağı bunlar. Yani eğer bir yerden ilgiyi göremiyorlarsa strese giriyorlar. Bak stres temel elemlerinden bir tanesi. \nEğer bir kişinin güneş kapısı 54'de ise sürekli kavga enerjisinde olabilirler. Odak noktası kayarsa yani örneğin bir grupta hep bir parlayan birisi vardır ya eğer o parlayan kişi kendisi olmasa kavga çıkartabilir söz dinletmek ister. \nKapı 54'ün her şeyden haberi olacak. Eğer her şeyden haberi olmazsa bunlar stres ortamı oluştururlar. Mesela kapı 54'e sahip olan bir sevgiliniz veya arkadaşınız var. Bir gün arıyorsunuz bir gün aramıyorsunuz kavga çıkıyor. Sen beni niye aramadın? İstemiyor musun sen beni artık? Hayatında beni istemiyorsun. Çünkü kapı 54'ün en büyük korkusu odak noktası olmaktan düşmektir. Bu odak merkezi olacak. En büyük korkusu bu. Kapı 54'e sahip olanların biraz mesafeyi kurmayı öğrenmesi gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:50:43",
+      "guncelleme_tarihi": "2026-04-28 20:50:43"
+    },
+    {
+      "id": "df6dfd56-974e-418d-8e04-b95f8ea2eabe",
+      "kategori": "Kapılar",
+      "baslik": "53. Kapı",
+      "kod": "kapi_53",
+      "anahtarlar": [
+        "Kapılar",
+        "53. Kapı",
+        "53",
+        "Kapı"
+      ],
+      "icerik": "Kapı 53 ilerleme kapısı olarak geçiyor. Yengeç Burcu'nda. \nKapı 53'ü başlatma enerjisinde sahip. Bir şeyleri başlatırlar ya da birilerinin bir şeyleri başlatması için hep bir gaza getirme enerjisi vardır. Bu kapı sahipleri iyi niyetli genelde insanlardır. Bir şeyi başlatmak ve onları bitirmek için mücadele etmekle ünlüdür. Yani başlatırlar ve bitirirler aynı zamanda. Bu kapı bir şeyi bitirmeye zorlandığında o süreç onun için zorlu olabilir. Bunu kendisi istediği ile yapacak. O başladığı işi bitirmeyi kendisi isteyecek. Zorlamayacaksınız bunları. Ama mesela bir proje başlanması ve bitirmesi lazım. Bunlara vereceksiniz. Bir işin başlanması ve bitirmesi lazım. Bunlara vereceksiniz. Bir işi başlatır ve bitirme enerjisine sahiptir aynı zamanda. \nBir de bunlarda şöyle bir takıntı var. Sürekli bir şeye başlamak istiyorlar. Sürekli yeni bir iş yapmak istiyorlar. Eğer sürekli yeni bir şey yapıp da bitirmiyorlarsa strese giriyorlar. Bunların da stresi kapı 53'ünden kaynaklanıyor. Başlatamadıklarında strese giriyorlar. Başlatma enerjisi olduğunda hemen başlayacak. Stres yapıyorlar çünkü.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:50:55",
+      "guncelleme_tarihi": "2026-04-28 20:50:55"
+    },
+    {
+      "id": "a040fd05-32f2-4122-aae2-ed3231c62fae",
+      "kategori": "Kapılar",
+      "baslik": "60. Kapı",
+      "kod": "kapi_60",
+      "anahtarlar": [
+        "Kapılar",
+        "60. Kapı",
+        "60",
+        "Kapı"
+      ],
+      "icerik": "Kapı 60 kabullenme kapısı olarak geçiyor ve kova burcunda. \nBurası genetik bir enerji. Tablo da eski genetik enerjinin yani atalardan aktarılan enerjinin yeni enerjiyle, yeni bilgiyle, yeni aktarımla, yeni öğrenilen şeylerle karşılaştığı ve değişimin oluştuğu yerdir. Fakat bu kabullenme kapısı yeni bilgiyi öğrenmeye kabul etmesi ve yapması için mantığına, aklına uyması gerekiyor ve köklerden bu bilginin desteklenmesi gerekiyor. Yani bunlar kabullenmesi için ata bağlantısını yani benim annem de böyle yapardı, benim babam da yapardı, arkadaşlarım da böyle yapardı, benim çevrem de böyle yapardı yani bir şeyleri yapması için çevresel etkinlerin ve gen aktarımları olması lazım. Bu kapı tutucu bir kapı yani eskilere, geleneklere takılan bir kapı. Değişim yapmadan önce işe yarayıp yaramadığını bilmesi gerekir.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:51:09",
+      "guncelleme_tarihi": "2026-04-28 20:51:09"
+    },
+    {
+      "id": "e9083371-75ea-4fde-8b1b-c81e93ed2db7",
+      "kategori": "Kapılar",
+      "baslik": "52. Kapı",
+      "kod": "kapi_52",
+      "anahtarlar": [
+        "Kapılar",
+        "52. Kapı",
+        "52",
+        "Kapı"
+      ],
+      "icerik": "Kapı 52, hareketsizlik kapısı. Yengeç burcu burası. Bu kapıya sahip olanlar çok uzun süreler boyunca çok durgun ve sessiz ve yoğun bir konsantrasyon olarak bekleyebilirler. Örnek olarak vahşi doğada fotoğrafçılık yapanlar, video çekenler kamerayı kuruyorlar, saatlerce orada duruyorlar. Hiç kıpırdamadan, hareket etmeden, sessizce duruyorlar. Yani bunu gördüğünüzde böyle acaba bu hantal mı uyuşuk mu diye düşünebilirsiniz ama çok yoğun bir Konsantrasyon vardır. Hareketsiz çok uzun bir süre durabilirler. Bunların en büyük problemleri de hareket etmeleri gereken yerde etmedikleri için sorun yaşamalarıdır.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:51:22",
+      "guncelleme_tarihi": "2026-04-28 20:51:22"
+    },
+    {
+      "id": "bc53997f-8333-4ebb-9c07-b64385e11c8d",
+      "kategori": "Kapılar",
+      "baslik": "19. Kapı",
+      "kod": "kapi_19",
+      "anahtarlar": [
+        "Kapılar",
+        "19. Kapı",
+        "19",
+        "Kapı"
+      ],
+      "icerik": "Kapı 19 istemek kapısı. İsteme kapısı olarak geçiyor. Burası kova burcunda. Çok duyarlı bir kapı burası. Bir ilişkiye yatırım yapıp yapmamaya karar vermenize yardımcı olan bir kapı burası. Bu kapıda bir ilişki, iyi bir his vermiyorsa kesinlikle onunla yakınlık kurmuyor. Yani baktınız sizde 19 kapısı var ve bir kişiyi sevmediniz onunla kesinlikle onunla iletişim kurmuyorsunuz. \nBu enerjiye sahip olan çocukların çok yumuşak bir biçimde disiplin edilmeleri, onlara bağırmamak, vurmamak, onlara şiddet uygulamamak, onları zorlayıcı etkilerde bulunmamak gerekiyor. Burası çok duyarlı bir kapı. \nBir de kapı 19 hayvan sevgisi verir, doğa sevgisi verir. \nBu enerjiye sahip olanlar yani kapı 19'da sahip olanlar fiziksel açıdan da çok hassas olurlar örnek olarak tişört giydiler arkadaki etiket boyunlarına hemen batmaya başlar, hemen orayı kesme eğiliminde bulunur. Orayı hemen kesecek. Kapı 19'u varsa o onu rahatsız eder. \nKapı 19 olanlar o kadar duyarlı, o kadar hassaslar ki sürekli yedikleri, içtikleri şeylerin içindeki değişikliği hemen fark ederler. Bunun şu kısmı değişmiş diye hemen de doğru teşhisi koyarlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:51:36",
+      "guncelleme_tarihi": "2026-04-28 20:51:36"
+    },
+    {
+      "id": "136edbae-b6ce-4af1-abac-e72e9d50e4d9",
+      "kategori": "Kapılar",
+      "baslik": "39. Kapı",
+      "kod": "kapi_39",
+      "anahtarlar": [
+        "Kapılar",
+        "39. Kapı",
+        "39",
+        "Kapı"
+      ],
+      "icerik": "Kapı 39 Kışkırtma Kapısı. Yengeç Burcunda. \nDerin bir biçimde duygusal ve zengin bir enerjiye sahiptir. Bu enerji, yani kapı 39'sa sahip olanlar, müzikle ilgilenenler, tutkulu olanlar, sevgi dolu olanlar, beslemeyi, yemeyi, içmeyi sevenler, tutucu olanlar, ailesel ortamı sevenler, ponçik olanlar genelde kapı 39 kışkırtma kapısına sahiplerdir. \nNeden kışkırtma? \nBiz bazen bu enerjiye sahip olan insanlardan öğretmenlerimiz diye bahsediyoruz. Çünkü onlar bize bazı duygusal iç gerçekleri öğretecek rehberlik yaparlar. Bu kapı Allah'ın bolluğuna yeniden odaklanarak daima yeterinden fazlasının bulunduğunu görmemize yardımcı olan bir kapıdır. Kapa 39'a sahip olan kişiler hep istemeyi bilmiyorsunuz, Allah'ın sizin istediğinizden daha fazlasını vermeye gücü var. Siz bunun farkında değilsiniz. Daha fazlasını alabilirsiniz derler. Bu kişiler Allah bana verebilir ama daha fazlasını verebilir der. Çünkü kapı 39 kişiye bunu düşündürtüyor. \nKışkırtma kapısının denilmesinin nedeni hep bunların hayatına hayatını alt üst etmeye çalışacak birileri gelir ve bunların yaşadığı kötülükler, uyuşmazlıklar, yediği kızlıklar hayatın yeniden yapılanmasına ve yükselmesine vesile olur. Bu kişilere yanlış yapılanlardan sonra veya birisi bu kişilere bir hata yapınca, bir üzücü bir olay yaşayınca mutlaka o kişiye bir kapı açılır. Mutlaka bir yükseliş gelir. Mutlaka bir aydınlanma yaşarlar. O yüzden burası kışkırtma kapısı. Yani yükselmesi için yaşadığı olaylar kışkırtıyor. \nAma aynı zamanda insanlar da bir kışkırma enerjisinde oluyorlar. Yani durduk yere sana muhalefet olan insanlar karşına çıkarıyor. Engelleniyorsunuz, provoke ediliyorsunuz. Eğer sizin kışkırtma kapınız, yani kapı 39'unuz varsa üzülmeyin. Yaşadığınız bütün olumsuzluklar size şans olarak geri döner.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:51:52",
+      "guncelleme_tarihi": "2026-04-28 20:51:52"
+    },
+    {
+      "id": "626c90a9-d55f-409a-908d-c4a626e01986",
+      "kategori": "Kapılar",
+      "baslik": "41. Kapı",
+      "kod": "kapi_41",
+      "anahtarlar": [
+        "Kapılar",
+        "41. Kapı",
+        "41",
+        "Kapı"
+      ],
+      "icerik": "Kapı 41 azalma kapısı olarak geçiyor. Kova burcunda. Burası insan tasarımını başlatan kapı. İnsan tasarımı sisteminin yılbaşısı bu kapı. \nAynı zamanda yeni fikirleri, yeni deneyimleri, yeni formları tezahür ettiren bir başlatma enerjisine sahiptir. Bu enerji bazen hayal kurmak olarak deyimlenebilir. Bu enerjiye sahip olanlar, yani 41 kapısına sahip olanlar, çocukların genelde fikirleri, hayalleri, düşledikleri şeyler vardır. Dışarıdan zannedilir ki ya bu hayal dünyasında yaşıyor ama o insanlar hayal ettiklerini tezahür ettirirler. \n Bir de bu kapıya sahip olanlar yeni bir doğan bebek gibi ilgi isterler. Beni okşasınlar, sevsinler, benimle ilgilensinler. Dostluk kurduğum kişiler hep benim etrafımda olsun isterler. \nAynı zamanda burası ilhamla çalışır. Buranın çok önemli bir özelliği var. Kapı 41'iniz varsa istediğiniz bir şeyi 41 gün hayal ederseniz o şeyi tezahür ettirebilirsiniz. Yani bir ev istiyorsunuz. 41 Gün bunu hayal edersiniz. Ama ayrıntılarıyla. Evim olacak. Dışı beyaz olacak. Kapısı şurada olacak. Yani çok ayrıntılı bir şekilde hayal edeceksiniz. 41. gün bunu tezahür ettirmeye başlarsınız. Kapı 41'in böyle bir enerjisi var. Yani sadece hayal enerjisi değil, hayali tezahür ettirme enerjisidir. Her istek için ayrı bir 41 gün çalışacaksınız.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:52:19",
+      "guncelleme_tarihi": "2026-04-28 20:52:19"
+    },
+    {
+      "id": "e725de9f-ffb1-4c09-a69e-b134dd340eda",
+      "kategori": "Kapılar",
+      "baslik": "48. Kapı",
+      "kod": "kapi_48",
+      "anahtarlar": [
+        "Kapılar",
+        "48. Kapı",
+        "48",
+        "Kapı"
+      ],
+      "icerik": "Kapı 48 derinlik kapısı. Terazi burcunda. \nKorkuyla alakalı yine bir şey var. Dalak merkezinin hepsinde korku hakim. Bunlar anlık olan korkular demiştik. Yani anda olan geçen kapılar. Bunlar kendilerini asla tamamlanmış hissetmiyorlar. Hep yetersiz hissediyorlar. Mesela ders anlatacak ama hep yetersiz hissederler, sürekli yetersiz olduklarını hissederler. Derinleşmek istiyorlar. Kapı 48'e sahip olanlar hep veri toplamak isterler. \nKapı 48'e olanlar işleri, güçleri bilgileri araştırırlar, kitap okurlar, onu yaparlar, bir şeyler araştırırlar ve bu kişiler bir şeye aşırı derecede hazırlanırlar, hazırlık yaparlar. Yani o bilgileri oturacak ve tam anlayacak, anlatacak. \nBu kapı aynı zamanda damaksal tat kapısıdır. Damakları çok iyidir bunların. Hassastır. Kokuya da hassastar. Sezgileri de hassas. Güzel yemekleri çok severler. Mesela 50 çeşit yemek olmasın ama güzel bir masa olsun isterler. Böyle görsel zevkleri de önemlidir bunlar için. \nÇünkü görsellik çok önemli bunlarda. Kapı 48'e sahip olanlar çocukluklarında çok az yemek yerler ve mızmız olurlar. Mesela danışmanlıklarınızda kişi size dedi ki benim çocuğum yemek yemiyor. Hemen bakın kapı 48'i var mı? Yemiyor çünkü yemek istemiyor. \nDalak merkezinizin nasıl olduğu, annenizde ne duygu olduğuna bağlı. Yani dalak merkezinizi nasıl çalıştırıyorsanız annenizin duygusuyla besleniyorsunuz.  Bu çok önemli bilgidir. \nKök merkezi için babayla iyiliği demiştik. Baba nefreti var demiştik. Dalak merkezi de anne ile ilgili. Annemde hangi duygular varsa bu kapıya sahip olanlarda o duygular var. Mesela annesi çok kontrolcü, çocuklarını çok kontrol ediyor. Bu kişi de öyledir. Sürekli kontrolcüdür, çocuğunu kontrol eder. Ondaki duygu bu kişiye geçiyor. \nBirde kapı 48'e sahip olanlar geleneklere göreneklere bağlı olan kişilerdir. Eşyalara çok değer verebilirler. \nKapı 48 derin kuyu kapısıdır. Hep böyle deşeler, en altta ne var, en dipte ne var, en dipte ne bilgi var diye hep böyle alta inmeye çalışırlar. \nDalak merkezindeki kapıların farklı farklı korkuları var demiştik. Mesela kapı 48'de yetersizlik korkusu var. Hep bir yanlış yaparım korkusu var. Hep bilgim eksik olma korkusu var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:53:11",
+      "guncelleme_tarihi": "2026-04-28 20:53:11"
+    },
+    {
+      "id": "91869a7d-a266-428f-9b6a-b5eb3ab68d00",
+      "kategori": "Kapılar",
+      "baslik": "57. Kapı",
+      "kod": "kapi_57",
+      "anahtarlar": [
+        "Kapılar",
+        "57. Kapı",
+        "57",
+        "Kapı"
+      ],
+      "icerik": "Kapı 57 Sezgi kapısı olarak geçer. Terazi burcunda. \nKapı 57 insan tasarımı sisteminin en sezgisel kapısıdır. En sezgileri işleyen kapı kapı 57'dir. Bu kişilerin sezgisi gerçeği ortaya çıkarmak içindir. Bu kişiler bir şeyi araştırmasa da pat pat önüme dökülür çünkü sezgisi çalışır. O sezgide gerçeklerin önüne düşmesini sağlar. Özellikle kapı 57 de olanların bir çabaya girmesine gerek yok. \n Kapı 57 bir de berraklık kapısı olarak geçer. Yani her şeyin sade, berrak olmasını isterler. Bu kişilerin canlı, uçuk kaçık giyindiğini göremezsiniz, düz renkler giyerler, Her şey de berraklıktır. Yani karıştırmayı sevmezler. \n Bunlar doğuştan derin pisişik yeteneklere sahiptir. Sonra sezgileri açılmıyor. Doğuştan sezgileri gelmeye başlıyor. \nBu kapının en büyük takıntısı nezaket beklerler.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:53:35",
+      "guncelleme_tarihi": "2026-04-28 20:53:35"
+    },
+    {
+      "id": "7f5c0bcd-9b5f-4023-9fed-7727ba9e627e",
+      "kategori": "Kapılar",
+      "baslik": "44. Kapı",
+      "kod": "kapi_44",
+      "anahtarlar": [
+        "Kapılar",
+        "44. Kapı",
+        "44",
+        "Kapı"
+      ],
+      "icerik": "44 Karşılaycı kapısı olarak geçer. Bunlar öyle insanlardır ki bir örnek olarak bir galeriye gittiniz, hemen sizi bir kişi karşıladı. Konuştu, çay ikram etti, sohbet etti. O sırada siz nasıl arabayı aldığınızı bilemezsiniz. \n Kapı 44'de sahibi olanlar müthiş bir satış yeteneğine sahiplerdir. O ortamı oluştururlar. Bu kişiler para kazanmak için uğraşmasa bile o alanda yetenekleriyle kazanırlar. \nBu kişiler politikacıdır. Alttan almayı biliyorlar. İnsanların ruhunu okşamayı biliyorlar. Yani ilk iletişimde bağlamayı biliyorlar. \nBir de bu insanların en büyük kullandığı cümle şudur. “Bu olayın yakında kokusu çıkar.” “Bu benim karşıma yakında çıkar.” “Ben bunun yakında gerçeğini öğrenirim” der bunlar. Gerçekten de öyle olur.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:53:51",
+      "guncelleme_tarihi": "2026-04-28 20:53:51"
+    },
+    {
+      "id": "5d792498-ee39-4d9e-a43f-f3cc5422f983",
+      "kategori": "Kapılar",
+      "baslik": "50. Kapı",
+      "kod": "kapi_50",
+      "anahtarlar": [
+        "Kapılar",
+        "50. Kapı",
+        "50",
+        "Kapı"
+      ],
+      "icerik": "50 değerler kapısı olarak geçiyor. Akrep burcundadır. \nKişinin sahip olduğu bütün değerler, bütün kurallar burada depolanır. Bunlar diğer insanların auralarına çok kolaylıkla nüfus edip onları yönlendirme yeteneğine sahip olan kişilerdir. \nKapı 50 sevgi kapısıdır aynı zamanda. Hem değerler kapısı olarak geçer hem de sevgi kapısı olarak geçer. Bu kişiler diğer insanlar üzerinde onları suçlayarak manipüle ederek harekete geçirme özellikleri vardır. Böyle bir sinsi çalışır. Alttan bir çalışma yöntemleri vardır. \nBu enerjiye sahip olanlar yani kapı 50'ye sahip olanlar başkalarıyla ilgilenerek ortamda onunla değil de başkasıyla ilgilenmenizden korkarlar. İlgi odağı olmamaktan korkarlar. \nAyrıca sorumsuzluktan korkuyorlar. Yani sorumluluğu aldığı bir şey yapamamaktan da korkarlar. \n50 kapısı hep bir olgun insan olma derdindedir. Mesela konuşurlarken öyle fazla espiri yapmazlar, cilveli konuşmazlar. Hep bir olgun olma derdi vardır. Hep böyle bir düz durma, bir olgun olma vardır. Olgun olacağım, sessiz duracağım, alanımı koruyacağım diye bir dert vardır. \n Kapı 50'de olanların şöyle bir korkusu vardır. Mesela dedesi vardır, hırsızlık yapmıştır ya da birinin hakkını elinden almıştır, tefecilik yapmıştır. Onun gibi olmaktan çok korkar. Atalarının enerjisi ona gelecek diye, yani ben de onun gibi olacağım, onun gibi hata yapacağım diye çok korkar ve bunu düzeltmek için çok zaman harcar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:54:09",
+      "guncelleme_tarihi": "2026-04-28 20:54:09"
+    },
+    {
+      "id": "08b4a6c4-5097-423c-9f4a-789c835dc93c",
+      "kategori": "Kapılar",
+      "baslik": "32. Kapı",
+      "kod": "kapi_32",
+      "anahtarlar": [
+        "Kapılar",
+        "32. Kapı",
+        "32",
+        "Kapı"
+      ],
+      "icerik": "Kapı 32, devamlılık kapısı olarak geçer. Terazi burcundadır. \nBu kişiler hayalini gerçekleştirmek için gerekli enerjiye sahip değil ve hep bir korku içinde. Yani “ben hayallerimi gerçekleştiremeyeceğim” diye bir korkuya sahipler. Mesela bir hayal kurar. Bunu gerçekleştirecek miyim gerçekleştirmeyecek miyim ya da bir fikir üretir. Benim fikrimi kim çalacak diye korkar. Değişik değişik korkuları var. Benim elimden bilgimi alacaklar, fikrimi alacak diye korkarlar. \nBunlar bir de hep hayatlarında yaşadıkları hastalıklar dolayısıyla yaşam ölüm ucunda gelip giderler. Böyle bir uca gitmek vardır ve hep bir gidip gelme deneyimi yaşarlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:54:23",
+      "guncelleme_tarihi": "2026-04-28 20:54:23"
+    },
+    {
+      "id": "a7b576ee-f749-4f80-a4a0-82e71103baa9",
+      "kategori": "Kapılar",
+      "baslik": "28. Kapı",
+      "kod": "kapi_28",
+      "anahtarlar": [
+        "Kapılar",
+        "28. Kapı",
+        "28",
+        "Kapı"
+      ],
+      "icerik": "28 kapısı mücadele kapısıdır. Akrep burcundadır. \nAynı zamanda bu kapı oyuncunun kapısı olarak da geçiyor. \nBu kapı yaşamın hiçbir anlamı ya da değerinin olmadığı korkusu yaşarlar. Yani acaba yaşadıklarım anlamsız bir hale mi gelecek diye bir korku yaşarlar. \nBu enerjiye sahip olan insanlar yaşamın adil olmadığını hissederler. Yaşam onlar için diğerleri gibi olduğundan daha zormuş gibi gözükür yani bana hayat adil davranmıyor cümlesi bunlara göredir. \n Kapı 28 olan hep bir mücadele içindedirler zaten ama bunlar meydan okumaktan da zevk alırlar yani böyle bir Adrenalin duyguları da var aynı zamanda. Mücadele zorlayıcıdır ama mücadelenin üstesinden gelmenin de bu kapı için kolaylıkları ve muazzam bir karşılığı vardır. Elde ettiği değerler vardır. \nMesela kapı 28'e sahip olan insanlar risk almaktan çok korkarlar. Araba kullanma korkusu olanlar var, araba kullanma fobisi olanlar genelde kapı 28'de olanlar. Kaza yaparım da bir şey başıma gelir diye korkanlar genelde.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:54:36",
+      "guncelleme_tarihi": "2026-04-28 20:54:36"
+    },
+    {
+      "id": "f3671bdb-3c2e-42cb-8f71-2c048636e041",
+      "kategori": "Kapılar",
+      "baslik": "18. Kapı",
+      "kod": "kapi_18",
+      "anahtarlar": [
+        "Kapılar",
+        "18. Kapı",
+        "18",
+        "Kapı"
+      ],
+      "icerik": "Kapı 18 düzeltme kapısı olarak geçer. Bunun en çok kullandığı cümle şudur. “Gördünüz mü ben size böyle söylemiştim böyle olacak diye” hep bu cümleyi koyarlar. “Ben söyledim bak beni dinlemedin beni dinleseydin böyle olmazdı.” Hep bunların cümleleri böyledir. Kapı 18'e düzeltme kapısı olarak geçer. Her şeyi kusursuzlaştırmak isterler. \nYine sezgisel bir kapıdır. \n Genelde muhasebeciler, editörler, bir şeyleri düzeltenler, editciler vardır yazıları düzeltirler. Genelde buradan çıkar. Hep bir düzeltme. Yazıları düzeltme, olayları düzeltme, davranışları düzeltme, insanların yanlışlarını düzeltme. İşleri, güçleri düzeltme. Bir şeyi düzeltecekler bunlar. Tek dertleri bunlar. Ama bazen de basma kalıp düşünceleri olabiliyor. \n18'e sahip olanlar otoriteye karşı bir korku üretiyorlar. Şimdi düzeltiyorlar ya acaba beni denetleyecekler mi diye bir korkuları da var. \nKapı 18'de beklenti enerjisi var. Hep bir karşıdan bana bir adım atılsın, bir şeyler yapılsın, benim için özel bir şeyler yapılsın beklentisi var ve bu beklenti için harekete geçmemeleri gerekiyor. İnsanların sizi doğru zamanda fark etmelerini beklemeleri gerekiyor. \nBurada bir de ahlaksız olan durumlarda haşır neşir olur. Bazı yanlış şeyler yaparsanız birçok yanlış şeye düşebilirsiniz. Olayın içerisine düşüp hayatınız alt üst olabilir. Bunlar Allah'a güvenmeyi öğrenmeliler. Kapı 18'de sahip olanlar Allah'a güvenmeyi öğrenmeli, tevekkül etmeyi öğrenmeli. \nBir de düzeltmekten mesul oldukları kişi sadece kendileridir, etrafındaki insanları düzeltmekten vazgeçmeleri gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:54:58",
+      "guncelleme_tarihi": "2026-04-28 20:54:58"
+    },
+    {
+      "id": "153c202f-3b2e-45f8-a3f6-8037c2c2a87c",
+      "kategori": "Kapılar",
+      "baslik": "47. Kapı",
+      "kod": "kapi_47",
+      "anahtarlar": [
+        "Kapılar",
+        "47. Kapı",
+        "47",
+        "Kapı"
+      ],
+      "icerik": "47 kapısı olması demek 47'nin renkli bir yuvarlak içinde olması, hemen önündeki kanalın da siyah ya da kırmızı olması demek. Siyah olması demek; ben bu dünyaya bunu yapmak için geldim demek. Kırmızı olması demek; anne karnından doğmadan önce 88 gün önce bana kodlananlar demektir. Çocuk anne karnına düşmeden önce ve doğmadan önce 3 tane merkür döngüsü yaşar. Merkür 88 günde döner yani bir burcu 88 günde geçer. Anne karnına düşmeden önce, sonra 2. Merkür günü, 3. Merkür zamanında anne karnındaki kodlamalar bize geçmeye başlar Human desing sisteme göre. O yüzden kırmızı olan alan benim anne karnımdan bana geçen. \nNOT: Annenizin haritasını açabiliyorsanız annenizin venüsü hangi kapıdaysa siz o bilinç seviyesiyle gelirsiniz bu dünyaya. Annenizin haritasını açtınız, baktınız. Annenizin venüsü kırmızı ya da siyah hiç fark etmez ikisi de. Hangi kapıdaysa siz o bilinç seviyesini kodlayarak anne karnından doğurmuşsunuz. Yani sizin bilinç altından kodlanan yer orasıdır. Yani ben anne karnında ne yaşadım? Hangi kodlamalarla geldim? \n47 Kapısı Başak Burcu'nda. Demek ki bunun sınavı Koç gibi davrandığında oradan gelecek. Antisitesi koç çünkü. Yani koçun ağzında başak var diyelim. Bir tane koç gidiyor ağzına başak böyle buğday başağını almış gidiyor. Öyle bir kodlama yapalım ezberlememiz kolay olsun diye. Koçun ağzında başak var demek ki Koç'un Antisya'sı Başak, Başak'ın Antisya'sı Koç. Koç deyince bundan sonra aklımıza ağzında Başak olan bir koç gelecek. Başak Burcu deyince Antisya Koç. \nKoç kavrayış kapısı. Yani 47 kavrayış kapısı. \nKapı 47 enerjisi imkansıza inanmayı ve bilme ihtiyacı duyar. Yani hep bir şeyi öğrenme derdindedir 47 kapısı. \n47 Kapısına sahip olanlar yanıtın geleceğini ve sadece beklemesi gerektiğini bilmek zorunda. Yani 47 kapısına sahip olanlar soruyu soracak ve bırakacak. Onun cevabı gelir. Araştırır ama soruyu sorduğu zaman beklemeyi bilirse onun bir yerden bir şekilde cevabı gelir. Beklemeyi bilmeleri gerekiyorlar. Cevap gelecek, soru varsa cevap ta vardır. \nKapı 47 en çok kullandığı cümlelerden bir tanesi “Ben sana demiştim. Ben bunu söylemiştim. Ben bunu öngörmüştüm. Benim dediğimi tutmadın gördün mü?” Kapı 47'si olanlar “Ya ben demedim mi böyle olacak diye. Bak en başından dedim.” Hep bu gibi cümleleri kurarlar ve hep de haklı çıkarlar çünkü onlar kavrayış kapısına sahip olurlar. Hep olaylara mantıklı bir çözüm bulma durumundadırlar. \nBu kapıya sahip olanlar sanki bütün dünyanın dertlerini bunlar çözmeliymiş gibi davranıyorlar. Kahraman gibi davranıyorlar. İşte böyle davrandıkları zaman biraz da bocalamaya düşüyorlar. \nBu kapı yani bu gen anahtarı (kapı=gen anahtarı) irade geliştirir. İradesi güçlü, sonuna kadar öğrenmek için çabalayan bu kapı gerçekten kendinizin vizyonları olarak yetiştirebilir. \nBu kapı yani kavrayış kapış yani 47 kapısı güç verir. Resmin büyüğünü görme enerjisi verir.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:55:54",
+      "guncelleme_tarihi": "2026-04-28 20:55:54"
+    },
+    {
+      "id": "6e8cebe7-744e-4273-8c33-473e95bff02b",
+      "kategori": "Kapılar",
+      "baslik": "24. Kapı",
+      "kod": "kapi_24",
+      "anahtarlar": [
+        "Kapılar",
+        "24. Kapı",
+        "24",
+        "Kapı"
+      ],
+      "icerik": "Rasyoneleştirme kapısı. 24 kapısının birazı Boğa'da birazı Aslan'da. Ön ve arka hipofiz bezini alıyor yine burası. \nGeri dönüşüm kapısı. İki ileri bir geri. Yani bu kişi şöyle bir şey yapıyor; öğrendiği, gördüğü soyut olan şeyi somutlaştırmaya çalışıyor. Bir maddeleştirme, bir rasyoneleştirme, bir akıllaştırmaya çalışıyor fakat hep bir iki adım atıyor tekrar hata yapabilir miyim endişesiyle tekrar geri gidiyor. Bir iki gidiyor geri geliyor. Bir ikilem içerisinde. Yani bunun en büyük döngüsü bu. \nAkıl kurarak bazı şeylerin içine çıkmaya çalışıyor, mantığı oturtmaya çalışıyor, paylaşmak istiyor, anlatmak istiyor ama bunun en negatif tarafı bu. İki ileri giderse bir geri gidiyor. Bir geriye gelip bir bakıyor ben ne yaptım diye. Kendisini tekrar tekrar gözden geçiriyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:56:07",
+      "guncelleme_tarihi": "2026-04-28 20:56:07"
+    },
+    {
+      "id": "f0c5f133-f8f3-4edc-b9f3-d6c878b28856",
+      "kategori": "Kapılar",
+      "baslik": "4. Kapı",
+      "kod": "kapi_4",
+      "anahtarlar": [
+        "Kapılar",
+        "4. Kapı",
+        "4",
+        "Kapı"
+      ],
+      "icerik": "4 kapısı yanıtlar kapısı. Burada yine Aslan boğada. Burası zihinsel çözümler kapısı olarak da geçer. Gençliğin kapısı olarak da geçer aynı zamanda. Çok cömert olan kişilerde, vermeyi seven kişilerde bu vardır. Bu da aslandan kaynaklanır. Aslan çok kabileci bir burçtur. Aslan burcu olanlar insanların etrafını kollamayı çok sever. Yani bir kabilecilik vardır. Aslan olan kişide bir cömertlik vardır. Yedirmek, içirmek ister. Etrafındaki insanlarla beraber olmak ister. Onları korumak, kollamak, onları yönlendirmek ister. O yüzden burada cömertliğin geçerli olduğu bir kapısı ama aynı zamanda burada kaos da var. \nBir de bu kapının en büyük düştüğü hata şudur; cömert demiştik ya fazla cömert olduğunda biraz kibre düşebiliyor. Yani o verici olmakta da bir dengede tutması lazım. Cömert olmasında da bir dengede kalması lazım. Egoya düşmemesi lazım. Çok ince bir çizgi. Burada gölgeye düşebiliyor. Bu hatası yüzünden gölgeye düşebiliyor. \n4 kapısının karşısında taç merkezde 63 kapısı var. 63 Kapısı mantıklı olanı bulmaya çalışır. Şimdi orada bir karışıklık vardı, burası hep bir mantıklı olmaya çalışır. Bir şeyi düzeltme enerjisi vardır. Zihinsel karmaşaları ortadan kaldırmaya çalışır. Kaldırmak için bir çabası vardır. \n4 kapısına sahip olanlar onun gibi düşünmeyene sabır edemez. Bu şekilde gölge bir tarafı vardır. Kendi gibi davranmayanlara da sabır edemez. Ve bazen karşısındaki insanı kendisi gibi davranmaya ve düşünmeye de zorlayabilir. “Ya ben şuna şunu yaptım, sen niye bunu yapmadın?” gibi. 4 kapısında genelde bu vardır. \n4 kapısı olanlarda karşı tarafı yargılamak vardır. Alkışlanmak istiyorlar. Bunları hep bir alkışlayacaksın, pof poflayacaksın. Sen yaparsın aslanım diyeceksin. Demezseniz kendi alanlarına ulaşamıyorlar çünkü birazı da boğa da. Boğa ne demek? Hayatın zevkleri demek, tatları demek. Aslan burcu pof poflanmayı seviyor. Aslanın yelelleri var, gösterişli olmayı seviyor. Normalde doğadaki arketipine bakın aslan gösterişli olmayı seviyor. Ego da var yanında. Anstisyasına da baktığımız zaman da demek ki bunlar cömert olacaklar ama aşırıya kaçmayacaklar. \nBen bilirim kafasında olmayacaklar. Hareketi geçmeyi bilecekler. \nBunlar bazen çok verici olurlar. Bu kapı aynı zamanda kendi kul hakkına girme kapısıdır. Kişi burada kendi kul hakkına girer. Başkalarına yardım eder, eder, eder kendine bir şey yapmaz. Kendi kul hakkına girer. Kendi isteklerini de bir yerde dengelemeye çalışması gerekiyor. Kendisini de görmesi lazım. \n4 kapısı yanıtlar kapısı. 4 kapısının bütün sorulara cevapları vardır. Bazen bilmediği konularda da cevap vermeye çalışır ve bu alanda da hataya düşerler. \nBu enerjiye sahip olanlar özellikle açık yani tanımsız merkeze sahip olan insan sürekli şunu hisseder; “Benim bir şeylere cevap vermem gerekiyor. Bu soru bana ait. Benim bunu yapmam gerekiyor” diye bir endişe içerisinde olurlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:56:22",
+      "guncelleme_tarihi": "2026-04-28 20:56:22"
+    },
+    {
+      "id": "4ae2aef5-5774-491b-adad-2c211b5ca0fb",
+      "kategori": "Kapılar",
+      "baslik": "11. Kapı",
+      "kod": "kapi_11",
+      "anahtarlar": [
+        "Kapılar",
+        "11. Kapı",
+        "11",
+        "Kapı"
+      ],
+      "icerik": "11 kapısı fikirler kapısı olarak geçiyor. Huzur ve barış, I Ching te huzur ve barışı da simgeliyor. Yayın antisyası oğlaktı. \n11 Fikirler kapısı. \nKapı 11 bir insanın bir yaşamda gerçekleştirebileceğinden daha fazla fikirle dolu olması bunun da sanki kendisinin engellenmişlik duygusuna sahip olmasına sebep olur. Yani diyor ki “benim her şey konusunda bir fikrim var. Her şeyde bir fikirleri var bunların. Ama sen sus, her şeyi biliyorsun dediğinde de bunlar kendilerini engellenmiş hissediyorlar. \nBu enerjiye sahip olanlar sık sık başkalarının onların fikirlerini çaldıklarını düşünüyor. “Ben bunu düşünmüştüm sen benden aldın bunu.” “Benim reelsime baktın sen beni kopya ettin” der. Bu fikir bana aitti der. Böyle bir gölgesi var. \nBu enerjiye sahip olan insanlar tüm fikirlerini onlar için değil sorulduğunda başkalarıyla paylaşmak, onlara fayda sağlamak, onlara yardım etmek amacıyla cevap verdiğini bilirse buranın yüksek frekansını yaşar. Yani fikirlerini hizmet etmek için kullandığında frekansı yüksek tutabiliyor. \nBu kapı bulanın değil arayanın kapısı. Hep bir arama peşinde bu. Her şeyi arıyor. Bulan değil arayan kapısı burası. \nYay burcu kişinin sürekli fikir üretmesi, barış sunmaya çalışması, fikirleri konusunda sürekli anlatmaya çalışmasını gösterir. Burada oğlak gibi davranırsa yani ketum olursa (Oğlak burcunun yönetici gezegeni Satürndür, Satürn ketum bir enerjiye sahiptir.) eğer yay gibi değil, paylaşımcı, anlatımcı değil de oğlak gibi davranırsa buradan sınavlar gelmeye başlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:56:33",
+      "guncelleme_tarihi": "2026-04-28 20:56:33"
+    },
+    {
+      "id": "69d0d5fd-bd2c-42f6-80e6-0e0aefcbfb69",
+      "kategori": "Kapılar",
+      "baslik": "43. Kapı",
+      "kod": "kapi_43",
+      "anahtarlar": [
+        "Kapılar",
+        "43. Kapı",
+        "43",
+        "Kapı"
+      ],
+      "icerik": "43. Kapı iç görü kapısı olarak geçer. Burası akrep enerjisinde ve antisyası kova. Kovanın içi akrep dolu bu şekilde akılda kalması için kodlayabiriz. \nİç görü kapısı olarak geçiyor. Aynı zamanda I Cing'de atılım kapısı olarak da geçiyor. \nBurası hiç kimsede olmayan benzersiz bakış açısına sahip olan insanlar da vardır. Olaylara farklı açıdan bakarlar. Düşünceleri farklıdır, bakış açıları farklıdır. Ve bunları korkmadan çekinmeden bütün toplum içerisinde çok rahatlıkla söyleyebilirler. \nKapı 43 iç kulak kapısıdır. Bunlar der ki; bir şey düşünür, içinden bir ses gelir. Kulağına bir ses gelir. Sanki kulağına bir şey söylüyor. İç sesi buradadır. Birisi sanki kulağınla konuşuyormuş gibi iç sesi buradan öngörü verir. “Bak bunu yapma, bunu yap böyle karar ver.” Yani iç sesi onu sanki yönetir. \nKapı 43 için en büyük zorluk doğru zamanlamayı beklemektir. Çünkü bazen sabırsız dağılabilirler. \nAynı zamanda kapı 43 bir yalnızlık kapısıdır. Yalnız kalmayı, yalnız düşünmeyi severler. Akrepler de yalnızlığı severler. Karanlıkta olmayı severler. Mesela bu kişilerin evine gelseniz perdeleri açık göremezsiniz. Perdeleri hep kapalıdır. Yazın da kapalıdır, kışın da kapalıdır. Çünkü karanlığı severler. Güneşi sevmezler. Normalde de akrepler hep toprak altında gezer. Akrep aydınlıkta pek gezmez. Normal hayattaki akretipinden yola çıkın. O yüzden Kapı 43 de bir akrep kapısı olduğu için seviyor. Dolayısıyla bunlar yalnızlığı seviyorlar. Yalnız düşünmeyi seviyorlar. Sessiz kalmayı seviyorlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:56:46",
+      "guncelleme_tarihi": "2026-04-28 20:56:46"
+    },
+    {
+      "id": "1ef70977-8d44-423c-8571-308e379a2fea",
+      "kategori": "Kapılar",
+      "baslik": "17. Kapı",
+      "kod": "kapi_17",
+      "anahtarlar": [
+        "Kapılar",
+        "17. Kapı",
+        "17",
+        "Kapı"
+      ],
+      "icerik": "17 kapısı kanılar kapısı. Koç burcunda. Koç'un antisisi Başak'tı. \nYeni fikirleri, kanıtlanması gereken fikirleri ortaya koyarlar, bu bir kesinlik ifade etmez. Çünkü bir fikrin kesinliği yoktur. Bu bir merak enerjisidir. Mantık enerjisi ise kalıpların düzeltilebilmesi yoluyla zamanla ustalık kazanmaktır. Yani fikirleri üretiyorum ama bunun bir kesinliği yok. Mantık acısından doğrulandığı zaman da bu benim uzmanlık alanıma gidiyor demektir. \nKapı 17 sadece fikir önermesi yapmaz. Verilen fikirlere der ki mesela Halil Hoca der ki hocam benim şöyle bir fikrim var şeklinde söyler. Bu fikrini ben ona derim ki eğer bende kapı 17 varsa. Ya tamam senin bu fikrin var ama bunun işlerlik kazanması için bana bir kanıt göster. Yani bunu yerine oturt. Yani her şeyde bir kanıt isterler. Ya tamam bunu yapalım ama bana kanıt göster der. Ve bazı olaylar konusunda da bazı kararları vardır. Kapı 17'ye sahip olanlar bir şeye söz verdilerse hemen yapmaları gerekiyor. Yapmıyorlarsa da bilgi vermeleri gerekiyor. Burada enerji alanı olarak düşük frekansa düşebilirler bu yüzden. Yani bir şeye söz verdiyse gerçekleştirecekler. \nKapa 17 en yüksek frekansı her şey bilme frekansıdır. Ve bir alanda kendisini ustalaşma frekansına gelebilme durumu vardır. Yani kendisini geliştirdiği zaman o alanda usta hale gelebilme durumu vardır.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:56:58",
+      "guncelleme_tarihi": "2026-04-28 20:56:58"
+    },
+    {
+      "id": "d2fca6ac-ca05-4093-a298-c749abb18a5e",
+      "kategori": "Kapılar",
+      "baslik": "36. Kapı",
+      "kod": "kapi_36",
+      "anahtarlar": [
+        "Kapılar",
+        "36. Kapı",
+        "36",
+        "Kapı"
+      ],
+      "icerik": "Kriz kapısı olarak geçiyor. Balık burcunda. Balık burcunun anisiyası terazi. Balığı satmak için terazide tartarlar bu şekilde akılda kalması için kodlayabiliriz. \nBuranın biyolojisinde böbrekler var, pankreas var ve yetersizlik, korkusuzluk yaşadığında bunlar yargıya düşebilirler. Krizden beslenebilirler, kriz de oluşturabilirler. O krizden de sürekli kendilerine bir pay çıkartabilirler. \nTerk etmeyi bilmezler 36 kapısına sahip olanlar. Körü körüne bağlanırlar. Başına ne iş gelirse gelsin ölümüne giderler. Yani olmadık işi yaşarlar yine giderler. Onu bırakmazlar. Körük körüne bağlanmayı biliyorlar. Balık burcunun olduğu yerde kurban bilinci vardı. Kurban olma. Balık eşittir kurban olmak demektir. 36 kapısı balık burcunda. Kurban bunlar. Körük ürüne bağlanmak var, görmemek var, hayale dalmak var. Görünenin arkasındaki görünmeyen konusunda bunlar böyle bir yanılgıya düşürüyorlar. O yüzden bunlar da körü körüne bağlanmak var. Krizler yaşıyorlar. Olayların içinde kalmaya çalışıyorlar. O olayın içinde çıkmaya çalışmıyorlar. Bir balığın bataklığa düştüğü gibi o bataklığın içerisinde hep böyle kıvranıp duruyorlar. \n36 Kapısında şöyle bir şey var. İşleri hep yolunda gitse de sanki gitmiyormuş gibi hissediyorlar. Ya bir şey mi olacağım? Şimdi bu kadar iyilik bana fazla diyenler, bu da oldu ama bak şimdi bu benim burnumdan gelir, bu kadar iyilik bana fazla şeklinde hep bu düşünce içindeler. \nKriz kapısı. Çünkü kriz istiyorlar hayatlarında. Kriz başka kaos başka. Bunlar kriz istiyorlar. Hep böyle bir dönüşmek istiyorlar aynı zamanda. \n36 duygusal arzu dürüstlüğüdür. İstediğini beklerse alır, eğer beklemezse krize düşer. Bunların hayatta istediklerini elde etme konusunda hep bir krize girme durumu vardır. 36 deyince aklımıza krizi kapısı gelecek.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:57:38",
+      "guncelleme_tarihi": "2026-04-28 20:57:38"
+    },
+    {
+      "id": "cbd75a27-2333-42e6-baa7-978cea806000",
+      "kategori": "Kapılar",
+      "baslik": "30. Kapı",
+      "kod": "kapi_30",
+      "anahtarlar": [
+        "Kapılar",
+        "30. Kapı",
+        "30",
+        "Kapı"
+      ],
+      "icerik": "Arzu kapısı. Burası biraz balık biraz da kovada. Kovanın anisyası akrep. Balığın antistası Teraziydi. Burada akrep ve teraziyi düşüneceğiz. İkisinin de yarısı orada, yarısı burada. \n30 kapısının biyolojisinde böbrek ve pankreaslar var. \nBu kapı tümüyle yeni deneyimlerle ilgilidir. Yeni deneyimler yaşayarak hayatını zenginleştirmeye, değişik alanlar oluşturmaya çalışır. Ama bunlar biraz beklemeyi öğrenmesi gerekiyor. Hemen sabırsız bir şekilde hareket etmemeleri gerekiyor. Aynı zamanda dengeyi de kurmayı bilmeleri gerekiyor. Nerede durmaları, nerede hareket etmeleri konusunda biraz daha bilgici davranmalar lazım. Toplum içerisine girip kendileri ifade etmeye çalışmaları lazım. İsteklerini ve arzularını insanlara net olarak belirtmeleri gerekiyor. Böyle içinden geçirme değil. Ya ben bunu söylüyorum, ben bunu talep ediyorum. Yani konuşmayı öğrenmeleri gerekiyor. İçten içten konuşmayacaklar, söyleyecekler. Bu kapınız varsa içten içe istemeyeceksiniz. İçinizdekini dışa söyleyeceksiniz. Yoksa sizi bu yorar, bu kapı yorar ve bu kapıya ait olan hastalıklar hayatınıza çıkmaya başlar. Gölgesine düşeceksiniz çünkü orada.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:57:51",
+      "guncelleme_tarihi": "2026-04-28 20:57:51"
+    },
+    {
+      "id": "a967bff3-afc1-4f97-bea4-43310af3de06",
+      "kategori": "Kapılar",
+      "baslik": "55. Kapı",
+      "kod": "kapi_55",
+      "anahtarlar": [
+        "Kapılar",
+        "55. Kapı",
+        "55",
+        "Kapı"
+      ],
+      "icerik": "Bu kapı Ruh Kapısı. Balık Burcu'nda balığın antisyası teraziydi. \n55 Ruhsal Bolluk Kapısı'dır. Ruh kapısı olarak geçiyor, ruhsal bolluk kapısı olarak da geçiyor. Bu kapı güzel, güçlü ve potansiyeli yüksek bir kapı ve ilahi sevgiyle, Allah sevgisiyle farkındalığımızın arttığı, kişinin bu alanda biraz daha yönelişin fazla olduğu, Allah'la bağlantısının fazla olan bir kapıdır. \nBurası ruh kapısı her şeyden önce. İçsel konuşmanın çok olduğu, ruhsal bereketin çok olduğu, Allah'la bağlantının çok olduğu, bilgiyi akıştan aldığımız bir kapıdır. \nAynı zamanda geleneksel bir kapıdır. Neptünyen bir enerji var burada. İlahi bir sevgi var. \nNeptünyen deyince şunu anlayın. Bir, ilahi sevgi. İki, sisli puslu. Göremiyor önünü. Sisli puslu göremiyor. Bir de ilahi sevgi. İki şey aklınıza gelsin. \nRuh kapısına sahip olanlar hep bir teslimiyet içindedir. Görelim Mevla neyler neylerse güzel eyler bilincindedir. Eğer bu kapı 39'da kanal olursa Allah'ın yürü ya kulum dediği insanlar bunlardır. \nO zaman işlerinizin hareketlenmesi için bu mayalanma ve kapı kanalları öğrendiğimizde baktığımız sizde 55 var hemen 39'da mayalanmaya başlayacaksınız.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:58:06",
+      "guncelleme_tarihi": "2026-04-28 20:58:06"
+    },
+    {
+      "id": "28938c94-f4fc-42cc-ae36-bcb9dc551317",
+      "kategori": "Kapılar",
+      "baslik": "22. Kapı",
+      "kod": "kapi_22",
+      "anahtarlar": [
+        "Kapılar",
+        "22. Kapı",
+        "22",
+        "Kapı"
+      ],
+      "icerik": "Zarafet kapısı olarak geçiyor. Balık burcunda. Balığın antisyası terazi. \nBurada incelik var, zarafet var. Bu kapıya sahip olanlar çok zarif insanlardır. Konuşması zarif, hareketleri zarif. Mesela bu kapıya sahip kişiler ücretsiz bir ders vardır herkes katılıyordur ama onlar yani zarafet kapısına sahip olanlar özelden hocam bende gelsem olur mu şeklinde yazar yani böyle bir izin alma, zarif bir eda içinde. \nBu kapıya sahip olanlar bütün nimetlerin güzelliğinin farkında olan içten gelen bir zarafet duygusuna sahipler. Bekleyen enerjisindedirler. Bekledikleri içinde bütün güzellikler bunları buluyor. Öfkelenseler bile çok rahatlıkla bunu bir çözüm yolunu buluyorlar. Yani bunun da bir çıkış yolu vardır diye düşündüler. “Ya ben bunu yaşadım, öfkelendim ama... Ya boşuna da değil. Bunun da bir hikmeti var” derler.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:58:17",
+      "guncelleme_tarihi": "2026-04-28 20:58:17"
+    },
+    {
+      "id": "1fd1537a-d13b-4cf8-b16d-3863f087b4bd",
+      "kategori": "Kapılar",
+      "baslik": "49. Kapı",
+      "kod": "kapi_49",
+      "anahtarlar": [
+        "Kapılar",
+        "49. Kapı",
+        "49",
+        "Kapı"
+      ],
+      "icerik": "49 kapısı devrim kapısıdır. Kova borcunda. Kova'nın antisyası Akrep. \nBurada da devrim var. Yani bir alan oluşturmak var. Eski olan bir şeyi değiştirmek var. Yeni olana katmak var. \n49 kapısına sahip olanlarda yakınlık korkusu var. İnsanlarla temas edemiyor. Yani hep bir teste tabir tutuyor. ‘‘Ya ben bununla arkadaş olursam bana bir zarar gelir mi? İkili ilişkilerle biraz samimi olsam bu beni aldatır mı?’’ derler. Mesela biriyle sevgili olacak ya bunlar, sahte hesaplardan yazarlar ilk önce. Ona şans veriyor mu, başkasına yazıyor mu, başka yerlerden takip eder. Yani hep böyle bir denetleme isteği vardır. \nBunlar aynı zamanda girdikleri ortamda sevmedikleri duyguyu değiştirebiliyorlar. \nDoğal afetlerden korkarlar, kimsenin aklına gelmeyeni yaparlar. Kova gibi davranıyorlar. Bu kapı hayatta kalma güdüsüyle de çalışan bir kapı. \nKapı 49 mahremiyet yani yakınlık prensiplerini belirler. Yani kişi kendi sınırlarını belirler. Benim sınırım budur. Bunun ötesine geçmeyin derler. Böyle bir duvarları vardır onların. \nBazen bu kapıyı boşanma kapısı olarak da kullanılır. Eğer kişinin yaşadığı ilişki prensiplerini aşmışsa yani kuralları aşmışsa ilişkiyi hemen bitirir. Örnek olarak bir ilişkisi var, bir sınırları var. Karşısındaki kişi onun sınırlarını aşmışsa bavulunu alıp hemen o ilişkiyi bitirebiliyor. Boşanma kapısı olarak da geçiyor. Hemen anında karar verip orada haykırılabiliyor. \n49 Kapısı için kurallar kurallardır çünkü kova borcunun yönetici gezegeni satürn'dür. Satürn için en önemli olan kurallardır. Disipline olmaktır. Sert şeyler vardır. \nKapı 49 deyince aklımıza sınırlar gelecek. Bunların sınırları var. Bu sınırların ihlal edilmesini sevmiyor. Aynı zamanda devrim kapısı yeni oluşumları seviyor. Değişik fikirleri seviyor. Ortamda yeni bir oluşumun olması için adım atmayı seviyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:58:32",
+      "guncelleme_tarihi": "2026-04-28 20:58:32"
+    },
+    {
+      "id": "723778e8-5136-414a-8401-ddd6e4c83a1b",
+      "kategori": "Kapılar",
+      "baslik": "6. Kapı",
+      "kod": "kapi_6",
+      "anahtarlar": [
+        "Kapılar",
+        "6. Kapı",
+        "6",
+        "Kapı"
+      ],
+      "icerik": "6 kapısı çatışma kapısı. I Ching te sürtüşme kapısı olarak geçiyor. Burası Başak Burcu'nda Antistası Koç. \nBiyolojik olarak baktığımızda böbreklerle ve pankreasla alakalı. \nKapı altı Solar merkez ile sakral merkezi birbirine bağlıyor. 59'da uzlaşma kanalı oluşturuyor. \nKapı 6'ya bağımsız olarak baktığımızda; Bu kapı nüfus edici bir enerjidir. Yani insanların auralarına etki edebiliyor, girebiliyor. Onları yönlendirebiliyor. Yönlendirip ayartabiliyor, manipüle edebiliyor. Çatışma alanı oluşturabiliyorlar. Yani örnek olarak bir kişiyle yolda giderken ya da tanıdığınız bir kişiye küçük bir şey söylediniz, anda böyle sizi kışkırtacak başka bir şey söyler ve bir anda çok büyük bir kavgaya dönüşür. Ya şimdi ben bununla kavga ettim de niye bu kadar çok kavga ettim dediğiniz kişilerin genelde 6 kapısı vardır. Sizi ayartırlar. Kavga etmek için çatışma oluşturmak için de ayartırlar. Örnek olarak; markettesiniz ve sıra bekliyorsunuz. Ya kardeşim geçsene sıraya der. Aslında sen orada sıranı atlamamışsındır ama orada bir çatışma alanı oluşturur. Hemen seni bir manipüle etmeye çalışır. Genelde bu insanların kapı 6’sı vardır. Çatışma kapısıdır burası da. \nBu kapıdaki savaş, çatışma enerjisi savunmacı da olabilir, kavgacı da olabilir. Bazı durumların berraklaşması için bir çatışma alanı da oluşturuyor olabilir. Yani karışık bir ortamı düzenlemek için de bir kişi çatışma alanı oluşturuyor olabilir. Bu kapıda çatışma var yani iyi anlamda ya da kötü anlamda her şekilde bir çatışma enerjisi var. \nBurası Başak Burcu'nda çatışma kapısıydı. Yakınlaşma, kadın erkek savaşı var burada. Aynı zamanda kadın erkek arasındaki aşktan da bahsediyoruz. Bununla ilgili kadının haksızlığa uğraması, ötelenmesi, kadının bertaraf edilmesi, bu yüzden de kadının kendisini dertsiz hissedilip vücut asidinin artması da vardır. Bakın 6 kapısı gölgeye düştüğünde vücut daha çok asit üretmeye başlar ve vücutta asidin üretilmesi demek kanserin başlangıcı demektir. O zaman sizde bu enerji varsa eğer 6 kapısı varsa 59'u olan biriyle kanal olacaksınız.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 20:59:35",
+      "guncelleme_tarihi": "2026-04-28 20:59:35"
+    },
+    {
+      "id": "12638709-b1cd-43dd-bd75-6b330d13e29f",
+      "kategori": "Kapılar",
+      "baslik": "37. Kapı",
+      "kod": "kapi_37",
+      "anahtarlar": [
+        "Kapılar",
+        "37. Kapı",
+        "37",
+        "Kapı"
+      ],
+      "icerik": "37 dostluk kapısıdır. Balık burcunda. Balığın antisyasi terazideydi. Aile kapısı olarak ta geçiyor. Bu kapı huzur için çalışır. Eğer doğru zamanlama değilse huzuru bekler. Yani bir duygu, bir hareketi, bir şey yapmak için ya da bir karar vermek için ortam huzurlu değilse bu insanlar bekler. Huzur olsun ondan sonra yapalım derler. \nBir işe girecek ya, benim ağzımın tadı şu an yerinde olsun da işe yine giderim, yeni bir işe öyle başlarım derler. Yani bunlar için huzur ve dostluk alanı merkezde. \nBu kapıda korkular da vardır. Örnek olarak bir kadının oğlu var, oğlunun 37 kapısı var. Bir kızla tanışıyor. Annem bu kızı kabul eder mi diye annesinden korkuyor. 37 Kapısı olanlar benim sevdiğim insanı ailem kabul eder mi korkusu vardır. \nBir de çok enteresan dostluk ve huzur kapısı 37 kapısı ama 37 kapısı olanlar çevresindeki insanlar tarafından ya da istenmeyen çocuk olarak dünyaya gelen kişiler, ters cinsiyet beklentisi olanlarda, istenmeyen evlada olanlarda genelde 37 kapısı var. Yaptığınız enerji çalışmalarına bir bakın. Ters cinsiyet bilgilerinizi, özellikle kendisini erkek gibi hissedenler, kadın gibi hissedenlerin 37 kapısı ne alemde bakmak gerekiyor. \nAyrıca solar pliksus 16 ata enerjisinin duygusunu taşıyor. Yani burada senin 16 göbek gerideki atalarının duygusunu hissedebiliyorsun. Bu merkez tanımlıysa da çok yoğun bir şekilde sende içsel bir hafıza olarak oluşabiliyor. \n37 kapısı farklı organlarla bağlı. Akciğerle bağlantılı, böbrekle bağlantılı, pankreasta bağlantılı, sinir sistemiyle bağlantılı, prostatla da bağlantılı. Çünkü burada çiğ enerjisi var. Yani yaşam enerjisi var. \nAkciğerler Human desing sisteme göre sevgi merkezi. Sevgi göremeyenler akciğerden verem hastalığına tutuluyor. Sevgisizlikten ince hastalığa tutuldu diyorlar işte bu solardan kaynaklanıyor. Sevgisiz kaldı, verem oldu dedikleri yer burası işte. Çünkü akciğerler eşittir sevgi merkezidir. Nefes almakta problem çekiyor. Alveolarda problemler var. Hava kabarcıklarında problemler var diyen kişilerin kapı 37 si var mı bakacaksınız. Burası net çalışır. \nDostluk kapısı çünkü dostluk kuramıyor, sevgi kuramıyor, istediği sevgiyi bulamıyor. \nBu kişi yani buradaki dostluk kapısındaki kişi istediği sevgiyi ve mutluluğu bulamıyorsa bağışıklık sistemi çok çabuk düşüyor ve hasta olabiliyorlar. \nBir de bu kapıda çözülmemiş duygusal stres var. Bu da bedende su toplamaya sebep oluyor. Bu da kişinin kilo almasına sebep olur. Bu sebeple duygular çözülmedikçe ve bu duygusal sinir gitmedikçe solar plexus üzerine çalışmadıkça kapı 37'nin aminoasidi alınmadıkça kişi iyileşmeye ulaşamıyor. O zaman şöyle bir döngüye girdik. Hocam ben sembol dili biyoloji eğitiminde Duygusal açlık yaşayan, duygusal kriz yaşayan birisine çalışmayı yapıyorum, yapıyorum ama kilo vermiyor. İşte kapı 37'si var mı diye bakacaksınız. \nBurası bizim için güçlü enerji sağlıyor. İnanç, felsefe, umut, aşk, sanat her şeyi burada bulursunuz. Burası Jüpiter gibi çalışır. Kapı 37 eşittir Jüpiter der. Aynı zamanda 5. Ev gibi çalışır. 5. Ev yeni başlangıçlar demektir. \nDediğimiz inanç sistemi ile ilgili anneden kesilen kordonla beraber bağırsaklar var. Bağırsakların o bağın kesilmesi var, bu sebeple inanç sistemi ile kopamadığımız her şey burada var. Yani annenin kordon bağıyla bağlandığımız bütün duygular burada var. Burayı tam çalıştırdığımızda felsefe, umut, aşk, sanat, hayatımızdaki bütün güzellikleri net olarak görebildiğimiz bir yer. Eğer kişi burada negatif alana düşüyorsa, buranın gölgesine düşüyorsa duygusal bağlanmada mide bozuluyor ve bağırsak bozulması yaşıyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:00:00",
+      "guncelleme_tarihi": "2026-04-28 21:00:00"
+    },
+    {
+      "id": "1b7eb04e-02ae-4beb-af84-cda15d137b5a",
+      "kategori": "Kapılar",
+      "baslik": "34. Kapı",
+      "kod": "kapi_34",
+      "anahtarlar": [
+        "Kapılar",
+        "34. Kapı",
+        "34",
+        "Kapı"
+      ],
+      "icerik": "34 kapısı yay burcunda. Antistası oğlak. \nBuranın biyolojisinde Yumurtalıklar ve testisler var. Burayla ilgili problemler var. \n34 en meşgul kapı. Hayatlarında 5 dakikaları yoktur. Geceleri boş kalırlar ve o boşluğa bir şey sıkıştırırlar. Gün içerisinde mutlaka kendilerini meşgul olacak bir şey bulurlar. \nÜretilmiş bir enerji, bir yaşam gücüne dayanır. Bunlar hep böyle kıpır kıpırdır, iş bitiricidir, olay bitiricidir, bir şeyleri tamamlayıcı enerjiye sahiptir. Bunlara bir iş verirseniz sonuna kadar götürürler. \n34 kapısı cinsiyetsiz bir kapıdır. Ne demek? Bütün kapılarla da iletişim kurabilme yeteneğine sahiptir. Yani cinsiyetsiz olma potansiyeline sahip. Bunlar hayatlarında çalışmaktan özel hayatlarını çok aksatan hatta ben bu dünyaya çalışmak için gelmişim ama ne yapayım evliliği falan diyen kişilerdir. “Ben bu dünyaya çalışmaya gelmişim, ben bu dünyaya üretmeye gelmişim” kapı 34'ün cümlesidir. \nKapı 34’ler bir şeylerle mutlaka meşgul dedik ya bunun en büyük sebebi içlerinde bir potansiyel var. Bu potansiyeli boşaltmaları gerekiyor. Eğer boşaltamazlarsa diyelim ki bir yıldırım kavanozun içine düştüğünde kavanozu parçalar. İşte o yüzden kapı 34'ün potansiyeli çok yüksek olduğu için bunu boşaltmaları gerekiyor. \nBir örnek verelim. Süt emziren bir anneyi düşünelim. Çocuğunu emzirmediği zaman sütü taşar ve sağmak zorunda kalır. Onun gibi düşünün. Sürekli bu enerjiyi akıtmak zorundalar. Kapı 34'e sahip olan kişiler bu enerjiyi akıtmak ve dengelemek zorundalar. \nBunlar hep ileriye giderler. Hep ileriyi görmek isterler. Ketum davranırlarsa, paylaşımcı olmazlarsa, iş bitirici olmazlarsa kas kemik hastalıklarına da sahip olabilirler. Yani bunların paylaşmaları, ileriye gitmeleri, öğretmeleri, bu güçleri onların hizmetlerine yani sahip olduğu gücü onların hizmetlerine sunmaları gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:00:28",
+      "guncelleme_tarihi": "2026-04-28 21:00:28"
+    },
+    {
+      "id": "444634fd-554a-4a21-ac54-e71b614e89d9",
+      "kategori": "Kapılar",
+      "baslik": "5. Kapı",
+      "kod": "kapi_5",
+      "anahtarlar": [
+        "Kapılar",
+        "5. Kapı",
+        "5",
+        "Kapı"
+      ],
+      "icerik": "Kapı 5 bekleyiş kapısı olarak geçer. Yay burcunda antistirası oğlak burcu. \nBurası kalıplar kapısı olarak da geçiyor. Bekleyiş kapısı olarak ta geçiyor. \nBuranın çok farklı bir şekilde derinden işleyen ritmik bir enerjisi vardır. İnsanları iyi hissedebilirler ve rutinleri vardır. Bu insanın sakin geçen bir rutinleri, bir kalıpları vardır ve aynı zamanda stabilize bir hayatları vardır. \nDoğayla uyumlu olan insanlardır. Süreci beklemeyi bilirler. Her şeyin bir zamanı olduğunun farkına varmalı ve bu bilinçte olmaları gerekiyor. \nBunlar en çok müzikten besleniyorlar. Yani müzik ruhun gıdasının işlediği yer 5 kapısı. Müziğin en iyi geldiği kapı.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:00:37",
+      "guncelleme_tarihi": "2026-04-28 21:00:37"
+    },
+    {
+      "id": "308c545f-6205-4029-86dc-9a47e080c907",
+      "kategori": "Kapılar",
+      "baslik": "14. Kapı",
+      "kod": "kapi_14",
+      "anahtarlar": [
+        "Kapılar",
+        "14. Kapı",
+        "14",
+        "Kapı"
+      ],
+      "icerik": "14 Kapısı güç becerileri kapısı olarak geçer. akrep burcunda. Akrebin antistası kovaydı. \nKapı 14 tamamen üretilmiş bir enerjidir. \nKapı 14 para kazanma kapısı olarak ta geçer. Çalışma enerjisine sahiptir. Para kazanmanın nasıl bir sisteme, bir ticarete sahip olduğunu çok iyi bilen kapılardan bir tanesidir. \nAslında bu kapıya sahip olmak doğal bir miras kalması gibidir. Çünkü bu insanlar para kazanmayı çok iyi bildikleri için her şekilde para kanalını kendilerine oluşturabilirler. Her şekilde ticaret yapıp her alandan kendilerine bir para alanı oluşturabilirler. \nKapı 14 gücü becerileridir. Çünkü gücünü nasıl kullanacağını çok iyi bilirler. O yüzden doğal bir mirasa sahiptir. Çünkü o beceriye sahipler, o para kazanma enerjisine sahipler. \nAynı zamanda bu enerji, insanla bir katkıda bulunma arzusuyla yanıp tutuşur. Yani der ki benim enerji bükücüm varsa benim şunları yapmam lazım, şöyle fayda sağlamam lazım, bunları anlatmam lazım. \nKapı 14 gücünü doğru kullanmakla alakalıdır. Doğru kullanmazsa gölge enerjisine düşer ve onun getirdiği rahatsızlıkları ve stresi yaşamaya başlar. \nBu kapı 14, 2 ile kanal olursa bu simyacı kanal oluşuyor. Simya nedir? Dönüştürme enerjisidir. \nMesela diyelim ki bende kapı 14 var. Karşımda Nil var. Nil de iki kapısı olsun. Nil ile mayalandığım zaman simya kanalı oluşturuyorum. Bir dönüştürme kanalı oluşturuyorum orada. Hayatı dönüştürmeye, insanları dönüştürmeye. Yani orada bir şeyleri değiştirme ve dönüştürme enerjisine sahip olmaya başlıyorum. Kanal hemen enerjiyi uzlaştırma alanına, yumuşama alanına sokuyor. Kapı 14, kapı 2 ile beraber bir araya gelirse Simya kanalı oluşturuyor. \nBir de bu kapı 14'te imkansızı becerme. Bu kapı 14'de yapamazsın de, geriye çekil. Olacak olanları izle. Yani deyim yerindeyse tekenin altında süt sağanlar buradan çıkar. \nKapı 14'e sahip olanlar bir anda zengin olabilirler, bir anda ünlü olabilirler, bir anda gündeme oturabilirler. Kapı 14 doğal bir zenginlik kapısıdır. Bunların günlüğü geniş, yüreği geniş, parası geniş, cebi geniş yani bunlar da bir zenginlik, doğal bir zenginlik enerjisi var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:01:12",
+      "guncelleme_tarihi": "2026-04-28 21:01:12"
+    },
+    {
+      "id": "6cbc5359-78bc-420b-8661-5b4ed29cb2bd",
+      "kategori": "Kapılar",
+      "baslik": "29. Kapı",
+      "kod": "kapi_29",
+      "anahtarlar": [
+        "Kapılar",
+        "29. Kapı",
+        "29",
+        "Kapı"
+      ],
+      "icerik": "Kapı 29 sabahat kapısı olarak geçiyor. Aslan ve Başak'ta. Yarısı Aslan ve yarısı Başak'ta. Anistası Kova ve Koç burçlarında. \nKapı 29'u olanlar her şeye evet diyorlar. Her şeyi kabule geçiyorlar. Yani tamam diyorlar. Olur, bu da böyle olsun. Tamam ben bunu kabul edeyim. Her şey bir oldurma enerjisindeler. İsteseler de istemeseler de bir şeye boyun eğme enerjisinde oluyorlar. Hep bir şeye kendilerini adarlar. \nKapı 29'u olanlar ilahi bir sevgiye adamak, bir müziğe adamak, bir spor dalına adamak, bir şeylere adanmak eğilimindedir. Fedakarlık çok fazla var ama bu fedakarlık çok fazla yaptıklarında kendilerini riske ve zarara ve bunun da getirdiği hastalığa düşme durumları oluşturabiliyor. \nKapı 29 Sabahat kapısı, zannediyorlar ki beklediğimde kabul ettiğimde sabahat ettiğimde hayat bana akacak ve insanlar beni sevecek zannediyorlar. Çünkü öyle bir duygu var. Orada gelen içten bir duygu var. Bunu çok fazla çalıştıklarında da kendi kimliklerini oluşturmakta zorlanıyorlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:01:26",
+      "guncelleme_tarihi": "2026-04-28 21:01:26"
+    },
+    {
+      "id": "b740a609-c723-4b0c-a409-225281d0e970",
+      "kategori": "Kapılar",
+      "baslik": "27. Kapı",
+      "kod": "kapi_27",
+      "anahtarlar": [
+        "Kapılar",
+        "27. Kapı",
+        "27",
+        "Kapı"
+      ],
+      "icerik": "Kapı 27 morumluluk kapısı olarak geçiyor. Boğa borcunda. Boğa'nın anistası Aslan'da. \nBurası sorumluluk ve eğitimle ilgili bir kapı. İdealleri olan bir kapı ve nörolojik gelişmelere çok açık olan bir kapı. Öğrenmekle, öğretmekle, sorumlulukla, eğitimle kafaya takmış bir kapı. \nBir de kaynakların paylaştırılması konusunda çok fazla takıntısı var. Çünkü Aslan Burcunda kabile anlayışı var. Boğa'nın antistası Aslan burcuydu. Ne istiyor? Kendi kabilesinin her şeye ulaşılmasını ve kaynakların onlarla paylaşılmasını istiyor. O yüzden burada sorumluluk yüklüyor kendisine. Hemen orada mantık yürütüyoruz.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:01:51",
+      "guncelleme_tarihi": "2026-04-28 21:01:51"
+    },
+    {
+      "id": "ada5c044-9735-459f-8f98-1188bb0159d2",
+      "kategori": "Kapılar",
+      "baslik": "3. Kapı",
+      "kod": "kapi_3",
+      "anahtarlar": [
+        "Kapılar",
+        "3. Kapı",
+        "3",
+        "Kapı"
+      ],
+      "icerik": "3 kapısı düzen sağlama kapısı, düzenleme kapısı olarak geçer. I-Ching'de başlangıçta zorluk çekme kapısı olarak geçiyor. \nBuranın burcu koçta çalışıyor. Koç antistasyası Başak ta. \n3 kapısı değişim ve dönüşümle ilgili bir kapı. Kapı 3'ün amacı dünyada değişim ve dönüştürme oluşmak. Etrafındaki insanları ne kadar değiştirip dönüştürebilirse o kadar çok mutluluk alan, haz alan bir kapı. Başta biraz zorluk çekebilir. Yani o değişim, dönüşüm arasında insanlara anlatmakta, yeni bir alan oluşturmakta zorluk çekebilir ama bunu aşacak güçleri vardır. \nŞöyle bir bilgi aklınıza kalsın. Sakral merkezde bağımlılıklar var. Dalak merkezde korkular var. Özellikle üç kapısı olanlarda şeker bağımlılığı var. Canı sıkıldı. Ağzına bir şeker atar. Tansiyonum düştü der şeker alır. Ayrıca beyaz ekmek bağımlılığı vardır. Ekmek yemesem karnım doymuyor diyenlerde genelde kapı 3 vardır arkadaşlar. Çünkü burası hayatta düzen sağlamakla, hayatın tadını almakla, hayatta bağlantı kurmakla alakalı. Hayatın tadını alamayınca kendini şekere veriyor. Tat almak istiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:02:02",
+      "guncelleme_tarihi": "2026-04-28 21:02:02"
+    },
+    {
+      "id": "7d8c5d9d-048a-4bda-8b7f-64cd79c0fecf",
+      "kategori": "Kapılar",
+      "baslik": "9. Kapı",
+      "kod": "kapi_9",
+      "anahtarlar": [
+        "Kapılar",
+        "9. Kapı",
+        "9",
+        "Kapı"
+      ],
+      "icerik": "9 kapısı odaklanma kapısı olarak geçiyor. Yay burcunda burası. \nKapı 9 odaklanma enerjisine sahip. Bazen bunu negatif alanda çalıştırabiliyorlar. Öyle odaklanıyorlar ki saplantılı davranışlar haline getirebiliyorlar. Mesela bir erkeğin kadına odaklanması, saplantı haline gelmesi ya da bir kadının erkeğe odaklanması yani saplantı haline getirmesi. Şizofrenik bazı davranışlar sergilemesi gibi düşünebilirsiniz. Bu negatif alanda düşündüğümüz zaman. \nKapı 9 enerjisi 64 kapının enerjisini güçlendirme, odaklanma enerjisini çalıştırma gibi bir enerjisi var. Yani diğer kapıları destekleyen kapı hangisi diye sorduğumuza 9 kapısı gelecek. Bütün kapıların odaklanmasında, sabitlenmesinde, hareket değil de sabitlenmesinde, enerjisini yönetmesinde 9’un enerjisi var. \n9 kapısında boşanma var, gurbet acısı var, ayrılık acısı var. 9 Kapısına sahip olanlarda egzama var çünkü ayrılık acısından dolayı. Özellikle erkeklerde. \n9 kapısı varsa acılarına tutunmak, acılarından beslenmek deriz ya genelde bunlar bu alanın negatifini düşürmüşlerse acılarından beslenen insanlar haline dönüşüyorlar. \n9 kapısı olanların hafızaları çok canlı. O yüzden odaklanma enerjisi çok yüksek. Yani bir sürü şeyi mesela oradan bir bilgi öğrendi, buradan bir bilgi öğrendi, başka bir bilgi öğrendi. Hepsini bir araya getirip bir potada eritip daha net bir bilgi çıkarma özelliğine sahip. Bu da onların güçlü bir hafıza sahip olduğunu gösteriyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:02:14",
+      "guncelleme_tarihi": "2026-04-28 21:02:14"
+    },
+    {
+      "id": "f2521946-ef44-4511-8c19-091575bbfcc6",
+      "kategori": "Kapılar",
+      "baslik": "59. Kapı",
+      "kod": "kapi_59",
+      "anahtarlar": [
+        "Kapılar",
+        "59. Kapı",
+        "59",
+        "Kapı"
+      ],
+      "icerik": "Kapı 59 cinsellik kapısı olarak geçiyor. Başak Burcunda. Ayartma kapısı olarak da geçer. Çapkınlık kapısı, ayartma kapısı olarak da geçer. \nYaşam enerjisinin, cinsel enerjisinin yüksek olduğu bir kapıdır. Bu enerjiye sahip olan insanlar yakınlığın mahrumiyetin dibine kadar inmeye çalışırlar. Cinsel beraberlikte uç noktaları yaşama eğiliminde olurlar. Eşe bağlanma vardır. Kadında ya da erkekte hiç fark etmez. Eş bağımlılığı vardır. Hatta öyle ki eşi çocuklarından daha üstün tutmak. Çocukların bile benimsememe duygusu olabilir burada. \nİlişki bağımlılığı vardır. Özel hayatta bağımlılıklar yaşayan ve bazı sapkın durumlara düşen kişilerde 59 kapısı olduğunu görebiliriz. Mesela sapkın ilişkiler dediğimizde bunun hepsini çoğaltabilirsiniz. Hepsi buraya girer. \nBunlar kaybetmeyi tahammül edemezler. Bir şeyin ellerinden gitmesine tahammül edemezler. Bağımlılık var çünkü. \nSakral enerjide, sakral merkezde bağımlılık vardı. \nBir de jeneratör enerjisine sahip olanlar. En çok kanser olanlar buradan da çıkıyor. Çünkü bunlar bu jeneratörler çok çabuk mayalandıkları için düşündüklerinde bile mayalandıkları için direk o duyguyu o hareketi kendisine çekebiliyorlar ve bağımlılık geliştiriyorlar. Kanser olmanın altında da genelde bu kopyalama mayalanma enerjisi var. Jeneratör kapısı ve 59 kapısı ve 6 kapısı. Neden bunu söyledik? Çünkü karşısında 6 var oradan çekiyor. Kanser enerjisi burada var. Çünkü karşısında Altı kapısı var. Ama uzlaşmayla, kanal olmayla burayı yenebiliyoruz. Bu enerjiyi yumuşatabiliyoruz. O zaman 6, 59 da kanal olacak. 59 kapınız olsa da 6 ile, 6 kapınız olsa da 59 ile kanal olabilirsiniz.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:02:28",
+      "guncelleme_tarihi": "2026-04-28 21:02:28"
+    },
+    {
+      "id": "1d346506-08db-4781-9c50-2f1e944c6c1d",
+      "kategori": "Kapılar",
+      "baslik": "42. Kapı",
+      "kod": "kapi_42",
+      "anahtarlar": [
+        "Kapılar",
+        "42. Kapı",
+        "42",
+        "Kapı"
+      ],
+      "icerik": "Kırk iki kapısı bir şeyleri bitirmek kapısı olarak geçer. Koç burcundadır. \nBu kapıya sahip olanlar süren bir işi, devam eden bir işi ya da uzayan bir işi tamamlama ve bitirme enerjisine sahip olan kişilerdir. Bir proje verirsiniz hemen sonuca bağlarlar. Yani iş bitiricidir bunlar. Verdiğiniz bütün görevleri sonuna kadar yerine getiren kişilerdir bu enerjiye sahip olanlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:02:40",
+      "guncelleme_tarihi": "2026-04-28 21:02:40"
+    },
+    {
+      "id": "351b72a9-b40f-4629-adf3-da53d5f86347",
+      "kategori": "Kapılar",
+      "baslik": "51. Kapı",
+      "kod": "kapi_51",
+      "anahtarlar": [
+        "Kapılar",
+        "51. Kapı",
+        "51",
+        "Kapı"
+      ],
+      "icerik": "51 Kapısı şok kapısı olarak geçer. Koç burcu'nda. Bunun antisyası Başak. Koçun içerisinde bir başak var? Öz benliğinde, kimliğinde bir başak olma durumu var. Başak gibi davranıyor. Ama buranın gölgesine düşmesi demek. Başağın yapmaması gereken şeyleri koç yaptığı zaman problem yaşıyor. Mesela başağın en büyük gölgesi takıntılı olması. Eğer koç takıntıya düşüyor ayrıntıya düşüyorsa kendisini gölgeye düşürüyor. O yüzden Antisya çok kıymetli yani bizim sınavlarımızın geleceği yeri gösteriliyor. \n51 Kapısı koç burcuna ait bir kapı. \nBurası en ilginç kapılardan bir tanesi, rekabetçi bir kapı burası. Ama bunlar her şeyi biliyorlar. Koç Burcu demek evet acemi bir enerjidir, evet fevri hareket eder, evet kendisini ortaya atar, hep bir lider olmak derdindedir ve her şeyi sürekli deneyimlemek, yeni yeni deneyim alanları açmak ister Koç Burcu. Bir şeyi başarır bırakır, başarır bırakır ama yarım bırakmaz. Koç burcu her şeyi yarın bırakmaz. Başarır bırakır, başarır bırakır hevesi çabuk geçer. Çünkü Koç burcu çok zeki ve Zootyak'taki bütün enerjiyi içerisinde barındıran burçlardan bir tanesidir. Aynı balık gibidir. Zaten koçun üzerinde hemen balık vardır Zootyak'ta. Komşudur bunlar. Yan yana o enerji aktarımı vardır. Koç burcu çok rekabetçi bir burçtur. O yüzden şok kapısı da rekabetçi bir kapıdır. Her şeyle rakip olabilir ve her şeyi de kazanabilir. Bu enerji, bu güç onda vardır. \nMesela 51 kapısında şöyle bir şey var. Durduk yere herkese şaka yapar ama kendisine şaka yapılması istemez. Böyle hemen bir sinirlenme boyutuna geçer. \n51 Kapısının şok kapısının olmasının nedeni şoka uğratacak olan deneyimler yaşaması. Özellikle baba ve erkek ve erille alakalı ve eşle alakalı onların ölümüne şahit olmak, kazasına şahit olmak, bir ölüme şahit olmak gibi deneyimler yaşayabilir. 51 kapısı bir deneyim kapısıdır aynı zamanda ve bu kapıya sahip olanların hep bir ölümün kıyısına gelip kurtulma hikayesi vardır. Bir hastalık yaşarlar tam böyle ölümün kıyısına gelirler kurtulurlar, hep bir ölümün kıyısına gelir gelir giderler ve böyle çok şaşırtıcı hikayeleri vardır. Hani hiç kimsenin başına gelmeyen kaza tipleri vardır ya işte bunların başına geliriz. Bu deneyimlerin yaşamasının nedeni de yani 51 kıpısından bunu deneyimlemesinin nedeni de burada bir farkındalık kazanması. Yani kendisini yüksek frekansa, ermişlik frekansını yükseltmek için bu deneyimleri yaşar. \nKalp merkez ve sindirim sistemi beraber çalışıyorlar. Safra kesesinde mide bağırsak bunlar duygularla alakalı ve kişinin de sindiremediği duygular varsa, yediremediği duygular varsa bu kapıyla alakalı deneyimler de karşısına çıkabiliyor. \nAynı zamanda 51 kapısında erile öfke var ve gölgesine düştüğü zaman ayrıntılarla takılmak, sürekli takıntı haline getirmek, bereketsizliğin onun yakasından düşmeyeceğine inanmak gibi durumlar vardır. Hani ben bir parasız mı kalacağım gibi evham hali vardır. Para mı kaybederim? Bir şey mi kaybederim? İtibar mı kaybederim? İnsanlar benim hakkımda yanlış mı düşünür? düşüncesi zihninde kurgular haline devam eder. \nAynı zamanda bu kapının bir anda her şeye atlama, bir anda her şeye atlarken de ayrıntıları atlama, ayrıntıları görmediği zaman da hata yapma olanağı çok yüksektir. Yani burada biraz daha olaylara rahat ve sakin bakmaya çalışacak. \n51 kapısına sahipseniz aynı zamanda spritüel ve mistik bir anlayışa da sahip olabilirsiniz. Yani burada iç görü de var, öngörü de var ama hızlı hareket etmekten dolayı belki iç sesini, öngörüsünü dinlemiyor olabilir.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:03:42",
+      "guncelleme_tarihi": "2026-04-28 21:03:42"
+    },
+    {
+      "id": "e9346981-8c93-4191-9e46-c9125ad5934f",
+      "kategori": "Kapılar",
+      "baslik": "21. Kapı",
+      "kod": "kapi_21",
+      "anahtarlar": [
+        "Kapılar",
+        "21. Kapı",
+        "21",
+        "Kapı"
+      ],
+      "icerik": "21 Kapısı haznedar kapısı olarak geçiyor. Yine Koç burcu'nda. Yine antristası Başak'ta. \nBurası haznedar yani eskinin para bekçisi, parayla alakalı, parayla ilgilenen kişi anlamına geliyor. Burası bir para enerjisinde. \nAynı zamanda avcı kapısı olarak da geçer bazı kaynaklarda. Bu kapının en büyük özelliği şudur; sahip olduğu bütün kaynakları kontrol etmek ister. İster para olsun, ister eşya olsun, ister bir insan üzerinde hüküm sürsün, bir kontrol elinde her zaman olmasın ister ve fiziksel kaynakları asla kaybetmek istemez. Maddesel bir enerji vardı burada. Maddeyi severler, parayı severler, hediyeleşmeyi severler, neşelenmeyi severler yani burada alkışlanmak yoktur ama göz önünde olmayı severler. \nBurası bolluğun, bereketin, paranın kapısıdır aynı zamanda. 45 ile para kanalı oluşuyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:03:54",
+      "guncelleme_tarihi": "2026-04-28 21:03:54"
+    },
+    {
+      "id": "0149a98d-1028-4550-ab87-cefb81b5072d",
+      "kategori": "Kapılar",
+      "baslik": "40. Kapı",
+      "kod": "kapi_40",
+      "anahtarlar": [
+        "Kapılar",
+        "40. Kapı",
+        "40",
+        "Kapı"
+      ],
+      "icerik": "40 yalnızlık kapısı olarak geçiyor. Başak Burcu yalnız bir burçtur. \nBurası Başak Burcu ile alakalı bir kapı. Neden başak? Çünkü başak yalnız olmasının şeyi yalnız olduğu zaman daha çok üretebileceğini, daha iyi düşünebileceğini, daha saf ve masum kalabileceğini düşünen bir burçtur başak. Kendi iç dünyası olan bir burçtur. \nHerkesin zaten hayatını almamasının en büyük nedeni de saf, doğal, temiz kalmasından mütevellit gelir. \n40 kapısı yalnız kapılardan bir tanesi. Bunlar yalnız zaman geçirmeyi çok seviyorlar. Ama aynı zamanda sanki yalnızlıkla da mücadele ediyorlar. Ama şöyle bir şey var. Ne kadar yalnız geçirmek isteseler de hayatlarında hep birileri oluyor bunların. Çok enteresan. Yani yalnızlık istedikçe bir kalabalığın içerisine kendisini itebiliyorlar. Bazen çok fevri hareket ederek ya da durumlara öfke patlamasıyla cevap vererek hataya düşebilirler. Bu frekansı düşürebilirler. \nAynı zamanda aslında burası kalp merkezinin mideyle de alakalı olduğu için kapı 40’ı olanlar mide sorunlarını ara ara, dönem dönem ya da kronik olarak yaşayabilirler. \nBir üretici yani bir jeneratör tanımsız bir irade merkezine sahipse (Jeneratör yapı işçisiydi) eğer bir idare merkezi yoksa, tanımsızsa onlar hiç durmadan sürekli çalışabilirler. Etrafındaki bütün insanların ona verdikleri işleri sorgulamadan yapabilirler. Ya bu iş bana mı ait demeden, yemek yemeden, su içmeden, enerjileri tamamen bitinceye kadar çalışma yapılarına sahipler. Aynı zamanda çalışıyorken yemek yemeyi bile unuturlar. O derece işe adapte olurlar. \nBir de bunların şöyle bir takıntıları var. Etrafında insanlar olsa dahi hep şunu söyler. Kimse beni sevmiyor. Herkes beni dışlıyor. Hem yalnızlık istiyor hem de diyor ki hiç kimse beni kimse sevmiyor. Böyle bir ikilem içinde. Kendi içinde bir çatışma yaşıyorlar. Yani karşı Antisya burcu neyse onun gölge tarafını yaşamak, sınavları oradan geliyor. \nÖzellikle 40 kapısına sahip olanlar hızlı karar verirler, ayrıntılar bakmazsa bir sözleşmede çok önemli bir ayrıntıyı atlayıp zarar edebilirler, buna dikkat etmeleri gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:04:09",
+      "guncelleme_tarihi": "2026-04-28 21:04:09"
+    },
+    {
+      "id": "22a5a31e-02f9-4af2-8e54-d3dc5c03f30e",
+      "kategori": "Kapılar",
+      "baslik": "26. Kapı",
+      "kod": "kapi_26",
+      "anahtarlar": [
+        "Kapılar",
+        "26. Kapı",
+        "26",
+        "Kapı"
+      ],
+      "icerik": "26 kapısı düzenbaz kapısı olarak geçiyor. Yay burcunda. \nŞimdi bu düzenbaz kapısı olarak geçiyor ama şöyle bir şey var yani düzenbaz demesinin nedeni mesela bir satıcının bir işi bağlaması diye düşünün. Bir insanı kafaya alması gibi düşünün. Düzenbaz derken hani İngilizce'den Türkçe'ye çevrildiği için bazı kelimeler net olarak çevrilmiyor. Orada bir işi bağlama, bir satış enerjisinde olma, bir para kazanma enerjisinde olmayı ifade ediyoruz. \n26 kapısına sahip olanlar şöyle düşünün. “Benim bir fikrim var. Bu fikrin Mükemmel bir fikir ve benim kabilem, benim ailem, benim etrafımdaki insanlar bunu kabul etmesi gerekiyor. Bu zorunlu” diye düşünüyorlar. Böyle bir dayatmaları var. \nKapı 26 geçmişin derslerini ifade etmekte sorunlu. Yani ben oradan şöyle bir deneyim aldım. Bunu böyle yaşadım. Buradan bir ifade çıkardım. Kendisinin bir tez çıkartması gerekiyor. Yoksa sürekli aynı hataya düşüyor. Aynı grubun kimliğin içerisinde, aynı kabilenin içerisinde tekrar tekrar aynı hataya düşebiliyorlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:04:25",
+      "guncelleme_tarihi": "2026-04-28 21:04:25"
+    },
+    {
+      "id": "bf1652d8-4fdf-4648-9d56-2e39faea322c",
+      "kategori": "Kapılar",
+      "baslik": "1. Kapı",
+      "kod": "kapi_1",
+      "anahtarlar": [
+        "Kapılar",
+        "1. Kapı",
+        "1",
+        "Kapı"
+      ],
+      "icerik": "Kendini ifade etme kapısı olarak geçiyor. Akrep burcunda. \nBurası eril bir enerji. Kendini oluşturan, kendini tamamlayan, kendi yağında kavrulan bir enerji burası. Aynı zamanda kendini ifade etmeyi de çok iyi biliyor. Ama gerekli yerlerde, gerekli zamanda ve uygun ortamda yani akrepik bir enerji var. Akrep'in antistası kova. \nEğer bunlar kendi alanlarından çıkıp da biraz daha humanist davranıp, biraz daha bulunduğu ortama aykırı davrandıklarında bazı blokajlar, sorunlar yaşayabiliyorlar. \nBunlar diyor ki gece uyurken kalkıyor benim bir şey yapmam lazım diyor. Bir anda gözü açıyor benim bir şey yapmam lazım, ben bir şeyi yarım bıraktım diye düşünüyor. Çünkü akrep gece çalışır. Toprak altında çalışır, gece çalışır. Bunlar uyuyorlar uyuyorlar bir kalkarlar benim bir şey eksik kalmıştı, benim bir şey yapmam lazım ama ne yapmam lazım diye kendisini sorgulamaya başlar. \nKin de vardır burada, öfke de vardır. Öldürücü kin ve öfke vardır. Ne hastalık yaşarsa yaşasın o akrebin siyanürden çıktığı gibi o hastalıktan çıkarlar. Dayanma güçleri çok yüksektir. Kendi içlerinden bir kendisini daha çıkartırlar. Zümrüdü Anka gibi yeniden doğdu derler ya onun gibi. Kendi enerjisinde kendisini doğuracak bir yapıya sahip. \nBunlar da maddi olan şeyleri çok elde tutmak var. Burayı şifalandırmak için en azından bu 1 nolu kapıda biraz daha rahatlamak, enerji akışını güzelleştirmek için sık sık sadaka vermeleri gerekiyor. Gelecek kaygısını ortadan kaldırmak için var olduğu şeylerden bazen fedakarlık yapmanız lazım. Çünkü gelecek kaygısı insandan sahip olduğu bütün nimetlere körü körüne bağlanmak veriyor. Sahip olduğu maldan, mülkten veya parasına biraz daha verip bu enerjiden çıkması gerekiyor. \nAynı zamanda bir kapısı ruhen, mistik özelliklere sahip. Ayaklı röntgen gibiler. Size baktıkları zaman içinizi okurlar. Ne var ne yok bilirler. Çünkü akrep böyledir. O enerji onlarda hakimdir. Ruhsal bir tarafları da vardır bunların.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:04:38",
+      "guncelleme_tarihi": "2026-04-28 21:04:38"
+    },
+    {
+      "id": "e4c9d272-99a3-449a-9b9a-7952e544c246",
+      "kategori": "Kapılar",
+      "baslik": "13. Kapı",
+      "kod": "kapi_13",
+      "anahtarlar": [
+        "Kapılar",
+        "13. Kapı",
+        "13",
+        "Kapı"
+      ],
+      "icerik": "13 kapısı dinleyici kapısı olarak geçiyor. Kova burcunda. Çok enteresan kapılardan bir tanesi. Sihirli bir enerji. Burası çok sihirli bir enerji. Örnek olarak Karya'da bu kapı var. 13 Kapısı var. mesela Karya bir otobüs bekliyor. Yanına gelir birisi oturur. Bütün hayat hikayesini Karya'ya anlatmaya başlar. Hiç sebepsiz yere. Anlatır anlatır anlatır otobüs gelir otobüse binerler herkes kendi dünyasına gider. Hep böyle bir hikayeleri vardır. İnsanlar nedensiz yere bu insanlara gelip hayat hikayelerini anlatmaya başlar. Sanki onlarla sırlarını paylaşma sihri yatmış. nsanlara dokunmuş, onlar da en özel mahrem sırlarını ona açma gereği duymuş. Çünkü Kova enerjisinde. İnsan sevgisi var. Olanı olduğu gibi kabul etme enerjisi var. İnsanları bunlar yargılamıyor. \nBunların yapmaması gereken mesela Kayra'ya birisi geldi anlattı derdini. Kayra bunu tanıyor. Bir başkasına anlatırken hani bir başkasına bir yaşanan olaydan bir fikir çıkarmak için başkasına örnek olarak anlatırken o kişinin asla ismini vermemesi gerekiyor. A kişisi deyip geçmesi lazım. Anlatacak, nasihat verme formunda duyduğu şeyleri anlatacak karşı tarafa. Çünkü burası kova enerjisi. Kova enerjisinde gölgeye düştüğünüz zaman satürn size öyle bir çarpar ki hayatınızdaki bütün sistemler bozulur. Satürn eşittir sistem demektir. Aile sistemi, para sistemi, sistemle alakalı her şeyde problem yaşarsınız. Evdeki elektrik aksamında bile problem yaşarsınız. Çünkü elektrik sistemi var, su sistemi var evinizde. Eğer buna uymazsanız sistemle alakalı problem yaşarsınız. \n13 kapısı bilgelik getiren bir kapı. Eğer bu dinleyici kapısını gerçekten özümseyerek ve insanlara hikaye anlatma modunda olursa bunlara bir bilgelik kapısı açılıyor. Ermişlik kapısında bilgelik açılıyor. Bilip bilmediği kaynaklardan spritüel bilgiler gelmeye başlıyor. O zaman bu kişiler dinlemeyi öğrenmesi lazım. Dinlediğini de yargıya düşmeden insanlara isim vermeden anlatması gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:04:52",
+      "guncelleme_tarihi": "2026-04-28 21:04:52"
+    },
+    {
+      "id": "47a9dea2-6984-4cc7-934c-bed07df47966",
+      "kategori": "Kapılar",
+      "baslik": "7. Kapı",
+      "kod": "kapi_7",
+      "anahtarlar": [
+        "Kapılar",
+        "7. Kapı",
+        "7",
+        "Kapı"
+      ],
+      "icerik": "7 Kapısı liderlik kapısı diye geçiyor. Aslan burcunda. \nKapı 7 burada kendinden daha büyük bir lidere hizmet etmek ya da kendisinin lider olması ya da kişinin destekleyici bir yapıya sahip olması var yani liderlikle alakalı bir hikaye var burada. \nOrdu kapısı olarak ta geçiyor liderlik kapısı olarak ta geçiyor. Bu insanlara yön vermekle alakalı. Lider olma. \nBurası insanlara yön olmakla alakalı. Çok saf, çok doğal, çok güzel bir enerji var. Ama bunların yapması gereken şeyler ellerindeki maddi kaynakları paylaşmayı öğrenmeleri gerekiyor. Yani eğer sizin 7 kapınız varsa ve bunun gölgesine düşüyorsanız elinizdeki maddi kaynaklar ve manevi kaynakları insanlarla paylaşmanız gerekiyor. İnsanların onayına ihtiyacınız olmaması gerekiyor. Baktınız, hoşunuza gitti kalbiniz tamam bu doğru dedi iç sesinizi dinleyeceksiniz. Kimseden onay bekleyemeyeceksiniz burada. \nAynı zamanda bulunduğunuz kabileye aykırı davranmayacaksınız. Kabileye uygun, geleneklere uygun davranışları sergileyeceksiniz.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:05:03",
+      "guncelleme_tarihi": "2026-04-28 21:05:03"
+    },
+    {
+      "id": "0ee13730-af24-4029-92ce-ce13c414ed7c",
+      "kategori": "Kapılar",
+      "baslik": "2. Kapı",
+      "kod": "kapi_2",
+      "anahtarlar": [
+        "Kapılar",
+        "2. Kapı",
+        "2",
+        "Kapı"
+      ],
+      "icerik": "Anahtarların koruyucusu olarak geçiyor, boğa borcunda. \n2 Kapısı aslında anahtarların koruyucusu derken serveti idare etme enerjisi. Dişil bir enerji. Bu sadece para kazanma enerjisi değil ama paradan ve mali temelin güvenilir ve sürekli olarak destekleniyor olmasından kaynaklanan bir rahatlık var burada. Burada şöyle de bir rahatlık var; kapı ikiye sahip olanların bir mali güvencesi var. Örnek olarak babasının kredi kartıyla alışverişi yapmaya giden bir kız, sınırsız bakiye. Para kazanmayı bilmiyor ama harcamayı biliyor mesela. Baba parasını, koca parasını çok harcayanlar bu kapıdan çok çıkıyor. \nÖzellikle ergenlik çağında olan kız çocuklarında bu kapı daha çok aktif olarak çalışıyor. \nBunların şöyle bir duygusu var. Benim hizmet etmem gerekiyor, insanlara yön göstermem gerekiyor, onlara amaçlarını hatırlatmam gerekiyor diye bir düşünceleri var. Bu düşünce onları çok rahatsız ediyor ve hep bir hareket içine giriyorlar. Benim bir yön göstermem lazım. Benim bir insanlığa hizmet etmem gerekiyor. Hem para harcıyor hem de diyor ki tamam para harcıyorum ama benim insanlara yön göstermem, onlara bu dünyada hizmet etmenin ne olduğunu göstermem, rol model olmam gerekiyor diyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:05:24",
+      "guncelleme_tarihi": "2026-04-28 21:05:24"
+    },
+    {
+      "id": "d22330f0-ac77-41a2-9de1-02727f29becb",
+      "kategori": "Kapılar",
+      "baslik": "15. Kapı",
+      "kod": "kapi_15",
+      "anahtarlar": [
+        "Kapılar",
+        "15. Kapı",
+        "15",
+        "Kapı"
+      ],
+      "icerik": "15 Kapısı aşırı uçlar kapısı olarak geçiyor. İkizler borcunda. Güçlü bir enerji. \nBu kapıya sahip olanlar büyük bir enerji alanına sahip olan insanlar ama bu enerjilerin farkında olmalarına rağmen bunu saklarlar. Yani bir yetenekleri vardır saklarlar. Bir öngörülleri vardır saklarlar. Bunlarda bir saklama enerji ar. Aslında ikizler böyle değildir ama bir saklama enerjisi. Çünkü ikizlerin antistası yengeçti. Yengeç kendi sınırları içerisinde kalmaktı. Bir şeyi paylaşmamaktı. Mesela yengeç kendisi gibi olanlarla iletişim kurabilir genelde. Sevdiği, bu benim ailemden, bu benim koruyup sevdiğim, saydığım dediğim kişilerle iletişim kurabilirler ve bazı şeyleri kendine saklarlar. Yani bazı hünerlerini, bilgilerini, bazı yeteneklerini saklamaları buradan geliyor. \nKapı 15'i olanların ailelerinde bir şehit çıkabiliyor. Kapı 15'i olanların ailesinde şehit enerjisi var. Kendi güncel hayatından olabilir, dedesinden, atasından de olabilir ama bir şehit enerjisi var. \nBunlar bu dünyadayken aynı zamanda insanlara katkı olmakta, onları geliştirmekte yine bir yön duygusu var burada. \nBu kişiler farklı insanlarla iletişim kurmayı seviyorlar. Mesela kendisi üniversite mezunu, ilkokul mezunuyla evlenebiliyor. Ne olacak ki diyor yani. Kendi kültüründen veya kendi bilinç seviyesinden aykırı kişilerle ilişki kurabiliyorlar. Yani bu insanları olduğu gibi kabul etme gibi ya da yön vermemiz, sevgi kapısı dedik ya sevgiyle alakalı olduğu gibi kabul etmek. \nBirisi gelse size danışmanlık için gelse “benim eşim beni çok küçümsüyor, kendisi mali müşavir ben hemşireyim beni kendisinden düşük görüyor.” Bakın 15 kapısı var mı? Yani orada bir uyumsuzluğun oluşturduğu ilişki var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:05:38",
+      "guncelleme_tarihi": "2026-04-28 21:05:38"
+    },
+    {
+      "id": "afe0396d-0a07-483c-8400-01cff425937f",
+      "kategori": "Kapılar",
+      "baslik": "10. Kapı",
+      "kod": "kapi_10",
+      "anahtarlar": [
+        "Kapılar",
+        "10. Kapı",
+        "10",
+        "Kapı"
+      ],
+      "icerik": "10 kapısı benlik sevgisi kapısı olarak geçiyor. Yay ve oğlak burcunda. Benlik sevgisi kişinin kendisinin bilmesi, sevmesi ama burası kibre düşebiliyor. Çok kibir yapabiliyor. Çok tehlikeli bir kapı burası. Ben oldum, Ben öğrendim bilinci olabiliyor. Ben artık kendimi tamamladım. Ben öğreneceğim her şeyi öğrendim bilinci verebiliyor burası. Kendisinden başka kimseyi göremediği gibi aynı zamanda buranın ermişlik duygusunu yani yüksek frekansını yaşayanlarda kendisinden üstün olan kişileri daha üstün meziyetli olan kişileri takdir edebiliyor. \nBu kapı yani 10 kapısı 57 ile bağlanıyorsa (sakral merkezdeki 57 kapısı) siz hayat formunuzu sezgisel yaşayabiliyorsunuz. 34 ile bağlanıyorsa siz kusursuzlaştırılmış bir hayatta kalma stratejisine sahipsiniz demektir. 20 ile bir bağlantı kuruyorsa muazzam bir güce sahip olmak bir karizma yapısını oluşturur. \n10 kapısı bir şefkat, bir kendini sevme, bir olgunluk yeridir. 10 Kapısına sahip olanların olgun durma, olgun gözükme var çünkü buranın 3 tane kapısı Oğlak'ta. Oğlak'ın yöneticisi Satürn'de. Satürn'ün olduğu her yerde bir olgunluk vardır. Satürnyen insanlarda bu vardır. Oğlak burcunda satürn etkisi var. Kova burcunda da satürn etkisi var. Ayrıca Satürnün sistem kurmakla alakası vardır. Vücuttaki bütün sistemler ama özellikle kemik sistemi satürnle alakalıdır. Mesela Satürn balığa geldiğinde hepimiz romantizm olduk. Mantık kurun Satürn kemikler, balık su, kemiğin içine su giriyor. Ne oluyor? İltihaplı romatizma oluyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:05:48",
+      "guncelleme_tarihi": "2026-04-28 21:05:48"
+    },
+    {
+      "id": "c1c91874-93ac-43b7-812b-7768d9e3df69",
+      "kategori": "Kapılar",
+      "baslik": "46. Kapı",
+      "kod": "kapi_46",
+      "anahtarlar": [
+        "Kapılar",
+        "46. Kapı",
+        "46",
+        "Kapı"
+      ],
+      "icerik": "46 Beden sevgisi. Başak burcunda. \n46 kapısına sahip olanlar bedenlerine, görünüşlerine bakacaklar, güzel giyinecekler, parfümler kullanacaklar. Ama bunu kendileri için yapacaklar, başkaları için değil. \nBeden sevgisi, bedenleriyle alakalı bedenlerine hizmet edecekler bunlar. O masumiyet bunlar içinde geçerli. Tabiri caizse bir masumiyet salaklığı var diyebiliriz. \nBurası çok zarif bir enerji. Zarafet te istiyor karşıdan. Ya ben zarif davranıyorum, zarif davranılsın istiyorum diyor. Öyle bir takıntısı var. Fakat bunların gerçekten imaj olarak giyiniş olarak kendilerine bakmaları gerekiyor. Yani enerjilerini düşürdüklerinde, profil enerjisini düşürdüklerinde bütün para enerjisi de düşüyor bunlarda. Hizmet enerjisi de iletişim enerjisi de iletişim enerjisi de düşüyor. \nYoga öğretmenleri, dansçılar, sanatta ilgilenenler, sesi güzel olanlar, sanatsal faaliyetleri sevenler buradan çıkıyor. Çünkü başak, incelikleri ayrıntıları biliyor. Çok duygusal bir alan. Asla ama asla çekingen görünmemeleri gerekiyor. Bedenlerine iyi bakmaları gerekiyor. \nYaptıkları işte kendilerine iyi bakarlarsa lider konumuna geliyorlar. Aynı zamanda güzel fikirli insanlar, güzel fikir üretebilen insanlar buradan çıkıyor. \nBu kişiler “ben böyleyim” der, başkasını da “seni bilirim ben” der. \nBenlik Merkezi tanımlıysa ve 46'da bir kapınız varsa her zaman bir B planınız var. Hayatta yolunda giderken bazı şeyler yoluna gitmediğinde hemen orada üreteceğiniz bir B planınız var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:06:24",
+      "guncelleme_tarihi": "2026-04-28 21:06:24"
+    },
+    {
+      "id": "e4e7f94b-6078-40e7-955f-5655f6264b3f",
+      "kategori": "Kapılar",
+      "baslik": "31. Kapı",
+      "kod": "kapi_31",
+      "anahtarlar": [
+        "Kapılar",
+        "31. Kapı",
+        "31",
+        "Kapı"
+      ],
+      "icerik": "31 kapısı demokrasi kapısı olarak geçiyor. Aslan burcunda. Tiroit ve paradirol bezleri ile alakalı. \nDemokrasi kapısının denilmesinin en büyük nedeni bunlar doğal bir liderliğe sahipler. Çünkü aslan burcundalar her şeyden önce. Aslanın o ağırlığı var. Doğal bir liderlik enerjisine sahipler. İnsanlara hizmet etmeye çalıştıklarında da en iyi şekilde hizmet ederler. En iyi şekilde insanları gözetirler. Beslemelerinde, onların ihtiyaçlarının görülmesinde, demokratik davranmada, insanların arasında bütün imkanlarının yayılmasında, demokratik davranmada öncü insanlardır, öncü kişilerdir.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:06:42",
+      "guncelleme_tarihi": "2026-04-28 21:06:42"
+    },
+    {
+      "id": "164fe83a-9f45-453f-bde6-84f5d588cf4a",
+      "kategori": "Kapılar",
+      "baslik": "33. Kapı",
+      "kod": "kapi_33",
+      "anahtarlar": [
+        "Kapılar",
+        "33. Kapı",
+        "33",
+        "Kapı"
+      ],
+      "icerik": "33 Kapısı Mahremiyet kapısıdır Aslan Burcunda. \nBurası anıların depolandığı yer. Bu kişinin yanında oturduğunuzda hep bir falanca tarihinde şunu yaşamıştık, annemle şu olmuştu, babamla şu olmuştu. Hep size anlatacağı bir anı, bir hikaye vardır. Bunlardan çıkardığı bir öğüt vardır, hep yaşadıklarından bir ders çıkartır ve bunu da insanlara anlatırlar. \nBunlar da mahremiyette inzivaya çekilme, sessizliğe çekilme, insanlardan uzak durma, ortamdan uzak durma, kendi alanda kalma gibi takıntıları da var. Ama aynı zamanda bunlar hem insanlardan uzak kalmak isterlerken aynı zamanda onaylanmak, görülmek, sevilmek, alkışlanmak da istiyorlar. Hem inzivaya çekilmek istiyorlar hem de alkışlanmak istiyorlar. Burada kendi aralarında kaos yaşayabilirler arkadaşlar. Yani ne istediğini bilmiyorlar belki de ama bunlar için kendi özel alanları var, kendi sınırları var. Bu sınırları hiç kimsenin onların aşmasını istemiyorlar ve bir alana da bir mesela diyelim ki bir mahalledeler ya da bir sohbet ortamındalar. Orayı bir sınır belirliyorlar. Sanki o sınıra dışarıdan gelenler oraya giremezmiş gibi bir izlenim bırakıyor. Aslan enerjisi var. Aslanın akredibinde sürüsünü gözlemler, çevreler. Buraya yabancı bir aslan giremez, gider çevresinin etrafına idrarını bırakır. Bunlar da bir çizgi çiziyorlar. Kendi istemediklerini ve kabilesinde olmayanları buraya almak istemiyorlar.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:06:54",
+      "guncelleme_tarihi": "2026-04-28 21:06:54"
+    },
+    {
+      "id": "9a4c9fd0-9fb4-424e-aea1-88e68fd029fa",
+      "kategori": "Kapılar",
+      "baslik": "8. Kapı",
+      "kod": "kapi_8",
+      "anahtarlar": [
+        "Kapılar",
+        "8. Kapı",
+        "8",
+        "Kapı"
+      ],
+      "icerik": "8 kapısı katkı kapısı. İkizler burcunda. \nBu kapının tek derdi katkı olmak. İnsanlara bir şey anlatmak. Sürekli bir şeyleri çözümlemek. Yaşadığı deneyimleri insanlara bak ben bunu yaşamıştım demek. \nBunlarda şu vardır; Örnek olarak eğitmendir, birçok farklı yerden eğitimler almıştır ama verdiği eğitimde bütün bilgileri katkı olsun diye aktarmak isterler. Bunların derdi imanı katkıda bulunmak ama şimdi buranın gölgesi şudur alma verme dengesini bozuyorlar. Çok katkı olacağım diye az önceki 25'teki masumiyet kapısındaki salaklık var ya burada da devam ediyor. Çok katkı vermekten, katkı olmaktan kendi kul haklarına gidiyorlar ve tanrıcılık oynamaya başlıyorlar. Bütün ihtiyaçların giderme, her şekilde donanımlı hale getirme durumunda olduğu için alma dengeleri, verme dengeleri bozuluyor ve bu yüzden ciddi bir şekilde hormonal sistemde hastalık yaşayabiliyorlar. Ama bunlar doğru zamanla, doğru yerde, doğru kişiye doğru miktarda katkı olmayı öğrenmeleri gerekiyor. Yani alma verme dengelerini korumaları gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:07:04",
+      "guncelleme_tarihi": "2026-04-28 21:07:04"
+    },
+    {
+      "id": "92716dd1-24b4-4b0b-9244-2e5fbb23ea82",
+      "kategori": "Kapılar",
+      "baslik": "20. Kapı",
+      "kod": "kapi_20",
+      "anahtarlar": [
+        "Kapılar",
+        "20. Kapı",
+        "20",
+        "Kapı"
+      ],
+      "icerik": "20 Kapısı başkalaşım kapısı, ikizler burcunda. \nBurası aynı zamanda tefekkür kapısı olarak ta geçiyor. Durup düşünmekle alakalı ama bu kapıda anlık harekete geçme, anlık karar verme gibi, anda bazı şeylerin olması ve anda şansınızın dönmesi gibi. Hayatınıza bir mucizenin gelmesi gibi düşünün. \n20 Kapısı varsa sizde hiçbir şey yoluna gitmiyordur, bir anda bir şey yasarsınız ve anında her şey böyle bir sihirli değnek gibi değişebilir. Çünkü burası çok güçlü bir kapıdır. 34 ile kanal oluyor her şeyden önce. Oranın gücünü yansıtıyor. Şimdi burası karizmanın liderliğin kapısı 34-20 karizma kanalı diye geçiyor. 20 ile beraber o gücü oluşturuyor. Karizma kanalı olarak geçiyor. Çünkü orada gerçek gücü yansıtıyorlar. \nBunların en çok yapmaları gereken şey bir şey yapmadan bir karar vermeden önce durup düşünmeleri gerekiyor ve bunlar da bu bizden değil bu bizden değil diye böyle bir ayrıma girmemeleri gerekiyor. Yani bu benim kabilemden ama bu benim kabilemden değil diye değil herkese aynı eşit şekilde davranmaları gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:07:16",
+      "guncelleme_tarihi": "2026-04-28 21:07:16"
+    },
+    {
+      "id": "7bd6dc75-b17f-44bb-9a68-9b0e58e572b7",
+      "kategori": "Kapılar",
+      "baslik": "16. Kapı",
+      "kod": "kapi_16",
+      "anahtarlar": [
+        "Kapılar",
+        "16. Kapı",
+        "16",
+        "Kapı"
+      ],
+      "icerik": "16 kapısı beceriler kapısıdır. İkizler burcunda. \nBir anda yatağından fırlayıp da işe dahil olan kişiler de var. Çok becerikli, üretken, üretme enerjisi çok yüksek. \nBazen suskunluk kapısı da olarak geçiyor. Kendisini bir kilitliyor, iletişime kapatıyor. İkizler var burada, iletişim var. Bazen kendisini kilitliyor, iletişime tamamen kapatıyor. Bazen de her şeyi ortaya koyabilecek yapıya sahip, sürekli bir değişkenlik var. Zaten ikizler burcu değişkenlik burcu. \nKendi becerilerini ortaya çıkardığı gibi başkalarının becerilerinin ortaya çıkmasında da ön ayak oluyor. \nGölgeye yanı da; kişi bir kişiyle konuştuğunda onunla konuştuğu bir şeyi başka tarafa aktarmaması gerekiyor. O zaman gölge enerjisine düşüyor. \nBu kapıya sahip olanlar bilgide derinleşmesi gerekiyor. Yüzeysellikten çıkması gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:07:27",
+      "guncelleme_tarihi": "2026-04-28 21:07:27"
+    },
+    {
+      "id": "0dfa6b54-b24c-412c-82e1-5886adf4beea",
+      "kategori": "Kapılar",
+      "baslik": "23. Kapı",
+      "kod": "kapi_23",
+      "anahtarlar": [
+        "Kapılar",
+        "23. Kapı",
+        "23",
+        "Kapı"
+      ],
+      "icerik": "23 kapısı özümseme kapısı olarak geçiyor. Boğa burcunda. \nÖzümseme derken iyice öğrenme. Mesela öğrenirken bir şeyi kategorilere bölmeye, başlıklara bölmeye. Mesela evde eşyası var. Bir süre gidip saklama kapı alıyor, o kapların içini ayrı ayrı koruyor. 23 Kapısı saklama kapı kapısı olarak aklınızda kalabilir. Ayrı ayrı saklama kapları alıyor, her şeyleri bölümlere ayırıyor. Her şeyi sentezliyor. Bir not alacaksa onu başlıkları altına ayırıyor. Yani bunların içerisinde parçalama, küçültme, sentezleme, özümseme var. Yani parçalara ayırarak öğrenme stili var burada. \n23 Kapısı kendi fikirlerini savunurken karşı tarafa saygı duymayı öğrenmesi gerekiyor. En büyük ders te buradan giriyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:07:39",
+      "guncelleme_tarihi": "2026-04-28 21:07:39"
+    },
+    {
+      "id": "43c475f2-be13-4cbc-8fb0-27fb6315b88b",
+      "kategori": "Kapılar",
+      "baslik": "62. Kapı",
+      "kod": "kapi_62",
+      "anahtarlar": [
+        "Kapılar",
+        "62. Kapı",
+        "62",
+        "Kapı"
+      ],
+      "icerik": "62 ayrıntılar kapısı olarak geçiyor ve yengeç burcunda çok manidar. Çünkü yengeç burcu ayrıntılara takılan başak burcu gibi bir burçtur. \nBu kapıya sahip olanların hep bir otoriteyle problemi var. Patronla, eşiyle, annesiyle, babasıyla yani onun için otorite figürü kimse hep bu sorun yaşayacağı kişiler çıkabiliyor. Bir de kişinin güneşi 62’deyse annesi ve babası yüz kızartıcı işler yapmış olabiliyor. Annem ve babam gibi olmayacağım derdinde oluyor bu kişiler. Yani oradan bir ders çıkarmaları gerekiyor ve anne baba sınavları olabiliyor bunlarda. \n62 kapısında yüksek mühendisler, programcılar, matematiksel hafızaya çok ihtiyaç duyduğumuz mimar gibi meslekler buradan çıkabiliyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:07:54",
+      "guncelleme_tarihi": "2026-04-28 21:07:54"
+    },
+    {
+      "id": "960d5792-ab7f-474f-bb68-39703f7f12ec",
+      "kategori": "Kapılar",
+      "baslik": "56. Kapı",
+      "kod": "kapi_56",
+      "anahtarlar": [
+        "Kapılar",
+        "56. Kapı",
+        "56",
+        "Kapı"
+      ],
+      "icerik": "56 Kapısı öykücü kapısı olarak geçiyor. Biraz yengeç te biraz da aslan burcunda. \nNe kadar yetenekli eğitmen varsa buradan çıkıyor. Öğretmenler, eğitmenler, öğreticiler, insanlara bir şey öğretmek için kendisi adamış kişiler 56 kapısı genelde oluyor. \nBunlar öykücü olabiliyorlar yani hayatın ders alınması gereken kısımları öykü hikaye anlatarak insanlara yön gösterebiliyorlar. Başkalarının deneyimlerini ya da kendi deneyimlerini sanki bir hikaye gibi anlatarak onların ders çıkmasında vesile oluyorlar. \nBunların yapmaları gereken en önemli şey şu; öykü anlatırken de ya da bir hamle yapmaları gerektiğinde doğru zamanlamayı beklemeleri gerekiyor. Yani o taşı gediğine koymak için zamanlamayı beklemeleri gerekiyor. Çünkü aceleci bir tavır var bunlarda. Çünkü yengecin antisyası ikizler. İkizler acelecidir. Eli kolu durmuyor. Bir anda her şeyi halletmek istiyorlar. Buranın gölgesine düşmemek için sakin davranması gerekiyor. İkizlerin o enerjisinden uzak durmaları gerekiyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:08:08",
+      "guncelleme_tarihi": "2026-04-28 21:08:08"
+    },
+    {
+      "id": "243c489c-0ce7-40ed-aafb-a4acd6e2adfb",
+      "kategori": "Kapılar",
+      "baslik": "35. Kapı",
+      "kod": "kapi_35",
+      "anahtarlar": [
+        "Kapılar",
+        "35. Kapı",
+        "35",
+        "Kapı"
+      ],
+      "icerik": "35 Kapısı değişim kapısı olarak geçiyor ve ikizler burcunda. Bunlar yaşadıklarından ders çıkarmaları gerekiyor. Bir şey yaptıkları zaman pişman oluyor ama diyorlar ki pişman oldum ama bugün olsa yine yaparım. Yani yine olsa yine yaparım diyenler buradan çıkıyor. Yani ben bu hatayı yaptım ama zevk aldım. Yine olsa yine yaparım diye akıllanmayan tipler 35 olanlar. \nBir arkadaşınıza yardım ettiniz. O arkadaş sonradan size yanlış yaptı, ya ben bana yardım ettim, bana yanlış yaptı ama bugün olsa yine yardım ederdim kafası var bunlarda. Yaptığım yanlışı tekrar yapardım şeklinde. \nKapı 35’ler inanılmaz masa hazırlarlar. Yemek masası hazırlarlar. Yemekte çeşit çeşit yaparlar. Açık büfeci bunlar. Otele gittikleri zaman açık büfeden kaç çeşit yemek var diye tek tek göz gezdirirler. \n35'i olanlar bir duyguyu söylemek için 150 farklı kelime kullanırlar. Direkt seni seviyorum diyemezler. O kadar laf kalabalığı yaparlar ki o sonuca varamazlar. Bakın burada ikizlerin gölgesi çalışıyor. İkizlerde laf kalabalığı var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:08:24",
+      "guncelleme_tarihi": "2026-04-28 21:08:24"
+    },
+    {
+      "id": "95e68b70-8530-4773-8c04-0ed01b67353a",
+      "kategori": "Kapılar",
+      "baslik": "12. Kapı",
+      "kod": "kapi_12",
+      "anahtarlar": [
+        "Kapılar",
+        "12. Kapı",
+        "12",
+        "Kapı"
+      ],
+      "icerik": "12 Kapısı ihtiyat kapısı olarak geçiyor. İkizler burunda. \nBurası teslimiyet kapısı olarak da geçiyor. Buranın mesajı şu; yapmak istediğin her şeyi tedbir al ve bırak. Yani sürekli böyle bir ihtiyat halinde olma durumu. Sürekli bir denetleme halinde olma. \nBu ihtiyat kapısında şöyle bir şey var. Kapı 12'de kapısı olanlar eğer yalan söylerlerse, tasarımına aykırı davranırsa beden gazı çok oluyor. Yani geğirebiliyorlar ve osurabiliyor. Yalan söylediği zaman bu ikisini yapıyor. \nYani baktınız bir kişi 12 kapısı var ve hem boğazdan geliyor hem de yani yellenme çok fazla yapıyor ve kokulu oluyorsa bu insandan yalan söylüyordur. Yalan söyleyen kişiler bedenleri kabul etmiyor ve bunu dışarıya bu şekilde atıyor. 12 Kapısının böyle bir özelliği var.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:08:39",
+      "guncelleme_tarihi": "2026-04-28 21:08:39"
+    },
+    {
+      "id": "ed3ce044-158d-4af7-af39-1b563847d95b",
+      "kategori": "Kapılar",
+      "baslik": "45. Kapı",
+      "kod": "kapi_45",
+      "anahtarlar": [
+        "Kapılar",
+        "45. Kapı",
+        "45",
+        "Kapı"
+      ],
+      "icerik": "45 Kapısı kral ya da kraliçe kapısı olarak geçiyor. 21 ile kanal oluyor ve o kısım para kanalıydı. Bununla beraber paralarını gözüne vuruyorlar. \nLiderlik enerjisinde. Buraya sahip olanlar doğal bir liderlik enerjisine sahip. Şöyle bir liderlik enerjisi var. Bu insanlar lider ya da bir komutan ya da bir kanaatla ilgili ortaya çıkan birisi olduğu zaman herkes ona güveniyor. Bu yaptıysa, bu söylediyse bu doğru yapıyordur diyorlar. Yani öyle bir izlenim veriyorlar insanlar içerisinde. \nİnsanlar içerisinde toparlayıcı, birleştirici, herkesi bir araya getireceği bir enerjiye sahip. \nAllah'ın yürü ya kulum dediği kişiler bunlar. Bütün yollar sana açıktır. Bu enerjiye sahip olan kişiler buradan çıkıyor.",
+      "aktif": true,
+      "olusturma_tarihi": "2026-04-28 21:08:52",
+      "guncelleme_tarihi": "2026-04-28 21:08:52"
+    }
+  ]
+}

@@ -2,6 +2,42 @@ import { supabase } from "@/lib/supabase";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import type { HumanDesignChart, HumanDesignKnowledgeRecord } from "@/lib/human-design/types";
 
+// ham satır tipi — human_design_knowledge tablosu (Türkçe kolon adları)
+type RawKnowledgeRow = {
+  id: string;
+  tenant_id: string | null;
+  source_id: string | null;
+  kategori: string;
+  baslik: string;
+  kod: string;
+  anahtarlar: unknown[];
+  icerik: string;
+  aktif: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapKnowledgeRow(r: RawKnowledgeRow): HumanDesignKnowledgeRecord {
+  return {
+    id: r.id,
+    tenant_id: r.tenant_id,
+    user_id: null,
+    category: r.kategori,
+    title: r.baslik,
+    code: r.kod,
+    content: r.icerik,
+    keywords: Array.isArray(r.anahtarlar) ? r.anahtarlar.map(String) : [],
+    related_gates: [],
+    related_channels: [],
+    related_centers: [],
+    tags: [],
+    sort_order: 0,
+    is_active: r.aktif,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  };
+}
+
 // -------------------------------------------------------
 // Chart yükle (client_id'ye göre — aynı upsert mantığı)
 // -------------------------------------------------------
@@ -84,19 +120,23 @@ export async function loadKnowledgeForCodes(codes: string[]): Promise<{
   const tenantId = await getSyncedTenantId();
   if (!tenantId) return { groups: [], matchedCodes: [], error: "Aktif kullanıcı bulunamadı." };
 
+  console.log("[HD Knowledge] Sorgulanan kodlar:", codes);
+
   const { data, error } = await supabase
-    .from("human_design_knowledge_records")
+    .from("human_design_knowledge")
     .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true)
-    .in("code", codes)
-    .order("sort_order", { ascending: true })
+    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+    .eq("aktif", true)
+    .in("kod", codes)
     .order("created_at", { ascending: true });
 
   if (error) return { groups: [], matchedCodes: [], error: error.message };
 
-  const records = (data ?? []) as HumanDesignKnowledgeRecord[];
+  console.log("[HD Knowledge] Bulunan kayıt sayısı:", (data ?? []).length);
+
+  const records = (data ?? [] as RawKnowledgeRow[]).map(mapKnowledgeRow);
   const matchedCodes = records.map((r) => r.code);
+  console.log("[HD Knowledge] Eşleşen kodlar:", matchedCodes);
 
   // Kategoriye göre grupla, belirlenen sıraya göre
   const map = new Map<string, HumanDesignKnowledgeRecord[]>();

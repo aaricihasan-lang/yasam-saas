@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
@@ -37,6 +38,7 @@
     "eslint-config-next": "16.2.6",
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
