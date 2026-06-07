@@ -20,7 +20,6 @@ import {
 } from "../helpers/hdRapor";
 import type { HumanDesignChart } from "@/lib/human-design/types";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
-import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -78,7 +77,11 @@ export function HdRaporContent() {
       setChart(chartRow);
 
       const codes = buildCodesFromChart(chartRow);
+      console.log("[Rapor] buildCodesFromChart →", codes);
+
       const { groups: g, matchedCodes: mc, error: kErr } = await loadKnowledgeForCodes(codes);
+      console.log("[Rapor] loadKnowledgeForCodes → groups:", g.length, "| matchedCodes:", mc.length, "| error:", kErr);
+      if (g.length > 0) console.log("[Rapor] İlk group:", g[0].category, "kayıt sayısı:", g[0].records.length, "| ilk kayıt:", g[0].records[0]);
       setLoading(false);
 
       if (kErr) {
@@ -90,6 +93,7 @@ export function HdRaporContent() {
       setMatchedCodes(mc);
 
       const text = buildReportText(g);
+      console.log("[Rapor] buildReportText uzunluğu:", text.length, "karakter");
       setGeneratedText(text);
       setEditedText(text);
 
@@ -196,7 +200,7 @@ export function HdRaporContent() {
         </div>
       )}
 
-      {/* Kapı Teknik Bilgileri + Bilgi Bankası Yorumları */}
+      {/* Kapı Teknik Bilgileri */}
       {chart && (
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 ring-1 ring-indigo-100/60">
           <p className={sectionCls}>Kapı Teknik Bilgileri</p>
@@ -205,7 +209,6 @@ export function HdRaporContent() {
           ) : (
             <p className="text-xs text-slate-400">Kapı kaydı yok.</p>
           )}
-          <GateKnowledgeNotes groups={groups} loading={loading} />
         </div>
       )}
 
