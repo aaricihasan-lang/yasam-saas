@@ -1902,7 +1902,7 @@ export default function Home() {
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <a
-                    href="https://play.google.com/store/apps/details?id=com.yasamsistemi"
+                    href="https://play.google.com/store/apps/details?id=com.yasamsistemi.app"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 text-sm font-bold text-white no-underline shadow-[0_4px_14px_rgba(5,150,105,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(5,150,105,0.45)]"
