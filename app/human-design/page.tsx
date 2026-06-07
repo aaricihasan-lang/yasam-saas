@@ -57,6 +57,17 @@ const HD_MODULES = [
     cardBg: "from-sky-50/90 via-indigo-50/60 to-white",
     badgeCls: "bg-sky-100 text-sky-800",
   },
+  {
+    title: "Kayıtlı Raporlar",
+    desc: "Oluşturulan raporları listele, incele ve düzenle.",
+    href: "/human-design/kayitli-raporlar",
+    icon: "📄",
+    badge: "Liste",
+    accent: "from-fuchsia-500 to-pink-600",
+    cardBorder: "border-fuchsia-200/70",
+    cardBg: "from-fuchsia-50/90 via-pink-50/60 to-white",
+    badgeCls: "bg-fuchsia-100 text-fuchsia-800",
+  },
 ] as const;
 
 export default function HumanDesignHubPage() {
