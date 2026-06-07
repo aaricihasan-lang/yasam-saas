@@ -19,6 +19,7 @@ import {
   type KnowledgeGroup,
 } from "../helpers/hdRapor";
 import type { HumanDesignChart } from "@/lib/human-design/types";
+import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -189,6 +190,14 @@ export function HdRaporContent() {
               Önce Bilgi Bankası ekranından yorum ekleyin.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Kapı Teknik Bilgileri */}
+      {chart && ((chart.gates?.length ?? 0) > 0 || (chart.channels?.length ?? 0) > 0) && (
+        <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 ring-1 ring-indigo-100/60">
+          <p className={sectionCls}>Kapı Teknik Bilgileri</p>
+          <GateTechnicalInfo gates={chart.gates ?? []} channels={chart.channels ?? []} />
         </div>
       )}
 

@@ -10,6 +10,7 @@ import {
   hdChannelLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
 import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
+import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
 
 type Props = {
@@ -150,6 +151,13 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
                 </div>
               )}
             </Section>
+
+            {/* Kapı Teknik Bilgileri */}
+            {((row.gates ?? []).length > 0 || (row.channels ?? []).length > 0) && (
+              <Section title="Kapı Teknik Bilgileri">
+                <GateTechnicalInfo gates={row.gates ?? []} channels={row.channels ?? []} />
+              </Section>
+            )}
 
             {/* Notlar */}
             {row.notes && (

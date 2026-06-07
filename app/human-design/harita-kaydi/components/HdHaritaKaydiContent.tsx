@@ -14,6 +14,7 @@ import {
 } from "@/lib/human-design/constants";
 import { listHdClients, type HdClientRow } from "../../danisanlar/helpers/hdClients";
 import { loadClientChart, saveClientChart } from "../helpers/hdCharts";
+import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -366,6 +367,14 @@ export function HdHaritaKaydiContent() {
               )}
             </div>
           </section>
+
+          {/* Kapı Teknik Bilgileri */}
+          {(form.gates.length > 0 || form.channels.length > 0) && (
+            <section>
+              <p className={sectionCls}>Kapı Teknik Bilgileri</p>
+              <GateTechnicalInfo gates={form.gates} channels={form.channels} />
+            </section>
+          )}
 
           {/* Notlar */}
           <section>
