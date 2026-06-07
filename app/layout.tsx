@@ -4,6 +4,7 @@ import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import DashboardNotifications from "@/shared/DashboardNotifications";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,6 +33,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
+        <GoogleAnalytics />
         <ToastProvider>
           <ConfirmProvider>
             <DashboardNotifications />
