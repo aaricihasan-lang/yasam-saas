@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   hdTypeLabelFromCode,
@@ -29,6 +29,7 @@ const sectionCls = "mb-2 text-xs font-black uppercase tracking-widest text-indig
 
 export function HdRaporContent() {
   const { showToast } = useToast();
+  const router = useRouter();
   const params = useSearchParams();
   const urlClientId = params.get("clientId") ?? "";
 
@@ -126,6 +127,7 @@ export function HdRaporContent() {
       showToast({ message: `Kayıt hatası: ${error}`, type: "error" });
     } else {
       showToast({ message: "Rapor kaydedildi.", type: "success" });
+      router.push("/human-design/kayitli-raporlar");
     }
   }
 
