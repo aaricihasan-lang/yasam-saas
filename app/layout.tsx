@@ -5,6 +5,8 @@ import DashboardNotifications from "@/shared/DashboardNotifications";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +36,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
         <GoogleAnalytics />
+        <Analytics />
+        <SpeedInsights />
         <ToastProvider>
           <ConfirmProvider>
             <DashboardNotifications />
