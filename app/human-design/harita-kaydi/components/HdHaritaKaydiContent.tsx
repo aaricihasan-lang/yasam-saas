@@ -15,6 +15,20 @@ import {
 import { listHdClients, type HdClientRow } from "../../danisanlar/helpers/hdClients";
 import { loadClientChart, saveClientChart } from "../helpers/hdCharts";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
+import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
+import { loadKnowledgeForCodes, type KnowledgeGroup } from "../../rapor-olustur/helpers/hdRapor";
+
+function buildCodes(f: typeof emptyForm): string[] {
+  const codes: string[] = [];
+  if (f.type_code) codes.push(`tip_${f.type_code}`);
+  if (f.authority_code) codes.push(`otorite_${f.authority_code}`);
+  if (f.profile_code) codes.push(`profil_${f.profile_code}`);
+  if (f.definition_code) codes.push(`tanim_${f.definition_code}`);
+  for (const c of [...f.active_centers, ...f.open_centers]) codes.push(`merkez_${c}`);
+  for (const ch of f.channels) codes.push(`kanal_${ch.replace(/-/g, "_")}`);
+  for (const g of f.gates) codes.push(`kapi_${g}`);
+  return [...new Set(codes)];
+}
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -43,11 +57,30 @@ export function HdHaritaKaydiContent() {
   const [form, setForm] = useState(emptyForm);
   const [loadingChart, setLoadingChart] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
 
   // Danışan listesini yükle
   useEffect(() => {
     listHdClients().then(({ rows }) => setClients(rows));
   }, []);
+
+  // Form değişince bilgi bankasını debounce ile yükle
+  useEffect(() => {
+    const codes = buildCodes(form);
+    if (codes.length === 0) {
+      setKnowledgeGroups([]);
+      setLoadingNotes(false);
+      return;
+    }
+    setLoadingNotes(true);
+    const timer = setTimeout(async () => {
+      const { groups } = await loadKnowledgeForCodes(codes);
+      setKnowledgeGroups(groups);
+      setLoadingNotes(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [form]);
 
   // Seçili danışanın mevcut haritasını yükle
   const loadChart = useCallback(async (id: string) => {
@@ -368,11 +401,16 @@ export function HdHaritaKaydiContent() {
             </div>
           </section>
 
-          {/* Kapı Teknik Bilgileri */}
-          {(form.gates.length > 0 || form.channels.length > 0) && (
+          {/* Kapı Teknik Bilgileri + Bilgi Bankası Yorumları */}
+          {clientId && (
             <section>
               <p className={sectionCls}>Kapı Teknik Bilgileri</p>
-              <GateTechnicalInfo gates={form.gates} channels={form.channels} />
+              {form.gates.length > 0 || form.channels.length > 0 ? (
+                <GateTechnicalInfo gates={form.gates} channels={form.channels} />
+              ) : (
+                <p className="text-xs text-slate-400">Henüz kapı ya da kanal seçilmedi.</p>
+              )}
+              <GateKnowledgeNotes groups={knowledgeGroups} loading={loadingNotes} />
             </section>
           )}
 
