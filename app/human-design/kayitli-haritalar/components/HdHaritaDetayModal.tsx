@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   hdTypeLabelFromCode,
@@ -11,6 +12,12 @@ import {
 } from "@/lib/human-design/codeHelpers";
 import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
+import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
+import {
+  buildCodesFromChart,
+  loadKnowledgeForCodes,
+  type KnowledgeGroup,
+} from "../../rapor-olustur/helpers/hdRapor";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
 
 type Props = {
@@ -62,6 +69,17 @@ function formatDate(val: string | null | undefined): string {
 export function HdHaritaDetayModal({ row, onClose }: Props) {
   const clientName = row.client?.name ?? row.client_name ?? "—";
   const clientId = row.client_id ?? "";
+
+  const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+
+  useEffect(() => {
+    const codes = buildCodesFromChart(row);
+    loadKnowledgeForCodes(codes).then(({ groups }) => {
+      setKnowledgeGroups(groups);
+      setLoadingNotes(false);
+    });
+  }, [row]);
 
   const activeCenterLabels = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
   const openCenterLabels = (row.open_centers ?? []).map((c) => hdCenterLabelFromCode(c));
@@ -152,12 +170,15 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
               )}
             </Section>
 
-            {/* Kapı Teknik Bilgileri */}
-            {((row.gates ?? []).length > 0 || (row.channels ?? []).length > 0) && (
-              <Section title="Kapı Teknik Bilgileri">
+            {/* Kapı Teknik Bilgileri + Bilgi Bankası Yorumları */}
+            <Section title="Kapı Teknik Bilgileri">
+              {((row.gates ?? []).length > 0 || (row.channels ?? []).length > 0) ? (
                 <GateTechnicalInfo gates={row.gates ?? []} channels={row.channels ?? []} />
-              </Section>
-            )}
+              ) : (
+                <p className="text-xs text-slate-400">Kapı kaydı yok.</p>
+              )}
+              <GateKnowledgeNotes groups={knowledgeGroups} loading={loadingNotes} />
+            </Section>
 
             {/* Notlar */}
             {row.notes && (
