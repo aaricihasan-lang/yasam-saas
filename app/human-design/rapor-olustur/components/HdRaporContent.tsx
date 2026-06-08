@@ -20,6 +20,7 @@ import {
 } from "../helpers/hdRapor";
 import type { HumanDesignChart } from "@/lib/human-design/types";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
+import { exportHdReportDocx } from "../helpers/exportHdReportDocx";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -42,6 +43,7 @@ export function HdRaporContent() {
   const [reportTitle, setReportTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     listHdClients().then(({ rows }) => setClients(rows));
@@ -136,6 +138,28 @@ export function HdRaporContent() {
   }
 
   const selectedClient = clients.find((c) => c.id === clientId);
+
+  async function handleWordExport() {
+    if (!editedText.trim()) {
+      showToast({ message: "Rapor içeriği boş, önce rapor oluşturun.", type: "warning" });
+      return;
+    }
+    setExporting(true);
+    try {
+      const clientName = selectedClient?.name ?? "Danışan";
+      await exportHdReportDocx({
+        reportTitle: reportTitle || "Human Design Raporu",
+        clientName,
+        reportText: editedText,
+      });
+      showToast({ message: "Word raporu indirildi.", type: "success" });
+    } catch (err) {
+      console.error("[WordExport]", err);
+      showToast({ message: "Word dosyası oluşturulamadı.", type: "error" });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -275,14 +299,24 @@ export function HdRaporContent() {
             <p className="text-xs text-slate-500">
               {editedText !== generatedText && "* Otomatik metinden farklı düzenlemeler yapıldı."}
             </p>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !clientId || !editedText.trim()}
-              className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? "Kaydediliyor..." : "Raporu Kaydet"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleWordExport}
+                disabled={exporting || !editedText.trim()}
+                className="h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {exporting ? "İndiriliyor..." : "Word İndir"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !clientId || !editedText.trim()}
+                className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "Kaydediliyor..." : "Raporu Kaydet"}
+              </button>
+            </div>
           </div>
         </div>
       )}
