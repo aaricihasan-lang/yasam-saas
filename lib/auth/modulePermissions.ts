@@ -99,7 +99,7 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
-  "human_design",
+  // human_design: yakında — premium paketinden de hariç
   "danisan_yonetimi",
   "ajanda",
   "numeroloji",
@@ -126,8 +126,13 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
-  "human_design",
+  // human_design: yakında — premium dahil tüm uzmanlar için kilitli
 ];
+
+/** Yakında açılacak modüller — admin hariç herkes için kilitli */
+export const COMING_SOON_MODULE_KEYS = new Set<ModulePermissionKey>([
+  "human_design",
+]);
 
 export function isPremiumExpertUser(
   user: YasamUser | null | undefined,
@@ -208,7 +213,7 @@ export function hasModulePermission(
   return Boolean(perms[key]);
 }
 
-export type ModuleLockReason = "subscription" | "permission" | null;
+export type ModuleLockReason = "subscription" | "permission" | "coming_soon" | null;
 
 export function getModuleLockReason(
   user: YasamUser | null | undefined,
@@ -217,6 +222,10 @@ export function getModuleLockReason(
   subscriptionOpen: boolean,
 ): ModuleLockReason {
   if (!hasHref) return null;
+  // Yakında modüller: admin hariç herkes için kilitli (izin verilmiş olsa dahi)
+  if (COMING_SOON_MODULE_KEYS.has(key) && !isAdminRole(user)) {
+    return "coming_soon";
+  }
   if (!subscriptionOpen) return "subscription";
   if (!hasModulePermission(user, key)) return "permission";
   return null;

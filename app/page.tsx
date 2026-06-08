@@ -21,6 +21,7 @@ import {
   isPremiumExpertUser,
   LOCKED_PERMISSION_TOAST,
   PREMIUM_HOME_MODULE_KEYS,
+  COMING_SOON_MODULE_KEYS,
   type ModuleLockReason,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
@@ -454,8 +455,10 @@ function expertHasAnyGrantedModule(user: YasamUser): boolean {
 
 function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
   if (isAdminUser(user)) return dashboardModules;
-  return dashboardModules.filter((item) =>
-    isExpertDashboardModuleVisible(user, item),
+  return dashboardModules.filter(
+    (item) =>
+      isExpertDashboardModuleVisible(user, item) ||
+      COMING_SOON_MODULE_KEYS.has(item.permissionKey),
   );
 }
 
@@ -788,6 +791,7 @@ export default function Home() {
       !expertHasAnyGrantedModule(user);
 
     function handleLockedModuleClick(reason: ModuleLockReason) {
+      if (reason === "coming_soon") return; // pasif kart — toast gösterme
       showToast({
         message:
           reason === "permission"
@@ -916,17 +920,21 @@ export default function Home() {
                 const isOpen = hasHref && !isLocked;
                 const { Icon, theme } = item;
 
+                const isComingSoon = lockReason === "coming_soon";
+
                 const card = (
                   <div
                     className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                       isOpen
                         ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
                         : isLocked
-                          ? "cursor-not-allowed"
+                          ? isComingSoon
+                            ? "cursor-default opacity-80"
+                            : "cursor-not-allowed"
                           : "cursor-default opacity-90"
                     }`}
                   >
-                    {isLocked ? (
+                    {isLocked && !isComingSoon ? (
                       <span className="absolute left-3 top-3 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700 shadow-sm ring-1 ring-red-100">
                         {lockReason === "permission"
                           ? "🔒 Yetki yok"
@@ -957,16 +965,20 @@ export default function Home() {
                     <div className="mt-2.5 flex items-center justify-between gap-2">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
-                          isLocked
-                            ? "bg-rose-100 text-rose-800 ring-rose-200/80"
-                            : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
+                          isComingSoon
+                            ? "bg-violet-100 text-violet-700 ring-violet-200/80"
+                            : isLocked
+                              ? "bg-rose-100 text-rose-800 ring-rose-200/80"
+                              : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
                         }`}
                       >
-                        {isLocked
-                          ? lockReason === "permission"
-                            ? "Yetki yok"
-                            : "Pasif Üyelik"
-                          : item.count}
+                        {isComingSoon
+                          ? "Yakında"
+                          : isLocked
+                            ? lockReason === "permission"
+                              ? "Yetki yok"
+                              : "Pasif Üyelik"
+                            : item.count}
                       </span>
 
                       <span
