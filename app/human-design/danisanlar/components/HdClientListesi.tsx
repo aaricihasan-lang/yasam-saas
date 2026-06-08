@@ -9,7 +9,6 @@ import {
   deleteHdClient,
   type HdClientRow,
 } from "../helpers/hdClients";
-import { HdClientDetayModal } from "./HdClientDetayModal";
 
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
@@ -31,7 +30,6 @@ export function HdClientListesi() {
   const [rows, setRows] = useState<HdClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [editRow, setEditRow] = useState<HdClientRow | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -149,13 +147,12 @@ export function HdClientListesi() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEditRow(row)}
-                        className="h-7 rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
+                      <Link
+                        href={`/human-design/danisanlar/${row.id}`}
+                        className="flex h-7 items-center rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50"
                       >
-                        Düzenle
-                      </button>
+                        Detay
+                      </Link>
                       <Link
                         href={`/human-design/harita-kaydi?clientId=${row.id}`}
                         className="flex h-7 items-center rounded-lg border border-violet-200 bg-white px-2.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
@@ -181,16 +178,6 @@ export function HdClientListesi() {
         </div>
       )}
 
-      {editRow && (
-        <HdClientDetayModal
-          row={editRow}
-          onClose={() => setEditRow(null)}
-          onSaved={() => {
-            setEditRow(null);
-            loadRows();
-          }}
-        />
-      )}
     </>
   );
 }

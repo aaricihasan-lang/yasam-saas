@@ -62,6 +62,23 @@ export async function updateHdClient(
   return { error: error?.message ?? null };
 }
 
+export async function getHdClient(
+  id: string,
+): Promise<{ row: HdClientRow | null; error: string | null }> {
+  const tenantId = await resolveTenantId();
+  if (!tenantId) return { row: null, error: "Aktif kullanıcı tenant_id bulunamadı." };
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .single();
+
+  if (error) return { row: null, error: error.message };
+  return { row: data as HdClientRow, error: null };
+}
+
 export async function deleteHdClient(
   id: string,
 ): Promise<{ error: string | null }> {
