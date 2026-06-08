@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import Link from "next/link";
 import { updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "./HdChartImageUpload";
 
@@ -106,8 +107,45 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
         </div>
 
         {/* Body */}
-        <div className="max-h-[70vh] overflow-y-auto p-6">
+        <div className="max-h-[80vh] overflow-y-auto p-6">
           <div className="space-y-6">
+            {/* Harita Görseli — en üstte, hemen görünsün */}
+            <section>
+              <p className={sectionCls}>Harita Görseli</p>
+              <HdChartImageUpload
+                clientId={row.id}
+                currentImageUrl={form.chart_image_url || null}
+                onUrlChange={(url) =>
+                  setForm((p) => ({ ...p, chart_image_url: url ?? "" }))
+                }
+              />
+            </section>
+
+            {/* Hızlı Erişim */}
+            <section>
+              <p className={sectionCls}>Hızlı Erişim</p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/human-design/harita-kaydi?clientId=${row.id}`}
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50 px-4 text-sm font-bold text-violet-800 no-underline transition hover:border-violet-400 hover:bg-violet-100"
+                >
+                  Harita Bilgilerini Düzenle
+                </Link>
+                <Link
+                  href={`/human-design/rapor-olustur?clientId=${row.id}`}
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-indigo-300/80 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 no-underline transition hover:border-indigo-400 hover:bg-indigo-100"
+                >
+                  Rapor Oluştur
+                </Link>
+                <Link
+                  href="/human-design/kayitli-raporlar"
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 no-underline transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Kayıtlı Raporlar
+                </Link>
+              </div>
+            </section>
+
             {/* Kişisel Bilgiler */}
             <section>
               <p className={sectionCls}>Kişisel Bilgiler</p>
@@ -151,22 +189,12 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
               </div>
             </section>
 
-            {/* Harita Kaynakları */}
+            {/* Harita Linki & Not */}
             <section>
-              <p className={sectionCls}>Harita Kaynakları</p>
+              <p className={sectionCls}>Ek Bilgiler</p>
               <div className="space-y-4">
                 <div>
-                  <label className={labelCls}>Harita Görseli</label>
-                  <HdChartImageUpload
-                    clientId={row.id}
-                    currentImageUrl={form.chart_image_url || null}
-                    onUrlChange={(url) =>
-                      setForm((p) => ({ ...p, chart_image_url: url ?? "" }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Harita Linki</label>
+                  <label className={labelCls}>Harita Linki (Jovian Archive vb.)</label>
                   <input
                     type="url"
                     value={form.external_chart_url}
@@ -175,18 +203,16 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
                     className={`h-9 ${fieldBase}`}
                   />
                 </div>
+                <div>
+                  <label className={labelCls}>Not</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={set("notes")}
+                    rows={3}
+                    className={`${fieldBase} resize-y leading-relaxed`}
+                  />
+                </div>
               </div>
-            </section>
-
-            {/* Not */}
-            <section>
-              <p className={sectionCls}>Not</p>
-              <textarea
-                value={form.notes}
-                onChange={set("notes")}
-                rows={4}
-                className={`${fieldBase} resize-y leading-relaxed`}
-              />
             </section>
           </div>
         </div>
