@@ -16,16 +16,19 @@ export type StoneListItem = {
   updated_at: string | null;
 };
 
-/** Metin kolonları — arama dolu iken .or ilike (case-insensitive, tüm tablo) */
+/**
+ * Arama kolonları — YALNIZCA taş adı ve kısa açıklama.
+ *
+ * Neden sadece bu ikisi?
+ * general_info / physical_effects / spiritual_effects / other_effects / warning_text
+ * alanları başka taş adlarını sıkça referans verir (ör. "Ametist ile uyumludur").
+ * Bu alanlarda arama yapılırsa alakasız taşlar (Malakit, Granat vb.) false-positive
+ * olarak sonuçlara girer. Arama niyeti her zaman taş ADIYLA bulma olduğundan
+ * yalnızca stone_name ve short_description aranır.
+ */
 export const STONES_LIST_SEARCH_TEXT_COLUMNS = [
   "stone_name",
   "short_description",
-  "general_info",
-  "physical_effects",
-  "spiritual_effects",
-  "other_effects",
-  "warning_text",
-  "source_note",
 ] as const;
 
 /**

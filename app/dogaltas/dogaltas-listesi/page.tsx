@@ -44,6 +44,13 @@ const SEARCH_MATCH_BADGE_CLASS =
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+/**
+ * Minimum arama uzunluğu.
+ * Tek karakter araması (ör. "a") ilike %a% ile neredeyse tüm taşları döndürür
+ * ve her "a" harfini sarı ile boyar. 2 karakter altındaki sorgular çalıştırılmaz.
+ */
+const SEARCH_MIN_LENGTH = 2;
+
 function normalizeTrSearch(value: string): string {
   return value
     .toLocaleLowerCase("tr-TR")
@@ -425,7 +432,9 @@ function DogaltasListesiPageContent() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setDebouncedSearch(searchTerm.trim());
+      const trimmed = searchTerm.trim();
+      // Minimum uzunluk sağlanmıyorsa arama tetiklenmez, highlight da çalışmaz
+      setDebouncedSearch(trimmed.length >= SEARCH_MIN_LENGTH ? trimmed : "");
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [searchTerm]);
