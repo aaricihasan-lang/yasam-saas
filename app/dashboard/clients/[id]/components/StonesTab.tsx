@@ -6,6 +6,12 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import {
+  parseStoneNames,
+  checkStoneWarnings,
+  type StoneWarningResult,
+} from "@/lib/stones/stoneWarningService";
+import StoneWarningModal from "./StoneWarningModal";
 const STONE_PHOTO_BUCKET = "stone-photos";
 
 type ClientStone = {
@@ -548,6 +554,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   const [uploadingStoneId, setUploadingStoneId] = useState<string | null>(null);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [warningCheckState, setWarningCheckState] = useState<{
+    warnings: StoneWarningResult[];
+    proceed: () => void;
+  } | null>(null);
 
   const photosByStoneId = useMemo(() => {
     const grouped: Record<string, StonePhoto[]> = {};
@@ -762,6 +772,22 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       return;
     }
 
+    // Doğaltaş uyarı kontrolü: kayıttan önce taş adlarını kontrol et
+    if (tenantId && form.stoneName.trim()) {
+      const names = parseStoneNames(form.stoneName);
+      if (names.length > 0) {
+        const warnings = await checkStoneWarnings(names, tenantId);
+        if (warnings.length > 0) {
+          setWarningCheckState({ warnings, proceed: doAddStone });
+          return;
+        }
+      }
+    }
+
+    await doAddStone();
+  }
+
+  async function doAddStone() {
     setSaving(true);
     setErrorMessage("");
 
@@ -824,6 +850,22 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       return;
     }
 
+    // Doğaltaş uyarı kontrolü: güncellemeden önce taş adlarını kontrol et
+    if (tenantId && editForm.stoneName.trim()) {
+      const names = parseStoneNames(editForm.stoneName);
+      if (names.length > 0) {
+        const warnings = await checkStoneWarnings(names, tenantId);
+        if (warnings.length > 0) {
+          setWarningCheckState({ warnings, proceed: () => doUpdateStone(id) });
+          return;
+        }
+      }
+    }
+
+    await doUpdateStone(id);
+  }
+
+  async function doUpdateStone(id: string) {
     setUpdating(true);
     setErrorMessage("");
 
@@ -1414,6 +1456,19 @@ export default function StonesTab({ clientId }: StonesTabProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Doğaltaş uyarı modalı: kayıt/güncelleme öncesi uyarıları gösterir */}
+      {warningCheckState && (
+        <StoneWarningModal
+          warnings={warningCheckState.warnings}
+          onConfirm={() => {
+            const proceed = warningCheckState.proceed;
+            setWarningCheckState(null);
+            proceed();
+          }}
+          onCancel={() => setWarningCheckState(null)}
+        />
       )}
     </div>
   );
