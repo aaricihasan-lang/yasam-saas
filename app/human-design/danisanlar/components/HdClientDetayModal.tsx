@@ -78,8 +78,9 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
-      {/* Overlay */}
+    /* Overlay — tüm ekranı kaplar, modal ortalar */
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
       <button
         type="button"
         aria-label="Kapat"
@@ -87,10 +88,10 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
       />
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-2xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
+      {/* Modal kartı — flex sütun, maksimum yükseklik ekrana göre */}
+      <div className="relative z-10 flex w-full max-w-5xl flex-col rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl" style={{ maxHeight: "90vh" }}>
+        {/* Header — sabit */}
+        <div className="flex-shrink-0 flex items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
               Danışan Düzenle
@@ -106,8 +107,8 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="max-h-[80vh] overflow-y-auto p-6">
+        {/* Body — yalnızca bu scroll eder */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
             {/* Harita Görseli — en üstte, hemen görünsün */}
             <section>
@@ -217,8 +218,8 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 rounded-b-[26px] border-t border-indigo-100/80 bg-slate-50/60 px-6 py-4">
+        {/* Footer — sabit */}
+        <div className="flex-shrink-0 flex items-center justify-end gap-3 rounded-b-[26px] border-t border-indigo-100/80 bg-slate-50/60 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
