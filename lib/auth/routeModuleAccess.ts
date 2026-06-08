@@ -1,6 +1,7 @@
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   hasAnyModulePermissionFlag,
+  COMING_SOON_MODULE_KEYS,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { isAdminUser, type YasamUser } from "@/lib/auth/yasamUser";
@@ -103,6 +104,8 @@ export function canExpertAccessRoutePath(
   const rule = findRouteModuleRule(pathname);
   if (!rule) return true;
 
+  if (rule.keys.some((k) => COMING_SOON_MODULE_KEYS.has(k as ModulePermissionKey))) return false;
+
   return hasAnyModulePermissionFlag(user, rule.keys);
 }
 
@@ -119,6 +122,8 @@ export function evaluateRouteModuleGuard(
 
   const rule = findRouteModuleRule(path);
   if (!rule) return "allow";
+
+  if (rule.keys.some((k) => COMING_SOON_MODULE_KEYS.has(k as ModulePermissionKey))) return "deny";
 
   if (!hasExpertMembershipAccess(user)) return "deny_membership";
 
