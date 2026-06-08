@@ -433,11 +433,8 @@ export default function ClientDetailPage() {
                 <button
                   onClick={saveDogum}
                   disabled={savingDogum}
-                  style={{
-                    ...saveButton,
-                    background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                    opacity: savingDogum ? 0.7 : 1,
-                  }}
+                  className="btn-secondary"
+                  style={{ opacity: savingDogum ? 0.7 : 1 }}
                 >
                   {savingDogum ? "Kaydediliyor..." : "Doğum Tarihini Güncelle"}
                 </button>
@@ -477,10 +474,8 @@ export default function ClientDetailPage() {
                 <button
                   onClick={saveGeneralNotes}
                   disabled={savingNotes}
-                  style={{
-                    ...saveButton,
-                    opacity: savingNotes ? 0.7 : 1,
-                  }}
+                  className="btn-success"
+                  style={{ opacity: savingNotes ? 0.7 : 1 }}
                 >
                   {savingNotes ? "Kaydediliyor..." : "Genel Bilgileri Kaydet"}
                 </button>
@@ -981,7 +976,11 @@ function AppointmentsTab({
               </div>
             )}
 
-            <button onClick={createAppointments} disabled={saving} style={appointmentSaveButton}>
+            <button
+              onClick={createAppointments}
+              disabled={saving}
+              className="btn-secondary w-full justify-center"
+            >
               {saving ? "Kaydediliyor..." : "Randevu Oluştur"}
             </button>
           </div>
@@ -1041,7 +1040,7 @@ function AppointmentsTab({
                 <button
                   type="button"
                   onClick={() => updateAppointmentStatus(selectedAppointment.id, "tamamlandi")}
-                  style={completeButton}
+                  className="btn-success justify-center"
                 >
                   Tamamlandı
                 </button>
@@ -1049,7 +1048,7 @@ function AppointmentsTab({
                 <button
                   type="button"
                   onClick={() => updateAppointmentStatus(selectedAppointment.id, "iptal")}
-                  style={cancelAppointmentButton}
+                  className="btn-danger justify-center"
                 >
                   İptal Et
                 </button>
@@ -1057,7 +1056,8 @@ function AppointmentsTab({
                 <button
                   type="button"
                   onClick={() => deleteAppointment(selectedAppointment.id)}
-                  style={deleteAppointmentButton}
+                  className="btn-danger justify-center"
+                  style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}
                 >
                   Sil
                 </button>

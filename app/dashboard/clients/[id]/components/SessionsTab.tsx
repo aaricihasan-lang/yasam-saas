@@ -722,7 +722,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
             <button
               onClick={addSession}
               disabled={saving}
-              className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-500 px-7 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-secondary hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               {saving ? "Kaydediliyor..." : "💾 Seansı Kaydet"}
             </button>
@@ -883,7 +883,7 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
                           <button
                             onClick={() => updateSession(session.id)}
                             disabled={updating}
-                            className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="btn-secondary px-4 py-2.5 text-sm"
                           >
                             {updating ? "Güncelleniyor..." : "Güncelle"}
                           </button>

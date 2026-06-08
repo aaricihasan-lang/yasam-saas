@@ -37,10 +37,8 @@ export default function NotesTab({
       <button
         onClick={onSave}
         disabled={saving}
-        style={{
-          ...buttonStyle,
-          opacity: saving ? 0.7 : 1,
-        }}
+        className="btn-secondary"
+        style={{ opacity: saving ? 0.7 : 1 }}
       >
         {saving ? "Kaydediliyor..." : "Notları Kaydet"}
       </button>

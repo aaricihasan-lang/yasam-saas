@@ -824,7 +824,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
             <button
               onClick={addHomework}
               disabled={saving}
-              className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-2 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               {saving ? "Kaydediliyor..." : "✅ Ödevi Kaydet"}
             </button>
@@ -1023,7 +1023,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                         <button
                           onClick={() => updateHomework(item.id)}
                           disabled={updating}
-                          className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="btn-primary px-5 py-3"
                         >
                           {updating ? "Güncelleniyor..." : "Güncelle"}
                         </button>

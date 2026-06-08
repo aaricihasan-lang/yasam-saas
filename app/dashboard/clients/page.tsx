@@ -436,7 +436,7 @@ export default function ClientsPage() {
             type="button"
             onClick={saveClient}
             disabled={saving}
-            className="mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-primary mt-4 hover:-translate-y-0.5 hover:scale-[1.02]"
           >
             {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
           </button>

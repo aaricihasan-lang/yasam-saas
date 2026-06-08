@@ -1086,7 +1086,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
             <button
               onClick={addStone}
               disabled={saving}
-              className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               {saving
                 ? selectedFiles.length > 0
@@ -1309,7 +1309,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                         <button
                           onClick={() => updateStone(stone.id)}
                           disabled={updating}
-                          className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="btn-primary px-4 py-2 text-sm"
                         >
                           {updating ? "Güncelleniyor..." : "Güncelle"}
                         </button>
