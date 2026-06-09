@@ -188,14 +188,6 @@ function stoneDetailHref(id: string, query: string, isSearchActive: boolean) {
     : `/dogaltas/dogaltas-listesi/${encodeURIComponent(id)}`;
 }
 
-type StonesLoadDebug = {
-  activeUserTenantId: string | null;
-  queryTenantId: string | null;
-  returnedCount: number;
-  tableTotalVisible: number | null;
-  sampleTenantIds: string[];
-};
-
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
 
@@ -297,7 +289,6 @@ function DogaltasListesiPageContent() {
   const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
-  const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
 
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
@@ -345,15 +336,6 @@ function DogaltasListesiPageContent() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
 
-      if (opts.reset) {
-        setLoadDebug({
-          activeUserTenantId: tenantId,
-          queryTenantId: tenantId,
-          returnedCount: pageRes.rows.length,
-          tableTotalVisible: countRes.error ? null : countRes.count,
-          sampleTenantIds: [],
-        });
-      }
     },
     [debouncedSearch, searchMode, queryTenantId, totalCount],
   );
@@ -901,58 +883,60 @@ function DogaltasListesiPageContent() {
               </div>
             </div>
           ) : filteredStones.length === 0 ? (
-            <div className="flex h-[330px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
-              <div className="text-[54px]">💎</div>
+            <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
+              {/* İkon */}
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-violet-100 text-4xl shadow-sm ring-1 ring-cyan-200/60">
+                💎
+              </div>
 
-              {totalCount === 0 && !isSearchActive ? (
+              {isDetailFilterActive || isSearchActive ? (
+                /* Filtre / arama sonucu boş */
                 <>
-                  <h3 className="mt-3 text-[18px] font-black text-slate-900">
-                    Supabase sorgusu çalıştı ama 0 kayıt döndü
+                  <h3 className="mt-4 text-lg font-black text-slate-900">
+                    Sonuç bulunamadı
                   </h3>
-                  <p className="mt-2 max-w-[480px] text-[13px] leading-6 text-slate-500">
-                    Tablo: <b>stones</b> · Filtre: aktif kullanıcı{" "}
-                    <code className="rounded bg-slate-100 px-1">tenant_id</code>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                    Arama kriterlerinize uygun kayıt bulunamadı. Farklı bir
+                    arama yapmayı veya filtreleri temizlemeyi deneyebilirsiniz.
                   </p>
-                  {loadDebug && (
-                    <ul className="mt-4 max-w-[480px] space-y-1 text-left font-mono text-[11px] text-slate-600 sm:text-xs">
-                      <li>
-                        Aktif kullanıcı tenant_id:{" "}
-                        {loadDebug.activeUserTenantId ?? "—"}
-                      </li>
-                      <li>Sorgu tenant_id: {loadDebug.queryTenantId ?? "—"}</li>
-                      <li>Gelen kayıt sayısı: {loadDebug.returnedCount}</li>
-                      {loadDebug.tableTotalVisible != null && (
-                        <li>
-                          Tabloda görünen toplam (filtresiz):{" "}
-                          {loadDebug.tableTotalVisible}
-                        </li>
-                      )}
-                      {loadDebug.sampleTenantIds.length > 0 && (
-                        <li>
-                          Örnek stones.tenant_id:{" "}
-                          {loadDebug.sampleTenantIds.join(" · ")}
-                        </li>
-                      )}
-                    </ul>
-                  )}
-                  {loadDebug?.queryTenantId &&
-                    loadDebug.tableTotalVisible != null &&
-                    loadDebug.tableTotalVisible > 0 && (
-                    <p className="mt-3 max-w-[480px] text-[12px] leading-5 text-amber-800">
-                      Import tenant_id ile aktif kullanıcı tenant_id farklı.
-                      Supabase&apos;deki stones.tenant_id örnekleri yukarıda;
-                      sorgu tenant_id ile eşleşmeli.
-                    </p>
-                  )}
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {isSearchActive && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Aramayı Temizle
+                      </button>
+                    )}
+                    {isDetailFilterActive && (
+                      <button
+                        type="button"
+                        onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
+                        className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
+                      >
+                        Filtreleri Temizle
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : (
+                /* Kütüphane boş */
                 <>
-                  <h3 className="mt-3 text-[18px] font-black text-slate-900">
-                    Arama sonucu bulunamadı
+                  <h3 className="mt-4 text-lg font-black text-slate-900">
+                    Henüz kayıt bulunamadı
                   </h3>
-                  <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-slate-500">
-                    Farklı bir kelime deneyin veya aramayı temizleyin.
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                    Doğaltaş kütüphanenizde henüz kayıt bulunmuyor. İlk
+                    kaydınızı oluşturmak için aşağıdaki butonu
+                    kullanabilirsiniz.
                   </p>
+                  <Link
+                    href="/dogaltas/dogaltas-kayit"
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-cyan-600 hover:to-violet-700"
+                  >
+                    + Yeni Kayıt Ekle
+                  </Link>
                 </>
               )}
             </div>
