@@ -1052,6 +1052,8 @@ function StoneDetailPage() {
 
   if (!safeStone) return null;
 
+  const isLibraryStone = safeStone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
+
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];
   const safeWarningTags = Array.isArray(safeStone.warning_tags) ? safeStone.warning_tags : [];
@@ -1104,6 +1106,12 @@ function StoneDetailPage() {
                 ? ` · Güncelleme: ${formatDate(safeStone.updated_at)}`
                 : ""}
             </p>
+
+            {isLibraryStone && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-black text-amber-700">
+                📚 Kütüphane kaydı · Sadece görüntüleme
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -1114,35 +1122,39 @@ function StoneDetailPage() {
               {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (editEnabled) {
-                  handleExitEditMode();
-                } else {
-                  setEditEnabled(true);
-                  setActiveEditor(null);
-                  setActiveReader(null);
-                  setErrorMessage("");
-                  setSuccessMessage("");
+            {!isLibraryStone && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (editEnabled) {
+                    handleExitEditMode();
+                  } else {
+                    setEditEnabled(true);
+                    setActiveEditor(null);
+                    setActiveReader(null);
+                    setErrorMessage("");
+                    setSuccessMessage("");
+                  }
+                }}
+                className={
+                  editEnabled
+                    ? "rounded-2xl bg-emerald-600 px-6 py-4 font-black text-white shadow-md hover:bg-emerald-700"
+                    : "rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-md hover:bg-violet-700"
                 }
-              }}
-              className={
-                editEnabled
-                  ? "rounded-2xl bg-emerald-600 px-6 py-4 font-black text-white shadow-md hover:bg-emerald-700"
-                  : "rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-md hover:bg-violet-700"
-              }
-            >
-              {editEnabled ? "Kaydet" : "Düzenle"}
-            </button>
+              >
+                {editEnabled ? "Kaydet" : "Düzenle"}
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setShowDeletePopup(true)}
-              className="rounded-2xl bg-red-500 px-6 py-4 font-black text-white shadow-md hover:bg-red-600"
-            >
-              Sil
-            </button>
+            {!isLibraryStone && (
+              <button
+                type="button"
+                onClick={() => setShowDeletePopup(true)}
+                className="rounded-2xl bg-red-500 px-6 py-4 font-black text-white shadow-md hover:bg-red-600"
+              >
+                Sil
+              </button>
+            )}
           </div>
         </header>
 
