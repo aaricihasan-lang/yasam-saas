@@ -1,3 +1,4 @@
+import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
 // ─── Select ──────────────────────────────────────────────────────────────────
@@ -144,6 +145,17 @@ export function stoneListImageCount(images: unknown): number {
   return Array.isArray(images) ? images.length : 0;
 }
 
+// ─── Tenant yardımcısı ───────────────────────────────────────────────────────
+
+/**
+ * Liste sorgularında kütüphane taşlarının (ADMIN_LIBRARY_TENANT_ID) da
+ * görünmesi için kullanıcı tenant_id'si ile birlikte döner.
+ */
+function tenantFilterIds(tenantId: string): string[] {
+  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
+  return [tenantId, ADMIN_LIBRARY_TENANT_ID];
+}
+
 // ─── Sorgu fonksiyonları ─────────────────────────────────────────────────────
 
 export async function fetchStonesListCount(
@@ -155,7 +167,7 @@ export async function fetchStonesListCount(
   let query = supabase
     .from("stones")
     .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
+    .in("tenant_id", tenantFilterIds(tenantId));
 
   const searchOr = q
     ? buildStonesListSearchOrFilter(q, searchMode ?? "name")
@@ -186,7 +198,7 @@ export async function fetchStonesListPage(
   let query = supabase
     .from("stones")
     .select(STONES_LIST_SELECT)
-    .eq("tenant_id", tenantId)
+    .in("tenant_id", tenantFilterIds(tenantId))
     .order("updated_at", { ascending: false, nullsFirst: false })
     .range(from, to);
 
@@ -216,7 +228,7 @@ export async function fetchAllStonesExtended(
   const { data, error } = await supabase
     .from("stones")
     .select(STONES_LIST_EXTENDED_SELECT)
-    .eq("tenant_id", tenantId)
+    .in("tenant_id", tenantFilterIds(tenantId))
     .order("updated_at", { ascending: false, nullsFirst: false });
 
   if (error) return { rows: [], error: error.message };
