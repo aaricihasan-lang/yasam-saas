@@ -597,6 +597,19 @@ function StoneDetailPage() {
     null
   );
   const [imageBusy, setImageBusy] = useState(false);
+  const [wasViewed, setWasViewed] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const last = localStorage.getItem("yasam-dogaltas-last-viewed-stone-id");
+      const raw = localStorage.getItem("yasam-dogaltas-list-viewed-search-results");
+      const set: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+      setWasViewed(last === id || set.includes(id));
+    } catch {
+      // localStorage erişim hatası — rozeti gösterme
+    }
+  }, [id]);
 
   function handleExitEditMode() {
     setEditEnabled(false);
@@ -1113,6 +1126,11 @@ function StoneDetailPage() {
                   {renderHighlightedText(safeStone.stone_name, highlightQuery)}
                 </h1>
                 {sectionMatches?.stoneName ? <SearchMatchBadge /> : null}
+                {wasViewed && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600">
+                    👁 Bakıldı
+                  </span>
+                )}
               </div>
             )}
 
