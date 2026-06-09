@@ -156,9 +156,6 @@ function tenantFilterIds(tenantId: string): string[] {
   return [tenantId, ADMIN_LIBRARY_TENANT_ID];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const dbg = (...args: any[]) => console.log("[StonesDB]", ...args);
-
 // ─── Sorgu fonksiyonları ─────────────────────────────────────────────────────
 
 export async function fetchStonesListCount(
@@ -167,8 +164,6 @@ export async function fetchStonesListCount(
   searchMode?: SearchMode,
 ): Promise<{ count: number; error: string | null }> {
   const ids = tenantFilterIds(tenantId);
-  dbg("COUNT — tenantId:", tenantId, "filterIds:", ids, "search:", search ?? "(none)");
-
   const q = search?.trim();
   let query = supabase
     .from("stones")
@@ -183,7 +178,6 @@ export async function fetchStonesListCount(
   }
 
   const { count, error } = await query;
-  dbg("COUNT result — count:", count, "error:", error?.message ?? null);
   if (error) return { count: 0, error: error.message };
   return { count: count ?? 0, error: null };
 }
@@ -201,8 +195,6 @@ export async function fetchStonesListPage(
   const from = options.offset ?? 0;
   const to = from + limit - 1;
   const ids = tenantFilterIds(tenantId);
-  dbg("PAGE — tenantId:", tenantId, "filterIds:", ids, "range:", `${from}-${to}`, "search:", options.search ?? "(none)");
-
   const q = options.search?.trim();
 
   let query = supabase
@@ -220,10 +212,6 @@ export async function fetchStonesListPage(
   }
 
   const { data, error } = await query;
-  dbg("PAGE result — rowCount:", data?.length ?? 0, "error:", error?.message ?? null);
-  if (data && data.length > 0) {
-    dbg("PAGE sample row tenant_id:", (data[0] as Record<string, unknown>)["tenant_id"]);
-  }
   if (error) return { rows: [], error: error.message };
 
   const rows = (data ?? []).map((row) =>

@@ -293,10 +293,8 @@ function DogaltasListesiPageContent() {
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
       const tenantId = queryTenantId ?? getSessionTenantId();
-      console.log("[fetchList] called — tenantId:", tenantId, "opts:", opts, "debouncedSearch:", JSON.stringify(debouncedSearch));
 
       if (!tenantId) {
-        console.warn("[fetchList] NO TENANT — aborting fetch");
         setListLoading(false);
         setLoadingMore(false);
         setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
@@ -320,26 +318,21 @@ function DogaltasListesiPageContent() {
           : Promise.resolve({ count: totalCount, error: null }),
       ]);
 
-      console.log("[fetchList] results — rows:", pageRes.rows.length, "count:", countRes.count, "pageErr:", pageRes.error, "countErr:", countRes.error);
-
       if (opts.reset) setListLoading(false);
       setLoadingMore(false);
 
       if (pageRes.error) {
-        console.error("[fetchList] pageRes ERROR:", pageRes.error);
         setErrorMessage(`Kayıtlar alınamadı: ${pageRes.error}`);
         if (opts.reset) setStones([]);
         return;
       }
 
       if (countRes.error) {
-        console.error("[fetchList] countRes ERROR:", countRes.error);
         setErrorMessage(`Kayıt sayısı alınamadı: ${countRes.error}`);
       } else if (opts.reset) {
         setTotalCount(countRes.count);
       }
 
-      console.log("[fetchList] setting stones:", pageRes.rows.length, "— first stone:", pageRes.rows[0]?.stone_name ?? "(none)");
       setStones((current) =>
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
@@ -350,14 +343,12 @@ function DogaltasListesiPageContent() {
 
   const resolveTenant = useCallback(async () => {
     const cached = getSessionTenantId();
-    console.log("[resolveTenant] cached tenant:", cached);
     if (cached) {
       setQueryTenantId(cached);
       backgroundSyncYasamUserFromDb();
       return cached;
     }
     const synced = await getSyncedTenantId();
-    console.log("[resolveTenant] synced tenant:", synced);
     if (synced) setQueryTenantId(synced);
     return synced;
   }, []);
@@ -465,15 +456,8 @@ function DogaltasListesiPageContent() {
   );
 
   useEffect(() => {
-    console.log("[listEffect] fired — queryTenantId:", queryTenantId, "debouncedSearch:", JSON.stringify(debouncedSearch), "isDetailFilterActive:", isDetailFilterActive);
-    if (!queryTenantId) {
-      console.warn("[listEffect] no tenant — skipping fetch");
-      return;
-    }
-    if (isDetailFilterActive) {
-      console.log("[listEffect] detail filters active — skipping server fetch");
-      return;
-    }
+    if (!queryTenantId) return;
+    if (isDetailFilterActive) return;
     void fetchList({ reset: true });
   }, [queryTenantId, debouncedSearch, searchMode, isDetailFilterActive]);
 
@@ -531,7 +515,6 @@ function DogaltasListesiPageContent() {
 
   // Client-side filtreleme: detay filtreler aktifken tüm taşlar üzerinde çalışır
   const filteredStones: StoneListItem[] = useMemo(() => {
-    console.log("[filteredStones] stones.length:", stones.length, "isDetailFilterActive:", isDetailFilterActive, "detailData:", detailData?.length ?? null);
     if (!isDetailFilterActive || !detailData) return stones;
 
     return detailData.filter((stone) => {
@@ -637,19 +620,6 @@ function DogaltasListesiPageContent() {
       <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-300/15 blur-3xl" />
 
       <div className={pageContent}>
-        {/* ── DEV DEBUG — commit sonrası kaldır ── */}
-        <div className="rounded-xl border-2 border-yellow-400 bg-yellow-50 px-4 py-3 font-mono text-xs text-yellow-900 shadow">
-          <div className="mb-1 font-black uppercase tracking-widest text-yellow-700">🔍 Debug Panel</div>
-          <div><b>queryTenantId:</b> {queryTenantId ?? "null — tenant çözümlenmedi!"}</div>
-          <div><b>stones.length:</b> {stones.length}</div>
-          <div><b>filteredStones:</b> {filteredStones.length}</div>
-          <div><b>totalCount:</b> {totalCount}</div>
-          <div><b>totalAllStones:</b> {totalAllStones}</div>
-          <div><b>listLoading:</b> {String(listLoading)}</div>
-          <div><b>errorMessage:</b> {errorMessage || "(boş)"}</div>
-        </div>
-        {/* ── /DEV DEBUG ── */}
-
         <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
             <div className="mb-1.5 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">

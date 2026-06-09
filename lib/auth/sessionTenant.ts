@@ -6,7 +6,7 @@ import {
 } from "@/lib/auth/yasamUser";
 
 /** Admin kütüphane / toplu import varsayılan tenant (yalnızca admin aktarım kaynağı) */
-export const ADMIN_LIBRARY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
+export const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
 
 export const MISSING_SESSION_TENANT_MESSAGE =
   "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.";
