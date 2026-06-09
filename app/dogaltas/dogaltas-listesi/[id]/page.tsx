@@ -1072,7 +1072,7 @@ function StoneDetailPage() {
             href={listBackHref}
             className="mt-6 inline-flex rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
           >
-            {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
+            {hasFilterContext ? "Aramaya Dön" : "Taş Listesine Dön"}
           </Link>
         </div>
       </main>
@@ -1153,7 +1153,7 @@ function StoneDetailPage() {
               href={listBackHref}
               className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
             >
-              {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
+              {hasFilterContext ? "Aramaya Dön" : "Taş Listesine Dön"}
             </Link>
 
             {!isLibraryStone && (
