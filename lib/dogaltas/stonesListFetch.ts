@@ -37,10 +37,10 @@ export type StoneListItemExtended = StoneListItem & {
 // ─── Arama sütunları ─────────────────────────────────────────────────────────
 
 /**
- * TAŞ İSMİ MODU — yalnızca stone_name.
- * False-positive oluşturmaz; sadece adında eşleşen taşlar döner.
+ * TAŞ İSMİ MODU — ad ve kısa açıklama.
+ * Türkçe İ/ı varyantları OR filtresine otomatik eklenir (bkz. buildIlikePatterns).
  */
-export const NAME_SEARCH_COLUMNS = ["stone_name"] as const;
+export const NAME_SEARCH_COLUMNS = ["stone_name", "short_description"] as const;
 
 /**
  * İÇERİK MODU — metin alanları (JSON/dizi cast YOK → Supabase OR filter safe).
@@ -76,8 +76,33 @@ export function sanitizeOrSearchTerm(raw: string): string {
 }
 
 /**
+ * Türkçe i/İ/ı varyantlarını kapsayan ilike pattern dizisi üretir.
+ *
+ * Sorun: PostgreSQL C/en_US locale'de `ilike '%safir%'` "SAFİR" ile eşleşmez
+ * çünkü İ (U+0130) ve i (U+0069) ASCII folding kapsamı dışında kalır.
+ *
+ * Çözüm: her terim için üç varyant üretilir:
+ *   - orijinal: %safir%
+ *   - dotted cap-İ: %safİr%  → C locale'de "SAFİR" ile eşleşir
+ *   - dotless ı:   %safır%   → "SAFIR" (dotless) ile eşleşir
+ */
+function buildIlikePatterns(safeTerm: string): string[] {
+  const base = `%${safeTerm}%`;
+  const patterns = new Set<string>([base]);
+
+  if (/[iıİ]/i.test(safeTerm)) {
+    const capDotted = safeTerm.replace(/[iı]/gi, "İ");
+    const dotless   = safeTerm.replace(/[iİ]/gi, "ı");
+    patterns.add(`%${capDotted}%`);
+    patterns.add(`%${dotless}%`);
+  }
+
+  return [...patterns];
+}
+
+/**
  * Seçilen moda göre PostgREST .or() filtre dizesi üretir.
- * Yalnızca düz metin sütunları — JSON/dizi cast içermez.
+ * Türkçe İ/ı varyantları her sütun için otomatik eklenir.
  */
 export function buildStonesListSearchOrFilter(
   term: string,
@@ -88,8 +113,15 @@ export function buildStonesListSearchOrFilter(
 
   const columns =
     mode === "content" ? CONTENT_SEARCH_COLUMNS : NAME_SEARCH_COLUMNS;
-  const pattern = `%${safeTerm}%`;
-  return columns.map((col) => `${col}.ilike.${pattern}`).join(",");
+  const patterns = buildIlikePatterns(safeTerm);
+
+  const parts: string[] = [];
+  for (const col of columns) {
+    for (const pattern of patterns) {
+      parts.push(`${col}.ilike.${pattern}`);
+    }
+  }
+  return parts.join(",");
 }
 
 // ─── Satır eşleyici ──────────────────────────────────────────────────────────
