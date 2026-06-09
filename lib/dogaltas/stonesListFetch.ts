@@ -17,23 +17,48 @@ export type StoneListItem = {
 };
 
 /**
- * Arama kolonları — YALNIZCA taş adı ve kısa açıklama.
- *
- * Neden sadece bu ikisi?
- * general_info / physical_effects / spiritual_effects / other_effects / warning_text
- * alanları başka taş adlarını sıkça referans verir (ör. "Ametist ile uyumludur").
- * Bu alanlarda arama yapılırsa alakasız taşlar (Malakit, Granat vb.) false-positive
- * olarak sonuçlara girer. Arama niyeti her zaman taş ADIYLA bulma olduğundan
- * yalnızca stone_name ve short_description aranır.
+ * HIZLI ARAMA — sadece ad ve kısa açıklama.
+ * Performanslı ve kesin sonuç verir; body metin alanlarındaki referans eşleşmeleri
+ * (ör. "Ametist ile uyumludur" → Malakit) false-positive oluşturmaz.
  */
-export const STONES_LIST_SEARCH_TEXT_COLUMNS = [
+export const BASIC_SEARCH_COLUMNS = [
   "stone_name",
   "short_description",
 ] as const;
 
 /**
+ * TAM İÇERİK ARAMASI — tüm metin, dizi ve JSON alanları.
+ *
+ * Metin kolonları doğrudan ilike ile aranır.
+ * Dizi/JSON kolonları PostgreSQL ::text cast ile substring aramaya açılır:
+ *   - warning_tags: ["Hamilelik","Enerji Hassasiyeti"] → "tansiyon" aramaz ama "hamilelik" arar
+ *   - chakras: ["Taç Çakrası","Kalp Çakrası"] → "boğaz" arar (boğaz çakrası olmayan taşları eler)
+ *   - assignments: {"Burçlar":[["Koç",""]],...} → "koç" veya "balık" arar
+ *
+ * Bu mod daha geniş sonuç döner; taş açıklamalarında başka taş ismi geçebilir.
+ */
+export const FULL_SEARCH_COLUMNS = [
+  // Metin kolonları
+  "stone_name",
+  "short_description",
+  "general_info",
+  "physical_effects",
+  "spiritual_effects",
+  "other_effects",
+  "warning_text",
+  "source_note",
+  "feng_shui",
+  "meditation",
+  "care",
+  "application",
+  // Dizi / JSON kolonlar — PostgreSQL ::text cast ile substring aranabilir
+  "warning_tags::text",
+  "chakras::text",
+  "assignments::text",
+] as const;
+
+/**
  * PostgREST .or() dizesini bozan karakterleri temizler.
- * chakras / assignments JSON cast kullanılmıyor (parse hatası).
  */
 export function sanitizeOrSearchTerm(raw: string): string {
   return raw
@@ -43,15 +68,21 @@ export function sanitizeOrSearchTerm(raw: string): string {
     .trim();
 }
 
-/** Geniş kapsamlı liste araması — select hâlâ hafif kolonlar */
-export function buildStonesListSearchOrFilter(term: string): string | null {
+/**
+ * Seçilen arama moduna göre PostgREST .or() filtre dizesi üretir.
+ * fullSearch=false → BASIC_SEARCH_COLUMNS (hızlı, kesin)
+ * fullSearch=true  → FULL_SEARCH_COLUMNS  (geniş, metin+dizi+JSON)
+ */
+export function buildStonesListSearchOrFilter(
+  term: string,
+  fullSearch = false,
+): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
 
+  const columns = fullSearch ? FULL_SEARCH_COLUMNS : BASIC_SEARCH_COLUMNS;
   const pattern = `%${safeTerm}%`;
-  return STONES_LIST_SEARCH_TEXT_COLUMNS.map(
-    (col) => `${col}.ilike.${pattern}`,
-  ).join(",");
+  return columns.map((col) => `${col}.ilike.${pattern}`).join(",");
 }
 
 export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
@@ -85,6 +116,7 @@ export function stoneListImageCount(images: unknown): number {
 export async function fetchStonesListCount(
   tenantId: string,
   search?: string,
+  fullSearch?: boolean,
 ): Promise<{ count: number; error: string | null }> {
   const q = search?.trim();
   let query = supabase
@@ -92,7 +124,7 @@ export async function fetchStonesListCount(
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
 
-  const searchOr = q ? buildStonesListSearchOrFilter(q) : null;
+  const searchOr = q ? buildStonesListSearchOrFilter(q, fullSearch ?? false) : null;
   if (searchOr) {
     query = query.or(searchOr);
   }
@@ -104,7 +136,7 @@ export async function fetchStonesListCount(
 
 export async function fetchStonesListPage(
   tenantId: string,
-  options: { offset?: number; search?: string; limit?: number } = {},
+  options: { offset?: number; search?: string; limit?: number; fullSearch?: boolean } = {},
 ): Promise<{ rows: StoneListItem[]; error: string | null }> {
   const limit = options.limit ?? STONES_LIST_PAGE_SIZE;
   const from = options.offset ?? 0;
@@ -118,7 +150,9 @@ export async function fetchStonesListPage(
     .order("updated_at", { ascending: false, nullsFirst: false })
     .range(from, to);
 
-  const searchOr = q ? buildStonesListSearchOrFilter(q) : null;
+  const searchOr = q
+    ? buildStonesListSearchOrFilter(q, options.fullSearch ?? false)
+    : null;
   if (searchOr) {
     query = query.or(searchOr);
   }

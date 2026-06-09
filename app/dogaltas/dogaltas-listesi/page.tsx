@@ -194,6 +194,19 @@ function listSummaryLabel(stone: StoneListItem): string {
   return stone.short_description?.trim() ? "Özet var" : "—";
 }
 
+/**
+ * Taş adı veya kısa açıklamasının arama sorgusunu içerip içermediğini kontrol eder.
+ * Tam içerik aramasında bu false döndüğünde eşleşme başka bir alandan geliyor demektir.
+ */
+function nameOrDescMatchesSearch(stone: StoneListItem, query: string): boolean {
+  if (!query.trim()) return false;
+  const queryNorm = normalizeTrSearch(query.trim());
+  if (!queryNorm) return false;
+  const nameNorm = normalizeTrSearch(stone.stone_name || "");
+  const descNorm = normalizeTrSearch(stone.short_description || "");
+  return nameNorm.includes(queryNorm) || descNorm.includes(queryNorm);
+}
+
 function ListSkeletonRows({ count = 6 }: { count?: number }) {
   return (
     <div className="divide-y divide-cyan-100">
@@ -266,6 +279,7 @@ function DogaltasListesiPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
+  const [fullSearch, setFullSearch] = useState(false);
 
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
@@ -288,9 +302,9 @@ function DogaltasListesiPageContent() {
       const search = debouncedSearch.trim() || undefined;
 
       const [pageRes, countRes] = await Promise.all([
-        fetchStonesListPage(tenantId, { offset, search }),
+        fetchStonesListPage(tenantId, { offset, search, fullSearch }),
         opts.reset
-          ? fetchStonesListCount(tenantId, search)
+          ? fetchStonesListCount(tenantId, search, fullSearch)
           : Promise.resolve({ count: totalCount, error: null }),
       ]);
 
@@ -323,7 +337,7 @@ function DogaltasListesiPageContent() {
         });
       }
     },
-    [debouncedSearch, queryTenantId, totalCount],
+    [debouncedSearch, fullSearch, queryTenantId, totalCount],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -428,7 +442,7 @@ function DogaltasListesiPageContent() {
   useEffect(() => {
     if (!queryTenantId) return;
     void fetchList({ reset: true });
-  }, [queryTenantId, debouncedSearch]);
+  }, [queryTenantId, debouncedSearch, fullSearch]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -590,6 +604,24 @@ function DogaltasListesiPageContent() {
                 enterKeyHint="search"
                 autoComplete="off"
               />
+
+              {/* Tüm içerikte ara seçeneği */}
+              <label className="mt-1.5 flex cursor-pointer select-none items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={fullSearch}
+                  onChange={(e) => setFullSearch(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600 focus:ring-2 focus:ring-violet-300/40"
+                />
+                <span className="text-[11px] font-bold text-slate-500">
+                  Tüm içerikte ara
+                </span>
+                {fullSearch && (
+                  <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-black text-violet-700 ring-1 ring-violet-200">
+                    Geniş Arama Aktif
+                  </span>
+                )}
+              </label>
             </form>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -629,7 +661,7 @@ function DogaltasListesiPageContent() {
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
               {isSearchActive
-                ? `Arama: “${activeSearch}” · ${filteredStones.length} sonuç`
+                ? `Arama: ${activeSearch} · ${filteredStones.length} sonuç${fullSearch ? ' · Geniş mod' : ''}`
                 : `${filteredStones.length} kayıt gösteriliyor`}
             </p>
 
@@ -820,6 +852,11 @@ function DogaltasListesiPageContent() {
                               ? renderHighlightedText(displayName, activeSearch)
                               : displayName}
                           </span>
+                          {fullSearch && isSearchActive && !nameOrDescMatchesSearch(stone, activeSearch) ? (
+                            <span className="shrink-0 rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-black text-violet-700 ring-1 ring-violet-200">
+                              İçerikte
+                            </span>
+                          ) : null}
                         </Link>
                         <Link
                           href={detailHref}
@@ -898,6 +935,11 @@ function DogaltasListesiPageContent() {
                             {isSearchActive ? (
                               <div className="mb-1 flex flex-wrap items-center gap-1.5">
                                 <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                                {fullSearch && !nameOrDescMatchesSearch(stone, activeSearch) ? (
+                                  <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-800">
+                                    📄 İçerikte
+                                  </span>
+                                ) : null}
                                 {isViewedInSearch ? (
                                   <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
                                     Bakıldı
@@ -1055,6 +1097,11 @@ function DogaltasListesiPageContent() {
                       {isSearchActive ? (
                         <div className="mb-2 flex flex-wrap items-center gap-1.5">
                           <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                          {fullSearch && !nameOrDescMatchesSearch(stone, activeSearch) ? (
+                            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-800">
+                              📄 İçerikte
+                            </span>
+                          ) : null}
                           {isViewedInSearch ? (
                             <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
                               Bakıldı
