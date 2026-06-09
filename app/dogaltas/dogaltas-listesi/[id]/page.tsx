@@ -555,9 +555,25 @@ function StoneDetailPage() {
   const searchParams = useSearchParams();
   const id = params?.id;
   const highlightQuery = searchParams.get("q")?.trim() ?? "";
-  const listBackHref = highlightQuery
-    ? `/dogaltas/dogaltas-listesi?q=${encodeURIComponent(highlightQuery)}`
-    : "/dogaltas/dogaltas-listesi";
+  const astroFilter = searchParams.get("astro")?.trim() ?? "";
+  const chakraFilter = searchParams.get("chakra")?.trim() ?? "";
+  const mineralFilter = searchParams.get("mineral")?.trim() ?? "";
+  const warnFilter = searchParams.get("warn") === "1";
+  const hasFilterContext = Boolean(
+    highlightQuery || astroFilter || chakraFilter || mineralFilter || warnFilter,
+  );
+
+  // Geri dönünce tüm filter state'i koru
+  const listBackHref = (() => {
+    const p = new URLSearchParams();
+    if (highlightQuery) p.set("q", highlightQuery);
+    if (astroFilter) p.set("astro", astroFilter);
+    if (chakraFilter) p.set("chakra", chakraFilter);
+    if (mineralFilter) p.set("mineral", mineralFilter);
+    if (warnFilter) p.set("warn", "1");
+    const s = p.toString();
+    return s ? `/dogaltas/dogaltas-listesi?${s}` : "/dogaltas/dogaltas-listesi";
+  })();
   const { confirm } = useConfirm();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -1157,6 +1173,44 @@ function StoneDetailPage() {
             )}
           </div>
         </header>
+
+        {hasFilterContext && (
+          <div className="rounded-2xl border border-violet-200 bg-violet-50/90 px-4 py-3 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wider text-violet-600">
+              Arama / Filtre Eşleşmesi
+            </p>
+            <p className="mt-0.5 text-sm font-black text-violet-900">
+              Bu taş şu aramanızla eşleşti:
+            </p>
+            <ul className="mt-2 space-y-0.5">
+              {highlightQuery && (
+                <li className="text-[13px] text-violet-800">
+                  🔍 <b>Arama:</b> {highlightQuery}
+                </li>
+              )}
+              {astroFilter && (
+                <li className="text-[13px] text-violet-800">
+                  ♈ <b>Astroloji eşleşmesi:</b> {astroFilter}
+                </li>
+              )}
+              {chakraFilter && (
+                <li className="text-[13px] text-violet-800">
+                  🔵 <b>Çakra eşleşmesi:</b> {chakraFilter}
+                </li>
+              )}
+              {mineralFilter && (
+                <li className="text-[13px] text-violet-800">
+                  💎 <b>Mineral eşleşmesi:</b> {mineralFilter}
+                </li>
+              )}
+              {warnFilter && (
+                <li className="text-[13px] text-violet-800">
+                  ⚠️ <b>Uyarısı olan taşlar</b> filtresi aktifti
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
 
         {editEnabled && (
           <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/90 px-5 py-3 text-sm font-black text-violet-800 shadow-sm">
