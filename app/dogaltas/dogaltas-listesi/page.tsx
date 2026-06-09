@@ -55,21 +55,22 @@ const SEARCH_MATCH_BADGE_CLASS =
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
 
-const ZODIAC_SIGNS = [
-  "Koç", "Boğa", "İkizler", "Yengeç", "Aslan", "Başak",
-  "Terazi", "Akrep", "Yay", "Oğlak", "Kova", "Balık",
+const CHAKRA_CHIPS = [
+  "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç",
 ] as const;
 
 type DetailFilters = {
   zodiac: string;
   warningOnly: boolean;
   mineral: string;
+  chakra: string;
 };
 
 const EMPTY_DETAIL_FILTERS: DetailFilters = {
   zodiac: "",
   warningOnly: false,
   mineral: "",
+  chakra: "",
 };
 
 function normalizeTrSearch(value: string): string {
@@ -452,7 +453,7 @@ function DogaltasListesiPageContent() {
 
   // Normal liste: detay filtreler kapalıyken server-side arama
   const isDetailFilterActive = Boolean(
-    detailFilters.zodiac || detailFilters.warningOnly || detailFilters.mineral,
+    detailFilters.zodiac || detailFilters.warningOnly || detailFilters.mineral || detailFilters.chakra,
   );
 
   useEffect(() => {
@@ -539,6 +540,13 @@ function DogaltasListesiPageContent() {
       if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
         if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral))
           return false;
+      }
+      // Çakra araması (min 2 karakter, chakras dizisinde Türkçe normalize eşleşme)
+      if (detailFilters.chakra && detailFilters.chakra.trim().length >= SEARCH_MIN_LENGTH) {
+        const chakraMatch = (stone.chakras || []).some((c) =>
+          containsTr(c, detailFilters.chakra.trim()),
+        );
+        if (!chakraMatch) return false;
       }
       return true;
     }) as StoneListItem[];
@@ -735,12 +743,25 @@ function DogaltasListesiPageContent() {
                 <div className="flex flex-wrap items-center gap-1.5">
                   {detailFilters.zodiac && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">
-                      ♈ Burç: {detailFilters.zodiac}
+                      ♈ Astroloji: {detailFilters.zodiac}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, zodiac: "" }))}
                         className="ml-0.5 text-violet-400 hover:text-violet-900"
-                        aria-label="Burç filtresini kaldır"
+                        aria-label="Astroloji filtresini kaldır"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {detailFilters.chakra && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black text-indigo-800">
+                      🔵 Çakra: {detailFilters.chakra}
+                      <button
+                        type="button"
+                        onClick={() => setDetailFilters((f) => ({ ...f, chakra: "" }))}
+                        className="ml-0.5 text-indigo-400 hover:text-indigo-900"
+                        aria-label="Çakra filtresini kaldır"
                       >
                         ×
                       </button>
@@ -1392,39 +1413,20 @@ function DogaltasListesiPageContent() {
               </button>
             </div>
 
-            {/* A) Burç / Astrolojik Atama */}
+            {/* A) Astrolojik Atama — manuel text input */}
             <div className="border-b border-slate-100 px-5 py-4">
-              <div className="mb-2.5 flex items-center gap-2">
-                <span className="text-xs font-black text-slate-700">♈ Astrolojik Atama / Burç</span>
-                {detailFilters.zodiac && (
-                  <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[9px] font-black text-white">
-                    {detailFilters.zodiac}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {ZODIAC_SIGNS.map((sign) => (
-                  <button
-                    key={sign}
-                    type="button"
-                    onClick={() =>
-                      setDetailFilters((f) => ({
-                        ...f,
-                        zodiac: f.zodiac === sign ? "" : sign,
-                      }))
-                    }
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-black transition-all ${
-                      detailFilters.zodiac === sign
-                        ? "bg-violet-600 text-white shadow-md"
-                        : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
-                    }`}
-                  >
-                    {sign}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[10px] font-medium text-slate-400">
-                Sadece astrolojik atamasında bu burç olan taşları gösterir.
+              <div className="mb-2 text-xs font-black text-slate-700">♈ Astrolojik Atama / Burç</div>
+              <input
+                type="text"
+                value={detailFilters.zodiac}
+                onChange={(e) =>
+                  setDetailFilters((f) => ({ ...f, zodiac: e.target.value }))
+                }
+                placeholder="Burç, gezegen veya astrolojik atama yazın…"
+                className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+              <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                Örn: yengeç, merkür, venüs, ay, koç — Türkçe karakter uyumlu
               </p>
             </div>
 
@@ -1448,7 +1450,45 @@ function DogaltasListesiPageContent() {
               </p>
             </div>
 
-            {/* C) Mineral Arama */}
+            {/* C) Çakra Filtresi — chip seçim + manuel input */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <div className="mb-2 text-xs font-black text-slate-700">🔵 Çakra</div>
+              <div className="mb-2.5 flex flex-wrap gap-1.5">
+                {CHAKRA_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() =>
+                      setDetailFilters((f) => ({
+                        ...f,
+                        chakra: f.chakra === chip ? "" : chip,
+                      }))
+                    }
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-black transition-all ${
+                      detailFilters.chakra === chip
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={detailFilters.chakra}
+                onChange={(e) =>
+                  setDetailFilters((f) => ({ ...f, chakra: e.target.value }))
+                }
+                placeholder="Çakra adı veya bağlantılı ifade yazın…"
+                className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              />
+              <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                Örn: kalp, boğaz, taç, 4. çakra — Türkçe karakter uyumlu
+              </p>
+            </div>
+
+            {/* D) Mineral Arama */}
             <div className="border-b border-slate-100 px-5 py-4">
               <div className="mb-2 text-xs font-black text-slate-700">
                 💎 Mineral Araması
