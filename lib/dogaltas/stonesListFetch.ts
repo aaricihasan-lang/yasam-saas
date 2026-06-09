@@ -1,10 +1,21 @@
 import { supabase } from "@/lib/supabase";
 
+// ─── Select ──────────────────────────────────────────────────────────────────
+
 /** Liste görünümü — ağır metin alanları yok */
 export const STONES_LIST_SELECT =
   "id, tenant_id, stone_name, short_description, chakras, images, updated_at";
 
+/**
+ * Detay filtreler (burç, uyarı, mineral) için genişletilmiş select.
+ * assignments, warning_text, warning_tags dahil — client-side filtreleme için.
+ */
+export const STONES_LIST_EXTENDED_SELECT =
+  "id, tenant_id, stone_name, short_description, assignments, warning_text, warning_tags, chakras, images, updated_at";
+
 export const STONES_LIST_PAGE_SIZE = 30;
+
+// ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type StoneListItem = {
   id: string;
@@ -16,29 +27,26 @@ export type StoneListItem = {
   updated_at: string | null;
 };
 
-/**
- * HIZLI ARAMA — sadece ad ve kısa açıklama.
- * Performanslı ve kesin sonuç verir; body metin alanlarındaki referans eşleşmeleri
- * (ör. "Ametist ile uyumludur" → Malakit) false-positive oluşturmaz.
- */
-export const BASIC_SEARCH_COLUMNS = [
-  "stone_name",
-  "short_description",
-] as const;
+export type StoneListItemExtended = StoneListItem & {
+  assignments: unknown;
+  warning_text: string | null;
+  warning_tags: string[] | null;
+};
+
+// ─── Arama sütunları ─────────────────────────────────────────────────────────
 
 /**
- * TAM İÇERİK ARAMASI — tüm metin, dizi ve JSON alanları.
- *
- * Metin kolonları doğrudan ilike ile aranır.
- * Dizi/JSON kolonları PostgreSQL ::text cast ile substring aramaya açılır:
- *   - warning_tags: ["Hamilelik","Enerji Hassasiyeti"] → "tansiyon" aramaz ama "hamilelik" arar
- *   - chakras: ["Taç Çakrası","Kalp Çakrası"] → "boğaz" arar (boğaz çakrası olmayan taşları eler)
- *   - assignments: {"Burçlar":[["Koç",""]],...} → "koç" veya "balık" arar
- *
- * Bu mod daha geniş sonuç döner; taş açıklamalarında başka taş ismi geçebilir.
+ * TAŞ İSMİ MODU — yalnızca stone_name.
+ * False-positive oluşturmaz; sadece adında eşleşen taşlar döner.
  */
-export const FULL_SEARCH_COLUMNS = [
-  // Metin kolonları
+export const NAME_SEARCH_COLUMNS = ["stone_name"] as const;
+
+/**
+ * İÇERİK MODU — metin alanları (JSON/dizi cast YOK → Supabase OR filter safe).
+ * Ekip alanlarında eşleşme olursa diğer taş isimleri false-positive üretebilir;
+ * bu kabul edilebilir — kullanıcı bunu bilerek seçiyor.
+ */
+export const CONTENT_SEARCH_COLUMNS = [
   "stone_name",
   "short_description",
   "general_info",
@@ -51,15 +59,13 @@ export const FULL_SEARCH_COLUMNS = [
   "meditation",
   "care",
   "application",
-  // Dizi / JSON kolonlar — PostgreSQL ::text cast ile substring aranabilir
-  "warning_tags::text",
-  "chakras::text",
-  "assignments::text",
 ] as const;
 
-/**
- * PostgREST .or() dizesini bozan karakterleri temizler.
- */
+export type SearchMode = "name" | "content";
+
+// ─── Yardımcılar ─────────────────────────────────────────────────────────────
+
+/** PostgREST .or() dizesini bozan karakterleri temizler. */
 export function sanitizeOrSearchTerm(raw: string): string {
   return raw
     .trim()
@@ -69,21 +75,23 @@ export function sanitizeOrSearchTerm(raw: string): string {
 }
 
 /**
- * Seçilen arama moduna göre PostgREST .or() filtre dizesi üretir.
- * fullSearch=false → BASIC_SEARCH_COLUMNS (hızlı, kesin)
- * fullSearch=true  → FULL_SEARCH_COLUMNS  (geniş, metin+dizi+JSON)
+ * Seçilen moda göre PostgREST .or() filtre dizesi üretir.
+ * Yalnızca düz metin sütunları — JSON/dizi cast içermez.
  */
 export function buildStonesListSearchOrFilter(
   term: string,
-  fullSearch = false,
+  mode: SearchMode = "name",
 ): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
 
-  const columns = fullSearch ? FULL_SEARCH_COLUMNS : BASIC_SEARCH_COLUMNS;
+  const columns =
+    mode === "content" ? CONTENT_SEARCH_COLUMNS : NAME_SEARCH_COLUMNS;
   const pattern = `%${safeTerm}%`;
   return columns.map((col) => `${col}.ilike.${pattern}`).join(",");
 }
+
+// ─── Satır eşleyici ──────────────────────────────────────────────────────────
 
 export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
   return {
@@ -92,6 +100,29 @@ export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
     stone_name: String(row.stone_name ?? ""),
     short_description:
       row.short_description != null ? String(row.short_description) : null,
+    chakras: Array.isArray(row.chakras)
+      ? row.chakras.map((c) => String(c))
+      : null,
+    images: row.images,
+    updated_at: row.updated_at != null ? String(row.updated_at) : null,
+  };
+}
+
+export function mapStoneExtendedRow(
+  row: Record<string, unknown>,
+): StoneListItemExtended {
+  return {
+    id: String(row.id ?? ""),
+    tenant_id: String(row.tenant_id ?? ""),
+    stone_name: String(row.stone_name ?? ""),
+    short_description:
+      row.short_description != null ? String(row.short_description) : null,
+    assignments: row.assignments ?? null,
+    warning_text:
+      row.warning_text != null ? String(row.warning_text) : null,
+    warning_tags: Array.isArray(row.warning_tags)
+      ? (row.warning_tags as string[])
+      : null,
     chakras: Array.isArray(row.chakras)
       ? row.chakras.map((c) => String(c))
       : null,
@@ -113,10 +144,12 @@ export function stoneListImageCount(images: unknown): number {
   return Array.isArray(images) ? images.length : 0;
 }
 
+// ─── Sorgu fonksiyonları ─────────────────────────────────────────────────────
+
 export async function fetchStonesListCount(
   tenantId: string,
   search?: string,
-  fullSearch?: boolean,
+  searchMode?: SearchMode,
 ): Promise<{ count: number; error: string | null }> {
   const q = search?.trim();
   let query = supabase
@@ -124,7 +157,9 @@ export async function fetchStonesListCount(
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
 
-  const searchOr = q ? buildStonesListSearchOrFilter(q, fullSearch ?? false) : null;
+  const searchOr = q
+    ? buildStonesListSearchOrFilter(q, searchMode ?? "name")
+    : null;
   if (searchOr) {
     query = query.or(searchOr);
   }
@@ -136,7 +171,12 @@ export async function fetchStonesListCount(
 
 export async function fetchStonesListPage(
   tenantId: string,
-  options: { offset?: number; search?: string; limit?: number; fullSearch?: boolean } = {},
+  options: {
+    offset?: number;
+    search?: string;
+    limit?: number;
+    searchMode?: SearchMode;
+  } = {},
 ): Promise<{ rows: StoneListItem[]; error: string | null }> {
   const limit = options.limit ?? STONES_LIST_PAGE_SIZE;
   const from = options.offset ?? 0;
@@ -151,7 +191,7 @@ export async function fetchStonesListPage(
     .range(from, to);
 
   const searchOr = q
-    ? buildStonesListSearchOrFilter(q, options.fullSearch ?? false)
+    ? buildStonesListSearchOrFilter(q, options.searchMode ?? "name")
     : null;
   if (searchOr) {
     query = query.or(searchOr);
@@ -162,6 +202,27 @@ export async function fetchStonesListPage(
 
   const rows = (data ?? []).map((row) =>
     mapStoneListRow(row as Record<string, unknown>),
+  );
+  return { rows, error: null };
+}
+
+/**
+ * Detay filtreler aktifken TÜM taşları genişletilmiş alanlarla çeker.
+ * Pagination yok — client-side filtre için tam set gerekli.
+ */
+export async function fetchAllStonesExtended(
+  tenantId: string,
+): Promise<{ rows: StoneListItemExtended[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("stones")
+    .select(STONES_LIST_EXTENDED_SELECT)
+    .eq("tenant_id", tenantId)
+    .order("updated_at", { ascending: false, nullsFirst: false });
+
+  if (error) return { rows: [], error: error.message };
+
+  const rows = (data ?? []).map((row) =>
+    mapStoneExtendedRow(row as Record<string, unknown>),
   );
   return { rows, error: null };
 }

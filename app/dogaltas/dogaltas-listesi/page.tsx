@@ -6,6 +6,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -18,12 +19,21 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import {
+  fetchAllStonesExtended,
   fetchStonesListCount,
   fetchStonesListPage,
   getFirstStoneImageUrl,
   stoneListImageCount,
+  type SearchMode,
   type StoneListItem,
+  type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import {
+  containsTr,
+  stoneHasWarning,
+  stoneMatchesMineral,
+  stoneMatchesZodiac,
+} from "@/lib/dogaltas/stoneSearchUtils";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
@@ -43,13 +53,24 @@ const SEARCH_MATCH_BADGE_CLASS =
   "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-/**
- * Minimum arama uzunluğu.
- * Tek karakter araması (ör. "a") ilike %a% ile neredeyse tüm taşları döndürür
- * ve her "a" harfini sarı ile boyar. 2 karakter altındaki sorgular çalıştırılmaz.
- */
 const SEARCH_MIN_LENGTH = 2;
+
+const ZODIAC_SIGNS = [
+  "Koç", "Boğa", "İkizler", "Yengeç", "Aslan", "Başak",
+  "Terazi", "Akrep", "Yay", "Oğlak", "Kova", "Balık",
+] as const;
+
+type DetailFilters = {
+  zodiac: string;
+  warningOnly: boolean;
+  mineral: string;
+};
+
+const EMPTY_DETAIL_FILTERS: DetailFilters = {
+  zodiac: "",
+  warningOnly: false,
+  mineral: "",
+};
 
 function normalizeTrSearch(value: string): string {
   return value
@@ -194,19 +215,6 @@ function listSummaryLabel(stone: StoneListItem): string {
   return stone.short_description?.trim() ? "Özet var" : "—";
 }
 
-/**
- * Taş adı veya kısa açıklamasının arama sorgusunu içerip içermediğini kontrol eder.
- * Tam içerik aramasında bu false döndüğünde eşleşme başka bir alandan geliyor demektir.
- */
-function nameOrDescMatchesSearch(stone: StoneListItem, query: string): boolean {
-  if (!query.trim()) return false;
-  const queryNorm = normalizeTrSearch(query.trim());
-  if (!queryNorm) return false;
-  const nameNorm = normalizeTrSearch(stone.stone_name || "");
-  const descNorm = normalizeTrSearch(stone.short_description || "");
-  return nameNorm.includes(queryNorm) || descNorm.includes(queryNorm);
-}
-
 function ListSkeletonRows({ count = 6 }: { count?: number }) {
   return (
     <div className="divide-y divide-cyan-100">
@@ -263,14 +271,25 @@ const uiRowCheckbox =
 function DogaltasListesiPageContent() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
+  // Liste verisi
   const [stones, setStones] = useState<StoneListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalAllStones, setTotalAllStones] = useState(0);
+
+  // Detay filtreler için genişletilmiş veri (pagination yok, tüm taşlar)
+  const [detailData, setDetailData] = useState<StoneListItemExtended[] | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // UI
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>("name");
+  const [detailFilters, setDetailFilters] = useState<DetailFilters>(EMPTY_DETAIL_FILTERS);
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [stoneToDelete, setStoneToDelete] = useState<StoneListItem | null>(null);
@@ -279,7 +298,6 @@ function DogaltasListesiPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loadDebug, setLoadDebug] = useState<StonesLoadDebug | null>(null);
-  const [fullSearch, setFullSearch] = useState(false);
 
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
@@ -302,9 +320,9 @@ function DogaltasListesiPageContent() {
       const search = debouncedSearch.trim() || undefined;
 
       const [pageRes, countRes] = await Promise.all([
-        fetchStonesListPage(tenantId, { offset, search, fullSearch }),
+        fetchStonesListPage(tenantId, { offset, search, searchMode }),
         opts.reset
-          ? fetchStonesListCount(tenantId, search, fullSearch)
+          ? fetchStonesListCount(tenantId, search, searchMode)
           : Promise.resolve({ count: totalCount, error: null }),
       ]);
 
@@ -337,7 +355,7 @@ function DogaltasListesiPageContent() {
         });
       }
     },
-    [debouncedSearch, fullSearch, queryTenantId, totalCount],
+    [debouncedSearch, searchMode, queryTenantId, totalCount],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -432,6 +450,8 @@ function DogaltasListesiPageContent() {
   const handleRefresh = useCallback(() => {
     clearSearch();
     setDebouncedSearch("");
+    setDetailFilters(EMPTY_DETAIL_FILTERS);
+    setDetailData(null);
     void fetchList({ reset: true });
   }, [clearSearch, fetchList]);
 
@@ -439,15 +459,43 @@ function DogaltasListesiPageContent() {
     void resolveTenant();
   }, [resolveTenant]);
 
+  // Gerçek toplam kayıt sayısını bir kez çek — count kartı için (filtre/arama etkilemez)
   useEffect(() => {
     if (!queryTenantId) return;
+    void fetchStonesListCount(queryTenantId).then(({ count }) => {
+      setTotalAllStones(count);
+    });
+  }, [queryTenantId]);
+
+  // Normal liste: detay filtreler kapalıyken server-side arama
+  const isDetailFilterActive = Boolean(
+    detailFilters.zodiac || detailFilters.warningOnly || detailFilters.mineral,
+  );
+
+  useEffect(() => {
+    if (!queryTenantId) return;
+    if (isDetailFilterActive) return; // detay filtreler client-side halleder
     void fetchList({ reset: true });
-  }, [queryTenantId, debouncedSearch, fullSearch]);
+  }, [queryTenantId, debouncedSearch, searchMode, isDetailFilterActive]);
+
+  // Detay filtreler aktifken TÜM taşları genişletilmiş seçimle çek
+  useEffect(() => {
+    if (!queryTenantId) return;
+    if (!isDetailFilterActive) {
+      setDetailData(null);
+      return;
+    }
+    void (async () => {
+      setDetailLoading(true);
+      const { rows } = await fetchAllStonesExtended(queryTenantId);
+      setDetailData(rows);
+      setDetailLoading(false);
+    })();
+  }, [queryTenantId, isDetailFilterActive]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const trimmed = searchTerm.trim();
-      // Minimum uzunluk sağlanmıyorsa arama tetiklenmez, highlight da çalışmaz
       setDebouncedSearch(trimmed.length >= SEARCH_MIN_LENGTH ? trimmed : "");
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
@@ -481,9 +529,49 @@ function DogaltasListesiPageContent() {
 
   const isSearchActive = Boolean(debouncedSearch);
   const activeSearch = debouncedSearch;
-  const filteredStones = stones;
-  const hasMore = stones.length < totalCount;
-  const listBusy = listLoading || (isSearchActive && searchTerm.trim() !== debouncedSearch);
+
+  // Client-side filtreleme: detay filtreler aktifken tüm taşlar üzerinde çalışır
+  const filteredStones: StoneListItem[] = useMemo(() => {
+    if (!isDetailFilterActive || !detailData) return stones;
+
+    return detailData.filter((stone) => {
+      // Metin araması (client-side, extended data'da stone_name + short_description mevcut)
+      if (debouncedSearch) {
+        const textMatch =
+          containsTr(stone.stone_name, debouncedSearch) ||
+          containsTr(stone.short_description, debouncedSearch);
+        if (!textMatch) return false;
+      }
+      // Burç / astrolojik atama filtresi
+      if (detailFilters.zodiac) {
+        if (!stoneMatchesZodiac(stone.assignments, detailFilters.zodiac))
+          return false;
+      }
+      // Sadece uyarısı olanlar
+      if (detailFilters.warningOnly) {
+        if (!stoneHasWarning(stone.warning_text, stone.warning_tags))
+          return false;
+      }
+      // Mineral araması (min 2 karakter)
+      if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
+        if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral))
+          return false;
+      }
+      return true;
+    }) as StoneListItem[];
+  }, [
+    stones,
+    detailData,
+    isDetailFilterActive,
+    debouncedSearch,
+    detailFilters,
+  ]);
+
+  const hasMore = !isDetailFilterActive && stones.length < totalCount;
+  const listBusy =
+    listLoading ||
+    detailLoading ||
+    (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
   const selectAllFiltered = useCallback(() => {
     setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
@@ -538,7 +626,7 @@ function DogaltasListesiPageContent() {
     await fetchList({ reset: true });
   }, [confirm, fetchList, queryTenantId, selectedIds, showToast]);
 
-  const loadedImages = stones.reduce(
+  const loadedImages = filteredStones.reduce(
     (total, stone) => total + stoneListImageCount(stone.images),
     0,
   );
@@ -566,65 +654,153 @@ function DogaltasListesiPageContent() {
 
           <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
             <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{totalCount}</div>
+              <div className="text-lg font-black text-slate-950">
+                {totalAllStones || totalCount}
+              </div>
               <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
             </div>
 
             <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{stones.length}</div>
-              <div className="text-xs font-bold text-slate-500">Yüklü</div>
+              <div className="text-lg font-black text-slate-950">
+                {filteredStones.length}
+              </div>
+              <div className="text-xs font-bold text-slate-500">
+                {isDetailFilterActive ? "Eşleşen" : "Yüklü"}
+              </div>
             </div>
 
             <div className={uiStatCard}>
               <div className="text-lg font-black text-slate-950">{loadedImages}</div>
-              <div className="text-xs font-bold text-slate-500">Görsel (yüklü)</div>
+              <div className="text-xs font-bold text-slate-500">Görsel</div>
             </div>
           </div>
         </header>
 
         <section className={uiFilterCard}>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <form
-              className="relative w-full"
-              onSubmit={(event) => event.preventDefault()}
-            >
-              <span className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-lg text-slate-400">
-                ⌕
-              </span>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            {/* Arama kutusu + mod seçimi + Detay Arama */}
+            <div className="flex w-full flex-col gap-2">
+              <div className="flex items-center gap-2">
+                {/* Arama modu toggle */}
+                <div className="flex shrink-0 gap-0.5 rounded-xl bg-slate-100 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode("name")}
+                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition-all ${
+                      searchMode === "name"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    Taş İsmi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode("content")}
+                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition-all ${
+                      searchMode === "content"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    İçerik
+                  </button>
+                </div>
 
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") event.preventDefault();
-                }}
-                placeholder="Taş adı veya kısa açıklama ara..."
-                className={uiSearchInput}
-                enterKeyHint="search"
-                autoComplete="off"
-              />
-
-              {/* Tüm içerikte ara seçeneği */}
-              <label className="mt-1.5 flex cursor-pointer select-none items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={fullSearch}
-                  onChange={(e) => setFullSearch(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600 focus:ring-2 focus:ring-violet-300/40"
-                />
-                <span className="text-[11px] font-bold text-slate-500">
-                  Tüm içerikte ara
-                </span>
-                {fullSearch && (
-                  <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-black text-violet-700 ring-1 ring-violet-200">
-                    Geniş Arama Aktif
+                {/* Ana arama kutusu */}
+                <form
+                  className="relative flex-1"
+                  onSubmit={(event) => event.preventDefault()}
+                >
+                  <span className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-base text-slate-400">
+                    ⌕
                   </span>
-                )}
-              </label>
-            </form>
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => handleSearchChange(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.preventDefault();
+                    }}
+                    placeholder={
+                      searchMode === "name"
+                        ? "Taş adında ara..."
+                        : "Açıklama ve içerikte ara..."
+                    }
+                    className={uiSearchInput}
+                    enterKeyHint="search"
+                    autoComplete="off"
+                  />
+                </form>
 
-            <div className="flex flex-wrap items-center gap-2">
+                {/* Detay Arama butonu */}
+                <button
+                  type="button"
+                  onClick={() => setIsDetailPanelOpen(true)}
+                  className={`shrink-0 rounded-xl border-2 px-3 py-2 text-[11px] font-black transition-all hover:-translate-y-0.5 ${
+                    isDetailFilterActive
+                      ? "border-violet-400 bg-violet-600 text-white shadow-md"
+                      : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                  }`}
+                >
+                  {isDetailFilterActive ? "Filtreli ▾" : "Detay ▾"}
+                </button>
+              </div>
+
+              {/* Aktif detay filtre rozetleri */}
+              {isDetailFilterActive && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {detailFilters.zodiac && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">
+                      ♈ Burç: {detailFilters.zodiac}
+                      <button
+                        type="button"
+                        onClick={() => setDetailFilters((f) => ({ ...f, zodiac: "" }))}
+                        className="ml-0.5 text-violet-400 hover:text-violet-900"
+                        aria-label="Burç filtresini kaldır"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {detailFilters.warningOnly && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                      ⚠️ Uyarısı olanlar
+                      <button
+                        type="button"
+                        onClick={() => setDetailFilters((f) => ({ ...f, warningOnly: false }))}
+                        className="ml-0.5 text-amber-400 hover:text-amber-900"
+                        aria-label="Uyarı filtresini kaldır"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {detailFilters.mineral && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-black text-cyan-800">
+                      💎 Mineral: {detailFilters.mineral}
+                      <button
+                        type="button"
+                        onClick={() => setDetailFilters((f) => ({ ...f, mineral: "" }))}
+                        className="ml-0.5 text-cyan-400 hover:text-cyan-900"
+                        aria-label="Mineral filtresini kaldır"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
+                    className="text-[10px] font-bold text-rose-500 hover:text-rose-700"
+                  >
+                    Tümünü Temizle
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
@@ -660,16 +836,20 @@ function DogaltasListesiPageContent() {
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <p className="text-[11px] font-bold text-slate-400">
-              {isSearchActive
-                ? `Arama: ${activeSearch} · ${filteredStones.length} sonuç${fullSearch ? ' · Geniş mod' : ''}`
-                : `${filteredStones.length} kayıt gösteriliyor`}
+              {isDetailFilterActive
+                ? `${filteredStones.length} eşleşme (detay filtre)`
+                : isSearchActive
+                  ? `Arama: ${activeSearch} · ${filteredStones.length} sonuç`
+                  : `${filteredStones.length} kayıt gösteriliyor`}
             </p>
 
             {listBusy && (
               <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
-                {isSearchActive && searchTerm.trim() !== debouncedSearch
-                  ? "Aranıyor..."
-                  : "Yükleniyor..."}
+                {detailLoading
+                  ? "Filtre yükleniyor..."
+                  : isSearchActive && searchTerm.trim() !== debouncedSearch
+                    ? "Aranıyor..."
+                    : "Yükleniyor..."}
               </span>
             )}
           </div>
@@ -852,11 +1032,6 @@ function DogaltasListesiPageContent() {
                               ? renderHighlightedText(displayName, activeSearch)
                               : displayName}
                           </span>
-                          {fullSearch && isSearchActive && !nameOrDescMatchesSearch(stone, activeSearch) ? (
-                            <span className="shrink-0 rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-black text-violet-700 ring-1 ring-violet-200">
-                              İçerikte
-                            </span>
-                          ) : null}
                         </Link>
                         <Link
                           href={detailHref}
@@ -935,11 +1110,6 @@ function DogaltasListesiPageContent() {
                             {isSearchActive ? (
                               <div className="mb-1 flex flex-wrap items-center gap-1.5">
                                 <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                                {fullSearch && !nameOrDescMatchesSearch(stone, activeSearch) ? (
-                                  <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-800">
-                                    📄 İçerikte
-                                  </span>
-                                ) : null}
                                 {isViewedInSearch ? (
                                   <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
                                     Bakıldı
@@ -1097,11 +1267,6 @@ function DogaltasListesiPageContent() {
                       {isSearchActive ? (
                         <div className="mb-2 flex flex-wrap items-center gap-1.5">
                           <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                          {fullSearch && !nameOrDescMatchesSearch(stone, activeSearch) ? (
-                            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-800">
-                              📄 İçerikte
-                            </span>
-                          ) : null}
                           {isViewedInSearch ? (
                             <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
                               Bakıldı
@@ -1212,6 +1377,131 @@ function DogaltasListesiPageContent() {
           ) : null}
         </section>
       </div>
+
+      {/* ── Detay Arama Paneli ── */}
+      {isDetailPanelOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          style={{ background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)" }}
+          onClick={() => setIsDetailPanelOpen(false)}
+        >
+          <div
+            className="w-full max-w-[520px] overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Panel başlık */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 py-4">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">
+                  Gelişmiş Filtreler
+                </div>
+                <h2 className="text-base font-black text-slate-950">Detay Arama</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDetailPanelOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                aria-label="Paneli kapat"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* A) Burç / Astrolojik Atama */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="text-xs font-black text-slate-700">♈ Astrolojik Atama / Burç</span>
+                {detailFilters.zodiac && (
+                  <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[9px] font-black text-white">
+                    {detailFilters.zodiac}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {ZODIAC_SIGNS.map((sign) => (
+                  <button
+                    key={sign}
+                    type="button"
+                    onClick={() =>
+                      setDetailFilters((f) => ({
+                        ...f,
+                        zodiac: f.zodiac === sign ? "" : sign,
+                      }))
+                    }
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-black transition-all ${
+                      detailFilters.zodiac === sign
+                        ? "bg-violet-600 text-white shadow-md"
+                        : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                    }`}
+                  >
+                    {sign}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] font-medium text-slate-400">
+                Sadece astrolojik atamasında bu burç olan taşları gösterir.
+              </p>
+            </div>
+
+            {/* B) Sadece Uyarısı Olanlar */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <label className="flex cursor-pointer select-none items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={detailFilters.warningOnly}
+                  onChange={(e) =>
+                    setDetailFilters((f) => ({ ...f, warningOnly: e.target.checked }))
+                  }
+                  className="h-4 w-4 rounded border-amber-300 accent-amber-500"
+                />
+                <span className="text-sm font-black text-slate-700">
+                  ⚠️ Sadece uyarısı olan taşlar
+                </span>
+              </label>
+              <p className="mt-1.5 pl-6 text-[10px] font-medium text-slate-400">
+                warning_text veya warning_tags alanı dolu olan taşlar.
+              </p>
+            </div>
+
+            {/* C) Mineral Arama */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <div className="mb-2 text-xs font-black text-slate-700">
+                💎 Mineral Araması
+              </div>
+              <input
+                type="text"
+                value={detailFilters.mineral}
+                onChange={(e) =>
+                  setDetailFilters((f) => ({ ...f, mineral: e.target.value }))
+                }
+                placeholder="Mineral adı girin... (min 2 karakter)"
+                className="h-9 w-full rounded-xl border-2 border-slate-200 px-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+              <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                Sadece mineral atamasında eşleşen taşlar. Türkçe karakter uyumlu.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
+                className="text-xs font-bold text-slate-500 transition hover:text-rose-600"
+              >
+                Filtreleri Temizle
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDetailPanelOpen(false)}
+                className="btn-secondary px-4 py-2 text-sm"
+              >
+                Uygula
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {stoneToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
