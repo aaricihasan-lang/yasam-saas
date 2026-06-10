@@ -143,7 +143,7 @@ function formatDate(value: string | null | undefined) {
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
 const pageContent =
-  "relative z-10 mx-auto w-full max-w-5xl space-y-2 px-4 py-3 xl:px-6";
+  "relative z-10 mx-auto w-full max-w-7xl space-y-2 px-4 py-3 xl:px-8 2xl:px-10";
 const uiHeaderCard =
   "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiVariantCard =
@@ -304,7 +304,7 @@ function VariantCard({
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+      <div className="space-y-2">
         <FieldBlock
           label="Kaynak"
           badge="KAYNAK"
@@ -318,35 +318,33 @@ function VariantCard({
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
-        <div className="lg:col-span-2">
+        <FieldBlock
+          label="Notlar"
+          badge="NOTLAR"
+          tone="slate"
+          text={row.notes_text}
+          highlightQuery={highlightQuery}
+          hasSearchMatch={fieldMatches.notes}
+        />
+        {row.notes_text_2?.trim() ? (
           <FieldBlock
-            label="Notlar"
-            badge="NOTLAR"
+            label="Notlar 2"
+            badge="NOTLAR 2"
             tone="slate"
-            text={row.notes_text}
+            text={row.notes_text_2}
             highlightQuery={highlightQuery}
-            hasSearchMatch={fieldMatches.notes}
+            hasSearchMatch={fieldMatches.notes2}
           />
-        </div>
-        {(row.notes_text_2?.trim() || row.notes_text_3?.trim()) ? (
-          <>
-            <FieldBlock
-              label="Notlar 2"
-              badge="NOTLAR 2"
-              tone="slate"
-              text={row.notes_text_2}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={fieldMatches.notes2}
-            />
-            <FieldBlock
-              label="Notlar 3"
-              badge="NOTLAR 3"
-              tone="slate"
-              text={row.notes_text_3}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={fieldMatches.notes3}
-            />
-          </>
+        ) : null}
+        {row.notes_text_3?.trim() ? (
+          <FieldBlock
+            label="Notlar 3"
+            badge="NOTLAR 3"
+            tone="slate"
+            text={row.notes_text_3}
+            highlightQuery={highlightQuery}
+            hasSearchMatch={fieldMatches.notes3}
+          />
         ) : null}
       </div>
     </article>
