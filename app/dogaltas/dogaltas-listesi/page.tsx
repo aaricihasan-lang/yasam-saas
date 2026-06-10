@@ -580,26 +580,32 @@ function DogaltasListesiPageContent() {
     if (!needsFullLoad || !detailData) return stones;
 
     return detailData.filter((stone) => {
-      // ── Tam içerik metin araması ─────────────────────────────────────────────
+      // ── Metin araması — moda göre ayrılmış ──────────────────────────────────
       if (debouncedSearch) {
-        const haystack = [
-          stone.stone_name,
-          stone.short_description,
-          stone.general_info,
-          stone.source_note,
-          stone.physical_effects,
-          stone.spiritual_effects,
-          stone.other_effects,
-          stone.feng_shui,
-          stone.meditation,
-          stone.care,
-          stone.application,
-          stone.warning_text,
-          safeTextExtract(stone.warning_tags),
-          safeTextExtract(stone.chakras),
-          safeTextExtract(stone.assignments),
-        ].join(" ");
-        if (!containsTr(haystack, debouncedSearch)) return false;
+        if (searchMode === "name") {
+          // Taş İsmi modu: yalnızca stone_name alanında substring arama
+          if (!containsTr(stone.stone_name, debouncedSearch)) return false;
+        } else {
+          // İçerik modu: tüm metin alanlarında arama
+          const haystack = [
+            stone.stone_name,
+            stone.short_description,
+            stone.general_info,
+            stone.source_note,
+            stone.physical_effects,
+            stone.spiritual_effects,
+            stone.other_effects,
+            stone.feng_shui,
+            stone.meditation,
+            stone.care,
+            stone.application,
+            stone.warning_text,
+            safeTextExtract(stone.warning_tags),
+            safeTextExtract(stone.chakras),
+            safeTextExtract(stone.assignments),
+          ].join(" ");
+          if (!containsTr(haystack, debouncedSearch)) return false;
+        }
       }
       // ── Detay filtreler ───────────────────────────────────────────────────────
       if (detailFilters.zodiac) {
@@ -627,6 +633,7 @@ function DogaltasListesiPageContent() {
     detailData,
     needsFullLoad,
     debouncedSearch,
+    searchMode,
     detailFilters,
   ]);
 

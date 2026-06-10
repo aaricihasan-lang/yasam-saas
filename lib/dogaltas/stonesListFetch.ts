@@ -46,10 +46,10 @@ export type StoneListItemExtended = StoneListItem & {
 // ─── Arama sütunları ─────────────────────────────────────────────────────────
 
 /**
- * TAŞ İSMİ MODU — ad ve kısa açıklama.
+ * TAŞ İSMİ MODU — yalnızca taş adı.
  * Türkçe İ/ı varyantları OR filtresine otomatik eklenir (bkz. buildIlikePatterns).
  */
-export const NAME_SEARCH_COLUMNS = ["stone_name", "short_description"] as const;
+export const NAME_SEARCH_COLUMNS = ["stone_name"] as const;
 
 /**
  * İÇERİK MODU — metin alanları (JSON/dizi cast YOK → Supabase OR filter safe).
