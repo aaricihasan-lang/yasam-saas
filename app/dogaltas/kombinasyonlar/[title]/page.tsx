@@ -23,7 +23,7 @@ const COMBINATIONS_SELECT =
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700";
 const SEARCH_MATCH_CARD_CLASS = "border-rose-300 ring-2 ring-rose-100";
 
 type CombinationRecord = {
@@ -51,7 +51,7 @@ function normalizeTrSearch(value: string): string {
     .replace(/ö/g, "o")
     .replace(/ç/g, "c")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[̀-ͯ]/g, "");
 }
 
 function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
@@ -120,7 +120,7 @@ function textMatchesQuery(text: string | null | undefined, query: string): boole
 }
 
 function SearchMatchBadge() {
-  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
+  return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>;
 }
 
 function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
@@ -129,7 +129,6 @@ function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
-
   return new Intl.DateTimeFormat("tr-TR", {
     day: "2-digit",
     month: "2-digit",
@@ -139,60 +138,128 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-6 xl:px-10 2xl:px-14";
+const pageContent =
+  "relative z-10 mx-auto w-full max-w-5xl space-y-2 px-4 py-3 xl:px-6";
 const uiHeaderCard =
-  "rounded-[28px] border-[3px] border-violet-400/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 lg:p-8";
+  "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiVariantCard =
-  "w-full rounded-[28px] border-[3px] border-cyan-300/45 bg-white/78 p-4 shadow-[0_0_50px_rgba(34,211,238,0.16)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 lg:p-8";
-const uiFieldBox =
-  "rounded-[20px] border-[2px] border-violet-200 bg-gradient-to-br from-white/85 to-violet-50/70 p-4 shadow-[0_0_20px_rgba(139,92,246,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.14)] sm:rounded-[26px] sm:border-[3px] sm:p-6 sm:shadow-[0_0_30px_rgba(139,92,246,0.10)]";
-const uiFieldLabel = "text-xs font-black uppercase tracking-[0.12em] text-violet-700 sm:text-sm sm:tracking-[0.18em]";
-const uiFieldContent = "mt-3 text-base font-semibold leading-relaxed text-slate-800 sm:mt-4 sm:text-lg sm:leading-8";
-const uiEmptyText = "text-slate-400 italic font-medium";
-const uiDatesBox =
-  "rounded-[20px] border-[2px] border-amber-200 bg-gradient-to-br from-white/85 to-amber-50/70 p-3 shadow-[0_0_20px_rgba(245,158,11,0.10)] sm:rounded-[26px] sm:border-[3px] sm:p-5 lg:p-6";
-const uiComboBadge =
-  "inline-flex items-center rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-black text-white shadow-md sm:px-5 sm:py-2 sm:text-sm";
+  "w-full rounded-xl border border-cyan-200/60 bg-white/80 p-3 shadow-sm backdrop-blur-xl";
+const uiInfoCard =
+  "rounded-xl border border-violet-100/60 bg-white/70 p-3 shadow-sm";
+const uiEmptyText = "text-slate-400 italic text-xs";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-900 sm:px-4 sm:py-1.5 sm:text-sm";
+  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs font-black text-cyan-900";
+
+type ToneKey = "violet" | "cyan" | "slate" | "amber";
+
+function badgeClass(tone: ToneKey): string {
+  const map: Record<ToneKey, string> = {
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    slate: "border-slate-200 bg-slate-50 text-slate-600",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+  };
+  return `inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide ${map[tone]}`;
+}
+
+// ─── Field components ─────────────────────────────────────────────────────────
 
 function FieldBlock({
   label,
+  badge,
+  tone = "violet",
   text,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
   label: string;
+  badge: string;
+  tone?: ToneKey;
   text: string | null | undefined;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
-  const cardClass = mergeMatchCardClass(uiFieldBox, showMatchBadge);
+  const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
   const displayText = text?.trim() || "";
 
   return (
-    <div className={cardClass}>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className={uiFieldLabel}>{label}</div>
+    <article className={cardClass}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={badgeClass(tone)}>{badge}</span>
+        <h2 className="text-xs font-black text-slate-950">{label}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className={uiFieldContent}>
+      <div className="mt-1.5">
         {displayText ? (
-          <span className="whitespace-pre-wrap">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {highlightQuery.trim()
               ? renderHighlightedText(displayText, highlightQuery)
               : displayText}
-          </span>
+          </p>
         ) : (
-          <span className={uiEmptyText}>—</span>
+          <p className={uiEmptyText}>—</p>
         )}
       </div>
-    </div>
+    </article>
   );
 }
+
+function StonesBlock({
+  text,
+  highlightQuery = "",
+  hasSearchMatch = false,
+}: {
+  text: string | null | undefined;
+  highlightQuery?: string;
+  hasSearchMatch?: boolean;
+}) {
+  const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
+  const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
+  const stones = text
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+
+  return (
+    <article className={cardClass}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={badgeClass("cyan")}>TAŞLAR</span>
+        <h2 className="text-xs font-black text-slate-950">Taş Listesi</h2>
+        {stones.length > 0 ? (
+          <span className="text-[10px] font-medium text-slate-400">
+            {stones.length} taş
+          </span>
+        ) : null}
+        {showMatchBadge ? <SearchMatchBadge /> : null}
+      </div>
+      <div className="mt-1.5">
+        {stones.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {stones.map((stone, idx) => (
+              <span
+                key={idx}
+                className="inline-flex rounded-full border border-cyan-200 bg-cyan-50/80 px-2.5 py-0.5 text-xs font-semibold text-cyan-800"
+              >
+                {highlightQuery.trim()
+                  ? renderHighlightedText(stone, highlightQuery)
+                  : stone}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className={uiEmptyText}>—</p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+// ─── Variant card ─────────────────────────────────────────────────────────────
 
 function VariantCard({
   row,
@@ -213,7 +280,6 @@ function VariantCard({
     notes3: boolean;
   };
 }) {
-  const positionLabel = `Kombinasyon ${index + 1} / ${total}`;
   const hasVariantMatch =
     fieldMatches.source ||
     fieldMatches.stones ||
@@ -225,67 +291,69 @@ function VariantCard({
 
   return (
     <article className={cardClass}>
-      <div className="flex flex-col gap-3 border-b border-cyan-100 pb-4 sm:flex-row sm:items-center sm:justify-between sm:pb-6">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={uiComboBadge}>{positionLabel}</span>
-            {showMatchBadge ? <SearchMatchBadge /> : null}
-          </div>
-          <p className="mt-2 text-sm font-bold text-slate-500">
-            Variant #{row.variant_index}
-            {row.source ? (
-              <>
-                {" · Kaynak: "}
-                {highlightQuery.trim()
-                  ? renderHighlightedText(row.source, highlightQuery)
-                  : row.source}
-              </>
-            ) : (
-              ""
-            )}
-          </p>
-        </div>
-        <div className={uiDatesBox}>
-          <div className={uiFieldLabel}>Kayıt tarihi</div>
-          <p className="mt-2 text-base font-bold text-slate-700">{formatDate(row.created_at)}</p>
-        </div>
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-violet-700">
+          KOMBİNASYON {index + 1}/{total}
+        </span>
+        <span className="text-[10px] font-semibold text-slate-400">
+          Variant #{row.variant_index}
+        </span>
+        <span className="ml-auto text-[10px] font-medium text-slate-400">
+          {formatDate(row.created_at)}
+        </span>
+        {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <FieldBlock
           label="Kaynak"
+          badge="KAYNAK"
+          tone="violet"
           text={row.source}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.source}
         />
-        <FieldBlock
-          label="Taş metni"
+        <StonesBlock
           text={row.stones_text}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
-        <FieldBlock
-          label="Notlar"
-          text={row.notes_text}
-          highlightQuery={highlightQuery}
-          hasSearchMatch={fieldMatches.notes}
-        />
-        <FieldBlock
-          label="Notlar 2"
-          text={row.notes_text_2}
-          highlightQuery={highlightQuery}
-          hasSearchMatch={fieldMatches.notes2}
-        />
-        <FieldBlock
-          label="Notlar 3"
-          text={row.notes_text_3}
-          highlightQuery={highlightQuery}
-          hasSearchMatch={fieldMatches.notes3}
-        />
+        <div className="lg:col-span-2">
+          <FieldBlock
+            label="Notlar"
+            badge="NOTLAR"
+            tone="slate"
+            text={row.notes_text}
+            highlightQuery={highlightQuery}
+            hasSearchMatch={fieldMatches.notes}
+          />
+        </div>
+        {(row.notes_text_2?.trim() || row.notes_text_3?.trim()) ? (
+          <>
+            <FieldBlock
+              label="Notlar 2"
+              badge="NOTLAR 2"
+              tone="slate"
+              text={row.notes_text_2}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={fieldMatches.notes2}
+            />
+            <FieldBlock
+              label="Notlar 3"
+              badge="NOTLAR 3"
+              tone="slate"
+              text={row.notes_text_3}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={fieldMatches.notes3}
+            />
+          </>
+        ) : null}
       </div>
     </article>
   );
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 function KombinasyonDetayPageContent() {
   const params = useParams<{ title: string | string[] }>();
@@ -398,10 +466,10 @@ function KombinasyonDetayPageContent() {
     return (
       <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
         <div className={`${uiHeaderCard} w-full text-center`}>
-          <p className="text-lg font-bold text-slate-600">Geçersiz başlık.</p>
+          <p className="text-sm font-bold text-slate-600">Geçersiz başlık.</p>
           <Link
             href={listBackHref}
-            className="mt-4 inline-flex rounded-2xl border-2 border-violet-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-violet-50"
+            className="mt-3 inline-flex rounded-xl border border-violet-200 bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-violet-50"
           >
             Listeye Dön
           </Link>
@@ -412,23 +480,33 @@ function KombinasyonDetayPageContent() {
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-violet-300/15 blur-[120px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-cyan-300/15 blur-[120px]" />
 
       <div className={pageContent}>
         <header
           className={mergeMatchCardClass(
-            `${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`,
+            `${uiHeaderCard} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`,
             Boolean(hasHighlight && headerHasMatch),
           )}
         >
-          <div>
-            <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black tracking-[0.18em] text-violet-700 sm:px-5 sm:py-2 sm:text-sm">
-              KOMBİNASYON DETAY
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-violet-700">
+                KOMBİNASYON DETAY
+              </span>
+              {categoryLabel ? (
+                <span className={uiCategoryPill}>
+                  {hasHighlight
+                    ? renderHighlightedText(categoryLabel, highlightQuery)
+                    : categoryLabel}
+                </span>
+              ) : null}
+              {hasHighlight && sectionMatches?.category ? <SearchMatchBadge /> : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
+              <h1 className="text-xl font-black tracking-tight text-slate-950 break-words sm:text-2xl">
                 {hasHighlight
                   ? renderHighlightedText(decodedIssue, highlightQuery)
                   : decodedIssue}
@@ -436,45 +514,29 @@ function KombinasyonDetayPageContent() {
               {hasHighlight && sectionMatches?.issue ? <SearchMatchBadge /> : null}
             </div>
 
-            {categoryLabel ? (
-              <p className="mt-3 flex flex-wrap items-center gap-2">
-                <span className={uiCategoryPill}>
-                  {hasHighlight
-                    ? renderHighlightedText(categoryLabel, highlightQuery)
-                    : categoryLabel}
-                </span>
-                {hasHighlight && sectionMatches?.category ? <SearchMatchBadge /> : null}
-              </p>
-            ) : null}
-
-            {hasHighlight && sectionMatches?.description ? (
-              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-cyan-800">
-                <span>Açıklama alanında eşleşme</span>
-                <SearchMatchBadge />
-              </p>
-            ) : null}
-
-            <p className="mt-3 text-sm font-medium text-slate-600 sm:text-base lg:text-lg">
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
               {loading
-                ? "Kayıtlar yükleniyor..."
+                ? "Yükleniyor..."
                 : rows.length === 0
-                  ? "Bu issue için henüz variant kaydı yok."
-                  : `${rows.length} kombinasyon variant listeleniyor.`}
+                  ? "Henüz variant kaydı yok."
+                  : `${rows.length} kombinasyon variant`}
+              {hasHighlight && sectionMatches?.description ? (
+                <span className="ml-2 font-black text-cyan-700">· Açıklama eşleşmesi</span>
+              ) : null}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link
               href={listBackHref}
-              className="min-h-[44px] rounded-2xl border-2 border-violet-200 bg-white px-4 py-3 font-black text-slate-800 shadow-md hover:bg-violet-50 sm:px-6 sm:py-4"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50"
             >
               {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
-
             <button
               type="button"
               onClick={() => void loadRows()}
-              className="min-h-[44px] rounded-2xl border-2 border-cyan-200 bg-white px-4 py-3 font-black text-slate-800 shadow-md hover:bg-cyan-50 sm:px-6 sm:py-4"
+              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
             >
               Yenile
             </button>
@@ -482,27 +544,27 @@ function KombinasyonDetayPageContent() {
         </header>
 
         {errorMessage ? (
-          <div className="rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+          <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
             {errorMessage}
           </div>
         ) : null}
 
         {loading ? (
           <div
-            className={`${uiVariantCard} flex min-h-[280px] items-center justify-center text-base font-bold text-slate-500`}
+            className={`${uiVariantCard} flex min-h-[120px] items-center justify-center text-sm font-bold text-slate-500`}
           >
             Yükleniyor...
           </div>
         ) : rows.length === 0 && !errorMessage ? (
-          <div className={`${uiVariantCard} text-center`}>
-            <div className="text-5xl">✶</div>
-            <p className="mt-3 text-lg font-black text-slate-800">Henüz kombinasyon kaydı yok</p>
-            <p className="mt-2 text-base font-medium text-slate-500">
+          <div className={`${uiVariantCard} text-center py-8`}>
+            <div className="text-3xl">✶</div>
+            <p className="mt-2 text-base font-black text-slate-800">Henüz kombinasyon kaydı yok</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">
               Bu başlık için henüz variant aktarılmamış olabilir.
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {rows.map((row, index) => (
               <VariantCard
                 key={row.id}
