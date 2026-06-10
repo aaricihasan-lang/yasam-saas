@@ -41,6 +41,15 @@ type CombinationRecord = {
   created_at: string;
 };
 
+type StockEntry = {
+  adet: number;
+  unitCostTry: number;
+};
+
+function fmtTL(x: number): string {
+  return `₺${x.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function buildContentKey(row: CombinationRecord): string {
   return [
     row.source?.trim() ?? "",
@@ -240,13 +249,13 @@ function FieldBlock({
 
 function StonesBlock({
   text,
-  stockNames,
+  stockMap,
   stockLoading,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
   text: string | null | undefined;
-  stockNames: Set<string>;
+  stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
@@ -259,7 +268,7 @@ function StonesBlock({
     .filter(Boolean) ?? [];
 
   const inStockCount = !stockLoading
-    ? stones.filter((s) => stockNames.has(normalizeForMatch(s))).length
+    ? stones.filter((s) => stockMap.has(normalizeForMatch(s))).length
     : 0;
 
   return (
@@ -296,7 +305,7 @@ function StonesBlock({
                   </span>
                 );
               }
-              const inStock = stockNames.has(normalizeForMatch(stone));
+              const inStock = stockMap.has(normalizeForMatch(stone));
               return inStock ? (
                 <span
                   key={idx}
@@ -329,6 +338,158 @@ function StonesBlock({
   );
 }
 
+// ─── Combination calculator ───────────────────────────────────────────────────
+
+function CombinationCalculator({
+  stonesText,
+  stockMap,
+}: {
+  stonesText: string | null | undefined;
+  stockMap: Map<string, StockEntry>;
+}) {
+  const allStones = useMemo(
+    () => stonesText?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+    [stonesText],
+  );
+
+  const stockedStones = useMemo(
+    () => allStones.filter((s) => stockMap.has(normalizeForMatch(s))),
+    [allStones, stockMap],
+  );
+
+  const unstockedCount = allStones.length - stockedStones.length;
+
+  const [qtyMap, setQtyMap] = useState<Map<string, string>>(new Map());
+  // Kâr marjı % — Ürün/Stok "Satış & Fiyatlandırma" sekmesiyle aynı mantık
+  const [profitPctRaw, setProfitPctRaw] = useState("30");
+
+  useEffect(() => {
+    setQtyMap(new Map());
+  }, [stonesText]);
+
+  if (stockedStones.length === 0) return null;
+
+  function effectiveQty(key: string): number {
+    const raw = qtyMap.get(key);
+    if (raw === undefined) return 1;
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }
+
+  function handleQtyChange(key: string, value: string) {
+    setQtyMap((prev) => new Map(prev).set(key, value.replace(/[^0-9]/g, "")));
+  }
+
+  const profitPctNum = Math.max(0, parseFloat(profitPctRaw) || 0);
+
+  let totalCost = 0;
+  for (const stone of stockedStones) {
+    const key = normalizeForMatch(stone);
+    const entry = stockMap.get(key)!;
+    totalCost += effectiveQty(key) * entry.unitCostTry;
+  }
+
+  // Satış fiyatı = maliyet × (1 + marj%) — Ürün/Stok salePrice formülüyle aynı
+  const totalSale = totalCost * (1 + profitPctNum / 100);
+  const profit = totalSale - totalCost;
+
+  return (
+    <article className="rounded-xl border border-amber-200/60 bg-amber-50/30 p-3 shadow-sm">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700">
+          HESAP
+        </span>
+        <h2 className="text-xs font-black text-slate-950">Kombinasyon Hesabı</h2>
+        {unstockedCount > 0 ? (
+          <span className="text-[10px] font-medium text-slate-400">
+            · {unstockedCount} taş stokta yok, dahil edilmedi
+          </span>
+        ) : null}
+      </div>
+
+      <div className="space-y-1.5">
+        {stockedStones.map((stone) => {
+          const key = normalizeForMatch(stone);
+          const entry = stockMap.get(key)!;
+          const qty = effectiveQty(key);
+          const rowCost = qty * entry.unitCostTry;
+          const overStock = entry.adet > 0 && qty > entry.adet;
+
+          return (
+            <div
+              key={stone}
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-100 bg-white px-3 py-1.5"
+            >
+              <span className="min-w-[120px] text-xs font-semibold text-slate-800">
+                {stone}
+              </span>
+              <label className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                Adet
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={qtyMap.get(key) ?? "1"}
+                  onChange={(e) => handleQtyChange(key, e.target.value)}
+                  className="ml-1 w-14 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
+                />
+              </label>
+              {overStock ? (
+                <span className="text-[10px] font-semibold text-amber-600">
+                  Stok adedinden fazla (mevcut: {entry.adet})
+                </span>
+              ) : null}
+              <span className="text-[11px] font-medium text-slate-500">
+                Birim maliyet:{" "}
+                <span className="font-semibold text-slate-700">
+                  {entry.unitCostTry > 0 ? fmtTL(entry.unitCostTry) : "—"}
+                </span>
+                {entry.unitCostTry > 0 && qty > 1 ? (
+                  <span className="ml-1 text-[10px] text-slate-400">= {fmtTL(rowCost)}</span>
+                ) : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {totalCost > 0 ? (
+        <div className="mt-2 rounded-lg border border-slate-100 bg-white px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[11px] font-medium text-slate-500">
+            <span>
+              Toplam maliyet:{" "}
+              <span className="font-black text-slate-700">{fmtTL(totalCost)}</span>
+            </span>
+            <label className="flex items-center gap-1">
+              Kâr marjı
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={profitPctRaw}
+                onChange={(e) => setProfitPctRaw(e.target.value.replace(/[^0-9.]/g, ""))}
+                className="mx-1 w-14 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
+              />
+              <span>%</span>
+            </label>
+            <span>
+              Tahmini satış:{" "}
+              <span className="font-black text-emerald-700">{fmtTL(totalSale)}</span>
+            </span>
+            <span>
+              Kâr:{" "}
+              <span className="font-black text-emerald-700">{fmtTL(profit)}</span>
+              <span className="ml-1 text-[10px] text-emerald-600">
+                ({profitPctNum.toFixed(1)}%)
+              </span>
+            </span>
+          </div>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 // ─── Variant card ─────────────────────────────────────────────────────────────
 
 function VariantCard({
@@ -337,7 +498,7 @@ function VariantCard({
   total,
   highlightQuery = "",
   fieldMatches,
-  stockNames,
+  stockMap,
   stockLoading,
 }: {
   row: CombinationRecord;
@@ -351,7 +512,7 @@ function VariantCard({
     notes2: boolean;
     notes3: boolean;
   };
-  stockNames: Set<string>;
+  stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
 }) {
   const hasVariantMatch =
@@ -389,11 +550,17 @@ function VariantCard({
         />
         <StonesBlock
           text={row.stones_text}
-          stockNames={stockNames}
+          stockMap={stockMap}
           stockLoading={stockLoading}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
+        {!stockLoading ? (
+          <CombinationCalculator
+            stonesText={row.stones_text}
+            stockMap={stockMap}
+          />
+        ) : null}
         <FieldBlock
           label="Notlar"
           badge="NOTLAR"
@@ -452,7 +619,7 @@ function KombinasyonDetayPageContent() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [stockNames, setStockNames] = useState<Set<string>>(new Set());
+  const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
 
   const categoryLabel = useMemo(() => {
@@ -529,18 +696,27 @@ function KombinasyonDetayPageContent() {
 
       const { data } = await supabase
         .from("dogaltas_inventory")
-        .select("name, adet")
+        .select("name, adet, unit_cost_try")
         .eq("tenant_id", tenantId)
-        .gt("adet", 0);
+        .gt("adet", 0)
+        .order("adet", { ascending: false });
 
       if (data) {
-        setStockNames(
-          new Set(
-            (data as { name: string; adet: number }[]).map((row) =>
-              normalizeForMatch(row.name),
-            ),
-          ),
-        );
+        type StockRow = { name: string; adet: number; unit_cost_try: number };
+        const tempMap = new Map<string, StockEntry>();
+        for (const row of data as StockRow[]) {
+          const key = normalizeForMatch(row.name);
+          const existing = tempMap.get(key);
+          if (!existing) {
+            tempMap.set(key, {
+              adet: row.adet,
+              unitCostTry: row.unit_cost_try ?? 0,
+            });
+          } else {
+            tempMap.set(key, { ...existing, adet: existing.adet + row.adet });
+          }
+        }
+        setStockMap(tempMap);
       }
     } finally {
       setStockLoading(false);
@@ -709,7 +885,7 @@ function KombinasyonDetayPageContent() {
                     notes3: false,
                   }
                 }
-                stockNames={stockNames}
+                stockMap={stockMap}
                 stockLoading={stockLoading}
               />
             ))}
