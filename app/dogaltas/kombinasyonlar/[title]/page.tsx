@@ -44,6 +44,7 @@ type CombinationRecord = {
 type StockEntry = {
   adet: number;
   unitCostTry: number;
+  displayName: string;
 };
 
 function fmtTL(x: number): string {
@@ -90,6 +91,80 @@ function normalizeForMatch(value: string): string {
   return normalizeTrSearch(value)
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Kelime sınırı eşleşmesi için noktalama → boşluk
+function normalizeForWordMatch(value: string): string {
+  return normalizeForMatch(value)
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Metinde geçen stok taş adlarının normalize anahtarlarını döndürür
+// Kelime sınırı kontrolü: " taşadı " şeklinde aranır → "topal" içinde "opal" eşleşmez
+function findStockedStonesInText(
+  text: string,
+  stockMap: Map<string, StockEntry>,
+): string[] {
+  if (!text.trim() || stockMap.size === 0) return [];
+  const haystack = " " + normalizeForWordMatch(text) + " ";
+  const found: string[] = [];
+  for (const [normalizedKey] of stockMap) {
+    const needle = normalizeForWordMatch(normalizedKey);
+    if (needle.length < 3) continue; // çok kısa adlar yanlış pozitif üretebilir
+    if (haystack.includes(" " + needle + " ")) {
+      found.push(normalizedKey);
+    }
+  }
+  return found;
+}
+
+// stones_text chip listesi + notlardan yakalanan ekstra stok taşları + tüm stoklu taşlar
+function getMatchedStones(
+  row: CombinationRecord,
+  stockMap: Map<string, StockEntry>,
+): { chipsStones: string[]; extraTextStones: string[]; allStockedDisplayNames: string[] } {
+  const chipsStones = row.stones_text
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+
+  const chipsNormKeys = new Set(chipsStones.map((s) => normalizeForMatch(s)));
+
+  const combinedNotes = [row.notes_text, row.notes_text_2, row.notes_text_3]
+    .filter(Boolean)
+    .join(" ");
+
+  const textNormKeys = combinedNotes.trim()
+    ? findStockedStonesInText(combinedNotes, stockMap)
+    : [];
+
+  // Notlardan yakalananlar: chip listesinde olmayan stok taşları
+  const extraTextStones = textNormKeys
+    .filter((k) => !chipsNormKeys.has(k))
+    .map((k) => stockMap.get(k)?.displayName ?? k)
+    .filter(Boolean) as string[];
+
+  // Hesaplayıcı için tüm stoklu taş adları (dedup)
+  const seen = new Set<string>();
+  const allStockedDisplayNames: string[] = [];
+  for (const stone of chipsStones) {
+    const key = normalizeForMatch(stone);
+    if (stockMap.has(key) && !seen.has(key)) {
+      seen.add(key);
+      allStockedDisplayNames.push(stone);
+    }
+  }
+  for (const name of extraTextStones) {
+    const key = normalizeForMatch(name);
+    if (!seen.has(key)) {
+      seen.add(key);
+      allStockedDisplayNames.push(name);
+    }
+  }
+
+  return { chipsStones, extraTextStones, allStockedDisplayNames };
 }
 
 function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
@@ -248,13 +323,15 @@ function FieldBlock({
 }
 
 function StonesBlock({
-  text,
+  stones,
+  extraTextStones,
   stockMap,
   stockLoading,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
-  text: string | null | undefined;
+  stones: string[];
+  extraTextStones: string[];
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
   highlightQuery?: string;
@@ -262,14 +339,13 @@ function StonesBlock({
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
-  const stones = text
-    ?.split(",")
-    .map((s) => s.trim())
-    .filter(Boolean) ?? [];
 
   const inStockCount = !stockLoading
-    ? stones.filter((s) => stockMap.has(normalizeForMatch(s))).length
+    ? stones.filter((s) => stockMap.has(normalizeForMatch(s))).length +
+      extraTextStones.length
     : 0;
+
+  const hasAny = stones.length > 0 || (!stockLoading && extraTextStones.length > 0);
 
   return (
     <article className={cardClass}>
@@ -289,47 +365,66 @@ function StonesBlock({
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className="mt-1.5">
-        {stones.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {stones.map((stone, idx) => {
-              if (stockLoading) {
-                return (
+        {hasAny ? (
+          <>
+            {stones.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {stones.map((stone, idx) => {
+                  if (stockLoading) {
+                    return (
+                      <span
+                        key={idx}
+                        title="Stok bilgisi yükleniyor"
+                        className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
+                      >
+                        {highlightQuery.trim()
+                          ? renderHighlightedText(stone, highlightQuery)
+                          : stone}
+                      </span>
+                    );
+                  }
+                  const inStock = stockMap.has(normalizeForMatch(stone));
+                  return inStock ? (
+                    <span
+                      key={idx}
+                      title="Stokta var"
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                    >
+                      <span className="text-[10px] font-black text-emerald-600">✓</span>
+                      {highlightQuery.trim()
+                        ? renderHighlightedText(stone, highlightQuery)
+                        : stone}
+                    </span>
+                  ) : (
+                    <span
+                      key={idx}
+                      title="Stokta yok"
+                      className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
+                    >
+                      {highlightQuery.trim()
+                        ? renderHighlightedText(stone, highlightQuery)
+                        : stone}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {!stockLoading && extraTextStones.length > 0 && (
+              <div className={`flex flex-wrap items-center gap-1.5 ${stones.length > 0 ? "mt-1.5 border-t border-slate-100 pt-1.5" : ""}`}>
+                <span className="text-[10px] font-medium text-slate-400">Metinden:</span>
+                {extraTextStones.map((stone, idx) => (
                   <span
                     key={idx}
-                    title="Stok bilgisi yükleniyor"
-                    className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
+                    title="Stokta var (notlardan yakalandı)"
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
                   >
-                    {highlightQuery.trim()
-                      ? renderHighlightedText(stone, highlightQuery)
-                      : stone}
+                    <span className="text-[10px] font-black text-emerald-600">✓</span>
+                    {stone}
                   </span>
-                );
-              }
-              const inStock = stockMap.has(normalizeForMatch(stone));
-              return inStock ? (
-                <span
-                  key={idx}
-                  title="Stokta var"
-                  className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
-                >
-                  <span className="text-[10px] font-black text-emerald-600">✓</span>
-                  {highlightQuery.trim()
-                    ? renderHighlightedText(stone, highlightQuery)
-                    : stone}
-                </span>
-              ) : (
-                <span
-                  key={idx}
-                  title="Stokta yok"
-                  className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
-                >
-                  {highlightQuery.trim()
-                    ? renderHighlightedText(stone, highlightQuery)
-                    : stone}
-                </span>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <p className={uiEmptyText}>—</p>
         )}
@@ -341,33 +436,23 @@ function StonesBlock({
 // ─── Combination calculator ───────────────────────────────────────────────────
 
 function CombinationCalculator({
-  stonesText,
+  stockedDisplayNames,
   stockMap,
 }: {
-  stonesText: string | null | undefined;
+  stockedDisplayNames: string[];
   stockMap: Map<string, StockEntry>;
 }) {
-  const allStones = useMemo(
-    () => stonesText?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
-    [stonesText],
-  );
-
-  const stockedStones = useMemo(
-    () => allStones.filter((s) => stockMap.has(normalizeForMatch(s))),
-    [allStones, stockMap],
-  );
-
-  const unstockedCount = allStones.length - stockedStones.length;
-
   const [qtyMap, setQtyMap] = useState<Map<string, string>>(new Map());
   // Kâr marjı % — Ürün/Stok "Satış & Fiyatlandırma" sekmesiyle aynı mantık
   const [profitPctRaw, setProfitPctRaw] = useState("30");
 
+  // Liste değişince adet sıfırla
+  const listKey = stockedDisplayNames.join(",");
   useEffect(() => {
     setQtyMap(new Map());
-  }, [stonesText]);
+  }, [listKey]);
 
-  if (stockedStones.length === 0) return null;
+  if (stockedDisplayNames.length === 0) return null;
 
   function effectiveQty(key: string): number {
     const raw = qtyMap.get(key);
@@ -383,10 +468,10 @@ function CombinationCalculator({
   const profitPctNum = Math.max(0, parseFloat(profitPctRaw) || 0);
 
   let totalCost = 0;
-  for (const stone of stockedStones) {
+  for (const stone of stockedDisplayNames) {
     const key = normalizeForMatch(stone);
-    const entry = stockMap.get(key)!;
-    totalCost += effectiveQty(key) * entry.unitCostTry;
+    const entry = stockMap.get(key);
+    if (entry) totalCost += effectiveQty(key) * entry.unitCostTry;
   }
 
   // Satış fiyatı = maliyet × (1 + marj%) — Ürün/Stok salePrice formülüyle aynı
@@ -394,23 +479,11 @@ function CombinationCalculator({
   const profit = totalSale - totalCost;
 
   return (
-    <article className="rounded-xl border border-amber-200/60 bg-amber-50/30 p-3 shadow-sm">
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700">
-          HESAP
-        </span>
-        <h2 className="text-xs font-black text-slate-950">Kombinasyon Hesabı</h2>
-        {unstockedCount > 0 ? (
-          <span className="text-[10px] font-medium text-slate-400">
-            · {unstockedCount} taş stokta yok, dahil edilmedi
-          </span>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        {stockedStones.map((stone) => {
+    <div className="space-y-1.5">
+      {stockedDisplayNames.map((stone) => {
           const key = normalizeForMatch(stone);
-          const entry = stockMap.get(key)!;
+          const entry = stockMap.get(key);
+          if (!entry) return null;
           const qty = effectiveQty(key);
           const rowCost = qty * entry.unitCostTry;
           const overStock = entry.adet > 0 && qty > entry.adet;
@@ -450,8 +523,7 @@ function CombinationCalculator({
               </span>
             </div>
           );
-        })}
-      </div>
+      })}
 
       {totalCost > 0 ? (
         <div className="mt-2 rounded-lg border border-slate-100 bg-white px-3 py-2">
@@ -486,7 +558,7 @@ function CombinationCalculator({
           </div>
         </div>
       ) : null}
-    </article>
+    </div>
   );
 }
 
@@ -500,6 +572,8 @@ function VariantCard({
   fieldMatches,
   stockMap,
   stockLoading,
+  isCalcOpen,
+  onToggleCalc,
 }: {
   row: CombinationRecord;
   index: number;
@@ -514,7 +588,11 @@ function VariantCard({
   };
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
+  isCalcOpen: boolean;
+  onToggleCalc: () => void;
 }) {
+  const calcOpen = isCalcOpen;
+
   const hasVariantMatch =
     fieldMatches.source ||
     fieldMatches.stones ||
@@ -523,6 +601,17 @@ function VariantCard({
     fieldMatches.notes3;
   const showMatchBadge = Boolean(highlightQuery.trim() && hasVariantMatch);
   const cardClass = mergeMatchCardClass(uiVariantCard, showMatchBadge);
+
+  // Metin içi taş algılama — stok yüklendikten sonra hesaplanır
+  const { chipsStones, extraTextStones, allStockedDisplayNames } =
+    !stockLoading && stockMap.size > 0
+      ? getMatchedStones(row, stockMap)
+      : {
+          chipsStones:
+            row.stones_text?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+          extraTextStones: [] as string[],
+          allStockedDisplayNames: [] as string[],
+        };
 
   return (
     <article className={cardClass}>
@@ -549,18 +638,47 @@ function VariantCard({
           hasSearchMatch={fieldMatches.source}
         />
         <StonesBlock
-          text={row.stones_text}
+          stones={chipsStones}
+          extraTextStones={extraTextStones}
           stockMap={stockMap}
           stockLoading={stockLoading}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
-        {!stockLoading ? (
-          <CombinationCalculator
-            stonesText={row.stones_text}
-            stockMap={stockMap}
-          />
-        ) : null}
+        <div>
+          <button
+            type="button"
+            onClick={onToggleCalc}
+            disabled={stockLoading}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-black transition ${
+              stockLoading
+                ? "cursor-default border-slate-200 bg-slate-50 text-slate-400"
+                : "border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100"
+            }`}
+          >
+            <span>{calcOpen ? "▲" : "▼"}</span>
+            <span>Hesap Makinesi</span>
+            {stockLoading ? (
+              <span className="text-[10px] font-medium text-slate-400">· yükleniyor</span>
+            ) : allStockedDisplayNames.length > 0 ? (
+              <span className="text-[10px] font-medium text-amber-600">
+                · {allStockedDisplayNames.length} stok taşı
+              </span>
+            ) : null}
+          </button>
+          {calcOpen && !stockLoading && allStockedDisplayNames.length > 0 ? (
+            <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50/30 p-3 shadow-sm">
+              <CombinationCalculator
+                stockedDisplayNames={allStockedDisplayNames}
+                stockMap={stockMap}
+              />
+            </div>
+          ) : calcOpen && !stockLoading ? (
+            <p className="mt-2 text-[11px] font-medium text-slate-400">
+              Bu kombinasyonda stokta eşleşen taş bulunamadı.
+            </p>
+          ) : null}
+        </div>
         <FieldBlock
           label="Notlar"
           badge="NOTLAR"
@@ -619,6 +737,7 @@ function KombinasyonDetayPageContent() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
   const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
 
@@ -711,6 +830,7 @@ function KombinasyonDetayPageContent() {
             tempMap.set(key, {
               adet: row.adet,
               unitCostTry: row.unit_cost_try ?? 0,
+              displayName: row.name,
             });
           } else {
             tempMap.set(key, { ...existing, adet: existing.adet + row.adet });
@@ -887,6 +1007,15 @@ function KombinasyonDetayPageContent() {
                 }
                 stockMap={stockMap}
                 stockLoading={stockLoading}
+                isCalcOpen={openCalcIds.has(row.id)}
+                onToggleCalc={() =>
+                  setOpenCalcIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(row.id)) next.delete(row.id);
+                    else next.add(row.id);
+                    return next;
+                  })
+                }
               />
             ))}
           </div>
