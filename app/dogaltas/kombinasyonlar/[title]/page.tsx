@@ -41,6 +41,25 @@ type CombinationRecord = {
   created_at: string;
 };
 
+function deduplicateRows(rows: CombinationRecord[]): CombinationRecord[] {
+  const seen = new Set<string>();
+  const result: CombinationRecord[] = [];
+  for (const row of rows) {
+    const key = [
+      row.source?.trim() ?? "",
+      row.stones_text?.trim() ?? "",
+      row.notes_text?.trim() ?? "",
+      row.notes_text_2?.trim() ?? "",
+      row.notes_text_3?.trim() ?? "",
+    ].join("\x00");
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(row);
+    }
+  }
+  return result;
+}
+
 function normalizeTrSearch(value: string): string {
   return value
     .toLocaleLowerCase("tr-TR")
@@ -418,7 +437,7 @@ function KombinasyonDetayPageContent() {
       return;
     }
 
-    setRows((data || []) as CombinationRecord[]);
+    setRows(deduplicateRows((data || []) as CombinationRecord[]));
   }, [decodedIssue]);
 
   useEffect(() => {
