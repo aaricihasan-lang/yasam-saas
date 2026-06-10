@@ -101,6 +101,81 @@ function normalizeForWordMatch(value: string): string {
     .trim();
 }
 
+// ─── Levenshtein + fuzzy eşleşme ────────────────────────────────────────────
+
+// OSA (Optimal String Alignment) — transposition'ı 1 işlem sayar
+// "labrodroit" gibi yer-değişimli yazım hatalarını da yakalar
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i]![j] = Math.min(
+        dp[i - 1]![j]! + 1,
+        dp[i]![j - 1]! + 1,
+        dp[i - 1]![j - 1]! + cost,
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        dp[i]![j] = Math.min(dp[i]![j]!, dp[i - 2]![j - 2]! + cost);
+      }
+    }
+  }
+  return dp[m]![n]!;
+}
+
+// candidate ve stockKey ikisi de zaten normalizeForWordMatch'li string
+function fuzzyMatchesKey(candidate: string, stockKey: string): boolean {
+  const a = normalizeForWordMatch(candidate);
+  const b = normalizeForWordMatch(stockKey);
+  if (a.length < 5 || b.length < 5) return false;
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  const sim = 1 - dist / maxLen;
+  if (sim >= 0.82) return true;
+  if (dist <= 2 && b.length >= 7) return true;
+  return false;
+}
+
+// Önce exact eşleşme, yoksa fuzzy fallback. stockMap key veya null döner.
+function resolveStockKey(
+  name: string,
+  stockMap: Map<string, StockEntry>,
+): string | null {
+  const exactKey = normalizeForMatch(name);
+  if (stockMap.has(exactKey)) return exactKey;
+
+  const norm = normalizeForWordMatch(name);
+  if (norm.length < 5) return null;
+
+  let bestKey: string | null = null;
+  let bestSim = 0;
+
+  for (const [stockKey] of stockMap) {
+    if (!fuzzyMatchesKey(norm, stockKey)) continue;
+    const stockNorm = normalizeForWordMatch(stockKey);
+    const maxLen = Math.max(norm.length, stockNorm.length);
+    const sim = 1 - levenshtein(norm, stockNorm) / maxLen;
+    if (sim > bestSim) {
+      bestSim = sim;
+      bestKey = stockKey;
+    }
+  }
+
+  if (bestKey && process.env.NODE_ENV === "development") {
+    const canon = stockMap.get(bestKey)?.displayName ?? bestKey;
+    console.log(`[Fuzzy eşleşme] "${name}" → "${canon}" (sim: ${bestSim.toFixed(3)})`);
+  }
+
+  return bestKey;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Metinde geçen stok taş adlarının normalize anahtarlarını döndürür
 // Kelime sınırı kontrolü: " taşadı " şeklinde aranır → "topal" içinde "opal" eşleşmez
 function findStockedStonesInText(
@@ -108,19 +183,48 @@ function findStockedStonesInText(
   stockMap: Map<string, StockEntry>,
 ): string[] {
   if (!text.trim() || stockMap.size === 0) return [];
-  const haystack = " " + normalizeForWordMatch(text) + " ";
+  const normText = normalizeForWordMatch(text);
+  const haystack = " " + normText + " ";
+  const tokens = normText.split(/\s+/).filter(Boolean);
   const found: string[] = [];
+
   for (const [normalizedKey] of stockMap) {
     const needle = normalizeForWordMatch(normalizedKey);
-    if (needle.length < 3) continue; // çok kısa adlar yanlış pozitif üretebilir
+    if (needle.length < 3) continue;
+
+    // 1. Exact word-boundary match
     if (haystack.includes(" " + needle + " ")) {
       found.push(normalizedKey);
+      continue;
     }
+
+    // 2. Fuzzy fallback — sadece yeterli uzunluktaki adlar için
+    if (needle.length < 5) continue;
+
+    const needleWords = needle.split(/\s+/).filter(Boolean);
+    const wc = needleWords.length;
+    let fuzzyHit = false;
+
+    // Metindeki token gruplarını (n-gram) stok adıyla karşılaştır
+    for (let i = 0; i <= tokens.length - wc && !fuzzyHit; i++) {
+      const phrase = tokens.slice(i, i + wc).join(" ");
+      if (fuzzyMatchesKey(phrase, needle)) {
+        fuzzyHit = true;
+        if (process.env.NODE_ENV === "development") {
+          const canon = stockMap.get(normalizedKey)?.displayName ?? normalizedKey;
+          console.log(`[Fuzzy eşleşme (metin)] "${phrase}" → "${canon}"`);
+        }
+      }
+    }
+
+    if (fuzzyHit) found.push(normalizedKey);
   }
+
   return found;
 }
 
 // stones_text chip listesi + notlardan yakalanan ekstra stok taşları + tüm stoklu taşlar
+// Fuzzy eşleşme sayesinde hatalı yazımlar da yakalanır; canonical isimler kullanılır.
 function getMatchedStones(
   row: CombinationRecord,
   stockMap: Map<string, StockEntry>,
@@ -130,30 +234,36 @@ function getMatchedStones(
     .map((s) => s.trim())
     .filter(Boolean) ?? [];
 
-  const chipsNormKeys = new Set(chipsStones.map((s) => normalizeForMatch(s)));
+  // Chip başına resolved stok key (exact veya fuzzy)
+  const chipsResolvedKeys = new Set(
+    chipsStones.map((s) => resolveStockKey(s, stockMap)).filter(Boolean) as string[],
+  );
 
-  const combinedNotes = [row.notes_text, row.notes_text_2, row.notes_text_3]
+  // stones_text de taranır: cümle formatı içindeki taş adlarını yakalar
+  const combinedText = [row.stones_text, row.notes_text, row.notes_text_2, row.notes_text_3]
     .filter(Boolean)
     .join(" ");
 
-  const textNormKeys = combinedNotes.trim()
-    ? findStockedStonesInText(combinedNotes, stockMap)
+  const textNormKeys = combinedText.trim()
+    ? findStockedStonesInText(combinedText, stockMap)
     : [];
 
-  // Notlardan yakalananlar: chip listesinde olmayan stok taşları
+  // Notlardan yakalananlar: chip listesiyle resolved key üzerinden karşılaştır
   const extraTextStones = textNormKeys
-    .filter((k) => !chipsNormKeys.has(k))
+    .filter((k) => !chipsResolvedKeys.has(k))
     .map((k) => stockMap.get(k)?.displayName ?? k)
     .filter(Boolean) as string[];
 
-  // Hesaplayıcı için tüm stoklu taş adları (dedup)
+  // Hesaplayıcı için tüm stoklu taşlar — canonical display name kullan (dedup)
   const seen = new Set<string>();
   const allStockedDisplayNames: string[] = [];
+
   for (const stone of chipsStones) {
-    const key = normalizeForMatch(stone);
-    if (stockMap.has(key) && !seen.has(key)) {
-      seen.add(key);
-      allStockedDisplayNames.push(stone);
+    const stockKey = resolveStockKey(stone, stockMap);
+    if (stockKey && !seen.has(stockKey)) {
+      seen.add(stockKey);
+      const entry = stockMap.get(stockKey);
+      if (entry) allStockedDisplayNames.push(entry.displayName);
     }
   }
   for (const name of extraTextStones) {
@@ -340,9 +450,20 @@ function StonesBlock({
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
 
+  // Chip başına stok çözümlemesi — exact veya fuzzy
+  const resolvedChipData = !stockLoading
+    ? stones.map((stone) => {
+        const stockKey = resolveStockKey(stone, stockMap);
+        const canonical =
+          stockKey && stockKey !== normalizeForMatch(stone)
+            ? (stockMap.get(stockKey)?.displayName ?? null)
+            : null;
+        return { stone, stockKey, canonical };
+      })
+    : stones.map((stone) => ({ stone, stockKey: null as string | null, canonical: null as string | null }));
+
   const inStockCount = !stockLoading
-    ? stones.filter((s) => stockMap.has(normalizeForMatch(s))).length +
-      extraTextStones.length
+    ? resolvedChipData.filter((d) => d.stockKey !== null).length + extraTextStones.length
     : 0;
 
   const hasAny = stones.length > 0 || (!stockLoading && extraTextStones.length > 0);
@@ -369,7 +490,7 @@ function StonesBlock({
           <>
             {stones.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {stones.map((stone, idx) => {
+                {resolvedChipData.map(({ stone, stockKey, canonical }, idx) => {
                   if (stockLoading) {
                     return (
                       <span
@@ -383,22 +504,30 @@ function StonesBlock({
                       </span>
                     );
                   }
-                  const inStock = stockMap.has(normalizeForMatch(stone));
+                  const inStock = stockKey !== null;
+                  const displayText = canonical ?? stone;
+                  const tooltipText = canonical
+                    ? `Stokta var (${canonical})`
+                    : inStock
+                      ? "Stokta var"
+                      : "Stokta yok";
                   return inStock ? (
                     <span
                       key={idx}
-                      title="Stokta var"
+                      title={tooltipText}
                       className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
                     >
                       <span className="text-[10px] font-black text-emerald-600">✓</span>
-                      {highlightQuery.trim()
-                        ? renderHighlightedText(stone, highlightQuery)
-                        : stone}
+                      {canonical
+                        ? displayText
+                        : highlightQuery.trim()
+                          ? renderHighlightedText(stone, highlightQuery)
+                          : stone}
                     </span>
                   ) : (
                     <span
                       key={idx}
-                      title="Stokta yok"
+                      title={tooltipText}
                       className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
                     >
                       {highlightQuery.trim()
