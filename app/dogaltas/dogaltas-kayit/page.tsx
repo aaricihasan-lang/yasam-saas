@@ -742,75 +742,67 @@ export default function DogaltasKayitPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
-            <div className={`${uiCard} p-4`}>
-              <button
-                type="button"
-                onClick={() => setAssignmentsOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg ring-1 ring-indigo-100">
-                    📎
-                  </span>
-                  <div>
-                    <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
-                    <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
-                  {assignmentsOpen ? "▲ Gizle" : "▼ Göster"}
-                </span>
-              </button>
-
-              {assignmentsOpen && (
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {assignmentSections.map((item) => (
-                    <button
-                      key={item.title}
-                      type="button"
-                      onClick={() => setAssignmentTitle(item.title)}
-                      className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">{item.icon}</span>
-                        <span>
-                          <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
-                          <span className="block text-xs text-slate-500">Düzenle / ekle</span>
-                        </span>
-                      </span>
-                      <span className="text-lg font-black text-cyan-600">→</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className={`${uiCard} p-4`}>
-              <div className="mb-3 flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-lg ring-1 ring-cyan-100">
-                  🌀
+          <div className={`${uiCard} p-4`}>
+            <button
+              type="button"
+              onClick={() => setAssignmentsOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg ring-1 ring-indigo-100">
+                  📎
                 </span>
                 <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">Çakra Atama</h2>
-                  <p className="mt-0.5 text-slate-500">Desktop’taki checkbox yapısının web karşılığı.</p>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
+                  <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji, element ve çakra alanları.</p>
                 </div>
               </div>
+              <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
+                {assignmentsOpen ? "▲ Gizle" : "▼ Göster"}
+              </span>
+            </button>
 
-              <div className="mt-4 grid grid-cols-1 gap-2.5">
-                {chakraOptions.map((chakra) => (
-                  <label key={chakra} className={`${uiPanel} flex cursor-pointer items-center gap-3 px-4 py-2.5`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedChakras.includes(chakra)}
-                      onChange={() => toggleChakra(chakra)}
-                      className="h-5 w-5 accent-cyan-600"
-                    />
-                    <span className="text-[13px] font-bold text-slate-700">{chakra}</span>
-                  </label>
+            {assignmentsOpen && (
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {assignmentSections.map((item) => (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={() => setAssignmentTitle(item.title)}
+                    className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">{item.icon}</span>
+                      <span>
+                        <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
+                        <span className="block text-xs text-slate-500">Düzenle / ekle</span>
+                      </span>
+                    </span>
+                    <span className="text-lg font-black text-cyan-600">→</span>
+                  </button>
                 ))}
+
+                <div className={`${uiPanel} md:col-span-2 p-4`}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">🌀</span>
+                    <span className="text-[13px] font-bold text-slate-800">Çakra Atama</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+                    {chakraOptions.map((chakra) => (
+                      <label key={chakra} className="flex cursor-pointer items-center gap-2 rounded-xl border border-cyan-200/60 bg-white/80 px-3 py-2 transition hover:bg-cyan-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedChakras.includes(chakra)}
+                          onChange={() => toggleChakra(chakra)}
+                          className="h-4 w-4 accent-cyan-600"
+                        />
+                        <span className="text-[12px] font-bold text-slate-700">{chakra}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </section>
       </div>
