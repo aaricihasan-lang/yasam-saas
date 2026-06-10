@@ -41,17 +41,21 @@ type CombinationRecord = {
   created_at: string;
 };
 
+function buildContentKey(row: CombinationRecord): string {
+  return [
+    row.source?.trim() ?? "",
+    row.stones_text?.trim() ?? "",
+    row.notes_text?.trim() ?? "",
+    row.notes_text_2?.trim() ?? "",
+    row.notes_text_3?.trim() ?? "",
+  ].join("\x00");
+}
+
 function deduplicateRows(rows: CombinationRecord[]): CombinationRecord[] {
   const seen = new Set<string>();
   const result: CombinationRecord[] = [];
   for (const row of rows) {
-    const key = [
-      row.source?.trim() ?? "",
-      row.stones_text?.trim() ?? "",
-      row.notes_text?.trim() ?? "",
-      row.notes_text_2?.trim() ?? "",
-      row.notes_text_3?.trim() ?? "",
-    ].join("\x00");
+    const key = buildContentKey(row);
     if (!seen.has(key)) {
       seen.add(key);
       result.push(row);
@@ -437,7 +441,29 @@ function KombinasyonDetayPageContent() {
       return;
     }
 
-    setRows(deduplicateRows((data || []) as CombinationRecord[]));
+    const raw = (data || []) as CombinationRecord[];
+    const unique = deduplicateRows(raw);
+    const droppedCount = raw.length - unique.length;
+
+    if (droppedCount > 0) {
+      const freq = new Map<string, number>();
+      for (const row of raw) {
+        const k = buildContentKey(row);
+        freq.set(k, (freq.get(k) ?? 0) + 1);
+      }
+      console.group(`[Kombinasyon] "${decodedIssue}" — ${raw.length} ham → ${unique.length} unique (${droppedCount} duplicate temizlendi)`);
+      for (const [k, count] of freq) {
+        if (count > 1) {
+          const preview = k.split("\x00")[0]?.slice(0, 60) ?? "(boş)";
+          console.log(`  ${count}× — kaynak: "${preview}"`);
+        }
+      }
+      console.groupEnd();
+    } else {
+      console.log(`[Kombinasyon] "${decodedIssue}" — ${raw.length} kayıt, duplicate yok.`);
+    }
+
+    setRows(unique);
   }, [decodedIssue]);
 
   useEffect(() => {
