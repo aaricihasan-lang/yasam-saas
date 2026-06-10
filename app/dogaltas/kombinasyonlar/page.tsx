@@ -23,7 +23,7 @@ const COMBINATIONS_SEARCH_STORAGE_KEYS = [
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
+  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700";
 
 function normalizeTrSearch(value: string): string {
   return value
@@ -35,7 +35,7 @@ function normalizeTrSearch(value: string): string {
     .replace(/ö/g, "o")
     .replace(/ç/g, "c")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[̀-ͯ]/g, "");
 }
 
 function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
@@ -158,7 +158,7 @@ type CombinationRecord = {
 const COMBINATIONS_SELECT =
   "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
 
-function previewText(rows: CombinationRecord[], limit = 140) {
+function previewText(rows: CombinationRecord[], limit = 100) {
   for (const row of rows) {
     const chunk = [row.stones_text, row.notes_text, row.notes_text_2, row.notes_text_3, row.source]
       .find((v) => v && v.trim().length > 0)
@@ -170,7 +170,7 @@ function previewText(rows: CombinationRecord[], limit = 140) {
     }
   }
 
-  return "Henüz önizleme metni yok.";
+  return null;
 }
 
 function firstSourceInGroup(rows: CombinationRecord[]) {
@@ -214,6 +214,12 @@ function formatListCardDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function groupStats(rows: CombinationRecord[]) {
+  const sources = new Set(rows.map((r) => r.source?.trim()).filter(Boolean));
+  const stonesCount = rows.filter((r) => r.stones_text?.trim()).length;
+  return { sources: sources.size, stonesCount };
+}
+
 function buildSearchableText(row: CombinationRecord): string {
   const parts: string[] = [
     row.issue,
@@ -248,33 +254,40 @@ function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
   return Boolean(needle) && haystack.includes(needle);
 }
 
+// ─── Design tokens ─────────────────────────────────────────────────────────────
+
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-4 px-3 py-4 sm:px-5 xl:px-8 2xl:px-10";
+const pageContent =
+  "relative z-10 mx-auto w-full max-w-[1720px] space-y-2 px-4 py-3 sm:px-5 lg:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-violet-300/45 bg-white/75 p-4 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
-const uiStatCard =
-  "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
+  "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiFilterCard =
-  "rounded-[20px] border-[3px] border-cyan-300/45 bg-white/75 p-3 shadow-[0_0_40px_rgba(34,211,238,0.14)] backdrop-blur-xl";
+  "rounded-xl border border-slate-200/60 bg-white/80 p-3 shadow-sm backdrop-blur-xl";
 const uiSearchInput =
-  "h-10 w-full rounded-xl border-2 border-cyan-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "h-9 w-full rounded-lg border border-slate-200 bg-white/90 px-3 pl-9 text-sm font-semibold shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
 const uiCategorySelect =
-  "h-10 min-w-[160px] rounded-xl border-2 border-violet-200 bg-white/90 px-3 text-sm font-bold text-slate-800 shadow-inner outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-300/30";
-const uiViewBtn =
-  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
+  "h-9 min-w-[140px] rounded-lg border border-slate-200 bg-white/90 px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
+const uiViewBtn = (active: boolean) =>
+  `rounded-lg px-3 py-1.5 text-xs font-black transition ${
+    active
+      ? "bg-slate-950 text-white shadow-sm"
+      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+  }`;
 const uiComboCard =
-  "relative flex flex-col overflow-hidden rounded-[14px] border-[3px] border-cyan-300/45 bg-white/80 p-3 shadow-[0_0_22px_rgba(34,211,238,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_30px_rgba(139,92,246,0.14)]";
+  "rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-200 hover:bg-white";
 const uiComboBadge =
-  "inline-flex rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-black text-white shadow-sm";
+  "inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black text-violet-700";
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-900";
 const uiComboBtn =
-  "mt-2 inline-flex w-fit items-center justify-center rounded-lg bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700";
+  "inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50";
 const uiSelectActionBtn =
-  "min-h-[32px] rounded-xl border-2 px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
+  "h-7 rounded-lg border px-3 text-[11px] font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
-  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
+  "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-violet-600 focus:ring-2 focus:ring-violet-200/40";
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KombinasyonlarPage() {
   const { confirm } = useConfirm();
@@ -291,9 +304,7 @@ export default function KombinasyonlarPage() {
   const [isMobile, setIsMobile] = useState(false);
 
   const clearSearch = useCallback(() => {
-    if (readUrlSearchQuery()) {
-      stripUrlSearchQuery();
-    }
+    if (readUrlSearchQuery()) stripUrlSearchQuery();
     clearCombinationsSearchStorage();
     setSearchTerm("");
   }, []);
@@ -301,9 +312,7 @@ export default function KombinasyonlarPage() {
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
     if (!value.trim()) {
-      if (readUrlSearchQuery()) {
-        stripUrlSearchQuery();
-      }
+      if (readUrlSearchQuery()) stripUrlSearchQuery();
       clearCombinationsSearchStorage();
     }
   }, []);
@@ -349,16 +358,12 @@ export default function KombinasyonlarPage() {
   }
 
   useEffect(() => {
-    runInEffect(() => {
-      void loadCombinations();
-    });
+    runInEffect(() => { void loadCombinations(); });
   }, []);
 
   useEffect(() => {
     const q = readUrlSearchQuery();
-    if (q) {
-      setSearchTerm(q);
-    }
+    if (q) setSearchTerm(q);
   }, []);
 
   useEffect(() => {
@@ -390,7 +395,6 @@ export default function KombinasyonlarPage() {
 
   const filteredRows = useMemo(() => {
     const category = categoryFilter.trim();
-
     return rows.filter((row) => {
       if (category && (row.description?.trim() || "") !== category) return false;
       return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
@@ -399,14 +403,12 @@ export default function KombinasyonlarPage() {
 
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
-
     for (const row of filteredRows) {
       const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
     }
-
     return Array.from(map.entries())
       .map(([issue, groupRows]) => ({
         issue,
@@ -424,27 +426,21 @@ export default function KombinasyonlarPage() {
   const hasFilters = Boolean(isSearchActive || categoryFilter.trim());
   const isEmptyDatabase = !loading && !errorMessage && rows.length === 0;
   const isEmptyFiltered = !loading && !errorMessage && rows.length > 0 && groups.length === 0;
-
   const selectedCount = selectedIds.size;
 
   const toggleGroupSelection = useCallback((issue: string) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(issue)) {
-        next.delete(issue);
-      } else {
-        next.add(issue);
-      }
+      if (next.has(issue)) next.delete(issue);
+      else next.add(issue);
       return next;
     });
   }, []);
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
+  const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
 
   const selectAllFiltered = useCallback(() => {
-    setSelectedIds(new Set(groups.map((group) => group.issue)));
+    setSelectedIds(new Set(groups.map((g) => g.issue)));
   }, [groups]);
 
   const deleteSelectedCombinations = useCallback(async () => {
@@ -460,7 +456,6 @@ export default function KombinasyonlarPage() {
       confirmText: isMobile ? "Evet" : "Evet Sil",
       cancelText: isMobile ? "Hayır" : "Vazgeç",
     });
-
     if (!firstConfirmed) return;
 
     if (isMobile) {
@@ -497,10 +492,7 @@ export default function KombinasyonlarPage() {
       return;
     }
 
-    showToast({
-      type: "success",
-      message: `${deleteCount} kombinasyon silindi`,
-    });
+    showToast({ type: "success", message: `${deleteCount} kombinasyon silindi` });
     setSelectedIds(new Set());
     await loadCombinations();
   }, [confirm, isMobile, selectedIds, showToast]);
@@ -558,478 +550,369 @@ export default function KombinasyonlarPage() {
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-cyan-300/15 blur-[120px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-violet-300/15 blur-[120px]" />
 
       <div className={pageContent}>
-        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-1.5 inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-violet-700">
-              ✶ TAŞ KOMBİNASYONLARI
-            </div>
 
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <header className={`${uiHeaderCard} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-violet-700">
+                TAŞ KOMBİNASYONLARI
+              </span>
+            </div>
+            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
               Taş Kombinasyonları
             </h1>
-
-            <p className="mt-1 text-sm font-medium text-slate-600">
-              Rahatsızlık başlığına göre gruplanmış kombinasyon bilgi bankası.
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
+              {loading
+                ? "Yükleniyor..."
+                : `${uniqueIssues} başlık · ${rows.length} variant · ${groups.length} gösterilen`}
             </p>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 lg:min-w-[280px]">
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{rows.length}</div>
-              <div className="text-xs font-bold text-slate-500">Variant</div>
-            </div>
-
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{uniqueIssues}</div>
-              <div className="text-xs font-bold text-slate-500">Issue</div>
-            </div>
-
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{groups.length}</div>
-              <div className="text-xs font-bold text-slate-500">Grup</div>
-            </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
+            >
+              Yenile
+            </button>
           </div>
         </header>
 
+        {/* ── Filter bar ─────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <form
-              className="relative min-w-0 w-full flex-1"
-              onSubmit={(event) => event.preventDefault()}
+              className="relative min-w-0 flex-1"
+              onSubmit={(e) => e.preventDefault()}
             >
-              <span className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-[17px] text-slate-400">
+              <span className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-base text-slate-400">
                 ⌕
               </span>
-
               <input
                 type="search"
                 value={searchTerm}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") event.preventDefault();
-                }}
-                placeholder="Issue, açıklama, taş metni veya notlarda ara..."
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                placeholder="Başlık, taş, kaynak veya not ara..."
                 className={uiSearchInput}
                 enterKeyHint="search"
                 autoComplete="off"
               />
             </form>
 
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className={uiCategorySelect}
-              aria-label="Kategori filtresi"
-            >
-              <option value="">Tüm kategoriler</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`${uiViewBtn} ${
-                  viewMode === "list"
-                    ? "bg-slate-950 text-white"
-                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+            {categories.length > 0 && (
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className={uiCategorySelect}
+                aria-label="Kategori filtresi"
               >
-                Liste
-              </button>
+                <option value="">Tüm kategoriler</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            )}
 
-              <button
-                type="button"
-                onClick={() => setViewMode("card")}
-                className={`${uiViewBtn} ${
-                  viewMode === "card"
-                    ? "bg-slate-950 text-white"
-                    : "border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                Kart
-              </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button type="button" onClick={() => setViewMode("list")} className={uiViewBtn(viewMode === "list")}>Liste</button>
+              <button type="button" onClick={() => setViewMode("card")} className={uiViewBtn(viewMode === "card")}>Kart</button>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-            <p className="text-[11px] font-bold text-slate-400">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
+            <p className="text-[11px] font-medium text-slate-400">
               {isSearchActive
-                ? `Arama: “${activeSearch}” · ${filteredRows.length} variant · ${groups.length} grup`
+                ? `"${activeSearch}" · ${filteredRows.length} variant · ${groups.length} başlık`
                 : hasFilters
-                  ? `${filteredRows.length} variant · ${groups.length} grup`
-                  : `${rows.length} variant · ${groups.length} grup`}
+                  ? `${filteredRows.length} variant · ${groups.length} başlık`
+                  : `${rows.length} variant · ${groups.length} başlık`}
+              {loading && <span className="ml-2 text-cyan-600">yükleniyor...</span>}
             </p>
 
-            {loading && (
-              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
-                Yükleniyor...
-              </span>
+            {!loading && groups.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500">
+                  Seçili: <span className="font-black text-violet-700">{selectedCount}</span>
+                </span>
+                <button
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={selectAllFiltered}
+                  className={`${uiSelectActionBtn} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
+                >
+                  Tümünü Seç
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteLoading || selectedCount === 0}
+                  onClick={clearSelection}
+                  className={`${uiSelectActionBtn} border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
+                >
+                  Temizle
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteLoading || selectedCount === 0}
+                  onClick={() => void deleteSelectedCombinations()}
+                  className={`${uiSelectActionBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
+                >
+                  {deleteLoading ? "Siliniyor..." : "Sil"}
+                </button>
+              </div>
             )}
           </div>
-
-          {!loading && groups.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800 shadow-sm">
-                Seçili: {selectedCount}
-              </span>
-              <button
-                type="button"
-                disabled={deleteLoading}
-                onClick={selectAllFiltered}
-                className={`${uiSelectActionBtn} border-cyan-200 bg-cyan-50 text-cyan-950 hover:bg-cyan-100`}
-              >
-                Tümünü Seç
-              </button>
-              <button
-                type="button"
-                disabled={deleteLoading || selectedCount === 0}
-                onClick={clearSelection}
-                className={`${uiSelectActionBtn} border-violet-200 bg-violet-50 text-violet-950 hover:bg-violet-100`}
-              >
-                Seçimi Temizle
-              </button>
-              <button
-                type="button"
-                disabled={deleteLoading || selectedCount === 0}
-                onClick={() => void deleteSelectedCombinations()}
-                className={`${uiSelectActionBtn} border-red-200 bg-red-50 text-red-600 hover:bg-red-100`}
-              >
-                {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
-              </button>
-            </div>
-          ) : null}
         </section>
 
-        {errorMessage ? (
-          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
+        {/* ── Error ──────────────────────────────────────────────────── */}
+        {errorMessage && (
+          <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
             {errorMessage}
           </div>
-        ) : null}
+        )}
 
-        <section className="rounded-[28px] bg-white/72 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
-          {loading ? (
-            <div className="flex h-[280px] items-center justify-center text-[14px] font-bold text-slate-400">
-              Kayıtlar yükleniyor...
-            </div>
-          ) : isEmptyDatabase ? (
-            <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
-              <div className="text-[48px]">✶</div>
-              <h3 className="mt-2 text-[18px] font-black text-slate-900">Henüz kombinasyon kaydı yok</h3>
-              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
-                Admin panelinden JSON aktarımı yapıldığında kayıtlar burada listelenir.
-              </p>
-            </div>
-          ) : isEmptyFiltered ? (
-            <div className="flex h-[280px] flex-col items-center justify-center rounded-[24px] bg-white/70 text-center ring-1 ring-white">
-              <div className="text-[48px]">✶</div>
-              <h3 className="mt-2 text-[18px] font-black text-slate-900">Sonuç bulunamadı</h3>
-              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
-                Arama veya kategori filtresini değiştirin.
-              </p>
-            </div>
-          ) : viewMode === "list" ? (
-            <div className="overflow-hidden rounded-[24px] bg-white/86 ring-1 ring-slate-100">
-              {/* Column headers — desktop only */}
-              <div className="hidden grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid">
-                <div className="w-8" aria-hidden />
-                <div>Issue</div>
-                <div>Kategori</div>
-                <div>Kombinasyon</div>
-                <div>Kaynak</div>
-                <div>Son kayıt</div>
-                <div className="text-right">İşlem</div>
-              </div>
+        {/* ── Content ────────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="flex h-[200px] items-center justify-center text-sm font-bold text-slate-400">
+            Kayıtlar yükleniyor...
+          </div>
+        ) : isEmptyDatabase ? (
+          <div className="flex h-[200px] flex-col items-center justify-center text-center">
+            <div className="text-4xl">✶</div>
+            <p className="mt-2 text-base font-black text-slate-800">Henüz kombinasyon kaydı yok</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">Admin panelinden JSON aktarımı yapıldığında kayıtlar burada listelenir.</p>
+          </div>
+        ) : isEmptyFiltered ? (
+          <div className="flex h-[200px] flex-col items-center justify-center text-center">
+            <div className="text-4xl">✶</div>
+            <p className="mt-2 text-base font-black text-slate-800">Sonuç bulunamadı</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">Arama veya kategori filtresini değiştirin.</p>
+          </div>
+        ) : viewMode === "list" ? (
 
-              <div className="divide-y divide-slate-100">
-                {groups.map(({ issue, rows: groupRows }) => {
-                  const sourceLine = firstSourceInGroup(groupRows);
-                  const category = groupDescription(groupRows);
-                  const ts = latestDisplayTimestamp(groupRows);
-                  const count = groupRows.length;
-                  const isViewedInSearch =
-                    isSearchActive && viewedIssueKeys.has(issue);
-                  const detailHref = combinationDetailHref(
-                    issue,
-                    activeSearch,
-                    isSearchActive,
-                  );
-                  const sourceDisplay = sourceLine || "Kaynak belirtilmedi";
-                  const isSelected = selectedIds.has(issue);
-
-                  return (
-                    <Fragment key={issue}>
-                      {/* Mobile row: slim list style */}
-                      <div
-                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition hover:bg-cyan-50/45 md:hidden ${
-                          isSelected ? "bg-violet-50/40" : ""
-                        } ${
-                          isViewedInSearch
-                            ? "border-l-4 border-rose-500"
-                            : isSearchActive
-                              ? "border-l-4 border-amber-400"
-                              : ""
-                        }`}
-                      >
-                        {isViewedInSearch ? (
-                          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
-                        ) : null}
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleGroupSelection(issue)}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`${issue} seç`}
-                          className={uiRowCheckbox}
-                        />
-                        <span className="min-w-0 flex-1 line-clamp-1 text-sm font-black text-slate-900">
-                          {isSearchActive
-                            ? renderHighlightedText(issue, activeSearch)
-                            : issue}
-                        </span>
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            if (isSearchActive) handleCombinationNavigate(issue);
-                          }}
-                          className="shrink-0 text-xs font-bold text-cyan-600 hover:text-violet-700"
-                        >
-                          Detay→
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void handleMobileDeleteGroup(issue);
-                          }}
-                          className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
-                        >
-                          Sil
-                        </button>
-                      </div>
-
-                      {/* Desktop row: all 7 columns */}
-                      <div
-                        className={`relative hidden grid-cols-[auto_1.2fr_0.9fr_0.55fr_1fr_0.78fr_0.62fr] gap-3 overflow-hidden px-4 py-3 text-[12px] transition hover:bg-cyan-50/45 md:grid ${
-                          isSelected ? "bg-violet-50/60" : ""
-                        } ${
-                          isViewedInSearch
-                            ? "border-l-4 border-rose-600"
-                            : isSearchActive
-                              ? "border-l-4 border-amber-400"
-                              : ""
-                        }`}
-                      >
-                        {isViewedInSearch ? (
-                          <span
-                            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-                            aria-hidden
-                          />
-                        ) : null}
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleGroupSelection(issue)}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`${issue} seç`}
-                            className={uiRowCheckbox}
-                          />
-                        </div>
-                        <div className={`min-w-0 font-black text-slate-950 ${isViewedInSearch ? "pl-2" : ""}`}>
-                          {isSearchActive ? (
-                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                              <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                              {isViewedInSearch ? (
-                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                  Bakıldı
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <span className="block truncate">
-                            {isSearchActive
-                              ? renderHighlightedText(issue, activeSearch)
-                              : issue}
-                          </span>
-                        </div>
-                        <div className={`min-w-0 font-semibold text-violet-800 ${isViewedInSearch ? "pl-2" : ""}`}>
-                          <span className="line-clamp-2 block">
-                            {isSearchActive && category
-                              ? renderHighlightedText(category, activeSearch)
-                              : category || "—"}
-                          </span>
-                        </div>
-                        <div className={`font-bold text-slate-600 ${isViewedInSearch ? "pl-2" : ""}`}>
-                          {count}
-                        </div>
-                        <div className={`min-w-0 text-slate-600 ${isViewedInSearch ? "pl-2" : ""}`}>
-                          <span className="line-clamp-2 block font-medium">
-                            {isSearchActive && sourceLine
-                              ? renderHighlightedText(sourceDisplay, activeSearch)
-                              : sourceLine ? (
-                                sourceDisplay
-                              ) : (
-                                <span className="text-slate-400">Kaynak belirtilmedi</span>
-                              )}
-                          </span>
-                        </div>
-                        <div
-                          className={`whitespace-nowrap text-[12px] font-semibold text-slate-500 ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          {ts ? formatListCardDate(ts) : "—"}
-                        </div>
-                        <div className="flex justify-end">
-                          <Link
-                            href={detailHref}
-                            onClick={() => {
-                              if (isSearchActive) handleCombinationNavigate(issue);
-                            }}
-                            className={`${uiComboBtn} !mt-0 px-4 py-3 text-sm`}
-                          >
-                            Detay →
-                          </Link>
-                        </div>
-                      </div>
-                    </Fragment>
-                  );
-                })}
-              </div>
+          /* ── List view ── */
+          <div className="overflow-hidden rounded-xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur-xl">
+            {/* Column headers — desktop */}
+            <div className="hidden grid-cols-[auto_1.4fr_0.8fr_0.4fr_1fr_0.7fr_0.5fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid">
+              <div className="w-5" aria-hidden />
+              <div>Başlık</div>
+              <div>Kategori</div>
+              <div>Variant</div>
+              <div>Kaynak</div>
+              <div>Tarih</div>
+              <div className="text-right">İşlem</div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+
+            <div className="divide-y divide-slate-100">
               {groups.map(({ issue, rows: groupRows }) => {
                 const sourceLine = firstSourceInGroup(groupRows);
                 const category = groupDescription(groupRows);
                 const ts = latestDisplayTimestamp(groupRows);
                 const count = groupRows.length;
-                const isViewedInSearch =
-                  isSearchActive && viewedIssueKeys.has(issue);
-                const detailHref = combinationDetailHref(
-                  issue,
-                  activeSearch,
-                  isSearchActive,
-                );
-                const preview = previewText(groupRows);
+                const isViewedInSearch = isSearchActive && viewedIssueKeys.has(issue);
+                const detailHref = combinationDetailHref(issue, activeSearch, isSearchActive);
                 const isSelected = selectedIds.has(issue);
 
                 return (
-                  <article
-                    key={issue}
-                    className={`${uiComboCard} ${
-                      isSelected ? "border-violet-400/70 bg-violet-50/50" : ""
-                    } ${
-                      isViewedInSearch
-                        ? "border-l-4 border-rose-600"
-                        : isSearchActive
-                          ? "border-l-4 border-amber-400"
-                          : ""
-                    }`}
-                  >
-                    {isViewedInSearch ? (
-                      <span
-                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-                        aria-hidden
-                      />
-                    ) : null}
+                  <Fragment key={issue}>
+                    {/* Mobile */}
                     <div
-                      className={`absolute left-2 top-2 z-10 flex items-center gap-1.5 rounded-md bg-white/90 px-1.5 py-0.5 shadow-sm ring-1 ring-slate-100 ${isViewedInSearch ? "left-4" : ""}`}
+                      className={`relative flex items-center gap-2 px-3 py-2.5 transition hover:bg-violet-50/30 md:hidden ${
+                        isSelected ? "bg-violet-50/40" : ""
+                      } ${isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""}`}
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleGroupSelection(issue)}
-                        onClick={(event) => event.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={`${issue} seç`}
-                        className="h-4 w-4 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40"
+                        className={uiRowCheckbox}
                       />
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                        Seç
+                      <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
+                        {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
                       </span>
-                    </div>
-                    <div className={`flex gap-2 pt-6 ${isViewedInSearch ? "pl-2" : ""}`}>
-                      <div
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(145deg,#ede9fe_0%,#e0f2fe_48%,#d1fae5_100%)] text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_10px_rgba(139,92,246,0.08)] ring-1 ring-white/90"
-                        aria-hidden
+                      <Link
+                        href={detailHref}
+                        onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
+                        className="shrink-0 text-xs font-bold text-violet-600 hover:text-violet-800"
                       >
-                        ✦
+                        Detay →
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleMobileDeleteGroup(issue); }}
+                        className="min-h-[36px] shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 text-xs font-black text-rose-600 hover:bg-rose-100"
+                      >
+                        Sil
+                      </button>
+                    </div>
+
+                    {/* Desktop */}
+                    <div
+                      className={`relative hidden grid-cols-[auto_1.4fr_0.8fr_0.4fr_1fr_0.7fr_0.5fr] gap-3 px-4 py-2.5 text-[12px] transition hover:bg-violet-50/20 md:grid ${
+                        isSelected ? "bg-violet-50/30" : ""
+                      } ${isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""}`}
+                    >
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleGroupSelection(issue)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${issue} seç`}
+                          className={uiRowCheckbox}
+                        />
                       </div>
-
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="mb-1 flex flex-wrap items-center gap-1">
-                          <span className={uiComboBadge}>{count} kombinasyon</span>
-                          {isSearchActive ? (
-                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">🔎 Eşleşme</span>
-                          ) : null}
-                          {isViewedInSearch ? (
-                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                              Bakıldı
-                            </span>
-                          ) : null}
-                          {category ? (
-                            <span className={uiCategoryPill}>
-                              {isSearchActive
-                                ? renderHighlightedText(category, activeSearch)
-                                : category}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <h2 className="mt-1 text-sm font-black text-slate-950">
-                          {isSearchActive
-                            ? renderHighlightedText(issue, activeSearch)
-                            : issue}
-                        </h2>
-
-                        <p className="mt-1 line-clamp-1 text-[11px] font-bold text-cyan-700">
-                          {sourceLine ? (
-                            <>
-                              <span>Kaynak: </span>
-                              {isSearchActive
-                                ? renderHighlightedText(sourceLine, activeSearch)
-                                : sourceLine}
-                            </>
-                          ) : (
-                            <span className="text-slate-400">Kaynak belirtilmedi</span>
-                          )}
-                        </p>
-
-                        <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-600">
-                          {isSearchActive
-                            ? renderHighlightedText(preview, activeSearch)
-                            : preview}
-                        </p>
-
-                        <p className="mt-1 text-[10px] font-medium text-slate-400">
-                          {ts ? `Son kayıt: ${formatListCardDate(ts)}` : "Son kayıt: —"}
-                        </p>
-
+                      <div className="min-w-0 font-black text-slate-900">
+                        {isSearchActive ? (
+                          <div className="mb-0.5 flex flex-wrap items-center gap-1">
+                            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
+                            {isViewedInSearch && (
+                              <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">
+                                Bakıldı
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
+                        <span className="block truncate">
+                          {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
+                        </span>
+                      </div>
+                      <div className="min-w-0 truncate font-semibold text-violet-700">
+                        {isSearchActive && category
+                          ? renderHighlightedText(category, activeSearch)
+                          : category || <span className="text-slate-400">—</span>}
+                      </div>
+                      <div className="font-black text-slate-700">{count}</div>
+                      <div className="min-w-0 truncate font-medium text-slate-600">
+                        {sourceLine ? (
+                          isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </div>
+                      <div className="whitespace-nowrap font-medium text-slate-500">
+                        {ts ? formatListCardDate(ts) : "—"}
+                      </div>
+                      <div className="flex justify-end">
                         <Link
                           href={detailHref}
-                          onClick={() => {
-                            if (isSearchActive) handleCombinationNavigate(issue);
-                          }}
-                          className={uiComboBtn}
+                          onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50"
                         >
-                          Kombinasyonları Gör →
+                          Detay →
                         </Link>
                       </div>
                     </div>
-                  </article>
+                  </Fragment>
                 );
               })}
             </div>
-          )}
-        </section>
+          </div>
+
+        ) : (
+
+          /* ── Card view ── */
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            {groups.map(({ issue, rows: groupRows }) => {
+              const sourceLine = firstSourceInGroup(groupRows);
+              const category = groupDescription(groupRows);
+              const ts = latestDisplayTimestamp(groupRows);
+              const count = groupRows.length;
+              const isViewedInSearch = isSearchActive && viewedIssueKeys.has(issue);
+              const detailHref = combinationDetailHref(issue, activeSearch, isSearchActive);
+              const preview = previewText(groupRows);
+              const isSelected = selectedIds.has(issue);
+              const stats = groupStats(groupRows);
+
+              return (
+                <article
+                  key={issue}
+                  className={`${uiComboCard} ${isSelected ? "border-violet-300 bg-violet-50/40" : ""} ${
+                    isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""
+                  }`}
+                >
+                  {/* Checkbox + badges row */}
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleGroupSelection(issue)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`${issue} seç`}
+                      className={uiRowCheckbox}
+                    />
+                    <span className={uiComboBadge}>{count} variant</span>
+                    {category && (
+                      <span className={uiCategoryPill}>
+                        {isSearchActive ? renderHighlightedText(category, activeSearch) : category}
+                      </span>
+                    )}
+                    {isSearchActive && (
+                      <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme</span>
+                    )}
+                    {isViewedInSearch && (
+                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">Bakıldı</span>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="text-sm font-black leading-snug text-slate-950">
+                    {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
+                  </h2>
+
+                  {/* Source */}
+                  {sourceLine ? (
+                    <p className="mt-1 truncate text-[11px] font-medium text-violet-700">
+                      {isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine}
+                    </p>
+                  ) : null}
+
+                  {/* Preview */}
+                  {preview ? (
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
+                      {isSearchActive ? renderHighlightedText(preview, activeSearch) : preview}
+                    </p>
+                  ) : null}
+
+                  {/* Metadata */}
+                  <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                    {stats.sources > 0 ? `${stats.sources} kaynak · ` : ""}
+                    {stats.stonesCount > 0 ? `${stats.stonesCount} taş metni · ` : ""}
+                    {ts ? formatListCardDate(ts) : "—"}
+                  </p>
+
+                  {/* Action */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <Link
+                      href={detailHref}
+                      onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
+                      className={uiComboBtn}
+                    >
+                      Detay →
+                    </Link>
+                    {isMobile && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); void handleMobileDeleteGroup(issue); }}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-600 hover:bg-rose-100"
+                      >
+                        Sil
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
       </div>
     </main>
   );

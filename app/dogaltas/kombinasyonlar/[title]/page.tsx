@@ -677,6 +677,232 @@ function CombinationCalculator({
   );
 }
 
+// ─── Analytics helpers ───────────────────────────────────────────────────────
+
+type VariantSummary = {
+  rowId: string;
+  stockedCount: number;
+  totalChips: number;
+  applicabilityPct: number;
+  estimatedCost: number;
+  stockedDisplayNames: string[];
+  missingStoneNames: string[];
+};
+
+type GlobalSummary = {
+  totalCombinations: number;
+  totalStockedUnique: number;
+  totalUniqueStones: number;
+  missingNames: string[];
+  criticalStones: { name: string; adet: number }[];
+  bestVariantIndex: number;
+  bestVariantPct: number;
+  bestVariantCost: number;
+};
+
+function isLikelyStoneName(chip: string): boolean {
+  const trimmed = chip.trim();
+  if (trimmed.length < 3 || trimmed.length > 30) return false;
+  if (trimmed.split(/\s+/).filter(Boolean).length > 3) return false;
+  const norm = normalizeForMatch(trimmed);
+  const skip = ["kullan", "icin", "adet", "koy", "geri", "tamamla", "bunlar", "milim", "orta", "milimlik", "birlikte", "yapil"];
+  return !skip.some((w) => norm.includes(w));
+}
+
+function computeVariantSummary(
+  row: CombinationRecord,
+  stockMap: Map<string, StockEntry>,
+): VariantSummary {
+  const { chipsStones, allStockedDisplayNames } = getMatchedStones(row, stockMap);
+  const stockedCount = allStockedDisplayNames.length;
+  const totalChips = chipsStones.length;
+  const applicabilityPct =
+    totalChips > 0
+      ? Math.min(100, Math.round((stockedCount / totalChips) * 100))
+      : stockedCount > 0
+        ? 100
+        : 0;
+
+  const missingStoneNames = chipsStones.filter(
+    (chip) => isLikelyStoneName(chip) && resolveStockKey(chip, stockMap) === null,
+  );
+
+  const estimatedCost = allStockedDisplayNames.reduce((sum, name) => {
+    const entry = stockMap.get(normalizeForMatch(name));
+    return sum + (entry?.unitCostTry ?? 0);
+  }, 0);
+
+  return {
+    rowId: row.id,
+    stockedCount,
+    totalChips,
+    applicabilityPct,
+    estimatedCost,
+    stockedDisplayNames: allStockedDisplayNames,
+    missingStoneNames,
+  };
+}
+
+function computeGlobalSummary(
+  variantSummaries: VariantSummary[],
+  stockMap: Map<string, StockEntry>,
+): GlobalSummary {
+  const stockedSet = new Set<string>();
+  const missingSet = new Set<string>();
+
+  for (const vs of variantSummaries) {
+    vs.stockedDisplayNames.forEach((n) => stockedSet.add(normalizeForMatch(n)));
+    vs.missingStoneNames.forEach((n) => {
+      const k = normalizeForMatch(n);
+      if (!stockedSet.has(k)) missingSet.add(n);
+    });
+  }
+
+  const criticalStones: { name: string; adet: number }[] = [];
+  for (const normKey of stockedSet) {
+    const entry = stockMap.get(normKey);
+    if (entry && entry.adet > 0 && entry.adet <= 5) {
+      criticalStones.push({ name: entry.displayName, adet: entry.adet });
+    }
+  }
+  criticalStones.sort((a, b) => a.adet - b.adet);
+
+  const sorted = [...variantSummaries].sort((a, b) => {
+    if (b.applicabilityPct !== a.applicabilityPct) return b.applicabilityPct - a.applicabilityPct;
+    return a.estimatedCost - b.estimatedCost;
+  });
+  const best = sorted[0];
+  const bestIdx = best ? variantSummaries.findIndex((v) => v.rowId === best.rowId) : 0;
+
+  return {
+    totalCombinations: variantSummaries.length,
+    totalStockedUnique: stockedSet.size,
+    totalUniqueStones: stockedSet.size + missingSet.size,
+    missingNames: [...missingSet],
+    criticalStones,
+    bestVariantIndex: bestIdx,
+    bestVariantPct: best?.applicabilityPct ?? 0,
+    bestVariantCost: best?.estimatedCost ?? 0,
+  };
+}
+
+// ─── Dashboard bileşenleri ─────────────────────────────────────────────────────
+
+function ApplicabilityBadge({ pct }: { pct: number }) {
+  const [cls, label] =
+    pct === 100
+      ? ["border-emerald-200 bg-emerald-50 text-emerald-700", "Tam"]
+      : pct >= 50
+        ? ["border-amber-200 bg-amber-50 text-amber-700", "Kısmi"]
+        : ["border-rose-200 bg-rose-50 text-rose-700", "Eksik"];
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${cls}`}>
+      {pct}% {label}
+    </span>
+  );
+}
+
+function AnalysisDashboard({
+  global,
+  variantSummaries,
+}: {
+  global: GlobalSummary;
+  variantSummaries: VariantSummary[];
+}) {
+  const showBest = variantSummaries.length > 1 && global.bestVariantPct > 0;
+
+  return (
+    <div className="space-y-2">
+      {/* Özet istatistikler */}
+      <div className={`${uiInfoCard} flex flex-wrap gap-x-6 gap-y-2`}>
+        <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-violet-700">
+          ANALİZ
+        </span>
+        <StatChip label="Kombinasyon" value={global.totalCombinations} color="violet" />
+        <StatChip label="Stok Taşı" value={global.totalStockedUnique} color="emerald" />
+        {global.missingNames.length > 0 && (
+          <StatChip label="Eksik" value={global.missingNames.length} color="rose" />
+        )}
+        {global.criticalStones.length > 0 && (
+          <StatChip label="Kritik Stok" value={global.criticalStones.length} color="amber" />
+        )}
+        {showBest && (
+          <span className="ml-auto text-[11px] font-semibold text-slate-600">
+            <span className="mr-1 text-amber-500">★</span>
+            Önerilen: Kombinasyon {global.bestVariantIndex + 1}
+            {" · "}
+            <span className="font-black text-emerald-700">{global.bestVariantPct}%</span>
+            {global.bestVariantCost > 0 && (
+              <span className="text-slate-400"> · {fmtTL(global.bestVariantCost)}</span>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* Eksik taşlar */}
+      {global.missingNames.length > 0 && (
+        <div className={`${uiInfoCard}`}>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-700">
+              EKSİK TAŞLAR
+            </span>
+            {global.missingNames.map((name, i) => (
+              <span
+                key={i}
+                className="inline-flex rounded-full border border-rose-200 bg-rose-50/60 px-2.5 py-0.5 text-xs font-semibold text-rose-700"
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Kritik stok */}
+      {global.criticalStones.length > 0 && (
+        <div className={`${uiInfoCard}`}>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700">
+              KRİTİK STOK
+            </span>
+            {global.criticalStones.map(({ name, adet }, i) => (
+              <span
+                key={i}
+                className="inline-flex rounded-full border border-amber-200 bg-amber-50/60 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
+              >
+                ⚠ {name} ({adet})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: "violet" | "emerald" | "rose" | "amber";
+}) {
+  const cls = {
+    violet: "text-violet-700",
+    emerald: "text-emerald-700",
+    rose: "text-rose-600",
+    amber: "text-amber-700",
+  }[color];
+  return (
+    <span className="text-[11px] font-medium text-slate-500">
+      {label}:{" "}
+      <span className={`font-black ${cls}`}>{value}</span>
+    </span>
+  );
+}
+
 // ─── Variant card ─────────────────────────────────────────────────────────────
 
 function VariantCard({
@@ -689,6 +915,7 @@ function VariantCard({
   stockLoading,
   isCalcOpen,
   onToggleCalc,
+  applicabilityPct,
 }: {
   row: CombinationRecord;
   index: number;
@@ -705,6 +932,7 @@ function VariantCard({
   stockLoading: boolean;
   isCalcOpen: boolean;
   onToggleCalc: () => void;
+  applicabilityPct?: number;
 }) {
   const calcOpen = isCalcOpen;
 
@@ -734,9 +962,9 @@ function VariantCard({
         <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-violet-700">
           KOMBİNASYON {index + 1}/{total}
         </span>
-        <span className="text-[10px] font-semibold text-slate-400">
-          Variant #{row.variant_index}
-        </span>
+        {applicabilityPct !== undefined && !stockLoading ? (
+          <ApplicabilityBadge pct={applicabilityPct} />
+        ) : null}
         <span className="ml-auto text-[10px] font-medium text-slate-400">
           {formatDate(row.created_at)}
         </span>
@@ -996,6 +1224,16 @@ function KombinasyonDetayPageContent() {
     }));
   }, [highlightQuery, rows]);
 
+  const variantSummaries = useMemo<VariantSummary[] | null>(() => {
+    if (stockLoading || stockMap.size === 0 || rows.length === 0) return null;
+    return rows.map((row) => computeVariantSummary(row, stockMap));
+  }, [rows, stockMap, stockLoading]);
+
+  const globalSummary = useMemo<GlobalSummary | null>(() => {
+    if (!variantSummaries) return null;
+    return computeGlobalSummary(variantSummaries, stockMap);
+  }, [variantSummaries, stockMap]);
+
   const hasHighlight = Boolean(highlightQuery.trim());
   const headerHasMatch = Boolean(
     sectionMatches?.issue || sectionMatches?.category || sectionMatches?.description,
@@ -1088,6 +1326,10 @@ function KombinasyonDetayPageContent() {
           </div>
         ) : null}
 
+        {globalSummary && variantSummaries ? (
+          <AnalysisDashboard global={globalSummary} variantSummaries={variantSummaries} />
+        ) : null}
+
         {loading ? (
           <div
             className={`${uiVariantCard} flex min-h-[120px] items-center justify-center text-sm font-bold text-slate-500`}
@@ -1122,6 +1364,7 @@ function KombinasyonDetayPageContent() {
                 }
                 stockMap={stockMap}
                 stockLoading={stockLoading}
+                applicabilityPct={variantSummaries?.[index]?.applicabilityPct}
                 isCalcOpen={openCalcIds.has(row.id)}
                 onToggleCalc={() =>
                   setOpenCalcIds((prev) => {
