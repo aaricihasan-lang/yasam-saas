@@ -487,73 +487,59 @@ function StonesBlock({
       </div>
       <div className="mt-1.5">
         {hasAny ? (
-          <>
-            {stones.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {resolvedChipData.map(({ stone, stockKey, canonical }, idx) => {
-                  if (stockLoading) {
-                    return (
-                      <span
-                        key={idx}
-                        title="Stok bilgisi yükleniyor"
-                        className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
-                      >
-                        {highlightQuery.trim()
-                          ? renderHighlightedText(stone, highlightQuery)
-                          : stone}
-                      </span>
-                    );
-                  }
-                  const inStock = stockKey !== null;
-                  const displayText = canonical ?? stone;
-                  const tooltipText = canonical
-                    ? `Stokta var (${canonical})`
-                    : inStock
-                      ? "Stokta var"
-                      : "Stokta yok";
-                  return inStock ? (
-                    <span
-                      key={idx}
-                      title={tooltipText}
-                      className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
-                    >
-                      <span className="text-[10px] font-black text-emerald-600">✓</span>
-                      {canonical
-                        ? displayText
-                        : highlightQuery.trim()
-                          ? renderHighlightedText(stone, highlightQuery)
-                          : stone}
-                    </span>
-                  ) : (
-                    <span
-                      key={idx}
-                      title={tooltipText}
-                      className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
-                    >
-                      {highlightQuery.trim()
-                        ? renderHighlightedText(stone, highlightQuery)
-                        : stone}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-            {!stockLoading && extraTextStones.length > 0 && (
-              <div className={`flex flex-wrap items-center gap-1.5 ${stones.length > 0 ? "mt-1.5 border-t border-slate-100 pt-1.5" : ""}`}>
-                <span className="text-[10px] font-medium text-slate-400">Metinden:</span>
-                {extraTextStones.map((stone, idx) => (
+          <div className="flex flex-wrap gap-1.5">
+            {resolvedChipData.map(({ stone, stockKey, canonical }, idx) => {
+              if (stockLoading) {
+                return (
                   <span
-                    key={idx}
-                    title="Stokta var (notlardan yakalandı)"
-                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                    key={`c-${idx}`}
+                    title="Stok bilgisi yükleniyor"
+                    className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
                   >
-                    <span className="text-[10px] font-black text-emerald-600">✓</span>
-                    {stone}
+                    {highlightQuery.trim()
+                      ? renderHighlightedText(stone, highlightQuery)
+                      : stone}
                   </span>
-                ))}
-              </div>
-            )}
-          </>
+                );
+              }
+              const inStock = stockKey !== null;
+              const canonical_ = canonical ?? null;
+              return inStock ? (
+                <span
+                  key={`c-${idx}`}
+                  title="Stokta var"
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                >
+                  <span className="text-[10px] font-black text-emerald-600">✓</span>
+                  {canonical_
+                    ? canonical_
+                    : highlightQuery.trim()
+                      ? renderHighlightedText(stone, highlightQuery)
+                      : stone}
+                </span>
+              ) : (
+                <span
+                  key={`c-${idx}`}
+                  title="Stokta yok"
+                  className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
+                >
+                  {highlightQuery.trim()
+                    ? renderHighlightedText(stone, highlightQuery)
+                    : stone}
+                </span>
+              );
+            })}
+            {!stockLoading && extraTextStones.map((stone, idx) => (
+              <span
+                key={`e-${idx}`}
+                title="Stokta var"
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+              >
+                <span className="text-[10px] font-black text-emerald-600">✓</span>
+                {stone}
+              </span>
+            ))}
+          </div>
         ) : (
           <p className={uiEmptyText}>—</p>
         )}
