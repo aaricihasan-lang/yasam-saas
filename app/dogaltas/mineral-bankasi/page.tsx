@@ -100,7 +100,7 @@ const emptyForm: MineralForm = {
 const uiCard =
   "rounded-[30px] border-[3px] border-emerald-400/40 bg-white/65 shadow-[0_0_40px_rgba(16,185,129,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-500 hover:shadow-[0_0_50px_rgba(245,158,11,0.20)]";
 const uiInput =
-  "w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 py-2.5 text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
+  "w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 py-2 text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 
 function linesToArray(text: string) {
   return text
@@ -207,16 +207,16 @@ export default function MineralBankasiPage() {
       <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-amber-300/20 blur-[150px]" />
       <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-emerald-300/20 blur-[150px]" />
 
-      <div className="relative w-full px-5 py-4 xl:px-8 2xl:px-10">
-        <header className={`${uiCard} mb-3 flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between`}>
+      <div className="relative w-full px-5 py-2 xl:px-8 2xl:px-10">
+        <header className={`${uiCard} mb-2 flex flex-col gap-2 p-3 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
                 ⚗️ MİNERAL BANKASI
               </span>
             </div>
 
-            <h1 className="bg-gradient-to-r from-emerald-700 to-amber-600 bg-clip-text text-2xl font-black text-transparent">
+            <h1 className="bg-gradient-to-r from-emerald-700 to-amber-600 bg-clip-text text-xl font-black text-transparent">
               Mineral Kayıt Ekranı
             </h1>
 
@@ -254,7 +254,7 @@ export default function MineralBankasiPage() {
 
         {(message || errorMessage) && (
           <div
-            className={`mb-3 rounded-2xl px-5 py-3 text-[13px] font-black ring-1 ${
+            className={`mb-2 rounded-2xl px-4 py-2 text-[13px] font-black ring-1 ${
               errorMessage
                 ? "bg-rose-50 text-rose-700 ring-rose-100"
                 : "bg-emerald-50 text-emerald-700 ring-emerald-100"
@@ -264,9 +264,9 @@ export default function MineralBankasiPage() {
           </div>
         )}
 
-        <section className={`${uiCard} mb-3 grid grid-cols-1 gap-3 p-4 md:grid-cols-2`}>
+        <section className={`${uiCard} mb-2 grid grid-cols-1 gap-2 p-3 md:grid-cols-2`}>
           <label className="block md:col-span-2">
-            <span className="mb-1.5 block text-xs font-black tracking-[0.16em] text-emerald-800">
+            <span className="mb-1 block text-xs font-black tracking-[0.16em] text-emerald-800">
               MİNERAL ADI
             </span>
             <input
@@ -278,7 +278,7 @@ export default function MineralBankasiPage() {
           </label>
 
           <label className="block md:col-span-2">
-            <span className="mb-1.5 block text-xs font-black tracking-[0.16em] text-emerald-800">
+            <span className="mb-1 block text-xs font-black tracking-[0.16em] text-emerald-800">
               KATEGORİ
             </span>
             <input
@@ -290,11 +290,11 @@ export default function MineralBankasiPage() {
           </label>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[240px_1fr]">
-          <aside className={`${uiCard} p-3`}>
-            <h2 className="mb-2 px-1 text-sm font-black text-slate-950">Kayıt Bölümleri</h2>
+        <section className="grid grid-cols-1 gap-3 xl:grid-cols-[220px_1fr]">
+          <aside className={`${uiCard} p-2.5`}>
+            <h2 className="mb-1.5 px-1 text-sm font-black text-slate-950">Kayıt Bölümleri</h2>
 
-            <div className="grid grid-cols-1 gap-1.5">
+            <div className="grid grid-cols-1 gap-1">
               {mineralSections.map((section) => {
                 const active = activeSection === section.key;
                 const filled = form[section.key].trim().length > 0;
@@ -307,7 +307,7 @@ export default function MineralBankasiPage() {
                       setActiveSection(section.key);
                       setExpandedEditor(false);
                     }}
-                    className={`w-full rounded-xl px-3 py-2 text-left transition-all duration-300 hover:translate-x-1 ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-left transition-all duration-300 hover:translate-x-1 ${
                       active
                         ? "scale-[1.01] bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
                         : "border border-white/40 bg-white/60 text-slate-700 hover:border-amber-300/50"
@@ -333,8 +333,8 @@ export default function MineralBankasiPage() {
             </div>
           </aside>
 
-          <section className={`${uiCard} min-h-[400px] bg-gradient-to-br from-white/70 to-emerald-50 p-4`}>
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <section className={`${uiCard} bg-gradient-to-br from-white/70 to-emerald-50 p-3`}>
+            <div className="mb-2 flex items-center justify-between gap-3">
               <div>
                 <div className="mb-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-800 ring-1 ring-emerald-100">
                   AKTİF BÖLÜM
@@ -351,7 +351,7 @@ export default function MineralBankasiPage() {
               onClick={() => setExpandedEditor(true)}
               className={`${uiInput} w-full text-left text-sm leading-7 text-slate-600`}
             >
-              <p className="min-h-[280px] whitespace-pre-wrap">
+              <p className="min-h-[140px] whitespace-pre-wrap">
                 {form[activeSection].trim()
                   ? form[activeSection].slice(0, 420)
                   : activeSectionInfo.placeholder}
