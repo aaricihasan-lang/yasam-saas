@@ -650,59 +650,6 @@ export default function DogaltasKayitPage() {
             ))}
           </div>
 
-          <div className={`${uiCard} border-l-[5px] border-l-amber-400 p-4`}>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-lg ring-1 ring-amber-200">
-                  ⚠️
-                </span>
-                <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">Uyarılar ve Hassasiyetler</h2>
-                  <p className="mt-0.5 text-amber-700/80 text-[12px] font-semibold">Danışan modülü ile entegre — bu alan taş önerilerinde otomatik kontrol edilir.</p>
-                </div>
-              </div>
-              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-black text-amber-700">
-                Klinik Not
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
-              <div>
-                <label className={uiLabel}>
-                  Uyarı Metni
-                </label>
-
-                <textarea
-                  value={formData.warning_text}
-                  onChange={(event) => updateField("warning_text", event.target.value)}
-                  onFocus={() => openLargeEditor("Uyarılar", "warning_text")}
-                  placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
-                  className={uiTextarea}
-                />
-              </div>
-
-              <div>
-                <label className={uiLabel}>
-                  Uyarı Etiketleri
-                </label>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  {warningTypes.map((warning) => (
-                    <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-2.5 px-3 py-2`}>
-                      <input
-                        type="checkbox"
-                        checked={selectedWarnings.includes(warning)}
-                        onChange={() => toggleWarning(warning)}
-                        className="h-5 w-5 accent-rose-600"
-                      />
-                      <span className="text-[13px] font-bold text-slate-700">{warning}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className={`${uiCard} p-4`}>
             <button
               type="button"
@@ -715,7 +662,7 @@ export default function DogaltasKayitPage() {
                 </span>
                 <div>
                   <h2 className="text-base font-black tracking-wide text-slate-950">İleri Seviye Notlar</h2>
-                  <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
+                  <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım, uygulama ve uyarı notları.</p>
                 </div>
               </div>
               <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
@@ -724,21 +671,70 @@ export default function DogaltasKayitPage() {
             </button>
 
             {advancedOpen && (
-              <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-4">
-                {usageSections.map((item) => (
-                  <div key={item.key} className={`${uiPanel} p-4`}>
-                    <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-4">
+                  {usageSections.map((item) => (
+                    <div key={item.key} className={`${uiPanel} p-4`}>
+                      <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
 
-                    <textarea
-                      value={formData[item.key as keyof FormData]}
-                      onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
-                      onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
-                      placeholder={`${item.title} notu...`}
-                      className={uiTextarea}
-                    />
+                      <textarea
+                        value={formData[item.key as keyof FormData]}
+                        onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
+                        onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
+                        placeholder={`${item.title} notu...`}
+                        className={uiTextarea}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 border-t border-amber-200/60 pt-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-base ring-1 ring-amber-200">
+                        ⚠️
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-black text-slate-950">Uyarılar ve Hassasiyetler</h3>
+                        <p className="mt-0.5 text-[11px] font-semibold text-amber-700/80">Danışan modülü ile entegre — bu alan taş önerilerinde otomatik kontrol edilir.</p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700">
+                      Klinik Not
+                    </span>
                   </div>
-                ))}
-              </div>
+
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
+                    <div>
+                      <label className={uiLabel}>Uyarı Metni</label>
+                      <textarea
+                        value={formData.warning_text}
+                        onChange={(event) => updateField("warning_text", event.target.value)}
+                        onFocus={() => openLargeEditor("Uyarılar", "warning_text")}
+                        placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
+                        className={uiTextarea}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={uiLabel}>Uyarı Etiketleri</label>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {warningTypes.map((warning) => (
+                          <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-2.5 px-3 py-2`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedWarnings.includes(warning)}
+                              onChange={() => toggleWarning(warning)}
+                              className="h-5 w-5 accent-rose-600"
+                            />
+                            <span className="text-[13px] font-bold text-slate-700">{warning}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
 
