@@ -77,6 +77,12 @@ function normalizeTrSearch(value: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
+function normalizeForMatch(value: string): string {
+  return normalizeTrSearch(value)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
   let norm = "";
   const indexMap: number[] = [];
@@ -166,7 +172,7 @@ function formatDate(value: string | null | undefined) {
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
 const pageContent =
-  "relative z-10 mx-auto w-full max-w-7xl space-y-2 px-4 py-3 xl:px-8 2xl:px-10";
+  "relative z-10 mx-auto w-full max-w-[1720px] space-y-2 px-4 py-3 sm:px-5 lg:px-8 2xl:px-10";
 const uiHeaderCard =
   "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiVariantCard =
@@ -234,10 +240,14 @@ function FieldBlock({
 
 function StonesBlock({
   text,
+  stockNames,
+  stockLoading,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
   text: string | null | undefined;
+  stockNames: Set<string>;
+  stockLoading: boolean;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
 }) {
@@ -248,6 +258,10 @@ function StonesBlock({
     .map((s) => s.trim())
     .filter(Boolean) ?? [];
 
+  const inStockCount = !stockLoading
+    ? stones.filter((s) => stockNames.has(normalizeForMatch(s))).length
+    : 0;
+
   return (
     <article className={cardClass}>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -256,6 +270,11 @@ function StonesBlock({
         {stones.length > 0 ? (
           <span className="text-[10px] font-medium text-slate-400">
             {stones.length} taş
+            {stockLoading
+              ? " · stok kontrol ediliyor"
+              : inStockCount > 0
+                ? ` · ${inStockCount} stokta`
+                : null}
           </span>
         ) : null}
         {showMatchBadge ? <SearchMatchBadge /> : null}
@@ -263,16 +282,44 @@ function StonesBlock({
       <div className="mt-1.5">
         {stones.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            {stones.map((stone, idx) => (
-              <span
-                key={idx}
-                className="inline-flex rounded-full border border-cyan-200 bg-cyan-50/80 px-2.5 py-0.5 text-xs font-semibold text-cyan-800"
-              >
-                {highlightQuery.trim()
-                  ? renderHighlightedText(stone, highlightQuery)
-                  : stone}
-              </span>
-            ))}
+            {stones.map((stone, idx) => {
+              if (stockLoading) {
+                return (
+                  <span
+                    key={idx}
+                    title="Stok bilgisi yükleniyor"
+                    className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
+                  >
+                    {highlightQuery.trim()
+                      ? renderHighlightedText(stone, highlightQuery)
+                      : stone}
+                  </span>
+                );
+              }
+              const inStock = stockNames.has(normalizeForMatch(stone));
+              return inStock ? (
+                <span
+                  key={idx}
+                  title="Stokta var"
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                >
+                  <span className="text-[10px] font-black text-emerald-600">✓</span>
+                  {highlightQuery.trim()
+                    ? renderHighlightedText(stone, highlightQuery)
+                    : stone}
+                </span>
+              ) : (
+                <span
+                  key={idx}
+                  title="Stokta yok"
+                  className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
+                >
+                  {highlightQuery.trim()
+                    ? renderHighlightedText(stone, highlightQuery)
+                    : stone}
+                </span>
+              );
+            })}
           </div>
         ) : (
           <p className={uiEmptyText}>—</p>
@@ -290,6 +337,8 @@ function VariantCard({
   total,
   highlightQuery = "",
   fieldMatches,
+  stockNames,
+  stockLoading,
 }: {
   row: CombinationRecord;
   index: number;
@@ -302,6 +351,8 @@ function VariantCard({
     notes2: boolean;
     notes3: boolean;
   };
+  stockNames: Set<string>;
+  stockLoading: boolean;
 }) {
   const hasVariantMatch =
     fieldMatches.source ||
@@ -338,6 +389,8 @@ function VariantCard({
         />
         <StonesBlock
           text={row.stones_text}
+          stockNames={stockNames}
+          stockLoading={stockLoading}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
@@ -399,6 +452,8 @@ function KombinasyonDetayPageContent() {
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [stockNames, setStockNames] = useState<Set<string>>(new Set());
+  const [stockLoading, setStockLoading] = useState(true);
 
   const categoryLabel = useMemo(() => {
     for (const row of rows) {
@@ -466,11 +521,41 @@ function KombinasyonDetayPageContent() {
     setRows(unique);
   }, [decodedIssue]);
 
+  const loadStockNames = useCallback(async () => {
+    setStockLoading(true);
+    try {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+
+      const { data } = await supabase
+        .from("dogaltas_inventory")
+        .select("name, adet")
+        .eq("tenant_id", tenantId)
+        .gt("adet", 0);
+
+      if (data) {
+        setStockNames(
+          new Set(
+            (data as { name: string; adet: number }[]).map((row) =>
+              normalizeForMatch(row.name),
+            ),
+          ),
+        );
+      }
+    } finally {
+      setStockLoading(false);
+    }
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([loadRows(), loadStockNames()]);
+  }, [loadRows, loadStockNames]);
+
   useEffect(() => {
     runInEffect(() => {
-      void loadRows();
+      void handleRefresh();
     });
-  }, [loadRows]);
+  }, [handleRefresh]);
 
   const sectionMatches = useMemo(() => {
     const q = highlightQuery.trim();
@@ -578,7 +663,7 @@ function KombinasyonDetayPageContent() {
             </Link>
             <button
               type="button"
-              onClick={() => void loadRows()}
+              onClick={() => void handleRefresh()}
               className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
             >
               Yenile
@@ -624,6 +709,8 @@ function KombinasyonDetayPageContent() {
                     notes3: false,
                   }
                 }
+                stockNames={stockNames}
+                stockLoading={stockLoading}
               />
             ))}
           </div>
