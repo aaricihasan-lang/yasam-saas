@@ -196,18 +196,18 @@ const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)]";
 const pageContent = "relative z-10 w-full px-4 py-2 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[28px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
+  "rounded-[24px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
 const uiProfileCard =
-  "rounded-[28px] border-[3px] border-amber-300/50 bg-gradient-to-br from-white/80 via-amber-50/70 to-emerald-50/70 p-3.5 shadow-[0_0_40px_rgba(245,158,11,0.16)] backdrop-blur-xl";
+  "rounded-[20px] border-[3px] border-amber-300/50 bg-gradient-to-br from-white/80 via-amber-50/70 to-emerald-50/70 p-2.5 shadow-[0_0_40px_rgba(245,158,11,0.16)] backdrop-blur-xl";
 const uiStatBox =
-  "rounded-xl border-2 border-emerald-200 bg-white/80 p-2.5 text-center shadow-md";
+  "rounded-lg border border-emerald-200 bg-white/80 p-2 text-center shadow-sm";
 const uiInfoCard =
-  "w-full rounded-[24px] border-[3px] border-emerald-300/45 bg-white/75 p-3.5 shadow-[0_0_35px_rgba(16,185,129,0.12)] backdrop-blur-xl";
+  "w-full rounded-[18px] border-2 border-emerald-300/45 bg-white/75 p-2.5 shadow-[0_0_30px_rgba(16,185,129,0.10)] backdrop-blur-xl";
 const uiContentBox =
-  "mt-2 rounded-xl border-2 border-slate-200 bg-slate-50/80 p-3 sm:p-4 text-slate-700 shadow-inner";
-const uiEmptyText = "text-slate-400 italic font-medium";
+  "mt-1.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-slate-700 shadow-inner max-h-[220px] overflow-y-auto";
+const uiEmptyText = "text-slate-400 italic text-xs";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-sm font-black text-cyan-900";
+  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs font-black text-cyan-900";
 
 function toneClass(
   tone: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red"
@@ -222,7 +222,7 @@ function toneClass(
     purple: "bg-purple-100 text-purple-700",
     red: "bg-red-100 text-red-700",
   };
-  return `inline-flex items-center rounded-full px-3 py-1 text-xs font-black tracking-wide ${map[tone]}`;
+  return `inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide ${map[tone]}`;
 }
 
 function TextSectionCard({
@@ -251,8 +251,8 @@ function TextSectionCard({
   return (
     <article className={cardClass}>
       <div className={toneClass(tone)}>{badge}</div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-black text-slate-950">{title}</h2>
+      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+        <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className={uiContentBox} style={contentTypography.bodyStyle}>
@@ -295,8 +295,8 @@ function ListSectionCard({
   return (
     <article className={cardClass}>
       <div className={toneClass(tone)}>{badge}</div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-black text-slate-950">{title}</h2>
+      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+        <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className={uiContentBox} style={contentTypography.bodyStyle}>
@@ -528,19 +528,19 @@ function MineralDetailPageContent() {
           </p>
         ) : null}
 
-        <section className="grid grid-cols-1 gap-3 xl:grid-cols-[240px_1fr]">
-          <aside className="space-y-3">
+        <section className="grid grid-cols-1 gap-2 xl:grid-cols-[190px_1fr]">
+          <aside className="space-y-2">
             <div
               className={mergeMatchCardClass(
                 uiProfileCard,
                 Boolean(hasHighlight && (sectionMatches?.name || sectionMatches?.kategori)),
               )}
             >
-              <div className="flex min-h-[100px] items-center justify-center rounded-[20px] border-2 border-dashed border-amber-200/80 bg-white/60">
-                <div className="text-center">
-                  <div className="text-4xl">⚗️</div>
-                  <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
-                    <h2 className="text-lg font-black text-slate-950">
+              <div className="flex min-h-[64px] items-center justify-center rounded-[14px] border border-dashed border-amber-200/80 bg-white/60">
+                <div className="text-center px-2 py-1">
+                  <div className="text-3xl">⚗️</div>
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
+                    <h2 className="text-sm font-black text-slate-950">
                       {hasHighlight
                         ? renderHighlightedText(mineral.name, highlightQuery)
                         : mineral.name}
@@ -549,22 +549,22 @@ function MineralDetailPageContent() {
                   </div>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
                 <div className={uiStatBox}>
-                  <div className="text-xl font-black text-slate-950">{filledSections}</div>
-                  <div className="mt-0.5 text-xs font-bold text-slate-500">Dolu bölüm</div>
+                  <div className="text-base font-black text-slate-950">{filledSections}</div>
+                  <div className="text-[10px] font-bold text-slate-500">Dolu bölüm</div>
                 </div>
                 <div className={uiStatBox}>
-                  <div className="text-xl font-black text-slate-950">
+                  <div className="text-base font-black text-slate-950">
                     {mineral.iceren_taslar.length}
                   </div>
-                  <div className="mt-0.5 text-xs font-bold text-slate-500">İçeren taş</div>
+                  <div className="text-[10px] font-bold text-slate-500">İçeren taş</div>
                 </div>
               </div>
             </div>
           </aside>
 
-          <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <section className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <TextSectionCard
               title="Açıklama"
               badge="AÇIKLAMA"
