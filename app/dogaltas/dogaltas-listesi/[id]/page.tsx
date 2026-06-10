@@ -373,22 +373,22 @@ function formatDate(value: string | null | undefined) {
 
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_42%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-6 px-6 py-6 xl:px-10 2xl:px-14";
+const pageContent = "relative z-10 w-full space-y-3 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[34px] border-[3px] border-cyan-400/45 bg-white/75 p-8 shadow-[0_0_45px_rgba(34,211,238,0.16)] backdrop-blur-xl";
+  "rounded-2xl border-[2px] border-cyan-300/50 bg-white/80 p-4 shadow-md backdrop-blur-xl";
 const uiProfileCard =
-  "rounded-[34px] border-[3px] border-violet-300/45 bg-gradient-to-br from-white/80 via-cyan-50/70 to-violet-50/70 p-6 shadow-[0_0_45px_rgba(139,92,246,0.16)] backdrop-blur-xl";
+  "rounded-2xl border-[2px] border-violet-200/50 bg-gradient-to-br from-white/85 via-cyan-50/60 to-violet-50/60 p-3 shadow-md backdrop-blur-xl";
 const uiImageArea =
-  "flex min-h-[260px] items-center justify-center rounded-[28px] border-[3px] border-dashed border-cyan-300 bg-white/70 shadow-inner";
+  "flex min-h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-cyan-200 bg-white/70 shadow-inner";
 const uiStatBox =
-  "rounded-2xl border-2 border-cyan-200 bg-white/85 p-4 text-center shadow-md";
+  "rounded-xl border border-cyan-200 bg-white/85 p-3 text-center shadow-sm";
 const uiInfoCard =
-  "w-full rounded-[30px] border-[3px] border-cyan-300/45 bg-white/78 p-6 text-left shadow-[0_0_38px_rgba(34,211,238,0.13)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_0_48px_rgba(139,92,246,0.18)]";
+  "w-full rounded-xl border border-cyan-200/60 bg-white/80 p-3 text-left shadow-sm transition-colors duration-200 hover:border-violet-300 hover:bg-white";
 const uiContentBox =
-  "mt-4 min-h-[130px] rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 text-base leading-7 text-slate-700 shadow-inner";
+  "mt-2 min-h-[60px] rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm leading-6 text-slate-700 shadow-inner";
 const uiEmptyText = "text-slate-400 italic font-medium";
 const uiThumb =
-  "overflow-hidden rounded-2xl border-2 border-cyan-200 shadow-md transition-all duration-300 hover:scale-[1.03]";
+  "overflow-hidden rounded-xl border border-cyan-200 shadow-sm transition-all duration-200 hover:scale-[1.03]";
 
 function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber") {
   const toneMap = {
@@ -497,21 +497,18 @@ function TextBlock({
         onClick={onOpenEdit}
         className={cardClass}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className={toneClass(tone)}>{badge}</div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-2xl font-black text-slate-950">{title}</h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={toneClass(tone)}>{badge}</span>
+              <h2 className="truncate text-sm font-black text-slate-950">{title}</h2>
               {showMatchBadge ? <SearchMatchBadge /> : null}
             </div>
-
-            <p className="mt-2 line-clamp-1 text-slate-700">
-              {shortPreview(text, 90)}
+            <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+              {shortPreview(text, 80)}
             </p>
           </div>
-
-          <span className="shrink-0 rounded-full border border-cyan-200 bg-white px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
+          <span className="shrink-0 rounded-lg border border-cyan-200 bg-white px-2 py-0.5 text-[10px] font-black text-cyan-700 shadow-sm">
             Düzenle
           </span>
         </div>
@@ -525,25 +522,24 @@ function TextBlock({
       onClick={onOpenRead}
       className={cardClass}
     >
-      <div className={toneClass(tone)}>{badge}</div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <h2 className="text-2xl font-black text-slate-950">{title}</h2>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={toneClass(tone)}>{badge}</span>
+        <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
 
       <div className={uiContentBox}>
         <p
-          className={`line-clamp-5 whitespace-pre-wrap ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
+          className={`line-clamp-4 whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
         >
           {text?.trim()
-            ? renderHighlightedText(shortPreview(text, 420), highlightQuery)
-            : shortPreview(text, 420)}
+            ? renderHighlightedText(shortPreview(text, 240), highlightQuery)
+            : shortPreview(text, 240)}
         </p>
       </div>
 
-      <p className="mt-4 text-sm font-black text-cyan-700">
-        Tam okumak için tıklayın
+      <p className="mt-2 text-[11px] font-black text-cyan-700">
+        Tam okumak için tıklayın →
       </p>
     </button>
   );
@@ -1106,54 +1102,53 @@ function StoneDetailPage() {
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
 
       <div className={pageContent}>
-        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-3 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-5 py-2 text-sm font-black tracking-[0.18em] text-cyan-700">
-              💎 DOĞALTAŞ DETAY
+        <header className={`${uiHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-cyan-700">
+                💎 DOĞALTAŞ DETAY
+              </span>
+              {isLibraryStone && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700">
+                  📚 Kütüphane · Görüntüleme
+                </span>
+              )}
+              {wasViewed && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-[10px] font-black text-indigo-600">
+                  👁 Bakıldı
+                </span>
+              )}
             </div>
 
             {editEnabled ? (
               <button
                 type="button"
                 onClick={() => openTextEditor("stone_name", "Taş Adı", "BAŞLIK", false)}
-                className="block w-full rounded-2xl border-2 border-cyan-200 bg-white/90 px-4 py-2 text-left text-5xl font-black tracking-tight text-slate-950 shadow-md transition hover:border-violet-300 xl:text-6xl"
+                className="block w-full rounded-xl border border-cyan-200 bg-white/90 px-3 py-1.5 text-left text-xl font-black tracking-tight text-slate-950 shadow-sm transition hover:border-violet-300 sm:text-2xl"
               >
                 {safeStone.stone_name}
               </button>
             ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-5xl font-black tracking-tight text-slate-950 xl:text-6xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
                   {renderHighlightedText(safeStone.stone_name, highlightQuery)}
                 </h1>
                 {sectionMatches?.stoneName ? <SearchMatchBadge /> : null}
-                {wasViewed && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600">
-                    👁 Bakıldı
-                  </span>
-                )}
               </div>
             )}
 
-            <p className="mt-3 text-lg font-medium text-slate-600">
-              Oluşturma: {formatDate(safeStone.created_at)}
-              {safeStone.updated_at
-                ? ` · Güncelleme: ${formatDate(safeStone.updated_at)}`
-                : ""}
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
+              {formatDate(safeStone.created_at)}
+              {safeStone.updated_at ? ` · güncellendi ${formatDate(safeStone.updated_at)}` : ""}
             </p>
-
-            {isLibraryStone && (
-              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-black text-amber-700">
-                📚 Kütüphane kaydı · Sadece görüntüleme
-              </div>
-            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link
               href={listBackHref}
-              className="rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
+              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
             >
-              {hasFilterContext ? "Aramaya Dön" : "Taş Listesine Dön"}
+              {hasFilterContext ? "← Aramaya Dön" : "← Taş Listesi"}
             </Link>
 
             {!isLibraryStone && (
@@ -1172,8 +1167,8 @@ function StoneDetailPage() {
                 }}
                 className={
                   editEnabled
-                    ? "rounded-2xl bg-emerald-600 px-6 py-4 font-black text-white shadow-md hover:bg-emerald-700"
-                    : "rounded-2xl bg-slate-950 px-6 py-4 font-black text-white shadow-md hover:bg-violet-700"
+                    ? "rounded-xl bg-emerald-600 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-emerald-700"
+                    : "rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-violet-700"
                 }
               >
                 {editEnabled ? "Kaydet" : "Düzenle"}
@@ -1184,7 +1179,7 @@ function StoneDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowDeletePopup(true)}
-                className="rounded-2xl bg-red-500 px-6 py-4 font-black text-white shadow-md hover:bg-red-600"
+                className="rounded-xl bg-red-500 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-red-600"
               >
                 Sil
               </button>
@@ -1193,46 +1188,19 @@ function StoneDetailPage() {
         </header>
 
         {hasFilterContext && (
-          <div className="rounded-2xl border border-violet-200 bg-violet-50/90 px-4 py-3 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wider text-violet-600">
-              Arama / Filtre Eşleşmesi
-            </p>
-            <p className="mt-0.5 text-sm font-black text-violet-900">
-              Bu taş şu aramanızla eşleşti:
-            </p>
-            <ul className="mt-2 space-y-0.5">
-              {highlightQuery && (
-                <li className="text-[13px] text-violet-800">
-                  🔍 <b>Arama:</b> {highlightQuery}
-                </li>
-              )}
-              {astroFilter && (
-                <li className="text-[13px] text-violet-800">
-                  ♈ <b>Astroloji eşleşmesi:</b> {astroFilter}
-                </li>
-              )}
-              {chakraFilter && (
-                <li className="text-[13px] text-violet-800">
-                  🔵 <b>Çakra eşleşmesi:</b> {chakraFilter}
-                </li>
-              )}
-              {mineralFilter && (
-                <li className="text-[13px] text-violet-800">
-                  💎 <b>Mineral eşleşmesi:</b> {mineralFilter}
-                </li>
-              )}
-              {warnFilter && (
-                <li className="text-[13px] text-violet-800">
-                  ⚠️ <b>Uyarısı olan taşlar</b> filtresi aktifti
-                </li>
-              )}
-            </ul>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
+            <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">Eşleşme:</span>
+            {highlightQuery && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔍 {highlightQuery}</span>}
+            {astroFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">♈ {astroFilter}</span>}
+            {chakraFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔵 {chakraFilter}</span>}
+            {mineralFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">💎 {mineralFilter}</span>}
+            {warnFilter && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">⚠️ Uyarılı</span>}
           </div>
         )}
 
         {editEnabled && (
-          <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/90 px-5 py-3 text-sm font-black text-violet-800 shadow-sm">
-            Düzenleme açık: Klasörler küçültüldü. Düzenlemek istediğiniz klasörü seçin.
+          <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs font-black text-violet-800 shadow-sm">
+            Düzenleme modu: düzenlemek istediğiniz kartı seçin.
           </div>
         )}
 
@@ -1248,8 +1216,8 @@ function StoneDetailPage() {
           </div>
         )}
 
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
-          <aside className="space-y-6">
+        <section className="grid grid-cols-1 gap-3 xl:grid-cols-[260px_1fr]">
+          <aside className="space-y-3">
             <div className={`${uiProfileCard} text-center`}>
               {imagesWithUrl.length > 0 ? (
                 <>
@@ -1267,7 +1235,7 @@ function StoneDetailPage() {
                       <img
                         src={imagesWithUrl[0].url}
                         alt={imagesWithUrl[0].name}
-                        className="max-h-[220px] w-full object-contain"
+                        className="max-h-[150px] w-full object-contain"
                         loading="lazy"
                         decoding="async"
                       />
@@ -1331,13 +1299,13 @@ function StoneDetailPage() {
                 </>
               ) : (
                 <div className={uiImageArea}>
-                  <div>
-                    <div className="text-[62px]">💎</div>
-                    <h2 className="mt-2 text-[20px] font-black text-slate-950">
+                  <div className="px-3 py-2 text-center">
+                    <div className="text-[34px]">💎</div>
+                    <h2 className="mt-1 text-sm font-black text-slate-900">
                       {safeStone.stone_name}
                     </h2>
-                    <p className="mt-2 px-3 text-[12px] leading-5 text-slate-500">
-                      Gerçek görsel için Supabase Storage bağlantısı gerekli.
+                    <p className="mt-1 text-[10px] leading-4 text-slate-400">
+                      Görsel eklenmemiş
                     </p>
                   </div>
                 </div>
@@ -1408,29 +1376,24 @@ function StoneDetailPage() {
               onClick={() => openCheckboxEditor("chakras", "Çakralar", "ÇAKRA", CHAKRA_OPTIONS)}
               className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.chakras))}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-2xl font-black text-slate-950">Çakralar</h3>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="text-sm font-black text-slate-950">Çakralar</h3>
                   {sectionMatches?.chakras ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {safeChakras.length === 0 ? (
-                  <span className="text-[13px] text-slate-400">-</span>
+                  <span className="text-xs text-slate-400">-</span>
                 ) : (
                   safeChakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
-                    <span
-                      key={chakra}
-                      className={toneClass("violet")}
-                    >
-                      {chakra}
-                    </span>
+                    <span key={chakra} className={toneClass("violet")}>{chakra}</span>
                   ))
                 )}
               </div>
@@ -1441,29 +1404,24 @@ function StoneDetailPage() {
               onClick={() => openCheckboxEditor("warning_tags", "Uyarı Etiketleri", "UYARI ETİKETLERİ", WARNING_OPTIONS)}
               className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.warningTags))}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-2xl font-black text-slate-950">Uyarı Etiketleri</h3>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="text-sm font-black text-slate-950">Uyarı Etiketleri</h3>
                   {sectionMatches?.warningTags ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Seç
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {safeWarningTags.length === 0 ? (
-                  <span className="text-[13px] text-slate-400">-</span>
+                  <span className="text-xs text-slate-400">-</span>
                 ) : (
                   safeWarningTags.slice(0, editEnabled ? 3 : 99).map((tag) => (
-                    <span
-                      key={tag}
-                      className={toneClass("rose")}
-                    >
-                      {tag}
-                    </span>
+                    <span key={tag} className={toneClass("rose")}>{tag}</span>
                   ))
                 )}
               </div>
@@ -1474,38 +1432,34 @@ function StoneDetailPage() {
               onClick={openAssignmentsEditor}
               className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.assignments))}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-2xl font-black text-slate-950">Atamalar</h3>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="text-sm font-black text-slate-950">Atamalar</h3>
                   {sectionMatches?.assignments ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
                     Düzenle
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 space-y-3">
+              <div className="mt-2 space-y-1.5">
                 {hasAssignments ? (
                   Object.entries(safeAssignments).map(([title, rows]) => {
                     const safeRows = Array.isArray(rows) ? rows : [];
                     if (safeRows.length === 0) return null;
 
                     return (
-                      <div key={title} className="rounded-2xl bg-slate-50/70 p-3">
-                        <p className="text-[12px] font-black text-slate-700">{title}</p>
-                        <div className="mt-1 space-y-1">
-                          {safeRows.slice(0, editEnabled ? 2 : 99).map((row, index) => {
+                      <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
+                        <p className="text-[11px] font-black text-slate-600">{title}</p>
+                        <div className="mt-0.5 space-y-0.5">
+                          {safeRows.slice(0, editEnabled ? 2 : 4).map((row, index) => {
                             const cells = Array.isArray(row)
                               ? row.map((cell) => String(cell ?? ""))
                               : [String(row ?? "")];
-
                             return (
-                              <p
-                                key={`${title}-${index}`}
-                                className="text-[12px] leading-5 text-slate-500"
-                              >
+                              <p key={`${title}-${index}`} className="text-[11px] leading-4 text-slate-500">
                                 • {cells.filter(Boolean).join(" / ")}
                               </p>
                             );
@@ -1515,13 +1469,13 @@ function StoneDetailPage() {
                     );
                   })
                 ) : (
-                  <span className="text-[13px] text-slate-400">-</span>
+                  <span className="text-xs text-slate-400">-</span>
                 )}
               </div>
             </button>
           </aside>
 
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <TextBlock
               title="Kısa Açıklama"
               badge="GENEL BİLGİ"
@@ -1611,13 +1565,12 @@ function StoneDetailPage() {
             </div>
 
             <section className={`${uiInfoCard} lg:col-span-2`}>
-              <div className={toneClass("cyan")}>KULLANIM ALANLARI</div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={toneClass("cyan")}>KULLANIM ALANLARI</span>
+                <h2 className="text-sm font-black text-slate-950">Kullanım / Uygulama Notları</h2>
+              </div>
 
-              <h2 className="mt-2 text-2xl font-black text-slate-950">
-                Kullanım / Uygulama Notları
-              </h2>
-
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
                   ["Feng Shui", "feng_shui", safeStone.feng_shui],
                   ["Meditasyon", "meditation", safeStone.meditation],
@@ -1650,29 +1603,27 @@ function StoneDetailPage() {
                         : openReader(String(title), "KULLANIM ALANI", String(text || ""))
                     }
                     className={mergeMatchCardClass(
-                      "rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white",
+                      "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white",
                       usageHasMatch,
                     )}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-black text-slate-950">{title}</h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h3 className="text-xs font-black text-slate-950">{title}</h3>
                         {usageHasMatch ? <SearchMatchBadge /> : null}
                       </div>
                       {editEnabled ? (
-                        <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                        <span className="rounded-md bg-cyan-50 px-1.5 py-0.5 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
                           Düzenle
                         </span>
                       ) : (
-                        <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
+                        <span className="rounded-md bg-white px-1.5 py-0.5 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
                           Oku
                         </span>
                       )}
                     </div>
 
-                    <p
-                      className={`mt-2 line-clamp-2 text-base leading-7 text-slate-700 ${!String(text || "").trim() ? uiEmptyText : ""}`}
-                    >
+                    <p className={`mt-1 line-clamp-2 text-xs leading-5 ${!String(text || "").trim() ? uiEmptyText : "text-slate-600"}`}>
                       {String(text || "").trim()
                         ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
                         : shortPreview(String(text || ""), 80)}
