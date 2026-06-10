@@ -228,6 +228,8 @@ export default function DogaltasKayitPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
+  const [assignmentsOpen, setAssignmentsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const activeAssignment = assignmentSections.find((item) => item.title === assignmentTitle);
 
@@ -648,18 +650,18 @@ export default function DogaltasKayitPage() {
             ))}
           </div>
 
-          <div className={`${uiCard} p-4`}>
+          <div className={`${uiCard} border-l-[5px] border-l-amber-400 p-4`}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-lg ring-1 ring-rose-100">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-lg ring-1 ring-amber-200">
                   ⚠️
                 </span>
                 <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">Uyarılar</h2>
-                  <p className="mt-0.5 text-slate-500">Klinik ve güvenlik notları.</p>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">Uyarılar ve Hassasiyetler</h2>
+                  <p className="mt-0.5 text-amber-700/80 text-[12px] font-semibold">Danışan modülü ile entegre — bu alan taş önerilerinde otomatik kontrol edilir.</p>
                 </div>
               </div>
-              <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-black text-rose-700">
+              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-black text-amber-700">
                 Klinik Not
               </span>
             </div>
@@ -702,64 +704,86 @@ export default function DogaltasKayitPage() {
           </div>
 
           <div className={`${uiCard} p-4`}>
-            <div className="mb-3 flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-lg ring-1 ring-emerald-100">
-                🧘
-              </span>
-              <div>
-                <h2 className="text-base font-black tracking-wide text-slate-950">Kullanım / Uygulama Alanları</h2>
-                <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-              {usageSections.map((item) => (
-                <div key={item.key} className={`${uiPanel} p-4`}>
-                  <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
-
-                  <textarea
-                    value={formData[item.key as keyof FormData]}
-                    onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
-                    onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
-                    placeholder={`${item.title} notu...`}
-                    className={uiTextarea}
-                  />
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-lg ring-1 ring-emerald-100">
+                  ✨
+                </span>
+                <div>
+                  <h2 className="text-base font-black tracking-wide text-slate-950">İleri Seviye Notlar</h2>
+                  <p className="mt-0.5 text-slate-500">Feng Shui, meditasyon, bakım ve uygulama notları.</p>
                 </div>
-              ))}
-            </div>
+              </div>
+              <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
+                {advancedOpen ? "▲ Gizle" : "▼ Göster"}
+              </span>
+            </button>
+
+            {advancedOpen && (
+              <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-4">
+                {usageSections.map((item) => (
+                  <div key={item.key} className={`${uiPanel} p-4`}>
+                    <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
+
+                    <textarea
+                      value={formData[item.key as keyof FormData]}
+                      onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
+                      onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
+                      placeholder={`${item.title} notu...`}
+                      className={uiTextarea}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
             <div className={`${uiCard} p-4`}>
-              <div className="mb-3 flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg ring-1 ring-indigo-100">
-                  🔗
-                </span>
-                <div>
-                  <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
-                  <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
+              <button
+                type="button"
+                onClick={() => setAssignmentsOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg ring-1 ring-indigo-100">
+                    📎
+                  </span>
+                  <div>
+                    <h2 className="text-base font-black tracking-wide text-slate-950">Atamalar</h2>
+                    <p className="mt-0.5 text-slate-500">Mineral, organ, astroloji ve element alanları.</p>
+                  </div>
                 </div>
-              </div>
+                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-black text-slate-500 shadow-sm">
+                  {assignmentsOpen ? "▲ Gizle" : "▼ Göster"}
+                </span>
+              </button>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                {assignmentSections.map((item) => (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => setAssignmentTitle(item.title)}
-                    className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">{item.icon}</span>
-                      <span>
-                        <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
-                        <span className="block text-xs text-slate-500">Düzenle / ekle</span>
+              {assignmentsOpen && (
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {assignmentSections.map((item) => (
+                    <button
+                      key={item.title}
+                      type="button"
+                      onClick={() => setAssignmentTitle(item.title)}
+                      className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-base ring-1 ring-cyan-100">{item.icon}</span>
+                        <span>
+                          <span className="block text-[13px] font-bold text-slate-800">{item.title}</span>
+                          <span className="block text-xs text-slate-500">Düzenle / ekle</span>
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-lg font-black text-cyan-600">→</span>
-                  </button>
-                ))}
-              </div>
+                      <span className="text-lg font-black text-cyan-600">→</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className={`${uiCard} p-4`}>
