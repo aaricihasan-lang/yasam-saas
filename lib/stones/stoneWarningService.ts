@@ -1,3 +1,5 @@
+import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { supabase } from "@/lib/supabase";
 
 export type StoneWarningResult = {
@@ -27,12 +29,9 @@ export function parseStoneNames(input: string): string[] {
 
 /**
  * Verilen taş adlarını `stones` tablosunda arar.
- * Büyük/küçük harf farkını gözetmez.
+ * Kullanıcı tenant'ı ve Doğaltaş kütüphanesi (ADMIN_LIBRARY_TENANT_ID) birlikte taranır.
+ * Türkçe normalize eşleşme kullanılır: gümüş / gumus / GÜMÜŞ aynı taşı bulur.
  * Eşleşen taşlardan yalnızca uyarısı olanları (warning_text veya warning_tags) döndürür.
- *
- * Uyarı kriteri:
- * - warning_text: trim sonrası boş değilse uyarı var.
- * - warning_tags: boş dizi değilse uyarı var.
  *
  * Eşleşmeyen taş adları sessizce atlanır; hata fırlatılmaz.
  */
@@ -42,20 +41,24 @@ export async function checkStoneWarnings(
 ): Promise<StoneWarningResult[]> {
   if (stoneNames.length === 0 || !tenantId) return [];
 
+  const tenantIds = tenantId === ADMIN_LIBRARY_TENANT_ID
+    ? [tenantId]
+    : [tenantId, ADMIN_LIBRARY_TENANT_ID];
+
   const { data, error } = await supabase
     .from("stones")
     .select("stone_name, warning_text, warning_tags")
-    .eq("tenant_id", tenantId);
+    .in("tenant_id", tenantIds);
 
   if (error || !data || data.length === 0) return [];
 
   const results: StoneWarningResult[] = [];
 
   for (const inputName of stoneNames) {
-    const normalized = inputName.toLowerCase().trim();
+    const normalizedInput = normalizeTr(inputName.trim());
 
     const match = data.find(
-      (row) => (row.stone_name ?? "").toLowerCase().trim() === normalized
+      (row) => normalizeTr((row.stone_name ?? "").trim()) === normalizedInput
     );
 
     if (!match) continue;
