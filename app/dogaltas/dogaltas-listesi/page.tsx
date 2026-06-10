@@ -145,6 +145,15 @@ function renderHighlightedText(text: string, query: string): ReactNode {
   return nodes.length > 0 ? nodes : text;
 }
 
+/** Dizi/obje/null değerleri aranabilir string'e çevirir (recursive). */
+function safeTextExtract(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((v) => safeTextExtract(v)).join(" ");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 function clearDogaltasListSearchStorage() {
   if (typeof window === "undefined") return;
   for (const key of DOGALTAS_LIST_SEARCH_STORAGE_KEYS) {
@@ -469,26 +478,32 @@ function DogaltasListesiPageContent() {
     detailFilters.zodiac || detailFilters.warningOnly || detailFilters.mineral || detailFilters.chakra,
   );
 
-  useEffect(() => {
-    if (!queryTenantId) return;
-    if (isDetailFilterActive) return;
-    void fetchList({ reset: true });
-  }, [queryTenantId, debouncedSearch, searchMode, isDetailFilterActive]);
+  // Metin araması VEYA detay filtre aktifse → tüm taşlar client-side yüklenir
+  const needsFullLoad = isDetailFilterActive || Boolean(debouncedSearch);
 
-  // Detay filtreler aktifken TÜM taşları genişletilmiş seçimle çek
+  // Server-side paginated fetch: yalnızca hiç filtre/arama yokken çalışır
   useEffect(() => {
     if (!queryTenantId) return;
-    if (!isDetailFilterActive) {
+    if (needsFullLoad) return; // client-side full-text devralıyor
+    void fetchList({ reset: true });
+  }, [queryTenantId, debouncedSearch, searchMode, needsFullLoad]);
+
+  // needsFullLoad aktifken tüm taşları genişletilmiş alanlarla çek (bir kez yükle)
+  useEffect(() => {
+    if (!queryTenantId) return;
+    if (!needsFullLoad) {
       setDetailData(null);
       return;
     }
+    // detailData zaten yüklüyse tekrar çekme
+    if (detailData) return;
     void (async () => {
       setDetailLoading(true);
       const { rows } = await fetchAllStonesExtended(queryTenantId);
       setDetailData(rows);
       setDetailLoading(false);
     })();
-  }, [queryTenantId, isDetailFilterActive]);
+  }, [queryTenantId, needsFullLoad, detailData]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -560,34 +575,45 @@ function DogaltasListesiPageContent() {
     window.history.replaceState({}, "", newUrl);
   }, [filterQueryString]);
 
-  // Client-side filtreleme: detay filtreler aktifken tüm taşlar üzerinde çalışır
+  // Client-side tam içerik araması ve detay filtreleme
   const filteredStones: StoneListItem[] = useMemo(() => {
-    if (!isDetailFilterActive || !detailData) return stones;
+    if (!needsFullLoad || !detailData) return stones;
 
     return detailData.filter((stone) => {
-      // Metin araması (client-side, extended data'da stone_name + short_description mevcut)
+      // ── Tam içerik metin araması ─────────────────────────────────────────────
       if (debouncedSearch) {
-        const textMatch =
-          containsTr(stone.stone_name, debouncedSearch) ||
-          containsTr(stone.short_description, debouncedSearch);
-        if (!textMatch) return false;
+        const haystack = [
+          stone.stone_name,
+          stone.short_description,
+          stone.general_info,
+          stone.source_note,
+          stone.physical_effects,
+          stone.spiritual_effects,
+          stone.other_effects,
+          stone.feng_shui,
+          stone.meditation,
+          stone.care,
+          stone.application,
+          stone.warning_text,
+          safeTextExtract(stone.warning_tags),
+          safeTextExtract(stone.chakras),
+          safeTextExtract(stone.assignments),
+        ].join(" ");
+        if (!containsTr(haystack, debouncedSearch)) return false;
       }
-      // Burç / astrolojik atama filtresi
+      // ── Detay filtreler ───────────────────────────────────────────────────────
       if (detailFilters.zodiac) {
         if (!stoneMatchesZodiac(stone.assignments, detailFilters.zodiac))
           return false;
       }
-      // Sadece uyarısı olanlar
       if (detailFilters.warningOnly) {
         if (!stoneHasWarning(stone.warning_text, stone.warning_tags))
           return false;
       }
-      // Mineral araması (min 2 karakter)
       if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
         if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral))
           return false;
       }
-      // Çakra araması (min 2 karakter, chakras dizisinde Türkçe normalize eşleşme)
       if (detailFilters.chakra && detailFilters.chakra.trim().length >= SEARCH_MIN_LENGTH) {
         const chakraMatch = (stone.chakras || []).some((c) =>
           containsTr(c, detailFilters.chakra.trim()),
@@ -599,12 +625,12 @@ function DogaltasListesiPageContent() {
   }, [
     stones,
     detailData,
-    isDetailFilterActive,
+    needsFullLoad,
     debouncedSearch,
     detailFilters,
   ]);
 
-  const hasMore = !isDetailFilterActive && stones.length < totalCount;
+  const hasMore = !needsFullLoad && stones.length < totalCount;
   const listBusy =
     listLoading ||
     detailLoading ||

@@ -8,11 +8,11 @@ export const STONES_LIST_SELECT =
   "id, tenant_id, stone_name, short_description, chakras, images, updated_at";
 
 /**
- * Detay filtreler (burç, uyarı, mineral) için genişletilmiş select.
- * assignments, warning_text, warning_tags dahil — client-side filtreleme için.
+ * Tam içerik araması için genişletilmiş select — tüm metin alanları dahil.
+ * Bu select ile gelen veriler client-side full-text aramasında kullanılır.
  */
 export const STONES_LIST_EXTENDED_SELECT =
-  "id, tenant_id, stone_name, short_description, assignments, warning_text, warning_tags, chakras, images, updated_at";
+  "id, tenant_id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, assignments, warning_text, warning_tags, chakras, images, updated_at";
 
 export const STONES_LIST_PAGE_SIZE = 30;
 
@@ -29,6 +29,15 @@ export type StoneListItem = {
 };
 
 export type StoneListItemExtended = StoneListItem & {
+  general_info: string | null;
+  source_note: string | null;
+  physical_effects: string | null;
+  spiritual_effects: string | null;
+  other_effects: string | null;
+  feng_shui: string | null;
+  meditation: string | null;
+  care: string | null;
+  application: string | null;
   assignments: unknown;
   warning_text: string | null;
   warning_tags: string[] | null;
@@ -141,6 +150,8 @@ export function mapStoneListRow(row: Record<string, unknown>): StoneListItem {
   };
 }
 
+const strOrNull = (v: unknown) => (v != null ? String(v) : null);
+
 export function mapStoneExtendedRow(
   row: Record<string, unknown>,
 ): StoneListItemExtended {
@@ -148,11 +159,18 @@ export function mapStoneExtendedRow(
     id: String(row.id ?? ""),
     tenant_id: String(row.tenant_id ?? ""),
     stone_name: String(row.stone_name ?? ""),
-    short_description:
-      row.short_description != null ? String(row.short_description) : null,
+    short_description: strOrNull(row.short_description),
+    general_info: strOrNull(row.general_info),
+    source_note: strOrNull(row.source_note),
+    physical_effects: strOrNull(row.physical_effects),
+    spiritual_effects: strOrNull(row.spiritual_effects),
+    other_effects: strOrNull(row.other_effects),
+    feng_shui: strOrNull(row.feng_shui),
+    meditation: strOrNull(row.meditation),
+    care: strOrNull(row.care),
+    application: strOrNull(row.application),
     assignments: row.assignments ?? null,
-    warning_text:
-      row.warning_text != null ? String(row.warning_text) : null,
+    warning_text: strOrNull(row.warning_text),
     warning_tags: Array.isArray(row.warning_tags)
       ? (row.warning_tags as string[])
       : null,
@@ -160,7 +178,7 @@ export function mapStoneExtendedRow(
       ? row.chakras.map((c) => String(c))
       : null,
     images: row.images,
-    updated_at: row.updated_at != null ? String(row.updated_at) : null,
+    updated_at: strOrNull(row.updated_at),
   };
 }
 
