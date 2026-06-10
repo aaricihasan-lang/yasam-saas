@@ -17,7 +17,6 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
-import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { ensureMineralStringArray } from "@/lib/dogaltas/mineralsListFetch";
 import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
 import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
@@ -192,19 +191,79 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+// ─── Mineral detay sayfasına özel sade içerik renderer ───────────────────────
+// formatStoneContent'ten bağımsız; inner box/article/shadow üretmez.
+const MINERAL_LIST_RE = /^\s*(?:[-•·–—]|\d+[.):])\s+(.+)$/u;
+const MINERAL_LABEL_RE = /^([^:\n]{2,60}):\s*(.+)$/u;
+
+function renderMineralContent(
+  rawText: string,
+  bodyStyle: React.CSSProperties,
+  renderSeg: (text: string, key: string) => ReactNode,
+): ReactNode {
+  const normalized = rawText.replace(/\r\n/g, "\n").trim();
+  if (!normalized) return null;
+
+  const nodes = normalized
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .flatMap((block, bIdx) =>
+      block
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((line, lIdx) => {
+          const key = `${bIdx}-${lIdx}`;
+
+          const listMatch = line.match(MINERAL_LIST_RE);
+          if (listMatch) {
+            return (
+              <div key={key} className="flex items-start gap-2 text-slate-700">
+                <span
+                  className="mt-[0.5em] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1">
+                  {renderSeg(listMatch[1]!.trim(), key)}
+                </span>
+              </div>
+            );
+          }
+
+          const labelMatch = line.match(MINERAL_LABEL_RE);
+          if (labelMatch) {
+            return (
+              <p key={key} className="text-slate-700">
+                <span className="font-semibold text-slate-900">{labelMatch[1]}:</span>{" "}
+                <span>{renderSeg(labelMatch[2]!.trim(), key)}</span>
+              </p>
+            );
+          }
+
+          return (
+            <p key={key} className="text-slate-700">
+              {renderSeg(line, key)}
+            </p>
+          );
+        }),
+    );
+
+  return (
+    <div className="space-y-1 leading-relaxed" style={bodyStyle}>
+      {nodes}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)]";
-const pageContent = "relative z-10 w-full px-4 py-2 xl:px-8 2xl:px-10";
+const pageContent = "relative z-10 w-full space-y-2 px-4 py-3 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
-const uiProfileCard =
-  "rounded-[20px] border-[3px] border-amber-300/50 bg-gradient-to-br from-white/80 via-amber-50/70 to-emerald-50/70 p-2.5 shadow-[0_0_40px_rgba(245,158,11,0.16)] backdrop-blur-xl";
-const uiStatBox =
-  "rounded-lg border border-emerald-200 bg-white/80 p-2 text-center shadow-sm";
+  "rounded-2xl border-[2px] border-emerald-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiInfoCard =
-  "w-full rounded-[18px] border-2 border-emerald-300/45 bg-white/75 p-2.5 shadow-[0_0_30px_rgba(16,185,129,0.10)] backdrop-blur-xl";
-const uiContentBox =
-  "mt-1.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-slate-700 shadow-inner max-h-[220px] overflow-y-auto";
+  "w-full rounded-xl border border-emerald-200/60 bg-white/80 p-3 text-left shadow-sm backdrop-blur-xl transition-colors duration-200 hover:border-amber-300 hover:bg-white";
 const uiEmptyText = "text-slate-400 italic text-xs";
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs font-black text-cyan-900";
@@ -213,16 +272,16 @@ function toneClass(
   tone: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red"
 ) {
   const map = {
-    emerald: "bg-emerald-100 text-emerald-700",
-    cyan: "bg-cyan-100 text-cyan-700",
-    violet: "bg-violet-100 text-violet-700",
-    amber: "bg-amber-100 text-amber-700",
-    rose: "bg-rose-100 text-rose-700",
-    sky: "bg-sky-100 text-sky-700",
-    purple: "bg-purple-100 text-purple-700",
-    red: "bg-red-100 text-red-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    rose: "border-red-200 bg-red-50 text-red-600",
+    sky: "border-sky-200 bg-sky-50 text-sky-700",
+    purple: "border-purple-200 bg-purple-50 text-purple-700",
+    red: "border-red-200 bg-red-50 text-red-700",
   };
-  return `inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide ${map[tone]}`;
+  return `inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide ${map[tone]}`;
 }
 
 function TextSectionCard({
@@ -245,22 +304,19 @@ function TextSectionCard({
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
   const displayText = text?.trim() || "";
-  const renderSegment = (segment: string, key: string) =>
+  const renderSeg = (segment: string, key: string): ReactNode =>
     highlightQuery.trim() ? renderHighlightedText(segment, highlightQuery) : segment;
 
   return (
     <article className={cardClass}>
-      <div className={toneClass(tone)}>{badge}</div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={toneClass(tone)}>{badge}</span>
         <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className={uiContentBox} style={contentTypography.bodyStyle}>
+      <div className="mt-1.5">
         {displayText ? (
-          formatStoneContent(displayText, {
-            renderSegment,
-            fontSizePx: contentTypography.fontSizePx,
-          })
+          renderMineralContent(displayText, contentTypography.bodyStyle, renderSeg)
         ) : (
           <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
         )}
@@ -288,23 +344,29 @@ function ListSectionCard({
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
-  const bodyText = arraySectionToText(items);
-  const renderSegment = (segment: string, key: string) =>
-    highlightQuery.trim() ? renderHighlightedText(segment, highlightQuery) : segment;
 
   return (
     <article className={cardClass}>
-      <div className={toneClass(tone)}>{badge}</div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={toneClass(tone)}>{badge}</span>
         <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className={uiContentBox} style={contentTypography.bodyStyle}>
+      <div className="mt-1.5 space-y-1 leading-relaxed" style={contentTypography.bodyStyle}>
         {items.length > 0 ? (
-          formatStoneContent(bodyText, {
-            renderSegment,
-            fontSizePx: contentTypography.fontSizePx,
-          })
+          items.map((item, idx) => (
+            <div key={idx} className="flex items-start gap-2 text-slate-700">
+              <span
+                className="mt-[0.5em] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1">
+                {highlightQuery.trim()
+                  ? renderHighlightedText(item, highlightQuery)
+                  : item}
+              </span>
+            </div>
+          ))
         ) : (
           <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
         )}
@@ -467,36 +529,46 @@ function MineralDetailPageContent() {
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
 
       <div className={pageContent}>
-        <header className={`${uiHeaderCard} mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <span className={toneClass("emerald")}>⚗️ MİNERAL DETAY</span>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-950 xl:text-3xl">
+        <header className={`${uiHeaderCard} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-emerald-700">
+                ⚗️ MİNERAL DETAY
+              </span>
+              {mineral.kategori?.trim() ? (
+                <span className={uiCategoryPill}>
+                  {hasHighlight
+                    ? renderHighlightedText(mineral.kategori, highlightQuery)
+                    : mineral.kategori}
+                </span>
+              ) : null}
+              {hasHighlight && sectionMatches?.kategori ? <SearchMatchBadge /> : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
                 {hasHighlight
                   ? renderHighlightedText(mineral.name, highlightQuery)
                   : mineral.name}
               </h1>
               {hasHighlight && sectionMatches?.name ? <SearchMatchBadge /> : null}
             </div>
-            {mineral.kategori?.trim() ? (
-              <p className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span className={uiCategoryPill}>
-                  {hasHighlight
-                    ? renderHighlightedText(mineral.kategori, highlightQuery)
-                    : mineral.kategori}
-                </span>
-                {hasHighlight && sectionMatches?.kategori ? <SearchMatchBadge /> : null}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              Kayıt: {formatDate(mineral.created_at)} · Kaynak:{" "}
+
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
+              {formatDate(mineral.created_at)}
+              {" · "}
               {hasHighlight
                 ? renderHighlightedText(mineral.source_id, highlightQuery)
                 : mineral.source_id}
+              {" · "}
+              <span className="font-black text-emerald-700">{filledSections}</span>
+              {" Dolu Bölüm · "}
+              <span className="font-black text-amber-700">{mineral.iceren_taslar.length}</span>
+              {" İçeren Taş"}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <DogaltasFontSizeControl
               fontSizePx={fontSizePx}
               onDecrease={decreaseFontSize}
@@ -508,14 +580,14 @@ function MineralDetailPageContent() {
             />
             <Link
               href={listBackHref}
-              className="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-md hover:bg-slate-50"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50"
             >
               {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
             <button
               type="button"
               onClick={() => void loadMineral()}
-              className="rounded-xl border-2 border-emerald-200 bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-md hover:bg-emerald-50"
+              className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-emerald-50"
             >
               Yenile
             </button>
@@ -523,48 +595,15 @@ function MineralDetailPageContent() {
         </header>
 
         {hasHighlight && headerHasMatch ? (
-          <p className="mb-2 text-sm font-bold text-cyan-800">
-            Arama: "{highlightQuery}"
-          </p>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 shadow-sm">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Eşleşme:</span>
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-800">
+              🔍 {highlightQuery}
+            </span>
+          </div>
         ) : null}
 
-        <section className="grid grid-cols-1 gap-2 xl:grid-cols-[190px_1fr]">
-          <aside className="space-y-2">
-            <div
-              className={mergeMatchCardClass(
-                uiProfileCard,
-                Boolean(hasHighlight && (sectionMatches?.name || sectionMatches?.kategori)),
-              )}
-            >
-              <div className="flex min-h-[64px] items-center justify-center rounded-[14px] border border-dashed border-amber-200/80 bg-white/60">
-                <div className="text-center px-2 py-1">
-                  <div className="text-3xl">⚗️</div>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
-                    <h2 className="text-sm font-black text-slate-950">
-                      {hasHighlight
-                        ? renderHighlightedText(mineral.name, highlightQuery)
-                        : mineral.name}
-                    </h2>
-                    {hasHighlight && sectionMatches?.name ? <SearchMatchBadge /> : null}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <div className={uiStatBox}>
-                  <div className="text-base font-black text-slate-950">{filledSections}</div>
-                  <div className="text-[10px] font-bold text-slate-500">Dolu bölüm</div>
-                </div>
-                <div className={uiStatBox}>
-                  <div className="text-base font-black text-slate-950">
-                    {mineral.iceren_taslar.length}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">İçeren taş</div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <section className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <section className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <TextSectionCard
               title="Açıklama"
               badge="AÇIKLAMA"
@@ -658,7 +697,6 @@ function MineralDetailPageContent() {
               />
             </div>
           </section>
-        </section>
       </div>
     </main>
   );
