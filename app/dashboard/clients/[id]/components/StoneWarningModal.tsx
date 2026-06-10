@@ -86,6 +86,19 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
                   </p>
                 </div>
               )}
+
+              {/* Doğaltaş detay linki */}
+              <div className="mt-3 border-t border-orange-100 pt-3">
+                <a
+                  href={`/dogaltas/dogaltas-listesi/${w.stoneId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"
+                >
+                  <span>🔗</span>
+                  <span>Doğaltaş kaydını aç</span>
+                </a>
+              </div>
             </div>
           ))}
         </div>

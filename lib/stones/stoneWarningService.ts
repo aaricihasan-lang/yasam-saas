@@ -3,6 +3,8 @@ import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { supabase } from "@/lib/supabase";
 
 export type StoneWarningResult = {
+  /** Veritabanındaki stones.id — detay linki için */
+  stoneId: string;
   /** Veritabanındaki stone_name değeri */
   stoneName: string;
   /** Doğaltaş modülündeki uyarı metni */
@@ -47,7 +49,7 @@ export async function checkStoneWarnings(
 
   const { data, error } = await supabase
     .from("stones")
-    .select("stone_name, warning_text, warning_tags")
+    .select("id, stone_name, warning_text, warning_tags")
     .in("tenant_id", tenantIds);
 
   if (error || !data || data.length === 0) return [];
@@ -70,6 +72,7 @@ export async function checkStoneWarnings(
     if (!hasText && !hasTags) continue;
 
     results.push({
+      stoneId: match.id as string,
       stoneName: match.stone_name as string,
       warningText: hasText ? (match.warning_text as string) : null,
       warningTags: hasTags ? (match.warning_tags as string[]) : null,
