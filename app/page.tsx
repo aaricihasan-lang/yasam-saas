@@ -564,7 +564,8 @@ function StarField() {
   );
 }
 
-function LivePanel({ date }: { date: Date }) {
+function LivePanel({ date }: { date: Date | null }) {
+  date = date ?? new Date();
   const day = date.getDay();
   const phase = getMoonPhase(date);
   const sun = getSunSign(date);
@@ -706,7 +707,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [now, setNow] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
@@ -879,6 +880,7 @@ export default function Home() {
   }, [videoCeviriPreviewOpen]);
 
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
@@ -996,7 +998,6 @@ export default function Home() {
 
   if (user) {
     const displayName = getYasamUserDisplayName(user);
-    const avatarInitial = displayName.charAt(0).toLocaleUpperCase("tr-TR") || "U";
     const panelAccess = hasFullPanelAccess(user);
     const visibleDashboardModules = getVisibleDashboardModules(user);
     const membershipExpired = isExpertMembershipExpired(user);
@@ -1006,7 +1007,7 @@ export default function Home() {
       !expertHasAnyGrantedModule(user);
 
     function handleLockedModuleClick(reason: ModuleLockReason) {
-      if (reason === "coming_soon") return; // pasif kart — toast gösterme
+      if (reason === "coming_soon") return;
       showToast({
         message:
           reason === "permission"
@@ -1016,8 +1017,9 @@ export default function Home() {
       });
     }
 
-    const phase = getMoonPhase(now);
-    const sunSgn = getSunSign(now);
+    const effectiveNow = now ?? new Date();
+    const phase = getMoonPhase(effectiveNow);
+    const sunSgn = getSunSign(effectiveNow);
 
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[#050D1F] text-white antialiased">
@@ -1042,10 +1044,10 @@ export default function Home() {
                   Yaşam Sistemi
                 </p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
-                  {getDayGreeting(now)}, {displayName.split(" ")[0]} ✨
+                  {getDayGreeting(effectiveNow)}, {displayName.split(" ")[0]} ✨
                 </h1>
                 <p className="mt-1 text-sm font-medium text-white/50">
-                  {now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <button
@@ -1062,9 +1064,9 @@ export default function Home() {
               {[
                 { label: phase.emoji + " " + phase.name, sub: "Ay Fazı" },
                 { label: sunSgn.emoji + " " + sunSgn.tr, sub: "Güneş Burcu" },
-                { label: "🔢 " + numerologicalDay(now), sub: "Günün Numerolojisi" },
-                { label: "💎 " + WEEKDAY_STONES[now.getDay()]!, sub: "Günün Taşı" },
-                { label: WEEKDAY_CHAKRAS[now.getDay()]!.emoji + " " + WEEKDAY_CHAKRAS[now.getDay()]!.name, sub: "Günün Çakrası" },
+                { label: "🔢 " + numerologicalDay(effectiveNow), sub: "Günün Numerolojisi" },
+                { label: "💎 " + WEEKDAY_STONES[effectiveNow.getDay()]!, sub: "Günün Taşı" },
+                { label: WEEKDAY_CHAKRAS[effectiveNow.getDay()]!.emoji + " " + WEEKDAY_CHAKRAS[effectiveNow.getDay()]!.name, sub: "Günün Çakrası" },
               ].map(({ label, sub }) => (
                 <div
                   key={sub}
@@ -1204,7 +1206,7 @@ export default function Home() {
               <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
                 Canlı Yaşam Paneli
               </p>
-              <LivePanel date={now} />
+              <LivePanel date={effectiveNow} />
             </aside>
           </div>
 
