@@ -53,6 +53,13 @@ type ModuleTheme = {
   border: string;
 };
 
+type RecentItem = {
+  icon: string;
+  label: string;
+  rawDate: string;
+  relDate: string;
+};
+
 type ModuleCard = {
   title: string;
   desc: string;
@@ -577,6 +584,19 @@ const NUMEROLOGY_DESC: Record<number, string> = {
   33: "Evrensel öğretmen",
 };
 
+function fmtRelDate(iso: string): string {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 2) return "az önce";
+  if (mins < 60) return `${mins} dk önce`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} sa önce`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} gün önce`;
+  return new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
 function getDayGreeting(date: Date): string {
   const h = date.getHours();
   if (h < 6) return "İyi Geceler";
@@ -693,6 +713,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
+  const [recentActivity, setRecentActivity] = useState<RecentItem[] | null>(null);
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
@@ -902,6 +923,51 @@ export default function Home() {
   }, [user?.id, user?.tenant_id]);
 
   useEffect(() => {
+    if (!user) { setRecentActivity(null); return; }
+    const tenantId = user.tenant_id;
+    if (!tenantId) { setRecentActivity([]); return; }
+
+    let cancelled = false;
+    type RawItem = { icon: string; label: string; rawDate: string };
+    const sources: { table: string; icon: string; col: string }[] = [
+      { table: "clients",             icon: "👥", col: "full_name" },
+      { table: "stones",              icon: "💎", col: "name" },
+      { table: "personal_archives",   icon: "📚", col: "title" },
+      { table: "numerology_analyses", icon: "🧠", col: "full_name" },
+    ];
+
+    void Promise.allSettled(
+      sources.map(async ({ table, icon, col }) => {
+        const { data } = await supabase
+          .from(table)
+          .select(`${col}, created_at`)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(3);
+        return (data ?? []).map((row) => {
+          const r = row as unknown as Record<string, unknown>;
+          return {
+            icon,
+            label: String(r[col] ?? "Yeni kayıt").trim() || "Yeni kayıt",
+            rawDate: String(r["created_at"] ?? ""),
+          } satisfies RawItem;
+        });
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const all: RawItem[] = results
+        .filter((r) => r.status === "fulfilled")
+        .flatMap((r) => (r as PromiseFulfilledResult<RawItem[]>).value);
+      all.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
+      setRecentActivity(
+        all.slice(0, 5).map((item) => ({ ...item, relDate: fmtRelDate(item.rawDate) })),
+      );
+    });
+
+    return () => { cancelled = true; };
+  }, [user?.id, user?.tenant_id]);
+
+  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -1014,6 +1080,16 @@ export default function Home() {
 
   if (user) {
     const displayName = getYasamUserDisplayName(user);
+    const ICON_TO_PERM: Record<string, string> = {
+      "👥": "clients", "💎": "stones", "📚": "digital_content", "🧠": "numerology",
+    };
+    const lastDateByKey: Record<string, string> = {};
+    if (recentActivity) {
+      for (const act of recentActivity) {
+        const k = ICON_TO_PERM[act.icon];
+        if (k && !lastDateByKey[k]) lastDateByKey[k] = act.relDate;
+      }
+    }
     const firstName = displayName ? displayName.split(" ")[0] : "";
     const panelAccess = hasFullPanelAccess(user);
     const visibleDashboardModules = getVisibleDashboardModules(user);
@@ -1099,6 +1175,25 @@ export default function Home() {
             );
           })()}
 
+          {/* Hızlı İşlemler */}
+          <div className="mb-5 flex flex-wrap gap-2">
+            {[
+              { label: "Danışan Ekle",    href: "/danisan-yolculugu",       icon: "👥" },
+              { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
+              { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
+              { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
+            ].map(({ label, href, icon }) => (
+              <Link
+                key={label}
+                href={href}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3 py-1.5 text-[12px] font-semibold text-slate-600 no-underline shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition hover:border-violet-300 hover:text-violet-700"
+              >
+                <span aria-hidden>{icon}</span>
+                {label}
+              </Link>
+            ))}
+          </div>
+
           {/* ═══════════════════════════════════════════
                TWO-COLUMN: MODULES + LIVE PANEL
           ═══════════════════════════════════════════ */}
@@ -1172,6 +1267,11 @@ export default function Home() {
                                 : item.statFormat(moduleStats[item.permissionKey] as number)
                             : "İçerik hazır"}
                         </p>
+                        {lastDateByKey[item.permissionKey] ? (
+                          <p className="mt-0.5 text-[10px] text-slate-400 transition-colors group-hover:text-slate-500">
+                            📅 Son: {lastDateByKey[item.permissionKey]}
+                          </p>
+                        ) : null}
 
                         <div className="mt-3 flex items-center justify-between gap-2">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
@@ -1213,12 +1313,45 @@ export default function Home() {
               )}
             </div>
 
-            {/* ── Right: Live Panel (sticky) ── */}
-            <aside className="lg:sticky lg:top-4 lg:self-start">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-                Canlı Yaşam Paneli
-              </p>
-              <LivePanel date={effectiveNow} />
+            {/* ── Right: Son Aktiviteler + Canlı Yaşam Paneli ── */}
+            <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+
+              {/* Son Aktiviteler */}
+              <div>
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                  Son Aktiviteler
+                </p>
+                <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
+                  {recentActivity === null ? (
+                    <p className="text-xs text-slate-400">Yükleniyor...</p>
+                  ) : recentActivity.length === 0 ? (
+                    <p className="text-xs text-slate-400">Henüz kayıt bulunmuyor</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {recentActivity.map((act, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 rounded-xl px-2 py-2"
+                        >
+                          <span className="text-base leading-none">{act.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[12px] font-semibold text-slate-800">{act.label}</p>
+                            <p className="text-[10px] text-slate-400">{act.relDate}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Canlı Yaşam Paneli */}
+              <div>
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                  Canlı Yaşam Paneli
+                </p>
+                <LivePanel date={effectiveNow} />
+              </div>
             </aside>
           </div>
 
