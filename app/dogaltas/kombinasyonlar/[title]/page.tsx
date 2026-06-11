@@ -494,7 +494,7 @@ function StonesBlock({
                   <span
                     key={`c-${idx}`}
                     title="Stok bilgisi yükleniyor"
-                    className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
+                    className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-400"
                   >
                     {highlightQuery.trim()
                       ? renderHighlightedText(stone, highlightQuery)
@@ -508,7 +508,7 @@ function StonesBlock({
                 <span
                   key={`c-${idx}`}
                   title="Stokta var"
-                  className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                  className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
                 >
                   <span className="text-[10px] font-black text-emerald-600">✓</span>
                   {canonical_
@@ -521,7 +521,7 @@ function StonesBlock({
                 <span
                   key={`c-${idx}`}
                   title="Stokta yok"
-                  className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-500"
+                  className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
                 >
                   {highlightQuery.trim()
                     ? renderHighlightedText(stone, highlightQuery)
@@ -533,7 +533,7 @@ function StonesBlock({
               <span
                 key={`e-${idx}`}
                 title="Stokta var"
-                className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
               >
                 <span className="text-[10px] font-black text-emerald-600">✓</span>
                 {stone}
@@ -594,7 +594,7 @@ function CombinationCalculator({
   const profit = totalSale - totalCost;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {stockedDisplayNames.map((stone) => {
           const key = normalizeForMatch(stone);
           const entry = stockMap.get(key);
@@ -606,70 +606,73 @@ function CombinationCalculator({
           return (
             <div
               key={stone}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-100 bg-white px-3 py-1.5"
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-100 bg-white px-3 py-2"
             >
-              <span className="min-w-[120px] text-xs font-semibold text-slate-800">
+              <span className="min-w-[130px] text-xs font-bold text-slate-800">
                 {stone}
               </span>
-              <label className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                Adet
+              <label className="flex items-center gap-1 text-[11px] text-slate-500">
+                <span className="font-medium">Adet</span>
                 <input
                   type="number"
                   min={0}
                   step={1}
                   value={qtyMap.get(key) ?? "1"}
                   onChange={(e) => handleQtyChange(key, e.target.value)}
-                  className="ml-1 w-14 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
+                  className="ml-1 w-12 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
                 />
               </label>
               {overStock ? (
                 <span className="text-[10px] font-semibold text-amber-600">
-                  Stok adedinden fazla (mevcut: {entry.adet})
+                  ⚠ mevcut: {entry.adet}
                 </span>
               ) : null}
-              <span className="text-[11px] font-medium text-slate-500">
-                Birim maliyet:{" "}
-                <span className="font-semibold text-slate-700">
-                  {entry.unitCostTry > 0 ? fmtTL(entry.unitCostTry) : "—"}
+              {entry.unitCostTry > 0 ? (
+                <span className="ml-auto text-[11px] font-semibold text-slate-600">
+                  {fmtTL(entry.unitCostTry)}
+                  {qty > 1 ? (
+                    <span className="ml-1 font-black text-slate-800">× {qty} = {fmtTL(rowCost)}</span>
+                  ) : null}
                 </span>
-                {entry.unitCostTry > 0 && qty > 1 ? (
-                  <span className="ml-1 text-[10px] text-slate-400">= {fmtTL(rowCost)}</span>
-                ) : null}
-              </span>
+              ) : (
+                <span className="ml-auto text-[11px] text-slate-400">fiyat girilmemiş</span>
+              )}
             </div>
           );
       })}
 
       {totalCost > 0 ? (
-        <div className="mt-2 rounded-lg border border-slate-100 bg-white px-3 py-2">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[11px] font-medium text-slate-500">
-            <span>
-              Toplam maliyet:{" "}
-              <span className="font-black text-slate-700">{fmtTL(totalCost)}</span>
-            </span>
-            <label className="flex items-center gap-1">
-              Kâr marjı
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={profitPctRaw}
-                onChange={(e) => setProfitPctRaw(e.target.value.replace(/[^0-9.]/g, ""))}
-                className="mx-1 w-14 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
-              />
-              <span>%</span>
+        <div className="mt-2 rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 via-emerald-50/30 to-white px-4 py-4 shadow-md">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Toplam Maliyet</span>
+              <span className="text-xl font-black leading-none text-slate-800">{fmtTL(totalCost)}</span>
+            </div>
+            <label className="flex flex-col">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Kâr Marjı</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={profitPctRaw}
+                  onChange={(e) => setProfitPctRaw(e.target.value.replace(/[^0-9.]/g, ""))}
+                  className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-center text-sm font-black text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40"
+                />
+                <span className="text-sm font-bold text-slate-500">%</span>
+              </div>
             </label>
-            <span>
-              Tahmini satış:{" "}
-              <span className="font-black text-emerald-700">{fmtTL(totalSale)}</span>
-            </span>
-            <span>
-              Kâr:{" "}
-              <span className="font-black text-emerald-700">{fmtTL(profit)}</span>
-              <span className="ml-1 text-[10px] text-emerald-600">
-                ({profitPctNum.toFixed(1)}%)
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Tahmini Satış</span>
+              <span className="text-xl font-black leading-none text-emerald-700">{fmtTL(totalSale)}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Net Kâr</span>
+              <span className="text-xl font-black leading-none text-emerald-700">
+                {fmtTL(profit)}
+                <span className="ml-1 text-[10px] font-semibold text-emerald-500">({profitPctNum.toFixed(1)}%)</span>
               </span>
-            </span>
+            </div>
           </div>
         </div>
       ) : null}
@@ -814,42 +817,53 @@ function AnalysisDashboard({
   return (
     <div className="space-y-2">
       {/* Özet istatistikler */}
-      <div className={`${uiInfoCard} flex flex-wrap gap-x-6 gap-y-2`}>
-        <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-violet-700">
-          ANALİZ
-        </span>
-        <StatChip label="Kombinasyon" value={global.totalCombinations} color="violet" />
-        <StatChip label="Stok Taşı" value={global.totalStockedUnique} color="emerald" />
-        {global.missingNames.length > 0 && (
-          <StatChip label="Eksik" value={global.missingNames.length} color="rose" />
-        )}
-        {global.criticalStones.length > 0 && (
-          <StatChip label="Kritik Stok" value={global.criticalStones.length} color="amber" />
-        )}
-        {showBest && (
-          <span className="ml-auto text-[11px] font-semibold text-slate-600">
-            <span className="mr-1 text-amber-500">★</span>
-            Önerilen: Kombinasyon {global.bestVariantIndex + 1}
-            {" · "}
-            <span className="font-black text-emerald-700">{global.bestVariantPct}%</span>
-            {global.bestVariantCost > 0 && (
-              <span className="text-slate-400"> · {fmtTL(global.bestVariantCost)}</span>
-            )}
+      <div className={`${uiInfoCard} space-y-2`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full border border-violet-400 bg-gradient-to-r from-violet-100 to-violet-50 px-3 py-0.5 text-[10px] font-black tracking-widest text-violet-900 shadow-sm">
+            ANALİZ
           </span>
+          <StatChip label="Kombinasyon" value={global.totalCombinations} color="violet" />
+          <StatChip label="Stok Taşı" value={global.totalStockedUnique} color="emerald" />
+          {global.missingNames.length > 0 && (
+            <StatChip label="Eksik" value={global.missingNames.length} color="rose" />
+          )}
+          {global.criticalStones.length > 0 && (
+            <StatChip label="Kritik Stok" value={global.criticalStones.length} color="amber" />
+          )}
+        </div>
+        {showBest && (
+          <div className="flex items-center gap-2.5 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 px-3.5 py-2.5 shadow-sm">
+            <span className="text-xl text-amber-400">★</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="text-[12px] font-black text-amber-900">
+                  Önerilen: Kombinasyon {global.bestVariantIndex + 1}
+                </span>
+                <span className="text-[13px] font-black text-emerald-700">{global.bestVariantPct}%</span>
+                {global.bestVariantCost > 0 && (
+                  <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost)} tahmini maliyet</span>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Eksik taşlar */}
       {global.missingNames.length > 0 && (
-        <div className={`${uiInfoCard}`}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-700">
+        <div className="rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-rose-300 bg-rose-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-800">
               EKSİK TAŞLAR
             </span>
+            <span className="text-[10px] font-medium text-rose-500">{global.missingNames.length} taş</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
             {global.missingNames.map((name, i) => (
               <span
                 key={i}
-                className="inline-flex rounded-full border border-rose-200 bg-rose-50/60 px-2.5 py-0.5 text-xs font-semibold text-rose-700"
+                className="inline-block max-w-[180px] break-words rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-snug text-rose-700"
+                title={name}
               >
                 {name}
               </span>
@@ -860,17 +874,21 @@ function AnalysisDashboard({
 
       {/* Kritik stok */}
       {global.criticalStones.length > 0 && (
-        <div className={`${uiInfoCard}`}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700">
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-900">
               KRİTİK STOK
             </span>
+          </div>
+          <div className="flex flex-wrap gap-1">
             {global.criticalStones.map(({ name, adet }, i) => (
               <span
                 key={i}
-                className="inline-flex rounded-full border border-amber-200 bg-amber-50/60 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
+                className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-800"
               >
-                ⚠ {name} ({adet})
+                <span className="text-amber-500">⚠</span>
+                {name}
+                <span className="rounded-full bg-amber-100 px-1 text-[10px] font-black text-amber-700">{adet}</span>
               </span>
             ))}
           </div>
@@ -890,15 +908,15 @@ function StatChip({
   color: "violet" | "emerald" | "rose" | "amber";
 }) {
   const cls = {
-    violet: "text-violet-700",
-    emerald: "text-emerald-700",
-    rose: "text-rose-600",
-    amber: "text-amber-700",
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-600",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
   }[color];
   return (
-    <span className="text-[11px] font-medium text-slate-500">
-      {label}:{" "}
-      <span className={`font-black ${cls}`}>{value}</span>
+    <span className={`inline-flex flex-col items-center rounded-xl border px-3 py-1.5 shadow-sm ${cls}`}>
+      <span className="text-lg font-black leading-none">{value}</span>
+      <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wide opacity-70">{label}</span>
     </span>
   );
 }
@@ -958,17 +976,19 @@ function VariantCard({
 
   return (
     <article className={cardClass}>
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-violet-700">
-          KOMBİNASYON {index + 1}/{total}
+      <div className="mb-2.5 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">
+        <span className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-gradient-to-r from-violet-100 to-indigo-50 px-3 py-1 text-[11px] font-black tracking-wide text-violet-900 shadow-sm">
+          <span className="text-violet-400">◈</span>
+          <span>Kombinasyon</span>
+          <span>{index + 1} / {total}</span>
         </span>
         {applicabilityPct !== undefined && !stockLoading ? (
           <ApplicabilityBadge pct={applicabilityPct} />
         ) : null}
-        <span className="ml-auto text-[10px] font-medium text-slate-400">
+        {showMatchBadge ? <SearchMatchBadge /> : null}
+        <span className="ml-auto text-[9px] font-medium tabular-nums text-slate-300">
           {formatDate(row.created_at)}
         </span>
-        {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
 
       <div className="space-y-2">
@@ -993,24 +1013,26 @@ function VariantCard({
             type="button"
             onClick={onToggleCalc}
             disabled={stockLoading}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-black transition ${
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-black shadow-sm transition ${
               stockLoading
                 ? "cursor-default border-slate-200 bg-slate-50 text-slate-400"
-                : "border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100"
+                : calcOpen
+                  ? "border-amber-300 bg-amber-100 text-amber-900"
+                  : "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100"
             }`}
           >
-            <span>{calcOpen ? "▲" : "▼"}</span>
+            <span className="text-amber-500">{calcOpen ? "▲" : "▼"}</span>
             <span>Hesap Makinesi</span>
             {stockLoading ? (
               <span className="text-[10px] font-medium text-slate-400">· yükleniyor</span>
             ) : allStockedDisplayNames.length > 0 ? (
-              <span className="text-[10px] font-medium text-amber-600">
-                · {allStockedDisplayNames.length} stok taşı
+              <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-black text-amber-900">
+                {allStockedDisplayNames.length}
               </span>
             ) : null}
           </button>
           {calcOpen && !stockLoading && allStockedDisplayNames.length > 0 ? (
-            <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50/30 p-3 shadow-sm">
+            <div className="mt-2 rounded-xl border-2 border-amber-300 bg-amber-50/70 p-3 shadow-md ring-1 ring-amber-100/50">
               <CombinationCalculator
                 stockedDisplayNames={allStockedDisplayNames}
                 stockMap={stockMap}
