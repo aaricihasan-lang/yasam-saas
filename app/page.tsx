@@ -1124,43 +1124,43 @@ export default function Home() {
             const d = effectiveNow;
             const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
             return (
+              <>
               <section
-                className="relative mb-5 overflow-hidden rounded-[18px] border border-violet-100/80 px-5 py-2.5 shadow-[0_10px_36px_rgba(124,58,237,0.10),0_4px_14px_rgba(59,130,246,0.06)] sm:px-7 sm:py-3"
-                style={{ background: "linear-gradient(135deg,#f3e8ff 0%,#ede9fe 28%,#e0f2fe 62%,#fdf2f8 100%)" }}
+                className="relative mb-0 overflow-hidden rounded-[20px] border border-white/90 px-5 py-4 shadow-[0_18px_50px_rgba(124,58,237,0.12),0_8px_24px_rgba(59,130,246,0.08)] sm:px-7 sm:py-5"
+                style={{ background: "linear-gradient(135deg,#efe2ff 0%,#e9e5ff 25%,#dff4ff 60%,#ffe8f4 100%)" }}
               >
                 {/* Dekoratif pastel ışıklar */}
-                <div className="pointer-events-none absolute -right-6 -top-6 h-36 w-44 rounded-full bg-fuchsia-300/[0.09] blur-3xl" aria-hidden />
-                <div className="pointer-events-none absolute -bottom-4 -left-4 h-24 w-32 rounded-full bg-blue-300/[0.08] blur-2xl" aria-hidden />
-                <div className="pointer-events-none absolute right-8 top-0 h-full w-px bg-gradient-to-b from-white/40 via-white/10 to-transparent" aria-hidden />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-[280px] w-[280px] rounded-full bg-fuchsia-300/[0.12] blur-3xl" aria-hidden />
+                <div className="pointer-events-none absolute -bottom-10 -left-6 h-[280px] w-[280px] rounded-full bg-blue-300/[0.12] blur-3xl" aria-hidden />
 
                 {/* Üst satır: selamlama + çıkış */}
-                <div className="relative flex items-center justify-between gap-4">
+                <div className="relative flex items-start justify-between gap-4">
                   <div>
-                    <h1 className="text-lg font-black tracking-tight sm:text-xl">
+                    <h1 className="leading-tight tracking-tight">
                       {firstName ? (
                         <>
-                          <span className="bg-gradient-to-r from-violet-700 via-purple-600 to-fuchsia-500 bg-clip-text font-extrabold text-transparent">
+                          <span className="block text-3xl font-black bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-transparent sm:text-4xl">
                             {firstName}
                           </span>
-                          <span className="text-slate-950">, hoş geldiniz ✨</span>
+                          <span className="block text-xl font-black text-slate-950 sm:text-2xl">, hoş geldiniz ✨</span>
                         </>
                       ) : (
-                        <span className="text-slate-950">Hoş geldiniz ✨</span>
+                        <span className="block text-2xl font-black text-slate-950 sm:text-3xl">Hoş geldiniz ✨</span>
                       )}
                     </h1>
-                    <p className="mt-0.5 text-sm text-slate-600">{heroDate}</p>
+                    <p className="mt-1.5 text-sm text-slate-600">{heroDate}</p>
                   </div>
                   <button
                     type="button"
                     onClick={logout}
-                    className="shrink-0 rounded-lg border border-white/80 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-slate-500 backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
+                    className="mt-0.5 shrink-0 rounded-lg border border-white/80 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-slate-500 backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
                   >
                     Çıkış Yap
                   </button>
                 </div>
 
                 {/* Hızlı İşlemler */}
-                <div className="relative mt-2.5 flex flex-wrap gap-1.5">
+                <div className="relative mt-3 flex flex-wrap gap-2">
                   {([
                     { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
                     { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
@@ -1170,7 +1170,7 @@ export default function Home() {
                     <Link
                       key={label}
                       href={href}
-                      className="inline-flex items-center gap-1 rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-600 no-underline shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:text-violet-700"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/85 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-md backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:text-violet-700"
                     >
                       <span aria-hidden>{icon}</span>
                       {label}
@@ -1182,7 +1182,7 @@ export default function Home() {
                 {isAdminUser(user) ? (
                   <Link
                     href="/admin"
-                    className="relative mt-3 flex items-center gap-3 rounded-xl border border-violet-200/60 bg-white/50 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/70"
+                    className="relative mt-3 flex items-center gap-3 rounded-xl border border-rose-200 bg-white/55 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/75"
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
                       <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
@@ -1195,6 +1195,10 @@ export default function Home() {
                   </Link>
                 ) : null}
               </section>
+
+              {/* Hero → modüller geçiş ayırıcı */}
+              <div className="mb-5 h-px bg-gradient-to-r from-transparent via-violet-300/50 to-transparent" />
+              </>
             );
           })()}
 
