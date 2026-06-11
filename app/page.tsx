@@ -1021,6 +1021,12 @@ export default function Home() {
     const effectiveNow = now ?? new Date();
     const phase = getMoonPhase(effectiveNow);
     const sunSgn = getSunSign(effectiveNow);
+    const moonSgn = getMoonSign(effectiveNow);
+    const planetary = getPlanetaryHour(effectiveNow);
+    const numDay = numerologicalDay(effectiveNow);
+    const dayColor = WEEKDAY_COLORS[effectiveNow.getDay()]!;
+    const dayStone = WEEKDAY_STONES[effectiveNow.getDay()]!;
+    const dayChakra = WEEKDAY_CHAKRAS[effectiveNow.getDay()]!;
 
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[#050D1F] text-white antialiased">
@@ -1036,68 +1042,118 @@ export default function Home() {
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}
-          <section className="mb-6 overflow-hidden rounded-[28px] border border-white/8 bg-gradient-to-br from-[#0B1535] via-[#110D2E] to-[#0A1628] px-5 py-4 shadow-[0_0_60px_rgba(109,40,217,0.12)] sm:px-8 sm:py-5">
+          <section className="relative mb-6 overflow-hidden rounded-[28px] border border-white/8 bg-gradient-to-br from-[#0B1535] via-[#110D2E] to-[#0A1628] shadow-[0_0_60px_rgba(109,40,217,0.12)]">
 
-            {/* Top row: greeting + logout */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+            {/* İç ambient glow'lar — hafif, premium */}
+            <div className="pointer-events-none absolute right-0 top-0 h-56 w-72 rounded-full bg-violet-600/8 blur-[70px]" aria-hidden />
+            <div className="pointer-events-none absolute bottom-0 left-1/4 h-32 w-48 rounded-full bg-indigo-500/6 blur-[55px]" aria-hidden />
+            <div className="pointer-events-none absolute left-0 top-1/2 h-20 w-28 -translate-y-1/2 rounded-full bg-fuchsia-500/4 blur-[40px]" aria-hidden />
+
+            <div className="relative px-5 pt-4 sm:px-8 sm:pt-5">
+
+              {/* Top bar: etiket + çıkış */}
+              <div className="mb-4 flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-violet-400/70">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-[2rem]">
-                  {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
-                </h1>
-                <p className="mt-0.5 text-[11px] font-medium text-white/35">
-                  {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                </p>
-                <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-white/45">
-                  Bugünün enerjisini, çalışmalarını ve ana merkezlerini tek ekranda takip et.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={logout}
-                className="shrink-0 rounded-lg border border-white/18 bg-transparent px-3 py-1.5 text-[11px] font-semibold text-white/45 transition hover:border-white/30 hover:text-white/75"
-              >
-                Çıkış Yap
-              </button>
-            </div>
-
-            {/* Cosmic chips — yatay kaydırma */}
-            <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-0.5 sm:-mx-8 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {[
-                { label: phase.emoji + " " + phase.name, sub: "Ay Fazı" },
-                { label: sunSgn.emoji + " " + sunSgn.tr, sub: "Güneş Burcu" },
-                { label: "🔢 " + numerologicalDay(effectiveNow), sub: "Günün Numerolojisi" },
-                { label: "💎 " + WEEKDAY_STONES[effectiveNow.getDay()]!, sub: "Günün Taşı" },
-                { label: WEEKDAY_CHAKRAS[effectiveNow.getDay()]!.emoji + " " + WEEKDAY_CHAKRAS[effectiveNow.getDay()]!.name, sub: "Günün Çakrası" },
-              ].map(({ label, sub }) => (
-                <div
-                  key={sub}
-                  className="flex shrink-0 flex-col rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md"
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="shrink-0 rounded-lg border border-white/18 bg-transparent px-3 py-1.5 text-[11px] font-semibold text-white/45 transition hover:border-white/30 hover:text-white/75"
                 >
-                  <span className="text-sm font-black text-white/90">{label}</span>
-                  <span className="mt-0.5 text-[10px] font-medium text-violet-300/60">{sub}</span>
+                  Çıkış Yap
+                </button>
+              </div>
+
+              {/* Ana gövde: sol selamlama · sağ özet */}
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-6">
+
+                {/* Sol: selamlama */}
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl font-black tracking-tight text-white sm:text-[1.75rem]">
+                    {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
+                  </h1>
+                  <p className="mt-0.5 text-[11px] font-medium text-white/35">
+                    {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                  <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-white/50">
+                    Bugün{" "}
+                    <span className="font-bold text-amber-300/80">{numDay} enerjisi</span>
+                    {" "}ile çalışmalarını daha bilinçli planlayabilirsin.
+                  </p>
                 </div>
-              ))}
+
+                {/* Sağ: kompakt 3 bilgi kartı */}
+                <div className="flex shrink-0 gap-2 overflow-x-auto pb-0.5 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="flex min-w-[100px] shrink-0 flex-col rounded-xl border border-white/[0.1] bg-white/[0.05] px-3 py-2 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm leading-none">{planetary.current.emoji}</span>
+                      <span className="text-xs font-black text-white/85">{planetary.current.name}</span>
+                    </div>
+                    <span className="mt-0.5 text-[10px] text-violet-300/55">{planetary.minutesLeft} dk · Gezegen</span>
+                  </div>
+                  <div className="flex min-w-[100px] shrink-0 flex-col rounded-xl border border-white/[0.1] bg-white/[0.05] px-3 py-2 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm leading-none">{moonSgn.emoji}</span>
+                      <span className="text-xs font-black text-white/85">{moonSgn.tr}</span>
+                    </div>
+                    <span className="mt-0.5 text-[10px] text-violet-300/55">Ay Burcu</span>
+                  </div>
+                  <div className="flex min-w-[100px] shrink-0 flex-col rounded-xl border border-white/[0.1] bg-white/[0.05] px-3 py-2 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-white/20"
+                        style={{ backgroundColor: dayColor.hex }}
+                      />
+                      <span className="text-xs font-black text-white/85">{dayColor.name}</span>
+                    </div>
+                    <span className="mt-0.5 text-[10px] text-violet-300/55">Günün Rengi</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin linki */}
+              {isAdminUser(user) ? (
+                <Link
+                  href="/admin"
+                  className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 no-underline transition hover:bg-rose-500/15"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
+                    <Shield className="h-4 w-4" strokeWidth={2.25} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Sistem Sahibi</p>
+                    <p className="text-sm font-black text-white/90">Admin Paneli</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-white/40" strokeWidth={2.5} />
+                </Link>
+              ) : null}
             </div>
 
-            {/* Admin link inside hero */}
-            {isAdminUser(user) ? (
-              <Link
-                href="/admin"
-                className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 no-underline transition hover:bg-rose-500/15"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
-                  <Shield className="h-4 w-4" strokeWidth={2.25} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Sistem Sahibi</p>
-                  <p className="text-sm font-black text-white/90">Admin Paneli</p>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-white/40" strokeWidth={2.5} />
-              </Link>
-            ) : null}
+            {/* ── Enerji Bandı ── */}
+            <div className="mt-4 border-t border-white/[0.07]">
+              <div className="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {([
+                  { emoji: phase.emoji,     value: phase.name,      label: "Ay Fazı" },
+                  { emoji: sunSgn.emoji,    value: sunSgn.tr,       label: "Güneş Burcu" },
+                  { emoji: "🔢",            value: String(numDay),  label: "Nümeroloji" },
+                  { emoji: "💎",            value: dayStone,        label: "Günün Taşı" },
+                  { emoji: dayChakra.emoji, value: dayChakra.name,  label: "Çakra" },
+                ] as const).map(({ emoji, value, label }, i, arr) => (
+                  <div
+                    key={label}
+                    className={[
+                      "flex shrink-0 flex-col py-3",
+                      i === 0 ? "pl-5 pr-4 sm:pl-8" : i === arr.length - 1 ? "pl-4 pr-5 sm:pr-8" : "px-4",
+                      i > 0 ? "border-l border-white/[0.07]" : "",
+                    ].join(" ")}
+                  >
+                    <span className="whitespace-nowrap text-xs font-black text-white/85">{emoji} {value}</span>
+                    <span className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-violet-300/50">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           {/* ═══════════════════════════════════════════
