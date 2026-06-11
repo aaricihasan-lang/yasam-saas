@@ -226,18 +226,16 @@ export function isAdminUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "admin";
 }
 
-/** Hero / panel başlığı: full_name → name → email → varsayılan */
+/** Hero / panel başlığı: full_name → name → boş (email asla gösterilmez) */
 export function getYasamUserDisplayName(
   user: YasamUser | null | undefined,
 ): string {
-  if (!user) return "Uzman Paneli";
+  if (!user) return "";
   const fullName = user.full_name?.trim();
   if (fullName) return fullName;
   const name = user.name?.trim();
-  if (name) return name;
-  const email = user.email?.trim();
-  if (email) return email;
-  return "Uzman Paneli";
+  if (name && !name.includes("@")) return name;
+  return "";
 }
 
 export function isExpertUser(user: YasamUser | null | undefined): boolean {

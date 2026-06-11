@@ -998,6 +998,7 @@ export default function Home() {
 
   if (user) {
     const displayName = getYasamUserDisplayName(user);
+    const firstName = displayName ? displayName.split(" ")[0] : "";
     const panelAccess = hasFullPanelAccess(user);
     const visibleDashboardModules = getVisibleDashboardModules(user);
     const membershipExpired = isExpertMembershipExpired(user);
@@ -1035,32 +1036,35 @@ export default function Home() {
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}
-          <section className="mb-6 overflow-hidden rounded-[28px] border border-white/8 bg-gradient-to-br from-[#0B1535] via-[#110D2E] to-[#0A1628] px-5 py-6 shadow-[0_0_60px_rgba(109,40,217,0.12)] sm:px-8 sm:py-8">
+          <section className="mb-6 overflow-hidden rounded-[28px] border border-white/8 bg-gradient-to-br from-[#0B1535] via-[#110D2E] to-[#0A1628] px-5 py-4 shadow-[0_0_60px_rgba(109,40,217,0.12)] sm:px-8 sm:py-5">
 
             {/* Top row: greeting + logout */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-400/80">
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-violet-400/70">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
-                  {getDayGreeting(effectiveNow)}, {displayName.split(" ")[0]} ✨
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-[2rem]">
+                  {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
                 </h1>
-                <p className="mt-1 text-sm font-medium text-white/50">
+                <p className="mt-0.5 text-[11px] font-medium text-white/35">
                   {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                </p>
+                <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-white/45">
+                  Bugünün enerjisini, çalışmalarını ve ana merkezlerini tek ekranda takip et.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={logout}
-                className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
+                className="shrink-0 rounded-lg border border-white/18 bg-transparent px-3 py-1.5 text-[11px] font-semibold text-white/45 transition hover:border-white/30 hover:text-white/75"
               >
                 Çıkış Yap
               </button>
             </div>
 
-            {/* Cosmic chips */}
-            <div className="mt-5 flex flex-wrap gap-2">
+            {/* Cosmic chips — yatay kaydırma */}
+            <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-0.5 sm:-mx-8 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {[
                 { label: phase.emoji + " " + phase.name, sub: "Ay Fazı" },
                 { label: sunSgn.emoji + " " + sunSgn.tr, sub: "Güneş Burcu" },
@@ -1070,10 +1074,10 @@ export default function Home() {
               ].map(({ label, sub }) => (
                 <div
                   key={sub}
-                  className="flex flex-col rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 backdrop-blur-sm"
+                  className="flex shrink-0 flex-col rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md"
                 >
                   <span className="text-sm font-black text-white/90">{label}</span>
-                  <span className="mt-0.5 text-[10px] font-medium text-white/40">{sub}</span>
+                  <span className="mt-0.5 text-[10px] font-medium text-violet-300/60">{sub}</span>
                 </div>
               ))}
             </div>
