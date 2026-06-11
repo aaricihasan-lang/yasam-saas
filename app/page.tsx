@@ -1124,14 +1124,21 @@ export default function Home() {
             const d = effectiveNow;
             const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
             return (
-              <section className="mb-5 rounded-[18px] border border-slate-200/70 bg-white/55 px-5 py-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:px-7 sm:py-3">
+              <section
+                className="relative mb-5 overflow-hidden rounded-[18px] border border-violet-100 px-5 py-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:px-7 sm:py-3"
+                style={{ background: "linear-gradient(135deg,rgba(139,92,246,0.05) 0%,rgba(59,130,246,0.04) 45%,rgba(236,72,153,0.04) 100%)" }}
+              >
+                {/* Çok hafif iç ışıklar */}
+                <div className="pointer-events-none absolute right-0 top-0 h-24 w-32 rounded-full bg-violet-400/[0.07] blur-2xl" aria-hidden />
+                <div className="pointer-events-none absolute bottom-0 left-0 h-16 w-24 rounded-full bg-blue-400/[0.06] blur-2xl" aria-hidden />
+
                 {/* Üst satır: selamlama + çıkış */}
-                <div className="flex items-center justify-between gap-4">
+                <div className="relative flex items-center justify-between gap-4">
                   <div>
                     <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
                       {firstName ? (
                         <>
-                          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
+                          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text font-bold text-transparent drop-shadow-[0_1px_6px_rgba(139,92,246,0.20)]">
                             {firstName}
                           </span>
                           <span className="text-slate-900">, hoş geldiniz ✨</span>
@@ -1145,7 +1152,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={logout}
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:text-slate-700"
+                    className="shrink-0 rounded-lg border border-violet-100 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-700"
                   >
                     Çıkış Yap
                   </button>
