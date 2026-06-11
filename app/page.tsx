@@ -580,8 +580,8 @@ function LivePanel({ date }: { date: Date | null }) {
   return (
     <div className="space-y-3">
       {/* Anlık Gökyüzü */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
           Anlık Gökyüzü
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -591,34 +591,34 @@ function LivePanel({ date }: { date: Date | null }) {
             { label: "Ay Fazı", value: `${phase.emoji} ${phase.name}` },
             { label: "Ay Yaşı", value: `${phase.pct}%` },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl bg-white/5 px-3 py-2">
-              <p className="text-[10px] font-medium text-white/40">{label}</p>
-              <p className="mt-0.5 text-xs font-black text-white/90">{value}</p>
+            <div key={label} className="rounded-xl bg-slate-50/80 px-3 py-2">
+              <p className="text-[10px] font-medium text-slate-400">{label}</p>
+              <p className="mt-0.5 text-xs font-black text-slate-900">{value}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Gezegen Saati */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
           Gezegen Saati
         </p>
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-2xl">
             {planetary.current.emoji}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-black text-white">{planetary.current.name}</p>
-            <p className="text-[11px] text-white/50">{planetary.minutesLeft} dk kaldı</p>
+            <p className="text-base font-black text-slate-900">{planetary.current.name}</p>
+            <p className="text-[11px] text-slate-500">{planetary.minutesLeft} dk kaldı</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-white/40">Sonraki</p>
-            <p className="text-xs font-bold text-white/70">{planetary.next.emoji} {planetary.next.name}</p>
+            <p className="text-[10px] text-slate-400">Sonraki</p>
+            <p className="text-xs font-bold text-slate-600">{planetary.next.emoji} {planetary.next.name}</p>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all"
             style={{ width: `${planetary.pct}%` }}
@@ -627,24 +627,24 @@ function LivePanel({ date }: { date: Date | null }) {
       </div>
 
       {/* Günlük Rehber */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
           Günlük Rehber
         </p>
         <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
-            <span className="text-xs font-medium text-white/50">Günün Taşı</span>
-            <span className="text-xs font-black text-white/90">💎 {stone}</span>
+          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
+            <span className="text-xs font-medium text-slate-500">Günün Taşı</span>
+            <span className="text-xs font-black text-slate-900">💎 {stone}</span>
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
-            <span className="text-xs font-medium text-white/50">Günün Çakrası</span>
-            <span className="text-xs font-black text-white/90">{chakra.emoji} {chakra.name}</span>
+          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
+            <span className="text-xs font-medium text-slate-500">Günün Çakrası</span>
+            <span className="text-xs font-black text-slate-900">{chakra.emoji} {chakra.name}</span>
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
-            <span className="text-xs font-medium text-white/50">Günün Rengi</span>
-            <span className="flex items-center gap-1.5 text-xs font-black text-white/90">
+          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
+            <span className="text-xs font-medium text-slate-500">Günün Rengi</span>
+            <span className="flex items-center gap-1.5 text-xs font-black text-slate-900">
               <span
-                className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-white/20"
+                className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-slate-200"
                 style={{ backgroundColor: color.hex }}
               />
               {color.name}
@@ -654,17 +654,17 @@ function LivePanel({ date }: { date: Date | null }) {
       </div>
 
       {/* Numerolojik Gün */}
-      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 backdrop-blur-sm">
-        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+      <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 shadow-sm backdrop-blur-md">
+        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
           Numerolojik Gün
         </p>
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-2xl font-black text-amber-300">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl font-black text-amber-700">
             {numDay}
           </span>
           <div>
-            <p className="text-sm font-black text-white/90">{numDay} Enerjisi</p>
-            <p className="text-[11px] text-white/50">{numDesc}</p>
+            <p className="text-sm font-black text-slate-900">{numDay} Enerjisi</p>
+            <p className="text-[11px] text-slate-500">{numDesc}</p>
           </div>
         </div>
       </div>
@@ -1021,36 +1021,30 @@ export default function Home() {
     const effectiveNow = now ?? new Date();
 
     return (
-      <main className="relative min-h-screen w-full overflow-x-hidden bg-[#050D1F] text-white antialiased">
-        {/* ── Starfield ── */}
-        <StarField />
+      <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
 
-        {/* ── Ambient glows ── */}
-        <div className="pointer-events-none absolute left-[-10%] top-[-5%] h-[500px] w-[500px] rounded-full bg-violet-600/10 blur-[120px]" aria-hidden />
-        <div className="pointer-events-none absolute right-[-8%] top-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/8 blur-[100px]" aria-hidden />
-
-        <div className="relative z-10 mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
+        <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
 
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}
-          <section className="mb-6 rounded-[24px] border border-white/[0.08] bg-gradient-to-br from-[#0a1228] to-[#0d0f23] px-5 py-5 sm:px-8 sm:py-6">
+          <section className="mb-6 rounded-[24px] border border-white/70 bg-white/60 px-5 py-5 shadow-sm backdrop-blur-md sm:px-8 sm:py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-violet-400/60">
+                <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-violet-600/70">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-[1.75rem]">
+                <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-[1.75rem]">
                   {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
                 </h1>
-                <p className="mt-1 text-[12px] text-white/30">
+                <p className="mt-1 text-[12px] text-slate-400">
                   {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={logout}
-                className="mt-0.5 shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[11px] font-medium text-white/40 transition hover:border-white/25 hover:text-white/65"
+                className="mt-0.5 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:text-slate-700"
               >
                 Çıkış Yap
               </button>
@@ -1060,16 +1054,16 @@ export default function Home() {
             {isAdminUser(user) ? (
               <Link
                 href="/admin"
-                className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 no-underline transition hover:bg-rose-500/15"
+                className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 no-underline transition hover:bg-rose-100"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
                   <Shield className="h-4 w-4" strokeWidth={2.25} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Sistem Sahibi</p>
-                  <p className="text-sm font-black text-white/90">Admin Paneli</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">Sistem Sahibi</p>
+                  <p className="text-sm font-black text-slate-800">Admin Paneli</p>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-white/40" strokeWidth={2.5} />
+                <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.5} />
               </Link>
             ) : null}
           </section>
@@ -1081,21 +1075,21 @@ export default function Home() {
 
             {/* ── Left: Module Grid ── */}
             <div>
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
                 Ana Merkezler
               </p>
 
               {membershipExpired ? (
-                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-400/20 bg-rose-500/10 px-6 py-8 text-center">
-                  <p className="text-base font-black text-rose-300">Üyelik süreniz doldu</p>
-                  <p className="mt-2 max-w-md text-sm text-rose-400/80">
+                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
+                  <p className="text-base font-black text-rose-700">Üyelik süreniz doldu</p>
+                  <p className="mt-2 max-w-md text-sm text-rose-500">
                     Modüllere erişim için yönetici ile iletişime geçin.
                   </p>
                 </div>
               ) : expertModulesEmpty ? (
-                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-white/5 px-6 py-8 text-center">
-                  <p className="text-base font-black text-white/80">Henüz modül izniniz tanımlanmamış</p>
-                  <p className="mt-2 max-w-md text-sm text-white/40">
+                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-white/60 px-6 py-8 text-center backdrop-blur-sm">
+                  <p className="text-base font-black text-slate-700">Henüz modül izniniz tanımlanmamış</p>
+                  <p className="mt-2 max-w-md text-sm text-slate-400">
                     Erişim için yönetici ile iletişime geçin.
                   </p>
                 </div>
@@ -1181,7 +1175,7 @@ export default function Home() {
 
             {/* ── Right: Live Panel (sticky) ── */}
             <aside className="lg:sticky lg:top-4 lg:self-start">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
                 Canlı Yaşam Paneli
               </p>
               <LivePanel date={effectiveNow} />
