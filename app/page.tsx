@@ -1044,45 +1044,60 @@ export default function Home() {
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}
-          <section className="mb-5 rounded-[20px] border border-white/70 bg-white/60 px-5 py-3 shadow-sm backdrop-blur-md sm:px-7 sm:py-3.5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.26em] text-violet-600/60">
-                  Yaşam Sistemi
-                </p>
-                <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-                  {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
-                </h1>
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={logout}
-                className="mt-0.5 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:text-slate-700"
-              >
-                Çıkış Yap
-              </button>
-            </div>
+          {(() => {
+            const d = effectiveNow;
+            const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
+            const statClients = moduleStats["clients"];
+            const statStones  = moduleStats["stones"];
+            const statContent = moduleStats["digital_content"];
+            const fmt = (v: number | null | undefined) => v == null ? "–" : String(v);
+            return (
+              <section className="mb-5 rounded-[18px] border border-slate-200/70 bg-white/55 px-5 py-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:px-7 sm:py-3">
+                {/* Üst satır: selamlama + çıkış */}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
+                      {firstName ? `${firstName} Hocam, hoş geldiniz ✨` : "Hoş geldiniz ✨"}
+                    </h1>
+                    <p className="mt-0.5 text-[11px] text-slate-400">{heroDate}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:text-slate-700"
+                  >
+                    Çıkış Yap
+                  </button>
+                </div>
 
-            {/* Admin linki */}
-            {isAdminUser(user) ? (
-              <Link
-                href="/admin"
-                className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 no-underline transition hover:bg-rose-100"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
-                  <Shield className="h-4 w-4" strokeWidth={2.25} />
+                {/* Mikro istatistik bandı */}
+                <div className="mt-2 flex items-center gap-2.5 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+                  <span>👥 {fmt(statClients)} Danışan</span>
+                  <span className="text-slate-300" aria-hidden>·</span>
+                  <span>💎 {fmt(statStones)} Taş</span>
+                  <span className="text-slate-300" aria-hidden>·</span>
+                  <span>📚 {fmt(statContent)} İçerik</span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">Sistem Sahibi</p>
-                  <p className="text-sm font-black text-slate-800">Admin Paneli</p>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.5} />
-              </Link>
-            ) : null}
-          </section>
+
+                {/* Admin linki */}
+                {isAdminUser(user) ? (
+                  <Link
+                    href="/admin"
+                    className="mt-3 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 no-underline transition hover:bg-rose-100"
+                  >
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
+                      <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">Sistem Sahibi</p>
+                      <p className="text-xs font-black text-slate-800">Admin Paneli</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                  </Link>
+                ) : null}
+              </section>
+            );
+          })()}
 
           {/* ═══════════════════════════════════════════
                TWO-COLUMN: MODULES + LIVE PANEL
