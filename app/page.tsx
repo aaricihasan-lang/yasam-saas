@@ -1123,10 +1123,6 @@ export default function Home() {
           {(() => {
             const d = effectiveNow;
             const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
-            const statClients = moduleStats["clients"];
-            const statStones  = moduleStats["stones"];
-            const statContent = moduleStats["digital_content"];
-            const fmt = (v: number | null | undefined) => v == null ? "–" : String(v);
             return (
               <section className="mb-5 rounded-[18px] border border-slate-200/70 bg-white/55 px-5 py-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:px-7 sm:py-3">
                 {/* Üst satır: selamlama + çıkış */}
@@ -1144,21 +1140,6 @@ export default function Home() {
                   >
                     Çıkış Yap
                   </button>
-                </div>
-
-                {/* Mini istatistik kartları */}
-                <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5">
-                  {([
-                    { icon: "👥", val: fmt(statClients), label: "Danışan" },
-                    { icon: "💎", val: fmt(statStones),  label: "Taş" },
-                    { icon: "📚", val: fmt(statContent), label: "İçerik" },
-                  ] as const).map(({ icon, val, label }) => (
-                    <div key={label} className="flex flex-col items-center rounded-xl bg-slate-50/80 py-2">
-                      <span className="text-sm leading-none">{icon}</span>
-                      <span className="mt-1 text-base font-black leading-none text-slate-800">{val}</span>
-                      <span className="mt-0.5 text-[10px] text-slate-400">{label}</span>
-                    </div>
-                  ))}
                 </div>
 
                 {/* Hızlı İşlemler */}
