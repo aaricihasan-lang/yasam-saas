@@ -403,6 +403,274 @@ function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
   );
 }
 
+// ─── Cosmic helpers ────────────────────────────────────────────────────────────
+
+function numerologicalDay(date: Date): number {
+  const digits = `${date.getDate()}${date.getMonth() + 1}${date.getFullYear()}`
+    .split("").map(Number);
+  let n = digits.reduce((a, b) => a + b, 0);
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
+    n = String(n).split("").map(Number).reduce((a, b) => a + b, 0);
+  }
+  return n;
+}
+
+function moonAge(date: Date): number {
+  const ref = new Date("2024-01-11T11:57:00Z");
+  const daysSince = (date.getTime() - ref.getTime()) / 86_400_000;
+  return ((daysSince % 29.53059) + 29.53059) % 29.53059;
+}
+
+const MOON_PHASES = [
+  { name: "Yeni Ay", emoji: "🌑", max: 1.85 },
+  { name: "Büyüyen Hilal", emoji: "🌒", max: 7.38 },
+  { name: "İlk Dördün", emoji: "🌓", max: 14.77 },
+  { name: "Şişen Ay", emoji: "🌔", max: 22.15 },
+  { name: "Dolunay", emoji: "🌕", max: 24.0 },
+  { name: "Azalan Ay", emoji: "🌖", max: 26.38 },
+  { name: "Son Dördün", emoji: "🌗", max: 27.69 },
+  { name: "Solan Hilal", emoji: "🌘", max: 29.53 },
+] as const;
+
+function getMoonPhase(date: Date): { name: string; emoji: string; pct: number } {
+  const age = moonAge(date);
+  const pct = Math.round((age / 29.53059) * 100);
+  for (const p of MOON_PHASES) {
+    if (age <= p.max) return { name: p.name, emoji: p.emoji, pct };
+  }
+  return { name: "Yeni Ay", emoji: "🌑", pct: 0 };
+}
+
+const ZODIAC_SIGNS = [
+  { tr: "Oğlak", emoji: "♑", md: 20, mm: 1 },
+  { tr: "Kova", emoji: "♒", md: 19, mm: 2 },
+  { tr: "Balık", emoji: "♓", md: 20, mm: 3 },
+  { tr: "Koç", emoji: "♈", md: 19, mm: 4 },
+  { tr: "Boğa", emoji: "♉", md: 20, mm: 5 },
+  { tr: "İkizler", emoji: "♊", md: 20, mm: 6 },
+  { tr: "Yengeç", emoji: "♋", md: 22, mm: 7 },
+  { tr: "Aslan", emoji: "♌", md: 22, mm: 8 },
+  { tr: "Başak", emoji: "♍", md: 22, mm: 9 },
+  { tr: "Terazi", emoji: "♎", md: 22, mm: 10 },
+  { tr: "Akrep", emoji: "♏", md: 21, mm: 11 },
+  { tr: "Yay", emoji: "♐", md: 21, mm: 12 },
+] as const;
+
+function getSunSign(date: Date): typeof ZODIAC_SIGNS[number] {
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  for (const z of ZODIAC_SIGNS) {
+    if (m < z.mm || (m === z.mm && d <= z.md)) return z;
+  }
+  return ZODIAC_SIGNS[0];
+}
+
+// Approximate moon sign: moon moves ~13.2° per day (27.32-day sidereal cycle)
+// Reference: Jan 11, 2024 new moon ≈ Capricorn ingress
+const ARIES_ORDER = [
+  "Koç","Boğa","İkizler","Yengeç","Aslan","Başak",
+  "Terazi","Akrep","Yay","Oğlak","Kova","Balık",
+] as const;
+function getMoonSign(date: Date): typeof ZODIAC_SIGNS[number] {
+  const ref = new Date("2024-01-11T11:57:00Z");
+  const daysSince = (date.getTime() - ref.getTime()) / 86_400_000;
+  const degrees = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
+  // Reference: Capricorn ≈ 270° in zodiac wheel; shift by -270
+  const adjusted = (degrees + 270) % 360;
+  const signIndex = Math.floor(adjusted / 30) % 12;
+  const signName = ARIES_ORDER[signIndex]!;
+  return ZODIAC_SIGNS.find((z) => z.tr === signName) ?? ZODIAC_SIGNS[0];
+}
+
+const PLANET_NAMES = ["Güneş","Venüs","Merkür","Ay","Satürn","Jüpiter","Mars"] as const;
+const PLANET_EMOJIS = ["☀️","♀️","☿","🌙","♄","♃","♂"] as const;
+// Chaldean order indices into PLANET_NAMES: Saturn=4, Jupiter=5, Mars=6, Sun=0, Venus=1, Mercury=2, Moon=3
+const CHALDEAN_IDX = [4, 5, 6, 0, 1, 2, 3] as const;
+// Starting Chaldean position for hour-0 of each weekday (0=Sun through 6=Sat)
+const DAY_START_POS = [3, 6, 2, 5, 1, 4, 0] as const;
+
+function getPlanetaryHour(date: Date) {
+  const curPos = (DAY_START_POS[date.getDay()]! + date.getHours()) % 7;
+  const nextPos = (curPos + 1) % 7;
+  return {
+    current: { name: PLANET_NAMES[CHALDEAN_IDX[curPos]!]!, emoji: PLANET_EMOJIS[CHALDEAN_IDX[curPos]!]! },
+    next: { name: PLANET_NAMES[CHALDEAN_IDX[nextPos]!]!, emoji: PLANET_EMOJIS[CHALDEAN_IDX[nextPos]!]! },
+    minutesLeft: 60 - date.getMinutes(),
+    pct: Math.round((date.getMinutes() / 60) * 100),
+  };
+}
+
+const WEEKDAY_STONES = ["Kehribar","Aytaşı","Karneol","Amazont","Lapis Lazuli","Gül Kuvars","Obsidyen"] as const;
+const WEEKDAY_CHAKRAS = [
+  { name: "Güneş Sinir Ağı", emoji: "🟡" },
+  { name: "Taç Çakra", emoji: "🔮" },
+  { name: "Kök Çakra", emoji: "🔴" },
+  { name: "Kalp Çakrası", emoji: "💚" },
+  { name: "Üçüncü Göz", emoji: "🔵" },
+  { name: "Sakral Çakra", emoji: "🟠" },
+  { name: "Kök Çakra", emoji: "🔴" },
+] as const;
+const WEEKDAY_COLORS = [
+  { name: "Altın", hex: "#F59E0B" },
+  { name: "Gümüş", hex: "#94A3B8" },
+  { name: "Kırmızı", hex: "#EF4444" },
+  { name: "Yeşil", hex: "#22C55E" },
+  { name: "Mavi", hex: "#3B82F6" },
+  { name: "Pembe", hex: "#EC4899" },
+  { name: "Koyu Mor", hex: "#6D28D9" },
+] as const;
+const NUMEROLOGY_DESC: Record<number, string> = {
+  1: "Yeni başlangıçlar · Liderlik",
+  2: "Denge · İşbirliği",
+  3: "Yaratıcılık · Neşe",
+  4: "Düzen · Kararlılık",
+  5: "Değişim · Özgürlük",
+  6: "Aşk · Uyum",
+  7: "Spiritüel derinlik",
+  8: "Güç · Bolluk",
+  9: "Tamamlanma · Bilgelik",
+  11: "Sezgi · Aydınlanma",
+  22: "Büyük inşaacı",
+  33: "Evrensel öğretmen",
+};
+
+function getDayGreeting(date: Date): string {
+  const h = date.getHours();
+  if (h < 6) return "İyi Geceler";
+  if (h < 12) return "Günaydın";
+  if (h < 18) return "İyi Günler";
+  return "İyi Akşamlar";
+}
+
+// ─── Dashboard components ──────────────────────────────────────────────────────
+
+function StarField() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {Array.from({ length: 60 }, (_, i) => {
+        const left = ((i * 137.508) % 100).toFixed(2);
+        const top = ((i * 89.213 + i * i * 0.17) % 100).toFixed(2);
+        const opacity = (0.1 + (i % 5) * 0.06).toFixed(2);
+        const size = i % 7 === 0 ? 2.5 : i % 3 === 0 ? 1.5 : 1;
+        return (
+          <div
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{ left: `${left}%`, top: `${top}%`, width: size, height: size, opacity: Number(opacity) }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function LivePanel({ date }: { date: Date }) {
+  const day = date.getDay();
+  const phase = getMoonPhase(date);
+  const sun = getSunSign(date);
+  const moon = getMoonSign(date);
+  const planetary = getPlanetaryHour(date);
+  const stone = WEEKDAY_STONES[day]!;
+  const chakra = WEEKDAY_CHAKRAS[day]!;
+  const color = WEEKDAY_COLORS[day]!;
+  const numDay = numerologicalDay(date);
+  const numDesc = NUMEROLOGY_DESC[numDay] ?? "";
+
+  return (
+    <div className="space-y-3">
+      {/* Anlık Gökyüzü */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+          Anlık Gökyüzü
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Güneş Burcu", value: `${sun.emoji} ${sun.tr}` },
+            { label: "Ay Burcu", value: `${moon.emoji} ${moon.tr}` },
+            { label: "Ay Fazı", value: `${phase.emoji} ${phase.name}` },
+            { label: "Ay Yaşı", value: `${phase.pct}%` },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl bg-white/5 px-3 py-2">
+              <p className="text-[10px] font-medium text-white/40">{label}</p>
+              <p className="mt-0.5 text-xs font-black text-white/90">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Gezegen Saati */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+          Gezegen Saati
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl">
+            {planetary.current.emoji}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-black text-white">{planetary.current.name}</p>
+            <p className="text-[11px] text-white/50">{planetary.minutesLeft} dk kaldı</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-white/40">Sonraki</p>
+            <p className="text-xs font-bold text-white/70">{planetary.next.emoji} {planetary.next.name}</p>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all"
+            style={{ width: `${planetary.pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Günlük Rehber */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+          Günlük Rehber
+        </p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+            <span className="text-xs font-medium text-white/50">Günün Taşı</span>
+            <span className="text-xs font-black text-white/90">💎 {stone}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+            <span className="text-xs font-medium text-white/50">Günün Çakrası</span>
+            <span className="text-xs font-black text-white/90">{chakra.emoji} {chakra.name}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+            <span className="text-xs font-medium text-white/50">Günün Rengi</span>
+            <span className="flex items-center gap-1.5 text-xs font-black text-white/90">
+              <span
+                className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-white/20"
+                style={{ backgroundColor: color.hex }}
+              />
+              {color.name}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Numerolojik Gün */}
+      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 backdrop-blur-sm">
+        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+          Numerolojik Gün
+        </p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-2xl font-black text-amber-300">
+            {numDay}
+          </span>
+          <div>
+            <p className="text-sm font-black text-white/90">{numDay} Enerjisi</p>
+            <p className="text-[11px] text-white/50">{numDesc}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AuthBootScreen() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
@@ -438,6 +706,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [now, setNow] = useState<Date>(() => new Date());
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
@@ -610,6 +879,11 @@ export default function Home() {
   }, [videoCeviriPreviewOpen]);
 
   useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -742,239 +1016,198 @@ export default function Home() {
       });
     }
 
+    const phase = getMoonPhase(now);
+    const sunSgn = getSunSign(now);
+
     return (
-      <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
-        <div
-          className="pointer-events-none absolute -left-40 bottom-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-32 top-[15%] h-80 w-80 rounded-full bg-fuchsia-300/12 blur-3xl"
-          aria-hidden
-        />
+      <main className="relative min-h-screen w-full overflow-x-hidden bg-[#050D1F] text-white antialiased">
+        {/* ── Starfield ── */}
+        <StarField />
 
-        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1800px] flex-col px-4 pt-3 pb-16 lg:px-8 lg:pt-3 lg:pb-16 xl:px-10">
-          {/* — Profile banner — */}
-          <div
-            className="relative w-full shrink-0 overflow-hidden rounded-[24px] border border-white/30 bg-gradient-to-r from-indigo-950 via-violet-700 to-fuchsia-500 px-5 py-3 text-white shadow-xl sm:px-6 sm:py-3"
-            aria-label="Uzman ve kurum profili"
-          >
-            <button
-              type="button"
-              onClick={logout}
-              className="absolute right-3 top-3 z-10 min-h-[36px] rounded-xl border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition duration-200 hover:bg-white/20 sm:right-4 sm:top-3 sm:px-4 sm:py-2 sm:text-sm"
-            >
-              Çıkış Yap
-            </button>
+        {/* ── Ambient glows ── */}
+        <div className="pointer-events-none absolute left-[-10%] top-[-5%] h-[500px] w-[500px] rounded-full bg-violet-600/10 blur-[120px]" aria-hidden />
+        <div className="pointer-events-none absolute right-[-8%] top-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/8 blur-[100px]" aria-hidden />
 
-            <div className="relative flex flex-col gap-3 pr-14 sm:flex-row sm:items-center sm:gap-4 sm:pr-20">
-              <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-yellow-300/85 bg-slate-950/85 text-3xl font-light text-yellow-200 shadow-[0_8px_24px_rgba(0,0,0,0.30)] ring-1 ring-yellow-200/25 sm:h-20 sm:w-20 sm:text-4xl"
-                aria-hidden
-              >
-                {avatarInitial}
-              </div>
+        <div className="relative z-10 mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
 
-              <div className="min-w-0">
-                <h1 className="text-sm font-black leading-tight text-white/80 sm:text-base lg:text-lg">
-                  Bütüncül Yaşam Analiz Platformu
+          {/* ═══════════════════════════════════════════
+               HERO
+          ═══════════════════════════════════════════ */}
+          <section className="mb-6 overflow-hidden rounded-[28px] border border-white/8 bg-gradient-to-br from-[#0B1535] via-[#110D2E] to-[#0A1628] px-5 py-6 shadow-[0_0_60px_rgba(109,40,217,0.12)] sm:px-8 sm:py-8">
+
+            {/* Top row: greeting + logout */}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-400/80">
+                  Yaşam Sistemi
+                </p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
+                  {getDayGreeting(now)}, {displayName.split(" ")[0]} ✨
                 </h1>
-
-                <p className="mt-0.5 break-words text-xl font-black tracking-tight text-yellow-300 sm:text-2xl lg:text-2xl">
-                  {displayName}
-                </p>
-
-                <p className="mt-0.5 text-xs font-medium text-white/80">
-                  Doğaltaş • Enerji • Akademi
+                <p className="mt-1 text-sm font-medium text-white/50">
+                  {now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Çıkış Yap
+              </button>
             </div>
-          </div>
 
-          {/* — Module section — */}
-          <section className="mt-3 flex w-full flex-col">
+            {/* Cosmic chips */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {[
+                { label: phase.emoji + " " + phase.name, sub: "Ay Fazı" },
+                { label: sunSgn.emoji + " " + sunSgn.tr, sub: "Güneş Burcu" },
+                { label: "🔢 " + numerologicalDay(now), sub: "Günün Numerolojisi" },
+                { label: "💎 " + WEEKDAY_STONES[now.getDay()]!, sub: "Günün Taşı" },
+                { label: WEEKDAY_CHAKRAS[now.getDay()]!.emoji + " " + WEEKDAY_CHAKRAS[now.getDay()]!.name, sub: "Günün Çakrası" },
+              ].map(({ label, sub }) => (
+                <div
+                  key={sub}
+                  className="flex flex-col rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 backdrop-blur-sm"
+                >
+                  <span className="text-sm font-black text-white/90">{label}</span>
+                  <span className="mt-0.5 text-[10px] font-medium text-white/40">{sub}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Admin link inside hero */}
             {isAdminUser(user) ? (
               <Link
                 href="/admin"
-                className="mb-2.5 block shrink-0 text-inherit no-underline"
+                className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 no-underline transition hover:bg-rose-500/15"
               >
-                <div className="group flex items-center gap-3 rounded-[18px] border border-rose-200/70 bg-gradient-to-r from-rose-50/95 via-violet-50/90 to-slate-50/95 px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-rose-700 text-white shadow-sm">
-                    <Shield className="h-4 w-4" strokeWidth={2.25} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-700">
-                      Sistem Sahibi
-                    </p>
-                    <p className="text-sm font-black text-slate-900">Admin Paneli</p>
-                    <p className="text-[11px] font-medium text-slate-600">
-                      Toplu aktarım, kullanıcı ve sistem yönetimi
-                    </p>
-                  </div>
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105">
-                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  </span>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
+                  <Shield className="h-4 w-4" strokeWidth={2.25} />
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Sistem Sahibi</p>
+                  <p className="text-sm font-black text-white/90">Admin Paneli</p>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-white/40" strokeWidth={2.5} />
               </Link>
             ) : null}
-
-            <div className="mb-2 shrink-0">
-              <h2 className="text-lg font-black tracking-tight text-slate-900 md:text-xl">
-                Modüller
-              </h2>
-              <p className="text-sm font-medium text-slate-600">
-                Yaşam Sistemi içindeki ana çalışma alanları.
-              </p>
-            </div>
-
-            {membershipExpired ? (
-              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-rose-200/90 bg-rose-50/70 px-6 py-8 text-center shadow-sm">
-                <p className="text-base font-black text-rose-950">
-                  Üyelik süreniz doldu
-                </p>
-                <p className="mt-2 max-w-md text-sm font-medium text-rose-900/90">
-                  Deneme veya üyelik süreniz sona erdi. Modüllere erişim için
-                  yönetici ile iletişime geçin.
-                </p>
-              </div>
-            ) : expertModulesEmpty ? (
-              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-violet-200/90 bg-white/70 px-6 py-8 text-center shadow-sm">
-                <p className="text-base font-black text-slate-900">
-                  Henüz modül izniniz tanımlanmamış
-                </p>
-                <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
-                  Hesabınıza atanmış bir modül bulunmuyor. Erişim için yönetici ile
-                  iletişime geçin.
-                </p>
-              </div>
-            ) : (
-            <div className="grid w-full grid-cols-1 gap-2.5 pb-4 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-3">
-              {visibleDashboardModules.map((item) => {
-                const hasHref = item.href !== "#";
-                const lockReason = getModuleLockReason(
-                  user,
-                  item.permissionKey,
-                  hasHref,
-                  panelAccess,
-                );
-                const isLocked = lockReason !== null;
-                const isOpen = hasHref && !isLocked;
-                const { Icon, theme } = item;
-
-                const isComingSoon = lockReason === "coming_soon";
-
-                const card = (
-                  <div
-                    className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
-                      isOpen
-                        ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
-                        : isLocked
-                          ? isComingSoon
-                            ? "cursor-default opacity-80"
-                            : "cursor-not-allowed"
-                          : "cursor-default opacity-90"
-                    }`}
-                  >
-                    {isLocked && !isComingSoon ? (
-                      <span className="absolute left-3 top-3 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700 shadow-sm ring-1 ring-red-100">
-                        {lockReason === "permission"
-                          ? "🔒 Yetki yok"
-                          : "🔒 Üyelik gerekli"}
-                      </span>
-                    ) : null}
-
-                    <div className="flex items-start justify-between gap-2">
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-all duration-200 group-hover:scale-105 ${theme.iconWrap}`}
-                      >
-                        <Icon className="h-5 w-5" strokeWidth={2.25} />
-                      </div>
-
-                      <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
-                        {item.badge}
-                      </span>
-                    </div>
-
-                    <h3 className="mt-2 text-sm font-black text-slate-900 sm:text-base">
-                      {item.title}
-                    </h3>
-
-                    <p className="mt-0.5 line-clamp-2 flex-1 text-xs leading-5 text-slate-600">
-                      {item.desc}
-                    </p>
-
-                    <div className="mt-2.5 flex items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
-                          isComingSoon
-                            ? "bg-violet-100 text-violet-700 ring-violet-200/80"
-                            : isLocked
-                              ? "bg-rose-100 text-rose-800 ring-rose-200/80"
-                              : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
-                        }`}
-                      >
-                        {isComingSoon
-                          ? "Yakında"
-                          : isLocked
-                            ? lockReason === "permission"
-                              ? "Yetki yok"
-                              : "Pasif Üyelik"
-                            : item.count}
-                      </span>
-
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105 ${
-                          isOpen ? "" : "opacity-50"
-                        }`}
-                        aria-hidden
-                      >
-                        <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      </span>
-                    </div>
-                  </div>
-                );
-
-                if (isOpen) {
-                  return (
-                    <Link
-                      key={item.title}
-                      href={item.href}
-                      className="block h-full text-inherit no-underline"
-                    >
-                      {card}
-                    </Link>
-                  );
-                }
-
-                return (
-                  <div
-                    key={item.title}
-                    className="h-full"
-                    role={isLocked ? "button" : undefined}
-                    tabIndex={isLocked ? 0 : undefined}
-                    onClick={
-                      isLocked && lockReason
-                        ? () => handleLockedModuleClick(lockReason)
-                        : undefined
-                    }
-                    onKeyDown={
-                      isLocked && lockReason
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              handleLockedModuleClick(lockReason);
-                            }
-                          }
-                        : undefined
-                    }
-                  >
-                    {card}
-                  </div>
-                );
-              })}
-            </div>
-            )}
           </section>
+
+          {/* ═══════════════════════════════════════════
+               TWO-COLUMN: MODULES + LIVE PANEL
+          ═══════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
+
+            {/* ── Left: Module Grid ── */}
+            <div>
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+                Ana Merkezler
+              </p>
+
+              {membershipExpired ? (
+                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-400/20 bg-rose-500/10 px-6 py-8 text-center">
+                  <p className="text-base font-black text-rose-300">Üyelik süreniz doldu</p>
+                  <p className="mt-2 max-w-md text-sm text-rose-400/80">
+                    Modüllere erişim için yönetici ile iletişime geçin.
+                  </p>
+                </div>
+              ) : expertModulesEmpty ? (
+                <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-white/5 px-6 py-8 text-center">
+                  <p className="text-base font-black text-white/80">Henüz modül izniniz tanımlanmamış</p>
+                  <p className="mt-2 max-w-md text-sm text-white/40">
+                    Erişim için yönetici ile iletişime geçin.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+                  {visibleDashboardModules.map((item) => {
+                    const hasHref = item.href !== "#";
+                    const lockReason = getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+                    const isLocked = lockReason !== null;
+                    const isOpen = hasHref && !isLocked;
+                    const { Icon, theme } = item;
+                    const isComingSoon = lockReason === "coming_soon";
+
+                    const card = (
+                      <div
+                        className={`group relative flex flex-col rounded-[20px] border bg-gradient-to-br p-5 shadow-[0_2px_20px_rgba(0,0,0,0.25)] backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                          isOpen
+                            ? "cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(0,0,0,0.30)]"
+                            : isComingSoon
+                              ? "cursor-default opacity-75"
+                              : "cursor-not-allowed opacity-70"
+                        }`}
+                      >
+                        {isLocked && !isComingSoon ? (
+                          <span className="absolute right-3 top-3 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                            {lockReason === "permission" ? "🔒 Yetki yok" : "🔒 Üyelik"}
+                          </span>
+                        ) : null}
+
+                        <div className="flex items-start justify-between gap-2">
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md transition-transform duration-200 group-hover:scale-110 ${theme.iconWrap}`}>
+                            <Icon className="h-6 w-6" strokeWidth={2} />
+                          </div>
+                          <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+                            {item.badge}
+                          </span>
+                        </div>
+
+                        <h3 className="mt-3 text-base font-black text-slate-900">{item.title}</h3>
+                        <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-slate-600">
+                          {item.desc}
+                        </p>
+
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
+                            isComingSoon
+                              ? "bg-violet-100 text-violet-700 ring-violet-200/80"
+                              : isLocked
+                                ? "bg-rose-100 text-rose-800 ring-rose-200/80"
+                                : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
+                          }`}>
+                            {isComingSoon ? "Yakında" : isLocked ? (lockReason === "permission" ? "Yetki yok" : "Pasif") : item.count}
+                          </span>
+                          <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-110 ${isOpen ? "" : "opacity-40"}`} aria-hidden>
+                            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                          </span>
+                        </div>
+                      </div>
+                    );
+
+                    if (isOpen) {
+                      return (
+                        <Link key={item.title} href={item.href} className="block text-inherit no-underline">
+                          {card}
+                        </Link>
+                      );
+                    }
+                    return (
+                      <div
+                        key={item.title}
+                        role={isLocked ? "button" : undefined}
+                        tabIndex={isLocked ? 0 : undefined}
+                        onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
+                        onKeyDown={isLocked && lockReason ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleLockedModuleClick(lockReason); } } : undefined}
+                      >
+                        {card}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Right: Live Panel (sticky) ── */}
+            <aside className="lg:sticky lg:top-4 lg:self-start">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+                Canlı Yaşam Paneli
+              </p>
+              <LivePanel date={now} />
+            </aside>
+          </div>
+
         </div>
       </main>
     );
