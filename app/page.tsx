@@ -25,6 +25,7 @@ import {
   type ModuleLockReason,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -61,8 +62,18 @@ type ModuleCard = {
   permissionKey: ModulePermissionKey;
   emoji: string;
   featured?: boolean;
+  statFormat?: (n: number) => string;
   Icon: LucideIcon;
   theme: ModuleTheme;
+};
+
+const MODULE_STAT_TABLES: Partial<Record<ModulePermissionKey, string>> = {
+  clients: "clients",
+  stones: "stones",
+  stok: "dogaltas_inventory",
+  sifa_rehberi: "healing_guides",
+  digital_content: "personal_archives",
+  numerology: "numerology_analyses",
 };
 
 type LandingModule = {
@@ -230,6 +241,7 @@ const dashboardModules: ModuleCard[] = [
     permissionKey: "clients",
     emoji: "👥",
     featured: true,
+    statFormat: (n) => `${n} danışan kaydı`,
     Icon: UsersRound,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -246,6 +258,7 @@ const dashboardModules: ModuleCard[] = [
     permissionKey: "stones",
     emoji: "💎",
     featured: true,
+    statFormat: (n) => `${n} taş kayıtlı`,
     Icon: Gem,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -261,6 +274,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/urun-stok",
     permissionKey: "stok",
     emoji: "📦",
+    statFormat: (n) => `${n} ürün`,
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -276,6 +290,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/sifa-rehberi",
     permissionKey: "sifa_rehberi",
     emoji: "🌿",
+    statFormat: (n) => `${n} rehber kaydı`,
     Icon: Leaf,
     theme: {
       iconWrap: "from-green-500 to-emerald-500",
@@ -306,6 +321,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/digital-content",
     permissionKey: "digital_content",
     emoji: "📚",
+    statFormat: (n) => `${n} içerik`,
     Icon: Layers,
     theme: {
       iconWrap: "from-indigo-600 to-sky-600",
@@ -321,6 +337,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/life-analysis",
     permissionKey: "numerology",
     emoji: "🧠",
+    statFormat: (n) => `${n} analiz`,
     Icon: Brain,
     theme: {
       iconWrap: "from-violet-600 to-purple-700",
@@ -719,6 +736,7 @@ export default function Home() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
+  const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
   const [numerologiPreviewOpen, setNumerologiPreviewOpen] = useState(false);
   const [dogaltasPreviewOpen, setDogaltasPreviewOpen] = useState(false);
   const [biyoenerjiPreviewOpen, setBiyoenerjiPreviewOpen] = useState(false);
@@ -895,6 +913,37 @@ export default function Home() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setModuleStats({});
+      return;
+    }
+    const tenantId = user.tenant_id;
+    if (!tenantId) return;
+
+    let cancelled = false;
+    const entries = Object.entries(MODULE_STAT_TABLES) as Array<[ModulePermissionKey, string]>;
+
+    void Promise.allSettled(
+      entries.map(async ([key, table]) => {
+        const { count, error } = await supabase
+          .from(table)
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId);
+        return { key, count: error ? null : (count ?? null) };
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const stats: Partial<Record<ModulePermissionKey, number | null>> = {};
+      results.forEach((r) => {
+        if (r.status === "fulfilled") stats[r.value.key] = r.value.count;
+      });
+      setModuleStats(stats);
+    });
+
+    return () => { cancelled = true; };
+  }, [user?.id, user?.tenant_id]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -1143,8 +1192,14 @@ export default function Home() {
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
                           {item.desc}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          Son işlem: Yakında
+                        <p className="mt-1.5 text-xs text-slate-400 transition-colors group-hover:text-slate-600">
+                          {item.statFormat
+                            ? moduleStats[item.permissionKey] === undefined
+                              ? "Yükleniyor"
+                              : moduleStats[item.permissionKey] === null
+                                ? "İçerik hazır"
+                                : item.statFormat(moduleStats[item.permissionKey] as number)
+                            : "İçerik hazır"}
                         </p>
 
                         <div className="mt-3 flex items-center justify-between gap-2">
