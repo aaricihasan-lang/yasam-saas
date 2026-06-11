@@ -1125,41 +1125,42 @@ export default function Home() {
             const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
             return (
               <section
-                className="relative mb-5 overflow-hidden rounded-[18px] border border-violet-100 px-5 py-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:px-7 sm:py-3"
-                style={{ background: "linear-gradient(135deg,rgba(139,92,246,0.05) 0%,rgba(59,130,246,0.04) 45%,rgba(236,72,153,0.04) 100%)" }}
+                className="relative mb-5 overflow-hidden rounded-[18px] border border-violet-100/80 px-5 py-2.5 shadow-[0_10px_36px_rgba(124,58,237,0.10),0_4px_14px_rgba(59,130,246,0.06)] sm:px-7 sm:py-3"
+                style={{ background: "linear-gradient(135deg,#f3e8ff 0%,#ede9fe 28%,#e0f2fe 62%,#fdf2f8 100%)" }}
               >
-                {/* Çok hafif iç ışıklar */}
-                <div className="pointer-events-none absolute right-0 top-0 h-24 w-32 rounded-full bg-violet-400/[0.07] blur-2xl" aria-hidden />
-                <div className="pointer-events-none absolute bottom-0 left-0 h-16 w-24 rounded-full bg-blue-400/[0.06] blur-2xl" aria-hidden />
+                {/* Dekoratif pastel ışıklar */}
+                <div className="pointer-events-none absolute -right-6 -top-6 h-36 w-44 rounded-full bg-fuchsia-300/[0.09] blur-3xl" aria-hidden />
+                <div className="pointer-events-none absolute -bottom-4 -left-4 h-24 w-32 rounded-full bg-blue-300/[0.08] blur-2xl" aria-hidden />
+                <div className="pointer-events-none absolute right-8 top-0 h-full w-px bg-gradient-to-b from-white/40 via-white/10 to-transparent" aria-hidden />
 
                 {/* Üst satır: selamlama + çıkış */}
                 <div className="relative flex items-center justify-between gap-4">
                   <div>
-                    <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
+                    <h1 className="text-lg font-black tracking-tight sm:text-xl">
                       {firstName ? (
                         <>
-                          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text font-bold text-transparent drop-shadow-[0_1px_6px_rgba(139,92,246,0.20)]">
+                          <span className="bg-gradient-to-r from-violet-700 via-purple-600 to-fuchsia-500 bg-clip-text font-extrabold text-transparent">
                             {firstName}
                           </span>
-                          <span className="text-slate-900">, hoş geldiniz ✨</span>
+                          <span className="text-slate-950">, hoş geldiniz ✨</span>
                         </>
                       ) : (
-                        <span>Hoş geldiniz ✨</span>
+                        <span className="text-slate-950">Hoş geldiniz ✨</span>
                       )}
                     </h1>
-                    <p className="mt-0.5 text-[11px] text-slate-400">{heroDate}</p>
+                    <p className="mt-0.5 text-sm text-slate-600">{heroDate}</p>
                   </div>
                   <button
                     type="button"
                     onClick={logout}
-                    className="shrink-0 rounded-lg border border-violet-100 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-700"
+                    className="shrink-0 rounded-lg border border-white/80 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-slate-500 backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
                   >
                     Çıkış Yap
                   </button>
                 </div>
 
                 {/* Hızlı İşlemler */}
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="relative mt-2.5 flex flex-wrap gap-1.5">
                   {([
                     { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
                     { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
@@ -1169,7 +1170,7 @@ export default function Home() {
                     <Link
                       key={label}
                       href={href}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-500 no-underline transition hover:border-violet-300 hover:text-violet-700"
+                      className="inline-flex items-center gap-1 rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-600 no-underline shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:text-violet-700"
                     >
                       <span aria-hidden>{icon}</span>
                       {label}
@@ -1181,13 +1182,13 @@ export default function Home() {
                 {isAdminUser(user) ? (
                   <Link
                     href="/admin"
-                    className="mt-3 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 no-underline transition hover:bg-rose-100"
+                    className="relative mt-3 flex items-center gap-3 rounded-xl border border-violet-200/60 bg-white/50 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/70"
                   >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-rose-700 text-white shadow-sm">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
                       <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">Sistem Sahibi</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">Sistem Sahibi</p>
                       <p className="text-xs font-black text-slate-800">Admin Paneli</p>
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
