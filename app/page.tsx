@@ -60,6 +60,7 @@ type ModuleCard = {
   href: string;
   permissionKey: ModulePermissionKey;
   emoji: string;
+  featured?: boolean;
   Icon: LucideIcon;
   theme: ModuleTheme;
 };
@@ -228,6 +229,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/danisan-yolculugu",
     permissionKey: "clients",
     emoji: "👥",
+    featured: true,
     Icon: UsersRound,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -243,6 +245,7 @@ const dashboardModules: ModuleCard[] = [
     href: "/dogaltas",
     permissionKey: "stones",
     emoji: "💎",
+    featured: true,
     Icon: Gem,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -1036,16 +1039,16 @@ export default function Home() {
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}
-          <section className="mb-6 rounded-[24px] border border-white/70 bg-white/60 px-5 py-5 shadow-sm backdrop-blur-md sm:px-8 sm:py-6">
-            <div className="flex items-start justify-between gap-4">
+          <section className="mb-5 rounded-[20px] border border-white/70 bg-white/60 px-5 py-3 shadow-sm backdrop-blur-md sm:px-7 sm:py-3.5">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-violet-600/70">
+                <p className="text-[9px] font-bold uppercase tracking-[0.26em] text-violet-600/60">
                   Yaşam Sistemi
                 </p>
-                <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-[1.75rem]">
+                <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
                   {getDayGreeting(effectiveNow)}{firstName ? `, ${firstName}` : ""} ✨
                 </h1>
-                <p className="mt-1 text-[12px] text-slate-400">
+                <p className="mt-0.5 text-[11px] text-slate-400">
                   {effectiveNow.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
@@ -1111,11 +1114,16 @@ export default function Home() {
                     const { Icon, theme } = item;
                     const isComingSoon = lockReason === "coming_soon";
 
+                    const isFeatured = item.featured === true;
                     const card = (
                       <div
-                        className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-[0_2px_12px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                        className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                          isFeatured
+                            ? "shadow-[0_4px_18px_rgba(0,0,0,0.11)]"
+                            : "shadow-[0_2px_10px_rgba(0,0,0,0.07)]"
+                        } ${
                           isOpen
-                            ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.13)]"
+                            ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg"
                             : isComingSoon
                               ? "cursor-default opacity-75"
                               : "cursor-not-allowed opacity-70"
@@ -1127,24 +1135,19 @@ export default function Home() {
                           </span>
                         ) : null}
 
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className="text-3xl leading-none transition-transform duration-200 group-hover:scale-110"
-                            aria-hidden
-                          >
-                            {item.emoji}
-                          </span>
-                          <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-                            {item.badge}
-                          </span>
-                        </div>
+                        <span className="text-3xl leading-none" aria-hidden>
+                          {item.emoji}
+                        </span>
 
                         <h3 className="mt-2.5 text-base font-black text-slate-900">{item.title}</h3>
-                        <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-slate-500">
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
                           {item.desc}
                         </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Son işlem: Yakında
+                        </p>
 
-                        <div className="mt-2.5 flex items-center justify-between gap-2">
+                        <div className="mt-3 flex items-center justify-between gap-2">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
                             isComingSoon
                               ? "bg-violet-100 text-violet-700 ring-violet-200/80"
@@ -1154,7 +1157,7 @@ export default function Home() {
                           }`}>
                             {isComingSoon ? "Yakında" : isLocked ? (lockReason === "permission" ? "Yetki yok" : "Pasif") : item.count}
                           </span>
-                          <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-110 ${isOpen ? "" : "opacity-40"}`} aria-hidden>
+                          <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-opacity ${isOpen ? "" : "opacity-40"}`} aria-hidden>
                             <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
                           </span>
                         </div>
