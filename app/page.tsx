@@ -59,6 +59,7 @@ type ModuleCard = {
   badge: string;
   href: string;
   permissionKey: ModulePermissionKey;
+  emoji: string;
   Icon: LucideIcon;
   theme: ModuleTheme;
 };
@@ -226,6 +227,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Ana Modül",
     href: "/danisan-yolculugu",
     permissionKey: "clients",
+    emoji: "👥",
     Icon: UsersRound,
     theme: {
       iconWrap: "from-indigo-500 to-blue-600",
@@ -240,6 +242,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Modül",
     href: "/dogaltas",
     permissionKey: "stones",
+    emoji: "💎",
     Icon: Gem,
     theme: {
       iconWrap: "from-cyan-500 to-teal-500",
@@ -254,6 +257,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Modül",
     href: "/urun-stok",
     permissionKey: "stok",
+    emoji: "📦",
     Icon: Package,
     theme: {
       iconWrap: "from-amber-500 to-orange-500",
@@ -268,6 +272,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Modül",
     href: "/sifa-rehberi",
     permissionKey: "sifa_rehberi",
+    emoji: "🌿",
     Icon: Leaf,
     theme: {
       iconWrap: "from-green-500 to-emerald-500",
@@ -282,6 +287,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Modül",
     href: "/enerji-beden",
     permissionKey: "energy_body",
+    emoji: "✨",
     Icon: Sparkles,
     theme: {
       iconWrap: "from-fuchsia-500 to-violet-600",
@@ -296,6 +302,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Merkez",
     href: "/digital-content",
     permissionKey: "digital_content",
+    emoji: "📚",
     Icon: Layers,
     theme: {
       iconWrap: "from-indigo-600 to-sky-600",
@@ -310,6 +317,7 @@ const dashboardModules: ModuleCard[] = [
     badge: "Merkez",
     href: "/life-analysis",
     permissionKey: "numerology",
+    emoji: "🧠",
     Icon: Brain,
     theme: {
       iconWrap: "from-violet-600 to-purple-700",
@@ -1105,35 +1113,38 @@ export default function Home() {
 
                     const card = (
                       <div
-                        className={`group relative flex flex-col rounded-[20px] border bg-gradient-to-br p-5 shadow-[0_2px_20px_rgba(0,0,0,0.25)] backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                        className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-[0_2px_12px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                           isOpen
-                            ? "cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(0,0,0,0.30)]"
+                            ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.13)]"
                             : isComingSoon
                               ? "cursor-default opacity-75"
                               : "cursor-not-allowed opacity-70"
                         }`}
                       >
                         {isLocked && !isComingSoon ? (
-                          <span className="absolute right-3 top-3 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                          <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
                             {lockReason === "permission" ? "🔒 Yetki yok" : "🔒 Üyelik"}
                           </span>
                         ) : null}
 
                         <div className="flex items-start justify-between gap-2">
-                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md transition-transform duration-200 group-hover:scale-110 ${theme.iconWrap}`}>
-                            <Icon className="h-6 w-6" strokeWidth={2} />
-                          </div>
-                          <span className="rounded-full border border-white/80 bg-white/90 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+                          <span
+                            className="text-3xl leading-none transition-transform duration-200 group-hover:scale-110"
+                            aria-hidden
+                          >
+                            {item.emoji}
+                          </span>
+                          <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
                             {item.badge}
                           </span>
                         </div>
 
-                        <h3 className="mt-3 text-base font-black text-slate-900">{item.title}</h3>
-                        <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-slate-600">
+                        <h3 className="mt-2.5 text-base font-black text-slate-900">{item.title}</h3>
+                        <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-slate-500">
                           {item.desc}
                         </p>
 
-                        <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="mt-2.5 flex items-center justify-between gap-2">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
                             isComingSoon
                               ? "bg-violet-100 text-violet-700 ring-violet-200/80"
@@ -1143,8 +1154,8 @@ export default function Home() {
                           }`}>
                             {isComingSoon ? "Yakında" : isLocked ? (lockReason === "permission" ? "Yetki yok" : "Pasif") : item.count}
                           </span>
-                          <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-110 ${isOpen ? "" : "opacity-40"}`} aria-hidden>
-                            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                          <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-110 ${isOpen ? "" : "opacity-40"}`} aria-hidden>
+                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
                           </span>
                         </div>
                       </div>
