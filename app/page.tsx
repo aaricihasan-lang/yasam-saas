@@ -1129,7 +1129,16 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
-                      {firstName ? `${firstName} Hocam, hoş geldiniz ✨` : "Hoş geldiniz ✨"}
+                      {firstName ? (
+                        <>
+                          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
+                            {firstName}
+                          </span>
+                          <span className="text-slate-900">, hoş geldiniz ✨</span>
+                        </>
+                      ) : (
+                        <span>Hoş geldiniz ✨</span>
+                      )}
                     </h1>
                     <p className="mt-0.5 text-[11px] text-slate-400">{heroDate}</p>
                   </div>
