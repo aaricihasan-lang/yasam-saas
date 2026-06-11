@@ -616,85 +616,41 @@ function LivePanel({ date }: { date: Date | null }) {
   const numDay = numerologicalDay(date);
   const numDesc = NUMEROLOGY_DESC[numDay] ?? "";
 
+  const rows = [
+    { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.tr}` },
+    { label: "Ay Burcu",       value: `${moon.emoji} ${moon.tr}` },
+    { label: "Ay Fazı",        value: `${phase.emoji} ${phase.name}` },
+    { label: "Numeroloji",     value: `🔢 ${numDay} · ${numDesc}` },
+    {
+      label: "Gezegen Saati",
+      value: `${planetary.current.emoji} ${planetary.current.name}`,
+      sub: `${planetary.current.startTime}–${planetary.current.endTime} · ${planetary.minutesLeft} dk kaldı`,
+    },
+  ];
+
   return (
-    <div className="space-y-3">
-      {/* Anlık Gökyüzü */}
-      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
-          Anlık Gökyüzü
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: "Güneş Burcu", value: `${sun.emoji} ${sun.tr}` },
-            { label: "Ay Burcu", value: `${moon.emoji} ${moon.tr}` },
-            { label: "Ay Fazı", value: `${phase.emoji} ${phase.name}` },
-            { label: "Ay Yaşı", value: `${phase.pct}%` },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl bg-slate-50/80 px-3 py-2">
-              <p className="text-[10px] font-medium text-slate-400">{label}</p>
-              <p className="mt-0.5 text-xs font-black text-slate-900">{value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
+      <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
+        Bugünün Enerjisi
+      </p>
 
-      {/* Gezegen Saati */}
-      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
-          Gezegen Saati
-        </p>
-
-        {/* Aktif gezegen */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-2xl">
-            {planetary.current.emoji}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-black text-slate-900">{planetary.current.name}</p>
-            <p className="text-[11px] tabular-nums text-slate-400">
-              {planetary.current.startTime} – {planetary.current.endTime}
-            </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-violet-600">
-              {planetary.minutesLeft} dk kaldı
-            </p>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200">
+      <div className="space-y-1">
+        {rows.map(({ label, value, sub }, i) => (
           <div
-            className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all"
-            style={{ width: `${planetary.pct}%` }}
-          />
-        </div>
-
-        {/* Sonraki gezegen */}
-        <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-50/80 px-3 py-2">
-          <span className="text-sm leading-none">{planetary.next.emoji}</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black text-slate-700">{planetary.next.name}</p>
-            <p className="text-[10px] tabular-nums text-slate-400">
-              {planetary.next.startTime} – {planetary.next.endTime}
-            </p>
+            key={label}
+            className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ${
+              i % 2 === 0 ? "bg-slate-50/70" : "bg-transparent"
+            }`}
+          >
+            <span className="shrink-0 text-[11px] font-medium text-slate-400">{label}</span>
+            <div className="min-w-0 text-right">
+              <span className="text-[12px] font-black text-slate-800">{value}</span>
+              {sub ? (
+                <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">{sub}</p>
+              ) : null}
+            </div>
           </div>
-          <span className="text-[10px] font-medium text-slate-400">Sonraki</span>
-        </div>
-      </div>
-
-      {/* Numerolojik Gün */}
-      <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 shadow-sm backdrop-blur-md">
-        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
-          Numerolojik Gün
-        </p>
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl font-black text-amber-700">
-            {numDay}
-          </span>
-          <div>
-            <p className="text-sm font-black text-slate-900">{numDay} Enerjisi</p>
-            <p className="text-[11px] text-slate-500">{numDesc}</p>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
