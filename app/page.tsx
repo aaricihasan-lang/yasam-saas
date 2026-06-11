@@ -489,12 +489,27 @@ const CHALDEAN_IDX = [4, 5, 6, 0, 1, 2, 3] as const;
 // Starting Chaldean position for hour-0 of each weekday (0=Sun through 6=Sat)
 const DAY_START_POS = [3, 6, 2, 5, 1, 4, 0] as const;
 
+function fmtHour(h: number): string {
+  return `${String(h % 24).padStart(2, "0")}:00`;
+}
+
 function getPlanetaryHour(date: Date) {
-  const curPos = (DAY_START_POS[date.getDay()]! + date.getHours()) % 7;
+  const h = date.getHours();
+  const curPos = (DAY_START_POS[date.getDay()]! + h) % 7;
   const nextPos = (curPos + 1) % 7;
   return {
-    current: { name: PLANET_NAMES[CHALDEAN_IDX[curPos]!]!, emoji: PLANET_EMOJIS[CHALDEAN_IDX[curPos]!]! },
-    next: { name: PLANET_NAMES[CHALDEAN_IDX[nextPos]!]!, emoji: PLANET_EMOJIS[CHALDEAN_IDX[nextPos]!]! },
+    current: {
+      name: PLANET_NAMES[CHALDEAN_IDX[curPos]!]!,
+      emoji: PLANET_EMOJIS[CHALDEAN_IDX[curPos]!]!,
+      startTime: fmtHour(h),
+      endTime: fmtHour(h + 1),
+    },
+    next: {
+      name: PLANET_NAMES[CHALDEAN_IDX[nextPos]!]!,
+      emoji: PLANET_EMOJIS[CHALDEAN_IDX[nextPos]!]!,
+      startTime: fmtHour(h + 1),
+      endTime: fmtHour(h + 2),
+    },
     minutesLeft: 60 - date.getMinutes(),
     pct: Math.round((date.getMinutes() / 60) * 100),
   };
@@ -566,14 +581,10 @@ function StarField() {
 
 function LivePanel({ date }: { date: Date | null }) {
   date = date ?? new Date();
-  const day = date.getDay();
   const phase = getMoonPhase(date);
   const sun = getSunSign(date);
   const moon = getMoonSign(date);
   const planetary = getPlanetaryHour(date);
-  const stone = WEEKDAY_STONES[day]!;
-  const chakra = WEEKDAY_CHAKRAS[day]!;
-  const color = WEEKDAY_COLORS[day]!;
   const numDay = numerologicalDay(date);
   const numDesc = NUMEROLOGY_DESC[numDay] ?? "";
 
@@ -604,52 +615,41 @@ function LivePanel({ date }: { date: Date | null }) {
         <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
           Gezegen Saati
         </p>
-        <div className="flex items-center gap-3">
+
+        {/* Aktif gezegen */}
+        <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-2xl">
             {planetary.current.emoji}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-base font-black text-slate-900">{planetary.current.name}</p>
-            <p className="text-[11px] text-slate-500">{planetary.minutesLeft} dk kaldı</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-slate-400">Sonraki</p>
-            <p className="text-xs font-bold text-slate-600">{planetary.next.emoji} {planetary.next.name}</p>
+            <p className="text-[11px] tabular-nums text-slate-400">
+              {planetary.current.startTime} – {planetary.current.endTime}
+            </p>
+            <p className="mt-0.5 text-[11px] font-semibold text-violet-600">
+              {planetary.minutesLeft} dk kaldı
+            </p>
           </div>
         </div>
+
         {/* Progress bar */}
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200">
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all"
             style={{ width: `${planetary.pct}%` }}
           />
         </div>
-      </div>
 
-      {/* Günlük Rehber */}
-      <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
-          Günlük Rehber
-        </p>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
-            <span className="text-xs font-medium text-slate-500">Günün Taşı</span>
-            <span className="text-xs font-black text-slate-900">💎 {stone}</span>
+        {/* Sonraki gezegen */}
+        <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-50/80 px-3 py-2">
+          <span className="text-sm leading-none">{planetary.next.emoji}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-black text-slate-700">{planetary.next.name}</p>
+            <p className="text-[10px] tabular-nums text-slate-400">
+              {planetary.next.startTime} – {planetary.next.endTime}
+            </p>
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
-            <span className="text-xs font-medium text-slate-500">Günün Çakrası</span>
-            <span className="text-xs font-black text-slate-900">{chakra.emoji} {chakra.name}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl bg-slate-50/80 px-3 py-2">
-            <span className="text-xs font-medium text-slate-500">Günün Rengi</span>
-            <span className="flex items-center gap-1.5 text-xs font-black text-slate-900">
-              <span
-                className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-slate-200"
-                style={{ backgroundColor: color.hex }}
-              />
-              {color.name}
-            </span>
-          </div>
+          <span className="text-[10px] font-medium text-slate-400">Sonraki</span>
         </div>
       </div>
 
