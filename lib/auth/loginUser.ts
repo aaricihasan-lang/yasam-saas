@@ -96,6 +96,23 @@ export async function loginWithCredentials(
     }
   }
 
+  // RPC kimlik doğruladı ama full_name gibi profil alanlarını döndürmüyor olabilir.
+  // Doğrudan users tablosundan tam profili çekip RPC satırını zenginleştir.
+  if (!error && rows.length > 0 && !usedAdminFallback) {
+    const rpcRow = rows[0];
+    const userId = rpcRow?.id != null ? String(rpcRow.id) : null;
+    if (userId) {
+      const { data: profileData } = await supabase
+        .from("users")
+        .select(LOGIN_LOOKUP_SELECT)
+        .eq("id", userId)
+        .maybeSingle();
+      if (profileData) {
+        rows = [stripPasswordField(profileData as Record<string, unknown>)];
+      }
+    }
+  }
+
   return {
     rows,
     rpcError: error?.message ?? null,
