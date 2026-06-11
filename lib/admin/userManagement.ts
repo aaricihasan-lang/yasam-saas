@@ -34,6 +34,8 @@ export const ADMIN_MODULE_UI_KEYS = [
   "personal_archive",
   "video_ceviri",
   "belge_ceviri",
+  "ders_notu",
+  "digital_content",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -53,6 +55,12 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   personal_archive: "Kişisel Arşiv",
   video_ceviri: "Video → Türkçe Dönüşüm",
   belge_ceviri: "Belge Çeviri Merkezi",
+  ders_notu: "Ders Notu Merkezi",
+  digital_content: "Dijital İçerik Merkezi",
+};
+
+export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
+  digital_content: "Kişisel arşiv, belge çeviri, video çeviri ve ders notu merkezi hub erişimi",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -68,6 +76,8 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   personal_archive: false,
   video_ceviri: false,
   belge_ceviri: false,
+  ders_notu: false,
+  digital_content: false,
 };
 
 const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {

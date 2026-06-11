@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
+  ADMIN_MODULE_UI_DESCRIPTIONS,
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
   adminPermissionsToPayload,
@@ -323,34 +324,44 @@ function ModulePermissionSwitches({
         Deneme ve Pro paketlerde açık modüller uzman panelinde görünür.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {ADMIN_MODULE_UI_KEYS.map((key) => (
-          <label
-            key={key}
-            className={`flex h-16 items-center justify-between gap-4 rounded-xl border border-white/80 bg-white/90 px-4 ${
-              disabled ? "opacity-70" : ""
-            }`}
-          >
-            <span className="text-sm font-bold text-slate-800">
-              {ADMIN_MODULE_UI_LABELS[key]}
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={value[key]}
-              disabled={disabled}
-              onClick={() => onChange({ ...value, [key]: !value[key] })}
-              className={`relative h-10 w-[4.5rem] shrink-0 rounded-full transition disabled:cursor-not-allowed ${
-                value[key] ? "bg-emerald-500" : "bg-slate-300"
+        {ADMIN_MODULE_UI_KEYS.map((key) => {
+          const desc = ADMIN_MODULE_UI_DESCRIPTIONS[key];
+          return (
+            <label
+              key={key}
+              className={`flex min-h-[64px] items-center justify-between gap-4 rounded-xl border border-white/80 bg-white/90 px-4 py-3 ${
+                disabled ? "opacity-70" : ""
               }`}
             >
-              <span
-                className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow-md transition ${
-                  value[key] ? "left-[calc(100%-2.25rem)]" : "left-1"
+              <div className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-slate-800">
+                  {ADMIN_MODULE_UI_LABELS[key]}
+                </span>
+                {desc ? (
+                  <span className="mt-0.5 block text-[11px] font-medium leading-snug text-slate-500">
+                    {desc}
+                  </span>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={value[key]}
+                disabled={disabled}
+                onClick={() => onChange({ ...value, [key]: !value[key] })}
+                className={`relative h-10 w-[4.5rem] shrink-0 rounded-full transition disabled:cursor-not-allowed ${
+                  value[key] ? "bg-emerald-500" : "bg-slate-300"
                 }`}
-              />
-            </button>
-          </label>
-        ))}
+              >
+                <span
+                  className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow-md transition ${
+                    value[key] ? "left-[calc(100%-2.25rem)]" : "left-1"
+                  }`}
+                />
+              </button>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -358,9 +369,11 @@ function ModulePermissionSwitches({
 
 function ModulePermissionCard({
   label,
+  description,
   enabled,
 }: {
   label: string;
+  description?: string;
   enabled: boolean;
 }) {
   return (
@@ -371,7 +384,14 @@ function ModulePermissionCard({
           : "border-slate-200/90 bg-slate-50/80"
       }`}
     >
-      <p className="text-sm font-black text-slate-900">{label}</p>
+      <div>
+        <p className="text-sm font-black text-slate-900">{label}</p>
+        {description ? (
+          <p className="mt-0.5 text-[11px] font-medium leading-snug text-slate-500">
+            {description}
+          </p>
+        ) : null}
+      </div>
       <span
         className={`mt-2 inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${
           enabled ? "bg-emerald-500 text-white" : "bg-slate-300 text-slate-800"
@@ -1475,6 +1495,7 @@ export default function AdminUserDetailPage() {
                       <ModulePermissionCard
                         key={key}
                         label={ADMIN_MODULE_UI_LABELS[key]}
+                        description={ADMIN_MODULE_UI_DESCRIPTIONS[key]}
                         enabled
                       />
                     ))}
@@ -1507,6 +1528,7 @@ export default function AdminUserDetailPage() {
                   <ModulePermissionCard
                     key={key}
                     label={ADMIN_MODULE_UI_LABELS[key]}
+                    description={ADMIN_MODULE_UI_DESCRIPTIONS[key]}
                     enabled={
                       isUserPremiumPackage(user)
                         ? true
