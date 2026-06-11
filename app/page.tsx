@@ -1125,79 +1125,82 @@ export default function Home() {
             const heroDate = `Bugün ${d.getDate()} ${d.toLocaleDateString("tr-TR", { month: "long" })} ${d.getFullYear()} ${d.toLocaleDateString("tr-TR", { weekday: "long" })}`;
             return (
               <>
-              <section
-                className="relative mb-0 overflow-hidden rounded-[20px] border border-white/90 px-5 py-4 shadow-[0_18px_50px_rgba(124,58,237,0.12),0_8px_24px_rgba(59,130,246,0.08)] sm:px-7 sm:py-5"
-                style={{ background: "linear-gradient(135deg,#efe2ff 0%,#e9e5ff 25%,#dff4ff 60%,#ffe8f4 100%)" }}
-              >
-                {/* Dekoratif pastel ışıklar */}
-                <div className="pointer-events-none absolute -right-10 -top-10 h-[280px] w-[280px] rounded-full bg-fuchsia-300/[0.12] blur-3xl" aria-hidden />
-                <div className="pointer-events-none absolute -bottom-10 -left-6 h-[280px] w-[280px] rounded-full bg-blue-300/[0.12] blur-3xl" aria-hidden />
+              <section className="relative mb-0 overflow-hidden rounded-[22px] border border-white/90 bg-gradient-to-br from-violet-200 via-sky-100 to-pink-200 px-5 py-5 shadow-[0_20px_60px_rgba(124,58,237,0.18),0_8px_24px_rgba(236,72,153,0.10)] backdrop-blur-xl sm:px-7 sm:py-6">
 
-                {/* Üst satır: selamlama + çıkış */}
-                <div className="relative flex items-start justify-between gap-4">
-                  <div>
-                    <h1 className="leading-tight tracking-tight">
-                      {firstName ? (
-                        <>
-                          <span className="block text-3xl font-black bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-transparent sm:text-4xl">
-                            {firstName}
-                          </span>
-                          <span className="block text-xl font-black text-slate-950 sm:text-2xl">, hoş geldiniz ✨</span>
-                        </>
-                      ) : (
-                        <span className="block text-2xl font-black text-slate-950 sm:text-3xl">Hoş geldiniz ✨</span>
-                      )}
-                    </h1>
-                    <p className="mt-1.5 text-sm text-slate-600">{heroDate}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="mt-0.5 shrink-0 rounded-lg border border-white/80 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-slate-500 backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
-                  >
-                    Çıkış Yap
-                  </button>
-                </div>
+                {/* Dev blur ışıklar — nefes alan derinlik */}
+                <div className="pointer-events-none absolute -left-16 -top-16 h-[400px] w-[400px] rounded-full bg-violet-400/25 blur-[120px]" aria-hidden />
+                <div className="pointer-events-none absolute -right-16 -top-16 h-[400px] w-[400px] rounded-full bg-pink-400/25 blur-[120px]" aria-hidden />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/20 blur-[120px]" aria-hidden />
 
-                {/* Hızlı İşlemler */}
-                <div className="relative mt-3 flex flex-wrap gap-2">
-                  {([
-                    { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
-                    { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
-                    { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
-                    { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
-                  ] as const).map(({ label, href, icon }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/85 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-md backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:text-violet-700"
+                {/* İçerik */}
+                <div className="relative">
+
+                  {/* Üst satır: selamlama + çıkış */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h1 className="leading-tight tracking-tight">
+                        {firstName ? (
+                          <>
+                            <span className="block bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
+                              {firstName}
+                            </span>
+                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">hoş geldiniz ✨</span>
+                          </>
+                        ) : (
+                          <span className="block text-3xl font-black text-slate-900 sm:text-4xl">Hoş geldiniz ✨</span>
+                        )}
+                      </h1>
+                      <p className="mt-2 text-sm font-medium text-slate-600">{heroDate}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="mt-1 shrink-0 rounded-xl border border-white/80 bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
                     >
-                      <span aria-hidden>{icon}</span>
-                      {label}
-                    </Link>
-                  ))}
-                </div>
+                      Çıkış Yap
+                    </button>
+                  </div>
 
-                {/* Admin linki */}
-                {isAdminUser(user) ? (
-                  <Link
-                    href="/admin"
-                    className="relative mt-3 flex items-center gap-3 rounded-xl border border-rose-200 bg-white/55 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/75"
-                  >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
-                      <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">Sistem Sahibi</p>
-                      <p className="text-xs font-black text-slate-800">Admin Paneli</p>
-                    </div>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
-                  </Link>
-                ) : null}
+                  {/* Hızlı İşlemler */}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {([
+                      { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
+                      { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
+                      { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
+                      { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
+                    ] as const).map(({ label, href, icon }) => (
+                      <Link
+                        key={label}
+                        href={href}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-[0_8px_20px_rgba(124,58,237,0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:text-violet-700"
+                      >
+                        <span aria-hidden>{icon}</span>
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* Admin linki */}
+                  {isAdminUser(user) ? (
+                    <Link
+                      href="/admin"
+                      className="mt-3 flex items-center gap-3 rounded-xl border border-white/60 bg-white/55 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/75"
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
+                        <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">Sistem Sahibi</p>
+                        <p className="text-xs font-black text-slate-800">Admin Paneli</p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
+                    </Link>
+                  ) : null}
+                </div>
               </section>
 
-              {/* Hero → modüller geçiş ayırıcı */}
-              <div className="mb-5 h-px bg-gradient-to-r from-transparent via-violet-300/50 to-transparent" />
+              {/* Renkli ayırıcı */}
+              <div className="mb-5 mt-0 h-[4px] rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 opacity-70" />
               </>
             );
           })()}
