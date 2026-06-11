@@ -649,24 +649,24 @@ function LivePanel({ date }: { date: Date | null }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
-      <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
+    <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
         Bugünün Enerjisi
       </p>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {rows.map(({ label, value, sub }, i) => (
           <div
             key={label}
-            className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ${
+            className={`flex items-start justify-between gap-3 rounded-lg px-2.5 py-1.5 ${
               i % 2 === 0 ? "bg-slate-50/70" : "bg-transparent"
             }`}
           >
             <span className="shrink-0 text-[11px] font-medium text-slate-400">{label}</span>
             <div className="min-w-0 text-right">
-              <span className="text-[12px] font-black text-slate-800">{value}</span>
+              <span className="text-[11px] font-black text-slate-800">{value}</span>
               {sub ? (
-                <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">{sub}</p>
+                <p className="text-[10px] tabular-nums text-slate-400">{sub}</p>
               ) : null}
             </div>
           </div>
@@ -1146,13 +1146,38 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Mikro istatistik bandı */}
-                <div className="mt-2 flex items-center gap-2.5 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-                  <span>👥 {fmt(statClients)} Danışan</span>
-                  <span className="text-slate-300" aria-hidden>·</span>
-                  <span>💎 {fmt(statStones)} Taş</span>
-                  <span className="text-slate-300" aria-hidden>·</span>
-                  <span>📚 {fmt(statContent)} İçerik</span>
+                {/* Mini istatistik kartları */}
+                <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5">
+                  {([
+                    { icon: "👥", val: fmt(statClients), label: "Danışan" },
+                    { icon: "💎", val: fmt(statStones),  label: "Taş" },
+                    { icon: "📚", val: fmt(statContent), label: "İçerik" },
+                  ] as const).map(({ icon, val, label }) => (
+                    <div key={label} className="flex flex-col items-center rounded-xl bg-slate-50/80 py-2">
+                      <span className="text-sm leading-none">{icon}</span>
+                      <span className="mt-1 text-base font-black leading-none text-slate-800">{val}</span>
+                      <span className="mt-0.5 text-[10px] text-slate-400">{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Hızlı İşlemler */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {([
+                    { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
+                    { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
+                    { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
+                    { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
+                  ] as const).map(({ label, href, icon }) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-500 no-underline transition hover:border-violet-300 hover:text-violet-700"
+                    >
+                      <span aria-hidden>{icon}</span>
+                      {label}
+                    </Link>
+                  ))}
                 </div>
 
                 {/* Admin linki */}
@@ -1174,25 +1199,6 @@ export default function Home() {
               </section>
             );
           })()}
-
-          {/* Hızlı İşlemler */}
-          <div className="mb-5 flex flex-wrap gap-2">
-            {[
-              { label: "Danışan Ekle",    href: "/danisan-yolculugu",       icon: "👥" },
-              { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
-              { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
-              { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
-            ].map(({ label, href, icon }) => (
-              <Link
-                key={label}
-                href={href}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3 py-1.5 text-[12px] font-semibold text-slate-600 no-underline shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition hover:border-violet-300 hover:text-violet-700"
-              >
-                <span aria-hidden>{icon}</span>
-                {label}
-              </Link>
-            ))}
-          </div>
 
           {/* ═══════════════════════════════════════════
                TWO-COLUMN: MODULES + LIVE PANEL
@@ -1316,24 +1322,20 @@ export default function Home() {
             {/* ── Right: Son Aktiviteler + Canlı Yaşam Paneli ── */}
             <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
 
-              {/* Son Aktiviteler */}
-              <div>
-                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-                  Son Aktiviteler
-                </p>
-                <div className="rounded-2xl border border-white/70 bg-white/65 p-4 shadow-sm backdrop-blur-md">
-                  {recentActivity === null ? (
-                    <p className="text-xs text-slate-400">Yükleniyor...</p>
-                  ) : recentActivity.length === 0 ? (
-                    <p className="text-xs text-slate-400">Henüz kayıt bulunmuyor</p>
-                  ) : (
-                    <div className="space-y-1">
+              {/* Son Aktiviteler — sadece veri varsa göster */}
+              {recentActivity !== null && recentActivity.length > 0 ? (
+                <div>
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                    Son Aktiviteler
+                  </p>
+                  <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
+                    <div className="space-y-0.5">
                       {recentActivity.map((act, i) => (
                         <div
                           key={i}
-                          className="flex items-center gap-2.5 rounded-xl px-2 py-2"
+                          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5"
                         >
-                          <span className="text-base leading-none">{act.icon}</span>
+                          <span className="text-sm leading-none">{act.icon}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[12px] font-semibold text-slate-800">{act.label}</p>
                             <p className="text-[10px] text-slate-400">{act.relDate}</p>
@@ -1341,9 +1343,9 @@ export default function Home() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {/* Canlı Yaşam Paneli */}
               <div>
