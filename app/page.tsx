@@ -32,13 +32,11 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
-  BookOpen,
   ChartColumn,
   Check,
-  ClipboardList,
   Compass,
-  FolderArchive,
   Gem,
+  Layers,
   Leaf,
   Loader2,
   Lock,
@@ -47,7 +45,6 @@ import {
   ShieldCheck,
   Sparkles,
   UsersRound,
-  Video,
 } from "lucide-react";
 
 type ModuleTheme = {
@@ -294,17 +291,17 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Kişisel Arşiv",
-    desc: "Ses, video, belge ve kişisel kayıt sistemi",
+    title: "Dijital İçerik Merkezi",
+    desc: "Belgeler, videolar, ders notları ve kişisel arşiv yönetimi",
     count: "Aktif",
-    badge: "YENİ",
-    href: "/dashboard/kisisel-arsiv",
-    permissionKey: "personal_archive",
-    Icon: FolderArchive,
+    badge: "Merkez",
+    href: "/digital-content",
+    permissionKey: "digital_content",
+    Icon: Layers,
     theme: {
-      iconWrap: "from-orange-500 to-amber-500",
-      cardBg: "from-orange-100/90 via-amber-50/95 to-white",
-      border: "border-orange-200/70",
+      iconWrap: "from-indigo-600 to-sky-600",
+      cardBg: "from-indigo-50/90 via-sky-50/95 to-white",
+      border: "border-indigo-200/70",
     },
   },
   {
@@ -319,48 +316,6 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-violet-500 to-indigo-600",
       cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
       border: "border-indigo-200/70",
-    },
-  },
-  {
-    title: "Video → Türkçe Word/PDF",
-    desc: "Videolardan Türkçe transkript, çeviri ve eğitim dokümanı üretme merkezi.",
-    count: "Aktif",
-    badge: "YENİ",
-    href: "/video-ceviri",
-    permissionKey: "video_ceviri",
-    Icon: Video,
-    theme: {
-      iconWrap: "from-rose-500 to-pink-600",
-      cardBg: "from-rose-100/90 via-pink-50/95 to-white",
-      border: "border-rose-200/70",
-    },
-  },
-  {
-    title: "Belge Çeviri Merkezi",
-    desc: "PDF ve Word belgelerini dönüştür, çevir ve yönet.",
-    count: "Aktif",
-    badge: "YENİ",
-    href: "/belge-ceviri",
-    permissionKey: "belge_ceviri",
-    Icon: BookOpen,
-    theme: {
-      iconWrap: "from-sky-500 to-cyan-600",
-      cardBg: "from-sky-100/90 via-cyan-50/95 to-white",
-      border: "border-sky-200/70",
-    },
-  },
-  {
-    title: "Ders Notu Merkezi",
-    desc: "Ham transkripti temizle, ders notuna dönüştür. Human Design uyumlu.",
-    count: "Aktif",
-    badge: "YENİ",
-    href: "/ders-notu",
-    permissionKey: "ders_notu",
-    Icon: ClipboardList,
-    theme: {
-      iconWrap: "from-teal-600 to-emerald-700",
-      cardBg: "from-teal-50/90 via-emerald-50/95 to-white",
-      border: "border-teal-200/70",
     },
   },
   {
@@ -399,6 +354,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   belge_ceviri: [],
   ders_notu: [],
   human_design: [],
+  digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {

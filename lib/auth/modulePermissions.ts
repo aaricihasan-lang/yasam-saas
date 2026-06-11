@@ -16,7 +16,8 @@ export type ModulePermissionKey =
   | "video_ceviri"
   | "belge_ceviri"
   | "ders_notu"
-  | "human_design";
+  | "human_design"
+  | "digital_content";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -33,6 +34,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "belge_ceviri",
   "ders_notu",
   "human_design",
+  "digital_content",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -48,6 +50,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   ders_notu: "Temizlenmiş Ders Notu Merkezi",
   human_design: "Human Design",
+  digital_content: "Dijital İçerik Merkezi",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -63,6 +66,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   belge_ceviri: false,
   ders_notu: false,
   human_design: false,
+  digital_content: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
@@ -99,6 +103,7 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "video_ceviri",
   "belge_ceviri",
   "ders_notu",
+  "digital_content",
   // human_design: yakında — premium paketinden de hariç
   "danisan_yonetimi",
   "ajanda",
@@ -121,11 +126,8 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "stok",
   "sifa_rehberi",
   "energy_body",
-  "personal_archive",
+  "digital_content",
   "numerology",
-  "video_ceviri",
-  "belge_ceviri",
-  "ders_notu",
   // human_design: yakında — premium dahil tüm uzmanlar için kilitli
 ];
 
@@ -210,6 +212,15 @@ export function hasModulePermission(
     return isPremiumModuleAccessKey(key);
   }
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
+  // Hub kartı: alt modüllerden herhangi birine izin varsa erişilebilir
+  if (key === "digital_content") {
+    return Boolean(
+      perms.personal_archive ||
+      perms.video_ceviri ||
+      perms.belge_ceviri ||
+      perms.ders_notu,
+    );
+  }
   return Boolean(perms[key]);
 }
 
