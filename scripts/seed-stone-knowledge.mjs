@@ -18,6 +18,10 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+
+// .env.local otomatik yükle (proje kökünden çalıştırıldığı varsayılır)
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env.local") });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
