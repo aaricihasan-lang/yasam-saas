@@ -47,19 +47,54 @@ const EMPTY_FORM: NewArticleForm = {
   source: "",
 };
 
-// ─── Kategori renkleri ─────────────────────────────────────────────────────────
+// ─── Dinamik kategori tipi ─────────────────────────────────────────────────────
 
-const KAT_CONFIG: Record<string, { color: string; bg: string; border: string; icon: string }> = {
-  Şifa:        { color: "#059669", bg: "#ecfdf5", border: "#a7f3d0", icon: "💚" },
-  Araştırma:   { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", icon: "🔬" },
-  Mineroloji:  { color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe", icon: "💎" },
-  Uygulamalar: { color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "🖐️" },
-  Genel:       { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📖" },
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  sort_order: number;
 };
 
-function katConfig(kat: string) {
-  return KAT_CONFIG[kat] ?? { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📄" };
-}
+type NewCategoryForm = {
+  name: string;
+  icon: string;
+  color: string;
+};
+
+const EMPTY_CAT_FORM: NewCategoryForm = { name: "", icon: "📖", color: "slate" };
+
+// Renk adı → CSS değerleri (statik lookup, bileşen dışı)
+const COLOR_MAP: Record<string, { hex: string; bg: string; border: string }> = {
+  emerald: { hex: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
+  blue:    { hex: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
+  violet:  { hex: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  amber:   { hex: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  slate:   { hex: "#475569", bg: "#f8fafc", border: "#e2e8f0" },
+  rose:    { hex: "#e11d48", bg: "#fff1f2", border: "#fecdd3" },
+  cyan:    { hex: "#0891b2", bg: "#ecfeff", border: "#a5f3fc" },
+  orange:  { hex: "#ea580c", bg: "#fff7ed", border: "#fed7aa" },
+  green:   { hex: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+  indigo:  { hex: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe" },
+  pink:    { hex: "#db2777", bg: "#fdf2f8", border: "#fbcfe8" },
+  teal:    { hex: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
+};
+
+const COLOR_OPTIONS = [
+  { value: "emerald", label: "Yeşil" },
+  { value: "blue",    label: "Mavi" },
+  { value: "violet",  label: "Mor" },
+  { value: "amber",   label: "Amber" },
+  { value: "slate",   label: "Gri" },
+  { value: "rose",    label: "Pembe" },
+  { value: "cyan",    label: "Açık Mavi" },
+  { value: "orange",  label: "Turuncu" },
+  { value: "green",   label: "Açık Yeşil" },
+  { value: "indigo",  label: "İndigo" },
+  { value: "teal",    label: "Teal" },
+];
 
 // ─── Arama motoru ──────────────────────────────────────────────────────────────
 
@@ -212,11 +247,32 @@ export default function TasBilgiKutuphanesiPage() {
   const [activeKat, setActiveKat] = useState("Tümü");
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [viewed, setViewed] = useState<Set<string>>(new Set());
+  // Makale formu
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<NewArticleForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // Kategori state
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [showCatForm, setShowCatForm] = useState(false);
+  const [catForm, setCatForm] = useState<NewCategoryForm>(EMPTY_CAT_FORM);
+  const [savingCat, setSavingCat] = useState(false);
+  const [catError, setCatError] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
+  const katMap = useMemo(() => {
+    const m = new Map<string, { color: string; bg: string; border: string; icon: string }>();
+    for (const cat of categoryList) {
+      const c = COLOR_MAP[cat.color] ?? COLOR_MAP.slate!;
+      m.set(cat.name, { color: c.hex, bg: c.bg, border: c.border, icon: cat.icon });
+    }
+    return m;
+  }, [categoryList]);
+
+  function katConfig(kat: string) {
+    return katMap.get(kat) ?? { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📄" };
+  }
 
   // Debounce 120ms
   useEffect(() => {
@@ -237,9 +293,14 @@ export default function TasBilgiKutuphanesiPage() {
     void getSyncedTenantId().then(setTenantId);
   }, []);
 
+  // Kategorileri yükle (bir kez)
+  useEffect(() => {
+    void loadCategories();
+  }, []);
+
   // Makaleleri yükle
   useEffect(() => {
-    if (tenantId === undefined) return; // henüz yüklenmedi
+    if (tenantId === undefined) return;
     void loadArticles();
   }, [tenantId]);
 
@@ -265,14 +326,54 @@ export default function TasBilgiKutuphanesiPage() {
     setLoading(false);
   }
 
+  async function loadCategories() {
+    const { data } = await supabase
+      .from("stone_knowledge_categories")
+      .select("id, name, slug, icon, color, sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (data) setCategoryList(data as Category[]);
+  }
+
+  async function saveCategory() {
+    const name = catForm.name.trim();
+    if (!name) { setCatError("Kategori adı zorunludur."); return; }
+    setSavingCat(true);
+    setCatError("");
+    const slug = normalizeTr(name)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "kategori";
+    const maxOrder = Math.max(0, ...categoryList.map((c) => c.sort_order));
+    const { error } = await supabase.from("stone_knowledge_categories").insert({
+      name,
+      slug,
+      icon:       catForm.icon.trim() || "📖",
+      color:      catForm.color || "slate",
+      sort_order: maxOrder + 1,
+    });
+    setSavingCat(false);
+    if (error) {
+      setCatError(error.message.includes("unique") ? "Bu isimde kategori zaten var." : "Hata: " + error.message);
+      return;
+    }
+    setCatForm(EMPTY_CAT_FORM);
+    setShowCatForm(false);
+    await loadCategories();
+  }
+
   // ─── Türetilmiş veriler ─────────────────────────────────────────────────────
 
   const searchTerms = useMemo(() => getSearchTerms(search), [search]);
 
+  // Kategori listesi: Supabase tablosundan (sıralı), makale yoksa gizleme
   const categories = useMemo(() => {
-    const cats = [...new Set(articles.map((r) => r.category).filter(Boolean))].sort(trSort);
-    return ["Tümü", ...cats];
-  }, [articles]);
+    const fromDb = categoryList.map((c) => c.name);
+    // Tabloda olmayan ama makalelerde geçen kategoriler de ekle (tutarlılık)
+    const extra = [...new Set(articles.map((r) => r.category).filter(Boolean))]
+      .filter((n) => !fromDb.includes(n))
+      .sort(trSort);
+    return ["Tümü", ...fromDb, ...extra];
+  }, [categoryList, articles]);
 
   const filtered = useMemo(() => {
     return articles.filter((r) => {
@@ -382,13 +483,14 @@ export default function TasBilgiKutuphanesiPage() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Kategori stats (xl+) */}
             <div className="hidden flex-wrap gap-1.5 xl:flex">
-              {Object.entries(KAT_CONFIG).map(([kat, cfg]) => {
-                const count = articles.filter((r) => r.category === kat).length;
+              {categoryList.map((cat) => {
+                const count = articles.filter((r) => r.category === cat.name).length;
                 if (!count) return null;
+                const cfg = katConfig(cat.name);
                 return (
-                  <span key={kat} className="rounded-full border px-3 py-1 text-xs font-bold"
+                  <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
                     style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                    {cfg.icon} {kat} ({count})
+                    {cat.icon} {cat.name} ({count})
                   </span>
                 );
               })}
@@ -436,8 +538,8 @@ export default function TasBilgiKutuphanesiPage() {
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 >
                   <option value="">Seç...</option>
-                  {["Şifa", "Araştırma", "Mineroloji", "Uygulamalar", "Genel"].map((k) => (
-                    <option key={k} value={k}>{k}</option>
+                  {categoryList.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -526,24 +628,77 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           </div>
 
-          {/* Kategori filtreleri */}
-          <div className="flex shrink-0 flex-wrap gap-1 border-b border-slate-100 px-3 py-2">
-            {categories.map((kat) => {
-              const isActive = activeKat === kat;
-              const cfg = kat === "Tümü" ? null : katConfig(kat);
-              return (
-                <button key={kat} type="button" onClick={() => setActiveKat(kat)}
-                  className="rounded-full border px-2.5 py-1 text-[11px] font-bold transition-all"
-                  style={isActive
-                    ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
-                    : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
-                  {cfg?.icon} {kat}
-                  {kat !== "Tümü" && (
-                    <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Kategori filtreleri + Yeni Kategori */}
+          <div className="shrink-0 border-b border-slate-100 px-3 py-2">
+            <div className="flex flex-wrap gap-1">
+              {categories.map((kat) => {
+                const isActive = activeKat === kat;
+                const cfg = kat === "Tümü" ? null : katConfig(kat);
+                return (
+                  <button key={kat} type="button" onClick={() => setActiveKat(kat)}
+                    className="rounded-full border px-2.5 py-1 text-[11px] font-bold transition-all"
+                    style={isActive
+                      ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
+                      : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
+                    {cfg?.icon} {kat}
+                    {kat !== "Tümü" && (
+                      <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* + Yeni Kategori */}
+              <button type="button"
+                onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
+                className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-bold text-slate-400 transition hover:border-emerald-400 hover:text-emerald-600">
+                {showCatForm ? "✕" : "+ Kategori"}
+              </button>
+            </div>
+
+            {/* Yeni Kategori formu */}
+            {showCatForm && (
+              <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                <p className="mb-2 text-[11px] font-black text-slate-700">Yeni Kategori</p>
+                {catError && (
+                  <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={catForm.name}
+                    onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Kategori adı *"
+                    className="col-span-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                  />
+                  <input
+                    value={catForm.icon}
+                    onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
+                    placeholder="İkon (ör: 🔥)"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                  />
+                  <select
+                    value={catForm.color}
+                    onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                  >
+                    {COLOR_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-2 flex justify-end gap-1.5">
+                  <button type="button"
+                    onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-600 hover:bg-slate-50">
+                    Vazgeç
+                  </button>
+                  <button type="button" onClick={saveCategory} disabled={savingCat}
+                    className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1 text-[11px] font-black text-white disabled:opacity-60">
+                    {savingCat ? "..." : "Kaydet"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Liste */}
@@ -609,12 +764,15 @@ export default function TasBilgiKutuphanesiPage() {
                   Arama motoruyla tam metin içinde arama yapabilirsin.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {Object.entries(KAT_CONFIG).map(([kat, cfg]) => (
-                    <span key={kat} className="rounded-full border px-3 py-1 text-xs font-bold"
-                      style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                      {cfg.icon} {kat}
-                    </span>
-                  ))}
+                  {categoryList.map((cat) => {
+                    const cfg = katConfig(cat.name);
+                    return (
+                      <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
+                        style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
+                        {cat.icon} {cat.name}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             </div>
