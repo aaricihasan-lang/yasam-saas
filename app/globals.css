@@ -12,13 +12,15 @@
 }
 
 /*
-  min-h-screen'i sabit logo bar yüksekliğine göre daralt.
-  Bu kural @tailwind utilities'den sonra ve @layer dışında tanımlandığı için
-  Tailwind'in ürettiği min-height: 100vh kuralını cascade'de geçer (unlayered > layered).
-  / ve /register'da --logo-h=0px olduğu için min-h-screen yine 100vh'ye eşit olur.
+  h-screen ve min-h-screen'i logo bar yüksekliğine göre daralt.
+  Bu kurallar @tailwind utilities sonra, @layer dışında → unlayered olarak Tailwind'i geçer.
+  / ve /register'da --logo-h=0px kalır → orijinal 100vh değeri korunur.
 */
 .min-h-screen {
   min-height: calc(100vh - var(--logo-h, 0px));
+}
+.h-screen {
+  height: calc(100vh - var(--logo-h, 0px));
 }
 
 @theme inline {

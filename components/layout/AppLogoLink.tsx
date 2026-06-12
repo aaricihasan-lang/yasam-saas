@@ -2,20 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 const HIDE_ON: string[] = ["/", "/register"];
 
 export default function AppLogoLink() {
   const pathname = usePathname();
+  const visible = !HIDE_ON.includes(pathname ?? "/");
 
-  if (HIDE_ON.includes(pathname ?? "/")) return null;
+  useEffect(() => {
+    // Belt-and-suspenders: sets --logo-h via JS in case the inline <style> tag
+    // is deferred or deduplicated by the browser/React.
+    const root = document.documentElement;
+    if (visible) {
+      root.style.setProperty("--logo-h", "44px");
+    } else {
+      root.style.removeProperty("--logo-h");
+    }
+    return () => { root.style.removeProperty("--logo-h"); };
+  }, [visible]);
+
+  if (!visible) return null;
 
   return (
     <>
       {/*
-        Sets --logo-h on :root so globals.css can shrink min-h-screen pages
-        by exactly the bar height — prevents 100vh + 44px overflow.
-        Rendered in SSR too (client component still server-renders), so no flash.
+        <style> tag: sets --logo-h from SSR so globals.css overrides
+        (min-h-screen, h-screen) take effect before JS hydration — no layout flash.
       */}
       <style>{":root { --logo-h: 44px; }"}</style>
 
