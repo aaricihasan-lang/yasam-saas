@@ -359,6 +359,8 @@ export default function TasBilgiKutuphanesiPage() {
     setCatForm(EMPTY_CAT_FORM);
     setShowCatForm(false);
     await loadCategories();
+    // Yeni kategoriyi makale formunda otomatik seç
+    setForm((f) => ({ ...f, category: name }));
   }
 
   // ─── Türetilmiş veriler ─────────────────────────────────────────────────────
@@ -539,8 +541,8 @@ export default function TasBilgiKutuphanesiPage() {
                 {saveError}
               </div>
             )}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="lg:col-span-2">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div>
                 <label className="mb-1 block text-xs font-black text-slate-700">Başlık *</label>
                 <input
                   value={form.title}
@@ -549,24 +551,91 @@ export default function TasBilgiKutuphanesiPage() {
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <label className="mb-1 block text-xs font-black text-slate-700">
                   Kategori <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">— Kategori seç —</option>
-                  {dropdownCategories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  >
+                    <option value="">— Kategori seç —</option>
+                    {dropdownCategories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.icon} {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
+                    className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-black transition ${
+                      showCatForm
+                        ? "border-slate-200 bg-white text-slate-500"
+                        : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {showCatForm ? "Vazgeç" : "+ Yeni Kategori"}
+                  </button>
+                </div>
+
+                {/* Inline kategori formu */}
+                {showCatForm && (
+                  <div className="mt-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
+                    <p className="mb-2 text-xs font-black text-slate-800">Yeni Kategori Ekle</p>
+                    {catError && (
+                      <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        value={catForm.name}
+                        onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="Kategori adı *"
+                        className="col-span-3 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                      />
+                      <div className="col-span-1">
+                        <input
+                          value={catForm.icon}
+                          onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
+                          placeholder="İkon 📖"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <select
+                          value={catForm.color}
+                          onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                        >
+                          {COLOR_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveCategory}
+                        disabled={savingCat}
+                        className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-60"
+                      >
+                        {savingCat ? "Kaydediliyor..." : "Kategoriyi Kaydet"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <label className="mb-1 block text-xs font-black text-slate-700">Kaynak</label>
                 <input
                   value={form.source}
@@ -575,7 +644,7 @@ export default function TasBilgiKutuphanesiPage() {
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
-              <div className="sm:col-span-2 lg:col-span-4">
+              <div className="lg:col-span-2">
                 <label className="mb-1 block text-xs font-black text-slate-700">İçerik *</label>
                 <textarea
                   value={form.content}
@@ -651,7 +720,7 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           </div>
 
-          {/* Kategori filtreleri + Yeni Kategori */}
+          {/* Kategori filtreleri */}
           <div className="shrink-0 border-b border-slate-100 px-3 py-2">
             <div className="flex flex-wrap gap-1">
               {categories.map((kat) => {
@@ -670,58 +739,7 @@ export default function TasBilgiKutuphanesiPage() {
                   </button>
                 );
               })}
-
-              {/* + Yeni Kategori */}
-              <button type="button"
-                onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
-                className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-bold text-slate-400 transition hover:border-emerald-400 hover:text-emerald-600">
-                {showCatForm ? "✕" : "+ Kategori"}
-              </button>
             </div>
-
-            {/* Yeni Kategori formu */}
-            {showCatForm && (
-              <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
-                <p className="mb-2 text-[11px] font-black text-slate-700">Yeni Kategori</p>
-                {catError && (
-                  <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={catForm.name}
-                    onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Kategori adı *"
-                    className="col-span-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
-                  />
-                  <input
-                    value={catForm.icon}
-                    onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
-                    placeholder="İkon (ör: 🔥)"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
-                  />
-                  <select
-                    value={catForm.color}
-                    onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
-                  >
-                    {COLOR_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mt-2 flex justify-end gap-1.5">
-                  <button type="button"
-                    onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-600 hover:bg-slate-50">
-                    Vazgeç
-                  </button>
-                  <button type="button" onClick={saveCategory} disabled={savingCat}
-                    className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1 text-[11px] font-black text-white disabled:opacity-60">
-                    {savingCat ? "..." : "Kaydet"}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Liste */}
