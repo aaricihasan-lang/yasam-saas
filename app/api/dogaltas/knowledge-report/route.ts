@@ -3,20 +3,21 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import {
   bodyText,
   buildFooter,
+  buildPremiumCover,
+  buildSectionDivider,
+  buildStatsPage,
   buildTOCPage,
   C_DARK,
-  C_LIGHT,
-  C_MID,
-  coverLine,
   divider,
   fieldInline,
-  h1,
+  h1Colored,
   h2,
   h3,
   inlineRuns,
   muted,
   REPORT_FONT,
   ReportChild,
+  SECTION_COLORS,
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
@@ -44,7 +45,7 @@ type ArticleRow = {
   created_at: string | null;
 };
 
-// ─── Article content parser ───────────────────────────────────────────────────
+// ─── Content parser ───────────────────────────────────────────────────────────
 
 function parseContent(content: string): ReportChild[] {
   if (!content?.trim()) return [];
@@ -54,13 +55,7 @@ function parseContent(content: string): ReportChild[] {
 
   function flush() {
     const text = buf.join(" ").trim();
-    if (text) {
-      out.push(new Paragraph({
-        children: inlineRuns(text),
-        spacing: { after: 160 },
-        indent: { left: 360 },
-      }));
-    }
+    if (text) out.push(new Paragraph({ children: inlineRuns(text), spacing: { after: 160 }, indent: { left: 360 } }));
     buf = [];
   }
 
@@ -82,20 +77,12 @@ function parseContent(content: string): ReportChild[] {
   return out;
 }
 
-// ─── Category summary table ───────────────────────────────────────────────────
-
-function buildCategoryTable(groups: Map<string, ArticleRow[]>): ReportChild {
-  return twoColTable(
-    [...groups.entries()].map(([cat, arts]) => [cat, `${arts.length} makale`] as [string, string])
-  );
-}
-
-// ─── Full document builder ────────────────────────────────────────────────────
+// ─── Document builder ─────────────────────────────────────────────────────────
 
 function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild[] {
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const color = SECTION_COLORS.knowledge;
 
-  // Group by category
   const groups = new Map<string, ArticleRow[]>();
   for (const a of articles) {
     const cat = a.category || "Genel";
@@ -103,35 +90,49 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
     groups.get(cat)!.push(a);
   }
 
+  const categoryRows: [string, string][] = [...groups.entries()].map(
+    ([cat, arts]) => [cat, `${arts.length} makale`]
+  );
+
   const out: ReportChild[] = [];
 
-  // Cover
-  out.push(
-    new Paragraph({ spacing: { before: 1400 } }),
-    coverLine("YAŞAM SİSTEMİ", 60, true, C_DARK),
-    coverLine("TAŞ BİLGİ KÜTÜPHANESİ", 44, false, C_MID),
-    coverLine("Bilgi Bankası Raporu", 30, false, C_MID),
-    spacer(),
-    coverLine(`Oluşturulma Tarihi: ${date}`, 22, false, C_LIGHT),
-    coverLine(`Toplam Makale Sayısı: ${articles.length}`, 22, false, C_LIGHT),
-    coverLine(`Kapsam: ${exportLabel}`, 22, false, C_LIGHT),
-  );
+  // Premium cover
+  out.push(...buildPremiumCover({
+    title1:   "YAŞAM SİSTEMİ",
+    title2:   "TAŞ BİLGİ KÜTÜPHANESİ",
+    subtitle: "Bilgi Bankası Referans Kataloğu",
+    date:     `Oluşturulma Tarihi: ${date}`,
+    stats: [
+      { label: "Toplam Makale Sayısı", value: String(articles.length) },
+      { label: "Kategori Sayısı",      value: String(groups.size) },
+      { label: "Kapsam",               value: exportLabel },
+    ],
+  }));
+
+  // Stats page
+  out.push(...buildStatsPage(
+    [["Toplam Makale", String(articles.length)], ["Kategori Sayısı", String(groups.size)]],
+    [...groups.entries()].map(([cat, arts]) => `${cat}: ${arts.length} makale`)
+  ));
 
   // TOC
   out.push(...buildTOCPage());
 
-  // Kategori Özeti (Genel Özet section)
+  // Genel Özet
   out.push(
-    h1("1. Genel Özet", true),
+    h1Colored("1. Genel Özet", color, true),
     muted(`${groups.size} kategori · ${articles.length} makale`),
-    buildCategoryTable(groups),
+    twoColTable(categoryRows),
   );
 
-  // Articles — each category as H1 (new page), articles as H2
+  // Articles — each category as a section with divider
   let catIndex = 2;
   for (const [category, catArticles] of groups) {
-    out.push(h1(`${catIndex}. ${category}`, true));
-    out.push(muted(`${catArticles.length} makale`));
+    out.push(
+      ...buildSectionDivider(category.toUpperCase(), `${catArticles.length} Makale`, color),
+      h1Colored(`${catIndex}. ${category}`, color, true),
+      muted(`${catArticles.length} makale`),
+    );
     catIndex++;
 
     for (let i = 0; i < catArticles.length; i++) {
@@ -140,7 +141,6 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
 
       out.push(h2(a.title || "Başlıksız Makale"));
 
-      // Short metadata (no heading)
       if (a.sub_category?.trim())   out.push(fieldInline("Alt Kategori", a.sub_category.trim()));
       if (a.created_at)             out.push(fieldInline("Tarih", new Date(a.created_at).toLocaleDateString("tr-TR")));
       if (a.source?.trim())         out.push(fieldInline("Kaynak", a.source.trim()));
@@ -150,13 +150,8 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
       if (a.related_stones?.length) out.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
       if (a.related_minerals?.length) out.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
 
-      // Content (H3 from ## markers, visible in Navigation Panel)
-      if (a.content?.trim()) {
-        out.push(spacer());
-        out.push(...parseContent(a.content));
-      }
-
-      if (a.notes?.trim()) { out.push(h3("Notlar")); out.push(bodyText(a.notes.trim())); }
+      if (a.content?.trim()) { out.push(spacer()); out.push(...parseContent(a.content)); }
+      if (a.notes?.trim())   { out.push(h3("Notlar")); out.push(bodyText(a.notes.trim())); }
     }
   }
 
@@ -177,15 +172,13 @@ export async function POST(request: Request): Promise<Response> {
     articleIds?: string[];
   };
 
-  if (!tenantId || typeof tenantId !== "string") {
+  if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
-  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey)
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-  }
 
   const db = createClient(supabaseUrl, supabaseKey);
   const tenants = [ADMIN_LIBRARY_TENANT_ID];
@@ -195,38 +188,29 @@ export async function POST(request: Request): Promise<Response> {
     "id, title, content, category, sub_category, source, source_section, notes, tags, related_stones, related_minerals, created_at";
 
   let q = db.from("stone_knowledge_articles")
-    .select(SELECT)
-    .in("tenant_id", tenants)
-    .eq("is_active", true);
+    .select(SELECT).in("tenant_id", tenants).eq("is_active", true);
 
   let exportLabel = "Tüm Makaleler";
-
   if (exportMode === "category" && categoryName?.trim()) {
     q = q.eq("category", categoryName.trim());
     exportLabel = `Kategori: ${categoryName.trim()}`;
-  } else if ((exportMode === "filtered" || exportMode === "viewed") && Array.isArray(articleIds) && articleIds.length > 0) {
+  } else if ((exportMode === "filtered" || exportMode === "viewed") &&
+             Array.isArray(articleIds) && articleIds.length > 0) {
     q = q.in("id", articleIds);
     exportLabel = exportMode === "viewed" ? "Görüntülenen Kayıtlar" : "Filtrelenmiş Sonuçlar";
   }
 
   const { data, error } = await q.order("category").order("title");
-
-  if (error) {
-    return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
-  }
+  if (error) return Response.json({ ok: false, error: `Veri okunamadı: ${error.message}` }, { status: 500 });
 
   const articles = (data ?? []) as ArticleRow[];
-  if (!articles.length) {
-    return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });
-  }
-
-  const allChildren = buildDocument(articles, exportLabel);
+  if (!articles.length) return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });
 
   const doc = new Document({
     sections: [{
       properties: {},
       footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi") },
-      children: allChildren,
+      children: buildDocument(articles, exportLabel),
     }],
   });
 
