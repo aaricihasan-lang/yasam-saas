@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserPlus } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
@@ -317,41 +316,6 @@ export default function DanisanKayitPage() {
       </div>
 
       <div className="relative z-10 w-full">
-        {/* Back nav */}
-        <nav className="mb-5 flex items-center gap-2">
-          <Link
-            href="/danisan-yolculugu"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Danışan Yolculuğu
-          </Link>
-          <span className="text-xs text-slate-400">/</span>
-          <span className="text-xs font-bold text-slate-600">Danışan Kayıt</span>
-        </nav>
-
-        {/* Header */}
-        <header className="relative mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
-            <UserPlus
-              className="pointer-events-none absolute right-6 top-1/2 h-24 w-24 -translate-y-1/2 text-emerald-400 opacity-10"
-              strokeWidth={1.25}
-              aria-hidden
-            />
-            <div className="relative z-10">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700/85">
-                Danışan Yolculuğu
-              </p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                Danışan Kayıt
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-                Yeni danışan bilgilerini girin. Doğum tarihi girilince burç otomatik hesaplanır.
-              </p>
-            </div>
-          </div>
-        </header>
-
         {tenantMissing && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
             {!sessionUser
@@ -427,25 +391,6 @@ export default function DanisanKayitPage() {
           </div>
         </section>
 
-        {/* Info cards */}
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 p-4 shadow-sm">
-            <p className="text-sm font-black text-emerald-800">Kayıt güvenliği</p>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">Verileriniz güvenli şekilde saklanır.</p>
-          </div>
-          <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-4 shadow-sm">
-            <p className="text-sm font-black text-violet-800">Otomatik burç hesaplama</p>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">Doğum tarihinden burç otomatik belirlenir.</p>
-          </div>
-          <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-4 shadow-sm">
-            <p className="text-sm font-black text-cyan-800">Danışan süreci</p>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">Kayıt sonrası detay sayfasına geçebilirsiniz.</p>
-          </div>
-          <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm">
-            <p className="text-sm font-black text-amber-800">Gizlilik</p>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">Kişisel veriler yalnızca yetkili kullanımdadır.</p>
-          </div>
-        </div>
       </div>
     </main>
   );
