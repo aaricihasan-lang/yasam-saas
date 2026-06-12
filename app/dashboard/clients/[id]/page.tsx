@@ -131,10 +131,14 @@ export default function ClientDetailPage() {
   const [saglikNotu, setSaglikNotu] = useState("");
   const [adres, setAdres] = useState("");
   const [oneriler, setOneriler] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [editAd, setEditAd] = useState("");
+  const [editSoyad, setEditSoyad] = useState("");
+  const [editTelefon, setEditTelefon] = useState("");
+  const [editKan, setEditKan] = useState("");
+  const [editMizac, setEditMizac] = useState("");
+  const [savingAll, setSavingAll] = useState(false);
 
   const [editDogum, setEditDogum] = useState("");
-  const [savingDogum, setSavingDogum] = useState(false);
 
   const [noteText, setNoteText] = useState("");
   const [savingClientNotes, setSavingClientNotes] = useState(false);
@@ -164,7 +168,12 @@ export default function ClientDetailPage() {
       }
 
       setClient(data);
+      setEditAd(data.ad || "");
+      setEditSoyad(data.soyad || "");
+      setEditTelefon(data.telefon || "");
       setEditDogum(data.dogum || "");
+      setEditKan(data.kan || "");
+      setEditMizac(data.mizac || "");
 
       const { data: notesData, error: notesError } = await supabase
         .from("client_notes")
@@ -194,43 +203,49 @@ export default function ClientDetailPage() {
     }
   }, [clientId, tenantId]);
 
-  async function saveDogum() {
+  async function saveAllGeneralInfo() {
     if (!tenantId || !client) return;
 
-    setSavingDogum(true);
+    setSavingAll(true);
 
-    const { error } = await supabase
+    const { error: clientError } = await supabase
       .from("clients")
-      .update({ dogum: editDogum || null })
+      .update({
+        ad: editAd.trim() || null,
+        soyad: editSoyad.trim() || null,
+        telefon: editTelefon.trim() || null,
+        dogum: editDogum || null,
+        kan: editKan || null,
+        mizac: editMizac || null,
+      })
       .eq("id", client.id)
       .eq("tenant_id", tenantId);
 
-    if (error) {
+    if (clientError) {
       showToast({
         title: "İşlem başarısız",
-        message: "Doğum tarihi kaydedilemedi: " + error.message,
+        message: "Danışan bilgileri kaydedilemedi: " + clientError.message,
         type: "error",
       });
-      setSavingDogum(false);
+      setSavingAll(false);
       return;
     }
 
-    setClient((prev) => (prev ? { ...prev, dogum: editDogum || undefined } : prev));
+    setClient((prev) =>
+      prev
+        ? {
+            ...prev,
+            ad: editAd.trim() || undefined,
+            soyad: editSoyad.trim() || undefined,
+            telefon: editTelefon.trim() || undefined,
+            dogum: editDogum || undefined,
+            kan: editKan || undefined,
+            mizac: editMizac || undefined,
+          }
+        : prev
+    );
 
-    showToast({
-      title: "Başarılı",
-      message: "Doğum tarihi güncellendi.",
-      type: "success",
-    });
-    setSavingDogum(false);
-  }
-
-  async function saveGeneralNotes() {
-    if (!tenantId) return;
-
-    setSavingNotes(true);
-
-    const payload = {
+    const notesPayload = {
       id: noteId || undefined,
       tenant_id: tenantId,
       client_id: clientId,
@@ -239,33 +254,32 @@ export default function ClientDetailPage() {
       oneriler,
     };
 
-    const { data, error } = await supabase
+    const { data: notesData, error: notesError } = await supabase
       .from("client_notes")
-      .upsert(payload)
+      .upsert(notesPayload)
       .select()
       .single();
 
-    if (error) {
-      console.error("Genel bilgiler kayıt hatası:", error);
+    if (notesError) {
       showToast({
         title: "İşlem başarısız",
-        message: "Kayıt hatası: " + error.message,
+        message: "Notlar kaydedilemedi: " + notesError.message,
         type: "error",
       });
-      setSavingNotes(false);
+      setSavingAll(false);
       return;
     }
 
-    if (data?.id) {
-      setNoteId(data.id);
+    if (notesData?.id) {
+      setNoteId(notesData.id);
     }
 
     showToast({
       title: "Başarılı",
-      message: "Genel bilgiler kaydedildi.",
+      message: "Değişiklikler kaydedildi.",
       type: "success",
     });
-    setSavingNotes(false);
+    setSavingAll(false);
   }
 
   async function saveClientNotes() {
@@ -415,13 +429,38 @@ export default function ClientDetailPage() {
           {activeTab === "genel" && (
             <>
               <div style={sectionHead}>
-                <div>
-                  <div style={bluePill}>Genel Bilgiler</div>
-                  <h2 style={sectionTitle}>Danışan Genel Kayıtları</h2>
-                </div>
+                <div style={bluePill}>Genel Bilgiler</div>
+                <h2 style={sectionTitle}>Danışan Bilgilerini Düzenle</h2>
               </div>
 
-              <div style={{ ...formColumn, marginBottom: 18 }}>
+              <div style={genelGrid}>
+                <div>
+                  <label style={textareaLabel}>Ad</label>
+                  <input
+                    value={editAd}
+                    onChange={(e) => setEditAd(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Ad"
+                  />
+                </div>
+                <div>
+                  <label style={textareaLabel}>Soyad</label>
+                  <input
+                    value={editSoyad}
+                    onChange={(e) => setEditSoyad(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Soyad"
+                  />
+                </div>
+                <div>
+                  <label style={textareaLabel}>Telefon</label>
+                  <input
+                    value={editTelefon}
+                    onChange={(e) => setEditTelefon(e.target.value)}
+                    style={inputStyle}
+                    placeholder="05xx xxx xx xx"
+                  />
+                </div>
                 <div>
                   <label style={textareaLabel}>Doğum Tarihi</label>
                   <BirthDateInput
@@ -430,17 +469,37 @@ export default function ClientDetailPage() {
                     style={inputStyle}
                   />
                 </div>
-                <button
-                  onClick={saveDogum}
-                  disabled={savingDogum}
-                  className="btn-secondary"
-                  style={{ opacity: savingDogum ? 0.7 : 1 }}
-                >
-                  {savingDogum ? "Kaydediliyor..." : "Doğum Tarihini Güncelle"}
-                </button>
+                <div>
+                  <label style={textareaLabel}>Kan Grubu</label>
+                  <select
+                    value={editKan}
+                    onChange={(e) => setEditKan(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">Seçiniz</option>
+                    <option>A Rh+</option><option>A Rh-</option>
+                    <option>B Rh+</option><option>B Rh-</option>
+                    <option>AB Rh+</option><option>AB Rh-</option>
+                    <option>0 Rh+</option><option>0 Rh-</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={textareaLabel}>Mizaç</label>
+                  <select
+                    value={editMizac}
+                    onChange={(e) => setEditMizac(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">Seçiniz</option>
+                    <option value="safra">Safra</option>
+                    <option value="sovdavi">Sovdavi</option>
+                    <option value="dem">Dem</option>
+                    <option value="balgam">Balgam</option>
+                  </select>
+                </div>
               </div>
 
-              <div style={formColumn}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
                 <div>
                   <label style={textareaLabel}>Sağlık Notu</label>
                   <textarea
@@ -450,7 +509,6 @@ export default function ClientDetailPage() {
                     placeholder="Danışanın sağlık notları..."
                   />
                 </div>
-
                 <div>
                   <label style={textareaLabel}>Adres</label>
                   <textarea
@@ -460,7 +518,6 @@ export default function ClientDetailPage() {
                     placeholder="Adres bilgisi..."
                   />
                 </div>
-
                 <div>
                   <label style={textareaLabel}>Öneriler</label>
                   <textarea
@@ -471,14 +528,16 @@ export default function ClientDetailPage() {
                   />
                 </div>
 
-                <button
-                  onClick={saveGeneralNotes}
-                  disabled={savingNotes}
-                  className="btn-success"
-                  style={{ opacity: savingNotes ? 0.7 : 1 }}
-                >
-                  {savingNotes ? "Kaydediliyor..." : "Genel Bilgileri Kaydet"}
-                </button>
+                <div style={saveBarStyle}>
+                  <button
+                    onClick={saveAllGeneralInfo}
+                    disabled={savingAll}
+                    className="btn-primary"
+                    style={{ opacity: savingAll ? 0.7 : 1 }}
+                  >
+                    {savingAll ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -1371,39 +1430,53 @@ const infoLabel: React.CSSProperties = {
 };
 
 const tabsCard: React.CSSProperties = {
-  background: "rgba(255,255,255,0.88)",
-  borderRadius: 16,
-  padding: 7,
-  boxShadow: "0 6px 16px rgba(15,23,42,0.04)",
-  border: "1px solid rgba(255,255,255,0.7)",
+  background: "rgba(255,255,255,0.92)",
+  borderRadius: 20,
+  padding: "14px 14px 18px",
+  boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
+  border: "1px solid rgba(255,255,255,0.78)",
 };
 
 const tabBar: React.CSSProperties = {
   display: "flex",
-  gap: 4,
+  gap: 6,
   flexWrap: "wrap",
-  marginBottom: 14,
+  marginBottom: 16,
   alignItems: "center",
+  padding: "4px 0",
 };
 
 const tabButton: React.CSSProperties = {
-  padding: "4px 8px",
-  borderRadius: 7,
-  fontWeight: 750,
-  fontSize: 10,
-  lineHeight: 1.15,
+  padding: "10px 18px",
+  borderRadius: 11,
+  fontWeight: 800,
+  fontSize: 13,
+  lineHeight: 1.2,
   cursor: "pointer",
-  transition: "0.14s ease",
-  minHeight: 24,
+  transition: "all 0.15s ease",
+  minHeight: 42,
+  whiteSpace: "nowrap",
 };
 
 const contentBox: React.CSSProperties = {
-  minHeight: 210,
+  minHeight: 240,
   background: "linear-gradient(135deg, #ffffff, #f8fafc)",
   border: "1px solid #e2e8f0",
-  borderRadius: 14,
-  padding: 10,
-  marginTop: 5,
+  borderRadius: 16,
+  padding: "20px 18px",
+};
+
+const genelGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: 14,
+  marginBottom: 4,
+};
+
+const saveBarStyle: React.CSSProperties = {
+  borderTop: "1px solid #e2e8f0",
+  paddingTop: 16,
+  marginTop: 4,
 };
 
 const sectionHead: React.CSSProperties = {
