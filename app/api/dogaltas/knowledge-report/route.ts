@@ -1,27 +1,29 @@
 import { createClient } from "@supabase/supabase-js";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 import {
-  AlignmentType,
-  BorderStyle,
-  Document,
-  Footer,
-  HeadingLevel,
-  Packer,
-  PageNumber,
-  Paragraph,
-  Table,
-  TableCell,
-  TableRow,
-  TextRun,
-  WidthType,
-} from "docx";
+  bodyText,
+  buildFooter,
+  buildTOCPage,
+  C_DARK,
+  C_LIGHT,
+  C_MID,
+  coverLine,
+  divider,
+  fieldInline,
+  h1,
+  h2,
+  h3,
+  inlineRuns,
+  muted,
+  REPORT_FONT,
+  ReportChild,
+  spacer,
+  twoColTable,
+} from "@/lib/docx/reportHelpers";
 
 export const runtime = "nodejs";
 
 const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
-const FONT = "Calibri";
-const C_DARK = "1e293b";
-const C_MID = "475569";
-const C_LIGHT = "94a3b8";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,86 +44,12 @@ type ArticleRow = {
   created_at: string | null;
 };
 
-type FileChild = Paragraph | Table;
-
-// ─── Inline text with ^^ bold markers ────────────────────────────────────────
-
-function inlineRuns(text: string, size = 22): TextRun[] {
-  return text.split("^^").flatMap((part, i) => {
-    if (!part) return [];
-    return [new TextRun({ text: part, bold: i % 2 === 1, size, font: FONT, color: i % 2 === 1 ? C_DARK : C_MID })];
-  });
-}
-
-// ─── Paragraph builders ───────────────────────────────────────────────────────
-
-function coverLine(text: string, size: number, bold = false, color = C_MID): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, bold, size, font: FONT, color })],
-    spacing: { after: 180 },
-  });
-}
-
-function h1(text: string, pageBreak = false): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_1,
-    spacing: { before: 480, after: 280 },
-    pageBreakBefore: pageBreak,
-  });
-}
-
-function h2(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_2,
-    spacing: { before: 360, after: 200 },
-  });
-}
-
-function h3(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_3,
-    spacing: { before: 240, after: 120 },
-  });
-}
-
-function meta(label: string, value: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: `${label}: `, bold: true, size: 20, font: FONT, color: C_DARK }),
-      new TextRun({ text: value, size: 20, font: FONT, color: C_MID }),
-    ],
-    spacing: { after: 80 },
-  });
-}
-
-function muted(text: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text, size: 20, font: FONT, color: C_LIGHT, italics: true })],
-    spacing: { after: 200 },
-  });
-}
-
-function divider(): Paragraph {
-  return new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-    spacing: { before: 280, after: 280 },
-  });
-}
-
-function spacer(): Paragraph {
-  return new Paragraph({ spacing: { after: 180 } });
-}
-
 // ─── Article content parser ───────────────────────────────────────────────────
 
-function parseContent(content: string): Paragraph[] {
+function parseContent(content: string): ReportChild[] {
   if (!content?.trim()) return [];
   const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const out: Paragraph[] = [];
+  const out: ReportChild[] = [];
   let buf: string[] = [];
 
   function flush() {
@@ -138,15 +66,16 @@ function parseContent(content: string): Paragraph[] {
 
   for (const raw of lines) {
     const line = raw.trimEnd();
-    if (line.startsWith("## ")) { flush(); out.push(h3(line.slice(3).trim())); }
+    if (line.startsWith("## "))       { flush(); out.push(h3(line.slice(3).trim())); }
     else if (line.startsWith("### ")) {
       flush();
       out.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(4).trim(), bold: true, size: 21, font: FONT, color: C_DARK })],
+        children: [new TextRun({ text: line.slice(4).trim(), bold: true, size: 21, font: REPORT_FONT, color: C_DARK })],
         spacing: { before: 140, after: 80 },
         indent: { left: 360 },
       }));
-    } else if (line.trim() === "") { flush(); }
+    }
+    else if (line.trim() === "") { flush(); }
     else { buf.push(line); }
   }
   flush();
@@ -155,63 +84,18 @@ function parseContent(content: string): Paragraph[] {
 
 // ─── Category summary table ───────────────────────────────────────────────────
 
-function categoryTable(groups: Map<string, ArticleRow[]>): Table {
-  const headerRow = new TableRow({
-    tableHeader: true,
-    children: [
-      new TableCell({
-        width: { size: 5500, type: WidthType.DXA },
-        children: [new Paragraph({
-          children: [new TextRun({ text: "Kategori", bold: true, size: 22, font: FONT, color: "1e3a5f" })],
-          spacing: { before: 100, after: 100 },
-          indent: { left: 120 },
-        })],
-      }),
-      new TableCell({
-        width: { size: 3500, type: WidthType.DXA },
-        children: [new Paragraph({
-          children: [new TextRun({ text: "Makale Sayısı", bold: true, size: 22, font: FONT, color: "1e3a5f" })],
-          spacing: { before: 100, after: 100 },
-          indent: { left: 120 },
-        })],
-      }),
-    ],
-  });
-
-  const dataRows = [...groups.entries()].map(([cat, arts]) =>
-    new TableRow({
-      children: [
-        new TableCell({
-          width: { size: 5500, type: WidthType.DXA },
-          children: [new Paragraph({
-            children: [new TextRun({ text: cat, bold: true, size: 22, font: FONT, color: C_DARK })],
-            spacing: { before: 80, after: 80 },
-            indent: { left: 120 },
-          })],
-        }),
-        new TableCell({
-          width: { size: 3500, type: WidthType.DXA },
-          children: [new Paragraph({
-            children: [new TextRun({ text: `${arts.length} makale`, size: 22, font: FONT, color: C_MID })],
-            spacing: { before: 80, after: 80 },
-            indent: { left: 120 },
-          })],
-        }),
-      ],
-    })
+function buildCategoryTable(groups: Map<string, ArticleRow[]>): ReportChild {
+  return twoColTable(
+    [...groups.entries()].map(([cat, arts]) => [cat, `${arts.length} makale`] as [string, string])
   );
-
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [headerRow, ...dataRows],
-  });
 }
 
 // ─── Full document builder ────────────────────────────────────────────────────
 
-function buildDocument(articles: ArticleRow[], exportLabel: string): FileChild[] {
+function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild[] {
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
+  // Group by category
   const groups = new Map<string, ArticleRow[]>();
   for (const a of articles) {
     const cat = a.category || "Genel";
@@ -219,7 +103,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): FileChild[]
     groups.get(cat)!.push(a);
   }
 
-  const out: FileChild[] = [];
+  const out: ReportChild[] = [];
 
   // Cover
   out.push(
@@ -233,17 +117,22 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): FileChild[]
     coverLine(`Kapsam: ${exportLabel}`, 22, false, C_LIGHT),
   );
 
-  // İçindekiler & Kategori Özeti
+  // TOC
+  out.push(...buildTOCPage());
+
+  // Kategori Özeti (Genel Özet section)
   out.push(
-    h1("İçindekiler", true),
+    h1("1. Genel Özet", true),
     muted(`${groups.size} kategori · ${articles.length} makale`),
-    categoryTable(groups),
+    buildCategoryTable(groups),
   );
 
-  // Articles — each category on a new page
+  // Articles — each category as H1 (new page), articles as H2
+  let catIndex = 2;
   for (const [category, catArticles] of groups) {
-    out.push(h1(category, true));
+    out.push(h1(`${catIndex}. ${category}`, true));
     out.push(muted(`${catArticles.length} makale`));
+    catIndex++;
 
     for (let i = 0; i < catArticles.length; i++) {
       const a = catArticles[i]!;
@@ -251,35 +140,23 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): FileChild[]
 
       out.push(h2(a.title || "Başlıksız Makale"));
 
-      // Meta
-      out.push(meta("Kategori", a.category));
-      if (a.sub_category?.trim())                    out.push(meta("Alt Kategori", a.sub_category.trim()));
-      if (a.created_at)                              out.push(meta("Tarih", new Date(a.created_at).toLocaleDateString("tr-TR")));
-      if (a.source?.trim())                          out.push(meta("Kaynak", a.source.trim()));
+      // Short metadata (no heading)
+      if (a.sub_category?.trim())   out.push(fieldInline("Alt Kategori", a.sub_category.trim()));
+      if (a.created_at)             out.push(fieldInline("Tarih", new Date(a.created_at).toLocaleDateString("tr-TR")));
+      if (a.source?.trim())         out.push(fieldInline("Kaynak", a.source.trim()));
       if (a.source_section?.trim() && a.source_section !== a.title)
-                                                     out.push(meta("Kaynak Bölüm", a.source_section.trim()));
-      if (a.tags?.length)                            out.push(meta("Etiketler", a.tags.join(", ")));
-      if (a.related_stones?.length)                  out.push(meta("İlgili Taşlar", a.related_stones.join(", ")));
-      if (a.related_minerals?.length)                out.push(meta("İlgili Mineraller", a.related_minerals.join(", ")));
+                                    out.push(fieldInline("Kaynak Bölüm", a.source_section.trim()));
+      if (a.tags?.length)           out.push(fieldInline("Etiketler", a.tags.join(", ")));
+      if (a.related_stones?.length) out.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
+      if (a.related_minerals?.length) out.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
 
-      // Content
+      // Content (H3 from ## markers, visible in Navigation Panel)
       if (a.content?.trim()) {
         out.push(spacer());
         out.push(...parseContent(a.content));
       }
 
-      // Notes
-      if (a.notes?.trim()) {
-        out.push(new Paragraph({
-          children: [new TextRun({ text: "Notlar:", bold: true, size: 20, font: FONT, color: C_DARK })],
-          spacing: { before: 160, after: 60 },
-        }));
-        out.push(new Paragraph({
-          children: inlineRuns(a.notes.trim(), 20),
-          indent: { left: 360 },
-          spacing: { after: 120 },
-        }));
-      }
+      if (a.notes?.trim()) { out.push(h3("Notlar")); out.push(bodyText(a.notes.trim())); }
     }
   }
 
@@ -348,20 +225,7 @@ export async function POST(request: Request): Promise<Response> {
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: {
-        default: new Footer({
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({ text: "Sayfa ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.CURRENT], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: " / ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: "  ·  Yaşam Sistemi — Taş Bilgi Kütüphanesi", size: 18, font: FONT, color: C_LIGHT }),
-            ],
-          })],
-        }),
-      },
+      footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi") },
       children: allChildren,
     }],
   });

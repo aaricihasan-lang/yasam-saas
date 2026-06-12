@@ -1,26 +1,32 @@
 import { createClient } from "@supabase/supabase-js";
+import { Document, Packer } from "docx";
 import {
   AlignmentType,
-  BorderStyle,
-  Document,
-  Footer,
-  HeadingLevel,
-  Packer,
-  PageNumber,
   Paragraph,
-  Table,
-  TableCell,
-  TableRow,
   TextRun,
-  WidthType,
 } from "docx";
+import {
+  arraySection,
+  bodyText,
+  buildFooter,
+  buildTOCPage,
+  C_DARK,
+  C_LIGHT,
+  C_MID,
+  coverLine,
+  divider,
+  fieldInline,
+  h1,
+  h2,
+  h3,
+  muted,
+  REPORT_FONT,
+  ReportChild,
+  spacer,
+  twoColTable,
+} from "@/lib/docx/reportHelpers";
 
 export const runtime = "nodejs";
-
-const FONT = "Calibri";
-const C_DARK = "1e293b";
-const C_MID = "475569";
-const C_LIGHT = "94a3b8";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,134 +50,14 @@ type MineralRow = {
   created_at: string | null;
 };
 
-type FileChild = Paragraph | Table;
-
-// ─── Paragraph builders ───────────────────────────────────────────────────────
-
-function coverLine(text: string, size: number, bold = false, color = C_MID): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, bold, size, font: FONT, color })],
-    spacing: { after: 180 },
-  });
-}
-
-function h1(text: string, pageBreak = false): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_1,
-    spacing: { before: 480, after: 280 },
-    pageBreakBefore: pageBreak,
-  });
-}
-
-function h2(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_2,
-    spacing: { before: 360, after: 200 },
-  });
-}
-
-function fieldInline(label: string, value: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: `${label}: `, bold: true, size: 22, font: FONT, color: C_DARK }),
-      new TextRun({ text: value, size: 22, font: FONT, color: C_MID }),
-    ],
-    spacing: { after: 100 },
-  });
-}
-
-function fieldLabel(label: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text: `${label}:`, bold: true, size: 22, font: FONT, color: C_DARK })],
-    spacing: { before: 160, after: 60 },
-  });
-}
-
-function bodyText(text: string, size = 22): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text, size, font: FONT, color: C_MID })],
-    indent: { left: 360 },
-    spacing: { after: 120 },
-  });
-}
-
-function muted(text: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text, size: 20, font: FONT, color: C_LIGHT, italics: true })],
-    spacing: { after: 200 },
-  });
-}
-
-function divider(): Paragraph {
-  return new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-    spacing: { before: 280, after: 280 },
-  });
-}
-
-function spacer(): Paragraph {
-  return new Paragraph({ spacing: { after: 180 } });
-}
-
-function arraySection(label: string, arr: string[] | null): Paragraph[] {
-  const items = arr?.filter(Boolean) ?? [];
-  if (!items.length) return [];
-  return [
-    fieldLabel(label),
-    ...items.map((item) =>
-      new Paragraph({
-        children: [
-          new TextRun({ text: "·  ", size: 20, font: FONT, color: C_LIGHT }),
-          new TextRun({ text: item.trim(), size: 20, font: FONT, color: C_MID }),
-        ],
-        indent: { left: 360 },
-        spacing: { after: 80 },
-      })
-    ),
-  ];
-}
-
-// ─── Summary table ────────────────────────────────────────────────────────────
-
-function twoColTable(rows: [string, string][]): Table {
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: rows.map(([label, value]) =>
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: 3000, type: WidthType.DXA },
-            children: [new Paragraph({
-              children: [new TextRun({ text: label, bold: true, size: 22, font: FONT, color: C_DARK })],
-              spacing: { before: 100, after: 100 },
-              indent: { left: 120 },
-            })],
-          }),
-          new TableCell({
-            width: { size: 6000, type: WidthType.DXA },
-            children: [new Paragraph({
-              children: [new TextRun({ text: value, size: 22, font: FONT, color: C_MID })],
-              spacing: { before: 100, after: 100 },
-              indent: { left: 120 },
-            })],
-          }),
-        ],
-      })
-    ),
-  });
-}
-
 // ─── Document builder ─────────────────────────────────────────────────────────
 
-function buildDocument(minerals: MineralRow[], exportLabel: string): FileChild[] {
+function buildDocument(minerals: MineralRow[], exportLabel: string): ReportChild[] {
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   const uniqueSources = new Set(minerals.map((m) => m.source_id).filter(Boolean)).size;
   const withTaslar = minerals.filter((m) => m.iceren_taslar?.length).length;
 
-  const out: FileChild[] = [];
+  const out: ReportChild[] = [];
 
   // Cover
   out.push(
@@ -185,19 +71,22 @@ function buildDocument(minerals: MineralRow[], exportLabel: string): FileChild[]
     coverLine(`Kapsam: ${exportLabel}`, 22, false, C_LIGHT),
   );
 
+  // TOC
+  out.push(...buildTOCPage());
+
   // Genel Özet
   out.push(
-    h1("Genel Özet", true),
+    h1("1. Genel Özet", true),
     muted("İstatistik özeti"),
     twoColTable([
-      ["Toplam Mineral", `${minerals.length}`],
-      ["Kaynak Sayısı", `${uniqueSources}`],
+      ["Toplam Mineral",        `${minerals.length}`],
+      ["Kaynak Sayısı",         `${uniqueSources}`],
       ["Taş İçeren Mineraller", `${withTaslar}`],
     ]),
   );
 
-  // Minerals
-  out.push(h1("Mineral Kayıtları", true));
+  // Mineral Kayıtları
+  out.push(h1("2. Mineral Kayıtları", true));
   out.push(muted(`${minerals.length} mineral`));
 
   for (let i = 0; i < minerals.length; i++) {
@@ -206,24 +95,22 @@ function buildDocument(minerals: MineralRow[], exportLabel: string): FileChild[]
 
     out.push(h2(m.name || "İsimsiz Mineral"));
 
+    // Short metadata (no heading)
     if (m.kategori?.trim())  out.push(fieldInline("Kategori", m.kategori.trim()));
     if (m.source_id?.trim()) out.push(fieldInline("Kaynak", m.source_id.trim()));
     if (m.created_at)        out.push(fieldInline("Tarih", new Date(m.created_at).toLocaleDateString("tr-TR")));
 
-    if (m.aciklama?.trim()) {
-      out.push(fieldLabel("Açıklama"));
-      out.push(bodyText(m.aciklama.trim()));
-    }
-
-    out.push(...arraySection("Fiziksel Özellikler", m.fiziksel));
-    out.push(...arraySection("Zihinsel Etkiler", m.zihinsel));
-    out.push(...arraySection("Fizyoloji", m.fizyoloji));
-    out.push(...arraySection("Eksiklik Belirtileri", m.eksiklik_belirtileri));
-    out.push(...arraySection("Fazlalık Belirtileri", m.fazlalik_belirtileri));
-    out.push(...arraySection("Doz Aşımı", m.doz_asimi));
-    out.push(...arraySection("İçeren Taşlar", m.iceren_taslar));
-    out.push(...arraySection("Organ Etkileri", m.organ_etkileri));
-    out.push(...arraySection("Çakralar", m.cakralar));
+    // Content sections (H3 — Navigation Panel)
+    if (m.aciklama?.trim()) { out.push(h3("Açıklama")); out.push(bodyText(m.aciklama.trim())); }
+    out.push(...arraySection("Fiziksel Özellikler",   m.fiziksel));
+    out.push(...arraySection("Zihinsel Etkiler",      m.zihinsel));
+    out.push(...arraySection("Fizyoloji",             m.fizyoloji));
+    out.push(...arraySection("Eksiklik Belirtileri",  m.eksiklik_belirtileri));
+    out.push(...arraySection("Fazlalık Belirtileri",  m.fazlalik_belirtileri));
+    out.push(...arraySection("Doz Aşımı",             m.doz_asimi));
+    out.push(...arraySection("İçeren Taşlar",         m.iceren_taslar));
+    out.push(...arraySection("Organ Etkileri",        m.organ_etkileri));
+    out.push(...arraySection("Çakralar",              m.cakralar));
   }
 
   return out;
@@ -265,8 +152,8 @@ export async function POST(request: Request): Promise<Response> {
       Array.isArray(mineralIds) && mineralIds.length > 0) {
     q = q.in("id", mineralIds);
     exportLabel =
-      exportMode === "viewed" ? "Görüntülenen Kayıtlar" :
-      exportMode === "selected" ? "Seçili Mineraller" :
+      exportMode === "viewed"   ? "Görüntülenen Kayıtlar" :
+      exportMode === "selected" ? "Seçili Mineraller"     :
       "Filtrelenmiş Sonuçlar";
   }
 
@@ -286,20 +173,7 @@ export async function POST(request: Request): Promise<Response> {
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: {
-        default: new Footer({
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({ text: "Sayfa ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.CURRENT], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: " / ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: "  ·  Yaşam Sistemi Mineral Bankası", size: 18, font: FONT, color: C_LIGHT }),
-            ],
-          })],
-        }),
-      },
+      footers: { default: buildFooter("Yaşam Sistemi Mineral Bankası") },
       children: allChildren,
     }],
   });

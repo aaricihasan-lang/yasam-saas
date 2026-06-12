@@ -1,27 +1,31 @@
 import { createClient } from "@supabase/supabase-js";
+import { Document, Packer } from "docx";
 import {
-  AlignmentType,
-  BorderStyle,
-  Document,
-  Footer,
-  HeadingLevel,
-  Packer,
-  PageNumber,
-  Paragraph,
-  Table,
-  TableCell,
-  TableRow,
-  TextRun,
-  WidthType,
-} from "docx";
+  arraySection,
+  bodyText,
+  buildFooter,
+  buildTOCPage,
+  C_DARK,
+  C_LIGHT,
+  C_MID,
+  coverLine,
+  divider,
+  fieldInline,
+  h1,
+  h2,
+  h3,
+  inlineRuns,
+  muted,
+  REPORT_FONT,
+  ReportChild,
+  spacer,
+  twoColTable,
+} from "@/lib/docx/reportHelpers";
+import { AlignmentType, Paragraph, TextRun } from "docx";
 
 export const runtime = "nodejs";
 
 const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
-const FONT = "Calibri";
-const C_DARK = "1e293b";
-const C_MID = "475569";
-const C_LIGHT = "94a3b8";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,117 +92,7 @@ type KnowledgeRow = {
   notes: string | null;
 };
 
-type FileChild = Paragraph | Table;
-
-// ─── Paragraph helpers ────────────────────────────────────────────────────────
-
-function coverLine(text: string, size: number, bold = false, color = C_MID): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, bold, size, font: FONT, color })],
-    spacing: { after: 160 },
-  });
-}
-
-function h1(text: string, pageBreak = false): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_1,
-    spacing: { before: 480, after: 300 },
-    pageBreakBefore: pageBreak,
-  });
-}
-
-function h2(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_2,
-    spacing: { before: 360, after: 200 },
-  });
-}
-
-function h3(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_3,
-    spacing: { before: 240, after: 120 },
-  });
-}
-
-function fieldInline(label: string, value: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: `${label}: `, bold: true, size: 22, font: FONT, color: C_DARK }),
-      new TextRun({ text: value, size: 22, font: FONT, color: C_MID }),
-    ],
-    spacing: { after: 100 },
-  });
-}
-
-function fieldLabel(label: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text: `${label}:`, bold: true, size: 22, font: FONT, color: C_DARK })],
-    spacing: { before: 160, after: 60 },
-  });
-}
-
-function bodyText(text: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text, size: 22, font: FONT, color: C_MID })],
-    indent: { left: 360 },
-    spacing: { after: 120 },
-  });
-}
-
-function muted(text: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun({ text, size: 20, font: FONT, color: C_LIGHT, italics: true })],
-    spacing: { after: 240 },
-  });
-}
-
-function divider(): Paragraph {
-  return new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-    spacing: { before: 280, after: 280 },
-  });
-}
-
-function spacer(): Paragraph {
-  return new Paragraph({ spacing: { after: 200 } });
-}
-
-// ─── Table builder ────────────────────────────────────────────────────────────
-
-function twoColTable(rows: [string, string][]): Table {
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: rows.map(([label, value]) =>
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: 3000, type: WidthType.DXA },
-            children: [new Paragraph({
-              children: [new TextRun({ text: label, bold: true, size: 22, font: FONT, color: C_DARK })],
-              spacing: { before: 100, after: 100 },
-              indent: { left: 120 },
-            })],
-          }),
-          new TableCell({
-            width: { size: 6000, type: WidthType.DXA },
-            children: [new Paragraph({
-              children: [new TextRun({ text: value, size: 22, font: FONT, color: C_MID })],
-              spacing: { before: 100, after: 100 },
-              indent: { left: 120 },
-            })],
-          }),
-        ],
-      })
-    ),
-  });
-}
-
-// ─── Assignments formatter ─────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtAssignments(a: Record<string, unknown> | null): string {
   if (!a) return "";
@@ -218,31 +112,36 @@ function fmtAssignments(a: Record<string, unknown> | null): string {
   return parts.join("  ·  ");
 }
 
-// ─── Knowledge content parser ─────────────────────────────────────────────────
-
-function parseContent(content: string): Paragraph[] {
+function parseKnowledgeContent(content: string): ReportChild[] {
   if (!content?.trim()) return [];
   const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const out: Paragraph[] = [];
+  const out: ReportChild[] = [];
   let buf: string[] = [];
 
   function flush() {
     const t = buf.join(" ").trim();
-    if (t) out.push(bodyText(t));
+    if (t) {
+      out.push(new Paragraph({
+        children: inlineRuns(t),
+        spacing: { after: 160 },
+        indent: { left: 360 },
+      }));
+    }
     buf = [];
   }
 
   for (const raw of lines) {
     const line = raw.trimEnd();
-    if (line.startsWith("## ")) { flush(); out.push(h3(line.slice(3).trim())); }
+    if (line.startsWith("## "))       { flush(); out.push(h3(line.slice(3).trim())); }
     else if (line.startsWith("### ")) {
       flush();
       out.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(4).trim(), bold: true, size: 21, font: FONT, color: C_DARK })],
+        children: [new TextRun({ text: line.slice(4).trim(), bold: true, size: 21, font: REPORT_FONT, color: C_DARK })],
         spacing: { before: 140, after: 80 },
         indent: { left: 360 },
       }));
-    } else if (line.trim() === "") { flush(); }
+    }
+    else if (line.trim() === "") { flush(); }
     else { buf.push(line); }
   }
   flush();
@@ -251,13 +150,13 @@ function parseContent(content: string): Paragraph[] {
 
 // ─── Section builders ─────────────────────────────────────────────────────────
 
-function buildCover(date: string, sections: Sections, counts: Record<string, number>): FileChild[] {
+function buildCoverPage(date: string, sections: Sections, counts: Record<string, number>): ReportChild[] {
   const included: string[] = [];
-  if (sections.stones)      included.push(`Doğaltaş Kayıtları (${counts.stones ?? 0} kayıt)`);
-  if (sections.minerals)    included.push(`Mineral Bankası (${counts.minerals ?? 0} kayıt)`);
+  if (sections.stones)       included.push(`Doğaltaş Kayıtları (${counts.stones ?? 0} kayıt)`);
+  if (sections.minerals)     included.push(`Mineral Bankası (${counts.minerals ?? 0} kayıt)`);
   if (sections.combinations) included.push(`Kombinasyonlar (${counts.combinations ?? 0} kayıt)`);
-  if (sections.knowledge)   included.push(`Taş Bilgi Kütüphanesi (${counts.knowledge ?? 0} makale)`);
-  if (sections.analytics)   included.push("Stok / Analiz Özeti");
+  if (sections.knowledge)    included.push(`Taş Bilgi Kütüphanesi (${counts.knowledge ?? 0} makale)`);
+  if (sections.analytics)    included.push("Stok / Analiz Özeti");
 
   return [
     new Paragraph({ spacing: { before: 1600 } }),
@@ -268,24 +167,23 @@ function buildCover(date: string, sections: Sections, counts: Record<string, num
     spacer(),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "Rapora Dahil Edilen Bölümler:", bold: true, size: 22, font: FONT, color: C_DARK })],
+      children: [new TextRun({ text: "Rapora Dahil Edilen Bölümler:", bold: true, size: 22, font: REPORT_FONT, color: C_DARK })],
       spacing: { after: 120 },
     }),
     ...included.map((line) => new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `· ${line}`, size: 22, font: FONT, color: C_MID })],
+      children: [new TextRun({ text: `· ${line}`, size: 22, font: REPORT_FONT, color: C_MID })],
       spacing: { after: 80 },
     })),
   ];
 }
 
-function buildSummary(counts: Record<string, number>): FileChild[] {
+function buildSummary(counts: Record<string, number>): ReportChild[] {
   const rows: [string, string][] = [];
   if (counts.stones != null)       rows.push(["Doğaltaş Kayıtları", `${counts.stones} kayıt`]);
   if (counts.minerals != null)     rows.push(["Mineral Bankası", `${counts.minerals} kayıt`]);
   if (counts.combinations != null) rows.push(["Kombinasyonlar", `${counts.combinations} kayıt`]);
   if (counts.knowledge != null)    rows.push(["Taş Bilgi Kütüphanesi", `${counts.knowledge} makale`]);
-
   return [
     h1("1. Genel Özet", true),
     muted("Seçilen bölümlere ait Supabase verilerinden oluşturulmuştur."),
@@ -293,8 +191,8 @@ function buildSummary(counts: Record<string, number>): FileChild[] {
   ];
 }
 
-function buildStonesSection(stones: StoneRow[], n: number): FileChild[] {
-  const result: FileChild[] = [
+function buildStonesSection(stones: StoneRow[], n: number): ReportChild[] {
+  const result: ReportChild[] = [
     h1(`${n}. Doğaltaş Kayıtları`, true),
     muted(`Toplam ${stones.length} taş kaydı`),
   ];
@@ -303,59 +201,70 @@ function buildStonesSection(stones: StoneRow[], n: number): FileChild[] {
     const s = stones[i]!;
     if (i > 0) result.push(divider());
     result.push(h2(s.stone_name || "İsimsiz Taş"));
+
+    // Short metadata (no heading)
+    if (s.source_note?.trim()) result.push(fieldInline("Kaynak Not", s.source_note.trim()));
+
+    // Content sections (H3 — visible in Navigation Panel)
     if (s.short_description?.trim()) result.push(bodyText(s.short_description.trim()));
-    if (s.general_info?.trim())        { result.push(fieldLabel("Genel Bilgi")); result.push(bodyText(s.general_info.trim())); }
-    if (s.physical_effects?.trim())    { result.push(fieldLabel("Fiziksel Etkiler")); result.push(bodyText(s.physical_effects.trim())); }
-    if (s.spiritual_effects?.trim())   { result.push(fieldLabel("Ruhsal Etkiler")); result.push(bodyText(s.spiritual_effects.trim())); }
-    if (s.other_effects?.trim())       { result.push(fieldLabel("Diğer Etkiler")); result.push(bodyText(s.other_effects.trim())); }
-    if (s.feng_shui?.trim())           { result.push(fieldLabel("Feng Shui")); result.push(bodyText(s.feng_shui.trim())); }
-    if (s.meditation?.trim())          { result.push(fieldLabel("Meditasyon")); result.push(bodyText(s.meditation.trim())); }
-    if (s.care?.trim())                { result.push(fieldLabel("Bakım")); result.push(bodyText(s.care.trim())); }
-    if (s.application?.trim())         { result.push(fieldLabel("Kullanım")); result.push(bodyText(s.application.trim())); }
-    if (s.chakras?.length)             result.push(fieldInline("Çakralar", s.chakras.join(", ")));
+    if (s.general_info?.trim())      { result.push(h3("Genel Bilgi"));       result.push(bodyText(s.general_info.trim())); }
+    if (s.physical_effects?.trim())  { result.push(h3("Fiziksel Etkiler"));  result.push(bodyText(s.physical_effects.trim())); }
+    if (s.spiritual_effects?.trim()) { result.push(h3("Ruhsal Etkiler"));   result.push(bodyText(s.spiritual_effects.trim())); }
+    if (s.other_effects?.trim())     { result.push(h3("Diğer Etkiler"));    result.push(bodyText(s.other_effects.trim())); }
+    if (s.feng_shui?.trim())         { result.push(h3("Feng Shui"));         result.push(bodyText(s.feng_shui.trim())); }
+    if (s.meditation?.trim())        { result.push(h3("Meditasyon"));        result.push(bodyText(s.meditation.trim())); }
+    if (s.care?.trim())              { result.push(h3("Bakım"));             result.push(bodyText(s.care.trim())); }
+    if (s.application?.trim())       { result.push(h3("Kullanım"));          result.push(bodyText(s.application.trim())); }
+
+    if (s.chakras?.length) {
+      result.push(h3("Çakralar"));
+      result.push(bodyText(s.chakras.join(", ")));
+    }
+
     const asgn = fmtAssignments(s.assignments);
-    if (asgn)                          result.push(fieldInline("Atamalar / Burçlar", asgn));
-    if (s.warning_text?.trim())        result.push(fieldInline("Uyarı", s.warning_text.trim()));
-    if (s.warning_tags?.length)        result.push(fieldInline("Uyarı Etiketleri", s.warning_tags.join(", ")));
-    if (s.source_note?.trim())         result.push(fieldInline("Kaynak Not", s.source_note.trim()));
+    if (asgn) {
+      result.push(h3("Atamalar / Burçlar"));
+      result.push(bodyText(asgn));
+    }
+
+    if (s.warning_text?.trim()) {
+      result.push(h3("Uyarılar"));
+      result.push(bodyText(s.warning_text.trim()));
+    }
+    if (s.warning_tags?.length) result.push(fieldInline("Uyarı Etiketleri", s.warning_tags.join(", ")));
   }
 
   return result;
 }
 
-function buildMineralsSection(minerals: MineralRow[], n: number): FileChild[] {
-  const result: FileChild[] = [
+function buildMineralsSection(minerals: MineralRow[], n: number): ReportChild[] {
+  const result: ReportChild[] = [
     h1(`${n}. Mineral Bankası`, true),
     muted(`Toplam ${minerals.length} mineral kaydı`),
   ];
-
-  function arrLine(label: string, arr: string[] | null): FileChild[] {
-    if (!arr?.length) return [];
-    return [fieldInline(label, arr.join(" · "))];
-  }
 
   for (let i = 0; i < minerals.length; i++) {
     const m = minerals[i]!;
     if (i > 0) result.push(divider());
     result.push(h2(m.name || "İsimsiz Mineral"));
-    if (m.kategori?.trim())  result.push(fieldInline("Kategori", m.kategori.trim()));
-    if (m.aciklama?.trim())  { result.push(fieldLabel("Açıklama")); result.push(bodyText(m.aciklama.trim())); }
-    result.push(...arrLine("Fiziksel Etkiler", m.fiziksel));
-    result.push(...arrLine("Zihinsel Etkiler", m.zihinsel));
-    result.push(...arrLine("Fizyoloji", m.fizyoloji));
-    result.push(...arrLine("Eksiklik Belirtileri", m.eksiklik_belirtileri));
-    result.push(...arrLine("Fazlalık Belirtileri", m.fazlalik_belirtileri));
-    result.push(...arrLine("Doz Aşımı", m.doz_asimi));
-    result.push(...arrLine("İçeren Taşlar", m.iceren_taslar));
-    result.push(...arrLine("Organ Etkileri", m.organ_etkileri));
-    result.push(...arrLine("Çakralar", m.cakralar));
+    if (m.kategori?.trim()) result.push(fieldInline("Kategori", m.kategori.trim()));
+    if (m.aciklama?.trim()) { result.push(h3("Açıklama")); result.push(bodyText(m.aciklama.trim())); }
+    result.push(...arraySection("Fiziksel Etkiler",     m.fiziksel));
+    result.push(...arraySection("Zihinsel Etkiler",     m.zihinsel));
+    result.push(...arraySection("Fizyoloji",            m.fizyoloji));
+    result.push(...arraySection("Eksiklik Belirtileri", m.eksiklik_belirtileri));
+    result.push(...arraySection("Fazlalık Belirtileri", m.fazlalik_belirtileri));
+    result.push(...arraySection("Doz Aşımı",            m.doz_asimi));
+    result.push(...arraySection("İçeren Taşlar",        m.iceren_taslar));
+    result.push(...arraySection("Organ Etkileri",       m.organ_etkileri));
+    result.push(...arraySection("Çakralar",             m.cakralar));
   }
 
   return result;
 }
 
-function buildCombinationsSection(combos: CombinationRow[], n: number): FileChild[] {
-  const result: FileChild[] = [
+function buildCombinationsSection(combos: CombinationRow[], n: number): ReportChild[] {
+  const result: ReportChild[] = [
     h1(`${n}. Kombinasyonlar`, true),
     muted(`Toplam ${combos.length} kombinasyon kaydı`),
   ];
@@ -365,8 +274,8 @@ function buildCombinationsSection(combos: CombinationRow[], n: number): FileChil
     if (i > 0) result.push(divider());
     result.push(h2(c.issue || "İsimsiz Kombinasyon"));
     if (c.description?.trim())  result.push(fieldInline("Amaç / Kategori", c.description.trim()));
-    if (c.stones_text?.trim())  { result.push(fieldLabel("Taşlar")); result.push(bodyText(c.stones_text.trim())); }
-    if (c.notes_text?.trim())   { result.push(fieldLabel("Kullanım Önerisi")); result.push(bodyText(c.notes_text.trim())); }
+    if (c.stones_text?.trim())  { result.push(h3("Taşlar"));           result.push(bodyText(c.stones_text.trim())); }
+    if (c.notes_text?.trim())   { result.push(h3("Kullanım Önerisi")); result.push(bodyText(c.notes_text.trim())); }
     if (c.notes_text_2?.trim()) result.push(bodyText(c.notes_text_2.trim()));
     if (c.notes_text_3?.trim()) result.push(bodyText(c.notes_text_3.trim()));
     if (c.source?.trim())       result.push(fieldInline("Kaynak", c.source.trim()));
@@ -375,8 +284,8 @@ function buildCombinationsSection(combos: CombinationRow[], n: number): FileChil
   return result;
 }
 
-function buildKnowledgeSection(articles: KnowledgeRow[], n: number): FileChild[] {
-  const result: FileChild[] = [
+function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild[] {
+  const result: ReportChild[] = [
     h1(`${n}. Taş Bilgi Kütüphanesi`, true),
     muted(`Toplam ${articles.length} makale`),
   ];
@@ -396,30 +305,29 @@ function buildKnowledgeSection(articles: KnowledgeRow[], n: number): FileChild[]
 
     for (const a of catArticles) {
       result.push(h2(a.title || "Başlıksız Makale"));
-      if (a.sub_category?.trim())         result.push(fieldInline("Alt Kategori", a.sub_category.trim()));
-      if (a.source?.trim())               result.push(fieldInline("Kaynak", a.source.trim()));
-      if (a.tags?.length)                 result.push(fieldInline("Etiketler", a.tags.join(", ")));
-      if (a.related_stones?.length)       result.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
-      if (a.related_minerals?.length)     result.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
-      if (a.content?.trim())              result.push(...parseContent(a.content));
-      if (a.notes?.trim())                { result.push(fieldLabel("Notlar")); result.push(bodyText(a.notes.trim())); }
+      if (a.sub_category?.trim())     result.push(fieldInline("Alt Kategori", a.sub_category.trim()));
+      if (a.source?.trim())           result.push(fieldInline("Kaynak", a.source.trim()));
+      if (a.tags?.length)             result.push(fieldInline("Etiketler", a.tags.join(", ")));
+      if (a.related_stones?.length)   result.push(fieldInline("İlgili Taşlar", a.related_stones.join(", ")));
+      if (a.related_minerals?.length) result.push(fieldInline("İlgili Mineraller", a.related_minerals.join(", ")));
+      if (a.content?.trim())          result.push(...parseKnowledgeContent(a.content));
+      if (a.notes?.trim())            { result.push(h3("Notlar")); result.push(bodyText(a.notes.trim())); }
     }
   }
 
   return result;
 }
 
-function buildAnalyticsSection(counts: Record<string, number>, n: number): FileChild[] {
+function buildAnalyticsSection(counts: Record<string, number>, n: number): ReportChild[] {
   const now = new Date();
   const rows: [string, string][] = [
     ["Rapor Tarihi", now.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })],
-    ["Doğaltaş Kayıtları", counts.stones != null ? `${counts.stones} kayıt` : "Dahil edilmedi"],
-    ["Mineral Bankası", counts.minerals != null ? `${counts.minerals} kayıt` : "Dahil edilmedi"],
-    ["Kombinasyonlar", counts.combinations != null ? `${counts.combinations} kayıt` : "Dahil edilmedi"],
-    ["Taş Bilgi Kütüphanesi", counts.knowledge != null ? `${counts.knowledge} makale` : "Dahil edilmedi"],
+    ["Doğaltaş Kayıtları",   counts.stones        != null ? `${counts.stones} kayıt`       : "Dahil edilmedi"],
+    ["Mineral Bankası",       counts.minerals      != null ? `${counts.minerals} kayıt`     : "Dahil edilmedi"],
+    ["Kombinasyonlar",        counts.combinations  != null ? `${counts.combinations} kayıt` : "Dahil edilmedi"],
+    ["Taş Bilgi Kütüphanesi", counts.knowledge     != null ? `${counts.knowledge} makale`   : "Dahil edilmedi"],
     ["Toplam Kayıt", String(Object.values(counts).reduce((a, b) => a + b, 0))],
   ];
-
   return [
     h1(`${n}. Stok / Analiz Özeti`, true),
     muted("Seçilen bölümlerin istatistikleri"),
@@ -450,7 +358,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const db = createClient(supabaseUrl, supabaseKey);
-
   const knowledgeTenants = [ADMIN_LIBRARY_TENANT_ID];
   if (tenantId !== ADMIN_LIBRARY_TENANT_ID) knowledgeTenants.push(tenantId);
 
@@ -458,35 +365,30 @@ export async function POST(request: Request): Promise<Response> {
     sections.stones
       ? db.from("stones")
           .select("stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags")
-          .eq("tenant_id", tenantId)
-          .order("stone_name")
+          .eq("tenant_id", tenantId).order("stone_name")
       : null,
     sections.minerals
       ? db.from("minerals")
           .select("name, aciklama, kategori, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar")
-          .eq("tenant_id", tenantId)
-          .order("name")
+          .eq("tenant_id", tenantId).order("name")
       : null,
     sections.combinations
       ? db.from("combinations")
           .select("issue, description, source, stones_text, notes_text, notes_text_2, notes_text_3")
-          .eq("tenant_id", tenantId)
-          .order("issue")
+          .eq("tenant_id", tenantId).order("issue")
       : null,
     sections.knowledge
       ? db.from("stone_knowledge_articles")
           .select("title, content, category, sub_category, source, tags, related_stones, related_minerals, notes")
-          .in("tenant_id", knowledgeTenants)
-          .eq("is_active", true)
-          .order("category")
-          .order("title")
+          .in("tenant_id", knowledgeTenants).eq("is_active", true)
+          .order("category").order("title")
       : null,
   ]);
 
-  const stonesRows    = (stonesRes?.data      ?? []) as StoneRow[];
-  const mineralRows   = (mineralsRes?.data    ?? []) as MineralRow[];
+  const stonesRows    = (stonesRes?.data       ?? []) as StoneRow[];
+  const mineralRows   = (mineralsRes?.data     ?? []) as MineralRow[];
   const comboRows     = (combinationsRes?.data ?? []) as CombinationRow[];
-  const knowledgeRows = (knowledgeRes?.data   ?? []) as KnowledgeRow[];
+  const knowledgeRows = (knowledgeRes?.data    ?? []) as KnowledgeRow[];
 
   const counts: Record<string, number> = {};
   if (sections.stones)       counts.stones       = stonesRows.length;
@@ -495,10 +397,12 @@ export async function POST(request: Request): Promise<Response> {
   if (sections.knowledge)    counts.knowledge    = knowledgeRows.length;
 
   const date = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const allChildren: FileChild[] = [];
 
-  allChildren.push(...buildCover(date, sections, counts));
-  allChildren.push(...buildSummary(counts));
+  const allChildren: ReportChild[] = [
+    ...buildCoverPage(date, sections, counts),
+    ...buildTOCPage(),
+    ...buildSummary(counts),
+  ];
 
   let sec = 2;
   if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++));
@@ -510,20 +414,7 @@ export async function POST(request: Request): Promise<Response> {
   const doc = new Document({
     sections: [{
       properties: {},
-      footers: {
-        default: new Footer({
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({ text: "Sayfa ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.CURRENT], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: " / ", size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: FONT, color: C_LIGHT }),
-              new TextRun({ text: "  ·  Yaşam Sistemi Doğaltaş Raporu", size: 18, font: FONT, color: C_LIGHT }),
-            ],
-          })],
-        }),
-      },
+      footers: { default: buildFooter("Yaşam Sistemi Doğaltaş Raporu") },
       children: allChildren,
     }],
   });
