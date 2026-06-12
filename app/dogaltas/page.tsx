@@ -378,6 +378,14 @@ function DogaltasPageContent() {
   const [monthlyTrend, setMonthlyTrend] = useState<MonthTrendBucket[]>([]);
   const [stockValue, setStockValue] = useState<number | null>(null);
   const [stockValueMessage, setStockValueMessage] = useState<string | null>(null);
+  // Word raporu modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportSections, setReportSections] = useState({
+    stones: false, minerals: false, combinations: false, knowledge: false, analytics: false,
+  });
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSuccess, setReportSuccess] = useState("");
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
@@ -577,6 +585,50 @@ function DogaltasPageContent() {
 
   const stockValueIsMessage = !loading && Boolean(stockValueMessage || stockValue == null);
 
+  // ─── Word raporu ─────────────────────────────────────────────────────────────
+
+  const allReportSelected = Object.values(reportSections).every(Boolean);
+
+  function toggleAllReport() {
+    const next = !allReportSelected;
+    setReportSections({ stones: next, minerals: next, combinations: next, knowledge: next, analytics: next });
+  }
+
+  async function downloadReport() {
+    if (!Object.values(reportSections).some(Boolean)) {
+      setReportError("Lütfen rapora dahil edilecek en az bir bölüm seçin.");
+      return;
+    }
+    const tid = await getSyncedTenantId();
+    if (!tid) { setReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    setReportLoading(true);
+    setReportError("");
+    setReportSuccess("");
+    try {
+      const res = await fetch("/api/dogaltas/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, sections: reportSections }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `yasam-sistemi-dogaltas-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setReportSuccess("Word raporu başarıyla oluşturuldu.");
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   return (
     <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
       <div className="grid h-full w-full grid-cols-[300px_1fr] overflow-x-hidden">
@@ -660,6 +712,13 @@ function DogaltasPageContent() {
                   Doğaltaş, mineral, kombinasyon ve stok süreçlerini tek merkezden yönetin.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
+                className="ml-auto shrink-0 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-2 text-sm font-black text-violet-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+              >
+                📄 Profesyonel Rapor
+              </button>
             </header>
 
             <form
@@ -882,6 +941,95 @@ function DogaltasPageContent() {
           </div>
         </section>
       </div>
+
+      {/* Word raporu modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-950">Profesyonel Word Raporu Oluştur</h2>
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-500">Rapora dahil edilecek bölümleri seçin.</p>
+
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={allReportSelected}
+                  onChange={toggleAllReport}
+                  className="h-4 w-4 rounded accent-violet-600"
+                />
+                <span className="text-sm font-black text-violet-800">Tümünü Seç</span>
+              </label>
+
+              <div className="my-1 border-t border-slate-100" />
+
+              {([
+                ["stones",       "💎", "Doğaltaş Kayıtları"],
+                ["minerals",     "🧪", "Mineral Bankası"],
+                ["combinations", "🧩", "Kombinasyonlar"],
+                ["knowledge",    "📚", "Taş Bilgi Kütüphanesi"],
+                ["analytics",    "📊", "Stok / Analiz Özeti"],
+              ] as const).map(([key, icon, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:bg-slate-100">
+                  <input
+                    type="checkbox"
+                    checked={reportSections[key]}
+                    onChange={() => setReportSections(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className="h-4 w-4 rounded accent-violet-600"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">{icon} {label}</span>
+                </label>
+              ))}
+            </div>
+
+            {reportError && (
+              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {reportError}
+              </p>
+            )}
+            {reportSuccess && (
+              <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                ✓ {reportSuccess}
+              </p>
+            )}
+            {reportLoading && (
+              <p className="mt-4 text-center text-sm font-semibold text-violet-700">
+                Profesyonel Word raporu hazırlanıyor...
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setReportSections({ stones: false, minerals: false, combinations: false, knowledge: false, analytics: false })}
+                disabled={reportLoading}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Seçimi Temizle
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadReport()}
+                disabled={reportLoading}
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+              >
+                {reportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
