@@ -23,6 +23,7 @@ import {
   MINERALS_UNCATEGORIZED_FILTER,
   type MineralListItem,
 } from "@/lib/dogaltas/mineralsListFetch";
+import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -204,6 +205,14 @@ function MineralListesiPageContent() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
+  // Word raporu modal
+  const [showWordModal, setShowWordModal] = useState(false);
+  const [wordExportMode, setWordExportMode] = useState<"all" | "filtered" | "viewed" | "selected">("all");
+  const [selectedMineralId, setSelectedMineralId] = useState("");
+  const [allMineralNames, setAllMineralNames] = useState<{ id: string; name: string }[]>([]);
+  const [wordReportLoading, setWordReportLoading] = useState(false);
+  const [wordReportError, setWordReportError] = useState("");
+  const [wordReportSuccess, setWordReportSuccess] = useState("");
 
   const applySearchUrl = useCallback(
     (query: string) => {
@@ -379,6 +388,66 @@ function MineralListesiPageContent() {
   const isEmptyFiltered =
     !listLoading && !errorMessage && filteredMinerals.length === 0 && (isSearchActive || Boolean(categoryFilter));
 
+  // Mineral adlarını dropdown için yükle
+  useEffect(() => {
+    if (!showWordModal || wordExportMode !== "selected" || allMineralNames.length > 0) return;
+    const tid = queryTenantId ?? getSessionTenantId();
+    if (!tid) return;
+    void supabase
+      .from("minerals")
+      .select("id, name")
+      .eq("tenant_id", tid)
+      .order("name")
+      .then(({ data }) => {
+        if (data) setAllMineralNames(data as { id: string; name: string }[]);
+      });
+  }, [showWordModal, wordExportMode, allMineralNames.length, queryTenantId]);
+
+  async function downloadMineralReport() {
+    const tid = await getSyncedTenantId();
+    if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+
+    let mineralIds: string[] | undefined;
+    if (wordExportMode === "filtered") {
+      mineralIds = filteredMinerals.map((m) => m.id);
+      if (!mineralIds.length) { setWordReportError("Filtrelenmiş sonuç bulunamadı."); return; }
+    } else if (wordExportMode === "viewed") {
+      mineralIds = [...viewedMineralIds];
+      if (!mineralIds.length) { setWordReportError("Bu oturumda henüz görüntülenen mineral yok."); return; }
+    } else if (wordExportMode === "selected") {
+      if (!selectedMineralId) { setWordReportError("Lütfen bir mineral seçin."); return; }
+      mineralIds = [selectedMineralId];
+    }
+
+    setWordReportLoading(true);
+    setWordReportError("");
+    setWordReportSuccess("");
+
+    try {
+      const res = await fetch("/api/dogaltas/mineral-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, exportMode: wordExportMode, mineralIds }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mineral-bankasi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setWordReportSuccess("Mineral raporu başarıyla oluşturuldu.");
+    } catch (err) {
+      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+    } finally {
+      setWordReportLoading(false);
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
       <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-amber-300/20 blur-[150px]" />
@@ -436,6 +505,13 @@ function MineralListesiPageContent() {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+              className={`${uiActionBtn} border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-800 shadow-sm hover:shadow-md`}
+            >
+              📄 Word Raporu
+            </button>
             <Link
               href="/dogaltas/mineral-bankasi"
               className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
@@ -589,6 +665,119 @@ function MineralListesiPageContent() {
           )}
         </section>
       </div>
+
+      {/* Word raporu modal */}
+      {showWordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-950">Mineral Bankası Raporu</h2>
+              <button
+                type="button"
+                onClick={() => setShowWordModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-500">Rapora dahil edilecek mineralleri seçin.</p>
+
+            <div className="space-y-2">
+              {([
+                ["all",      "Tüm Mineraller",               `${totalCount} mineral`],
+                ["filtered", "Sadece Filtrelenmiş Sonuçlar",  `${filteredMinerals.length} mineral${hasMore ? " (yüklü)" : ""}`],
+                ["viewed",   "Sadece Görüntülenen Kayıtlar",  `${viewedMineralIds.size} mineral`],
+                ["selected", "Belirli Mineral Seç",           null],
+              ] as const).map(([mode, label, count]) => (
+                <label
+                  key={mode}
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition ${
+                    wordExportMode === mode
+                      ? "border-violet-300 bg-violet-50"
+                      : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                  } ${mode === "viewed" && viewedMineralIds.size === 0 ? "opacity-50" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="mineralExportMode"
+                    value={mode}
+                    checked={wordExportMode === mode}
+                    onChange={() => setWordExportMode(mode)}
+                    disabled={mode === "viewed" && viewedMineralIds.size === 0}
+                    className="mt-0.5 h-4 w-4 accent-violet-600"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-semibold text-slate-800">{label}</span>
+                    {count !== null && (
+                      <span className="ml-2 text-xs font-medium text-slate-400">{count}</span>
+                    )}
+                    {mode === "viewed" && viewedMineralIds.size === 0 && (
+                      <p className="mt-0.5 text-xs text-slate-400">Bu oturumda henüz görüntülenen mineral yok</p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {wordExportMode === "selected" && (
+              <div className="mt-3">
+                {allMineralNames.length === 0 ? (
+                  <p className="text-xs text-slate-400">Mineraller yükleniyor...</p>
+                ) : (
+                  <select
+                    value={selectedMineralId}
+                    onChange={(e) => setSelectedMineralId(e.target.value)}
+                    className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    <option value="">— Mineral seç —</option>
+                    {allMineralNames.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {wordReportError && (
+              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {wordReportError}
+              </p>
+            )}
+            {wordReportSuccess && (
+              <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                ✓ {wordReportSuccess}
+              </p>
+            )}
+            {wordReportLoading && (
+              <p className="mt-4 text-center text-sm font-semibold text-violet-700">
+                Mineral raporu hazırlanıyor...
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWordModal(false)}
+                disabled={wordReportLoading}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Kapat
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadMineralReport()}
+                disabled={wordReportLoading}
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+              >
+                {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
