@@ -7,6 +7,18 @@
   --foreground: #171717;
   /* Uygulamayı light-only olarak işaretle: dark mod sistem renkleri body'den butonlara sızmasın */
   color-scheme: light;
+  /* Logo bar yüksekliği — AppLogoLink bunu 44px olarak override eder; / ve /register'da 0 kalır */
+  --logo-h: 0px;
+}
+
+/*
+  min-h-screen'i sabit logo bar yüksekliğine göre daralt.
+  Bu kural @tailwind utilities'den sonra ve @layer dışında tanımlandığı için
+  Tailwind'in ürettiği min-height: 100vh kuralını cascade'de geçer (unlayered > layered).
+  / ve /register'da --logo-h=0px olduğu için min-h-screen yine 100vh'ye eşit olur.
+*/
+.min-h-screen {
+  min-height: calc(100vh - var(--logo-h, 0px));
 }
 
 @theme inline {
