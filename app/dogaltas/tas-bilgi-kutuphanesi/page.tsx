@@ -365,14 +365,29 @@ export default function TasBilgiKutuphanesiPage() {
 
   const searchTerms = useMemo(() => getSearchTerms(search), [search]);
 
-  // Kategori listesi: Supabase tablosundan (sıralı), makale yoksa gizleme
+  // Filtre pilleri için kategori isimleri (DB + fallback)
   const categories = useMemo(() => {
     const fromDb = categoryList.map((c) => c.name);
-    // Tabloda olmayan ama makalelerde geçen kategoriler de ekle (tutarlılık)
     const extra = [...new Set(articles.map((r) => r.category).filter(Boolean))]
       .filter((n) => !fromDb.includes(n))
       .sort(trSort);
     return ["Tümü", ...fromDb, ...extra];
+  }, [categoryList, articles]);
+
+  // Form dropdown için: DB kategorileri (ikonlu) + makale tabanlı fallback (ikonsuz)
+  // stone_knowledge_categories tablosuna grant uygulanmamışsa bile seçenekler görünür
+  const dropdownCategories = useMemo<Category[]>(() => {
+    if (categoryList.length > 0) return categoryList;
+    // Fallback: makalelerdeki unique kategorilerden sentetik liste üret
+    const names = [...new Set(articles.map((r) => r.category).filter(Boolean))].sort(trSort);
+    return names.map((name, i) => ({
+      id: name,
+      name,
+      slug: normalizeTr(name).replace(/[^a-z0-9]+/g, "-"),
+      icon: "📄",
+      color: "slate",
+      sort_order: i,
+    }));
   }, [categoryList, articles]);
 
   const filtered = useMemo(() => {
@@ -427,6 +442,10 @@ export default function TasBilgiKutuphanesiPage() {
   async function saveArticle() {
     if (!form.title.trim()) {
       setSaveError("Başlık zorunludur.");
+      return;
+    }
+    if (!form.category) {
+      setSaveError("Kategori seçimi zorunludur.");
       return;
     }
     if (!form.content.trim()) {
@@ -531,15 +550,19 @@ export default function TasBilgiKutuphanesiPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-black text-slate-700">Kategori</label>
+                <label className="mb-1 block text-xs font-black text-slate-700">
+                  Kategori <span className="text-rose-500">*</span>
+                </label>
                 <select
                   value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 >
-                  <option value="">Seç...</option>
-                  {categoryList.map((cat) => (
-                    <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                  <option value="">— Kategori seç —</option>
+                  {dropdownCategories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.icon} {cat.name}
+                    </option>
                   ))}
                 </select>
               </div>
