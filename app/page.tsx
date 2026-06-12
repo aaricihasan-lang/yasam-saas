@@ -1164,7 +1164,7 @@ export default function Home() {
                   {/* Hızlı İşlemler */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {([
-                      { label: "Danışan Ekle",   href: "/danisan-yolculugu",       icon: "👥" },
+                      { label: "Danışan Ekle",   href: "/danisan-yolculugu/kayit",  icon: "👥" },
                       { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
                       { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
                       { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },

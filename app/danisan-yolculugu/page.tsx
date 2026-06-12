@@ -9,9 +9,11 @@ import {
   ChartColumn,
   Clock3,
   ContactRound,
+  ListFilter,
   PieChart,
   ShieldCheck,
   TrendingUp,
+  UserPlus,
   UsersRound,
 } from "lucide-react";
 
@@ -120,21 +122,33 @@ const journeyFolders: {
   DecorIcon: LucideIcon;
 }[] = [
   {
-    title: "Danışanlar",
-    desc: "Danışan kayıtları, detaylar ve analiz işlemleri.",
-    href: "/dashboard/clients",
-    badge: "Kayıt & Detay",
+    title: "Danışan Kayıt",
+    desc: "Yeni danışan ekle, kişisel bilgileri ve görüşme tarihini kaydet.",
+    href: "/danisan-yolculugu/kayit",
+    badge: "Yeni Kayıt",
+    cardGradient: "bg-gradient-to-br from-emerald-100 via-white to-teal-100",
+    border: "border-emerald-300/70",
+    iconBox: "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
+    decorColor: "text-emerald-500",
+    Icon: UserPlus,
+    DecorIcon: ContactRound,
+  },
+  {
+    title: "Danışan Listesi",
+    desc: "Kayıtlı danışanları görüntüle, ara, düzenle ve detaylara eriş.",
+    href: "/danisan-yolculugu/liste",
+    badge: "Liste & Detay",
     cardGradient: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
     border: "border-violet-300/70",
     iconBox: "bg-gradient-to-br from-violet-500 to-indigo-500 text-white",
     decorColor: "text-violet-500",
     Icon: UsersRound,
-    DecorIcon: ContactRound,
+    DecorIcon: ListFilter,
   },
   {
-    title: "Danışan Takip & Ajanda",
-    desc: "Randevular, seans planlama ve günlük takip.",
-    href: "/dashboard/ajanda",
+    title: "Danışan Takip",
+    desc: "Randevular, seans planlama, günlük takip ve danışan süreç yönetimi.",
+    href: "/danisan-yolculugu/takip",
     badge: "Takip & Plan",
     cardGradient: "bg-gradient-to-br from-cyan-100 via-white to-teal-100",
     border: "border-cyan-300/70",
@@ -205,8 +219,7 @@ export default function DanisanYolculuguPage() {
                   Danışan Yolculuğu
                 </h1>
                 <p className="mt-1.5 max-w-2xl text-xs font-medium leading-snug text-slate-600">
-                  Danışan sürecinizi iki ana klasörde yönetin: kayıtlar ve detaylar ile
-                  randevu ve günlük takip.
+                  Danışan sürecinizi üç ana klasörde yönetin: yeni kayıt, danışan listesi ve takip &amp; ajanda.
                 </p>
               </div>
             </header>
@@ -216,11 +229,11 @@ export default function DanisanYolculuguPage() {
               <div>
                 <h2 className="text-base font-black text-slate-900">Hızlı İşlemler</h2>
                 <p className="mt-0.5 text-xs text-slate-600">
-                  Danışan yönetimi için ana klasörlere hızlıca erişin.
+                  Danışan yönetimi için üç ana klasöre hızlıca erişin.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {journeyFolders.map((folder) => {
                   const { Icon, DecorIcon } = folder;
                   return (
