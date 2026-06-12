@@ -367,6 +367,9 @@ export default function TasBilgiKutuphanesiPage() {
 
   const searchTerms = useMemo(() => getSearchTerms(search), [search]);
 
+  // Arama aktif mi? rawSearch bazlı — input temizlenince anında normal moda döner
+  const isSearchActive = rawSearch.trim().length > 0;
+
   // Filtre pilleri için kategori isimleri (DB + fallback)
   const categories = useMemo(() => {
     const fromDb = categoryList.map((c) => c.name);
@@ -710,7 +713,7 @@ export default function TasBilgiKutuphanesiPage() {
               )}
             </div>
             <div className="mt-2 flex items-center gap-1.5 text-xs">
-              {searchTerms.length > 0 ? (
+              {isSearchActive ? (
                 <><span className="font-black text-emerald-700">{filtered.length} sonuç</span>
                   <span className="text-slate-400">—</span>
                   <span className="text-slate-500">"{search}" araması</span></>
@@ -773,13 +776,13 @@ export default function TasBilgiKutuphanesiPage() {
                           <span>{rec.category}</span>
                           {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
                         </div>
-                        {viewed.has(rec.id) && (
+                        {isSearchActive && viewed.has(rec.id) && (
                           <div className={`mt-0.5 text-[11px] font-semibold ${isSelected ? "text-white/55" : "text-rose-400/80"}`}>
                             ✓ Bakıldı
                           </div>
                         )}
                       </div>
-                      {matchCount > 0 && (
+                      {isSearchActive && matchCount > 0 && (
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${isSelected ? "bg-white/25 text-white" : "bg-yellow-100 text-yellow-800"}`}>
                           {matchCount}
                         </span>
@@ -837,7 +840,7 @@ export default function TasBilgiKutuphanesiPage() {
                           </span>
                         );
                       })()}
-                      {searchTerms.length > 0 && (
+                      {isSearchActive && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-800">
                           🔍 Arama: {search}
                           {selectedContentMatchCount > 0 && (
@@ -885,7 +888,7 @@ export default function TasBilgiKutuphanesiPage() {
                 <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
                   <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
                     <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
-                      {renderContent(selectedArticle.content, searchTerms)}
+                      {renderContent(selectedArticle.content, isSearchActive ? searchTerms : [])}
                     </div>
                   </article>
                 </div>
