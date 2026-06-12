@@ -280,13 +280,10 @@ export default function TasBilgiKutuphanesiPage() {
     return () => clearTimeout(t);
   }, [rawSearch]);
 
-  // localStorage'dan görüntülenenleri yükle
+  // Arama temizlenince viewed sıfırla — her arama oturumu temiz başlar
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("stone-library-viewed");
-      if (raw) setViewed(new Set(JSON.parse(raw) as string[]));
-    } catch {}
-  }, []);
+    if (rawSearch.trim().length === 0) setViewed(new Set());
+  }, [rawSearch]);
 
   // tenantId yükle
   useEffect(() => {
@@ -433,13 +430,14 @@ export default function TasBilgiKutuphanesiPage() {
     setSelectedId(id);
     setMobileView("detail");
     contentRef.current?.scrollTo({ top: 0 });
-    setViewed((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      try { localStorage.setItem("stone-library-viewed", JSON.stringify([...next])); } catch {}
-      return next;
-    });
+    if (isSearchActive) {
+      setViewed((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+    }
   }
 
   // ─── Yeni kayıt kaydetme ────────────────────────────────────────────────────
@@ -500,7 +498,7 @@ export default function TasBilgiKutuphanesiPage() {
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {loading
                 ? "Yükleniyor..."
-                : `${articles.length} makale${viewed.size > 0 ? ` · ${viewed.size} incelendi` : ""} · Mineroloji, Şifa, Araştırma, Uygulamalar`}
+                : `${articles.length} makale · Mineroloji, Şifa, Araştırma, Uygulamalar`}
             </p>
           </div>
 
