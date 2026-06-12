@@ -1,7 +1,6 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import Link from "next/link";
 import {
   Calendar,
   CheckCircle,
@@ -99,6 +98,16 @@ export default function AjandaPage() {
   const [filter, setFilter] = useState<AppointmentFilter>("all");
   const [tenantId, setTenantId] = useState<string | null>(null);
 
+  const [showForm, setShowForm] = useState(false);
+  const [appointmentType, setAppointmentType] = useState<"kayitli" | "genel">("kayitli");
+  const [formClientId, setFormClientId] = useState("");
+  const [formTitle, setFormTitle] = useState("");
+  const [formDate, setFormDate] = useState("");
+  const [formTime, setFormTime] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+  const [formStatus, setFormStatus] = useState<AppointmentStatus>("bekliyor");
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
   }, []);
@@ -111,6 +120,14 @@ export default function AjandaPage() {
     });
 
     return map;
+  }, [clients]);
+
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      const nameA = `${a.ad || ""} ${a.soyad || ""}`.trim().toLowerCase();
+      const nameB = `${b.ad || ""} ${b.soyad || ""}`.trim().toLowerCase();
+      return nameA.localeCompare(nameB, "tr");
+    });
   }, [clients]);
 
   const todayCount = useMemo(() => {
@@ -325,6 +342,57 @@ export default function AjandaPage() {
     });
   }
 
+  async function createAppointment() {
+    if (!tenantId) return;
+
+    if (appointmentType === "kayitli" && !formClientId) {
+      showToast({ title: "Eksik bilgi", message: "Lütfen bir danışan seçin.", type: "warning" });
+      return;
+    }
+
+    if (!formDate || !formTime) {
+      showToast({ title: "Eksik bilgi", message: "Tarih ve saat seçmelisiniz.", type: "warning" });
+      return;
+    }
+
+    if (!formTitle.trim()) {
+      showToast({ title: "Eksik bilgi", message: "Lütfen başlık giriniz.", type: "warning" });
+      return;
+    }
+
+    const appointmentDate = new Date(`${formDate}T${formTime}`).toISOString();
+
+    setSaving(true);
+
+    const { error } = await supabase.from("appointments").insert({
+      tenant_id: tenantId,
+      client_id: appointmentType === "kayitli" ? formClientId : null,
+      title: formTitle.trim(),
+      notes: formNotes.trim() || null,
+      appointment_date: appointmentDate,
+      status: formStatus,
+    });
+
+    if (error) {
+      showToast({ title: "Kayıt hatası", message: error.message, type: "error" });
+      setSaving(false);
+      return;
+    }
+
+    setFormTitle("");
+    setFormDate("");
+    setFormTime("");
+    setFormNotes("");
+    setFormStatus("bekliyor");
+    setFormClientId("");
+    setShowForm(false);
+    setSaving(false);
+
+    await loadAppointments();
+
+    showToast({ title: "Başarılı", message: "Randevu oluşturuldu.", type: "success" });
+  }
+
   useEffect(() => {
     if (!tenantId) return;
 
@@ -354,13 +422,163 @@ export default function AjandaPage() {
               </p>
             </div>
 
-            <Link
-              href="/dashboard/clients"
-              className="shrink-0 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5"
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black shadow-md transition hover:-translate-y-0.5 ${
+                showForm
+                  ? "border border-slate-200 bg-white text-slate-700"
+                  : "bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
+              }`}
             >
-              + Yeni Kayıt
-            </Link>
+              {showForm ? "Formu Kapat" : "+ Yeni Randevu Ekle"}
+            </button>
           </div>
+
+          {showForm && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-lg">
+              <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-5 py-3">
+                <div>
+                  <h3 className="text-base font-black text-slate-950">Yeni Randevu Oluştur</h3>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Danışana bağlı veya genel randevu ekleyebilirsin.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                >
+                  Vazgeç
+                </button>
+              </div>
+
+              <div className="p-5">
+                {/* Randevu tipi */}
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setAppointmentType("kayitli"); setFormClientId(""); }}
+                    className={`rounded-xl border px-4 py-3 text-sm font-black transition ${
+                      appointmentType === "kayitli"
+                        ? "border-indigo-300 bg-indigo-600 text-white shadow-md"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    👤 Kayıtlı Danışan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAppointmentType("genel"); setFormClientId(""); }}
+                    className={`rounded-xl border px-4 py-3 text-sm font-black transition ${
+                      appointmentType === "genel"
+                        ? "border-violet-300 bg-violet-600 text-white shadow-md"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    🗓️ Genel Randevu
+                  </button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Sol kolon */}
+                  <div className="space-y-3">
+                    {appointmentType === "kayitli" && (
+                      <div>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">Danışan Seç</label>
+                        <select
+                          value={formClientId}
+                          onChange={(e) => setFormClientId(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        >
+                          <option value="">-- Danışan seçin --</option>
+                          {sortedClients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {`${c.ad || ""} ${c.soyad || ""}`.trim() || "İsimsiz"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">Başlık</label>
+                      <input
+                        value={formTitle}
+                        onChange={(e) => setFormTitle(e.target.value)}
+                        placeholder="Örn: Seans, Toplantı, Kişisel not..."
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">Tarih</label>
+                        <input
+                          type="date"
+                          value={formDate}
+                          onChange={(e) => setFormDate(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">Saat</label>
+                        <input
+                          type="time"
+                          value={formTime}
+                          onChange={(e) => setFormTime(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sağ kolon */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">Durum</label>
+                      <select
+                        value={formStatus}
+                        onChange={(e) => setFormStatus(e.target.value as AppointmentStatus)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      >
+                        <option value="bekliyor">Bekliyor</option>
+                        <option value="tamamlandi">Tamamlandı</option>
+                        <option value="iptal">İptal</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">Açıklama / Not</label>
+                      <textarea
+                        value={formNotes}
+                        onChange={(e) => setFormNotes(e.target.value)}
+                        placeholder="İsteğe bağlı notlar..."
+                        rows={4}
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={createAppointment}
+                    disabled={saving}
+                    className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-70"
+                  >
+                    {saving ? "Kaydediliyor..." : "Randevu Kaydet"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             <div className="flex items-center gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02]">
@@ -472,9 +690,13 @@ export default function AjandaPage() {
                           </div>
 
                           <div className="mt-0.5 text-xs font-semibold text-slate-500">
-                            {item.client_id
-                              ? clientMap.get(item.client_id) || "Danışan"
-                              : "Danışan seçilmemiş"}
+                            {item.client_id ? (
+                              clientMap.get(item.client_id) || "Danışan"
+                            ) : (
+                              <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-700">
+                                Genel Randevu
+                              </span>
+                            )}
                           </div>
 
                           {item.notes && (
@@ -505,7 +727,7 @@ export default function AjandaPage() {
                     Bu filtrede randevu yok.
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    Randevular danışan detayından oluşturulabilir.
+                    Yukarıdaki "+ Yeni Randevu Ekle" butonu ile kayıt oluşturabilirsin.
                   </p>
                 </div>
               )}
@@ -615,12 +837,18 @@ export default function AjandaPage() {
 
               <div className="space-y-2.5 p-4">
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                  <div className="text-xs font-bold text-emerald-600">Danışan</div>
+                  <div className="text-xs font-bold text-emerald-600">
+                    {selectedAppointment.client_id ? "Danışan" : "Randevu Tipi"}
+                  </div>
 
                   <div className="text-sm font-black text-emerald-900">
-                    {selectedAppointment.client_id
-                      ? clientMap.get(selectedAppointment.client_id) || "Danışan"
-                      : "Danışan seçilmemiş"}
+                    {selectedAppointment.client_id ? (
+                      clientMap.get(selectedAppointment.client_id) || "Danışan"
+                    ) : (
+                      <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-0.5 text-xs font-black text-violet-700">
+                        🗓️ Genel Randevu
+                      </span>
+                    )}
                   </div>
                 </div>
 
