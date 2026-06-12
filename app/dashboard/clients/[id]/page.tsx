@@ -120,6 +120,7 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const clientId = params.id as string;
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
 
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState("genel");
@@ -145,6 +146,13 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
+  }, []);
+
+  useEffect(() => {
+    function onResize() { setIsNarrow(window.innerWidth < 640); }
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -414,7 +422,13 @@ export default function ClientDetailPage() {
       </section>
 
       <section style={tabsCard}>
-        <div style={tabBar}>
+        <div
+          style={
+            isNarrow
+              ? { ...tabBar, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 6, WebkitOverflowScrolling: "touch" }
+              : tabBar
+          }
+        >
           <Tab label="Genel Bilgiler" id="genel" activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
           <Tab label="Notlar" id="notlar" activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
           <Tab label="Randevular" id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
@@ -646,6 +660,14 @@ function AppointmentsTab({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
+
+  useEffect(() => {
+    function onResize() { setIsNarrow(window.innerWidth < 640); }
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const [title, setTitle] = useState("Seans");
   const [notes, setNotes] = useState("");
@@ -881,7 +903,7 @@ function AppointmentsTab({
         </div>
       </div>
 
-      <div style={appointmentLayout}>
+      <div style={isNarrow ? { ...appointmentLayout, gridTemplateColumns: "1fr" } : appointmentLayout}>
         <div style={appointmentListBox}>
           <h3 style={boxTitle}>Randevu Listesi</h3>
 
