@@ -289,7 +289,18 @@ export default function TasBilgiKutuphanesiPage() {
   const [rawSearch, setRawSearch] = useState("");
   const [activeKat, setActiveKat] = useState("Tümü");
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
+  const [viewed, setViewed] = useState<Set<string>>(new Set());
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // localStorage'dan görüntülenenleri yükle (bir kez)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("stone-library-viewed");
+      if (raw) setViewed(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // private browsing veya storage kısıtlaması
+    }
+  }, []);
 
   // Hafif debounce — 120ms
   const [search, setSearch] = useState("");
@@ -360,6 +371,15 @@ export default function TasBilgiKutuphanesiPage() {
     setSelectedId(id);
     setMobileView("detail");
     contentRef.current?.scrollTo({ top: 0 });
+    setViewed((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem("stone-library-viewed", JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -380,7 +400,7 @@ export default function TasBilgiKutuphanesiPage() {
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {loading
                 ? "Kütüphane yükleniyor..."
-                : `${records.length} makale · Mineroloji, Şifa, Araştırma, Uygulamalar`}
+                : `${records.length} makale${viewed.size > 0 ? ` · ${viewed.size} incelendi` : ""} · Mineroloji, Şifa, Araştırma, Uygulamalar`}
             </p>
           </div>
 
@@ -551,6 +571,15 @@ export default function TasBilgiKutuphanesiPage() {
                             </>
                           )}
                         </div>
+                        {viewed.has(rec.id) && (
+                          <div
+                            className={`mt-0.5 text-[11px] font-semibold ${
+                              isSelected ? "text-white/55" : "text-rose-400/80"
+                            }`}
+                          >
+                            ✓ Bakıldı
+                          </div>
+                        )}
                       </div>
 
                       {/* Eşleşme rozeti */}
