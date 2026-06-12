@@ -259,6 +259,13 @@ export default function TasBilgiKutuphanesiPage() {
   const [savingCat, setSavingCat] = useState(false);
   const [catError, setCatError] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
+  // Word raporu modal
+  const [showWordModal, setShowWordModal] = useState(false);
+  const [wordExportMode, setWordExportMode] = useState<"all" | "category" | "filtered" | "viewed">("all");
+  const [wordExportCategory, setWordExportCategory] = useState("");
+  const [wordReportLoading, setWordReportLoading] = useState(false);
+  const [wordReportError, setWordReportError] = useState("");
+  const [wordReportSuccess, setWordReportSuccess] = useState("");
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
   const katMap = useMemo(() => {
@@ -440,6 +447,59 @@ export default function TasBilgiKutuphanesiPage() {
     }
   }
 
+  // ─── Word raporu indirme ────────────────────────────────────────────────────
+
+  async function downloadKnowledgeReport() {
+    if (wordExportMode === "category" && !wordExportCategory) {
+      setWordReportError("Lütfen bir kategori seçin.");
+      return;
+    }
+    const tid = await getSyncedTenantId();
+    if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+
+    let articleIds: string[] | undefined;
+    if (wordExportMode === "filtered") {
+      articleIds = filtered.map((a) => a.id);
+      if (!articleIds.length) { setWordReportError("Filtrelenmiş sonuç bulunamadı."); return; }
+    } else if (wordExportMode === "viewed") {
+      articleIds = [...viewed];
+      if (!articleIds.length) { setWordReportError("Bu arama oturumunda henüz görüntülenen makale yok."); return; }
+    }
+
+    setWordReportLoading(true);
+    setWordReportError("");
+    setWordReportSuccess("");
+
+    try {
+      const res = await fetch("/api/dogaltas/knowledge-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: tid,
+          exportMode: wordExportMode,
+          categoryName: wordExportMode === "category" ? wordExportCategory : undefined,
+          articleIds,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tas-bilgi-kutuphanesi-raporu-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setWordReportSuccess("Bilgi Kütüphanesi raporu başarıyla oluşturuldu.");
+    } catch (err) {
+      setWordReportError(err instanceof Error ? err.message : "Rapor oluşturulamadı.");
+    } finally {
+      setWordReportLoading(false);
+    }
+  }
+
   // ─── Yeni kayıt kaydetme ────────────────────────────────────────────────────
 
   async function saveArticle() {
@@ -517,6 +577,15 @@ export default function TasBilgiKutuphanesiPage() {
                 );
               })}
             </div>
+
+            {/* Word raporu butonu */}
+            <button
+              type="button"
+              onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+              className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-sm font-black text-indigo-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+            >
+              📄 Word Raporu
+            </button>
 
             {/* Yeni kayıt butonu */}
             <button
@@ -895,6 +964,117 @@ export default function TasBilgiKutuphanesiPage() {
           )}
         </div>
       </div>
+
+      {/* Word raporu modal */}
+      {showWordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-950">Bilgi Kütüphanesi Raporu</h2>
+              <button
+                type="button"
+                onClick={() => setShowWordModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-500">Rapora dahil edilecek makaleleri seçin.</p>
+
+            {/* Export mode radio options */}
+            <div className="space-y-2">
+              {([
+                ["all",      "Tüm Makaleler",                `${articles.length} makale`],
+                ["category", "Sadece Seçili Kategori",       null],
+                ["filtered", "Sadece Filtrelenmiş Sonuçlar", `${filtered.length} makale`],
+                ["viewed",   "Sadece Görüntülenen Kayıtlar", `${viewed.size} makale`],
+              ] as const).map(([mode, label, count]) => (
+                <label
+                  key={mode}
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition ${
+                    wordExportMode === mode
+                      ? "border-indigo-300 bg-indigo-50"
+                      : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                  } ${mode === "viewed" && viewed.size === 0 ? "opacity-50" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="exportMode"
+                    value={mode}
+                    checked={wordExportMode === mode}
+                    onChange={() => setWordExportMode(mode)}
+                    disabled={mode === "viewed" && viewed.size === 0}
+                    className="mt-0.5 h-4 w-4 accent-indigo-600"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-semibold text-slate-800">{label}</span>
+                    {count !== null && (
+                      <span className="ml-2 text-xs font-medium text-slate-400">{count}</span>
+                    )}
+                    {mode === "viewed" && viewed.size === 0 && (
+                      <p className="mt-0.5 text-xs text-slate-400">Arama oturumunda görüntülenen makale yok</p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Kategori dropdown */}
+            {wordExportMode === "category" && (
+              <div className="mt-3">
+                <select
+                  value={wordExportCategory}
+                  onChange={(e) => setWordExportCategory(e.target.value)}
+                  className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="">— Kategori seç —</option>
+                  {categories.filter((c) => c !== "Tümü").map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {wordReportError && (
+              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {wordReportError}
+              </p>
+            )}
+            {wordReportSuccess && (
+              <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                ✓ {wordReportSuccess}
+              </p>
+            )}
+            {wordReportLoading && (
+              <p className="mt-4 text-center text-sm font-semibold text-indigo-700">
+                Profesyonel Word raporu hazırlanıyor...
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWordModal(false)}
+                disabled={wordReportLoading}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Kapat
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadKnowledgeReport()}
+                disabled={wordReportLoading}
+                className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+              >
+                {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
