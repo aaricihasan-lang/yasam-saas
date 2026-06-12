@@ -8,64 +8,65 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { ADMIN_LIBRARY_TENANT_ID, getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
-type KutuphaneRecord = {
+type Article = {
   id: string;
-  baslik: string;
-  icerik: string;
-  kategori: string;
-  alt_kategori: string;
-  etiketler: string[];
-  ilgili_taslar: string[];
-  ilgili_mineraller: string[];
-  kaynak: string;
-  kaynak_bolum: string;
-  anahtar_kelime: string;
-  notlar: string;
+  tenant_id: string | null;
+  title: string;
+  content: string;
+  category: string;
+  sub_category: string;
+  tags: string[];
+  related_stones: string[];
+  related_minerals: string[];
+  source: string;
+  source_section: string;
+  keyword: string;
+  notes: string;
+  is_active: boolean;
+};
+
+type NewArticleForm = {
+  title: string;
+  content: string;
+  category: string;
+  sub_category: string;
+  source: string;
+};
+
+const EMPTY_FORM: NewArticleForm = {
+  title: "",
+  content: "",
+  category: "",
+  sub_category: "",
+  source: "",
 };
 
 // ─── Kategori renkleri ─────────────────────────────────────────────────────────
 
-const KAT_CONFIG: Record<
-  string,
-  { color: string; bg: string; border: string; icon: string }
-> = {
-  Şifa: { color: "#059669", bg: "#ecfdf5", border: "#a7f3d0", icon: "💚" },
-  Araştırma: { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", icon: "🔬" },
-  Mineroloji: { color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe", icon: "💎" },
+const KAT_CONFIG: Record<string, { color: string; bg: string; border: string; icon: string }> = {
+  Şifa:        { color: "#059669", bg: "#ecfdf5", border: "#a7f3d0", icon: "💚" },
+  Araştırma:   { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", icon: "🔬" },
+  Mineroloji:  { color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe", icon: "💎" },
   Uygulamalar: { color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "🖐️" },
-  Genel: { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📖" },
+  Genel:       { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📖" },
 };
 
 function katConfig(kat: string) {
-  return (
-    KAT_CONFIG[kat] ?? {
-      color: "#475569",
-      bg: "#f8fafc",
-      border: "#e2e8f0",
-      icon: "📄",
-    }
-  );
+  return KAT_CONFIG[kat] ?? { color: "#475569", bg: "#f8fafc", border: "#e2e8f0", icon: "📄" };
 }
 
 // ─── Arama motoru ──────────────────────────────────────────────────────────────
 
-/** Arama sorgusunu boşluğa göre böl, normalize et, boşları çıkar */
 function getSearchTerms(query: string): string[] {
-  return query
-    .trim()
-    .split(/\s+/)
-    .map((t) => normalizeTr(t))
-    .filter(Boolean);
+  return query.trim().split(/\s+/).map((t) => normalizeTr(t)).filter(Boolean);
 }
 
-/**
- * Normalize edilmiş metin pozisyonunu orijinal metne eşleyen harita.
- * NFD + combining-mark kaldırma nedeniyle 1:1 karakter eşleşmesi sağlar.
- */
 function buildNormMap(text: string): { norm: string; map: number[] } {
   let norm = "";
   const map: number[] = [];
@@ -79,7 +80,6 @@ function buildNormMap(text: string): { norm: string; map: number[] } {
   return { norm, map };
 }
 
-/** Tek bir metin içinde tüm terimlerin toplam eşleşme sayısı */
 function countInText(text: string, terms: string[]): number {
   if (!text || !terms.length) return 0;
   const { norm } = buildNormMap(text);
@@ -96,57 +96,33 @@ function countInText(text: string, terms: string[]): number {
   return total;
 }
 
-/** Kayıttaki TÜM alanlarda toplam eşleşme sayısı */
-function countRecordMatches(rec: KutuphaneRecord, terms: string[]): number {
+function countRecordMatches(rec: Article, terms: string[]): number {
   if (!terms.length) return 0;
   const allFields = [
-    rec.baslik,
-    rec.icerik,
-    rec.kategori,
-    rec.alt_kategori,
-    rec.kaynak,
-    rec.kaynak_bolum,
-    rec.anahtar_kelime,
-    rec.notlar,
-    ...rec.etiketler,
-    ...rec.ilgili_taslar,
-    ...rec.ilgili_mineraller,
+    rec.title, rec.content, rec.category, rec.sub_category,
+    rec.source, rec.source_section, rec.keyword, rec.notes,
+    ...rec.tags, ...rec.related_stones, ...rec.related_minerals,
   ];
-  return allFields.reduce((sum, field) => sum + countInText(field, terms), 0);
+  return allFields.reduce((sum, f) => sum + countInText(f, terms), 0);
 }
 
-/** Kayıt tüm terimleri içeriyor mu? (AND mantığı) */
-function recordMatchesAll(rec: KutuphaneRecord, terms: string[]): boolean {
+function recordMatchesAll(rec: Article, terms: string[]): boolean {
   if (!terms.length) return true;
-  const allText = normalizeTr(
-    [
-      rec.baslik,
-      rec.icerik,
-      rec.kategori,
-      rec.alt_kategori,
-      rec.kaynak,
-      rec.kaynak_bolum,
-      rec.anahtar_kelime,
-      rec.notlar,
-      ...rec.etiketler,
-      ...rec.ilgili_taslar,
-      ...rec.ilgili_mineraller,
-    ].join(" ")
-  );
+  const allText = normalizeTr([
+    rec.title, rec.content, rec.category, rec.sub_category,
+    rec.source, rec.source_section, rec.keyword, rec.notes,
+    ...rec.tags, ...rec.related_stones, ...rec.related_minerals,
+  ].join(" "));
   return terms.every((t) => allText.includes(t));
 }
 
 // ─── Highlight renderer ───────────────────────────────────────────────────────
 
-/** Verilen metin içinde eşleşen kısımları sarı <mark> ile sarar (XSS güvenli) */
 function highlightSegment(text: string, terms: string[]): ReactNode {
   if (!terms.length || !text) return text;
-
   const { norm, map } = buildNormMap(text);
-
   type Range = { s: number; e: number };
   const ranges: Range[] = [];
-
   for (const term of terms) {
     let pos = 0;
     while (pos <= norm.length - term.length) {
@@ -159,122 +135,66 @@ function highlightSegment(text: string, terms: string[]): ReactNode {
       pos = idx + term.length;
     }
   }
-
   if (!ranges.length) return text;
-
-  // Çakışan aralıkları birleştir
   ranges.sort((a, b) => a.s - b.s);
   const merged: Range[] = [];
   for (const r of ranges) {
     const last = merged[merged.length - 1];
-    if (last && r.s <= last.e) {
-      last.e = Math.max(last.e, r.e);
-    } else {
-      merged.push({ ...r });
-    }
+    if (last && r.s <= last.e) { last.e = Math.max(last.e, r.e); }
+    else merged.push({ ...r });
   }
-
   const nodes: ReactNode[] = [];
   let cursor = 0;
   for (let i = 0; i < merged.length; i++) {
     const { s, e } = merged[i]!;
     if (s > cursor) nodes.push(<Fragment key={`t${i}`}>{text.slice(cursor, s)}</Fragment>);
-    nodes.push(
-      <mark
-        key={`m${i}`}
-        className="rounded bg-yellow-200 px-0.5 font-bold text-slate-900"
-      >
-        {text.slice(s, e)}
-      </mark>
-    );
+    nodes.push(<mark key={`m${i}`} className="rounded bg-yellow-200 px-0.5 font-bold text-slate-900">{text.slice(s, e)}</mark>);
     cursor = e;
   }
-  if (cursor < text.length)
-    nodes.push(<Fragment key="tend">{text.slice(cursor)}</Fragment>);
-
+  if (cursor < text.length) nodes.push(<Fragment key="tend">{text.slice(cursor)}</Fragment>);
   return <>{nodes}</>;
 }
 
-/** ^^bold^^ işareti + highlight kombinasyonu */
 function renderInline(text: string, terms: string[]): ReactNode {
   const parts = text.split("^^");
   return parts.map((part, i) => {
     const content = terms.length ? highlightSegment(part, terms) : part;
-    if (i % 2 === 1) {
-      return (
-        <strong key={i} className="font-black text-slate-950">
-          {content}
-        </strong>
-      );
-    }
+    if (i % 2 === 1) return <strong key={i} className="font-black text-slate-950">{content}</strong>;
     return <Fragment key={i}>{content}</Fragment>;
   });
 }
 
-// ─── İçerik renderer ──────────────────────────────────────────────────────────
-
-function renderContent(icerik: string, terms: string[]): ReactNode {
-  if (!icerik) return null;
-
-  const lines = icerik.replace(/\r\n/g, "\n").split("\n");
+function renderContent(content: string, terms: string[]): ReactNode {
+  if (!content) return null;
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
   const nodes: ReactNode[] = [];
   let buffer: string[] = [];
   let key = 0;
-
   function flushBuffer() {
     if (!buffer.length) return;
     const text = buffer.join(" ").trim();
     if (!text) { buffer = []; return; }
-    nodes.push(
-      <p key={key++} className="leading-8 text-slate-700">
-        {renderInline(text, terms)}
-      </p>
-    );
+    nodes.push(<p key={key++} className="leading-8 text-slate-700">{renderInline(text, terms)}</p>);
     buffer = [];
   }
-
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
-
     if (line.startsWith("## ")) {
       flushBuffer();
-      nodes.push(
-        <h3
-          key={key++}
-          className="mb-3 mt-8 border-b border-slate-100 pb-2 text-lg font-black tracking-tight text-slate-900 first:mt-0"
-        >
-          {renderInline(line.slice(3), terms)}
-        </h3>
-      );
+      nodes.push(<h3 key={key++} className="mb-3 mt-8 border-b border-slate-100 pb-2 text-lg font-black tracking-tight text-slate-900 first:mt-0">{renderInline(line.slice(3), terms)}</h3>);
       continue;
     }
-
     if (line.startsWith("### ")) {
       flushBuffer();
-      nodes.push(
-        <h4
-          key={key++}
-          className="mb-2 mt-6 text-base font-black text-slate-800 first:mt-0"
-        >
-          {renderInline(line.slice(4), terms)}
-        </h4>
-      );
+      nodes.push(<h4 key={key++} className="mb-2 mt-6 text-base font-black text-slate-800 first:mt-0">{renderInline(line.slice(4), terms)}</h4>);
       continue;
     }
-
-    if (line.trim() === "") {
-      flushBuffer();
-      continue;
-    }
-
+    if (line.trim() === "") { flushBuffer(); continue; }
     buffer.push(line);
   }
   flushBuffer();
-
   return <div className="space-y-5">{nodes}</div>;
 }
-
-// ─── Sıralama ─────────────────────────────────────────────────────────────────
 
 function trSort(a: string, b: string) {
   return normalizeTr(a).localeCompare(normalizeTr(b), "tr");
@@ -283,80 +203,101 @@ function trSort(a: string, b: string) {
 // ─── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function TasBilgiKutuphanesiPage() {
-  const [records, setRecords] = useState<KutuphaneRecord[]>([]);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rawSearch, setRawSearch] = useState("");
+  const [search, setSearch] = useState("");
   const [activeKat, setActiveKat] = useState("Tümü");
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [viewed, setViewed] = useState<Set<string>>(new Set());
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<NewArticleForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // localStorage'dan görüntülenenleri yükle (bir kez)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("stone-library-viewed");
-      if (raw) setViewed(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      // private browsing veya storage kısıtlaması
-    }
-  }, []);
-
-  // Hafif debounce — 120ms
-  const [search, setSearch] = useState("");
+  // Debounce 120ms
   useEffect(() => {
     const t = setTimeout(() => setSearch(rawSearch), 120);
     return () => clearTimeout(t);
   }, [rawSearch]);
 
+  // localStorage'dan görüntülenenleri yükle
   useEffect(() => {
-    fetch("/data/tas_bilgi_kutuphanesi.json")
-      .then((r) => r.json())
-      .then((data: KutuphaneRecord[]) => {
-        const sorted = [...data].sort((a, b) => trSort(a.baslik, b.baslik));
-        setRecords(sorted);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    try {
+      const raw = localStorage.getItem("stone-library-viewed");
+      if (raw) setViewed(new Set(JSON.parse(raw) as string[]));
+    } catch {}
   }, []);
 
-  // ─── Türetilmiş veriler ───────────────────────────────────────────────────
+  // tenantId yükle
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+  }, []);
+
+  // Makaleleri yükle
+  useEffect(() => {
+    if (tenantId === undefined) return; // henüz yüklenmedi
+    void loadArticles();
+  }, [tenantId]);
+
+  async function loadArticles() {
+    setLoading(true);
+    // Paylaşımlı kütüphane (ADMIN_LIBRARY_TENANT_ID) + kullanıcının kendi ekleri
+    const tenantIds: string[] = [ADMIN_LIBRARY_TENANT_ID];
+    if (tenantId && tenantId !== ADMIN_LIBRARY_TENANT_ID) {
+      tenantIds.push(tenantId);
+    }
+
+    const { data, error } = await supabase
+      .from("stone_knowledge_articles")
+      .select("id, tenant_id, title, content, category, sub_category, tags, related_stones, related_minerals, source, source_section, keyword, notes, is_active")
+      .in("tenant_id", tenantIds)
+      .eq("is_active", true)
+      .order("title", { ascending: true });
+
+    if (!error && data) {
+      const sorted = [...(data as Article[])].sort((a, b) => trSort(a.title, b.title));
+      setArticles(sorted);
+    }
+    setLoading(false);
+  }
+
+  // ─── Türetilmiş veriler ─────────────────────────────────────────────────────
 
   const searchTerms = useMemo(() => getSearchTerms(search), [search]);
 
   const categories = useMemo(() => {
-    const cats = [...new Set(records.map((r) => r.kategori))].sort(trSort);
+    const cats = [...new Set(articles.map((r) => r.category).filter(Boolean))].sort(trSort);
     return ["Tümü", ...cats];
-  }, [records]);
+  }, [articles]);
 
   const filtered = useMemo(() => {
-    return records.filter((r) => {
-      if (activeKat !== "Tümü" && r.kategori !== activeKat) return false;
+    return articles.filter((r) => {
+      if (activeKat !== "Tümü" && r.category !== activeKat) return false;
       if (!recordMatchesAll(r, searchTerms)) return false;
       return true;
     });
-  }, [records, activeKat, searchTerms]);
+  }, [articles, activeKat, searchTerms]);
 
-  // Eşleşme sayıları (yalnızca arama aktifken hesapla)
   const matchCounts = useMemo(() => {
     if (!searchTerms.length) return new Map<string, number>();
     const m = new Map<string, number>();
-    for (const rec of filtered) {
-      m.set(rec.id, countRecordMatches(rec, searchTerms));
-    }
+    for (const rec of filtered) m.set(rec.id, countRecordMatches(rec, searchTerms));
     return m;
   }, [filtered, searchTerms]);
 
-  // Seçili kayıt içeriğinde kaç eşleşme var
-  const selectedRecord = useMemo(
-    () => records.find((r) => r.id === selectedId) ?? null,
-    [records, selectedId]
+  const selectedArticle = useMemo(
+    () => articles.find((r) => r.id === selectedId) ?? null,
+    [articles, selectedId]
   );
 
-  const selectedIcerikMatchCount = useMemo(() => {
-    if (!selectedRecord || !searchTerms.length) return 0;
-    return countInText(selectedRecord.icerik, searchTerms);
-  }, [selectedRecord, searchTerms]);
+  const selectedContentMatchCount = useMemo(() => {
+    if (!selectedArticle || !searchTerms.length) return 0;
+    return countInText(selectedArticle.content, searchTerms);
+  }, [selectedArticle, searchTerms]);
 
   // Arama aktifken seçili kayıt filtrede yoksa ilkini seç
   useEffect(() => {
@@ -367,7 +308,7 @@ export default function TasBilgiKutuphanesiPage() {
     }
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function selectRecord(id: string) {
+  function selectArticle(id: string) {
     setSelectedId(id);
     setMobileView("detail");
     contentRef.current?.scrollTo({ top: 0 });
@@ -375,19 +316,53 @@ export default function TasBilgiKutuphanesiPage() {
       if (prev.has(id)) return prev;
       const next = new Set(prev);
       next.add(id);
-      try {
-        localStorage.setItem("stone-library-viewed", JSON.stringify([...next]));
-      } catch {}
+      try { localStorage.setItem("stone-library-viewed", JSON.stringify([...next])); } catch {}
       return next;
     });
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Yeni kayıt kaydetme ────────────────────────────────────────────────────
+
+  async function saveArticle() {
+    if (!form.title.trim()) {
+      setSaveError("Başlık zorunludur.");
+      return;
+    }
+    if (!form.content.trim()) {
+      setSaveError("İçerik zorunludur.");
+      return;
+    }
+    if (!tenantId) {
+      setSaveError("Oturum bulunamadı. Lütfen sayfayı yenileyin.");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    const { error } = await supabase.from("stone_knowledge_articles").insert({
+      tenant_id:      tenantId,
+      title:          form.title.trim(),
+      content:        form.content.trim(),
+      category:       form.category.trim(),
+      sub_category:   form.sub_category.trim(),
+      source:         form.source.trim(),
+      is_active:      true,
+    });
+    setSaving(false);
+    if (error) {
+      setSaveError("Kayıt hatası: " + error.message);
+      return;
+    }
+    setForm(EMPTY_FORM);
+    setShowForm(false);
+    await loadArticles();
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-950">
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -399,49 +374,127 @@ export default function TasBilgiKutuphanesiPage() {
             </h1>
             <p className="mt-0.5 text-xs font-medium text-slate-500">
               {loading
-                ? "Kütüphane yükleniyor..."
-                : `${records.length} makale${viewed.size > 0 ? ` · ${viewed.size} incelendi` : ""} · Mineroloji, Şifa, Araştırma, Uygulamalar`}
+                ? "Yükleniyor..."
+                : `${articles.length} makale${viewed.size > 0 ? ` · ${viewed.size} incelendi` : ""} · Mineroloji, Şifa, Araştırma, Uygulamalar`}
             </p>
           </div>
 
-          {/* Kategori stats */}
-          <div className="hidden flex-wrap gap-1.5 xl:flex">
-            {Object.entries(KAT_CONFIG).map(([kat, cfg]) => {
-              const count = records.filter((r) => r.kategori === kat).length;
-              return (
-                <span
-                  key={kat}
-                  className="rounded-full border px-3 py-1 text-xs font-bold"
-                  style={{
-                    borderColor: cfg.border,
-                    background: cfg.bg,
-                    color: cfg.color,
-                  }}
-                >
-                  {cfg.icon} {kat} ({count})
-                </span>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Kategori stats (xl+) */}
+            <div className="hidden flex-wrap gap-1.5 xl:flex">
+              {Object.entries(KAT_CONFIG).map(([kat, cfg]) => {
+                const count = articles.filter((r) => r.category === kat).length;
+                if (!count) return null;
+                return (
+                  <span key={kat} className="rounded-full border px-3 py-1 text-xs font-bold"
+                    style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
+                    {cfg.icon} {kat} ({count})
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Yeni kayıt butonu */}
+            <button
+              type="button"
+              onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
+              className={`rounded-xl px-4 py-2 text-sm font-black shadow-sm transition hover:brightness-105 ${
+                showForm
+                  ? "border border-slate-200 bg-white text-slate-700"
+                  : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+              }`}
+            >
+              {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
+            </button>
           </div>
         </div>
+
+        {/* Yeni kayıt formu */}
+        {showForm && (
+          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <h3 className="mb-3 text-sm font-black text-slate-900">Yeni Makale Ekle</h3>
+            {saveError && (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                {saveError}
+              </div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="lg:col-span-2">
+                <label className="mb-1 block text-xs font-black text-slate-700">Başlık *</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="Makale başlığı..."
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-black text-slate-700">Kategori</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">Seç...</option>
+                  {["Şifa", "Araştırma", "Mineroloji", "Uygulamalar", "Genel"].map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-black text-slate-700">Kaynak</label>
+                <input
+                  value={form.source}
+                  onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+                  placeholder="Kaynak adı..."
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-4">
+                <label className="mb-1 block text-xs font-black text-slate-700">İçerik *</label>
+                <textarea
+                  value={form.content}
+                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="Makale içeriği... (## Başlık ile bölümler oluşturabilirsin)"
+                  rows={6}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSaveError(""); }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={saveArticle}
+                disabled={saving}
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-black text-white shadow-md disabled:opacity-60 hover:brightness-105"
+              >
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* ── İki panel ─────────────────────────────────────────────────────── */}
+      {/* İki panel */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
 
-        {/* ── Sol panel ─────────────────────────────────────────────────── */}
-        <aside
-          className={`flex w-full shrink-0 flex-col bg-white border-r border-slate-200
-            md:w-80 lg:w-[340px] xl:w-96
-            ${mobileView === "detail" ? "hidden md:flex" : "flex"}`}
-        >
-          {/* Arama kutusu */}
+        {/* Sol panel */}
+        <aside className={`flex w-full shrink-0 flex-col bg-white border-r border-slate-200
+          md:w-80 lg:w-[340px] xl:w-96
+          ${mobileView === "detail" ? "hidden md:flex" : "flex"}`}>
+
+          {/* Arama */}
           <div className="border-b border-slate-100 p-3">
             <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
+              <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round"
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -453,28 +506,20 @@ export default function TasBilgiKutuphanesiPage() {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm font-medium outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
               />
               {rawSearch && (
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => { setRawSearch(""); setSearch(""); }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                >
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:bg-slate-200">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
-
-            {/* Sonuç bilgisi */}
             <div className="mt-2 flex items-center gap-1.5 text-xs">
               {searchTerms.length > 0 ? (
-                <>
-                  <span className="font-black text-emerald-700">{filtered.length} sonuç</span>
+                <><span className="font-black text-emerald-700">{filtered.length} sonuç</span>
                   <span className="text-slate-400">—</span>
-                  <span className="text-slate-500">
-                    "{search}" araması
-                  </span>
-                </>
+                  <span className="text-slate-500">"{search}" araması</span></>
               ) : (
                 <span className="text-slate-400">{filtered.length} kayıt</span>
               )}
@@ -487,110 +532,59 @@ export default function TasBilgiKutuphanesiPage() {
               const isActive = activeKat === kat;
               const cfg = kat === "Tümü" ? null : katConfig(kat);
               return (
-                <button
-                  key={kat}
-                  type="button"
-                  onClick={() => setActiveKat(kat)}
+                <button key={kat} type="button" onClick={() => setActiveKat(kat)}
                   className="rounded-full border px-2.5 py-1 text-[11px] font-bold transition-all"
-                  style={
-                    isActive
-                      ? {
-                          background: cfg?.color ?? "#334155",
-                          borderColor: cfg?.color ?? "#334155",
-                          color: "white",
-                        }
-                      : {
-                          background: cfg?.bg ?? "white",
-                          borderColor: cfg?.border ?? "#e2e8f0",
-                          color: cfg?.color ?? "#475569",
-                        }
-                  }
-                >
+                  style={isActive
+                    ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
+                    : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
                   {cfg?.icon} {kat}
                   {kat !== "Tümü" && (
-                    <span className="ml-1 opacity-60">
-                      ({records.filter((r) => r.kategori === kat).length})
-                    </span>
+                    <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
                   )}
                 </button>
               );
             })}
           </div>
 
-          {/* Makale listesi */}
+          {/* Liste */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-slate-400">
-                Yükleniyor...
-              </div>
+              <div className="flex h-32 items-center justify-center text-sm text-slate-400">Yükleniyor...</div>
             ) : filtered.length === 0 ? (
               <div className="flex h-32 flex-col items-center justify-center gap-1 text-sm text-slate-400">
                 <span className="text-xl">🔍</span>
-                Kayıt bulunamadı
+                {articles.length === 0
+                  ? "Henüz makale yok. Yeni Kayıt butonu ile ekleyebilirsin."
+                  : "Kayıt bulunamadı"}
               </div>
             ) : (
               <div className="py-1">
                 {filtered.map((rec) => {
                   const isSelected = rec.id === selectedId;
-                  const cfg = katConfig(rec.kategori);
+                  const cfg = katConfig(rec.category);
                   const matchCount = matchCounts.get(rec.id) ?? 0;
                   return (
-                    <button
-                      key={rec.id}
-                      type="button"
-                      onClick={() => selectRecord(rec.id)}
+                    <button key={rec.id} type="button" onClick={() => selectArticle(rec.id)}
                       className={`mx-2 mb-0.5 flex w-[calc(100%-16px)] items-start gap-3 rounded-xl px-3 py-3 text-left transition-all
-                        ${isSelected
-                          ? "shadow-md"
-                          : "hover:bg-slate-50"}`}
-                      style={isSelected ? { background: cfg.color } : undefined}
-                    >
-                      {/* İkon */}
-                      <span className="mt-0.5 shrink-0 text-base leading-none">
-                        {cfg.icon}
-                      </span>
-
+                        ${isSelected ? "shadow-md" : "hover:bg-slate-50"}`}
+                      style={isSelected ? { background: cfg.color } : undefined}>
+                      <span className="mt-0.5 shrink-0 text-base leading-none">{cfg.icon}</span>
                       <div className="min-w-0 flex-1">
-                        <div
-                          className={`text-sm font-bold leading-snug ${
-                            isSelected ? "text-white" : "text-slate-900"
-                          }`}
-                        >
-                          {rec.baslik}
+                        <div className={`text-sm font-bold leading-snug ${isSelected ? "text-white" : "text-slate-900"}`}>
+                          {rec.title}
                         </div>
-                        <div
-                          className={`mt-0.5 flex items-center gap-2 text-[11px] font-semibold ${
-                            isSelected ? "text-white/70" : "text-slate-400"
-                          }`}
-                        >
-                          <span>{rec.kategori}</span>
-                          {rec.kaynak && (
-                            <>
-                              <span>·</span>
-                              <span>{rec.kaynak.replace(/\.(docx|pdf)$/i, "")}</span>
-                            </>
-                          )}
+                        <div className={`mt-0.5 flex items-center gap-2 text-[11px] font-semibold ${isSelected ? "text-white/70" : "text-slate-400"}`}>
+                          <span>{rec.category}</span>
+                          {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
                         </div>
                         {viewed.has(rec.id) && (
-                          <div
-                            className={`mt-0.5 text-[11px] font-semibold ${
-                              isSelected ? "text-white/55" : "text-rose-400/80"
-                            }`}
-                          >
+                          <div className={`mt-0.5 text-[11px] font-semibold ${isSelected ? "text-white/55" : "text-rose-400/80"}`}>
                             ✓ Bakıldı
                           </div>
                         )}
                       </div>
-
-                      {/* Eşleşme rozeti */}
                       {matchCount > 0 && (
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            isSelected
-                              ? "bg-white/25 text-white"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${isSelected ? "bg-white/25 text-white" : "bg-yellow-100 text-yellow-800"}`}>
                           {matchCount}
                         </span>
                       )}
@@ -602,35 +596,22 @@ export default function TasBilgiKutuphanesiPage() {
           </div>
         </aside>
 
-        {/* ── Sağ panel: İçerik ─────────────────────────────────────────── */}
-        <div
-          className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100
-            ${mobileView === "list" ? "hidden md:flex" : "flex"}`}
-        >
-          {!selectedRecord ? (
-            /* Boş durum */
+        {/* Sağ panel */}
+        <div className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100
+          ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
+          {!selectedArticle ? (
             <div className="flex flex-1 items-center justify-center p-8">
               <div className="max-w-md rounded-3xl border border-white bg-white px-10 py-12 text-center shadow-md">
                 <div className="mb-4 text-5xl">📚</div>
-                <h2 className="text-2xl font-black text-slate-900">
-                  Taş Bilgi Kütüphanesi
-                </h2>
+                <h2 className="text-2xl font-black text-slate-900">Taş Bilgi Kütüphanesi</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-500">
-                  Sol panelden bir makale seçerek mineroloji, şifa,
-                  araştırma ve uygulama bilgilerini okuyabilirsin.
+                  Sol panelden bir makale seçerek okuyabilirsin.
                   Arama motoruyla tam metin içinde arama yapabilirsin.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                   {Object.entries(KAT_CONFIG).map(([kat, cfg]) => (
-                    <span
-                      key={kat}
-                      className="rounded-full border px-3 py-1 text-xs font-bold"
-                      style={{
-                        borderColor: cfg.border,
-                        background: cfg.bg,
-                        color: cfg.color,
-                      }}
-                    >
+                    <span key={kat} className="rounded-full border px-3 py-1 text-xs font-bold"
+                      style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
                       {cfg.icon} {kat}
                     </span>
                   ))}
@@ -639,82 +620,60 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           ) : (
             <>
-              {/* ── Detay başlık barı ──────────────────────────────────── */}
+              {/* Detay başlık */}
               <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 shadow-sm">
                 <div className="flex items-start gap-3">
-                  {/* Mobil geri */}
-                  <button
-                    type="button"
-                    onClick={() => setMobileView("list")}
-                    className="mt-0.5 shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 md:hidden"
-                  >
+                  <button type="button" onClick={() => setMobileView("list")}
+                    className="mt-0.5 shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 md:hidden">
                     ← Geri
                   </button>
-
                   <div className="min-w-0 flex-1">
-                    {/* Kategori + arama bilgisi */}
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {(() => {
-                        const cfg = katConfig(selectedRecord.kategori);
+                        const cfg = katConfig(selectedArticle.category);
                         return (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black"
-                            style={{
-                              borderColor: cfg.border,
-                              background: cfg.bg,
-                              color: cfg.color,
-                            }}
-                          >
-                            {cfg.icon} {selectedRecord.kategori}
+                          <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black"
+                            style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
+                            {cfg.icon} {selectedArticle.category}
                           </span>
                         );
                       })()}
-
                       {searchTerms.length > 0 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-800">
                           🔍 Arama: {search}
-                          {selectedIcerikMatchCount > 0 && (
+                          {selectedContentMatchCount > 0 && (
                             <span className="rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black">
-                              {selectedIcerikMatchCount} eşleşme
+                              {selectedContentMatchCount} eşleşme
                             </span>
                           )}
                         </span>
                       )}
                     </div>
-
                     <h2 className="text-xl font-black leading-snug text-slate-950 sm:text-2xl">
-                      {selectedRecord.baslik}
+                      {selectedArticle.title}
                     </h2>
-
-                    {/* Meta */}
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {selectedRecord.kaynak && (
+                      {selectedArticle.source && (
                         <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                          📄 {selectedRecord.kaynak.replace(/\.(docx|pdf)$/i, "")}
+                          📄 {selectedArticle.source.replace(/\.(docx|pdf)$/i, "")}
                         </span>
                       )}
-                      {selectedRecord.kaynak_bolum &&
-                        selectedRecord.kaynak_bolum !== selectedRecord.baslik && (
-                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                            § {selectedRecord.kaynak_bolum}
-                          </span>
-                        )}
-                      {selectedRecord.etiketler.map((tag, i) => (
-                        <span
-                          key={i}
-                          className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700"
-                        >
-                          #{tag}
+                      {selectedArticle.source_section && selectedArticle.source_section !== selectedArticle.title && (
+                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                          § {selectedArticle.source_section}
                         </span>
+                      )}
+                      {selectedArticle.tags.map((tag, i) => (
+                        <span key={i} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">#{tag}</span>
                       ))}
-                      {selectedRecord.ilgili_taslar.length > 0 && (
+                      {selectedArticle.related_stones.length > 0 && (
                         <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                          💎 {selectedRecord.ilgili_taslar.join(", ")}
+                          💎 {selectedArticle.related_stones.join(", ")}
                         </span>
                       )}
-                      {selectedRecord.ilgili_mineraller.length > 0 && (
+                      {selectedArticle.related_minerals.length > 0 && (
                         <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                          ⚗️ {selectedRecord.ilgili_mineraller.join(", ")}
+                          ⚗️ {selectedArticle.related_minerals.join(", ")}
                         </span>
                       )}
                     </div>
@@ -722,17 +681,13 @@ export default function TasBilgiKutuphanesiPage() {
                 </div>
               </div>
 
-              {/* ── İçerik alanı ──────────────────────────────────────── */}
+              {/* İçerik */}
               <div ref={contentRef} className="flex-1 overflow-y-auto">
                 <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
                   <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
-                    <div
-                      className="text-base lg:text-[17px]"
-                      style={{ color: "#374151" }}
-                    >
-                      {renderContent(selectedRecord.icerik, searchTerms)}
+                    <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
+                      {renderContent(selectedArticle.content, searchTerms)}
                     </div>
-
                   </article>
                 </div>
               </div>
