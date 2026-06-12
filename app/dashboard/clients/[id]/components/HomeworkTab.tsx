@@ -425,6 +425,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const [saving, setSaving] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const activeCount = useMemo(
     () => homeworks.filter((item) => item.status === "devam").length,
@@ -574,6 +575,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     }
 
     setForm({ ...emptyForm, startDate: todayISO() });
+    setShowForm(false);
     await loadHomeworks();
     setSaving(false);
 
@@ -756,81 +758,109 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               </p>
             </div>
 
-            <div className="grid grid-cols-5 gap-3">
-              <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
-                <div className="text-lg font-black text-amber-700">
-                  {activeCount}
+            <div className="flex flex-col items-end gap-2">
+              <div className="grid grid-cols-5 gap-3">
+                <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-lg font-black text-amber-700">
+                    {activeCount}
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    devam
+                  </div>
                 </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  devam
+
+                <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-lg font-black text-emerald-700">
+                    {completedCount}
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    tamam
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-red-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-lg font-black text-red-600">
+                    {lateCount}
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    geciken
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-lg font-black text-slate-700">
+                    {dismissedExpiredCount}
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    kapatılan
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-sm font-black text-violet-700">
+                    {nearestEndDate}
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    en yakın
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center shadow-md">
-                <div className="text-lg font-black text-emerald-700">
-                  {completedCount}
-                </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  tamam
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-red-200 bg-white px-3 py-2 text-center shadow-md">
-                <div className="text-lg font-black text-red-600">
-                  {lateCount}
-                </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  geciken
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center shadow-md">
-                <div className="text-lg font-black text-slate-700">
-                  {dismissedExpiredCount}
-                </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  kapatılan
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-center shadow-md">
-                <div className="text-sm font-black text-violet-700">
-                  {nearestEndDate}
-                </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  en yakın
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowForm((v) => !v)}
+                className={showForm
+                  ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"}
+              >
+                {showForm ? "Formu Kapat" : "+ Yeni Ödev Ekle"}
+              </button>
             </div>
           </div>
 
           <div className="mt-4 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 via-violet-400 to-red-400" />
         </div>
 
-        <div className="p-4">
-          {errorMessage && (
-            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {errorMessage}
+      </div>
+
+      {showForm && (
+        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-lg shadow-slate-200/60">
+          <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
+            <div>
+              <h3 className="text-xl font-black text-slate-950">Yeni Ödev Kaydı</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">Uzun alanları "Büyüt" ile geniş ekranda düzenleyebilirsin.</p>
             </div>
-          )}
-
-          <HomeworkForm
-            data={form}
-            onChange={updateFormField}
-            openEditor={openEditor}
-          />
-
-          <div className="mt-4 flex justify-center">
             <button
-              onClick={addHomework}
-              disabled={saving}
-              className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              {saving ? "Kaydediliyor..." : "✅ Ödevi Kaydet"}
+              Vazgeç
             </button>
           </div>
+          <div className="p-4">
+            {errorMessage && (
+              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {errorMessage}
+              </div>
+            )}
+            <HomeworkForm
+              data={form}
+              onChange={updateFormField}
+              openEditor={openEditor}
+            />
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={addHomework}
+                disabled={saving}
+                className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
+              >
+                {saving ? "Kaydediliyor..." : "✅ Ödevi Kaydet"}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -862,7 +892,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               Henüz ödev kaydı yok
             </div>
             <p className="mt-2 text-sm font-medium text-slate-500">
-              İlk ödevi yukarıdaki formdan ekleyebilirsin.
+              "+ Yeni Ödev Ekle" butonundan ilk kaydı oluşturabilirsin.
             </p>
           </div>
         ) : (

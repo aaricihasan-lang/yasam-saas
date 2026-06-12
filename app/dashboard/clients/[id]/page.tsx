@@ -659,6 +659,7 @@ function AppointmentsTab({
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isNarrow, setIsNarrow] = useState(false);
 
@@ -821,6 +822,7 @@ function AppointmentsTab({
     setDate("");
     setDayInterval(1);
     setManualDates([""]);
+    setShowForm(false);
 
     await loadAppointments();
     setSaving(false);
@@ -896,63 +898,47 @@ function AppointmentsTab({
           </p>
         </div>
 
-        <div style={appointmentStats}>
-          <MiniStat label="Toplam" value={appointments.length} color="#db2777" bg="#fdf2f8" />
-          <MiniStat label="Yaklaşan" value={upcomingCount} color="#16a34a" bg="#f0fdf4" />
-          <MiniStat label="Geçmiş" value={pastCount} color="#64748b" bg="#f8fafc" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <div style={appointmentStats}>
+            <MiniStat label="Toplam" value={appointments.length} color="#db2777" bg="#fdf2f8" />
+            <MiniStat label="Yaklaşan" value={upcomingCount} color="#16a34a" bg="#f0fdf4" />
+            <MiniStat label="Geçmiş" value={pastCount} color="#64748b" bg="#f8fafc" />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            style={{
+              border: showForm ? "1px solid #e2e8f0" : "none",
+              background: showForm ? "#f8fafc" : "linear-gradient(135deg, #4f46e5, #db2777)",
+              color: showForm ? "#334155" : "white",
+              padding: "9px 14px",
+              borderRadius: 12,
+              fontWeight: 850,
+              fontSize: 13,
+              cursor: "pointer",
+              boxShadow: showForm ? "none" : "0 6px 14px rgba(219,39,119,0.18)",
+            }}
+          >
+            {showForm ? "Formu Kapat" : "+ Yeni Randevu Ekle"}
+          </button>
         </div>
       </div>
 
-      <div style={isNarrow ? { ...appointmentLayout, gridTemplateColumns: "1fr" } : appointmentLayout}>
-        <div style={appointmentListBox}>
-          <h3 style={boxTitle}>Randevu Listesi</h3>
-
-          {loading ? (
-            <p>Randevular yükleniyor...</p>
-          ) : appointments.length === 0 ? (
-            <div style={emptyAppointmentBox}>Bu danışan için henüz randevu yok.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 14 }}>
-              {appointments.map((item, index) => {
-                const statusInfo = getAppointmentStatusInfo(item);
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedAppointment(item)}
-                    style={appointmentCardButton}
-                  >
-                    <div style={appointmentIndex}>{index + 1}</div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={appointmentTopLine}>
-                        <div style={appointmentTitle}>{item.title || "Görüşme"}</div>
-                        <span
-                          style={{
-                            ...statusBadge,
-                            background: statusInfo.bg,
-                            color: statusInfo.color,
-                            border: `1px solid ${statusInfo.border}`,
-                          }}
-                        >
-                          {statusInfo.label}
-                        </span>
-                      </div>
-
-                      <div style={appointmentDate}>{formatDateTimeTR(item.appointment_date)}</div>
-                      {item.notes && <div style={appointmentNote}>{item.notes}</div>}
-                    </div>
-                  </button>
-                );
-              })}
+      {showForm && (
+        <div style={{ ...appointmentFormBox, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={formTopBadge}>Yeni Randevu</div>
+              <h3 style={{ ...boxTitle, marginTop: 6 }}>Yeni Randevu Ekle</h3>
             </div>
-          )}
-        </div>
-
-        <div style={appointmentFormBox}>
-          <div style={formTopBadge}>Yeni Randevu</div>
-          <h3 style={boxTitle}>Yeni Randevu Ekle</h3>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              style={cancelDeleteButton}
+            >
+              Vazgeç
+            </button>
+          </div>
 
           <div style={formColumn}>
             <div>
@@ -1066,6 +1052,52 @@ function AppointmentsTab({
             </button>
           </div>
         </div>
+      )}
+
+      <div style={appointmentListBox}>
+        <h3 style={boxTitle}>Randevu Listesi</h3>
+
+        {loading ? (
+          <p>Randevular yükleniyor...</p>
+        ) : appointments.length === 0 ? (
+          <div style={emptyAppointmentBox}>Bu danışan için henüz randevu yok.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 14 }}>
+            {appointments.map((item, index) => {
+              const statusInfo = getAppointmentStatusInfo(item);
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedAppointment(item)}
+                  style={appointmentCardButton}
+                >
+                  <div style={appointmentIndex}>{index + 1}</div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={appointmentTopLine}>
+                      <div style={appointmentTitle}>{item.title || "Görüşme"}</div>
+                      <span
+                        style={{
+                          ...statusBadge,
+                          background: statusInfo.bg,
+                          color: statusInfo.color,
+                          border: `1px solid ${statusInfo.border}`,
+                        }}
+                      >
+                        {statusInfo.label}
+                      </span>
+                    </div>
+
+                    <div style={appointmentDate}>{formatDateTimeTR(item.appointment_date)}</div>
+                    {item.notes && <div style={appointmentNote}>{item.notes}</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {selectedAppointment && (
