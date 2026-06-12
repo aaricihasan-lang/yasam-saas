@@ -226,6 +226,7 @@ export default function DogaltasKayitPage() {
   const [savedMessage, setSavedMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
@@ -427,6 +428,7 @@ export default function DogaltasKayitPage() {
     setImages([]);
     setPreviewImage(null);
     showMessage("Doğaltaş kaydı Supabase'e kaydedildi.");
+    setShowForm(false);
   }
 
   function handleClear() {
@@ -466,20 +468,61 @@ export default function DogaltasKayitPage() {
             </div>
           </div>
 
-          {(savedMessage || errorMessage) && (
-            <span
-              className={`rounded-2xl px-5 py-3 text-base font-black ring-1 ${
-                errorMessage
-                  ? "bg-rose-50 text-rose-700 ring-rose-100"
-                  : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+          <div className="flex flex-wrap items-center gap-2">
+            {(savedMessage || errorMessage) && (
+              <span
+                className={`rounded-2xl px-5 py-3 text-base font-black ring-1 ${
+                  errorMessage
+                    ? "bg-rose-50 text-rose-700 ring-rose-100"
+                    : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                }`}
+              >
+                {errorMessage || savedMessage}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className={`rounded-xl px-5 py-2.5 text-sm font-black shadow-md transition hover:brightness-110 ${
+                showForm
+                  ? "border border-slate-200 bg-white text-slate-700"
+                  : "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
               }`}
             >
-              {errorMessage || savedMessage}
-            </span>
-          )}
+              {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
+            </button>
+          </div>
         </header>
 
-        <section className="space-y-4">
+        {!showForm && (
+          <div className="rounded-[24px] border-[3px] border-cyan-300/40 bg-white/65 shadow-[0_0_40px_rgba(6,182,212,0.10)] backdrop-blur-xl flex flex-col items-center gap-4 py-14 text-center">
+            <span className="text-5xl">💎</span>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">Doğaltaş Kayıt Ekranı</h2>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Yeni taş kaydı oluşturmak için "+ Yeni Kayıt" butonuna basın.
+                Kayıtlı taşları Taş Listesi'nden görüntüleyebilirsiniz.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+              >
+                + Yeni Kayıt Oluştur
+              </button>
+              <a
+                href="/dogaltas/dogaltas-listesi"
+                className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Taş Listesi
+              </a>
+            </div>
+          </div>
+        )}
+
+        {showForm && <section className="space-y-4">
           <div className={`${uiCard} p-4`}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -800,10 +843,10 @@ export default function DogaltasKayitPage() {
               </div>
             )}
           </div>
-        </section>
+        </section>}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 py-2.5 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
+      {showForm && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 px-5 py-2.5 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl xl:px-8 2xl:px-10">
         <div className="flex w-full items-center justify-between gap-3">
           <p className="text-sm font-semibold text-slate-500">
             Kaydedilmeden ayrılırsanız taslak kaybolabilir.
@@ -828,7 +871,7 @@ export default function DogaltasKayitPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       {largeEditorTitle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-6 backdrop-blur-sm">

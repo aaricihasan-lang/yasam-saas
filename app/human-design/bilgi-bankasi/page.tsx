@@ -13,7 +13,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function HdBilgiBankasiPage() {
-  const [tab, setTab] = useState<TabId>("kayit-ekle");
+  const [tab, setTab] = useState<TabId>("kayit-listesi");
 
   return (
     <HumanDesignShell>

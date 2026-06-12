@@ -127,6 +127,7 @@ export default function MineralBankasiPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const activeSectionInfo = useMemo(
     () => mineralSections.find((section) => section.key === activeSection)!,
@@ -200,6 +201,7 @@ export default function MineralBankasiPage() {
 
     setMessage(`${nameTrim} başarıyla kaydedildi.`);
     resetForm();
+    setShowForm(false);
   }
 
   return (
@@ -233,22 +235,33 @@ export default function MineralBankasiPage() {
               Mineral Listesi
             </Link>
 
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
-            >
-              Yeni Mineral
-            </button>
-
-            <button
-              type="button"
-              onClick={saveMineral}
-              disabled={saving}
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
-            >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
-            </button>
+            {showForm ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { resetForm(); setShowForm(false); }}
+                  className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
+                >
+                  Formu Kapat
+                </button>
+                <button
+                  type="button"
+                  onClick={saveMineral}
+                  disabled={saving}
+                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+              >
+                + Yeni Kayıt
+              </button>
+            )}
           </div>
         </header>
 
@@ -264,7 +277,27 @@ export default function MineralBankasiPage() {
           </div>
         )}
 
-        <section className={`${uiCard} mb-2 grid grid-cols-1 gap-2 p-3 md:grid-cols-2`}>
+        {!showForm && (
+          <div className={`${uiCard} flex flex-col items-center gap-4 py-14 text-center`}>
+            <span className="text-5xl">⚗️</span>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">Mineral Kayıt Ekranı</h2>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Yeni mineral kaydı oluşturmak için aşağıdaki butona basın.
+                Mevcut mineralleri Mineral Listesi'nden görüntüleyebilirsiniz.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+            >
+              + Yeni Kayıt Oluştur
+            </button>
+          </div>
+        )}
+
+        {showForm && <section className={`${uiCard} mb-2 grid grid-cols-1 gap-2 p-3 md:grid-cols-2`}>
           <label className="block md:col-span-2">
             <span className="mb-1 block text-xs font-black tracking-[0.16em] text-emerald-800">
               MİNERAL ADI
@@ -288,9 +321,9 @@ export default function MineralBankasiPage() {
               className={uiInput}
             />
           </label>
-        </section>
+        </section>}
 
-        <section className="grid grid-cols-1 gap-3 xl:grid-cols-[220px_1fr]">
+        {showForm && <section className="grid grid-cols-1 gap-3 xl:grid-cols-[220px_1fr]">
           <aside className={`${uiCard} p-2.5`}>
             <h2 className="mb-1.5 px-1 text-sm font-black text-slate-950">Kayıt Bölümleri</h2>
 
@@ -364,7 +397,7 @@ export default function MineralBankasiPage() {
               </div>
             </button>
           </section>
-        </section>
+        </section>}
       </div>
 
       {expandedEditor ? (

@@ -13,7 +13,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function HdDanisanlarPage() {
-  const [tab, setTab] = useState<TabId>("ekle");
+  const [tab, setTab] = useState<TabId>("liste");
 
   return (
     <HumanDesignShell>
