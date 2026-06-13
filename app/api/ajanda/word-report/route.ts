@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 
 const C_AJANDA = "1e3a5f"; // lacivert
 
-type ExportMode = "all" | "selected" | "filtered" | "weekly" | "monthly";
+type ExportMode = "all" | "selected" | "filtered" | "weekly" | "monthly" | "single";
 
 type AppointmentRow = {
   id: string;
@@ -63,10 +63,11 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", appointmentIds, dateRange } = body as {
+  const { tenantId, exportMode = "all", appointmentIds, appointmentId, dateRange } = body as {
     tenantId?: string;
     exportMode?: ExportMode;
     appointmentIds?: string[];
+    appointmentId?: string;   // single mode için
     dateRange?: { start: string; end: string };
   };
 
@@ -82,7 +83,9 @@ export async function POST(request: Request): Promise<Response> {
 
   let query = db.from("appointments").select("*").eq("tenant_id", tenantId);
 
-  if ((exportMode === "selected" || exportMode === "filtered") && Array.isArray(appointmentIds) && appointmentIds.length > 0) {
+  if (exportMode === "single" && appointmentId) {
+    query = query.eq("id", appointmentId);
+  } else if ((exportMode === "selected" || exportMode === "filtered") && Array.isArray(appointmentIds) && appointmentIds.length > 0) {
     query = query.in("id", appointmentIds);
   } else if ((exportMode === "weekly" || exportMode === "monthly") && dateRange?.start && dateRange?.end) {
     query = query.gte("appointment_date", dateRange.start).lte("appointment_date", dateRange.end);
@@ -121,6 +124,7 @@ export async function POST(request: Request): Promise<Response> {
     filtered: "Filtrelenmiş Randevular",
     weekly: "Haftalık Randevular",
     monthly: "Aylık Randevular",
+    single: appointments[0]?.title ? `Tek Randevu — ${appointments[0].title}` : "Tek Randevu",
   };
   const exportLabel = modeLabels[exportMode] ?? "Randevular";
 
@@ -202,7 +206,9 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug = exportMode.replace(/[^a-z]/g, "-");
+  const modeSlug = exportMode === "single" && appointments[0]
+    ? `tek-${appointments[0].appointment_date.slice(0, 10)}`
+    : exportMode.replace(/[^a-z]/g, "-");
   const filename = `ajanda-${modeSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {

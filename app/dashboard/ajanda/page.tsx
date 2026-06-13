@@ -110,6 +110,7 @@ export default function AjandaPage() {
   const [saving, setSaving] = useState(false);
   const [selectedApptIds, setSelectedApptIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [singleWordBusy, setSingleWordBusy] = useState(false);
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
@@ -275,6 +276,35 @@ export default function AjandaPage() {
       showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
     } finally {
       setWordBusy(false);
+    }
+  }
+
+  async function exportSingleAppointmentWord(apptId: string) {
+    if (!tenantId) return;
+    setSingleWordBusy(true);
+    try {
+      const res = await fetch("/api/ajanda/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "single", appointmentId: apptId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ajanda-tek-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Tek randevu raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
+      setSingleWordBusy(false);
     }
   }
 
@@ -1012,6 +1042,16 @@ export default function AjandaPage() {
                     {selectedAppointment.notes || "Not girilmemiş."}
                   </div>
                 </div>
+
+                {/* Tek randevu Word butonu */}
+                <button
+                  type="button"
+                  disabled={singleWordBusy}
+                  onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                >
+                  {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                </button>
 
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   <button
