@@ -73,6 +73,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
+  if (exportMode === "single" && !protocolId)
+    return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !supabaseKey)
@@ -80,7 +83,6 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = createClient(supabaseUrl, supabaseKey);
 
-  // GÜVENLIK: tenant_id filtresi her zaman uygulanıyor
   let query = db.from("reflexology_protocols").select("*").eq("tenant_id", tenantId);
 
   if (exportMode === "single" && protocolId) {

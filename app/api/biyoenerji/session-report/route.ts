@@ -7,7 +7,6 @@ import {
   buildStatsPage,
   buildTOCPage,
   divider,
-  fieldInline,
   h1Colored,
   h2,
   h3,

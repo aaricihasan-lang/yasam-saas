@@ -74,6 +74,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
+  if (exportMode === "single" && !appointmentId)
+    return Response.json({ ok: false, error: "Tek randevu için appointmentId zorunludur." }, { status: 400 });
+  if ((exportMode === "selected" || exportMode === "filtered") && (!Array.isArray(appointmentIds) || appointmentIds.length === 0))
+    return Response.json({ ok: false, error: "Seçili randevular için appointmentIds zorunludur." }, { status: 400 });
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !supabaseKey)
