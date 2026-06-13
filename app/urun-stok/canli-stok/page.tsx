@@ -153,6 +153,34 @@ export default function CanliStokMerkeziPage() {
   const [category, setCategory] = useState<LiveStockCategory | "all">("all");
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("name");
+  const [wordBusy, setWordBusy] = useState(false);
+
+  async function exportStockWord(mode: "all" | "critical") {
+    const tid = tenantId ?? await getSyncedTenantId();
+    if (!tid) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/urun-stok/stock-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, exportMode: mode }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        alert(err.error || "Rapor oluşturulamadı.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dogaltas-stok-${mode === "critical" ? "kritik" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const list = filterLiveStock(rows, { q: search, category, criticalOnly });
@@ -297,6 +325,29 @@ export default function CanliStokMerkeziPage() {
             Listelenen: <span className="font-black text-violet-800">{filtered.length}</span> / {rows.length} stoklu
             kalem
           </p>
+          {/* Word export butonları */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
+            <span className="text-xs font-black uppercase tracking-wide text-slate-500">Word Raporu:</span>
+            <button
+              type="button"
+              disabled={wordBusy || rows.length === 0}
+              onClick={() => void exportStockWord("all")}
+              className="rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-50"
+            >
+              {wordBusy ? "⏳ Hazırlanıyor..." : `📄 Tüm Stok Word (${rows.length})`}
+            </button>
+            <button
+              type="button"
+              disabled={wordBusy || summary.criticalCount === 0}
+              onClick={() => void exportStockWord("critical")}
+              className="rounded-xl border-2 border-rose-200 bg-rose-50 px-3 py-2 text-sm font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-50"
+            >
+              {wordBusy ? "⏳..." : `⚠️ Kritik Stok Word (${summary.criticalCount})`}
+            </button>
+            <span className="text-xs text-slate-400">
+              (Yalnızca Doğaltaş envanteri · diğer kategoriler yerel depolama tabanlı)
+            </span>
+          </div>
         </section>
 
         {filtered.length === 0 ? (
