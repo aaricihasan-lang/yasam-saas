@@ -138,6 +138,7 @@ export default function ClientDetailPage() {
   const [editKan, setEditKan] = useState("");
   const [editMizac, setEditMizac] = useState("");
   const [savingAll, setSavingAll] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   const [editDogum, setEditDogum] = useState("");
 
@@ -334,6 +335,47 @@ export default function ClientDetailPage() {
     setSavingClientNotes(false);
   }
 
+  async function generateWordReport() {
+    if (!tenantId || !client) return;
+    setGeneratingReport(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
+      const nameSlug = rawName
+        .toLowerCase()
+        .replace(/ı/g, "i").replace(/İ/g, "i")
+        .replace(/ğ/g, "g").replace(/Ğ/g, "g")
+        .replace(/ü/g, "u").replace(/Ü/g, "u")
+        .replace(/ş/g, "s").replace(/Ş/g, "s")
+        .replace(/ö/g, "o").replace(/Ö/g, "o")
+        .replace(/ç/g, "c").replace(/Ç/g, "c")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const dateSlug = new Date().toISOString().slice(0, 10);
+      link.download = `danisan-raporu-${nameSlug}-${dateSlug}.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Rapor indirme başlatıldı.", type: "success" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({ title: "Hata", message, type: "error" });
+    } finally {
+      setGeneratingReport(false);
+    }
+  }
+
   async function deleteClient() {
     if (!tenantId) return;
 
@@ -390,9 +432,23 @@ export default function ClientDetailPage() {
           ← Danışanlara Dön
         </button>
 
-        <button onClick={() => setShowDeleteModal(true)} style={deleteClientButton}>
-          Danışanı Sil
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            onClick={generateWordReport}
+            disabled={generatingReport}
+            style={{
+              ...wordReportButton,
+              opacity: generatingReport ? 0.7 : 1,
+              cursor: generatingReport ? "default" : "pointer",
+            }}
+          >
+            {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Rapor Oluştur"}
+          </button>
+
+          <button onClick={() => setShowDeleteModal(true)} style={deleteClientButton}>
+            Danışanı Sil
+          </button>
+        </div>
       </div>
 
       <section style={heroCard}>
@@ -1275,6 +1331,18 @@ const backButton: React.CSSProperties = {
   fontWeight: 850,
   fontSize: 13,
   cursor: "pointer",
+};
+
+const wordReportButton: React.CSSProperties = {
+  border: "none",
+  background: "linear-gradient(135deg, #1e3a5f, #2563eb)",
+  color: "white",
+  padding: "9px 16px",
+  borderRadius: 12,
+  fontWeight: 850,
+  fontSize: 13,
+  cursor: "pointer",
+  boxShadow: "0 6px 14px rgba(37,99,235,0.22)",
 };
 
 const deleteClientButton: React.CSSProperties = {
