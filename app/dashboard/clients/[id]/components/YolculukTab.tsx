@@ -1,39 +1,89 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
+import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
+import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
+import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 
-// ─── Public type — ileride parent'tan gerçek veri beslenir ───────────────────
+// ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
   id: string;
+  type: string;
   title: string;
   description: string;
   date: string;
-  type: string;
+  dateRaw: string;
   href?: string;
+  badge?: string;
 };
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 type YolculukTabProps = {
+  clientId: string;
+  tenantId: string | null;
   clientName: string;
   clientPhone?: string;
   clientLastSession?: string;
   clientNextAppointment?: string;
-  /** Gerçek veri bağlandığında dışarıdan beslenir. Şimdilik boş. */
-  entries?: TimelineEntry[];
-  /** Özet sayaçlar — gerçek veri bağlandığında dışarıdan beslenir. */
-  counts?: {
-    analizler: number;
-    seanslar: number;
-    randevular: number;
-    notlar: number;
-  };
-  /** Danışan yolculuğu sol menüsünden üst sekmeye geçiş için callback. */
+  clientAd?: string;
+  clientSoyad?: string;
+  clientDogum?: string;
   onNavigate?: (tabId: string) => void;
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function isoToTR(isoDate: string | null | undefined): string {
+  if (!isoDate) return "-";
+  const datePart = isoDate.split("T")[0];
+  const parts = datePart.split("-");
+  if (parts.length !== 3) return isoDate;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+}
+
+function statusLabel(status: string | null | undefined): string {
+  if (status === "tamamlandi") return "Tamamlandı";
+  if (status === "iptal") return "İptal edildi";
+  return "Bekliyor";
+}
+
+function calcPersonalYear(dogum: string): string {
+  try {
+    const parts = dogum.split("-");
+    if (parts.length !== 3) return "-";
+    const syntheticDate = `${parts[2]}.${parts[1]}.${new Date().getFullYear()}`;
+    const digits = Array.from(syntheticDate)
+      .filter((c) => /\d/.test(c))
+      .map(Number);
+    let total = digits.reduce((a, b) => a + b, 0);
+    const specials = new Set([11, 22, 33]);
+    while (total > 9 && !specials.has(total)) {
+      total = Array.from(String(total)).reduce((a, c) => a + Number(c), 0);
+    }
+    return String(total);
+  } catch {
+    return "-";
+  }
+}
+
+function calcAge(dogum: string): number | null {
+  try {
+    const [year, month, day] = dogum.split("-").map(Number);
+    if (!year || !month || !day) return null;
+    const today = new Date();
+    const birth = new Date(year, month - 1, day);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 ? age : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Sol menü tanımları ──────────────────────────────────────────────────────
-// tabId: mevcut detay sayfasındaki gerçek sekme key'i. null = henüz sekme yok.
 type MenuItem = {
   id: string;
   label: string;
@@ -43,25 +93,27 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { id: "genel",       label: "Genel Bilgiler", icon: "◈", color: "#2563eb", tabId: "genel" },
-  { id: "numeroloji",  label: "Numeroloji",     icon: "∞", color: "#7c3aed", tabId: null },
-  { id: "dogaltas",    label: "Doğaltaş",       icon: "◆", color: "#0891b2", tabId: "taslar" },
-  { id: "refleksoloji",label: "Refleksoloji",   icon: "◎", color: "#db2777", tabId: null },
-  { id: "biyoenerji",  label: "Biyoenerji",     icon: "⚡", color: "#ea580c", tabId: null },
-  { id: "notlar",      label: "Notlar",          icon: "✎", color: "#6d28d9", tabId: "notlar" },
-  { id: "randevular",  label: "Randevular",     icon: "◷", color: "#16a34a", tabId: "randevular" },
-  { id: "dosyalar",    label: "Dosyalar",        icon: "▣", color: "#475569", tabId: null },
+  { id: "genel",        label: "Genel Bilgiler", icon: "◈", color: "#2563eb", tabId: "genel"     },
+  { id: "numeroloji",   label: "Numeroloji",     icon: "∞", color: "#7c3aed", tabId: null        },
+  { id: "dogaltas",     label: "Doğaltaş",       icon: "◆", color: "#0891b2", tabId: "taslar"   },
+  { id: "refleksoloji", label: "Refleksoloji",   icon: "◎", color: "#db2777", tabId: null        },
+  { id: "biyoenerji",   label: "Biyoenerji",     icon: "⚡", color: "#ea580c", tabId: null        },
+  { id: "notlar",       label: "Notlar",          icon: "✎", color: "#6d28d9", tabId: "notlar"   },
+  { id: "randevular",   label: "Randevular",     icon: "◷", color: "#16a34a", tabId: "randevular"},
+  { id: "dosyalar",     label: "Dosyalar",        icon: "▣", color: "#475569", tabId: null        },
 ];
 
 // ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
 const TYPE_META: Record<string, { color: string; accent: string; icon: string }> = {
-  numeroloji:  { color: "#7c3aed", accent: "#ede9fe", icon: "∞" },
-  dogaltas:    { color: "#0891b2", accent: "#e0f2fe", icon: "◆" },
-  refleksoloji:{ color: "#db2777", accent: "#fce7f3", icon: "◎" },
-  biyoenerji:  { color: "#ea580c", accent: "#fff7ed", icon: "⚡" },
-  not:         { color: "#6d28d9", accent: "#ede9fe", icon: "✎" },
-  seans:       { color: "#16a34a", accent: "#dcfce7", icon: "◈" },
-  randevu:     { color: "#9333ea", accent: "#f3e8ff", icon: "◷" },
+  numeroloji:   { color: "#7c3aed", accent: "#ede9fe", icon: "∞" },
+  dogaltas:     { color: "#0891b2", accent: "#e0f2fe", icon: "◆" },
+  refleksoloji: { color: "#db2777", accent: "#fce7f3", icon: "◎" },
+  biyoenerji:   { color: "#ea580c", accent: "#fff7ed", icon: "⚡" },
+  not:          { color: "#6d28d9", accent: "#ede9fe", icon: "✎" },
+  seans:        { color: "#16a34a", accent: "#dcfce7", icon: "◈" },
+  randevu:      { color: "#9333ea", accent: "#f3e8ff", icon: "◷" },
+  analiz:       { color: "#8b5cf6", accent: "#f5f3ff", icon: "◎" },
+  odev:         { color: "#ef4444", accent: "#fee2e2", icon: "✏" },
 };
 
 const DEFAULT_META = { color: "#64748b", accent: "#f1f5f9", icon: "◈" };
@@ -72,15 +124,230 @@ function getMeta(type: string) {
 
 // ─── Bileşen ─────────────────────────────────────────────────────────────────
 export default function YolculukTab({
+  clientId,
+  tenantId,
   clientName,
   clientPhone,
   clientLastSession,
   clientNextAppointment,
-  entries = [],
-  counts = { analizler: 0, seanslar: 0, randevular: 0, notlar: 0 },
+  clientAd,
+  clientSoyad,
+  clientDogum,
   onNavigate,
 }: YolculukTabProps) {
   const [activeMenu, setActiveMenu] = useState("genel");
+  const [entries, setEntries] = useState<TimelineEntry[]>([]);
+  const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0 });
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
+  useEffect(() => {
+    if (!clientId || !tenantId) return;
+
+    async function fetchTimeline() {
+      setTimelineLoading(true);
+      try {
+        const [sessionsRes, appointmentsRes, stonesRes, analysesRes, homeworksRes, notesRes] =
+          await Promise.all([
+            supabase
+              .from("client_sessions")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("appointments")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("client_stones")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("client_analyses")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("client_homeworks")
+              .select("*")
+              .eq("client_id", clientId)
+              .eq("tenant_id", tenantId),
+            supabase
+              .from("client_notes")
+              .select("*")
+              .eq("client_id", clientId)
+              .maybeSingle(),
+          ]);
+
+        const normalized: TimelineEntry[] = [];
+
+        // Seanslar
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const s of (sessionsRes.data ?? []) as any[]) {
+          normalized.push({
+            id: `seans-${s.id}`,
+            type: "seans",
+            title: s.session_type || "Seans",
+            description:
+              ([s.session_note, s.actions_done] as (string | null)[])
+                .filter(Boolean)
+                .join(" • ")
+                .slice(0, 150) || "Seans gerçekleşti",
+            date: isoToTR(s.session_date || s.created_at),
+            dateRaw: s.session_date || s.created_at || "",
+          });
+        }
+
+        // Randevular
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const a of (appointmentsRes.data ?? []) as any[]) {
+          normalized.push({
+            id: `randevu-${a.id}`,
+            type: "randevu",
+            title: a.title || "Randevu",
+            description: a.notes || statusLabel(a.status),
+            date: isoToTR(a.appointment_date),
+            dateRaw: a.appointment_date || "",
+          });
+        }
+
+        // Taşlar
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const t of (stonesRes.data ?? []) as any[]) {
+          normalized.push({
+            id: `tas-${t.id}`,
+            type: "dogaltas",
+            title: t.stone_name || "Doğaltaş",
+            description:
+              ([t.usage_area, t.stone_type] as (string | null)[])
+                .filter(Boolean)
+                .join(" — ") ||
+              t.note ||
+              "",
+            date: isoToTR(t.stone_date || t.created_at),
+            dateRaw: t.stone_date || t.created_at || "",
+          });
+        }
+
+        // Analizler
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const an of (analysesRes.data ?? []) as any[]) {
+          normalized.push({
+            id: `analiz-${an.id}`,
+            type: "analiz",
+            title: an.analysis_type || "Analiz",
+            description: an.note || "",
+            date: isoToTR(an.created_at),
+            dateRaw: an.created_at || "",
+          });
+        }
+
+        // Ödevler
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const hw of (homeworksRes.data ?? []) as any[]) {
+          normalized.push({
+            id: `odev-${hw.id}`,
+            type: "odev",
+            title: hw.title || hw.homework_type || "Ödev",
+            description:
+              ([hw.description, hw.expert_note] as (string | null)[])
+                .filter(Boolean)
+                .join(" • ")
+                .slice(0, 150) || "",
+            date: isoToTR(hw.start_date || hw.created_at),
+            dateRaw: hw.start_date || hw.created_at || "",
+          });
+        }
+
+        // Notlar — tek yapısal kayıt
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const noteData = notesRes.data as any;
+        if (noteData) {
+          const noteText = (
+            [noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (
+              | string
+              | null
+              | undefined
+            )[]
+          ).find(Boolean);
+          if (noteText) {
+            normalized.push({
+              id: "not-genel",
+              type: "not",
+              title: "Danışan Notu",
+              description: noteText.slice(0, 150),
+              date: isoToTR(noteData.created_at ?? new Date().toISOString()),
+              dateRaw: noteData.created_at ?? new Date(0).toISOString(),
+            });
+          }
+        }
+
+        // Numeroloji — doğum tarihi ve isim varsa otomatik hesap
+        if (clientDogum && (clientAd || clientSoyad)) {
+          try {
+            const firstName = clientAd || "";
+            const lastName = clientSoyad || "";
+            const hayatYolu = calcHayatYolu(clientDogum).display;
+            const kaderSayisi = calcIfadeSayisi(firstName, lastName).display;
+            const ruhSayisi = calcAnaKulvar(firstName, lastName).display;
+            const kisilikSayisi = calcYanKulvar(firstName, lastName).display;
+            const kisiselYil = calcPersonalYear(clientDogum);
+            const yas = calcAge(clientDogum);
+
+            const descParts: string[] = [
+              `Yaşam Yolu: ${hayatYolu}`,
+              `Kader Sayısı: ${kaderSayisi}`,
+              `Ruh Sayısı: ${ruhSayisi}`,
+              `Kişilik Sayısı: ${kisilikSayisi}`,
+              `Kişisel Yıl (${new Date().getFullYear()}): ${kisiselYil}`,
+            ];
+            if (yas != null) descParts.push(`Güncel Yaş: ${yas}`);
+
+            const now = new Date().toISOString();
+            normalized.push({
+              id: "numeroloji-auto",
+              type: "numeroloji",
+              title: "Otomatik Numeroloji Özeti",
+              description: descParts.join(" • "),
+              date: isoToTR(now),
+              dateRaw: now,
+              badge: "Otomatik hesaplandı",
+            });
+          } catch {
+            // numeroloji hatası sayfayı kırmasın
+          }
+        }
+
+        // Tarihe göre yeniden eskiye sırala
+        normalized.sort((a, b) =>
+          b.dateRaw > a.dateRaw ? 1 : b.dateRaw < a.dateRaw ? -1 : 0
+        );
+
+        setEntries(normalized);
+        setCounts({
+          analizler: analysesRes.data?.length ?? 0,
+          seanslar: sessionsRes.data?.length ?? 0,
+          randevular: appointmentsRes.data?.length ?? 0,
+          notlar:
+            noteData &&
+            ([noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (
+              | string
+              | null
+              | undefined
+            )[]).some(Boolean)
+              ? 1
+              : 0,
+        });
+      } catch {
+        // fetch hatası sayfayı kırmasın
+      } finally {
+        setTimelineLoading(false);
+      }
+    }
+
+    void fetchTimeline();
+  }, [clientId, tenantId, clientDogum, clientAd, clientSoyad]);
 
   function handleMenuClick(item: MenuItem) {
     setActiveMenu(item.id);
@@ -158,9 +425,7 @@ export default function YolculukTab({
                     {item.icon}
                   </span>
                   {item.label}
-                  {hasTab && (
-                    <span style={menuArrow}>→</span>
-                  )}
+                  {hasTab && <span style={menuArrow}>→</span>}
                 </button>
               );
             })}
@@ -177,7 +442,11 @@ export default function YolculukTab({
             </p>
           </div>
 
-          {entries.length === 0 ? (
+          {timelineLoading ? (
+            <div style={emptyBox}>
+              <div style={{ ...emptyTitle, color: "#94a3b8" }}>Yükleniyor...</div>
+            </div>
+          ) : entries.length === 0 ? (
             <EmptyState />
           ) : (
             <div style={timelineList}>
@@ -279,10 +548,15 @@ function TimelineCard({
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <span style={{ ...timelineTag, background: meta.accent, color: meta.color }}>
               {entry.type}
             </span>
+            {entry.badge && (
+              <span style={{ ...timelineTag, background: "#f0fdf4", color: "#15803d" }}>
+                {entry.badge}
+              </span>
+            )}
           </div>
           <div style={timelineCardTitle}>{entry.title}</div>
           <div style={timelineCardDetail}>{entry.description}</div>

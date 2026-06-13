@@ -853,9 +853,14 @@ export default function ClientDetailPage() {
 
           {activeTab === "yolculuk" && (
             <YolculukTab
+              clientId={client.id}
+              tenantId={tenantId}
               clientName={fullName || "Danışan"}
               clientPhone={client.telefon}
               clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
+              clientAd={client.ad}
+              clientSoyad={client.soyad}
+              clientDogum={client.dogum}
               onNavigate={setActiveTab}
             />
           )}
