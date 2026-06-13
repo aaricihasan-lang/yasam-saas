@@ -141,6 +141,7 @@ export default function ClientDetailPage() {
   const [editMizac, setEditMizac] = useState("");
   const [savingAll, setSavingAll] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [tabWordBusy, setTabWordBusy] = useState(false);
 
   const [editDogum, setEditDogum] = useState("");
 
@@ -378,6 +379,42 @@ export default function ClientDetailPage() {
     }
   }
 
+  async function generateTabWordReport(tab: string) {
+    if (!tenantId || !client) return;
+    setTabWordBusy(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "tab", tabName: tab }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
+      const nameSlug = rawName.toLowerCase()
+        .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
+        .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
+        .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
+        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const dateSlug = new Date().toISOString().slice(0, 10);
+      link.download = `danisan-${tab}-${nameSlug}-${dateSlug}.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Rapor indirme başlatıldı.", type: "success" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({ title: "Hata", message, type: "error" });
+    } finally {
+      setTabWordBusy(false);
+    }
+  }
+
   async function deleteClient() {
     if (!tenantId) return;
 
@@ -500,6 +537,11 @@ export default function ClientDetailPage() {
         <div style={contentBox}>
           {activeTab === "genel" && (
             <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Genel Bilgiler Word"}
+                </button>
+              </div>
               <div style={sectionHead}>
                 <div style={bluePill}>Genel Bilgiler</div>
                 <h2 style={sectionTitle}>Danışan Bilgilerini Düzenle</h2>
@@ -615,35 +657,83 @@ export default function ClientDetailPage() {
           )}
 
           {activeTab === "notlar" && (
-            <NotesTab
-              noteText={noteText}
-              setNoteText={setNoteText}
-              onSave={saveClientNotes}
-              saving={savingClientNotes}
-            />
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("notlar")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Notlar Word"}
+                </button>
+              </div>
+              <NotesTab
+                noteText={noteText}
+                setNoteText={setNoteText}
+                onSave={saveClientNotes}
+                saving={savingClientNotes}
+              />
+            </>
           )}
 
           {activeTab === "randevular" && (
-            <AppointmentsTab
-              clientId={client.id}
-              clientName={fullName || "Danışan"}
-              tenantId={tenantId}
-              confirm={confirm}
-              showToast={showToast}
-            />
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("randevular")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Randevu Geçmişi Word"}
+                </button>
+              </div>
+              <AppointmentsTab
+                clientId={client.id}
+                clientName={fullName || "Danışan"}
+                tenantId={tenantId}
+                confirm={confirm}
+                showToast={showToast}
+              />
+            </>
           )}
 
-          {activeTab === "taslar" && <StonesTab clientId={client.id} />}
+          {activeTab === "taslar" && (
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("taslar")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Taşlar Word"}
+                </button>
+              </div>
+              <StonesTab clientId={client.id} />
+            </>
+          )}
 
-          {activeTab === "seanslar" && <SessionsTab clientId={client.id} />}
+          {activeTab === "seanslar" && (
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("seanslar")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Seans Geçmişi Word"}
+                </button>
+              </div>
+              <SessionsTab clientId={client.id} />
+            </>
+          )}
 
-          {activeTab === "odevler" && <HomeworkTab clientId={client.id} />}
+          {activeTab === "odevler" && (
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("odevler")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Ödev Takip Word"}
+                </button>
+              </div>
+              <HomeworkTab clientId={client.id} />
+            </>
+          )}
 
           {activeTab === "analizler" && (
-            <AnalizlerTab
-              clientId={client.id}
-              clientName={fullName || "Danışan"}
-            />
+            <>
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => void generateTabWordReport("analizler")} disabled={tabWordBusy} style={wordTabBtnStyle}>
+                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Analiz Sonuçları Word"}
+                </button>
+              </div>
+              <AnalizlerTab
+                clientId={client.id}
+                clientName={fullName || "Danışan"}
+              />
+            </>
           )}
 
           {activeTab === "yolculuk" && (
@@ -1928,6 +2018,20 @@ const appointmentDetailActions: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(3, 1fr)",
   gap: 10,
+};
+
+const wordTabBtnStyle: React.CSSProperties = {
+  border: "1px solid #dbeafe",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  padding: "7px 13px",
+  borderRadius: 10,
+  fontWeight: 850,
+  fontSize: 12,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
 };
 
 const completeButton: React.CSSProperties = {

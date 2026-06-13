@@ -596,6 +596,7 @@ function StoneDetailPage() {
   );
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -816,6 +817,37 @@ function StoneDetailPage() {
 
     commitStoneRecord(data as Record<string, unknown>);
     setActiveEditor(null);
+  }
+
+  async function downloadWordReport() {
+    if (!safeStone) return;
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch(`/api/dogaltas/stones/${safeStone.id}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = safeFileName(safeStone.stone_name);
+      const dateSlug = new Date().toISOString().slice(0, 10);
+      a.download = `dogaltas-${safeName}-${dateSlug}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // sessiz hata — kullanıcı network iletişimini zaten görecek
+    } finally {
+      setWordBusy(false);
+    }
   }
 
   async function deleteStone() {
@@ -1176,6 +1208,15 @@ function StoneDetailPage() {
                 {editEnabled ? "Kaydet" : "Düzenle"}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => void downloadWordReport()}
+              disabled={wordBusy}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+            >
+              {wordBusy ? "⏳..." : "📄 Word"}
+            </button>
 
             {!isLibraryStone && (
               <button

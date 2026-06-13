@@ -399,6 +399,7 @@ function MineralDetailPageContent() {
   const [mineral, setMineral] = useState<MineralRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [wordBusy, setWordBusy] = useState(false);
 
   const loadMineral = useCallback(async () => {
     if (!id) {
@@ -487,6 +488,34 @@ function MineralDetailPageContent() {
     if (mineral.cakralar.length) count += 1;
     return count;
   }, [mineral]);
+
+  async function downloadWordReport() {
+    if (!mineral) return;
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch(`/api/dogaltas/minerals/${mineral.id}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeN = mineral.name.toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      a.download = `mineral-${safeN}-${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz hata */ } finally {
+      setWordBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -579,6 +608,14 @@ function MineralDetailPageContent() {
               canIncrease={canIncreaseFontSize}
               isDefault={isDefaultFontSize}
             />
+            <button
+              type="button"
+              onClick={() => void downloadWordReport()}
+              disabled={wordBusy}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+            >
+              {wordBusy ? "⏳..." : "📄 Word"}
+            </button>
             <Link
               href={listBackHref}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50"

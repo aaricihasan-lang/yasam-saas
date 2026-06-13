@@ -15,7 +15,9 @@ import {
 import {
   bodyText,
   buildFooter,
+  buildPremiumCover,
   buildSectionDivider,
+  buildStatsPage,
   buildTOCPage,
   C_DARK,
   C_LIGHT,
@@ -547,7 +549,11 @@ export async function POST(
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId } = body as { tenantId?: string };
+  const { tenantId, exportMode = "full", tabName } = body as {
+    tenantId?: string;
+    exportMode?: string;
+    tabName?: string;
+  };
 
   if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
@@ -558,6 +564,220 @@ export async function POST(
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // ─── Tab mode early-return ────────────────────────────────────────────────
+  const TAB_VALID = ["genel","notlar","randevular","taslar","seanslar","odevler","analizler"] as const;
+  type TN = (typeof TAB_VALID)[number];
+
+  if (exportMode === "tab" && tabName && (TAB_VALID as readonly string[]).includes(tabName)) {
+    const tab = tabName as TN;
+
+    const [cliRes, noteRes] = await Promise.all([
+      db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).single(),
+      db.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
+    ]);
+
+    if (cliRes.error || !cliRes.data)
+      return Response.json({ ok: false, error: "Danışan bulunamadı." }, { status: 404 });
+
+    const cli       = cliRes.data as ClientRow;
+    const tabNotes  = noteRes.data as ClientNoteRow | null;
+    const rawName   = `${cli.ad ?? ""} ${cli.soyad ?? ""}`.trim();
+    const fullName  = titleCaseTR(rawName) || "İsimsiz Danışan";
+    const today     = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+    const dateSlug  = new Date().toISOString().slice(0, 10);
+    const nameSlug  = slugify(rawName || "danisan");
+
+    type AnyRow = Record<string, unknown>;
+    let extraRows: AnyRow[] = [];
+    if (tab === "randevular") {
+      const { data } = await db.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("appointment_date", { ascending: true });
+      extraRows = (data || []) as AnyRow[];
+    } else if (tab === "taslar") {
+      const { data } = await db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
+      extraRows = (data || []) as AnyRow[];
+    } else if (tab === "seanslar") {
+      const { data } = await db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
+      extraRows = (data || []) as AnyRow[];
+    } else if (tab === "odevler") {
+      const { data } = await db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      extraRows = (data || []) as AnyRow[];
+    } else if (tab === "analizler") {
+      const { data } = await db.from("client_analyses").select("id, analysis_type, note, created_at").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      extraRows = (data || []) as AnyRow[];
+    }
+
+    const count = extraRows.length;
+
+    const TAB_CFG = {
+      genel:      { title: "GENEL BİLGİLER",   color: C.danisan,    subtitle: "Danışan Kimlik ve Genel Bilgiler" },
+      notlar:     { title: "DANIŞAN NOTLARI",   color: C.notlar,     subtitle: "Kişisel Notlar ve Gözlemler" },
+      randevular: { title: "RANDEVU GEÇMİŞİ",   color: C.randevular, subtitle: "Tüm Randevu Kayıtları" },
+      taslar:     { title: "TAŞ ÖNERİLERİ",     color: C.taslar,     subtitle: "Atanmış Doğaltaş Kayıtları" },
+      seanslar:   { title: "SEANS GEÇMİŞİ",     color: C.seanslar,   subtitle: "Seans Geçmişi ve Notlar" },
+      odevler:    { title: "ÖDEV TAKİP",        color: C.odevler,    subtitle: "Verilen Ödevler ve Takip" },
+      analizler:  { title: "ANALİZ SONUÇLARI",  color: C.analizler,  subtitle: "Enerji ve Analiz Kayıtları" },
+    } as const;
+
+    const cfg = TAB_CFG[tab];
+
+    const coverStats: { label: string; value: string }[] = [{ label: "Danışan", value: fullName }];
+    if (tab !== "genel" && tab !== "notlar") coverStats.push({ label: "Kayıt Sayısı", value: String(count) });
+    if (tab === "seanslar") {
+      const sess = extraRows as ClientSessionRow[];
+      coverStats.push({ label: "Toplam Süre",  value: `${sess.reduce((s, r) => s + (r.duration_minutes ?? 0), 0)} dk` });
+      coverStats.push({ label: "Toplam Ücret", value: `${sess.reduce((s, r) => s + (r.fee ?? 0), 0)} ₺` });
+    }
+
+    const statRows: [string, string][] = [["Danışan", fullName]];
+    if (tab !== "genel" && tab !== "notlar") statRows.push(["Toplam Kayıt", String(count)]);
+
+    const all: ReportChild[] = [];
+    all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
+    all.push(...buildStatsPage(statRows));
+    all.push(...buildTOCPage());
+    all.push(h1Colored(`1. ${cfg.title}`, cfg.color, true));
+
+    if (tab === "genel") {
+      all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
+      all.push(twoColTable([
+        ["Ad",           cli.ad?.trim()    ? titleCaseTR(cli.ad.trim())    : "Bilgi girilmemiş"],
+        ["Soyad",        cli.soyad?.trim() ? titleCaseTR(cli.soyad.trim()) : "Bilgi girilmemiş"],
+        ["Telefon",      v(cli.telefon)],
+        ["Doğum Tarihi", formatDateTR(cli.dogum)],
+        ["Görüşme",      formatDateTR(cli.gorusme)],
+        ["Burç",         v(cli.burc)],
+        ["Kan Grubu",    v(cli.kan)],
+        ["Mizaç",        v(cli.mizac)],
+      ]));
+      all.push(h2("Sağlık Notu"));
+      all.push(tabNotes?.saglik_notu?.trim() ? bodyText(tabNotes.saglik_notu.trim()) : muted("Bilgi girilmemiş."));
+      all.push(h2("Adres"));
+      all.push(tabNotes?.adres?.trim() ? bodyText(tabNotes.adres.trim()) : muted("Bilgi girilmemiş."));
+      all.push(h2("Öneriler"));
+      all.push(tabNotes?.oneriler?.trim() ? bodyText(tabNotes.oneriler.trim()) : muted("Bilgi girilmemiş."));
+    }
+
+    else if (tab === "notlar") {
+      all.push(tabNotes?.notlar?.trim() ? bodyText(tabNotes.notlar.trim()) : muted("Henüz not girilmemiş."));
+    }
+
+    else if (tab === "randevular") {
+      all.push(muted(`Toplam ${count} randevu kaydı`));
+      const apts = extraRows as AppointmentRow[];
+      if (apts.length === 0) {
+        all.push(muted("Henüz randevu kaydı yok."));
+      } else {
+        apts.forEach((apt, i) => {
+          all.push(profileLabel(`RANDEVU #${String(i + 1).padStart(3, "0")}`, C.randevular));
+          all.push(h2(`${i + 1}. ${titleCaseTR(apt.title || "Görüşme")}`));
+          all.push(twoColTable([["Tarih", formatDateTimeTR(apt.appointment_date)], ["Durum", aptStatus(apt.status, apt.appointment_date)]]));
+          if (apt.notes?.trim()) { all.push(h3("Not")); all.push(bodyText(apt.notes.trim())); }
+          if (i < apts.length - 1) all.push(divider());
+        });
+      }
+    }
+
+    else if (tab === "taslar") {
+      all.push(muted(`Toplam ${count} taş kaydı`));
+      const tabStones = extraRows as ClientStoneRow[];
+      if (tabStones.length === 0) {
+        all.push(muted("Henüz taş kaydı yok."));
+      } else {
+        tabStones.forEach((stone, i) => {
+          all.push(profileLabel(`TAŞ #${String(i + 1).padStart(3, "0")}`, C.taslar));
+          all.push(h2(`${i + 1}. ${titleCaseTR(stone.stone_name || "İsimsiz Taş")}`));
+          all.push(twoColTable([["Taş Adı", v(stone.stone_name)], ["Kullanım Türü", v(stone.stone_type)], ["Tarih", formatDateTR(stone.stone_date)]]));
+          if (stone.usage_area?.trim())       { all.push(h3("Kullanım Detayı"));   all.push(bodyText(stone.usage_area.trim())); }
+          if (stone.combination_text?.trim()) { all.push(h3("Kombin"));             all.push(bodyText(stone.combination_text.trim())); }
+          if (stone.warning_text?.trim())     { all.push(h3("Uyarı"));              all.push(bodyText(stone.warning_text.trim())); }
+          if (stone.note?.trim())             { all.push(h3("Genel Not"));          all.push(bodyText(stone.note.trim())); }
+          if (stone.other_notes?.trim())      { all.push(h3("Diğer Notlar"));       all.push(bodyText(stone.other_notes.trim())); }
+          if (i < tabStones.length - 1) all.push(divider());
+        });
+      }
+    }
+
+    else if (tab === "seanslar") {
+      const sessions = extraRows as ClientSessionRow[];
+      const totalFee     = sessions.reduce((s, r) => s + (r.fee ?? 0), 0);
+      const totalMinutes = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
+      all.push(muted(`Toplam ${count} seans kaydı`));
+      if (sessions.length > 0) {
+        all.push(twoColTable([["Toplam Seans", `${sessions.length} seans`], ["Toplam Süre", `${totalMinutes} dk`], ["Toplam Ücret", `${totalFee} ₺`]]));
+        all.push(spacer());
+      } else {
+        all.push(muted("Henüz seans kaydı yok."));
+      }
+      sessions.forEach((session, i) => {
+        all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
+        all.push(h2(`${i + 1}. ${titleCaseTR(session.session_type || `Seans ${i + 1}`)} — ${formatDateTR(session.session_date)}`));
+        all.push(twoColTable([["Tür", v(session.session_type)], ["Süre", session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"], ["Ücret", session.fee != null ? `${session.fee} ₺` : "Belirtilmedi"]]));
+        if (session.session_note?.trim())  { all.push(h3("Seans Notu"));          all.push(bodyText(session.session_note.trim())); }
+        if (session.actions_done?.trim())  { all.push(h3("Yapılan İşlemler"));    all.push(bodyText(session.actions_done.trim())); }
+        if (session.suggestions?.trim())   { all.push(h3("Öneriler"));            all.push(bodyText(session.suggestions.trim())); }
+        if (session.next_plan?.trim())     { all.push(h3("Sonraki Seans Planı")); all.push(bodyText(session.next_plan.trim())); }
+        if (i < sessions.length - 1) all.push(divider());
+      });
+    }
+
+    else if (tab === "odevler") {
+      const homeworks = extraRows as ClientHomeworkRow[];
+      all.push(muted(`Toplam ${count} ödev kaydı`));
+      if (homeworks.length === 0) {
+        all.push(muted("Henüz ödev kaydı yok."));
+      } else {
+        homeworks.forEach((hw, i) => {
+          all.push(profileLabel(`ÖDEV #${String(i + 1).padStart(3, "0")}`, C.odevler));
+          all.push(h2(`${i + 1}. ${titleCaseTR(hw.title || "İsimsiz Ödev")}`));
+          all.push(twoColTable([["Tür", v(hw.homework_type)], ["Başlangıç", formatDateTR(hw.start_date)], ["Bitiş", formatDateTR(hw.end_date)], ["Durum", hwStatus(hw.status)]]));
+          if (hw.description?.trim())     { all.push(h3("Açıklama"));              all.push(bodyText(hw.description.trim())); }
+          if (hw.expert_note?.trim())     { all.push(h3("Uzman Notu"));             all.push(bodyText(hw.expert_note.trim())); }
+          if (hw.client_feedback?.trim()) { all.push(h3("Danışan Geri Bildirimi")); all.push(bodyText(hw.client_feedback.trim())); }
+          if (i < homeworks.length - 1) all.push(divider());
+        });
+      }
+    }
+
+    else if (tab === "analizler") {
+      const analyses = extraRows as ClientAnalysisRow[];
+      all.push(muted(`Toplam ${count} analiz kaydı`));
+      if (analyses.length === 0) {
+        all.push(muted("Henüz analiz kaydı yok."));
+      } else {
+        analyses.forEach((an, i) => {
+          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+          else all.push(muted("Analiz notu girilmemiş."));
+          if (i < analyses.length - 1) all.push(spacer());
+        });
+      }
+    }
+
+    const tabSlugMap: Record<TN, string> = {
+      genel: "genel-bilgiler", notlar: "notlar", randevular: "randevular",
+      taslar: "taslar", seanslar: "seanslar", odevler: "odevler", analizler: "analizler",
+    };
+
+    const tabDoc = new Document({
+      sections: [{ properties: {}, footers: { default: buildFooter(`${cfg.title} · ${fullName}`) }, children: all }],
+    });
+
+    const tabBuffer = await Packer.toBuffer(tabDoc);
+    const tabFilename = `danisan-${tabSlugMap[tab]}-${nameSlug}-${dateSlug}.docx`;
+
+    return new Response(new Uint8Array(tabBuffer), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": `attachment; filename="${tabFilename}"`,
+        "Content-Length": String(tabBuffer.length),
+      },
+    });
+  }
+
+  // ─── Full mode ────────────────────────────────────────────────────────────────
 
   const [
     clientRes,
