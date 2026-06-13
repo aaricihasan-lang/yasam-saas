@@ -206,7 +206,11 @@ export function BilgiKayitListesi() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -214,7 +218,10 @@ export function BilgiKayitListesi() {
       a.download = `numeroloji-bilgi-bankasi-${mode === "filtered" ? "filtreli" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz hata */ } finally {
+      showToast({ title: "Başarılı", message: "Bilgi bankası raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
       setWordBusy(false);
     }
   }

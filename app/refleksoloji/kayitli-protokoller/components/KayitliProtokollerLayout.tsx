@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   normalizeSearchQuery,
   protocolMatchesSearch,
@@ -14,6 +15,7 @@ import { ProtocolListCard } from "./ProtocolListCard";
 
 export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const { protocols, loading, loadErrorMessage, deleteProtocol } = useProtocolList();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -50,7 +52,11 @@ export function KayitliProtokollerLayout() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -58,7 +64,10 @@ export function KayitliProtokollerLayout() {
       a.download = `refleksoloji-protokol-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz hata */ } finally {
+      showToast({ title: "Başarılı", message: "Protokol raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
       setWordBusy(false);
     }
   }
