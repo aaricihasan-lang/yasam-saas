@@ -24,7 +24,6 @@ import {
   MINERALS_UNCATEGORIZED_FILTER,
   type MineralListItem,
 } from "@/lib/dogaltas/mineralsListFetch";
-import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -212,8 +211,6 @@ function MineralListesiPageContent() {
   // Word raporu modal
   const [showWordModal, setShowWordModal] = useState(false);
   const [wordExportMode, setWordExportMode] = useState<"all" | "filtered" | "viewed" | "selected">("all");
-  const [selectedMineralId, setSelectedMineralId] = useState("");
-  const [allMineralNames, setAllMineralNames] = useState<{ id: string; name: string }[]>([]);
   const [wordReportLoading, setWordReportLoading] = useState(false);
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
@@ -433,21 +430,6 @@ function MineralListesiPageContent() {
   const isEmptyFiltered =
     !listLoading && !errorMessage && filteredMinerals.length === 0 && (isSearchActive || Boolean(categoryFilter));
 
-  // Mineral adlarını dropdown için yükle
-  useEffect(() => {
-    if (!showWordModal || wordExportMode !== "selected" || allMineralNames.length > 0) return;
-    const tid = queryTenantId ?? getSessionTenantId();
-    if (!tid) return;
-    void supabase
-      .from("minerals")
-      .select("id, name")
-      .eq("tenant_id", tid)
-      .order("name")
-      .then(({ data }) => {
-        if (data) setAllMineralNames(data as { id: string; name: string }[]);
-      });
-  }, [showWordModal, wordExportMode, allMineralNames.length, queryTenantId]);
-
   async function downloadMineralReport() {
     const tid = await getSyncedTenantId();
     if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
@@ -462,10 +444,8 @@ function MineralListesiPageContent() {
     } else if (wordExportMode === "selected") {
       if (selectedMineralIds.size > 0) {
         mineralIds = [...selectedMineralIds];
-      } else if (selectedMineralId) {
-        mineralIds = [selectedMineralId];
       } else {
-        setWordReportError("Listede mineral seçin veya aşağıdan tek mineral seçin.");
+        setWordReportError("Önce listede mineral seçin (checkbox ile).");
         return;
       }
     }
@@ -786,7 +766,7 @@ function MineralListesiPageContent() {
                 ["all",      "Tüm Mineraller",               `${totalCount} mineral`],
                 ["filtered", "Sadece Filtrelenmiş Sonuçlar",  `${filteredMinerals.length} mineral${hasMore ? " (yüklü)" : ""}`],
                 ["viewed",   "Sadece Görüntülenen Kayıtlar",  `${viewedMineralIds.size} mineral`],
-                ["selected", selectedMineralIds.size > 0 ? `Seçili Mineraller (${selectedMineralIds.size} adet)` : "Belirli Mineral Seç", null],
+                ["selected", selectedMineralIds.size > 0 ? `📄 Seçili Mineraller (${selectedMineralIds.size} adet)` : "Seçili Mineraller", null],
               ] as const).map(([mode, label, count]) => (
                 <label
                   key={mode}
@@ -818,23 +798,15 @@ function MineralListesiPageContent() {
               ))}
             </div>
 
-            {wordExportMode === "selected" && (
-              <div className="mt-3">
-                {allMineralNames.length === 0 ? (
-                  <p className="text-xs text-slate-400">Mineraller yükleniyor...</p>
-                ) : (
-                  <select
-                    value={selectedMineralId}
-                    onChange={(e) => setSelectedMineralId(e.target.value)}
-                    className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                  >
-                    <option value="">— Mineral seç —</option>
-                    {allMineralNames.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
+            {wordExportMode === "selected" && selectedMineralIds.size === 0 && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                Listeden mineral seçmek için kart üzerindeki checkbox'ları kullanın.
+              </p>
+            )}
+            {wordExportMode === "selected" && selectedMineralIds.size > 0 && (
+              <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                ✓ {selectedMineralIds.size} mineral seçili — rapora dahil edilecek.
+              </p>
             )}
 
             {wordReportError && (

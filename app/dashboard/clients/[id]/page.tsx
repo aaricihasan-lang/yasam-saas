@@ -145,6 +145,7 @@ export default function ClientDetailPage() {
   const [drStart, setDrStart] = useState("");
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
+  const [drOpen, setDrOpen] = useState(false);
 
   const [editDogum, setEditDogum] = useState("");
 
@@ -580,50 +581,72 @@ export default function ClientDetailPage() {
           </button>
         </div>
 
-        {/* Tarih aralığı Word raporu */}
-        <div style={{
-          marginBottom: 10,
-          padding: "12px 14px",
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: 12,
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          gap: 10,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#334155", alignSelf: "center", minWidth: "100%", marginBottom: 2 }}>
-            📅 Tarih Aralığı Raporu
-            <span style={{ fontWeight: 600, color: "#94a3b8", marginLeft: 8, fontSize: 11 }}>
-              Seçili tarih aralığındaki danışan kayıtlarını Word olarak indir
-            </span>
-          </div>
-          <div>
-            <label style={textareaLabel}>Başlangıç</label>
-            <input
-              type="date"
-              value={drStart}
-              onChange={(e) => setDrStart(e.target.value)}
-              style={{ ...inputStyle, width: 150 }}
-            />
-          </div>
-          <div>
-            <label style={textareaLabel}>Bitiş</label>
-            <input
-              type="date"
-              value={drEnd}
-              onChange={(e) => setDrEnd(e.target.value)}
-              style={{ ...inputStyle, width: 150 }}
-            />
-          </div>
+        {/* Tarih aralığı Word raporu — collapsible */}
+        <div style={{ marginBottom: 10 }}>
           <button
-            onClick={generateDateRangeReport}
-            disabled={drBusy || !drStart || !drEnd}
-            className="btn-secondary"
-            style={{ opacity: (drBusy || !drStart || !drEnd) ? 0.6 : 1, alignSelf: "flex-end" }}
+            type="button"
+            onClick={() => setDrOpen((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: "1px solid #e2e8f0",
+              background: drOpen ? "#f1f5f9" : "white",
+              color: "#334155",
+              padding: "8px 14px",
+              borderRadius: 10,
+              fontWeight: 850,
+              fontSize: 12,
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+            }}
           >
-            {drBusy ? "⏳ Oluşturuluyor..." : "Word Oluştur"}
+            <span>📅 Tarih Aralığı Raporu</span>
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "#94a3b8" }}>
+              {drOpen ? "▲ Kapat" : "▼ Aç"}
+            </span>
           </button>
+          {drOpen && (
+            <div style={{
+              marginTop: 6,
+              padding: "12px 14px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              gap: 10,
+            }}>
+              <div>
+                <label style={textareaLabel}>Başlangıç</label>
+                <input
+                  type="date"
+                  value={drStart}
+                  onChange={(e) => setDrStart(e.target.value)}
+                  style={{ ...inputStyle, width: 150 }}
+                />
+              </div>
+              <div>
+                <label style={textareaLabel}>Bitiş</label>
+                <input
+                  type="date"
+                  value={drEnd}
+                  onChange={(e) => setDrEnd(e.target.value)}
+                  style={{ ...inputStyle, width: 150 }}
+                />
+              </div>
+              <button
+                onClick={generateDateRangeReport}
+                disabled={drBusy || !drStart || !drEnd}
+                className="btn-secondary"
+                style={{ opacity: (drBusy || !drStart || !drEnd) ? 0.6 : 1, alignSelf: "flex-end" }}
+              >
+                {drBusy ? "⏳ Oluşturuluyor..." : "Word Oluştur"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={contentBox}>

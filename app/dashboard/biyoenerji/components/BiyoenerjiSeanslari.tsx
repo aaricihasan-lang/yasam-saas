@@ -4,6 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
   CrudEmptyState,
   ModuleStats,
@@ -435,26 +436,16 @@ export default function BiyoenerjiSeanslari() {
           </div>
           {/* Word export çubuğu */}
           {!loading && filteredRows.length > 0 && (
-            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/80 px-2.5 py-1.5">
-              <span className="text-[10px] font-black text-blue-800">
-                {selectedForExport.size > 0 ? `✓ ${selectedForExport.size} seçili` : "Word"}
-              </span>
-              <button type="button" disabled={wordBusy || selectedForExport.size === 0}
-                onClick={() => void exportSessionsWord("selected")}
-                className="rounded-lg border border-blue-300 bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white disabled:opacity-40">
-                {wordBusy ? "⏳" : `📄 Seçili (${selectedForExport.size})`}
-              </button>
-              <button type="button" disabled={wordBusy}
-                onClick={() => void exportSessionsWord("all")}
-                className="rounded-lg border border-slate-300 bg-slate-700 px-2 py-0.5 text-[10px] font-black text-white disabled:opacity-40">
-                {wordBusy ? "⏳" : "📄 Tümü"}
-              </button>
-              {selectedForExport.size > 0 && (
-                <button type="button" onClick={() => setSelectedForExport(new Set())}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-black text-slate-500">
-                  Temizle
-                </button>
-              )}
+            <div className="mb-2">
+              <BulkExportBar
+                selectedCount={selectedForExport.size}
+                totalCount={rows.length}
+                onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
+                onClearSelection={() => setSelectedForExport(new Set())}
+                onExportSelected={() => void exportSessionsWord("selected")}
+                onExportAll={() => void exportSessionsWord("all")}
+                isExporting={wordBusy}
+              />
             </div>
           )}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
@@ -550,7 +541,7 @@ export default function BiyoenerjiSeanslari() {
                   onClick={() => void exportSessionsWord("single", selectedRow.id)}
                   className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
                 >
-                  {wordBusy ? "⏳..." : "📄 Word"}
+                  {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                 </button>
                 <button
                   type="button"
