@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   normalizeSearchQuery,
@@ -14,6 +16,52 @@ export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
   const { protocols, loading, loadErrorMessage, deleteProtocol } = useProtocolList();
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(filtered.map((p) => p.id)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [protocols]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  async function exportProtocolsWord(mode: "selected" | "all") {
+    const tid = await getSyncedTenantId();
+    if (!tid) return;
+    setWordBusy(true);
+    try {
+      const body: Record<string, unknown> = { tenantId: tid, exportMode: mode };
+      if (mode === "selected") {
+        const ids = [...selectedIds];
+        if (!ids.length) return;
+        body.protocolIds = ids;
+      }
+      const res = await fetch("/api/refleksoloji/protocol-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `refleksoloji-protokol-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz hata */ } finally {
+      setWordBusy(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = normalizeSearchQuery(search);
@@ -108,15 +156,30 @@ export function KayitliProtokollerLayout() {
             Aramanızla eşleşen protokol bulunamadı.
           </p>
         ) : !loadErrorMessage ? (
-          <section className="mt-3 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
+          <>
+            <div className="mt-3 mb-3">
+              <BulkExportBar
+                selectedCount={selectedIds.size}
+                totalCount={protocols.length}
+                onSelectAll={selectAllFiltered}
+                onClearSelection={clearSelection}
+                onExportSelected={() => void exportProtocolsWord("selected")}
+                onExportAll={() => void exportProtocolsWord("all")}
+                isExporting={wordBusy}
+              />
+            </div>
+          <section className="mt-1 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((protocol) => (
               <ProtocolListCard
                 key={protocol.id}
                 protocol={protocol}
                 onDelete={() => void handleDelete(protocol.id)}
+                isSelected={selectedIds.has(protocol.id)}
+                onToggleSelect={() => toggleSelection(protocol.id)}
               />
             ))}
           </section>
+          </>
         ) : null}
       </div>
     </main>

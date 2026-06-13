@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
 import {
   buildOrganStatuses,
@@ -162,6 +163,35 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const downloadWord = useCallback(async () => {
+    if (!protocol) return;
+    const tid = await getSyncedTenantId();
+    if (!tid) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/refleksoloji/protocol-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safe = (protocol.title || "protokol").toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      a.download = `refleksoloji-protokol-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }, [protocol]);
 
   useEffect(() => {
     let cancelled = false;
@@ -310,6 +340,16 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
               </span>
               <span>Refleksoloji&apos;ye Dön</span>
             </Link>
+            {protocol && (
+              <button
+                type="button"
+                onClick={() => void downloadWord()}
+                disabled={wordBusy}
+                className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-50 px-6 py-4 text-[16px] font-black text-blue-800 transition duration-200 hover:bg-blue-100 disabled:opacity-60 sm:w-auto sm:text-[17px]"
+              >
+                {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+              </button>
+            )}
             <Link
               href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
               className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-emerald-300/80 bg-emerald-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] transition duration-200 hover:scale-[1.02] hover:bg-emerald-600 sm:ml-auto sm:w-auto sm:text-[17px]"

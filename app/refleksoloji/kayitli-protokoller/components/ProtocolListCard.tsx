@@ -8,19 +8,36 @@ import type { ReflexologyProtocolRecord } from "../types";
 type ProtocolListCardProps = {
   protocol: ReflexologyProtocolRecord;
   onDelete: () => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 };
 
-export function ProtocolListCard({ protocol, onDelete }: ProtocolListCardProps) {
+export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelect }: ProtocolListCardProps) {
   const title = protocol.title?.trim() || "Başlıksız protokol";
   const targetProblem = protocol.target_problem?.trim() || "";
   const organsList = parseOrgansList(protocol.organs);
   const organsSummary = protocol.organs?.trim() || "";
 
   return (
-    <article className="flex flex-col rounded-2xl border border-purple-100 bg-white/80 p-4 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md transition hover:shadow-md">
+    <article className={`relative flex flex-col rounded-2xl border bg-white/80 p-4 shadow-sm ring-1 backdrop-blur-md transition hover:shadow-md ${
+      isSelected ? "border-violet-400 ring-violet-300/50 ring-2" : "border-purple-100 ring-violet-100/60"
+    }`}>
+      {onToggleSelect !== undefined && (
+        <label
+          className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+          onClick={(e) => e.preventDefault()}
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(isSelected)}
+            onChange={() => onToggleSelect()}
+            className="h-4 w-4 rounded border-violet-300 accent-violet-600"
+          />
+        </label>
+      )}
       <Link
         href={`/refleksoloji/kayitli-protokoller/${encodeURIComponent(protocol.id)}`}
-        className="block min-w-0 flex-1"
+        className={`block min-w-0 flex-1 ${onToggleSelect !== undefined ? "pr-7" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-base font-black text-slate-900">{title}</h2>

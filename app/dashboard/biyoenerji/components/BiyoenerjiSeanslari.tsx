@@ -83,6 +83,8 @@ export default function BiyoenerjiSeanslari() {
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -159,6 +161,44 @@ export default function BiyoenerjiSeanslari() {
   }, [rows]);
 
   const hasSearch = Boolean(searchTitle.trim() || searchContent.trim());
+
+  const toggleExportSelection = useCallback((id: string) => {
+    setSelectedForExport((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  async function exportSessionsWord(mode: "selected" | "all" | "single", singleId?: string) {
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const body: Record<string, unknown> = { tenantId, exportMode: mode === "single" ? "single" : mode };
+      if (mode === "single" && singleId) body.sessionId = singleId;
+      else if (mode === "selected") {
+        const ids = [...selectedForExport];
+        if (!ids.length) return;
+        body.sessionIds = ids;
+      }
+      const res = await fetch("/api/biyoenerji/session-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { showSoft("err", "Rapor oluşturulamadı."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `biyoenerji-seans-${mode === "selected" ? "secili" : mode === "single" ? "tek" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSoft("ok", "Seans raporu indirildi.");
+    } catch { showSoft("err", "Rapor oluşturulamadı."); } finally {
+      setWordBusy(false);
+    }
+  }
 
   function fillFormFromRow(row: BioenergySession) {
     setForm({
@@ -393,6 +433,30 @@ export default function BiyoenerjiSeanslari() {
               </button>
             </div>
           </div>
+          {/* Word export çubuğu */}
+          {!loading && filteredRows.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50/80 px-2.5 py-1.5">
+              <span className="text-[10px] font-black text-blue-800">
+                {selectedForExport.size > 0 ? `✓ ${selectedForExport.size} seçili` : "Word"}
+              </span>
+              <button type="button" disabled={wordBusy || selectedForExport.size === 0}
+                onClick={() => void exportSessionsWord("selected")}
+                className="rounded-lg border border-blue-300 bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white disabled:opacity-40">
+                {wordBusy ? "⏳" : `📄 Seçili (${selectedForExport.size})`}
+              </button>
+              <button type="button" disabled={wordBusy}
+                onClick={() => void exportSessionsWord("all")}
+                className="rounded-lg border border-slate-300 bg-slate-700 px-2 py-0.5 text-[10px] font-black text-white disabled:opacity-40">
+                {wordBusy ? "⏳" : "📄 Tümü"}
+              </button>
+              {selectedForExport.size > 0 && (
+                <button type="button" onClick={() => setSelectedForExport(new Set())}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-black text-slate-500">
+                  Temizle
+                </button>
+              )}
+            </div>
+          )}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
@@ -410,15 +474,29 @@ export default function BiyoenerjiSeanslari() {
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
+                const exportSelected = selectedForExport.has(row.id);
                 return (
+                  <div key={row.id} className="relative">
+                    <label
+                      className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2 flex h-4 w-4 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={exportSelected}
+                        onChange={() => toggleExportSelection(row.id)}
+                        className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
+                      />
+                    </label>
                   <button
-                    key={row.id}
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-xl border pl-7 pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
                       active
                         ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18),0_14px_36px_-12px_rgba(109,40,217,0.14)] ring-2 ring-violet-200/45 ring-offset-1 ring-offset-transparent"
-                        : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-violet-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
+                        : exportSelected
+                          ? "border-blue-300/60 bg-blue-50/80"
+                          : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-violet-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
                     }`}
                   >
                     <div className="line-clamp-2 text-[13px] font-black leading-snug text-slate-900">
@@ -433,6 +511,7 @@ export default function BiyoenerjiSeanslari() {
                       ) : null}
                     </div>
                   </button>
+                  </div>
                 );
               })
             )}
@@ -465,6 +544,14 @@ export default function BiyoenerjiSeanslari() {
                 {previewText(selectedRow.content)}
               </p>
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+                <button
+                  type="button"
+                  disabled={wordBusy}
+                  onClick={() => void exportSessionsWord("single", selectedRow.id)}
+                  className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
+                >
+                  {wordBusy ? "⏳..." : "📄 Word"}
+                </button>
                 <button
                   type="button"
                   onClick={openEditModal}

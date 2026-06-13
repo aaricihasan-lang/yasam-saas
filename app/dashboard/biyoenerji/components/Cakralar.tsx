@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -52,6 +53,38 @@ const emptyForm: ChakraForm = {
 
 function trimOrEmpty(v: string) {
   return v.trim();
+}
+
+async function exportChakrasWord(
+  tenantId: string,
+  mode: "selected" | "all",
+  selectedIds: Set<string>,
+  setWordBusy: (v: boolean) => void,
+) {
+  setWordBusy(true);
+  try {
+    const body: Record<string, unknown> = { tenantId, exportMode: mode };
+    if (mode === "selected") {
+      const ids = [...selectedIds];
+      if (!ids.length) return;
+      body.chakraIds = ids;
+    }
+    const res = await fetch("/api/biyoenerji/chakra-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `biyoenerji-cakra-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch { /* sessiz */ } finally {
+    setWordBusy(false);
+  }
 }
 
 function slugifySourceUid(value: string) {
@@ -106,6 +139,8 @@ export default function Cakralar() {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -372,6 +407,18 @@ export default function Cakralar() {
         />
       ) : (
         <>
+          {/* BulkExportBar */}
+          <div className="mb-6">
+            <BulkExportBar
+              selectedCount={selectedForExport.size}
+              totalCount={totalInDb}
+              onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
+              onClearSelection={() => setSelectedForExport(new Set())}
+              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", "selected", selectedForExport, setWordBusy)}
+              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", "all", selectedForExport, setWordBusy)}
+              isExporting={wordBusy}
+            />
+          </div>
           <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = chakraDetailHref(row.id);
@@ -380,14 +427,31 @@ export default function Cakralar() {
               const badge = chakraCardBadge(row);
               const displayTitle = chakraDisplayName(row);
               const dotColor = chakraColorDot(row.color);
+              const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
 
               return (
+                <div key={row.id} className="relative">
+                  {/* Checkbox */}
+                  <label
+                    className="absolute right-4 top-4 z-20 flex h-6 w-6 cursor-pointer items-center justify-center"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isExportSelected}
+                      onChange={() => setSelectedForExport((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                        return next;
+                      })}
+                      className="h-5 w-5 rounded border-white/80 accent-fuchsia-600 shadow-lg"
+                    />
+                  </label>
                 <Link
-                  key={row.id}
                   href={detailHref}
-                  className={`group relative flex h-[320px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${theme.card} ${theme.hover}`}
+                  className={`group relative flex h-[320px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-600 ${isExportSelected ? "ring-4 ring-fuchsia-400/60 ring-offset-2" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {badge ? (
                     <span
@@ -418,6 +482,7 @@ export default function Cakralar() {
 
                   <span className={detailOpenBtnClass}>Detayı Aç →</span>
                 </Link>
+                </div>
               );
             })}
           </div>

@@ -174,6 +174,35 @@ export default function CakralarDetail({ id }: { id: string }) {
   const [record, setRecord] = useState<ChakraDetailItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const downloadWord = useCallback(async () => {
+    if (!record) return;
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/biyoenerji/chakra-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "single", chakraId: record.id }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safe = (record.name || "cakra").toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      a.download = `biyoenerji-cakra-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }, [record]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<ChakraForm>({
     name: "",
@@ -443,6 +472,16 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3 border-t border-fuchsia-200/80 pt-5">
+          {record && (
+            <button
+              type="button"
+              onClick={() => void downloadWord()}
+              disabled={wordBusy}
+              className="rounded-2xl border-2 border-blue-300 bg-blue-50 px-6 py-3 text-base font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+            >
+              {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setFormModalOpen(true)}
