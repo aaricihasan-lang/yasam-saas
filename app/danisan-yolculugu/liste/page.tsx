@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
 import { ArrowLeft, ListFilter, UserPlus, UsersRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -49,6 +50,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export default function DanisanListePage() {
   const router = useRouter();
+  useBfcacheRefresh();
   const { showToast } = useToast();
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);

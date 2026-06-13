@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useState } from "react";
 import {
   AlignLeft,
@@ -438,6 +439,7 @@ export default function VideoCeviriPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
+      <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute -left-32 top-0 h-80 w-80 rounded-full bg-violet-300/20 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-cyan-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-fuchsia-300/15 blur-3xl" aria-hidden />

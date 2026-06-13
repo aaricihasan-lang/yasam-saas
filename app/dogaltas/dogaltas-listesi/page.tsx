@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   Fragment,
   Suspense,
@@ -1727,8 +1728,11 @@ function DogaltasListesiPageFallback() {
 
 export default function DogaltasListesiPage() {
   return (
-    <Suspense fallback={<DogaltasListesiPageFallback />}>
-      <DogaltasListesiPageContent />
-    </Suspense>
+    <>
+      <BfcacheRefreshHandler />
+      <Suspense fallback={<DogaltasListesiPageFallback />}>
+        <DogaltasListesiPageContent />
+      </Suspense>
+    </>
   );
 }

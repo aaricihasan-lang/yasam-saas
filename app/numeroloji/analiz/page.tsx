@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
@@ -229,6 +230,7 @@ export default function NumerolojiAnalizPage() {
 
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-none">
+      <BfcacheRefreshHandler />
       <div className="space-y-3">
         <header className="relative overflow-hidden rounded-2xl border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-4 py-4 text-center shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] ring-1 ring-white/60 backdrop-blur-xl sm:px-6 sm:py-5">
           <div className="pointer-events-none absolute -left-14 -top-14 h-40 w-40 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />

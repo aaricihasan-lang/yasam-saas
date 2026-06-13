@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import {
   Fragment,
@@ -1415,8 +1416,11 @@ function KombinasyonDetayPageFallback() {
 
 export default function KombinasyonDetayPage() {
   return (
-    <Suspense fallback={<KombinasyonDetayPageFallback />}>
-      <KombinasyonDetayPageContent />
-    </Suspense>
+    <>
+      <BfcacheRefreshHandler />
+      <Suspense fallback={<KombinasyonDetayPageFallback />}>
+        <KombinasyonDetayPageContent />
+      </Suspense>
+    </>
   );
 }

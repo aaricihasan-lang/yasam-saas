@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -67,6 +68,7 @@ export default function NumerolojiKayitDetayPage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f3ff_38%,#ecfeff_100%)] text-slate-900 antialiased">
+      <BfcacheRefreshHandler />
       <div
         className="pointer-events-none absolute left-0 top-0 h-[220px] w-[220px] rounded-full bg-fuchsia-300/18 blur-[90px]"
         aria-hidden

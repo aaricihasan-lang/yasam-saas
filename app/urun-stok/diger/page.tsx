@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   MEASURE_TYPES,
   PRODUCT_GROUPS,
@@ -460,6 +461,7 @@ export default function DigerUrunStokPage() {
 
   return (
     <main className={pageBg}>
+      <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-80 w-80 rounded-full bg-lime-200/40 blur-3xl" />
         <div className="absolute right-0 top-16 h-96 w-96 rounded-full bg-yellow-200/30 blur-3xl" />

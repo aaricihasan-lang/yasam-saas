@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import {
   Fragment,
@@ -712,8 +713,11 @@ function MineralDetailPageFallback() {
 
 export default function MineralDetailPage() {
   return (
-    <Suspense fallback={<MineralDetailPageFallback />}>
-      <MineralDetailPageContent />
-    </Suspense>
+    <>
+      <BfcacheRefreshHandler />
+      <Suspense fallback={<MineralDetailPageFallback />}>
+        <MineralDetailPageContent />
+      </Suspense>
+    </>
   );
 }

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -192,6 +193,7 @@ const uiBackToDogaltasBtn =
 
 function MineralListesiPageContent() {
   const router = useRouter();
+  useBfcacheRefresh();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 

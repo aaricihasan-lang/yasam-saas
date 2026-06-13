@@ -1,6 +1,7 @@
 "use client";
 
 import { loginWithCredentials } from "@/lib/auth/loginUser";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   canLoginYasamUser,
   clearYasamUser,
@@ -1369,6 +1370,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(160deg,#f0ebff_0%,#e9f2ff_38%,#fafbff_68%,#fef9ff_100%)] text-slate-950">
+      <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 -top-8 h-[520px] w-[520px] rounded-full bg-violet-400/[0.13] blur-[100px]" />
         <div className="absolute right-0 top-[8%] h-80 w-80 rounded-full bg-sky-300/[0.17] blur-3xl" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -550,6 +551,7 @@ export default function KombinasyonlarPage() {
 
   return (
     <main className={pageBg}>
+      <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-cyan-300/15 blur-[120px]" />
       <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-violet-300/15 blur-[120px]" />
 

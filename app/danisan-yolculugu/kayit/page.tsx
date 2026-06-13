@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -236,6 +237,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export default function DanisanKayitPage() {
   const router = useRouter();
+  useBfcacheRefresh();
   const { showToast } = useToast();
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);

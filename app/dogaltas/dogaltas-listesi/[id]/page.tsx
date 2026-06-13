@@ -20,6 +20,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 
 const STONE_BUCKET = "stone-photos";
@@ -548,6 +549,7 @@ function TextBlock({
 function StoneDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  useBfcacheRefresh();
   const searchParams = useSearchParams();
   const id = params?.id;
   const highlightQuery = searchParams.get("q")?.trim() ?? "";

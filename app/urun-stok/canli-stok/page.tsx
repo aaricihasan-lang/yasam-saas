@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
@@ -172,6 +173,7 @@ export default function CanliStokMerkeziPage() {
 
   return (
     <main className={pageBg}>
+      <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-80 w-80 rounded-full bg-violet-200/40 blur-3xl" />
         <div className="absolute right-0 top-16 h-96 w-96 rounded-full bg-indigo-200/30 blur-3xl" />

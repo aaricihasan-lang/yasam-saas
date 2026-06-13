@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import {
   Fragment,
@@ -986,6 +987,7 @@ export default function KisiselArsivPage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_40%,#f8fafc_100%)]">
+      <BfcacheRefreshHandler />
       {toast ? (
         <div
           role="status"
