@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   type InvItem,
@@ -179,6 +180,7 @@ type RecipeRow = {
 };
 
 export default function DogaltasUrunStokPage() {
+  useBfcacheRefresh();
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<InvItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
