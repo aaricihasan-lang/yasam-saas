@@ -137,7 +137,7 @@ export default function YolculukTab({
 }: YolculukTabProps) {
   const [activeMenu, setActiveMenu] = useState("genel");
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
-  const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0 });
+  const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0, taslar: 0, odevler: 0 });
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
@@ -329,6 +329,8 @@ export default function YolculukTab({
           analizler: analysesRes.data?.length ?? 0,
           seanslar: sessionsRes.data?.length ?? 0,
           randevular: appointmentsRes.data?.length ?? 0,
+          taslar: stonesRes.data?.length ?? 0,
+          odevler: homeworksRes.data?.length ?? 0,
           notlar:
             noteData &&
             ([noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (
@@ -365,6 +367,20 @@ export default function YolculukTab({
         <SummaryCard label="Randevular" value={counts.randevular} color="#db2777" bg="#fdf2f8" icon="◷" />
         <SummaryCard label="Notlar"     value={counts.notlar}     color="#2563eb" bg="#eff6ff" icon="✎" />
       </div>
+
+      {/* Danışan Yaşam Skoru */}
+      {!timelineLoading && (
+        <LifeScoreCard
+          hasDogum={Boolean(clientDogum)}
+          hasTelefon={Boolean(clientPhone)}
+          hasNot={counts.notlar > 0}
+          hasSeans={counts.seanslar > 0}
+          hasRandevu={counts.randevular > 0}
+          hasAnaliz={counts.analizler > 0}
+          hasTas={counts.taslar > 0}
+          hasOdev={counts.odevler > 0}
+        />
+      )}
 
       {/* Ana içerik: sol panel + orta alan */}
       <div style={mainLayout}>
@@ -897,4 +913,191 @@ const timelineDate: React.CSSProperties = {
   fontWeight: 850,
   whiteSpace: "nowrap",
   marginTop: 2,
+};
+
+/* ─── Yaşam Skoru ────────────────────────────────────────────────────────────*/
+
+type LifeScoreProps = {
+  hasDogum: boolean;
+  hasTelefon: boolean;
+  hasNot: boolean;
+  hasSeans: boolean;
+  hasRandevu: boolean;
+  hasAnaliz: boolean;
+  hasTas: boolean;
+  hasOdev: boolean;
+};
+
+const SCORE_CRITERIA: { key: keyof LifeScoreProps; label: string; missingLabel: string }[] = [
+  { key: "hasDogum",   label: "Doğum Tarihi", missingLabel: "Doğum tarihi eksik"   },
+  { key: "hasTelefon", label: "Telefon",       missingLabel: "Telefon eksik"         },
+  { key: "hasNot",     label: "Not",           missingLabel: "Henüz not yok"         },
+  { key: "hasSeans",   label: "Seans",         missingLabel: "Henüz seans yok"       },
+  { key: "hasRandevu", label: "Randevu",       missingLabel: "Henüz randevu yok"     },
+  { key: "hasAnaliz",  label: "Analiz",        missingLabel: "Henüz analiz yok"      },
+  { key: "hasTas",     label: "Taş Kaydı",    missingLabel: "Henüz taş kaydı yok"   },
+  { key: "hasOdev",    label: "Ödev",          missingLabel: "Henüz ödev yok"        },
+];
+
+function getScoreStage(score: number): { label: string; color: string; bg: string } {
+  if (score <= 30) return { label: "Başlangıç",    color: "#ef4444", bg: "#fee2e2" };
+  if (score <= 60) return { label: "Gelişimde",    color: "#f59e0b", bg: "#fef3c7" };
+  if (score <= 80) return { label: "Aktif Takip",  color: "#3b82f6", bg: "#dbeafe" };
+  return              { label: "Güçlü Süreç",  color: "#10b981", bg: "#d1fae5" };
+}
+
+function ScoreCircle({ score, color }: { score: number; color: string }) {
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  return (
+    <svg width={88} height={88} viewBox="0 0 88 88" style={{ flexShrink: 0 }}>
+      <circle cx={44} cy={44} r={r} fill="none" stroke="#f1f5f9" strokeWidth={8} />
+      <circle
+        cx={44} cy={44} r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={8}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform="rotate(-90 44 44)"
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+      />
+      <text
+        x={44} y={44}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={20}
+        fontWeight={900}
+        fill={color}
+      >
+        {score}
+      </text>
+    </svg>
+  );
+}
+
+function LifeScoreCard(props: LifeScoreProps) {
+  const completed = SCORE_CRITERIA.filter((c) => props[c.key]).length;
+  const score = Math.round((completed / SCORE_CRITERIA.length) * 100);
+  const stage = getScoreStage(score);
+  const missing = SCORE_CRITERIA.filter((c) => !props[c.key]).map((c) => c.missingLabel);
+
+  return (
+    <div style={scoreCardStyle}>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* Sol: Daire + Aşama */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <ScoreCircle score={score} color={stage.color} />
+          <span style={{ ...stagePillStyle, background: stage.bg, color: stage.color }}>
+            {stage.label}
+          </span>
+        </div>
+
+        {/* Orta: Başlık + Kriter ızgarası */}
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={scoreTitleStyle}>Danışan Yaşam Skoru</div>
+          <div style={scoreSubtitleStyle}>
+            {completed}/{SCORE_CRITERIA.length} kriter tamamlandı
+          </div>
+          <div style={criteriaGrid}>
+            {SCORE_CRITERIA.map((c) => {
+              const ok = props[c.key];
+              return (
+                <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: ok ? "#10b981" : "#cbd5e1", fontSize: 12, lineHeight: 1 }}>
+                    {ok ? "✓" : "○"}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 850, color: ok ? "#0f172a" : "#94a3b8" }}>
+                    {c.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Sağ: Eksikler */}
+        {missing.length > 0 && (
+          <div style={missingBox}>
+            <div style={missingBoxTitle}>Eksik Bilgiler</div>
+            {missing.map((m) => (
+              <div key={m} style={missingItem}>
+                <span style={{ color: "#f59e0b", fontSize: 11 }}>⚠</span>
+                <span>{m}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const scoreCardStyle: React.CSSProperties = {
+  background: "white",
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  padding: "18px 20px",
+  boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
+};
+
+const stagePillStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: 999,
+  padding: "3px 12px",
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: "0.04em",
+};
+
+const scoreTitleStyle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 950,
+  color: "#0f172a",
+  marginBottom: 2,
+  letterSpacing: "-0.01em",
+};
+
+const scoreSubtitleStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#64748b",
+  fontWeight: 750,
+  marginBottom: 12,
+};
+
+const criteriaGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "6px 16px",
+};
+
+const missingBox: React.CSSProperties = {
+  background: "#fffbeb",
+  border: "1px solid #fde68a",
+  borderRadius: 12,
+  padding: "12px 14px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  minWidth: 180,
+};
+
+const missingBoxTitle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 900,
+  color: "#92400e",
+  letterSpacing: "0.04em",
+  marginBottom: 2,
+};
+
+const missingItem: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  fontSize: 11,
+  fontWeight: 850,
+  color: "#b45309",
 };
