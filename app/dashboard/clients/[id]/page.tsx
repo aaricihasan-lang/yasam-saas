@@ -432,23 +432,9 @@ export default function ClientDetailPage() {
           ← Danışanlara Dön
         </button>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            onClick={generateWordReport}
-            disabled={generatingReport}
-            style={{
-              ...wordReportButton,
-              opacity: generatingReport ? 0.7 : 1,
-              cursor: generatingReport ? "default" : "pointer",
-            }}
-          >
-            {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Rapor Oluştur"}
-          </button>
-
-          <button onClick={() => setShowDeleteModal(true)} style={deleteClientButton}>
-            Danışanı Sil
-          </button>
-        </div>
+        <button onClick={() => setShowDeleteModal(true)} style={deleteClientButton}>
+          Danışanı Sil
+        </button>
       </div>
 
       <section style={heroCard}>
@@ -493,6 +479,20 @@ export default function ClientDetailPage() {
           <Tab label="Ödevler" id="odevler" activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
           <Tab label="Analizler" id="analizler" activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
           <Tab label="✦ Danışan Yolculuğu" id="yolculuk" activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
+          <button
+            onClick={generateWordReport}
+            disabled={generatingReport}
+            style={{
+              ...tabButton,
+              border: "1px solid #cbd5e133",
+              background: "transparent",
+              color: "#64748b",
+              opacity: generatingReport ? 0.6 : 1,
+              cursor: generatingReport ? "default" : "pointer",
+            }}
+          >
+            {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
+          </button>
         </div>
 
         <div style={contentBox}>
@@ -1333,17 +1333,6 @@ const backButton: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const wordReportButton: React.CSSProperties = {
-  border: "none",
-  background: "linear-gradient(135deg, #1e3a5f, #2563eb)",
-  color: "white",
-  padding: "9px 16px",
-  borderRadius: 12,
-  fontWeight: 850,
-  fontSize: 13,
-  cursor: "pointer",
-  boxShadow: "0 6px 14px rgba(37,99,235,0.22)",
-};
 
 const deleteClientButton: React.CSSProperties = {
   border: "1px solid #fecaca",
