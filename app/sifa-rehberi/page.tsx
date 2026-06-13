@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
   useEffect,
@@ -499,6 +499,7 @@ export default function SifaRehberiPage() {
 }
 
 function SifaRehberiContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -560,6 +561,17 @@ function SifaRehberiContent() {
     if (fromQuery) setPageView(fromQuery);
   }, [searchParams]);
 
+  // bfcache restore: sayfanın dondurulmuş halinden geri döndüğünde
+  // React event listenerları yeniden bağlanmayabilir; router.refresh()
+  // Next.js'in router cache'ini temizleyerek tam re-render sağlar.
+  useEffect(() => {
+    function handlePageShow(e: PageTransitionEvent) {
+      if (e.persisted) router.refresh();
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [router]);
+
   useEffect(() => {
     if (pageView === "new") return;
     runInEffect(() => {
@@ -576,6 +588,7 @@ function SifaRehberiContent() {
     setErrorMessage("");
     setSuccessMessage("");
     setLightbox(null);
+    router.replace("/sifa-rehberi");
   }
 
   function openNewRecord() {
@@ -583,12 +596,14 @@ function SifaRehberiContent() {
     setErrorMessage("");
     setSuccessMessage("");
     setPageView("new");
+    router.push("/sifa-rehberi?view=new");
   }
 
   function openList() {
     setErrorMessage("");
     setSuccessMessage("");
     setPageView("list");
+    router.push("/sifa-rehberi?view=list");
   }
 
   const filteredRows = useMemo(() => {
@@ -765,6 +780,7 @@ function SifaRehberiContent() {
     setSuccessMessage("Şifa rehberi kaydı oluşturuldu.");
     await loadGuides(queryTenantId);
     setPageView("list");
+    router.push("/sifa-rehberi?view=list");
   }
 
   const isMenuView = pageView === "menu";
