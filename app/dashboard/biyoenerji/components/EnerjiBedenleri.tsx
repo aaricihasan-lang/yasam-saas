@@ -11,9 +11,44 @@ import {
   type EnergyBodiesTypography,
 } from "@/lib/bioenergy/energyBodiesFontSize";
 import { useEnergyBodiesFontSize } from "@/lib/bioenergy/useEnergyBodiesFontSize";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
+
+async function exportEnergyBodiesWord(
+  tenantId: string,
+  exportMode: "all" | "selected" | "single",
+  ids: Set<string> | string,
+  setWordBusy: (v: boolean) => void,
+) {
+  setWordBusy(true);
+  try {
+    const body: Record<string, unknown> = { tenantId, exportMode };
+    if (exportMode === "single" && typeof ids === "string") {
+      body.id = ids;
+    } else if (exportMode === "selected" && ids instanceof Set) {
+      const arr = [...ids];
+      if (!arr.length) return;
+      body.ids = arr;
+    }
+    const res = await fetch("/api/biyoenerji/energy-body-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `biyoenerji-enerji-bedenleri-${exportMode === "selected" ? "secili" : exportMode === "single" ? "tek" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch { /* sessiz */ } finally {
+    setWordBusy(false);
+  }
+}
 
 type BioenergyEnergyBodyRecord = {
   id: string;
@@ -169,6 +204,8 @@ export default function EnerjiBedenleri() {
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -459,6 +496,20 @@ export default function EnerjiBedenleri() {
             + Yeni Kayıt
           </button>
 
+          {rows.length > 0 && (
+            <div className="mb-3">
+              <BulkExportBar
+                selectedCount={selectedForExport.size}
+                totalCount={rows.length}
+                onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
+                onClearSelection={() => setSelectedForExport(new Set())}
+                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", "selected", selectedForExport, setWordBusy)}
+                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", "all", selectedForExport, setWordBusy)}
+                isExporting={wordBusy}
+              />
+            </div>
+          )}
+
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             {loading ? (
               <p className="py-10 text-center text-base font-medium text-slate-400">Yükleniyor…</p>
@@ -476,21 +527,40 @@ export default function EnerjiBedenleri() {
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
+                const isExportSelected = selectedForExport.has(row.id);
                 return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    onClick={() => selectRow(row)}
-                    className={`w-full rounded-2xl border-2 px-5 py-4 text-left transition-all duration-200 ${
-                      active
-                        ? "scale-[1.01] border-violet-300 bg-gradient-to-r from-violet-50/95 to-cyan-50/95 shadow-[0_0_0_2px_rgba(139,92,246,0.2),0_0_32px_rgba(34,211,238,0.22)] ring-2 ring-violet-300/55"
-                        : "border-violet-100/60 bg-white/70 hover:border-cyan-200/80 hover:bg-white hover:shadow-lg"
-                    }`}
-                  >
-                    <p className="text-lg font-black capitalize leading-snug tracking-tight text-slate-900 sm:text-xl">
-                      {row.source_uid?.trim() || "—"}
-                    </p>
-                  </button>
+                  <div key={row.id} className="relative">
+                    <label
+                      className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isExportSelected}
+                        onChange={() => setSelectedForExport((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                          return next;
+                        })}
+                        className="h-4 w-4 rounded accent-cyan-600 shadow"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => selectRow(row)}
+                      className={`w-full rounded-2xl border-2 px-5 py-4 text-left transition-all duration-200 ${
+                        active
+                          ? "scale-[1.01] border-violet-300 bg-gradient-to-r from-violet-50/95 to-cyan-50/95 shadow-[0_0_0_2px_rgba(139,92,246,0.2),0_0_32px_rgba(34,211,238,0.22)] ring-2 ring-violet-300/55"
+                          : isExportSelected
+                          ? "border-cyan-300 bg-cyan-50/80 ring-2 ring-cyan-300/50"
+                          : "border-violet-100/60 bg-white/70 hover:border-cyan-200/80 hover:bg-white hover:shadow-lg"
+                      }`}
+                    >
+                      <p className="text-lg font-black capitalize leading-snug tracking-tight text-slate-900 sm:text-xl">
+                        {row.source_uid?.trim() || "—"}
+                      </p>
+                    </button>
+                  </div>
                 );
               })
             )}
@@ -557,6 +627,14 @@ export default function EnerjiBedenleri() {
                   className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
                 >
                   Sil
+                </button>
+                <button
+                  type="button"
+                  disabled={wordBusy}
+                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", "single", selectedRow.id, setWordBusy)}
+                  className="rounded-2xl border-2 border-violet-200 bg-violet-50 px-6 py-3 text-base font-black text-violet-950 shadow-sm transition hover:bg-violet-100 disabled:opacity-45"
+                >
+                  {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                 </button>
               </div>
             </>

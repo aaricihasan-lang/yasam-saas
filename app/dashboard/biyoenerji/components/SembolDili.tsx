@@ -18,9 +18,42 @@ import {
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { symbolLanguageDetailHref } from "@/lib/bioenergy/symbolLanguageRoutes";
 import { supabase } from "@/lib/supabase";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
+
+async function exportSymbolsWord(
+  tenantId: string,
+  exportMode: "all" | "selected",
+  selectedIds: Set<string>,
+  setWordBusy: (v: boolean) => void,
+) {
+  setWordBusy(true);
+  try {
+    const body: Record<string, unknown> = { tenantId, exportMode };
+    if (exportMode === "selected") {
+      const arr = [...selectedIds];
+      if (!arr.length) return;
+      body.ids = arr;
+    }
+    const res = await fetch("/api/biyoenerji/symbol-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `biyoenerji-sembol-${exportMode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch { /* sessiz */ } finally {
+    setWordBusy(false);
+  }
+}
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -84,6 +117,8 @@ export default function SembolDili() {
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -364,6 +399,17 @@ export default function SembolDili() {
         />
       ) : (
         <>
+          <div className="mb-6">
+            <BulkExportBar
+              selectedCount={selectedForExport.size}
+              totalCount={totalInDb}
+              onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
+              onClearSelection={() => setSelectedForExport(new Set())}
+              onExportSelected={() => void exportSymbolsWord(queryTenantId ?? "", "selected", selectedForExport, setWordBusy)}
+              onExportAll={() => void exportSymbolsWord(queryTenantId ?? "", "all", selectedForExport, setWordBusy)}
+              isExporting={wordBusy}
+            />
+          </div>
           <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = symbolLanguageDetailHref(row.id);
@@ -371,14 +417,30 @@ export default function SembolDili() {
               const theme = getSymbolLanguageCardTheme(index);
               const hasCategory = Boolean(row.category?.trim());
               const displayTitle = symbolDisplayName(row);
+              const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
 
               return (
+                <div key={row.id} className="relative">
+                  <label
+                    className="absolute right-4 top-4 z-20 flex h-6 w-6 cursor-pointer items-center justify-center"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isExportSelected}
+                      onChange={() => setSelectedForExport((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                        return next;
+                      })}
+                      className="h-5 w-5 rounded border-white/80 accent-emerald-600 shadow-lg"
+                    />
+                  </label>
                 <Link
-                  key={row.id}
                   href={detailHref}
-                  className={`group relative flex h-[300px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${theme.card} ${theme.hover}`}
+                  className={`group relative flex h-[300px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${isExportSelected ? "ring-4 ring-emerald-400/60 ring-offset-2" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {hasCategory ? (
                     <span
@@ -404,6 +466,7 @@ export default function SembolDili() {
 
                   <span className={detailOpenBtnClass}>Detayı Aç →</span>
                 </Link>
+                </div>
               );
             })}
           </div>

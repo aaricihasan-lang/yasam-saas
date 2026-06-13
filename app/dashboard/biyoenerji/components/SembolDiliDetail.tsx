@@ -141,6 +141,30 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const downloadWord = useCallback(async () => {
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId || !record) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/biyoenerji/symbol-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sembol-${record.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }, [record]);
   const [form, setForm] = useState<SymbolForm>({
     symbol_name: "",
     category: "",
@@ -415,6 +439,14 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             className="rounded-2xl border-2 border-rose-300 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
           >
             Sil
+          </button>
+          <button
+            type="button"
+            disabled={wordBusy}
+            onClick={() => void downloadWord()}
+            className="rounded-2xl border-2 border-violet-300 bg-violet-50 px-6 py-3 text-base font-black text-violet-950 transition hover:bg-violet-100 disabled:opacity-45"
+          >
+            {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
           </button>
         </div>
       </header>
