@@ -368,6 +368,7 @@ export default function SifaRehberiDetailPage() {
   const [sectionTab, setSectionTab] = useState<HealingGuideSectionType>("reasons");
   const [editEnabled, setEditEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -644,6 +645,33 @@ export default function SifaRehberiDetailPage() {
     await loadRecord();
   }
 
+  const downloadWord = useCallback(async () => {
+    const tenantId = queryTenantId ?? await getSyncedTenantId();
+    if (!tenantId || !record) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/sifa-rehberi/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setErrorMessage(err.error || "Rapor oluşturulamadı.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sifa-rehberi-${record.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }, [queryTenantId, record]);
+
   function toggleEditOrSave() {
     if (!draft || !record) return;
     if (editEnabled) {
@@ -770,6 +798,14 @@ export default function SifaRehberiDetailPage() {
                 </span>
                 Listeye Dön
               </Link>
+              <button
+                type="button"
+                onClick={() => void downloadWord()}
+                disabled={wordBusy || !record}
+                className={`${detailToolbarBtn} border border-emerald-200/90 bg-emerald-50/95 text-emerald-800 shadow-sm hover:bg-emerald-100`}
+              >
+                {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+              </button>
               <button
                 type="button"
                 onClick={toggleEditOrSave}

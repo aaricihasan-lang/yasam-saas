@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -21,6 +22,8 @@ import {
   matchesListSearch,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
 
 type GuideImage = {
@@ -502,6 +505,7 @@ export default function SifaRehberiPage() {
 function SifaRehberiContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -509,6 +513,8 @@ function SifaRehberiContent() {
   const [search, setSearch] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
   const [pageView, setPageView] = useState<PageView>(() => {
     return pageViewFromQueryParam(searchParams.get("view")) ?? "menu";
   });
@@ -573,6 +579,63 @@ function SifaRehberiContent() {
       setFormTab("rahatsizlik");
     });
   }, [pageView]);
+
+  const toggleExportSelection = useCallback((id: string) => {
+    setSelectedForExport((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  async function exportWord(mode: "all" | "selected" | "filtered") {
+    const tenantId = queryTenantId;
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const body: Record<string, unknown> = { tenantId, exportMode: mode === "all" ? "all" : "selected" };
+      if (mode === "selected") {
+        const arr = [...selectedForExport];
+        if (!arr.length) {
+          showToast({ title: "Uyarı", message: "Önce kayıt seçin.", type: "warning" });
+          return;
+        }
+        body.ids = arr;
+      } else if (mode === "filtered") {
+        const arr = filteredRows.map((r) => r.id);
+        if (!arr.length) {
+          showToast({ title: "Uyarı", message: "Filtrelenmiş sonuç yok.", type: "warning" });
+          return;
+        }
+        body.ids = arr;
+      }
+      const res = await fetch("/api/sifa-rehberi/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
+      a.download = `sifa-rehberi-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Şifa rehberi raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
+      setWordBusy(false);
+    }
+  }
+
+  const hasActiveFilter = Boolean(search.trim());
 
   function goToMainMenu() {
     setPageView("menu");
@@ -1372,6 +1435,23 @@ function SifaRehberiContent() {
         </section>
         ) : null}
 
+        {pageView === "list" && !loading && filteredRows.length > 0 ? (
+          <div>
+            <BulkExportBar
+              selectedCount={selectedForExport.size}
+              totalCount={rows.length}
+              filteredCount={filteredRows.length}
+              hasActiveFilter={hasActiveFilter}
+              onSelectAll={() => setSelectedForExport(new Set(filteredRows.map((r) => r.id)))}
+              onClearSelection={() => setSelectedForExport(new Set())}
+              onExportSelected={() => void exportWord("selected")}
+              onExportAll={() => void exportWord("all")}
+              onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
+              isExporting={wordBusy}
+            />
+          </div>
+        ) : null}
+
         {pageView === "list" ? (
         <section className={listContentCard}>
           {loading ? (
@@ -1393,7 +1473,8 @@ function SifaRehberiContent() {
           ) : viewMode === "list" ? (
             <div className="overflow-hidden overflow-x-auto rounded-[24px] bg-white/86 ring-1 ring-slate-100">
               <div className="min-w-[800px]">
-                <div className="grid grid-cols-[1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                <div className="grid grid-cols-[2rem_1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div />
                   <div>Rahatsızlık</div>
                   <div>Kategori</div>
                   <div>Dolu bölüm</div>
@@ -1404,11 +1485,20 @@ function SifaRehberiContent() {
                 <div className="divide-y divide-slate-100">
                   {filteredRows.map((row) => {
                     const filled = countListFilledSections(row);
+                    const isSelected = selectedForExport.has(row.id);
                     return (
                       <div
                         key={row.id}
-                        className="grid grid-cols-[1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-cyan-50/45"
+                        className={`grid grid-cols-[2rem_1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 px-4 py-3 text-[12px] transition ${isSelected ? "bg-emerald-50/60" : "hover:bg-cyan-50/45"}`}
                       >
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleExportSelection(row.id)}
+                            className="h-4 w-4 rounded accent-emerald-600"
+                          />
+                        </div>
                         <div className="min-w-0 font-black text-slate-950">
                           <span className="block truncate">{row.name}</span>
                         </div>
@@ -1440,8 +1530,22 @@ function SifaRehberiContent() {
             <div className={listGuideCardGrid}>
               {filteredRows.map((row) => {
                 const filled = countListFilledSections(row);
+                const isSelected = selectedForExport.has(row.id);
                 return (
-                  <article key={row.id} className={listGuideCard}>
+                  <article key={row.id} className={`relative ${listGuideCard} ${isSelected ? "ring-2 ring-emerald-400/60 ring-offset-2" : ""}`}>
+                    {/* Checkbox */}
+                    <label
+                      className="absolute right-4 top-4 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleExportSelection(row.id)}
+                        className="h-4 w-4 rounded accent-emerald-600 shadow"
+                      />
+                    </label>
+
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={listGuideCardBadge}>{filled} bölüm dolu</span>
                       {row.category?.trim() ? (
