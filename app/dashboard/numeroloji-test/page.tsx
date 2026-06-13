@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
@@ -11,6 +12,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 }
 
 export default function NumerolojiTestPage() {
+  useBfcacheRefresh();
   const [fullName, setFullName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { BilgiKayitEkleDuzenle } from "./components/BilgiKayitEkleDuzenle";
 import { BilgiDogaltasAta } from "./components/BilgiDogaltasAta";
 import { BilgiKayitListesi } from "./components/BilgiKayitListesi";
@@ -15,6 +16,7 @@ const BILGI_TABS = [
 type BilgiTabId = (typeof BILGI_TABS)[number]["id"];
 
 export default function NumerolojiBilgiBankasiPage() {
+  useBfcacheRefresh();
   const [tab, setTab] = useState<BilgiTabId>("kayit-ekle");
 
   return (
