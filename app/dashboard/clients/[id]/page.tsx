@@ -142,6 +142,9 @@ export default function ClientDetailPage() {
   const [savingAll, setSavingAll] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [tabWordBusy, setTabWordBusy] = useState(false);
+  const [drStart, setDrStart] = useState("");
+  const [drEnd, setDrEnd] = useState("");
+  const [drBusy, setDrBusy] = useState(false);
 
   const [editDogum, setEditDogum] = useState("");
 
@@ -379,6 +382,49 @@ export default function ClientDetailPage() {
     }
   }
 
+  async function generateDateRangeReport() {
+    if (!tenantId || !client) return;
+    if (!drStart || !drEnd) {
+      showToast({ title: "Uyarı", message: "Başlangıç ve bitiş tarihi giriniz.", type: "warning" });
+      return;
+    }
+    if (drStart > drEnd) {
+      showToast({ title: "Uyarı", message: "Başlangıç tarihi bitiş tarihinden sonra olamaz.", type: "warning" });
+      return;
+    }
+    setDrBusy(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/word-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const rawName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
+      const nameSlug = rawName.toLowerCase()
+        .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
+        .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
+        .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
+        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      link.download = `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Tarih aralığı raporu indirme başlatıldı.", type: "success" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+      showToast({ title: "Hata", message, type: "error" });
+    } finally {
+      setDrBusy(false);
+    }
+  }
+
   async function generateTabWordReport(tab: string) {
     if (!tenantId || !client) return;
     setTabWordBusy(true);
@@ -531,6 +577,52 @@ export default function ClientDetailPage() {
             }}
           >
             {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
+          </button>
+        </div>
+
+        {/* Tarih aralığı Word raporu */}
+        <div style={{
+          marginBottom: 10,
+          padding: "12px 14px",
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          gap: 10,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#334155", alignSelf: "center", minWidth: "100%", marginBottom: 2 }}>
+            📅 Tarih Aralığı Raporu
+            <span style={{ fontWeight: 600, color: "#94a3b8", marginLeft: 8, fontSize: 11 }}>
+              Seçili tarih aralığındaki danışan kayıtlarını Word olarak indir
+            </span>
+          </div>
+          <div>
+            <label style={textareaLabel}>Başlangıç</label>
+            <input
+              type="date"
+              value={drStart}
+              onChange={(e) => setDrStart(e.target.value)}
+              style={{ ...inputStyle, width: 150 }}
+            />
+          </div>
+          <div>
+            <label style={textareaLabel}>Bitiş</label>
+            <input
+              type="date"
+              value={drEnd}
+              onChange={(e) => setDrEnd(e.target.value)}
+              style={{ ...inputStyle, width: 150 }}
+            />
+          </div>
+          <button
+            onClick={generateDateRangeReport}
+            disabled={drBusy || !drStart || !drEnd}
+            className="btn-secondary"
+            style={{ opacity: (drBusy || !drStart || !drEnd) ? 0.6 : 1, alignSelf: "flex-end" }}
+          >
+            {drBusy ? "⏳ Oluşturuluyor..." : "Word Oluştur"}
           </button>
         </div>
 
