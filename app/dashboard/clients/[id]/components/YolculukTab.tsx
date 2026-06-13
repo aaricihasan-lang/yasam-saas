@@ -39,6 +39,12 @@ type HomeworkProcess = {
   durum: "yok" | "baslangic" | "devam" | "iyi" | "tamamlandi";
 };
 
+type AlertItem = {
+  id: string;
+  message: string;
+  category: "kritik" | "takip" | "bilgi" | "olumlu";
+};
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 type YolculukTabProps = {
   clientId: string;
@@ -174,6 +180,10 @@ export default function YolculukTab({
     aktifOdevBaslik: null,
     durum: "yok",
   });
+  const [extraAlertData, setExtraAlertData] = useState<{
+    lastPastRandevuDaysAgo: number | null;
+    lastAnalizDaysAgo: number | null;
+  }>({ lastPastRandevuDaysAgo: null, lastAnalizDaysAgo: null });
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
@@ -444,6 +454,29 @@ export default function YolculukTab({
           durum: hwDurum,
         });
 
+        // Uyarı sistemi için ek veriler
+        const pastRandevular = appointmentList
+          .filter((a) => a.appointment_date && a.appointment_date < nowIso)
+          .sort((a, b) => (b.appointment_date > a.appointment_date ? 1 : -1));
+        const lastPastRandevuDaysAgo = pastRandevular[0]?.appointment_date
+          ? Math.floor(
+              (Date.now() - new Date(pastRandevular[0].appointment_date).getTime()) /
+                86400000
+            )
+          : null;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const analysisSorted = ((analysesRes.data ?? []) as any[])
+          .filter((a) => a.created_at)
+          .sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+        const lastAnalizDaysAgo = analysisSorted[0]?.created_at
+          ? Math.floor(
+              (Date.now() - new Date(analysisSorted[0].created_at).getTime()) / 86400000
+            )
+          : null;
+
+        setExtraAlertData({ lastPastRandevuDaysAgo, lastAnalizDaysAgo });
+
         setEntries(normalized);
         setCounts({
           analizler: analysesRes.data?.length ?? 0,
@@ -510,6 +543,20 @@ export default function YolculukTab({
       {/* Ödev Takibi */}
       {!timelineLoading && (
         <OdevCard process={homeworkProcess} />
+      )}
+
+      {/* Akıllı Uyarılar */}
+      {!timelineLoading && (
+        <AlertCard
+          alerts={buildAlerts({
+            clientDogum,
+            clientPhone,
+            counts,
+            sessionProcess,
+            homeworkProcess,
+            extraAlertData,
+          })}
+        />
       )}
 
       {/* Ana içerik: sol panel + orta alan */}
@@ -1553,4 +1600,251 @@ const aktifOdevBox: React.CSSProperties = {
   background: "#fffbeb",
   border: "1px solid #fde68a",
   borderRadius: 10,
+};
+
+/* ─── Akıllı Uyarı Sistemi ───────────────────────────────────────────────────*/
+
+function buildAlerts({
+  clientDogum,
+  clientPhone,
+  counts,
+  sessionProcess,
+  homeworkProcess,
+  extraAlertData,
+}: {
+  clientDogum: string | undefined;
+  clientPhone: string | undefined;
+  counts: { analizler: number; seanslar: number; randevular: number; notlar: number; taslar: number; odevler: number };
+  sessionProcess: SessionProcess;
+  homeworkProcess: HomeworkProcess;
+  extraAlertData: { lastPastRandevuDaysAgo: number | null; lastAnalizDaysAgo: number | null };
+}): AlertItem[] {
+  const alerts: AlertItem[] = [];
+
+  // ── Kritik ───────────────────────────────────────────────────────────────
+  if (!clientDogum)
+    alerts.push({ id: "no-dogum", message: "Doğum tarihi eksik", category: "kritik" });
+
+  if (!clientPhone)
+    alerts.push({ id: "no-phone", message: "Telefon numarası eksik", category: "kritik" });
+
+  if (sessionProcess.gunFarki != null && sessionProcess.gunFarki >= 30)
+    alerts.push({
+      id: "seans-30",
+      message: `${sessionProcess.gunFarki} gündür seans yok`,
+      category: "kritik",
+    });
+
+  if (
+    extraAlertData.lastPastRandevuDaysAgo != null &&
+    extraAlertData.lastPastRandevuDaysAgo >= 60
+  )
+    alerts.push({
+      id: "randevu-60",
+      message: `${extraAlertData.lastPastRandevuDaysAgo} gündür randevu yok`,
+      category: "kritik",
+    });
+
+  if (counts.analizler === 0)
+    alerts.push({ id: "no-analiz", message: "Hiç analiz yapılmamış", category: "kritik" });
+
+  // ── Takip Gerekiyor ───────────────────────────────────────────────────────
+  if (!sessionProcess.yaklasanRandevu)
+    alerts.push({ id: "no-upcoming", message: "Yaklaşan randevu yok", category: "takip" });
+
+  if (homeworkProcess.devamEden > 0)
+    alerts.push({
+      id: "hw-pending",
+      message: `${homeworkProcess.devamEden} tamamlanmamış ödev var`,
+      category: "takip",
+    });
+
+  if (counts.taslar === 0)
+    alerts.push({ id: "no-tas", message: "Hiç taş önerisi girilmemiş", category: "takip" });
+
+  if (counts.notlar === 0)
+    alerts.push({ id: "no-not", message: "Hiç not girilmemiş", category: "takip" });
+
+  if (counts.seanslar === 0)
+    alerts.push({ id: "no-seans", message: "Henüz seans yapılmamış", category: "takip" });
+
+  // ── Bilgilendirme ─────────────────────────────────────────────────────────
+  if (
+    sessionProcess.gunFarki != null &&
+    sessionProcess.gunFarki >= 14 &&
+    sessionProcess.gunFarki < 30
+  )
+    alerts.push({
+      id: "seans-14",
+      message: `Son seanstan ${sessionProcess.gunFarki} gün geçti`,
+      category: "bilgi",
+    });
+
+  if (
+    extraAlertData.lastAnalizDaysAgo != null &&
+    extraAlertData.lastAnalizDaysAgo >= 60
+  )
+    alerts.push({
+      id: "analiz-old",
+      message: `Son analizden ${extraAlertData.lastAnalizDaysAgo} gün geçti`,
+      category: "bilgi",
+    });
+
+  if (counts.seanslar === 0 && counts.randevular === 0)
+    alerts.push({
+      id: "new-client",
+      message: "Danışan yeni kayıt — süreç henüz başlamamış",
+      category: "bilgi",
+    });
+
+  // ── Olumlu — kritik/takip uyarısı yoksa ──────────────────────────────────
+  const hasProblem = alerts.some(
+    (a) => a.category === "kritik" || a.category === "takip"
+  );
+  if (!hasProblem) {
+    alerts.push({
+      id: "ok-1",
+      message: "Danışan süreci düzenli ilerliyor",
+      category: "olumlu",
+    });
+    alerts.push({
+      id: "ok-2",
+      message: "Takip gerektiren kritik durum bulunamadı",
+      category: "olumlu",
+    });
+  }
+
+  return alerts;
+}
+
+const ALERT_META = {
+  kritik: { color: "#dc2626", bg: "#fef2f2", border: "#fecaca", icon: "⚠",  label: "Kritik"           },
+  takip:  { color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "◎",  label: "Takip Gerekiyor"  },
+  bilgi:  { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", icon: "ℹ",  label: "Bilgilendirme"    },
+  olumlu: { color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0", icon: "✓",  label: "Durum"            },
+} as const;
+
+function AlertCard({ alerts }: { alerts: AlertItem[] }) {
+  const kritikler = alerts.filter((a) => a.category === "kritik");
+  const takipler  = alerts.filter((a) => a.category === "takip");
+  const bilgiler  = alerts.filter((a) => a.category === "bilgi");
+  const olumluler = alerts.filter((a) => a.category === "olumlu");
+
+  const groups = [
+    { items: kritikler, meta: ALERT_META.kritik },
+    { items: takipler,  meta: ALERT_META.takip  },
+    { items: bilgiler,  meta: ALERT_META.bilgi   },
+    { items: olumluler, meta: ALERT_META.olumlu  },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <div style={alertCardStyle}>
+      {/* Başlık + rozetler */}
+      <div style={alertCardHeader}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>◈</span>
+          <span style={{ fontSize: 14, fontWeight: 950, color: "#0f172a", letterSpacing: "-0.01em" }}>
+            Akıllı Uyarılar ve Öneriler
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {kritikler.length > 0 && (
+            <span style={{ ...alertCountBadge, background: "#fef2f2", color: "#dc2626" }}>
+              {kritikler.length} Kritik
+            </span>
+          )}
+          {takipler.length > 0 && (
+            <span style={{ ...alertCountBadge, background: "#fffbeb", color: "#d97706" }}>
+              {takipler.length} Takip
+            </span>
+          )}
+          {bilgiler.length > 0 && (
+            <span style={{ ...alertCountBadge, background: "#eff6ff", color: "#2563eb" }}>
+              {bilgiler.length} Bilgi
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Gruplar */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {groups.map(({ items, meta }) => (
+          <div
+            key={meta.label}
+            style={{
+              ...alertGroup,
+              background: meta.bg,
+              borderColor: meta.border,
+            }}
+          >
+            <div style={alertGroupTitle}>
+              <span style={{ color: meta.color, fontSize: 12 }}>{meta.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: meta.color, letterSpacing: "0.05em" }}>
+                {meta.label.toUpperCase()}
+              </span>
+            </div>
+            {items.map((item) => (
+              <div key={item.id} style={alertRow}>
+                <span style={{ color: meta.color, fontSize: 10, flexShrink: 0 }}>→</span>
+                <span style={{ fontSize: 12, fontWeight: 850, color: "#374151" }}>
+                  {item.message}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const alertCardStyle: React.CSSProperties = {
+  background: "white",
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  padding: "18px 20px",
+  boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+};
+
+const alertCardHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 8,
+};
+
+const alertCountBadge: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: 999,
+  padding: "3px 10px",
+  fontSize: 10,
+  fontWeight: 900,
+};
+
+const alertGroup: React.CSSProperties = {
+  borderRadius: 12,
+  border: "1px solid",
+  padding: "10px 14px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 5,
+};
+
+const alertGroupTitle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 5,
+  marginBottom: 4,
+};
+
+const alertRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 7,
+  paddingLeft: 4,
 };
