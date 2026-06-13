@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -296,6 +297,7 @@ function AdminToolCardInactive({ item }: { item: AdminCard }) {
 }
 
 export default function AdminPage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const [user, setUser] = useState<YasamUser | null>(null);
   const [checked, setChecked] = useState(false);

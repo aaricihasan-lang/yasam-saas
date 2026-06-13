@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Archive, ArrowLeft, Home, Loader2 } from "lucide-react";
@@ -249,6 +250,7 @@ function ReadonlyArchiveFileCard({
 }
 
 export default function AdminWorkspaceArchiveDetailPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const expertUserId = typeof params.id === "string" ? params.id : "";
   const archiveId = typeof params.archiveId === "string" ? params.archiveId : "";

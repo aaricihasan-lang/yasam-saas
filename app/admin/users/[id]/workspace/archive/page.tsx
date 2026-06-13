@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, Home, Loader2, Search } from "lucide-react";
@@ -93,6 +94,7 @@ function mergeArchivesWithFileCounts(
 }
 
 export default function AdminWorkspaceArchivePage() {
+  useBfcacheRefresh();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";
 

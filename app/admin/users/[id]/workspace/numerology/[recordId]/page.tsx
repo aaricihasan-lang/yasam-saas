@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
@@ -24,6 +25,7 @@ const pageContainerClass =
   "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
 
 export default function AdminWorkspaceNumerologyDetailPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const expertUserId = typeof params.id === "string" ? params.id : "";
   const recordId = typeof params.recordId === "string" ? params.recordId : "";

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, CalendarDays, Loader2 } from "lucide-react";
@@ -156,6 +157,7 @@ function SectionCard({
 }
 
 export default function AdminWorkspaceAppointmentDetailPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const expertUserId = typeof params.id === "string" ? params.id : "";
   const appointmentId =

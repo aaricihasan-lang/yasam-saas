@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
   formatCreatedAt,
@@ -17,6 +18,7 @@ import type { ManagedUser } from "@/lib/admin/userManagement";
 import { supabase } from "@/lib/supabase";
 
 export default function SistemSagligiBekleyenlerPage() {
+  useBfcacheRefresh();
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

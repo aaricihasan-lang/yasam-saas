@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -119,6 +120,7 @@ const WORKSPACE_MODULES: WorkspaceModuleMeta[] = [
 ];
 
 export default function AdminUserWorkspacePage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";

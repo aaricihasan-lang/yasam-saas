@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Home, Loader2, Search, Sparkles } from "lucide-react";
@@ -56,6 +57,7 @@ function mapNumerologyRow(row: Record<string, unknown>): NumerologyListRow {
 }
 
 export default function AdminWorkspaceNumerologyPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";
 

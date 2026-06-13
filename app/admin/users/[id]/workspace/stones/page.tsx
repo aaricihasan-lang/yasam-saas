@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Gem, Home, Loader2, Search } from "lucide-react";
@@ -66,6 +67,7 @@ function mapStoneRow(row: Record<string, unknown>): StoneListRow {
 }
 
 export default function AdminWorkspaceStonesPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";
 

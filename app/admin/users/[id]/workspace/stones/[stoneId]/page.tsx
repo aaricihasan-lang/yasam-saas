@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Gem, Loader2 } from "lucide-react";
@@ -79,6 +80,7 @@ function ReadonlyTextSection({
 }
 
 export default function AdminWorkspaceStoneDetailPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const expertUserId = typeof params.id === "string" ? params.id : "";
   const stoneId = typeof params.stoneId === "string" ? params.stoneId : "";

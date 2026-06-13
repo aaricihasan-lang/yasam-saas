@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, Loader2, UsersRound } from "lucide-react";
@@ -207,6 +208,7 @@ function SectionCard({
 }
 
 export default function AdminWorkspaceClientDetailPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const expertUserId = typeof params.id === "string" ? params.id : "";
   const clientId = typeof params.clientId === "string" ? params.clientId : "";

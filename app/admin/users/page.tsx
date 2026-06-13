@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -296,6 +297,7 @@ const emptyCreateForm: CreateForm = {
 };
 
 export default function AdminUsersPage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const { showToast } = useToast();
   const [sessionChecked, setSessionChecked] = useState(false);

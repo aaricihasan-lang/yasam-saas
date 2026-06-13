@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -404,6 +405,7 @@ function ModulePermissionCard({
 }
 
 export default function AdminUserDetailPage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";

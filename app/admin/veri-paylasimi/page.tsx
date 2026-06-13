@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -245,6 +246,7 @@ function FlowStepBar({
 }
 
 export default function VeriPaylasimiPage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const { confirm } = useConfirm();
   const { showToast } = useToast();

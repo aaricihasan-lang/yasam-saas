@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
   loadTenantMetricSummary,
@@ -13,6 +14,7 @@ import {
 } from "../detail-shared";
 
 export default function SistemSagligiDogaltasPage() {
+  useBfcacheRefresh();
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

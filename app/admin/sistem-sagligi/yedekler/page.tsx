@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
   LoadingScreen,
@@ -18,6 +19,7 @@ const BACKUP_TABLE_CANDIDATES = [
 ] as const;
 
 export default function SistemSagligiYedeklerPage() {
+  useBfcacheRefresh();
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [tableAvailable, setTableAvailable] = useState(false);

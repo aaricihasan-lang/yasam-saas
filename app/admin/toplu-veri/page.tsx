@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AlertTriangle,
   Brain,
@@ -4948,6 +4949,7 @@ function StokJsonTab() {
 }
 
 export default function TopluVeriPage() {
+  useBfcacheRefresh();
   const [activeTab, setActiveTab] = useState<
     | "dogaltas"
     | "stok-json"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
   formatCreatedAt,
@@ -29,6 +30,7 @@ function computeExpertStats(experts: ManagedUser[]) {
 }
 
 export default function SistemSagligiUzmanlarPage() {
+  useBfcacheRefresh();
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

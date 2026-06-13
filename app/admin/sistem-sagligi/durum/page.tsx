@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
   LoadingScreen,
@@ -13,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 type HealthState = "healthy" | "check";
 
 export default function SistemSagligiDurumPage() {
+  useBfcacheRefresh();
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [health, setHealth] = useState<HealthState>("check");

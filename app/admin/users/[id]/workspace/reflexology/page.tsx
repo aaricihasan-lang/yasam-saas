@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
@@ -390,6 +391,7 @@ function ReflexSectionAccordion({
 }
 
 export default function AdminWorkspaceReflexologyPage() {
+  useBfcacheRefresh();
   const params = useParams();
   const userId = typeof params.id === "string" ? params.id : "";
 

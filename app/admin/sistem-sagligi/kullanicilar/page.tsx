@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, ArrowLeft, Loader2, Shield } from "lucide-react";
 import {
@@ -101,6 +102,7 @@ function pickLastUsers(users: ManagedUser[], limit = 10): ManagedUser[] {
 }
 
 export default function SistemSagligiKullanicilarPage() {
+  useBfcacheRefresh();
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);

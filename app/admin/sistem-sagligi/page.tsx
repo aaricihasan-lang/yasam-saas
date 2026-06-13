@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useEffect, useState } from "react";
 import { Activity, ArrowLeft, Home, Shield } from "lucide-react";
 import { ADMIN_DEMO_VALUE } from "@/components/admin/AdminModuleLayout";
@@ -80,6 +81,7 @@ function AdminNavButtons({ className = "" }: { className?: string }) {
 }
 
 export default function SistemSagligiPage() {
+  useBfcacheRefresh();
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
 

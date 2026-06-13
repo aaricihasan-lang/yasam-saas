@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -608,6 +609,7 @@ function AuditCard({ audit }: { audit: TableAudit }) {
 }
 
 export default function TenantKontrolPage() {
+  useBfcacheRefresh();
   const router = useRouter();
   const { showToast } = useToast();
   const [sessionChecked, setSessionChecked] = useState(false);
