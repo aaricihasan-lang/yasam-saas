@@ -29,6 +29,16 @@ type SessionProcess = {
   durum: "aktif" | "takip" | "pasif" | "baslamadi";
 };
 
+type HomeworkProcess = {
+  total: number;
+  tamamlanan: number;
+  devamEden: number;
+  yuzde: number;
+  sonOdevTarihi: string | null;
+  aktifOdevBaslik: string | null;
+  durum: "yok" | "baslangic" | "devam" | "iyi" | "tamamlandi";
+};
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 type YolculukTabProps = {
   clientId: string;
@@ -154,6 +164,15 @@ export default function YolculukTab({
     gunFarki: null,
     yaklasanRandevu: null,
     durum: "baslamadi",
+  });
+  const [homeworkProcess, setHomeworkProcess] = useState<HomeworkProcess>({
+    total: 0,
+    tamamlanan: 0,
+    devamEden: 0,
+    yuzde: 0,
+    sonOdevTarihi: null,
+    aktifOdevBaslik: null,
+    durum: "yok",
   });
   const [timelineLoading, setTimelineLoading] = useState(false);
 
@@ -380,6 +399,51 @@ export default function YolculukTab({
         }
 
         setSessionProcess(newProcess);
+
+        // Ödev takibi hesabı
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const hwList = (homeworksRes.data ?? []) as any[];
+        const hwTamamlanan = hwList.filter((h) => h.status === "tamamlandi");
+        const hwDevam = hwList.filter((h) => h.status !== "tamamlandi");
+        const hwTotal = hwList.length;
+        const hwYuzde =
+          hwTotal === 0 ? 0 : Math.round((hwTamamlanan.length / hwTotal) * 100);
+
+        const hwSonTarih = hwList
+          .map((h) => h.end_date || h.start_date || h.created_at || "")
+          .filter(Boolean)
+          .sort()
+          .reverse()[0] ?? null;
+
+        const hwAktifBaslik =
+          hwDevam
+            .sort((a, b) => {
+              const da = a.start_date || a.created_at || "";
+              const db = b.start_date || b.created_at || "";
+              return db > da ? 1 : -1;
+            })[0]?.title ?? null;
+
+        const hwDurum: HomeworkProcess["durum"] =
+          hwTotal === 0
+            ? "yok"
+            : hwYuzde === 100
+            ? "tamamlandi"
+            : hwYuzde >= 71
+            ? "iyi"
+            : hwYuzde >= 31
+            ? "devam"
+            : "baslangic";
+
+        setHomeworkProcess({
+          total: hwTotal,
+          tamamlanan: hwTamamlanan.length,
+          devamEden: hwDevam.length,
+          yuzde: hwYuzde,
+          sonOdevTarihi: hwSonTarih ? isoToTR(hwSonTarih) : null,
+          aktifOdevBaslik: hwAktifBaslik,
+          durum: hwDurum,
+        });
+
         setEntries(normalized);
         setCounts({
           analizler: analysesRes.data?.length ?? 0,
@@ -441,6 +505,11 @@ export default function YolculukTab({
       {/* Seans Süreci */}
       {!timelineLoading && (
         <SeansCard process={sessionProcess} />
+      )}
+
+      {/* Ödev Takibi */}
+      {!timelineLoading && (
+        <OdevCard process={homeworkProcess} />
       )}
 
       {/* Ana içerik: sol panel + orta alan */}
@@ -1342,5 +1411,146 @@ const yaklasanBox: React.CSSProperties = {
   padding: "9px 14px",
   background: "#f0fdf4",
   border: "1px solid #bbf7d0",
+  borderRadius: 10,
+};
+
+/* ─── Ödev Takibi ────────────────────────────────────────────────────────────*/
+
+const ODEV_DURUM_META = {
+  yok:        { label: "Henüz Ödev Yok", color: "#94a3b8", bg: "#f1f5f9", bar: "#e2e8f0" },
+  baslangic:  { label: "Başlangıç",       color: "#ef4444", bg: "#fee2e2", bar: "#ef4444" },
+  devam:      { label: "Devam Ediyor",    color: "#f59e0b", bg: "#fef3c7", bar: "#f59e0b" },
+  iyi:        { label: "İyi İlerliyor",   color: "#3b82f6", bg: "#dbeafe", bar: "#3b82f6" },
+  tamamlandi: { label: "Tamamlandı",      color: "#10b981", bg: "#d1fae5", bar: "#10b981" },
+} as const;
+
+function OdevCard({ process }: { process: HomeworkProcess }) {
+  const meta = ODEV_DURUM_META[process.durum];
+
+  return (
+    <div style={odevCardStyle}>
+      {/* Başlık satırı */}
+      <div style={seansCardHeader}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16, color: meta.color }}>✏</span>
+          <span style={{ fontSize: 14, fontWeight: 950, color: "#0f172a", letterSpacing: "-0.01em" }}>
+            Ödev Takibi
+          </span>
+        </div>
+        <span style={{ ...durumBadgeStyle, background: meta.bg, color: meta.color }}>
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: meta.color,
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+          {meta.label}
+        </span>
+      </div>
+
+      {/* İstatistik ızgarası */}
+      <div style={seansStatsGrid}>
+        <SeansStat
+          label="Toplam Ödev"
+          value={String(process.total)}
+          color="#0f172a"
+          accent="#f8fafc"
+        />
+        <SeansStat
+          label="Tamamlanan"
+          value={String(process.tamamlanan)}
+          color="#10b981"
+          accent="#f0fdf4"
+        />
+        <SeansStat
+          label="Devam Eden"
+          value={String(process.devamEden)}
+          color={process.devamEden > 0 ? "#f59e0b" : "#94a3b8"}
+          accent={process.devamEden > 0 ? "#fffbeb" : "#f8fafc"}
+        />
+        <SeansStat
+          label="Son Ödev Tarihi"
+          value={process.sonOdevTarihi ?? "—"}
+          color="#64748b"
+          accent="#f8fafc"
+        />
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b" }}>
+            Tamamlama Yüzdesi
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 950, color: meta.color }}>
+            %{process.yuzde}
+          </span>
+        </div>
+        <div
+          style={{
+            height: 8,
+            borderRadius: 999,
+            background: "#f1f5f9",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              borderRadius: 999,
+              width: `${process.yuzde}%`,
+              background:
+                process.yuzde === 0
+                  ? "#e2e8f0"
+                  : `linear-gradient(90deg, ${meta.bar}, ${meta.bar}bb)`,
+              transition: "width 0.6s ease",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Aktif ödev */}
+      {process.aktifOdevBaslik && (
+        <div style={aktifOdevBox}>
+          <span style={{ fontSize: 12 }}>✏</span>
+          <span style={{ fontSize: 12, fontWeight: 850, color: "#92400e" }}>
+            Aktif Ödev:{" "}
+            <strong style={{ color: "#78350f" }}>{process.aktifOdevBaslik}</strong>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const odevCardStyle: React.CSSProperties = {
+  background: "white",
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  padding: "18px 20px",
+  boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+};
+
+const aktifOdevBox: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "9px 14px",
+  background: "#fffbeb",
+  border: "1px solid #fde68a",
   borderRadius: 10,
 };
