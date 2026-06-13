@@ -22,7 +22,15 @@ function NrChip({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
+export function NumerolojiListeKarti({
+  row,
+  isSelected,
+  onToggleSelect,
+}: {
+  row: NumerolojiListeSatir;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
   const motor = extractMotorFromAnalysisJson(row.analysis_data);
 
@@ -32,10 +40,27 @@ export function NumerolojiListeKarti({ row }: { row: NumerolojiListeSatir }) {
     : null;
 
   return (
-    <li>
+    <li className="relative">
+      {onToggleSelect !== undefined && (
+        <label
+          className="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex h-6 w-6 cursor-pointer items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(isSelected)}
+            onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
+            className="h-4 w-4 rounded border-violet-300 accent-violet-600"
+          />
+        </label>
+      )}
       <Link
         href={`/numeroloji/liste/${row.id}`}
-        className="group relative block overflow-hidden rounded-[18px] border border-violet-200/70 bg-white/80 px-5 py-3.5 no-underline backdrop-blur-xl transition-all duration-200 hover:border-violet-300 hover:bg-white/95 hover:shadow-[0_4px_16px_rgba(139,92,246,0.10)]"
+        className={`group relative block overflow-hidden rounded-[18px] border bg-white/80 px-5 py-3.5 no-underline backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_4px_16px_rgba(139,92,246,0.10)] ${
+          isSelected
+            ? "border-violet-400 ring-2 ring-violet-300/50"
+            : "border-violet-200/70 hover:border-violet-300"
+        } ${onToggleSelect !== undefined ? "pr-12" : ""}`}
       >
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-500/[0.03] via-transparent to-fuchsia-500/[0.03] opacity-0 transition group-hover:opacity-100"

@@ -77,6 +77,7 @@ export function BilgiKayitListesi() {
   const [detayRow, setDetayRow] = useState<BilgiBankaListeSatir | null>(null);
   const [siliniyorId, setSiliniyorId] = useState<string | null>(null);
   const [topluSiliniyor, setTopluSiliniyor] = useState(false);
+  const [wordBusy, setWordBusy] = useState(false);
 
   const yukleListe = useCallback(async () => {
     setYukleniyor(true);
@@ -188,6 +189,36 @@ export function BilgiKayitListesi() {
     void yukleListe();
   }
 
+  async function exportKnowledgeWord(mode: "all" | "filtered") {
+    const { resolveNumerolojiTenantId } = await import("../../helpers/numerolojiKayit");
+    const tid = await resolveNumerolojiTenantId();
+    if (!tid) return;
+
+    setWordBusy(true);
+    try {
+      const body: Record<string, unknown> = { tenantId: tid, exportMode: mode };
+      if (mode === "filtered") {
+        body.knowledgeIds = filtrelenmis.filter((r) => r.kayitTuru === "aciklama").map((r) => r.recordId);
+        body.stoneIds = filtrelenmis.filter((r) => r.kayitTuru === "dogaltas").map((r) => r.recordId);
+      }
+      const res = await fetch("/api/numeroloji/knowledge-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `numeroloji-bilgi-bankasi-${mode === "filtered" ? "filtreli" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz hata */ } finally {
+      setWordBusy(false);
+    }
+  }
+
   async function handleSil(row: BilgiBankaListeSatir) {
     const ok = await confirm({
       title: "Kaydı sil",
@@ -282,18 +313,38 @@ export function BilgiKayitListesi() {
 
           <div className="min-w-0">
             <span className="mb-2.5 block text-base font-bold text-slate-800">Toplu işlem</span>
-            <button
-              type="button"
-              disabled={seciliSayisi === 0 || topluSiliniyor || yukleniyor}
-              onClick={() => void handleSecilileriSil()}
-              className={`${secilileriSilBtnClass} w-full`}
-            >
-              {topluSiliniyor
-                ? "Siliniyor…"
-                : seciliSayisi > 0
-                  ? `Seçilileri Sil (${seciliSayisi})`
-                  : "Seçilileri Sil"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={seciliSayisi === 0 || topluSiliniyor || yukleniyor}
+                onClick={() => void handleSecilileriSil()}
+                className={secilileriSilBtnClass}
+              >
+                {topluSiliniyor
+                  ? "Siliniyor…"
+                  : seciliSayisi > 0
+                    ? `Seçilileri Sil (${seciliSayisi})`
+                    : "Seçilileri Sil"}
+              </button>
+              <button
+                type="button"
+                disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
+                onClick={() => void exportKnowledgeWord("all")}
+                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
+              </button>
+              {(kayitTuruFiltre || analizTuruFiltre || arama) && (
+                <button
+                  type="button"
+                  disabled={wordBusy || filtrelenmis.length === 0}
+                  onClick={() => void exportKnowledgeWord("filtered")}
+                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

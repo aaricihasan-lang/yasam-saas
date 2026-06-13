@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
@@ -26,6 +26,35 @@ export default function NumerolojiKayitDetayPage() {
   const [row, setRow] = useState<NumerologyRecordRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const downloadWord = useCallback(async () => {
+    if (!row) return;
+    const tid = await resolveNumerolojiTenantId();
+    if (!tid) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/numeroloji/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, exportMode: "single", recordId: row.id }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safe = `${row.name}-${row.surname}`.toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      a.download = `numeroloji-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  }, [row]);
 
   useEffect(() => {
     if (!id) {
@@ -88,6 +117,16 @@ export default function NumerolojiKayitDetayPage() {
           <Link href="/numeroloji" className={detayNavSecondaryClass}>
             Modül seçimi
           </Link>
+          {row && !loading && (
+            <button
+              type="button"
+              onClick={() => void downloadWord()}
+              disabled={wordBusy}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
+            >
+              {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+            </button>
+          )}
         </div>
 
         {loading ? (
