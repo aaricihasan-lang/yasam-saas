@@ -1,5 +1,6 @@
 import BiyoenerjiSeanslari from "../components/BiyoenerjiSeanslari";
 import BiyoenerjiSectionShell from "../components/BiyoenerjiSectionShell";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 export default function BiyoenerjiSeanslarPage() {
   return (
@@ -8,6 +9,7 @@ export default function BiyoenerjiSeanslarPage() {
       title="Biyoenerji Seansları"
       subtitle="Enerji analizleri, seans kayıtları ve çalışma notları"
     >
+      <BfcacheRefreshHandler />
       <BiyoenerjiSeanslari />
     </BiyoenerjiSectionShell>
   );

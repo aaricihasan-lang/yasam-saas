@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ArrowLeft,
@@ -30,6 +31,7 @@ function charCountColor(len: number): string {
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
 export default function DersNotuPage() {
+  useBfcacheRefresh();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
