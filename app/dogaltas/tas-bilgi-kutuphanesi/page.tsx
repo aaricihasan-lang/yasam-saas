@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { ADMIN_LIBRARY_TENANT_ID, getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
@@ -544,6 +545,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-950">
+      <BfcacheRefreshHandler />
 
       {/* Header */}
       <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">

@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   Suspense,
   useEffect,
@@ -561,16 +562,7 @@ function SifaRehberiContent() {
     if (fromQuery) setPageView(fromQuery);
   }, [searchParams]);
 
-  // bfcache restore: sayfanın dondurulmuş halinden geri döndüğünde
-  // React event listenerları yeniden bağlanmayabilir; router.refresh()
-  // Next.js'in router cache'ini temizleyerek tam re-render sağlar.
-  useEffect(() => {
-    function handlePageShow(e: PageTransitionEvent) {
-      if (e.persisted) router.refresh();
-    }
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, [router]);
+  useBfcacheRefresh();
 
   useEffect(() => {
     if (pageView === "new") return;

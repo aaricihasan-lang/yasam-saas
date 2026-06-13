@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
@@ -206,6 +207,7 @@ export default function MineralBankasiPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
+      <BfcacheRefreshHandler />
       <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-amber-300/20 blur-[150px]" />
       <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-emerald-300/20 blur-[150px]" />
 

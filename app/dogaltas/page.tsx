@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { runInEffect } from "@/lib/runInEffect";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
@@ -360,6 +361,7 @@ async function fetchTableCount(
 function DogaltasPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  useBfcacheRefresh();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
 
   const [loading, setLoading] = useState(true);

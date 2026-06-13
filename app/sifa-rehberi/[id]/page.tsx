@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -462,13 +463,7 @@ export default function SifaRehberiDetailPage() {
     });
   }, [loadRecord]);
 
-  useEffect(() => {
-    function handlePageShow(e: PageTransitionEvent) {
-      if (e.persisted) router.refresh();
-    }
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, [router]);
+  useBfcacheRefresh();
 
   function setDraftField<K extends DraftTextKey>(key: K, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));

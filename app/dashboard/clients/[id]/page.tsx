@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -119,6 +120,7 @@ export default function ClientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const clientId = params.id as string;
+  useBfcacheRefresh();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [isNarrow, setIsNarrow] = useState(false);
 
