@@ -828,7 +828,7 @@ function SifaRehberiContent() {
   if (isNewView) {
     return (
       <>
-        <div className="h-screen overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-4 text-slate-950">
+        <div className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-4 text-slate-950">
           <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
             <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
             <div className="min-w-0 pl-4 text-right">
@@ -852,11 +852,7 @@ function SifaRehberiContent() {
             </div>
           ) : null}
 
-          <div
-            className={`grid min-h-0 grid-cols-[300px_1fr] gap-5 ${
-              errorMessage || successMessage ? "h-[calc(100vh-148px)]" : "h-[calc(100vh-112px)]"
-            }`}
-          >
+          <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] gap-5">
             <input
               ref={imageFileInputRef}
               type="file"
@@ -997,7 +993,7 @@ function SifaRehberiContent() {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 z-10 flex shrink-0 items-center gap-2.5 border-t border-emerald-100/80 bg-white/95 px-5 py-2.5 backdrop-blur-sm">
+              <div className="flex shrink-0 items-center gap-2.5 border-t border-emerald-100/80 bg-white/95 px-5 py-3 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={handleSave}
