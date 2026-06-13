@@ -207,6 +207,8 @@ function MineralListesiPageContent() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
+  const [selectedMineralIds, setSelectedMineralIds] = useState<Set<string>>(() => new Set());
+  const [mineralWordBusy, setMineralWordBusy] = useState(false);
   // Word raporu modal
   const [showWordModal, setShowWordModal] = useState(false);
   const [wordExportMode, setWordExportMode] = useState<"all" | "filtered" | "viewed" | "selected">("all");
@@ -362,6 +364,47 @@ function MineralListesiPageContent() {
     setViewedMineralIds(readViewedMineralIds());
   }, []);
 
+  const toggleMineralSelection = useCallback((id: string) => {
+    setSelectedMineralIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllMinerals = useCallback(() => {
+    setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
+  }, [minerals]);
+
+  const clearMineralSelection = useCallback(() => {
+    setSelectedMineralIds(new Set());
+  }, []);
+
+  async function exportSelectedMineralsWord() {
+    const ids = [...selectedMineralIds];
+    if (!ids.length) return;
+    const tid = await getSyncedTenantId();
+    if (!tid) return;
+    setMineralWordBusy(true);
+    try {
+      const res = await fetch("/api/dogaltas/mineral-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tid, exportMode: "selected", mineralIds: ids }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mineral-secili-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz hata */ } finally {
+      setMineralWordBusy(false);
+    }
+  }
+
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const mineral of minerals) {
@@ -417,8 +460,14 @@ function MineralListesiPageContent() {
       mineralIds = [...viewedMineralIds];
       if (!mineralIds.length) { setWordReportError("Bu oturumda henüz görüntülenen mineral yok."); return; }
     } else if (wordExportMode === "selected") {
-      if (!selectedMineralId) { setWordReportError("Lütfen bir mineral seçin."); return; }
-      mineralIds = [selectedMineralId];
+      if (selectedMineralIds.size > 0) {
+        mineralIds = [...selectedMineralIds];
+      } else if (selectedMineralId) {
+        mineralIds = [selectedMineralId];
+      } else {
+        setWordReportError("Listede mineral seçin veya aşağıdan tek mineral seçin.");
+        return;
+      }
     }
 
     setWordReportLoading(true);
@@ -514,6 +563,16 @@ function MineralListesiPageContent() {
             >
               📄 Word Raporu
             </button>
+            {selectedMineralIds.size > 0 && (
+              <button
+                type="button"
+                onClick={() => void exportSelectedMineralsWord()}
+                disabled={mineralWordBusy}
+                className={`${uiActionBtn} border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50`}
+              >
+                {mineralWordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedMineralIds.size})`}
+              </button>
+            )}
             <Link
               href="/dogaltas/mineral-bankasi"
               className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
@@ -538,6 +597,25 @@ function MineralListesiPageContent() {
             {errorMessage}
           </div>
         ) : null}
+
+        {/* Mineral seçim çubuğu */}
+        {!listLoading && filteredMinerals.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 shadow-sm">
+            <span className="shrink-0 rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
+              {selectedMineralIds.size > 0 ? `✓ ${selectedMineralIds.size} seçili` : "Seçim yok"}
+            </span>
+            <button type="button" onClick={selectAllMinerals} disabled={mineralWordBusy}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50">
+              Tümünü Seç ({totalCount})
+            </button>
+            {selectedMineralIds.size > 0 && (
+              <button type="button" onClick={clearMineralSelection} disabled={mineralWordBusy}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50">
+                Seçimi Temizle
+              </button>
+            )}
+          </div>
+        )}
 
         <section className={uiContentCard}>
           {listLoading && filteredMinerals.length === 0 ? (
@@ -573,15 +651,18 @@ function MineralListesiPageContent() {
                   ? `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}?q=${encodeURIComponent(activeSearch)}`
                   : `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}`;
 
+                const isMineralSelected = selectedMineralIds.has(mineral.id);
                 return (
                   <article
                     key={mineral.id}
                     className={`${uiMineralCard} ${
-                      isViewedInSearch
-                        ? "border-l-4 border-rose-600"
-                        : isSearchActive
-                          ? "border-l-4 border-amber-400"
-                          : ""
+                      isMineralSelected
+                        ? "ring-2 ring-blue-400 ring-offset-1"
+                        : isViewedInSearch
+                          ? "border-l-4 border-rose-600"
+                          : isSearchActive
+                            ? "border-l-4 border-amber-400"
+                            : ""
                     }`}
                   >
                     {isViewedInSearch ? (
@@ -590,6 +671,19 @@ function MineralListesiPageContent() {
                         aria-hidden
                       />
                     ) : null}
+
+                    {/* Mineral seçim checkbox */}
+                    <label
+                      className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isMineralSelected}
+                        onChange={() => toggleMineralSelection(mineral.id)}
+                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
+                      />
+                    </label>
 
                     <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
@@ -692,7 +786,7 @@ function MineralListesiPageContent() {
                 ["all",      "Tüm Mineraller",               `${totalCount} mineral`],
                 ["filtered", "Sadece Filtrelenmiş Sonuçlar",  `${filteredMinerals.length} mineral${hasMore ? " (yüklü)" : ""}`],
                 ["viewed",   "Sadece Görüntülenen Kayıtlar",  `${viewedMineralIds.size} mineral`],
-                ["selected", "Belirli Mineral Seç",           null],
+                ["selected", selectedMineralIds.size > 0 ? `Seçili Mineraller (${selectedMineralIds.size} adet)` : "Belirli Mineral Seç", null],
               ] as const).map(([mode, label, count]) => (
                 <label
                   key={mode}

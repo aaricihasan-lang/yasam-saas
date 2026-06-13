@@ -311,6 +311,7 @@ function DogaltasListesiPageContent() {
   const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
+  const [wordBusy, setWordBusy] = useState(false);
 
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
@@ -702,6 +703,53 @@ function DogaltasListesiPageContent() {
     0,
   );
 
+  const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
+    if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+
+    setWordBusy(true);
+    try {
+      let selectedStoneIds: string[] | undefined;
+      if (mode === "selected") {
+        selectedStoneIds = [...selectedIds];
+        if (!selectedStoneIds.length) { showToast({ type: "warning", message: "Önce taş seçin." }); return; }
+      } else if (mode === "filtered") {
+        selectedStoneIds = filteredStones.map((s) => s.id);
+        if (!selectedStoneIds.length) { showToast({ type: "warning", message: "Filtrelenmiş sonuç yok." }); return; }
+      }
+
+      const body: Record<string, unknown> = {
+        tenantId,
+        sections: { stones: true },
+        includeImages: false,
+      };
+      if (selectedStoneIds) body.selectedStoneIds = selectedStoneIds;
+
+      const res = await fetch("/api/dogaltas/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? "Rapor oluşturulamadı.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
+      a.download = `dogaltas-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ type: "success", message: "Taş raporu indirildi." });
+    } catch (err) {
+      showToast({ type: "error", message: err instanceof Error ? err.message : "Rapor oluşturulamadı." });
+    } finally {
+      setWordBusy(false);
+    }
+  }, [queryTenantId, selectedIds, filteredStones, showToast]);
+
   return (
     <main className={pageBg}>
       <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" />
@@ -966,6 +1014,37 @@ function DogaltasListesiPageContent() {
                 className={`${uiSelectActionBtn} border-2 border-rose-200 bg-gradient-to-r from-rose-50 to-rose-100 text-rose-800 hover:from-rose-100 hover:to-rose-200`}
               >
                 {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
+              </button>
+
+              <div className="h-4 w-px bg-slate-200" aria-hidden />
+
+              <button
+                type="button"
+                disabled={wordBusy || selectedCount === 0}
+                onClick={() => void exportStonesWord("selected")}
+                className={`${uiSelectActionBtn} border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200`}
+              >
+                {wordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedCount})`}
+              </button>
+
+              {(isSearchActive || isDetailFilterActive) && (
+                <button
+                  type="button"
+                  disabled={wordBusy}
+                  onClick={() => void exportStonesWord("filtered")}
+                  className={`${uiSelectActionBtn} border-2 border-violet-200 bg-gradient-to-r from-violet-50 to-violet-100 text-violet-800 hover:from-violet-100 hover:to-violet-200`}
+                >
+                  {wordBusy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredStones.length})`}
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={wordBusy}
+                onClick={() => void exportStonesWord("all")}
+                className={`${uiSelectActionBtn} border-2 border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 hover:from-slate-100 hover:to-slate-200`}
+              >
+                {wordBusy ? "⏳..." : "📄 Tümünü Word"}
               </button>
             </div>
           ) : null}

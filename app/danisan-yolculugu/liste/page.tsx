@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { ArrowLeft, ListFilter, UserPlus, UsersRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 
 type Client = {
   id: string;
@@ -64,6 +65,10 @@ export default function DanisanListePage() {
   const [filterKan, setFilterKan] = useState("");
   const [filterMizac, setFilterMizac] = useState("");
 
+  // Toplu seçim ve Word export
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
+
   const tenantId = sessionUser?.tenant_id?.trim() || null;
   const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
 
@@ -84,6 +89,24 @@ export default function DanisanListePage() {
       return searchOk && burcOk && kanOk && mizacOk;
     });
   }, [clients, search, filterBurc, filterKan, filterMizac]);
+
+  const hasActiveFilter = Boolean(search.trim() || filterBurc || filterKan || filterMizac);
+
+  const toggleClientSelection = useCallback((id: string) => {
+    setSelectedClientIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedClientIds(new Set(filteredClients.map((c) => c.id)));
+  }, [filteredClients]);
+
+  const clearClientSelection = useCallback(() => {
+    setSelectedClientIds(new Set());
+  }, []);
 
   useEffect(() => {
     setSessionUser(readYasamUser());
@@ -106,6 +129,7 @@ export default function DanisanListePage() {
       return;
     }
     loadClients();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionChecked, tenantId]);
 
   async function loadHomeworkAlerts(activeTenantId: string) {
@@ -150,6 +174,44 @@ export default function DanisanListePage() {
     setClients(data || []);
     await loadHomeworkAlerts(activeTenantId);
     setLoading(false);
+  }
+
+  async function exportClientsWord(mode: "selected" | "all" | "filtered") {
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      let clientIds: string[] | undefined;
+      if (mode === "selected") {
+        clientIds = [...selectedClientIds];
+        if (!clientIds.length) { showToast({ title: "Uyarı", message: "Önce danışan seçin.", type: "warning" }); return; }
+      } else if (mode === "filtered") {
+        clientIds = filteredClients.map((c) => c.id);
+        if (!clientIds.length) { showToast({ title: "Uyarı", message: "Filtrelenmiş sonuç yok.", type: "warning" }); return; }
+      }
+
+      const res = await fetch("/api/clients/word-report-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: mode, clientIds }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
+      a.download = `danisan-listesi-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Danışan raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
+      setWordBusy(false);
+    }
   }
 
   const inputCls =
@@ -277,12 +339,32 @@ export default function DanisanListePage() {
 
         {/* Client List */}
         <section className="rounded-2xl border border-white/80 bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8">
-          <h2 className="mb-5 text-xl font-black text-slate-950">
-            Kayıtlı Danışanlar
-            {!loading && (
-              <span className="ml-2 text-base font-bold text-slate-400">({filteredClients.length})</span>
-            )}
-          </h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-black text-slate-950">
+              Kayıtlı Danışanlar
+              {!loading && (
+                <span className="ml-2 text-base font-bold text-slate-400">({filteredClients.length})</span>
+              )}
+            </h2>
+          </div>
+
+          {/* Toplu işlem / Word export çubuğu */}
+          {!loading && filteredClients.length > 0 && (
+            <div className="mb-5">
+              <BulkExportBar
+                selectedCount={selectedClientIds.size}
+                totalCount={clients.length}
+                filteredCount={filteredClients.length}
+                hasActiveFilter={hasActiveFilter}
+                onSelectAll={selectAllFiltered}
+                onClearSelection={clearClientSelection}
+                onExportSelected={() => void exportClientsWord("selected")}
+                onExportAll={() => void exportClientsWord("all")}
+                onExportFiltered={hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
+                isExporting={wordBusy}
+              />
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -309,21 +391,39 @@ export default function DanisanListePage() {
               {filteredClients.map((client) => {
                 const expiredCount = homeworkAlerts[client.id] || 0;
                 const hasExpiredHomework = expiredCount > 0;
+                const isSelected = selectedClientIds.has(client.id);
 
                 return (
                   <div
                     key={client.id}
+                    className={`group relative cursor-pointer rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
+                      isSelected ? "ring-2 ring-blue-400 ring-offset-1" : ""
+                    }`}
+                    style={{
+                      borderColor: isSelected ? "#60a5fa" : hasExpiredHomework ? "#fecaca" : "#e2e8f0",
+                      background: isSelected
+                        ? "linear-gradient(135deg,#eff6ff,#eef2ff)"
+                        : hasExpiredHomework
+                          ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
+                          : "white",
+                    }}
                     onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                     title="Danışan detayını aç"
-                    className="group cursor-pointer rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-                    style={{
-                      borderColor: hasExpiredHomework ? "#fecaca" : "#e2e8f0",
-                      background: hasExpiredHomework
-                        ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
-                        : "white",
-                    }}
                   >
-                    <div className="mb-3 flex items-start justify-between gap-2">
+                    {/* Checkbox — tıklamayı durdurur, sadece seçim yapar */}
+                    <label
+                      className="absolute right-3 top-3 z-10 flex h-6 w-6 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleClientSelection(client.id)}
+                        className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                      />
+                    </label>
+
+                    <div className="mb-3 flex items-start justify-between gap-2 pr-7">
                       <span className="text-lg font-black leading-tight text-slate-900">
                         {client.ad} {client.soyad}
                       </span>

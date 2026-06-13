@@ -330,7 +330,12 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, sections } = body as { tenantId?: string; sections?: Sections };
+  const { tenantId, sections, selectedStoneIds, includeImages = true } = body as {
+    tenantId?: string;
+    sections?: Sections;
+    selectedStoneIds?: string[];
+    includeImages?: boolean;
+  };
 
   if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
@@ -349,9 +354,14 @@ export async function POST(request: Request): Promise<Response> {
   // Parallel DB fetches
   const [stonesRes, mineralsRes, combinationsRes, knowledgeRes] = await Promise.all([
     sections.stones
-      ? db.from("stones")
-          .select("stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images")
-          .eq("tenant_id", tenantId).order("stone_name")
+      ? (() => {
+          let q = db.from("stones")
+            .select("stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images")
+            .eq("tenant_id", tenantId);
+          if (Array.isArray(selectedStoneIds) && selectedStoneIds.length > 0)
+            q = q.in("id", selectedStoneIds);
+          return q.order("stone_name");
+        })()
       : null,
     sections.minerals
       ? db.from("minerals")
@@ -384,7 +394,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Fetch stone images in parallel batches (non-blocking — failures → null)
   let stoneImageBuffers: (Buffer | null)[] = stonesRows.map(() => null);
-  if (sections.stones && stonesRows.length > 0) {
+  if (sections.stones && stonesRows.length > 0 && includeImages !== false) {
     const urls = stonesRows.map((s) => extractFirstImageUrl(s.images));
     stoneImageBuffers = await fetchImagesBatch(urls);
   }
