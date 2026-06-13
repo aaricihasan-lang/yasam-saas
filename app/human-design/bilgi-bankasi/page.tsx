@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HumanDesignShell } from "../components/HumanDesignShell";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { HdBilgiKayitForm } from "./components/HdBilgiKayitForm";
 import { HdBilgiKayitListesi } from "./components/HdBilgiKayitListesi";
 
@@ -13,6 +14,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function HdBilgiBankasiPage() {
+  useBfcacheRefresh();
   const [tab, setTab] = useState<TabId>("kayit-listesi");
 
   return (

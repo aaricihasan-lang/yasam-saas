@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HumanDesignShell } from "../components/HumanDesignShell";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { HdClientForm } from "./components/HdClientForm";
 import { HdClientListesi } from "./components/HdClientListesi";
 
@@ -13,6 +14,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function HdDanisanlarPage() {
+  useBfcacheRefresh();
   const [tab, setTab] = useState<TabId>("liste");
 
   return (

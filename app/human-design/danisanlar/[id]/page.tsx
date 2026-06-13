@@ -1,4 +1,5 @@
 import { HdDanisanDetayContent } from "./HdDanisanDetayContent";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 export default async function Page({
   params,
@@ -6,5 +7,10 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <HdDanisanDetayContent clientId={id} />;
+  return (
+    <>
+      <BfcacheRefreshHandler />
+      <HdDanisanDetayContent clientId={id} />
+    </>
+  );
 }
