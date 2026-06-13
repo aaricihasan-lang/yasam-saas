@@ -393,11 +393,11 @@ function buildStatCardsTable(counts: {
     rows: [
       new TableRow({
         children: [
-          makeStatCard("Randevular",    String(counts.randevular),  C.randevular),
-          makeStatCard("Taş Kayıtları", String(counts.taslar),      C.taslar),
-          makeStatCard("Seanslar",      String(counts.seanslar),    C.seanslar),
-          makeStatCard("Ödevler",       String(counts.odevler),     C.odevler),
-          makeStatCard("Analizler",     String(counts.analizler),   C.analizler),
+          makeStatCard("RANDEVULAR",    String(counts.randevular),  C.randevular),
+          makeStatCard("TAŞ KAYITLARI", String(counts.taslar),      C.taslar),
+          makeStatCard("SEANSLAR",      String(counts.seanslar),    C.seanslar),
+          makeStatCard("ÖDEVLER",       String(counts.odevler),     C.odevler),
+          makeStatCard("ANALİZLER",     String(counts.analizler),   C.analizler),
         ],
       }),
     ],
@@ -423,7 +423,7 @@ function makeStatCard(label: string, value: string, color: string): TableCell {
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: label, size: 16, font: REPORT_FONT, color: C_MID, allCaps: true })],
+        children: [new TextRun({ text: label, size: 16, font: REPORT_FONT, color: C_MID })],
       }),
     ],
   });
@@ -684,8 +684,8 @@ export async function POST(
   all.push(h1Colored("1. Danışan Temel Bilgileri", C.danisan, true));
   all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
   all.push(twoColTable([
-    ["Ad",            v(client.ad)],
-    ["Soyad",         v(client.soyad)],
+    ["Ad",            client.ad?.trim()    ? titleCaseTR(client.ad.trim())    : "Bilgi girilmemiş"],
+    ["Soyad",         client.soyad?.trim() ? titleCaseTR(client.soyad.trim()) : "Bilgi girilmemiş"],
     ["Telefon",       v(client.telefon)],
     ["Doğum Tarihi",  formatDateTR(client.dogum)],
     ["Görüşme",       formatDateTR(client.gorusme)],
