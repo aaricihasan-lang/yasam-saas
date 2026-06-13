@@ -425,6 +425,7 @@ export default function KombinasyonlarPage() {
   }, [rows]);
 
   const hasFilters = Boolean(isSearchActive || categoryFilter.trim());
+  const [wordBusy, setWordBusy] = useState(false);
   const isEmptyDatabase = !loading && !errorMessage && rows.length === 0;
   const isEmptyFiltered = !loading && !errorMessage && rows.length > 0 && groups.length === 0;
   const selectedCount = selectedIds.size;
@@ -497,6 +498,44 @@ export default function KombinasyonlarPage() {
     setSelectedIds(new Set());
     await loadCombinations();
   }, [confirm, isMobile, selectedIds, showToast]);
+
+  const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    setWordBusy(true);
+    try {
+      let issues: string[] | undefined;
+      if (mode === "selected") {
+        issues = [...selectedIds];
+        if (!issues.length) return;
+      } else if (mode === "filtered") {
+        issues = groups.map((g) => g.issue);
+        if (!issues.length) return;
+      }
+      const body: Record<string, unknown> = { tenantId, exportMode: mode };
+      if (issues) body.issues = issues;
+      const res = await fetch("/api/dogaltas/combinations/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setErrorMessage(data.error ?? "Rapor oluşturulamadı.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
+      a.download = `kombinasyon-${modeSlug}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { setErrorMessage("Rapor oluşturulamadı."); } finally {
+      setWordBusy(false);
+    }
+  }, [selectedIds, groups]);
 
   const handleMobileDeleteGroup = useCallback(async (issueKey: string) => {
     const firstConfirmed = await confirm({
@@ -665,6 +704,33 @@ export default function KombinasyonlarPage() {
                   className={`${uiSelectActionBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
                 >
                   {deleteLoading ? "Siliniyor..." : "Sil"}
+                </button>
+                <span className="h-4 w-px bg-slate-200 hidden sm:block" aria-hidden />
+                <button
+                  type="button"
+                  disabled={wordBusy || selectedCount === 0}
+                  onClick={() => void exportCombosWord("selected")}
+                  className={`${uiSelectActionBtn} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+                >
+                  {wordBusy ? "⏳..." : `📄 Seçili Word (${selectedCount})`}
+                </button>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    disabled={wordBusy}
+                    onClick={() => void exportCombosWord("filtered")}
+                    className={`${uiSelectActionBtn} border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100`}
+                  >
+                    {wordBusy ? "⏳..." : `📄 Filtreli Word (${groups.length})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={wordBusy}
+                  onClick={() => void exportCombosWord("all")}
+                  className={`${uiSelectActionBtn} border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100`}
+                >
+                  {wordBusy ? "⏳..." : "📄 Tümünü Word"}
                 </button>
               </div>
             )}

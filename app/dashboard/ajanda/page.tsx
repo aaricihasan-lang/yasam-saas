@@ -9,7 +9,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -108,6 +108,8 @@ export default function AjandaPage() {
   const [formNotes, setFormNotes] = useState("");
   const [formStatus, setFormStatus] = useState<AppointmentStatus>("bekliyor");
   const [saving, setSaving] = useState(false);
+  const [selectedApptIds, setSelectedApptIds] = useState<Set<string>>(() => new Set());
+  const [wordBusy, setWordBusy] = useState(false);
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
@@ -206,6 +208,75 @@ export default function AjandaPage() {
       )
       .slice(0, 10);
   }, [appointments]);
+
+  const toggleApptSelection = useCallback((id: string) => {
+    setSelectedApptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedApptIds(new Set(filteredAppointments.map((a) => a.id)));
+  }, [filteredAppointments]);
+
+  const clearApptSelection = useCallback(() => setSelectedApptIds(new Set()), []);
+
+  async function exportAjandaWord(mode: "all" | "selected" | "filtered" | "weekly" | "monthly") {
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      let appointmentIds: string[] | undefined;
+      let dateRange: { start: string; end: string } | undefined;
+
+      if (mode === "selected") {
+        appointmentIds = [...selectedApptIds];
+        if (!appointmentIds.length) return;
+      } else if (mode === "filtered") {
+        appointmentIds = filteredAppointments.map((a) => a.id);
+        if (!appointmentIds.length) return;
+      } else if (mode === "weekly") {
+        const now = new Date();
+        const dayOfWeek = now.getDay() || 7;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - dayOfWeek + 1);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        dateRange = { start: monday.toISOString(), end: sunday.toISOString() };
+      } else if (mode === "monthly") {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        dateRange = { start: start.toISOString(), end: end.toISOString() };
+      }
+
+      const res = await fetch("/api/ajanda/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: mode, appointmentIds, dateRange }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ajanda-${mode}-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ title: "Başarılı", message: "Ajanda raporu indirildi.", type: "success" });
+    } catch (err) {
+      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+    } finally {
+      setWordBusy(false);
+    }
+  }
 
   function formatTime(value: string) {
     return new Date(value).toLocaleTimeString("tr-TR", {
@@ -625,7 +696,7 @@ export default function AjandaPage() {
           </div>
         </header>
 
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           {FILTER_OPTIONS.map((option) => (
             <button
               key={option.key}
@@ -641,6 +712,48 @@ export default function AjandaPage() {
             </button>
           ))}
         </div>
+
+        {/* Word export çubuğu */}
+        {appointments.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 shadow-sm">
+            <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-black text-blue-800 shadow-sm">
+              {selectedApptIds.size > 0 ? `✓ ${selectedApptIds.size} seçili` : "Ajanda Word"}
+            </span>
+            <button type="button" disabled={wordBusy} onClick={selectAllFiltered}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50">
+              Tümünü Seç ({filteredAppointments.length})
+            </button>
+            {selectedApptIds.size > 0 && (
+              <button type="button" disabled={wordBusy} onClick={clearApptSelection}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-50">
+                Seçimi Temizle
+              </button>
+            )}
+            <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
+            <button type="button" disabled={selectedApptIds.size === 0 || wordBusy} onClick={() => void exportAjandaWord("selected")}
+              className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+              {wordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedApptIds.size})`}
+            </button>
+            {filter !== "all" && (
+              <button type="button" disabled={wordBusy || filteredAppointments.length === 0} onClick={() => void exportAjandaWord("filtered")}
+                className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-violet-700 disabled:opacity-40">
+                {wordBusy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredAppointments.length})`}
+              </button>
+            )}
+            <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("weekly")}
+              className="rounded-lg border border-cyan-400 bg-cyan-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-cyan-700 disabled:opacity-40">
+              {wordBusy ? "⏳..." : "📄 Haftalık"}
+            </button>
+            <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("monthly")}
+              className="rounded-lg border border-teal-400 bg-teal-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-teal-700 disabled:opacity-40">
+              {wordBusy ? "⏳..." : "📄 Aylık"}
+            </button>
+            <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("all")}
+              className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
+              {wordBusy ? "⏳..." : "📄 Tümünü Word"}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_0.8fr]">
           <section className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-lg backdrop-blur-xl">
@@ -661,13 +774,25 @@ export default function AjandaPage() {
                   item.status,
                   item.appointment_date
                 );
+                const isSelected = selectedApptIds.has(item.id);
 
                 return (
+                  <div key={item.id} className="relative">
+                    <label
+                      className="absolute right-2.5 top-2.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleApptSelection(item.id)}
+                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                      />
+                    </label>
                   <button
-                    key={item.id}
                     type="button"
                     onClick={() => setSelectedAppointment(item)}
-                    className={`group flex w-full flex-col rounded-xl border border-slate-200/80 border-l-[4px] bg-white/90 p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${borderClass}`}
+                    className={`group flex w-full flex-col rounded-xl border border-slate-200/80 border-l-[4px] bg-white/90 p-3.5 pr-8 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${borderClass} ${isSelected ? "ring-2 ring-indigo-300/50" : ""}`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -717,6 +842,7 @@ export default function AjandaPage() {
                       </div>
                     </div>
                   </button>
+                  </div>
                 );
               })}
 

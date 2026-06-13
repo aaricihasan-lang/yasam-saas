@@ -1106,6 +1106,36 @@ function KombinasyonDetayPageContent() {
   const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
   const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
+  const [wordBusy, setWordBusy] = useState(false);
+
+  const downloadWord = useCallback(async () => {
+    if (!decodedIssue) return;
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) return;
+    setWordBusy(true);
+    try {
+      const res = await fetch("/api/dogaltas/combinations/word-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, exportMode: "single", combinationTitle: decodedIssue }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safe = decodedIssue.toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      a.download = `kombinasyon-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* sessiz */ } finally {
+      setWordBusy(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decodedIssue]);
 
   const categoryLabel = useMemo(() => {
     for (const row of rows) {
@@ -1333,6 +1363,16 @@ function KombinasyonDetayPageContent() {
             >
               {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
             </Link>
+            {!loading && rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void downloadWord()}
+                disabled={wordBusy}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+              >
+                {wordBusy ? "⏳..." : "📄 Word"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void handleRefresh()}
