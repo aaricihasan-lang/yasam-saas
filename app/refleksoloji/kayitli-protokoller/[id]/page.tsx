@@ -1,4 +1,5 @@
 import { KayitliProtokolDetayLayout } from "../components/KayitliProtokolDetayLayout";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -6,5 +7,10 @@ type PageProps = {
 
 export default async function KayitliProtokolDetayPage({ params }: PageProps) {
   const { id } = await params;
-  return <KayitliProtokolDetayLayout protocolId={decodeURIComponent(id)} />;
+  return (
+    <>
+      <BfcacheRefreshHandler />
+      <KayitliProtokolDetayLayout protocolId={decodeURIComponent(id)} />
+    </>
+  );
 }

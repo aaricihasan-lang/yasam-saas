@@ -1,4 +1,5 @@
 import { NotDetayLayout } from "../components/NotDetayLayout";
+import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -6,5 +7,10 @@ type PageProps = {
 
 export default async function NotDetayPage({ params }: PageProps) {
   const { id } = await params;
-  return <NotDetayLayout noteId={decodeURIComponent(id)} />;
+  return (
+    <>
+      <BfcacheRefreshHandler />
+      <NotDetayLayout noteId={decodeURIComponent(id)} />
+    </>
+  );
 }
