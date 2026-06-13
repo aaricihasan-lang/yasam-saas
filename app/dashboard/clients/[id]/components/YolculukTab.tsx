@@ -20,6 +20,15 @@ export type TimelineEntry = {
   badge?: string;
 };
 
+type SessionProcess = {
+  totalSeans: number;
+  ilkSeans: string | null;
+  sonSeans: string | null;
+  gunFarki: number | null;
+  yaklasanRandevu: string | null;
+  durum: "aktif" | "takip" | "pasif" | "baslamadi";
+};
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 type YolculukTabProps = {
   clientId: string;
@@ -138,6 +147,14 @@ export default function YolculukTab({
   const [activeMenu, setActiveMenu] = useState("genel");
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0, taslar: 0, odevler: 0 });
+  const [sessionProcess, setSessionProcess] = useState<SessionProcess>({
+    totalSeans: 0,
+    ilkSeans: null,
+    sonSeans: null,
+    gunFarki: null,
+    yaklasanRandevu: null,
+    durum: "baslamadi",
+  });
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
@@ -324,6 +341,45 @@ export default function YolculukTab({
           b.dateRaw > a.dateRaw ? 1 : b.dateRaw < a.dateRaw ? -1 : 0
         );
 
+        // Seans süreci hesabı
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sessionList = (sessionsRes.data ?? []) as any[];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const appointmentList = (appointmentsRes.data ?? []) as any[];
+
+        const newProcess: SessionProcess = {
+          totalSeans: sessionList.length,
+          ilkSeans: null,
+          sonSeans: null,
+          gunFarki: null,
+          yaklasanRandevu: null,
+          durum: "baslamadi",
+        };
+
+        const seansWithDate = sessionList
+          .filter((s) => s.session_date)
+          .sort((a, b) => (a.session_date < b.session_date ? -1 : 1));
+
+        if (seansWithDate.length > 0) {
+          newProcess.ilkSeans = isoToTR(seansWithDate[0].session_date);
+          const last = seansWithDate[seansWithDate.length - 1];
+          newProcess.sonSeans = isoToTR(last.session_date);
+          const diffDays = Math.floor(
+            (Date.now() - new Date(last.session_date).getTime()) / 86400000
+          );
+          newProcess.gunFarki = diffDays;
+          newProcess.durum = diffDays <= 14 ? "aktif" : diffDays <= 30 ? "takip" : "pasif";
+        }
+
+        const nowIso = new Date().toISOString();
+        const upcoming = appointmentList
+          .filter((a) => a.appointment_date > nowIso && a.status !== "iptal")
+          .sort((a, b) => (a.appointment_date < b.appointment_date ? -1 : 1));
+        if (upcoming.length > 0) {
+          newProcess.yaklasanRandevu = isoToTR(upcoming[0].appointment_date);
+        }
+
+        setSessionProcess(newProcess);
         setEntries(normalized);
         setCounts({
           analizler: analysesRes.data?.length ?? 0,
@@ -380,6 +436,11 @@ export default function YolculukTab({
           hasTas={counts.taslar > 0}
           hasOdev={counts.odevler > 0}
         />
+      )}
+
+      {/* Seans Süreci */}
+      {!timelineLoading && (
+        <SeansCard process={sessionProcess} />
       )}
 
       {/* Ana içerik: sol panel + orta alan */}
@@ -1100,4 +1161,186 @@ const missingItem: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 850,
   color: "#b45309",
+};
+
+/* ─── Seans Süreci ───────────────────────────────────────────────────────────*/
+
+const DURUM_META = {
+  aktif:     { label: "Aktif Süreç",       color: "#10b981", bg: "#d1fae5" },
+  takip:     { label: "Takip Gerekiyor",   color: "#f59e0b", bg: "#fef3c7" },
+  pasif:     { label: "Pasif Danışan",     color: "#ef4444", bg: "#fee2e2" },
+  baslamadi: { label: "Henüz Başlamadı",   color: "#94a3b8", bg: "#f1f5f9" },
+} as const;
+
+function SeansCard({ process }: { process: SessionProcess }) {
+  const meta = DURUM_META[process.durum];
+
+  return (
+    <div style={seansCardStyle}>
+      {/* Başlık satırı */}
+      <div style={seansCardHeader}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16, color: meta.color }}>◈</span>
+          <span style={{ fontSize: 14, fontWeight: 950, color: "#0f172a", letterSpacing: "-0.01em" }}>
+            Seans Süreci
+          </span>
+        </div>
+        <span style={{ ...durumBadgeStyle, background: meta.bg, color: meta.color }}>
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: meta.color,
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+          {meta.label}
+        </span>
+      </div>
+
+      {/* İstatistik ızgarası */}
+      <div style={seansStatsGrid}>
+        <SeansStat
+          label="Toplam Seans"
+          value={String(process.totalSeans)}
+          color="#0f172a"
+          accent="#f8fafc"
+        />
+        <SeansStat
+          label="İlk Seans"
+          value={process.ilkSeans ?? "—"}
+          color="#64748b"
+          accent="#f8fafc"
+        />
+        <SeansStat
+          label="Son Seans"
+          value={process.sonSeans ?? "—"}
+          color="#64748b"
+          accent="#f8fafc"
+        />
+        <SeansStat
+          label="Son Görüşmeden Bu Yana"
+          value={process.gunFarki != null ? `${process.gunFarki} gün` : "—"}
+          color={
+            process.gunFarki == null
+              ? "#94a3b8"
+              : process.gunFarki <= 14
+              ? "#10b981"
+              : process.gunFarki <= 30
+              ? "#f59e0b"
+              : "#ef4444"
+          }
+          accent={
+            process.gunFarki == null
+              ? "#f8fafc"
+              : process.gunFarki <= 14
+              ? "#f0fdf4"
+              : process.gunFarki <= 30
+              ? "#fffbeb"
+              : "#fff1f2"
+          }
+        />
+      </div>
+
+      {/* Yaklaşan randevu */}
+      {process.yaklasanRandevu ? (
+        <div style={yaklasanBox}>
+          <span style={{ fontSize: 13 }}>◷</span>
+          <span style={{ fontSize: 12, fontWeight: 850, color: "#15803d" }}>
+            Yaklaşan Randevu: <strong>{process.yaklasanRandevu}</strong>
+          </span>
+        </div>
+      ) : (
+        <div style={{ ...yaklasanBox, background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <span style={{ fontSize: 13, color: "#94a3b8" }}>◷</span>
+          <span style={{ fontSize: 12, fontWeight: 850, color: "#94a3b8" }}>
+            Yaklaşan randevu yok
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SeansStat({
+  label,
+  value,
+  color,
+  accent,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  accent: string;
+}) {
+  return (
+    <div style={{ ...seansStatItem, background: accent }}>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 900,
+          color: "#94a3b8",
+          letterSpacing: "0.06em",
+          marginBottom: 6,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 17, fontWeight: 950, color, lineHeight: 1 }}>{value}</div>
+    </div>
+  );
+}
+
+const seansCardStyle: React.CSSProperties = {
+  background: "white",
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  padding: "18px 20px",
+  boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+};
+
+const seansCardHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 8,
+};
+
+const durumBadgeStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  borderRadius: 999,
+  padding: "4px 12px",
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const seansStatsGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+  gap: 10,
+};
+
+const seansStatItem: React.CSSProperties = {
+  borderRadius: 12,
+  padding: "10px 14px",
+  border: "1px solid #f1f5f9",
+};
+
+const yaklasanBox: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "9px 14px",
+  background: "#f0fdf4",
+  border: "1px solid #bbf7d0",
+  borderRadius: 10,
 };
