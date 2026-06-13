@@ -462,6 +462,14 @@ export default function SifaRehberiDetailPage() {
     });
   }, [loadRecord]);
 
+  useEffect(() => {
+    function handlePageShow(e: PageTransitionEvent) {
+      if (e.persisted) router.refresh();
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [router]);
+
   function setDraftField<K extends DraftTextKey>(key: K, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
