@@ -12,6 +12,13 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
+import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
+import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
+import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
+import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
+import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
+import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import {
   bodyText,
   buildFooter,
@@ -429,6 +436,111 @@ function makeStatCard(label: string, value: string, color: string): TableCell {
       }),
     ],
   });
+}
+
+// ─── Numeroloji yardımcıları ──────────────────────────────────────────────────
+
+/** ISO "YYYY-MM-DD" → "DD.MM.YYYY" — parseBirthDate kullanan motor fonksiyonları için */
+function isoToDDMMYYYY(iso: string): string {
+  const p = iso.split("-");
+  if (p.length !== 3 || p[0].length !== 4) return "";
+  return `${p[2]}.${p[1]}.${p[0]}`;
+}
+
+/** Yolculuk İstatistikleri bölümü — sayısal özet tablosu */
+function buildYolculukIstatistikleri(
+  counts: { randevular: number; taslar: number; seanslar: number; odevler: number; analizler: number },
+  notes: ClientNoteRow | null,
+  journeyTotal: number,
+): ReportChild[] {
+  const hasNot = Boolean(
+    notes?.notlar?.trim() || notes?.saglik_notu?.trim() ||
+    notes?.oneriler?.trim() || notes?.adres?.trim()
+  );
+  return [
+    h2("Yolculuk İstatistikleri"),
+    twoColTable([
+      ["Toplam Aktivite", String(journeyTotal)],
+      ["Seans",           String(counts.seanslar)],
+      ["Randevu",         String(counts.randevular)],
+      ["Taş Kaydı",       String(counts.taslar)],
+      ["Ödev",            String(counts.odevler)],
+      ["Analiz",          String(counts.analizler)],
+      ["Not",             hasNot ? "Var" : "Yok"],
+    ]),
+    spacer(),
+  ];
+}
+
+/**
+ * Numeroloji Özeti bölümü.
+ * Sadece client.dogum dolu ise çağrılır.
+ * Ad/soyad eksikse isim gerektiren değerler "—" olarak kalır.
+ * Her hesaplama ayrı try/catch — biri hata verse diğerleri etkilenmez.
+ */
+function buildNumerolojiBolumu(client: ClientRow): ReportChild[] {
+  const dogum     = client.dogum?.trim() ?? "";
+  if (!dogum) return [];
+
+  const firstName = client.ad?.trim()    ?? "";
+  const lastName  = client.soyad?.trim() ?? "";
+  const dogumTR   = isoToDDMMYYYY(dogum);
+
+  let hayatYolu     = "—";
+  let kaderSayisi   = "—";
+  let ruhSayisi     = "—";
+  let kisilikSayisi = "—";
+  let kisiselYil    = "—";
+
+  try { hayatYolu   = calcHayatYolu(dogum).display; }  catch { /* sessiz */ }
+  try { kisiselYil  = calcKisiselYil(dogum).display; } catch { /* sessiz */ }
+
+  if (firstName || lastName) {
+    try { kaderSayisi   = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
+    try { ruhSayisi     = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
+    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
+  }
+
+  const out: ReportChild[] = [
+    h2("Numeroloji Özeti"),
+    twoColTable([
+      ["Yaşam Yolu",     hayatYolu],
+      ["Kader Sayısı",   kaderSayisi],
+      ["Ruh Sayısı",     ruhSayisi],
+      ["Kişilik Sayısı", kisilikSayisi],
+      ["Kişisel Yıl",   kisiselYil],
+    ]),
+  ];
+
+  if (dogumTR) {
+    // Element dağılımı
+    try {
+      const el = calcElementleri(dogumTR);
+      const elRows: [string, string][] = ELEMENT_ORDER.map(
+        (e) => [e, String(el.counts[e] ?? 0)] as [string, string]
+      );
+      if (el.key) elRows.push(["Baskın Element", el.key]);
+      out.push(h3("Element Dağılımı"));
+      out.push(twoColTable(elRows));
+    } catch { /* sessiz */ }
+
+    // Zirve yılları
+    try {
+      const zirve = calcZirveYillari(dogumTR);
+      if (zirve?.peaks?.length) {
+        out.push(h3("Zirve Yılları"));
+        out.push(twoColTable(
+          zirve.peaks.slice(0, 4).map((p) => [
+            `${p.index}. Zirve`,
+            `${p.age} yaş · ${p.topic}. çakra`,
+          ] as [string, string])
+        ));
+      }
+    } catch { /* sessiz */ }
+  }
+
+  out.push(spacer());
+  return out;
 }
 
 // ─── Danışan Yolculuğu ────────────────────────────────────────────────────────
@@ -1282,7 +1394,53 @@ export async function POST(
   }
 
   // ── 8. Danışan Yolculuğu
-  all.push(...buildJourneySection(journeyEvents, 8));
+  all.push(...buildSectionDivider("✦  DANIŞAN YOLCULUĞU", "İstatistikler, Numeroloji ve Kronolojik Takip", C.yolculuk));
+  all.push(h1Colored("8. Danışan Yolculuğu", C.yolculuk, true));
+
+  // 8.1 Yolculuk İstatistikleri
+  all.push(...buildYolculukIstatistikleri(counts, notes, journeyEvents.length));
+
+  // 8.2 Numeroloji Özeti — sadece doğum tarihi olan danışanlar için
+  if (client.dogum?.trim()) {
+    all.push(...buildNumerolojiBolumu(client));
+  }
+
+  // 8.3 Kronolojik Zaman Çizelgesi
+  all.push(h2("Kronolojik Zaman Çizelgesi"));
+  all.push(muted(`${journeyEvents.length} kayıt · kronolojik sıralama (eskiden yeniye)`));
+  if (journeyEvents.length === 0) {
+    all.push(muted("Henüz zaman çizelgesi kaydı yok."));
+  } else {
+    for (let i = 0; i < journeyEvents.length; i++) {
+      const ev = journeyEvents[i]!;
+      all.push(new Paragraph({
+        children: [
+          new TextRun({ text: ev.dateLabel, bold: true, size: 22, font: REPORT_FONT, color: ev.color }),
+          new TextRun({ text: "  ·  " + ev.category, size: 18, font: REPORT_FONT, color: C_LIGHT }),
+        ],
+        spacing: { before: 240, after: 60 },
+        indent: { left: 280 },
+      }));
+      all.push(new Paragraph({
+        children: [new TextRun({ text: ev.title, bold: true, size: 26, font: REPORT_FONT, color: C_DARK })],
+        spacing: { after: ev.note ? 60 : 160 },
+        indent: { left: 560 },
+      }));
+      if (ev.note) {
+        all.push(new Paragraph({
+          children: [new TextRun({ text: ev.note, size: 20, font: REPORT_FONT, color: C_MID, italics: true })],
+          spacing: { after: 160 },
+          indent: { left: 840 },
+        }));
+      }
+      if (i < journeyEvents.length - 1) {
+        all.push(new Paragraph({
+          border: { bottom: { style: BorderStyle.DOTTED, size: 2, color: "e2e8f0" } },
+          spacing: { before: 0, after: 0 },
+        }));
+      }
+    }
+  }
 
   // ── Kapanış (V3)
   all.push(...buildClosingPage(fullName, today, reportId));
