@@ -267,6 +267,11 @@ export default function TasBilgiKutuphanesiPage() {
   const [wordReportLoading, setWordReportLoading] = useState(false);
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
+  // Makale düzenleme
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ title: "", category: "", sub_category: "", content: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
   const katMap = useMemo(() => {
@@ -425,6 +430,14 @@ export default function TasBilgiKutuphanesiPage() {
     return countInText(selectedArticle.content, searchTerms);
   }, [selectedArticle, searchTerms]);
 
+  const canEdit = !!(selectedArticle && tenantId && selectedArticle.tenant_id === tenantId);
+
+  // Makale değişince düzenleme modundan çık
+  useEffect(() => {
+    setIsEditing(false);
+    setEditError("");
+  }, [selectedId]);
+
   // Arama aktifken seçili kayıt filtrede yoksa ilkini seç
   useEffect(() => {
     if (!searchTerms.length) return;
@@ -539,6 +552,44 @@ export default function TasBilgiKutuphanesiPage() {
     setForm(EMPTY_FORM);
     setShowForm(false);
     await loadArticles();
+  }
+
+  // ─── Makale güncelleme ──────────────────────────────────────────────────────
+
+  async function updateArticle() {
+    if (!selectedArticle) return;
+    if (!editForm.title.trim()) { setEditError("Başlık zorunludur."); return; }
+    if (!editForm.category) { setEditError("Kategori seçimi zorunludur."); return; }
+    if (!editForm.content.trim()) { setEditError("İçerik zorunludur."); return; }
+
+    setEditSaving(true);
+    setEditError("");
+
+    const { error } = await supabase
+      .from("stone_knowledge_articles")
+      .update({
+        title:        editForm.title.trim(),
+        category:     editForm.category.trim(),
+        sub_category: editForm.sub_category.trim(),
+        content:      editForm.content.trim(),
+      })
+      .eq("id", selectedArticle.id);
+
+    setEditSaving(false);
+
+    if (error) {
+      setEditError("Güncelleme hatası: " + error.message);
+      return;
+    }
+
+    setArticles((prev) =>
+      [...prev.map((a) =>
+        a.id === selectedArticle.id
+          ? { ...a, title: editForm.title.trim(), category: editForm.category, sub_category: editForm.sub_category.trim(), content: editForm.content.trim() }
+          : a
+      )].sort((a, b) => trSort(a.title, b.title))
+    );
+    setIsEditing(false);
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -899,68 +950,193 @@ export default function TasBilgiKutuphanesiPage() {
                     ← Geri
                   </button>
                   <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      {(() => {
-                        const cfg = katConfig(selectedArticle.category);
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black"
-                            style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                            {cfg.icon} {selectedArticle.category}
-                          </span>
-                        );
-                      })()}
-                      {isSearchActive && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-800">
-                          🔍 Arama: {search}
-                          {selectedContentMatchCount > 0 && (
-                            <span className="rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black">
-                              {selectedContentMatchCount} eşleşme
+                    {/* Üst satır: kategori / arama badge + sağda edit butonları */}
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!isEditing && (() => {
+                          const cfg = katConfig(selectedArticle.category);
+                          return (
+                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black"
+                              style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
+                              {cfg.icon} {selectedArticle.category}
                             </span>
-                          )}
-                        </span>
+                          );
+                        })()}
+                        {!isEditing && isSearchActive && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-800">
+                            🔍 Arama: {search}
+                            {selectedContentMatchCount > 0 && (
+                              <span className="rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-black">
+                                {selectedContentMatchCount} eşleşme
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {canEdit && (
+                        isEditing ? (
+                          <div className="flex shrink-0 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setIsEditing(false); setEditError(""); }}
+                              disabled={editSaving}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                            >
+                              Vazgeç
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void updateArticle()}
+                              disabled={editSaving}
+                              className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-60 hover:brightness-105"
+                            >
+                              {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditForm({
+                                title:        selectedArticle.title,
+                                category:     selectedArticle.category,
+                                sub_category: selectedArticle.sub_category,
+                                content:      selectedArticle.content,
+                              });
+                              setEditError("");
+                              setIsEditing(true);
+                            }}
+                            className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-100"
+                          >
+                            ✏️ Düzenle
+                          </button>
+                        )
                       )}
                     </div>
-                    <h2 className="text-xl font-black leading-snug text-slate-950 sm:text-2xl">
-                      {selectedArticle.title}
-                    </h2>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {selectedArticle.source && (
-                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                          📄 {selectedArticle.source.replace(/\.(docx|pdf)$/i, "")}
-                        </span>
-                      )}
-                      {selectedArticle.source_section && selectedArticle.source_section !== selectedArticle.title && (
-                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                          § {selectedArticle.source_section}
-                        </span>
-                      )}
-                      {selectedArticle.tags.map((tag, i) => (
-                        <span key={i} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">#{tag}</span>
-                      ))}
-                      {selectedArticle.related_stones.length > 0 && (
-                        <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                          💎 {selectedArticle.related_stones.join(", ")}
-                        </span>
-                      )}
-                      {selectedArticle.related_minerals.length > 0 && (
-                        <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                          ⚗️ {selectedArticle.related_minerals.join(", ")}
-                        </span>
-                      )}
-                    </div>
+
+                    {/* Başlık */}
+                    {isEditing ? (
+                      <input
+                        value={editForm.title}
+                        onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                        placeholder="Makale başlığı..."
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xl font-black text-slate-950 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:text-2xl"
+                      />
+                    ) : (
+                      <h2 className="text-xl font-black leading-snug text-slate-950 sm:text-2xl">
+                        {selectedArticle.title}
+                      </h2>
+                    )}
+
+                    {/* Edit formu: kategori + alt kategori */}
+                    {isEditing && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">Ana Kategori</label>
+                          <select
+                            value={editForm.category}
+                            onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          >
+                            <option value="">— Kategori seç —</option>
+                            {dropdownCategories.map((cat) => (
+                              <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[11px] font-black text-slate-500 uppercase tracking-wider">Alt Kategori / Etiket</label>
+                          <input
+                            value={editForm.sub_category}
+                            onChange={(e) => setEditForm((f) => ({ ...f, sub_category: e.target.value }))}
+                            placeholder="Alt kategori veya etiket..."
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hata mesajı */}
+                    {isEditing && editError && (
+                      <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                        {editError}
+                      </div>
+                    )}
+
+                    {/* Salt okunur meta etiketler */}
+                    {!isEditing && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {selectedArticle.source && (
+                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                            📄 {selectedArticle.source.replace(/\.(docx|pdf)$/i, "")}
+                          </span>
+                        )}
+                        {selectedArticle.source_section && selectedArticle.source_section !== selectedArticle.title && (
+                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                            § {selectedArticle.source_section}
+                          </span>
+                        )}
+                        {selectedArticle.tags.map((tag, i) => (
+                          <span key={i} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">#{tag}</span>
+                        ))}
+                        {selectedArticle.related_stones.length > 0 && (
+                          <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                            💎 {selectedArticle.related_stones.join(", ")}
+                          </span>
+                        )}
+                        {selectedArticle.related_minerals.length > 0 && (
+                          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                            ⚗️ {selectedArticle.related_minerals.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* İçerik */}
               <div ref={contentRef} className="flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
-                  <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
-                    <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
-                      {renderContent(selectedArticle.content, isSearchActive ? searchTerms : [])}
+                {isEditing ? (
+                  <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
+                    <div className="rounded-2xl border border-white bg-white px-8 py-6 shadow-sm sm:px-10 lg:px-14">
+                      <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">İçerik</label>
+                      <textarea
+                        value={editForm.content}
+                        onChange={(e) => setEditForm((f) => ({ ...f, content: e.target.value }))}
+                        placeholder="Makale içeriği... (## Başlık ile bölümler oluşturabilirsin)"
+                        rows={20}
+                        className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-relaxed outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                      />
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setIsEditing(false); setEditError(""); }}
+                          disabled={editSaving}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          Vazgeç
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void updateArticle()}
+                          disabled={editSaving}
+                          className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-black text-white shadow-md disabled:opacity-60 hover:brightness-105"
+                        >
+                          {editSaving ? "Kaydediliyor..." : "Kaydet"}
+                        </button>
+                      </div>
                     </div>
-                  </article>
-                </div>
+                  </div>
+                ) : (
+                  <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
+                    <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
+                      <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
+                        {renderContent(selectedArticle.content, isSearchActive ? searchTerms : [])}
+                      </div>
+                    </article>
+                  </div>
+                )}
               </div>
             </>
           )}
