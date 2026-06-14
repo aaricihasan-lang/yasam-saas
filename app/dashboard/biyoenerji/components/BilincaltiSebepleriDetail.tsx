@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,17 +47,17 @@ const SECTION_SHELL: Record<
 > = {
   violet: {
     wrap:
-      "rounded-[28px] border-2 border-violet-300/60 bg-gradient-to-br from-violet-100/95 via-violet-50/90 to-purple-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(139,92,246,0.28)] sm:p-10",
+      "rounded-xl border border-2 border-violet-300/60 bg-gradient-to-br from-violet-100/95 via-violet-50/90 to-purple-50/85 p-4 shadow-sm",
     title: "text-violet-950",
   },
   amber: {
     wrap:
-      "rounded-[28px] border-2 border-amber-300/60 bg-gradient-to-br from-amber-100/95 via-amber-50/90 to-yellow-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(245,158,11,0.22)] sm:p-10",
+      "rounded-xl border border-2 border-amber-300/60 bg-gradient-to-br from-amber-100/95 via-amber-50/90 to-yellow-50/85 p-4 shadow-sm",
     title: "text-amber-950",
   },
   slate: {
     wrap:
-      "rounded-[28px] border-2 border-slate-300/60 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-zinc-50/85 p-6 shadow-[0_16px_44px_-16px_rgba(100,116,139,0.2)] sm:p-10",
+      "rounded-xl border border-2 border-slate-300/60 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-zinc-50/85 p-4 shadow-sm",
     title: "text-slate-900",
   },
 };
@@ -122,7 +122,7 @@ function DetailContentCard({
   return (
     <article className={shell.wrap}>
       <h2 className={`text-2xl font-black sm:text-3xl ${shell.title}`}>{title}</h2>
-      <div className="mt-6 min-w-0 [&_.space-y-4]:space-y-7 [&_.space-y-3]:space-y-6" style={typography.bodyStyle}>
+      <div className="mt-3 min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
     </article>
@@ -330,7 +330,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-3xl border-2 border-violet-200/60 bg-violet-50/80">
+      <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-violet-200/50 bg-violet-50/60">
         <p className="text-lg font-semibold text-slate-600">Kayıt yükleniyor…</p>
       </div>
     );
@@ -364,16 +364,16 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full min-w-0 max-w-none">
-      <div className="mb-5 flex flex-wrap items-center gap-2.5 sm:mb-6 sm:gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Link
           href={SUBCONSCIOUS_CAUSES_LIST_PATH}
-          className="inline-flex items-center gap-2 rounded-2xl border-2 border-fuchsia-300 bg-white px-4 py-3 text-[15px] font-black text-fuchsia-900 shadow-md transition hover:bg-fuchsia-50 sm:px-5 sm:py-3.5 sm:text-base"
+          className="inline-flex items-center gap-1 rounded-md border border-fuchsia-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-fuchsia-900 shadow-sm transition hover:bg-fuchsia-50"
         >
           ← Listeye Dön
         </Link>
         <Link
           href={BIOENERJI_FOLDER_BASE}
-          className="inline-flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-white px-4 py-3 text-[15px] font-black text-violet-900 shadow-md transition hover:bg-violet-50 sm:px-5 sm:py-3.5 sm:text-base"
+          className="inline-flex items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-900 shadow-sm transition hover:bg-violet-50"
         >
           Biyoenerji Ana Klasörüne Dön
         </Link>
@@ -382,30 +382,30 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       {(infoSuccess || infoError) && (
         <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-800">
+            <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
+            <div className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
               {infoError}
             </div>
           ) : null}
         </div>
       )}
 
-      <header className="mb-8 rounded-[32px] border-2 border-violet-300/70 bg-gradient-to-br from-violet-100/95 via-white/95 to-cyan-50/90 p-5 shadow-[0_20px_50px_-18px_rgba(139,92,246,0.25)] sm:p-8 lg:p-10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <header className="mb-4 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-100/95 via-white/95 to-cyan-50/90 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
             {categoryText ? (
-              <span className="mb-4 inline-flex rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-5 py-2 text-sm font-black uppercase tracking-wider text-white shadow-md ring-2 ring-white/50">
+              <span className="mb-2 inline-flex rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
                 {categoryText}
               </span>
             ) : null}
-            <h1 className="text-[42px] font-black leading-[1.1] tracking-tight text-slate-950 sm:text-[48px] xl:text-[52px]">
+            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
               {record.title?.trim() || "İsimsiz kayıt"}
             </h1>
-            <p className="mt-4 text-base font-medium text-slate-600 sm:text-lg">
+            <p className="mt-2 text-sm font-medium text-slate-500">
               Kayıt tarihi: {formatDate(record.created_at)}
             </p>
           </div>
@@ -423,11 +423,11 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3 border-t border-violet-200/80 pt-5">
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200/60 pt-4">
           <button
             type="button"
             onClick={() => setFormModalOpen(true)}
-            className="rounded-2xl border-2 border-fuchsia-300 bg-fuchsia-50 px-6 py-3 text-base font-black text-fuchsia-950 transition hover:bg-fuchsia-100"
+            className="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-1.5 text-sm font-semibold text-fuchsia-950 transition hover:bg-fuchsia-100"
           >
             Düzenle
           </button>
@@ -435,7 +435,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             type="button"
             disabled={saving}
             onClick={() => setDeleteConfirmOpen(true)}
-            className="rounded-2xl border-2 border-rose-300 bg-rose-50 px-6 py-3 text-base font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
+            className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
           >
             Sil
           </button>
@@ -443,14 +443,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             type="button"
             disabled={wordBusy}
             onClick={() => void downloadWord()}
-            className="rounded-2xl border-2 border-violet-300 bg-violet-50 px-6 py-3 text-base font-black text-violet-950 transition hover:bg-violet-100 disabled:opacity-45"
+            className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-100 disabled:opacity-45"
           >
             {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
           </button>
         </div>
       </header>
 
-      <div className="flex flex-col gap-7 sm:gap-8">
+      <div className="flex flex-col gap-4 sm:gap-5">
         {contentText ? (
           <DetailContentCard
             title="İçerik"

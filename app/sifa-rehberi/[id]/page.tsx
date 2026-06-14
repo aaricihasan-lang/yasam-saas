@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -120,10 +120,10 @@ const FIELD_LABELS: Record<Exclude<DraftTextKey, "name" | "category">, string> =
 const SIFA_REHBERI_LIST_HREF = "/sifa-rehberi?view=list";
 
 const detailToolbarWrap =
-  "flex flex-wrap items-center gap-2 rounded-[22px] border border-white/90 bg-white/60 p-1.5 shadow-[0_10px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80 backdrop-blur-md";
+  "flex flex-wrap items-center gap-2 rounded-xl border border-white/90 bg-white/60 p-1 shadow-sm ring-1 ring-slate-100/80 backdrop-blur-md";
 
 const detailToolbarBtn =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-5 text-[13px] font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
 
 const DETAIL_TABS: {
   id: DetailTabId;
@@ -204,13 +204,13 @@ const detailNavBtnIdle =
   "bg-white/75 text-slate-700 ring-1 ring-emerald-100/70 hover:bg-white hover:ring-emerald-200/90";
 
 const sectionPremiumCard =
-  "rounded-[24px] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50/30 p-5 shadow-[0_10px_28px_rgba(16,185,129,0.09)] ring-1 ring-white/90";
+  "rounded-xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50/30 p-4 shadow-sm ring-1 ring-white/90";
 
 const sectionNoteBody =
-  "whitespace-pre-wrap rounded-2xl border border-slate-100 bg-white/90 p-4 text-base leading-7 text-slate-700 shadow-inner shadow-slate-200/25";
+  "whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/90 p-3.5 text-sm leading-6 text-slate-700";
 
 const detailNavBtnBase =
-  "flex w-full min-h-[64px] items-center gap-3 rounded-2xl px-4 text-left text-[15px] font-bold transition lg:min-w-0";
+  "flex w-full min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-left text-sm font-semibold transition lg:min-w-0";
 
 type SectionBadgeTone = "emerald" | "cyan" | "violet";
 
@@ -743,7 +743,7 @@ export default function SifaRehberiDetailPage() {
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
       <div className="w-full px-4 py-4 lg:px-8 xl:px-12">
-        <header className="mb-4 rounded-[28px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.045)] ring-1 ring-white/80 lg:p-5">
+        <header className="mb-3 rounded-2xl bg-white/70 p-3.5 shadow-sm ring-1 ring-white/80">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
               <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
@@ -901,7 +901,7 @@ export default function SifaRehberiDetailPage() {
               onChange={handleGuideImageFileChange}
             />
 
-            <div className="rounded-[22px] border border-white/90 bg-white/80 p-4 shadow-md lg:p-5">
+            <div className="rounded-2xl border border-white/90 bg-white/80 p-4 shadow-sm">
               <h2
                 className={
                   useSectionView
@@ -1058,10 +1058,10 @@ export default function SifaRehberiDetailPage() {
                             value={value}
                             onChange={(e) => setDraftField(key, e.target.value)}
                             rows={6}
-                            className="mt-4 w-full resize-y rounded-2xl border border-slate-200/90 bg-white/95 p-4 text-base leading-7 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/50"
+                            className="mt-3 w-full resize-y rounded-xl border border-slate-200/90 bg-white/95 p-3.5 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/50"
                           />
                         ) : (
-                          <div className={`mt-4 min-h-[64px] ${sectionNoteBody}`}>
+                          <div className={`mt-4 min-h-[40px] ${sectionNoteBody}`}>
                             {value.trim() ? value : (
                               <span className="text-slate-400">Henüz kayıt yok</span>
                             )}

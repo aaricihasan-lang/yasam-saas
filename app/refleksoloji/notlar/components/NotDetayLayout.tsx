@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,10 +28,10 @@ type NotDetayLayoutProps = {
 };
 
 const panelClass =
-  "rounded-[28px] border border-purple-100 bg-white/80 p-6 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md md:p-8";
+  "rounded-2xl border border-purple-100 bg-white/80 p-4 shadow-sm ring-1 ring-violet-100/60";
 
 const headerBtnBase =
-  "inline-flex h-12 items-center justify-center border px-6 text-base font-bold rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100";
+  "inline-flex h-9 items-center justify-center border px-3 text-sm font-semibold rounded-lg shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45";
 
 export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const router = useRouter();
@@ -210,10 +210,10 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   if (!draft) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
-        <p className="text-xl font-bold text-violet-900">Not bulunamadı.</p>
+        <p className="text-sm font-bold text-violet-900">Not bulunamadı.</p>
         <Link
           href="/refleksoloji/notlar"
-          className="rounded-xl border border-violet-300/80 bg-violet-100 px-5 py-2.5 text-base font-bold text-violet-950"
+          className="rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950"
         >
           Notlara Dön
         </Link>
@@ -228,7 +228,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-none px-6 py-6 xl:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-none px-4 py-4 xl:px-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 flex-wrap items-center gap-4">
             <Link
@@ -242,7 +242,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
                 Klinik Notlar
               </p>
-              <h1 className="text-3xl font-black text-slate-900 sm:text-4xl">Not Detayı</h1>
+              <h1 className="text-xl font-black text-slate-900 sm:text-2xl">Not Detayı</h1>
             </header>
           </div>
 
@@ -294,7 +294,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
             {editing ? (
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-base font-bold text-slate-800">Not Başlığı</span>
+                  <span className="mb-1.5 block text-sm font-bold text-slate-800">Not Başlığı</span>
                   <input
                     type="text"
                     value={draft.title}
@@ -314,7 +314,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               </div>
             ) : (
               <>
-                <h2 className="text-3xl font-black text-slate-900 sm:text-4xl">{draft.title}</h2>
+                <h2 className="text-xl font-black text-slate-900 sm:text-2xl">{draft.title}</h2>
                 <p className="mt-2 text-base font-semibold text-violet-700">
                   {formatNoteDate(draft.date)}
                 </p>
@@ -323,7 +323,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
           </section>
 
           <section className={panelClass}>
-            <h3 className="text-xl font-bold text-violet-900">Not İçeriği</h3>
+            <h3 className="text-sm font-bold text-violet-900">Not İçeriği</h3>
             {editing ? (
               <textarea
                 value={draft.content}
@@ -340,7 +340,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
 
           <section className={panelClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-bold text-violet-900">Ek Dosyalar</h3>
+              <h3 className="text-sm font-bold text-violet-900">Ek Dosyalar</h3>
               {editing ? (
                 <>
                   <input
@@ -353,7 +353,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="rounded-xl border border-sky-300/80 bg-sky-100 px-4 py-2.5 text-sm font-bold text-sky-950 transition hover:bg-sky-200/90"
+                    className="rounded-lg border border-sky-300/80 bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-950 transition hover:bg-sky-200/90"
                   >
                     Dosya Ekle
                   </button>
