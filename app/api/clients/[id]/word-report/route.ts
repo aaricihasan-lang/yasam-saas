@@ -33,6 +33,7 @@ import {
   divider,
   embedImageParagraph,
   fetchImageBuffer,
+  fetchImagesBatch,
   fieldInline,
   h1Colored,
   h2,
@@ -134,6 +135,7 @@ type ClientAnalysisRow = {
   analysis_type?: string | null;
   note?: string | null;
   created_at: string;
+  image_url?: string | null;
 };
 
 type TimelineEvent = {
@@ -712,7 +714,7 @@ export async function POST(
       const { data } = await db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
     } else if (tab === "analizler") {
-      const { data } = await db.from("client_analyses").select("id, analysis_type, note, created_at").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      const { data } = await db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
     }
 
@@ -851,6 +853,9 @@ export async function POST(
     else if (tab === "analizler") {
       const analyses = extraRows as ClientAnalysisRow[];
       all.push(muted(`Toplam ${count} analiz kaydı`));
+      const tabAnalysisImages = await fetchImagesBatch(
+        analyses.map((a) => a.image_url?.trim() || null),
+      );
       if (analyses.length === 0) {
         all.push(muted("Henüz analiz kaydı yok."));
       } else {
@@ -858,8 +863,10 @@ export async function POST(
           all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
           all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
           all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          const imgBuf = tabAnalysisImages[i] ?? null;
+          if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
           if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-          else all.push(muted("Analiz notu girilmemiş."));
+          else if (!imgBuf) all.push(muted("Analiz notu girilmemiş."));
           if (i < analyses.length - 1) all.push(spacer());
         });
       }
@@ -903,7 +910,7 @@ export async function POST(
       db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
       db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
       db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-      db.from("client_analyses").select("id, analysis_type, note, created_at").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+      db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     ]);
 
     if (drCliRes.error || !drCliRes.data)
@@ -955,6 +962,11 @@ export async function POST(
     if (drClient.profile_image_url?.trim()) {
       drProfileImg = await fetchImageBuffer(drClient.profile_image_url.trim()).catch(() => null);
     }
+
+    // Analiz görselleri
+    const drAnalysisImages = await fetchImagesBatch(
+      drAn.map((a) => a.image_url?.trim() || null),
+    );
 
     const all: ReportChild[] = [];
 
@@ -1088,7 +1100,10 @@ export async function POST(
         all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
         all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
         all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+        const imgBuf = drAnalysisImages[i] ?? null;
+        if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
         if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+        else if (!imgBuf) all.push(muted("Analiz notu girilmemiş."));
         if (i < drAn.length - 1) all.push(spacer());
       });
     }
@@ -1131,7 +1146,7 @@ export async function POST(
     db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-    db.from("client_analyses").select("id, analysis_type, note, created_at").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+    db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
   ]);
 
   if (clientRes.error || !clientRes.data)
@@ -1157,6 +1172,11 @@ export async function POST(
   if (client.profile_image_url?.trim()) {
     profileImgBuf = await fetchImageBuffer(client.profile_image_url.trim()).catch(() => null);
   }
+
+  // Analiz görselleri (paralel fetch)
+  const analysisImages = await fetchImagesBatch(
+    analyses.map((a) => a.image_url?.trim() || null),
+  );
 
   // ─── Yolculuk olayları ────────────────────────────────────────────────────
   const journeyEvents: TimelineEvent[] = [];
@@ -1376,8 +1396,10 @@ export async function POST(
       all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
       all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
       all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+      const imgBuf = analysisImages[i] ?? null;
+      if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
       if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-      else                 all.push(muted("Analiz notu girilmemiş."));
+      else if (!imgBuf)    all.push(muted("Analiz notu girilmemiş."));
       if (i < analyses.length - 1) all.push(spacer());
     });
   }

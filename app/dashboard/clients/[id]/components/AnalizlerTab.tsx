@@ -260,7 +260,11 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     if (!activeAnalysis) { showToast({ title: "İşlem başarısız", message: "Önce analiz seçmelisiniz.", type: "error" }); return; }
     setSavingAnalysis(true);
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
-    const { error } = await supabase.from("client_analyses").insert({ tenant_id: tenantId, client_id: clientId, analysis_type: activeAnalysis, analysis_data: analysisData, note });
+    const { data: insertData, error } = await supabase
+      .from("client_analyses")
+      .insert({ tenant_id: tenantId, client_id: clientId, analysis_type: activeAnalysis, analysis_data: analysisData, note })
+      .select("id")
+      .single();
     if (error) {
       console.error("Analiz kaydedilemedi:", error);
       showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + error.message, type: "error" });
@@ -270,6 +274,42 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     await loadSavedAnalyses();
     showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
     setSavingAnalysis(false);
+    // Fire-and-forget snapshot — only for chakra analyses; failure doesn't affect the saved record
+    const newId = (insertData as { id: string } | null)?.id;
+    if (activeAnalysis === "chakra" && newId && tenantId) {
+      void captureAndUploadSnapshot(newId);
+    }
+  }
+
+  async function captureAndUploadSnapshot(analysisId: string) {
+    const element = document.getElementById("analysis-print-area");
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        ignoreElements: (node) =>
+          node instanceof HTMLElement && node.classList.contains("no-pdf"),
+      });
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/png"),
+      );
+      if (!blob) return;
+      const fd = new FormData();
+      fd.append("file", blob, "analysis.png");
+      fd.append("analysisId", analysisId);
+      fd.append("tenantId", tenantId!);
+      const res = await fetch(`/api/clients/${clientId}/analyses/upload-image`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
+      }
+    } catch {
+      showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
+    }
   }
 
   function exportWord() {
