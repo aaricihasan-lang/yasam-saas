@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type AnalizlerTabProps = {
   clientId: string;
   clientName: string;
@@ -37,113 +38,81 @@ type SavedAnalysis = {
   created_at: string;
 };
 
+// ─── Data constants ───────────────────────────────────────────────────────────
 const energyBodies: ChakraRow[] = [
-  { key: "ruhsal", label: "RUHSAL ENERJİ BEDENİ", color: "#6d5bd0" },
+  { key: "ruhsal",   label: "RUHSAL ENERJİ BEDENİ",   color: "#6d5bd0" },
   { key: "zihinsel", label: "ZİHİNSEL ENERJİ BEDENİ", color: "#43a047" },
   { key: "duygusal", label: "DUYGUSAL ENERJİ BEDENİ", color: "#f2b824" },
-  { key: "eterik", label: "ETERİK ENERJİ BEDENİ", color: "#2196c9" },
+  { key: "eterik",   label: "ETERİK ENERJİ BEDENİ",   color: "#2196c9" },
   { key: "fiziksel", label: "FİZİKSEL ENERJİ BEDENİ", color: "#4b5563" },
 ];
 
 const chakras: ChakraRow[] = [
-  { key: "tac", label: "TEPE / TAÇ ÇAKRASI", color: "#a78bfa" },
-  { key: "goz", label: "3. GÖZ ÇAKRASI", color: "#6366f1" },
-  { key: "bogaz", label: "BOĞAZ ÇAKRASI", color: "#38bdf8" },
-  { key: "kalp", label: "KALP ÇAKRASI", color: "#22c55e" },
-  { key: "mide", label: "MİDE ÇAKRASI", color: "#facc15" },
-  { key: "sakral", label: "SAKRAL (KARIN) ÇAKRASI", color: "#f97316" },
-  { key: "kok", label: "KÖK ÇAKRASI", color: "#ef4444" },
+  { key: "tac",    label: "TEPE / TAÇ ÇAKRASI",     color: "#a78bfa" },
+  { key: "goz",    label: "3. GÖZ ÇAKRASI",          color: "#6366f1" },
+  { key: "bogaz",  label: "BOĞAZ ÇAKRASI",            color: "#38bdf8" },
+  { key: "kalp",   label: "KALP ÇAKRASI",             color: "#22c55e" },
+  { key: "mide",   label: "MİDE ÇAKRASI",             color: "#facc15" },
+  { key: "sakral", label: "SAKRAL (KARIN) ÇAKRASI",   color: "#f97316" },
+  { key: "kok",    label: "KÖK ÇAKRASI",              color: "#ef4444" },
 ];
 
 const planetLabels = ["GÜNEŞ", "AY", "MERKÜR", "MARS", "VENÜS"];
 const planetColors = ["#facc15", "#93c5fd", "#86efac", "#fca5a5", "#f9a8d4"];
 
 const planetRows: ChakraRow[] = [
-  { key: "tac", label: "TEPE / TAÇ", color: "#a78bfa" },
-  { key: "goz", label: "3. GÖZ", color: "#6366f1" },
-  { key: "bogaz", label: "BOĞAZ", color: "#38bdf8" },
-  { key: "kalp", label: "KALP", color: "#22c55e" },
-  { key: "mide", label: "MİDE", color: "#facc15" },
-  { key: "sakral", label: "SAKRAL (KARIN)", color: "#f97316" },
-  { key: "kok", label: "KÖK", color: "#ef4444" },
+  { key: "tac",    label: "TEPE / TAÇ",        color: "#a78bfa" },
+  { key: "goz",    label: "3. GÖZ",             color: "#6366f1" },
+  { key: "bogaz",  label: "BOĞAZ",              color: "#38bdf8" },
+  { key: "kalp",   label: "KALP",               color: "#22c55e" },
+  { key: "mide",   label: "MİDE",               color: "#facc15" },
+  { key: "sakral", label: "SAKRAL (KARIN)",      color: "#f97316" },
+  { key: "kok",    label: "KÖK",                color: "#ef4444" },
 ];
 
+// ─── Init helpers ─────────────────────────────────────────────────────────────
 function makeChakraInitialValues() {
   const values: Record<string, ChakraRowValue> = {};
-
   ["before_energy", "after_energy"].forEach((scope) => {
-    energyBodies.forEach((row) => {
-      values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" };
-    });
+    energyBodies.forEach((row) => { values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" }; });
   });
-
   ["before_chakra", "after_chakra"].forEach((scope) => {
-    chakras.forEach((row) => {
-      values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" };
-    });
+    chakras.forEach((row) => { values[`${scope}_${row.key}`] = { mark: "", male: "", female: "" }; });
   });
-
   return values;
 }
 
 function makePlanetInitialValues() {
   const values: Record<string, string> = {};
-
   ["before", "after"].forEach((scope) => {
     planetRows.forEach((row) => {
-      planetLabels.forEach((planet) => {
-        values[`${scope}_${row.key}_${planet}`] = "";
-      });
+      planetLabels.forEach((planet) => { values[`${scope}_${row.key}_${planet}`] = ""; });
     });
   });
-
   return values;
 }
 
 function safeFileName(value: string) {
   return value
     .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function valueStyle(value: string): React.CSSProperties {
+// ─── valueClass — dynamic input highlight based on +/- prefix ────────────────
+// Stays as a function (not static Tailwind) because value is runtime state.
+function valueClass(value: string): string {
   const trimmed = value.trim();
-
-  if (trimmed.startsWith("+")) {
-    return {
-      borderColor: "#22c55e",
-      background: "#f0fdf4",
-      color: "#166534",
-      boxShadow: "0 0 0 2px rgba(34,197,94,0.10)",
-    };
-  }
-
-  if (trimmed.startsWith("-")) {
-    return {
-      borderColor: "#ef4444",
-      background: "#fef2f2",
-      color: "#991b1b",
-      boxShadow: "0 0 0 2px rgba(239,68,68,0.10)",
-    };
-  }
-
-  return {};
+  if (trimmed.startsWith("+")) return "border-green-400 bg-green-50 text-green-800 ring-2 ring-green-100";
+  if (trimmed.startsWith("-")) return "border-red-400 bg-red-50 text-red-800 ring-2 ring-red-100";
+  return "";
 }
 
 function formatDateTimeTR(value: string) {
   return new Date(value).toLocaleString("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
@@ -152,83 +121,70 @@ function getAnalysisLabel(type: string | null | undefined) {
   return "Çakra Analizi";
 }
 
+// ─── Shared input class strings ───────────────────────────────────────────────
+const schemaInputBase =
+  "w-full min-h-[31px] rounded-[9px] border border-blue-200 bg-white px-2 py-[5px] text-[12px] font-extrabold outline-none box-border";
+
+const planetInputBase =
+  "min-h-[30px] rounded-[9px] border border-blue-200 bg-white px-[7px] py-[5px] text-[11px] font-extrabold outline-none w-full box-border";
+
+const toolbarBtnBase =
+  "rounded-xl px-[13px] py-2 font-black text-[12px] cursor-pointer transition-colors";
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const { confirm } = useConfirm();
-  const { showToast } = useToast();
+  const [tenantId, setTenantId]     = useState<string | null>(null);
+  const { confirm }                  = useConfirm();
+  const { showToast }                = useToast();
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
-  const [chakraValues, setChakraValues] = useState<Record<string, ChakraRowValue>>(
-    () => makeChakraInitialValues()
-  );
-  const [planetValues, setPlanetValues] = useState<Record<string, string>>(
-    () => makePlanetInitialValues()
-  );
-  const [note, setNote] = useState("");
-  const [creatingPdf, setCreatingPdf] = useState(false);
+  const [chakraValues, setChakraValues]     = useState<Record<string, ChakraRowValue>>(() => makeChakraInitialValues());
+  const [planetValues, setPlanetValues]     = useState<Record<string, string>>(() => makePlanetInitialValues());
+  const [note, setNote]             = useState("");
+  const [creatingPdf, setCreatingPdf]       = useState(false);
   const [savingAnalysis, setSavingAnalysis] = useState(false);
-  const [loadingSaved, setLoadingSaved] = useState(false);
-  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
+  const [loadingSaved, setLoadingSaved]     = useState(false);
+  const [savedAnalyses, setSavedAnalyses]   = useState<SavedAnalysis[]>([]);
 
   const activeTitle = activeAnalysis === "planet" ? "Ç.Gezegen Analizi" : "Çakra Analizi";
 
-  const todayText = useMemo(() => {
-    return new Date().toLocaleDateString("tr-TR");
-  }, []);
+  const todayText = useMemo(() => new Date().toLocaleDateString("tr-TR"), []);
 
-  useEffect(() => {
-    void getSyncedTenantId().then(setTenantId);
-  }, []);
+  useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
   useEffect(() => {
     if (!tenantId) return;
     loadSavedAnalyses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, tenantId]);
 
   async function loadSavedAnalyses() {
     if (!clientId || !tenantId) return;
-
     setLoadingSaved(true);
-
     const { data, error } = await supabase
-      .from("client_analyses")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
+      .from("client_analyses").select("*")
+      .eq("tenant_id", tenantId).eq("client_id", clientId)
       .order("created_at", { ascending: false });
-
     if (error) {
       console.error("Analizler yüklenemedi:", error);
-      showToast({
-        title: "İşlem başarısız",
-        message: "Analizler yüklenemedi: " + error.message,
-        type: "error",
-      });
+      showToast({ title: "İşlem başarısız", message: "Analizler yüklenemedi: " + error.message, type: "error" });
       setLoadingSaved(false);
       return;
     }
-
     setSavedAnalyses((data || []) as SavedAnalysis[]);
     setLoadingSaved(false);
   }
 
   function openNewAnalysis(type: AnalysisType) {
     setActiveAnalysis(type);
-
-    if (type === "planet") {
-      setPlanetValues(makePlanetInitialValues());
-    } else {
-      setChakraValues(makeChakraInitialValues());
-    }
-
+    if (type === "planet") setPlanetValues(makePlanetInitialValues());
+    else setChakraValues(makeChakraInitialValues());
     setNote("");
   }
 
   function openSavedAnalysis(item: SavedAnalysis) {
     const type = item.analysis_type === "planet" ? "planet" : "chakra";
-
     setActiveAnalysis(type);
     setNote(item.note || "");
-
     if (type === "planet") {
       const data = item.analysis_data as { values?: Record<string, string> } | null | undefined;
       setPlanetValues(data?.values || makePlanetInitialValues());
@@ -239,270 +195,158 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function deleteSavedAnalysis(id: string) {
-    const ok = await confirm({
-      message: "Bu analiz kaydı silinsin mi?",
-      tone: "danger",
-      title: "Analizi sil",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-    });
+    const ok = await confirm({ message: "Bu analiz kaydı silinsin mi?", tone: "danger", title: "Analizi sil", confirmText: "Sil", cancelText: "Vazgeç" });
     if (!ok) return;
-
-    const { error } = await supabase
-      .from("client_analyses")
-      .delete()
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
-
-    if (error) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Analiz silinemedi: " + error.message,
-        type: "error",
-      });
-      return;
-    }
-
-    setSavedAnalyses((oldItems) => oldItems.filter((item) => item.id !== id));
-    showToast({
-      title: "Başarılı",
-      message: "Analiz silindi.",
-      type: "success",
-    });
+    const { error } = await supabase.from("client_analyses").delete().eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
+    if (error) { showToast({ title: "İşlem başarısız", message: "Analiz silinemedi: " + error.message, type: "error" }); return; }
+    setSavedAnalyses((old) => old.filter((item) => item.id !== id));
+    showToast({ title: "Başarılı", message: "Analiz silindi.", type: "success" });
   }
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
-    setChakraValues((oldValues) => ({
-      ...oldValues,
-      [key]: {
-        ...(oldValues[key] || { mark: "", male: "", female: "" }),
-        [field]: value,
-      },
-    }));
+    setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: value } }));
   }
 
   function updatePlanetValue(key: string, value: string) {
-    setPlanetValues((oldValues) => ({
-      ...oldValues,
-      [key]: value,
-    }));
+    setPlanetValues((old) => ({ ...old, [key]: value }));
   }
 
   async function clearAll() {
-    const ok = await confirm({
-      message: "Bu analizdeki tüm alanlar temizlensin mi?",
-      tone: "warning",
-      title: "Alanları temizle",
-      confirmText: "Temizle",
-      cancelText: "Vazgeç",
-    });
+    const ok = await confirm({ message: "Bu analizdeki tüm alanlar temizlensin mi?", tone: "warning", title: "Alanları temizle", confirmText: "Temizle", cancelText: "Vazgeç" });
     if (!ok) return;
-
-    if (activeAnalysis === "planet") {
-      setPlanetValues(makePlanetInitialValues());
-    } else {
-      setChakraValues(makeChakraInitialValues());
-    }
-
+    if (activeAnalysis === "planet") setPlanetValues(makePlanetInitialValues());
+    else setChakraValues(makeChakraInitialValues());
     setNote("");
   }
 
   async function printPdf() {
     const element = document.getElementById("analysis-print-area");
-
-    if (!element) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "PDF alanı bulunamadı.",
-        type: "error",
-      });
-      return;
-    }
-
+    if (!element) { showToast({ title: "İşlem başarısız", message: "PDF alanı bulunamadı.", type: "error" }); return; }
     try {
       setCreatingPdf(true);
-
       await new Promise((resolve) => setTimeout(resolve, 300));
-
       const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        ignoreElements: (node) => {
-          return node instanceof HTMLElement && node.classList.contains("no-pdf");
-        },
+        scale: 2, useCORS: true, backgroundColor: "#ffffff",
+        ignoreElements: (node) => node instanceof HTMLElement && node.classList.contains("no-pdf"),
       });
-
       const imageData = canvas.toDataURL("image/png");
-
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-
       const margin = 6;
       const usableWidth = pageWidth - margin * 2;
       const usableHeight = pageHeight - margin * 2;
-
       const imageWidth = usableWidth;
       const imageHeight = (canvas.height * imageWidth) / canvas.width;
-
       let heightLeft = imageHeight;
       let position = margin;
-
       pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
       heightLeft -= usableHeight;
-
       while (heightLeft > 0) {
         position = margin + heightLeft - imageHeight;
         pdf.addPage();
         pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
         heightLeft -= usableHeight;
       }
-
-      const fileName = `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`;
-      pdf.save(fileName);
-
-      showToast({
-        title: "Başarılı",
-        message: "PDF dosyası indirildi.",
-        type: "success",
-      });
+      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitle)}.pdf`);
+      showToast({ title: "Başarılı", message: "PDF dosyası indirildi.", type: "success" });
     } catch (error) {
       console.error("PDF oluşturma hatası:", error);
-      showToast({
-        title: "İşlem başarısız",
-        message: "PDF oluşturulamadı. Konsolu kontrol edelim.",
-        type: "error",
-      });
-    } finally {
-      setCreatingPdf(false);
-    }
+      showToast({ title: "İşlem başarısız", message: "PDF oluşturulamadı. Konsolu kontrol edelim.", type: "error" });
+    } finally { setCreatingPdf(false); }
   }
 
   async function saveAnalysis() {
-    if (!activeAnalysis) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Önce analiz seçmelisiniz.",
-        type: "error",
-      });
-      return;
-    }
-
+    if (!activeAnalysis) { showToast({ title: "İşlem başarısız", message: "Önce analiz seçmelisiniz.", type: "error" }); return; }
     setSavingAnalysis(true);
-
-    const analysisData = {
-      title: activeTitle,
-      values: activeAnalysis === "planet" ? planetValues : chakraValues,
-      saved_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from("client_analyses").insert({
-      tenant_id: tenantId,
-      client_id: clientId,
-      analysis_type: activeAnalysis,
-      analysis_data: analysisData,
-      note,
-    });
-
+    const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
+    const { error } = await supabase.from("client_analyses").insert({ tenant_id: tenantId, client_id: clientId, analysis_type: activeAnalysis, analysis_data: analysisData, note });
     if (error) {
       console.error("Analiz kaydedilemedi:", error);
-      showToast({
-        title: "İşlem başarısız",
-        message: "Analiz kaydedilemedi: " + error.message,
-        type: "error",
-      });
+      showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + error.message, type: "error" });
       setSavingAnalysis(false);
       return;
     }
-
     await loadSavedAnalyses();
-    showToast({
-      title: "Başarılı",
-      message: "Analiz kaydedildi.",
-      type: "success",
-    });
+    showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
     setSavingAnalysis(false);
   }
 
   function exportWord() {
-    showToast({
-      title: "Bilgi",
-      message:
-        "Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.",
-      type: "info",
-    });
+    showToast({ title: "Bilgi", message: "Word çıktısını bir sonraki aşamada ekleyeceğiz. Önce PDF ve kayıt düzenini kilitliyoruz.", type: "info" });
   }
 
   return (
-    <div style={pageWrap}>
-      <div style={sectionHead}>
-        <div>
-          <div style={purplePill}>Enerji & Analiz Merkezi</div>
-          <h2 style={sectionTitle}>Danışan Analizleri</h2>
-          <p style={mutedText}>
-            {clientName} için çakra, Ç.Gezegen, numeroloji ve Human Design analizleri burada toplanacak.
-          </p>
-        </div>
+    <div className="w-full relative">
+      {/* Header */}
+      <div className="mb-2.5">
+        <span className="inline-flex bg-purple-100 text-purple-800 px-2.5 py-[5px] rounded-full text-[11px] font-black">
+          Enerji &amp; Analiz Merkezi
+        </span>
+        <h2 className="mt-1.5 text-[20px] font-black text-slate-950">Danışan Analizleri</h2>
+        <p className="mt-1.5 text-slate-500 text-[13px]">
+          {clientName} için çakra, Ç.Gezegen, numeroloji ve Human Design analizleri burada toplanacak.
+        </p>
       </div>
 
-      <div style={analysisGrid}>
+      {/* Analysis type cards */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3 mt-3.5">
         <AnalysisCard
-          badge="Enerji Analizi"
-          title="Çakra Analizi"
+          badge="Enerji Analizi" title="Çakra Analizi"
           text="Seans öncesi ve sonrası enerji değişimlerini çakra düzeni üzerinden takip edin."
-          gradient="linear-gradient(135deg,#8b5cf6,#6d28d9)"
-          buttonColor="#6d28d9"
+          gradient="linear-gradient(135deg,#8b5cf6,#6d28d9)" buttonColor="#6d28d9"
           onOpen={() => openNewAnalysis("chakra")}
         />
-
         <AnalysisCard
-          badge="Gezegen Analizi"
-          title="Ç.Gezegen Analizi"
+          badge="Gezegen Analizi" title="Ç.Gezegen Analizi"
           text="Çakraların gezegensel enerji dengesini seans bazlı değerlendirin."
-          gradient="linear-gradient(135deg,#0ea5e9,#2563eb)"
-          buttonColor="#2563eb"
+          gradient="linear-gradient(135deg,#0ea5e9,#2563eb)" buttonColor="#2563eb"
           onOpen={() => openNewAnalysis("planet")}
         />
       </div>
 
-      <section style={savedPanel}>
-        <div style={savedHeader}>
+      {/* Saved analyses */}
+      <section className="mt-3.5 bg-white border border-slate-200 rounded-[18px] p-3.5 shadow-sm">
+        <div className="flex justify-between gap-3 items-start flex-wrap">
           <div>
-            <div style={savedPill}>Kayıtlı Analizler</div>
-            <h3 style={savedTitle}>Analiz Geçmişi</h3>
-            <p style={savedDesc}>Kaydedilen analizleri buradan tekrar açabilir veya silebilirsin.</p>
+            <span className="inline-flex bg-sky-100 text-sky-700 px-2.5 py-[5px] rounded-full text-[11px] font-black">
+              Kayıtlı Analizler
+            </span>
+            <h3 className="mt-[7px] text-[18px] font-black text-slate-950">Analiz Geçmişi</h3>
+            <p className="mt-1 text-slate-500 text-[12px]">Kaydedilen analizleri buradan tekrar açabilir veya silebilirsin.</p>
           </div>
-
-          <button type="button" onClick={loadSavedAnalyses} style={refreshButton}>
+          <button
+            type="button" onClick={loadSavedAnalyses}
+            className="border border-slate-300 bg-slate-50 text-slate-700 rounded-xl px-3 py-2 font-black text-[12px] cursor-pointer hover:bg-slate-100 transition-colors"
+          >
             {loadingSaved ? "Yükleniyor..." : "Yenile"}
           </button>
         </div>
 
         {savedAnalyses.length === 0 ? (
-          <div style={emptySavedBox}>Henüz kayıtlı analiz yok.</div>
+          <div className="mt-3 border border-dashed border-slate-300 bg-slate-50 rounded-[14px] p-3.5 text-slate-500 text-[13px] font-bold">
+            Henüz kayıtlı analiz yok.
+          </div>
         ) : (
-          <div style={savedList}>
+          <div className="mt-3 grid gap-[9px]">
             {savedAnalyses.map((item) => (
-              <div key={item.id} style={savedItem}>
+              <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
-                  <div style={savedItemTitle}>{getAnalysisLabel(item.analysis_type)}</div>
-                  <div style={savedItemDate}>{formatDateTimeTR(item.created_at)}</div>
-                  {item.note && <div style={savedItemNote}>{item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}</div>}
+                  <div className="text-[14px] font-black text-slate-950">{getAnalysisLabel(item.analysis_type)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
+                  {item.note && (
+                    <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
+                      {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}
+                    </div>
+                  )}
                 </div>
-
-                <div style={savedActions}>
-                  <button type="button" onClick={() => openSavedAnalysis(item)} style={openButton}>
+                <div className="flex gap-[7px] flex-wrap justify-end">
+                  <button type="button" onClick={() => openSavedAnalysis(item)}
+                    className="border-0 bg-blue-600 text-white rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-blue-700 transition-colors">
                     Aç
                   </button>
-
-                  <button type="button" onClick={() => deleteSavedAnalysis(item.id)} style={deleteButton}>
+                  <button type="button" onClick={() => deleteSavedAnalysis(item.id)}
+                    className="border border-red-200 bg-red-50 text-red-600 rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-red-100 transition-colors">
                     Sil
                   </button>
                 </div>
@@ -512,68 +356,71 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         )}
       </section>
 
+      {/* Analysis modal */}
       {activeAnalysis && (
-        <div style={modalOverlay}>
-          <div style={modalCard}>
-            <div id="analysis-print-area" style={pdfArea}>
-              <div style={modalHeader}>
+        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2.5">
+          <div className="w-[min(98vw,1780px)] h-[94vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
+
+            {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}
+            <div id="analysis-print-area" className="bg-white">
+              {/* Modal header */}
+              <div className="bg-gradient-to-r from-[#111827] via-[#4c1d95] to-[#be185d] text-white p-3.5 flex justify-between gap-2.5 items-start">
                 <div>
-                  <div style={modalPill}>Analiz Formu</div>
-                  <h3 style={modalTitle}>{activeTitle}</h3>
-                  <p style={modalSubtitle}>
+                  <span className="inline-flex bg-white/16 text-white px-2 py-[3px] rounded-full text-[10px] font-black">
+                    Analiz Formu
+                  </span>
+                  <h3 className="mt-1.5 text-[22px] font-black">{activeTitle}</h3>
+                  <p className="mt-[5px] text-[12px] opacity-[0.92]">
                     Danışan: <strong>{clientName}</strong> · Tarih: <strong>{todayText}</strong>
                   </p>
                 </div>
-
+                {/* no-pdf: excluded from html2canvas capture */}
                 <button
                   type="button"
                   onClick={() => setActiveAnalysis(null)}
-                  style={closeButton}
-                  className="no-pdf"
+                  className="no-pdf w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×
                 </button>
               </div>
 
-              <div style={modalBody}>
+              {/* Modal body */}
+              <div className="p-3 grid gap-[9px] pb-[18px]">
                 {activeAnalysis === "chakra" ? (
-                  <ChakraAnalysis
-                    values={chakraValues}
-                    updateValue={updateChakraValue}
-                  />
+                  <ChakraAnalysis values={chakraValues} updateValue={updateChakraValue} />
                 ) : (
-                  <PlanetAnalysis
-                    values={planetValues}
-                    updateValue={updatePlanetValue}
-                  />
+                  <PlanetAnalysis values={planetValues} updateValue={updatePlanetValue} />
                 )}
 
-                <div style={noteCard}>
-                  <label style={noteLabel}>Analiz Notu</label>
+                {/* Note */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-[7px]">
+                  <label className="text-[10px] font-black text-amber-800">Analiz Notu</label>
                   <textarea
                     value={note}
-                    onChange={(event) => setNote(event.target.value)}
+                    onChange={(e) => setNote(e.target.value)}
                     placeholder="Analiz yorumu, seans gözlemi veya danışana özel not..."
-                    style={noteArea}
+                    className="w-full min-h-[48px] mt-1 rounded-[9px] border border-amber-300 p-1.5 text-[10px] outline-none resize-y bg-white box-border"
                   />
                 </div>
               </div>
             </div>
 
-            <div style={stickyActions} className="no-pdf">
-              <button type="button" onClick={clearAll} style={lightButton}>
+            {/* Sticky action bar — no-pdf: excluded from html2canvas capture */}
+            <div className="no-pdf sticky bottom-0 z-[3] flex justify-end gap-2 flex-wrap bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] backdrop-blur-[10px]">
+              <button type="button" onClick={clearAll}
+                className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
                 Tümünü Temizle
               </button>
-
-              <button type="button" onClick={printPdf} disabled={creatingPdf} style={pdfButton}>
+              <button type="button" onClick={printPdf} disabled={creatingPdf}
+                className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
                 {creatingPdf ? "PDF Hazırlanıyor..." : "PDF Al"}
               </button>
-
-              <button type="button" onClick={exportWord} style={wordButton}>
+              <button type="button" onClick={exportWord}
+                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700`}>
                 Word Al
               </button>
-
-              <button type="button" onClick={saveAnalysis} disabled={savingAnalysis} style={saveButton}>
+              <button type="button" onClick={saveAnalysis} disabled={savingAnalysis}
+                className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
                 {savingAnalysis ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
@@ -584,56 +431,26 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   );
 }
 
+// ─── ChakraAnalysis ───────────────────────────────────────────────────────────
 function ChakraAnalysis({
-  values,
-  updateValue,
+  values, updateValue,
 }: {
   values: Record<string, ChakraRowValue>;
   updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
 }) {
   return (
-    <div style={chakraLayout}>
-      <ChakraSection
-        title="Seans Öncesi — Enerji Bedenleri"
-        scope="before_energy"
-        rows={energyBodies}
-        values={values}
-        updateValue={updateValue}
-      />
-
-      <ChakraSection
-        title="Seans Sonrası — Enerji Bedenleri"
-        scope="after_energy"
-        rows={energyBodies}
-        values={values}
-        updateValue={updateValue}
-      />
-
-      <ChakraSection
-        title="Çakralar — Seans Öncesi"
-        scope="before_chakra"
-        rows={chakras}
-        values={values}
-        updateValue={updateValue}
-      />
-
-      <ChakraSection
-        title="Çakralar — Seans Sonrası"
-        scope="after_chakra"
-        rows={chakras}
-        values={values}
-        updateValue={updateValue}
-      />
+    <div className="grid grid-cols-2 gap-[9px]">
+      <ChakraSection title="Seans Öncesi — Enerji Bedenleri" scope="before_energy" rows={energyBodies} values={values} updateValue={updateValue} />
+      <ChakraSection title="Seans Sonrası — Enerji Bedenleri" scope="after_energy"  rows={energyBodies} values={values} updateValue={updateValue} />
+      <ChakraSection title="Çakralar — Seans Öncesi"          scope="before_chakra" rows={chakras}       values={values} updateValue={updateValue} />
+      <ChakraSection title="Çakralar — Seans Sonrası"         scope="after_chakra"  rows={chakras}       values={values} updateValue={updateValue} />
     </div>
   );
 }
 
+// ─── ChakraSection ────────────────────────────────────────────────────────────
 function ChakraSection({
-  title,
-  scope,
-  rows,
-  values,
-  updateValue,
+  title, scope, rows, values, updateValue,
 }: {
   title: string;
   scope: string;
@@ -642,10 +459,13 @@ function ChakraSection({
   updateValue: (key: string, field: keyof ChakraRowValue, value: string) => void;
 }) {
   return (
-    <section style={schemaCard}>
-      <div style={schemaTitle}>{title}</div>
+    <section className="bg-white border border-blue-200 rounded-[15px] p-2.5 shadow-sm">
+      <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
+        {title}
+      </div>
 
-      <div style={chakraHeader}>
+      {/* Header row */}
+      <div className="grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-blue-600 text-[10px]">
         <div />
         <strong>İŞARET +/- · SAYI %</strong>
         <strong>ERİL ENERJİ</strong>
@@ -655,37 +475,33 @@ function ChakraSection({
       {rows.map((row) => {
         const key = `${scope}_${row.key}`;
         const rowValue = values[key] || { mark: "", male: "", female: "" };
-
         return (
-          <div key={key} style={chakraRow}>
+          <div key={key} className="grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] items-center">
+            {/* Color label — background is a runtime data value, must stay inline */}
             <div
-              style={{
-                ...colorLabel,
-                background: row.color,
-              }}
+              className="min-h-[31px] rounded-none text-white flex items-center px-[11px] text-[11px] font-black"
+              style={{ background: row.color }}
             >
               {row.label}
             </div>
 
             <input
               value={rowValue.mark}
-              onChange={(event) => updateValue(key, "mark", event.target.value)}
+              onChange={(e) => updateValue(key, "mark", e.target.value)}
               placeholder="+10 / -20"
-              style={{ ...schemaInput, ...valueStyle(rowValue.mark) }}
+              className={`${schemaInputBase} ${valueClass(rowValue.mark)}`}
             />
-
             <input
               value={rowValue.male}
-              onChange={(event) => updateValue(key, "male", event.target.value)}
+              onChange={(e) => updateValue(key, "male", e.target.value)}
               placeholder="Eril"
-              style={{ ...schemaInput, ...valueStyle(rowValue.male) }}
+              className={`${schemaInputBase} ${valueClass(rowValue.male)}`}
             />
-
             <input
               value={rowValue.female}
-              onChange={(event) => updateValue(key, "female", event.target.value)}
+              onChange={(e) => updateValue(key, "female", e.target.value)}
               placeholder="Dişil"
-              style={{ ...schemaInput, ...valueStyle(rowValue.female) }}
+              className={`${schemaInputBase} ${valueClass(rowValue.female)}`}
             />
           </div>
         );
@@ -694,26 +510,24 @@ function ChakraSection({
   );
 }
 
+// ─── PlanetAnalysis ───────────────────────────────────────────────────────────
 function PlanetAnalysis({
-  values,
-  updateValue,
+  values, updateValue,
 }: {
   values: Record<string, string>;
   updateValue: (key: string, value: string) => void;
 }) {
   return (
-    <div style={planetLayout}>
-      <PlanetPanel title="Seans Öncesi" scope="before" values={values} updateValue={updateValue} />
-      <PlanetPanel title="Seans Sonrası" scope="after" values={values} updateValue={updateValue} />
+    <div className="grid grid-cols-2 gap-2">
+      <PlanetPanel title="Seans Öncesi"  scope="before" values={values} updateValue={updateValue} />
+      <PlanetPanel title="Seans Sonrası" scope="after"  values={values} updateValue={updateValue} />
     </div>
   );
 }
 
+// ─── PlanetPanel ──────────────────────────────────────────────────────────────
 function PlanetPanel({
-  title,
-  scope,
-  values,
-  updateValue,
+  title, scope, values, updateValue,
 }: {
   title: string;
   scope: string;
@@ -721,36 +535,36 @@ function PlanetPanel({
   updateValue: (key: string, value: string) => void;
 }) {
   return (
-    <section style={planetPanel}>
-      <div style={schemaTitle}>{title}</div>
+    <section className="bg-white border border-blue-200 rounded-[13px] p-2 shadow-sm overflow-x-auto">
+      <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
+        {title}
+      </div>
 
+      {/* planetGrid gridTemplateColumns is dynamic (computed from planetLabels.length),
+          cannot be a static Tailwind class — intentionally kept as inline style */}
       <div
-        style={{
-          ...planetGrid,
-          gridTemplateColumns: `132px repeat(${planetLabels.length}, minmax(86px, 1fr))`,
-        }}
+        className="grid gap-[6px] min-w-[620px]"
+        style={{ gridTemplateColumns: `132px repeat(${planetLabels.length}, minmax(86px, 1fr))` }}
       >
-        <div style={planetEmpty} />
+        <div className="bg-slate-50 rounded-xl min-h-[98px]" />
 
         {planetLabels.map((planet, index) => (
+          // Header cell background is a runtime array value — must stay inline
           <div
             key={planet}
-            style={{
-              ...planetHeaderCell,
-              background: planetColors[index],
-            }}
+            className="min-h-[98px] rounded-xl flex items-center justify-center text-sky-800 text-[11px] font-black"
+            style={{ background: planetColors[index] }}
           >
             {planet}
           </div>
         ))}
 
         {planetRows.map((row) => (
-          <div key={row.key} style={{ display: "contents" }}>
+          <div key={row.key} className="contents">
+            {/* Row label background is a runtime data value — must stay inline */}
             <div
-              style={{
-                ...planetRowLabel,
-                background: row.color,
-              }}
+              className="min-h-[30px] rounded-full flex items-center px-2 text-white text-[10px] font-black"
+              style={{ background: row.color }}
             >
               {row.label}
             </div>
@@ -758,14 +572,13 @@ function PlanetPanel({
             {planetLabels.map((planet) => {
               const key = `${scope}_${row.key}_${planet}`;
               const value = values[key] || "";
-
               return (
                 <input
                   key={key}
                   value={value}
-                  onChange={(event) => updateValue(key, event.target.value)}
+                  onChange={(e) => updateValue(key, e.target.value)}
                   placeholder="+30 / -20"
-                  style={{ ...planetInput, ...valueStyle(value) }}
+                  className={`${planetInputBase} ${valueClass(value)}`}
                 />
               );
             })}
@@ -776,13 +589,9 @@ function PlanetPanel({
   );
 }
 
+// ─── AnalysisCard ─────────────────────────────────────────────────────────────
 function AnalysisCard({
-  badge,
-  title,
-  text,
-  gradient,
-  buttonColor,
-  onOpen,
+  badge, title, text, gradient, buttonColor, onOpen,
 }: {
   badge: string;
   title: string;
@@ -792,507 +601,19 @@ function AnalysisCard({
   onOpen: () => void;
 }) {
   return (
-    <div style={{ ...analysisCard, background: gradient }}>
-      <div style={cardBadge}>{badge}</div>
-      <h3 style={cardTitle}>{title}</h3>
-      <p style={cardText}>{text}</p>
-
+    // gradient is a runtime prop (inline-gradient string) — must stay inline
+    <div className="rounded-[18px] p-4 text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]" style={{ background: gradient }}>
+      <div className="text-[12px] font-extrabold opacity-[0.85]">{badge}</div>
+      <h3 className="mt-2 text-[22px] font-black">{title}</h3>
+      <p className="mt-2 leading-[1.45] opacity-[0.9] text-[13px]">{text}</p>
+      {/* buttonColor is a runtime prop — must stay inline */}
       <button
-        type="button"
-        onClick={onOpen}
-        style={{
-          ...cardButton,
-          color: buttonColor,
-        }}
+        type="button" onClick={onOpen}
+        className="mt-3 border-0 bg-white px-3 py-2 rounded-xl font-black cursor-pointer hover:opacity-90 transition-opacity"
+        style={{ color: buttonColor }}
       >
         Analizi Aç
       </button>
     </div>
   );
 }
-
-const pageWrap: React.CSSProperties = {
-  width: "100%",
-  position: "relative",
-};
-
-const sectionHead: React.CSSProperties = {
-  marginBottom: 10,
-};
-
-const purplePill: React.CSSProperties = {
-  display: "inline-flex",
-  background: "#f3e8ff",
-  color: "#7e22ce",
-  padding: "5px 10px",
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 900,
-};
-
-const sectionTitle: React.CSSProperties = {
-  margin: "6px 0 0",
-  fontSize: 20,
-  fontWeight: 900,
-};
-
-const mutedText: React.CSSProperties = {
-  marginTop: 6,
-  color: "#64748b",
-  fontSize: 13,
-};
-
-const analysisGrid: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-  gap: 12,
-  marginTop: 14,
-};
-
-const analysisCard: React.CSSProperties = {
-  borderRadius: 18,
-  padding: 16,
-  color: "white",
-  boxShadow: "0 14px 30px rgba(15,23,42,0.14)",
-};
-
-const cardBadge: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 800,
-  opacity: 0.85,
-};
-
-const cardTitle: React.CSSProperties = {
-  margin: "8px 0 0",
-  fontSize: 22,
-  fontWeight: 900,
-};
-
-const cardText: React.CSSProperties = {
-  marginTop: 8,
-  lineHeight: 1.45,
-  opacity: 0.9,
-  fontSize: 13,
-};
-
-const cardButton: React.CSSProperties = {
-  marginTop: 12,
-  border: "none",
-  background: "white",
-  padding: "8px 12px",
-  borderRadius: 11,
-  fontWeight: 900,
-  cursor: "pointer",
-};
-
-const savedPanel: React.CSSProperties = {
-  marginTop: 14,
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: 18,
-  padding: 14,
-  boxShadow: "0 10px 26px rgba(15,23,42,0.05)",
-};
-
-const savedHeader: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 12,
-  alignItems: "flex-start",
-  flexWrap: "wrap",
-};
-
-const savedPill: React.CSSProperties = {
-  display: "inline-flex",
-  background: "#e0f2fe",
-  color: "#0369a1",
-  padding: "5px 10px",
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 900,
-};
-
-const savedTitle: React.CSSProperties = {
-  margin: "7px 0 0",
-  fontSize: 18,
-  fontWeight: 950,
-};
-
-const savedDesc: React.CSSProperties = {
-  margin: "4px 0 0",
-  color: "#64748b",
-  fontSize: 12,
-};
-
-const refreshButton: React.CSSProperties = {
-  border: "1px solid #cbd5e1",
-  background: "#f8fafc",
-  color: "#334155",
-  borderRadius: 12,
-  padding: "8px 12px",
-  fontWeight: 900,
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-const emptySavedBox: React.CSSProperties = {
-  marginTop: 12,
-  border: "1px dashed #cbd5e1",
-  background: "#f8fafc",
-  borderRadius: 14,
-  padding: 14,
-  color: "#64748b",
-  fontSize: 13,
-  fontWeight: 750,
-};
-
-const savedList: React.CSSProperties = {
-  marginTop: 12,
-  display: "grid",
-  gap: 9,
-};
-
-const savedItem: React.CSSProperties = {
-  border: "1px solid #e2e8f0",
-  background: "linear-gradient(135deg,#ffffff,#f8fafc)",
-  borderRadius: 14,
-  padding: 12,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 12,
-  alignItems: "center",
-};
-
-const savedItemTitle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 950,
-  color: "#0f172a",
-};
-
-const savedItemDate: React.CSSProperties = {
-  marginTop: 3,
-  fontSize: 11,
-  fontWeight: 750,
-  color: "#64748b",
-};
-
-const savedItemNote: React.CSSProperties = {
-  marginTop: 6,
-  fontSize: 11,
-  color: "#475569",
-  background: "#f1f5f9",
-  borderRadius: 10,
-  padding: "6px 8px",
-};
-
-const savedActions: React.CSSProperties = {
-  display: "flex",
-  gap: 7,
-  flexWrap: "wrap",
-  justifyContent: "flex-end",
-};
-
-const openButton: React.CSSProperties = {
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  borderRadius: 11,
-  padding: "7px 11px",
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: "pointer",
-};
-
-const deleteButton: React.CSSProperties = {
-  border: "1px solid #fecaca",
-  background: "#fff1f2",
-  color: "#dc2626",
-  borderRadius: 11,
-  padding: "7px 11px",
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: "pointer",
-};
-
-const modalOverlay: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 10000,
-  background: "rgba(15,23,42,0.58)",
-  backdropFilter: "blur(7px)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 10,
-};
-
-const modalCard: React.CSSProperties = {
-  width: "min(98vw, 1780px)",
-  height: "94vh",
-  overflowY: "auto",
-  background: "linear-gradient(135deg,#ffffff,#f8fafc)",
-  borderRadius: 20,
-  border: "1px solid rgba(255,255,255,0.85)",
-  boxShadow: "0 24px 70px rgba(15,23,42,0.34)",
-  position: "relative",
-};
-
-const pdfArea: React.CSSProperties = {
-  background: "#ffffff",
-};
-
-const modalHeader: React.CSSProperties = {
-  background: "linear-gradient(135deg,#111827,#4c1d95,#be185d)",
-  color: "white",
-  padding: 14,
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 10,
-  alignItems: "flex-start",
-};
-
-const modalPill: React.CSSProperties = {
-  display: "inline-flex",
-  background: "rgba(255,255,255,0.16)",
-  color: "white",
-  padding: "3px 8px",
-  borderRadius: 999,
-  fontSize: 10,
-  fontWeight: 900,
-};
-
-const modalTitle: React.CSSProperties = {
-  margin: "6px 0 0",
-  fontSize: 22,
-  fontWeight: 950,
-};
-
-const modalSubtitle: React.CSSProperties = {
-  margin: "5px 0 0",
-  fontSize: 12,
-  opacity: 0.92,
-};
-
-const closeButton: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,0.22)",
-  background: "rgba(255,255,255,0.14)",
-  color: "white",
-  fontSize: 22,
-  fontWeight: 900,
-  cursor: "pointer",
-  lineHeight: 1,
-};
-
-const modalBody: React.CSSProperties = {
-  padding: 12,
-  display: "grid",
-  gap: 9,
-  paddingBottom: 18,
-};
-
-const chakraLayout: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 9,
-};
-
-const schemaCard: React.CSSProperties = {
-  background: "white",
-  border: "1px solid #bfdbfe",
-  borderRadius: 15,
-  padding: 10,
-  boxShadow: "0 6px 14px rgba(15,23,42,0.04)",
-};
-
-const schemaTitle: React.CSSProperties = {
-  display: "inline-flex",
-  background: "#eff6ff",
-  color: "#2563eb",
-  padding: "5px 10px",
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 950,
-  marginBottom: 6,
-};
-
-const chakraHeader: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 132px 132px 132px",
-  gap: 7,
-  marginBottom: 7,
-  color: "#2563eb",
-  fontSize: 10,
-};
-
-const chakraRow: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 132px 132px 132px",
-  gap: 7,
-  marginBottom: 7,
-  alignItems: "center",
-};
-
-const colorLabel: React.CSSProperties = {
-  minHeight: 31,
-  borderRadius: 0,
-  color: "white",
-  display: "flex",
-  alignItems: "center",
-  padding: "0 11px",
-  fontSize: 11,
-  fontWeight: 950,
-};
-
-const schemaInput: React.CSSProperties = {
-  width: "100%",
-  minHeight: 31,
-  borderRadius: 9,
-  border: "1px solid #bfdbfe",
-  background: "white",
-  padding: "5px 8px",
-  fontSize: 12,
-  fontWeight: 850,
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const planetLayout: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 8,
-};
-
-const planetPanel: React.CSSProperties = {
-  background: "white",
-  border: "1px solid #bfdbfe",
-  borderRadius: 13,
-  padding: 8,
-  boxShadow: "0 6px 14px rgba(15,23,42,0.04)",
-  overflowX: "auto",
-};
-
-const planetGrid: React.CSSProperties = {
-  display: "grid",
-  gap: 6,
-  minWidth: 620,
-};
-
-const planetEmpty: React.CSSProperties = {
-  background: "#f8fafc",
-  borderRadius: 10,
-  minHeight: 98,
-};
-
-const planetHeaderCell: React.CSSProperties = {
-  minHeight: 98,
-  borderRadius: 10,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  color: "#075985",
-  fontSize: 11,
-  fontWeight: 950,
-};
-
-const planetRowLabel: React.CSSProperties = {
-  minHeight: 30,
-  borderRadius: 999,
-  display: "flex",
-  alignItems: "center",
-  padding: "0 8px",
-  color: "white",
-  fontSize: 10,
-  fontWeight: 950,
-};
-
-const planetInput: React.CSSProperties = {
-  minHeight: 30,
-  borderRadius: 9,
-  border: "1px solid #bfdbfe",
-  background: "white",
-  padding: "5px 7px",
-  fontSize: 11,
-  fontWeight: 850,
-  outline: "none",
-  boxSizing: "border-box",
-  width: "100%",
-};
-
-const noteCard: React.CSSProperties = {
-  background: "#fffbeb",
-  border: "1px solid #fde68a",
-  borderRadius: 12,
-  padding: 7,
-};
-
-const noteLabel: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 900,
-  color: "#92400e",
-};
-
-const noteArea: React.CSSProperties = {
-  width: "100%",
-  minHeight: 48,
-  marginTop: 4,
-  borderRadius: 9,
-  border: "1px solid #fcd34d",
-  padding: 6,
-  fontSize: 10,
-  outline: "none",
-  resize: "vertical",
-  boxSizing: "border-box",
-  background: "white",
-};
-
-const stickyActions: React.CSSProperties = {
-  position: "sticky",
-  bottom: 0,
-  zIndex: 3,
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: 8,
-  flexWrap: "wrap",
-  background: "rgba(248,250,252,0.95)",
-  borderTop: "1px solid #e2e8f0",
-  padding: "9px 12px",
-  backdropFilter: "blur(10px)",
-};
-
-const baseToolbarButton: React.CSSProperties = {
-  border: "none",
-  borderRadius: 11,
-  padding: "8px 13px",
-  fontWeight: 950,
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-const lightButton: React.CSSProperties = {
-  ...baseToolbarButton,
-  background: "#f1f5f9",
-  color: "#334155",
-  border: "1px solid #cbd5e1",
-};
-
-const pdfButton: React.CSSProperties = {
-  ...baseToolbarButton,
-  background: "#ef4444",
-  color: "white",
-  opacity: 1,
-};
-
-const wordButton: React.CSSProperties = {
-  ...baseToolbarButton,
-  background: "#2563eb",
-  color: "white",
-};
-
-const saveButton: React.CSSProperties = {
-  ...baseToolbarButton,
-  background: "#16a34a",
-  color: "white",
-};
