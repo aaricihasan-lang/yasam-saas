@@ -362,15 +362,9 @@ export default function BiyoenerjiSeanslari() {
 
   return (
     <section className={sectionShellClass}>
-      <div className="mb-6 flex flex-col gap-4 border-b border-violet-100/50 pb-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <h2 className="text-4xl font-black text-slate-950">Biyoenerji Seansları</h2>
-            <p className="mt-2 text-lg font-medium text-slate-600">
-              Listeden kayıt seçin; düzenleme ve yeni ekleme geniş panelde açılır.
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-3 xl:flex-row">
+      <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-2xl">
             <label className="block min-w-0 flex-1">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
                 Başlıkta ara
@@ -419,7 +413,7 @@ export default function BiyoenerjiSeanslari() {
         </div>
       )}
 
-      <div className="flex min-h-[min(68vh,560px)] flex-col gap-6 xl:flex-row">
+      <div className="flex flex-col gap-4 xl:flex-row">
         <div className={`${listColumnClass} order-1 xl:order-none`}>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-black uppercase tracking-wide text-violet-600/90">
@@ -561,9 +555,9 @@ export default function BiyoenerjiSeanslari() {
               </div>
             </>
           ) : (
-            <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-[28px] border-[3px] border-dashed border-cyan-200 bg-white/65 px-4 text-center">
-              <p className="max-w-md text-base font-medium text-slate-500">
-                Soldan bir kayıt seçerek özetini görün veya yeni kayıt oluşturmak için listedeki üstteki düğmeyi kullanın.
+            <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-white/65 px-4 text-center">
+              <p className="max-w-sm text-sm font-medium text-slate-400">
+                Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin.
               </p>
             </div>
           )}

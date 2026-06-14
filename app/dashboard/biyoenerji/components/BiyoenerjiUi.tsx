@@ -20,9 +20,9 @@ const searchToneRing: Record<BiyoenerjiTone, string> = {
 export function searchInputClass(tone: BiyoenerjiTone) {
   const borderFocus =
     tone === "cyan"
-      ? "border-cyan-200 focus:border-cyan-500 focus:ring-cyan-300/30"
-      : "border-violet-200 focus:border-violet-500 focus:ring-violet-300/30";
-  return `h-14 w-full rounded-2xl border-2 bg-white/90 px-5 text-base font-semibold text-slate-800 shadow-inner outline-none transition focus:ring-4 ${borderFocus}`;
+      ? "border-slate-200 focus:border-cyan-300 focus:ring-cyan-200/40"
+      : "border-slate-200 focus:border-violet-300 focus:ring-violet-200/40";
+  return `h-9 w-full rounded-lg border bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:ring-2 ${borderFocus}`;
 }
 
 const badgeTone: Record<BiyoenerjiTone, string> = {
@@ -63,14 +63,14 @@ export function ModuleStats({
     { k: "Son kayıt", v: lastDate },
   ];
   return (
-    <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {items.map((it) => (
         <div
           key={it.k}
-          className="rounded-2xl border-2 border-cyan-200 bg-white/85 p-5 shadow-md"
+          className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm"
         >
-          <p className="text-sm font-bold text-slate-500">{it.k}</p>
-          <p className="mt-1 truncate text-3xl font-black tabular-nums tracking-tight text-violet-700">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{it.k}</p>
+          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
             {it.v}
           </p>
         </div>
@@ -91,22 +91,22 @@ export function CrudEmptyState({
   tone: BiyoenerjiTone;
 }) {
   const ring = {
-    violet: "border-violet-200/50 bg-violet-50/25 ring-violet-100/40",
-    cyan: "border-cyan-200/50 bg-cyan-50/25 ring-cyan-100/40",
-    fuchsia: "border-fuchsia-200/50 bg-fuchsia-50/20 ring-fuchsia-100/40",
-    amber: "border-amber-200/50 bg-amber-50/25 ring-amber-100/40",
-    emerald: "border-emerald-200/50 bg-emerald-50/25 ring-emerald-100/40",
-    orange: "border-orange-200/50 bg-orange-50/25 ring-orange-100/40",
+    violet: "border-violet-200/50 bg-violet-50/25",
+    cyan: "border-cyan-200/50 bg-cyan-50/25",
+    fuchsia: "border-fuchsia-200/50 bg-fuchsia-50/20",
+    amber: "border-amber-200/50 bg-amber-50/25",
+    emerald: "border-emerald-200/50 bg-emerald-50/25",
+    orange: "border-orange-200/50 bg-orange-50/25",
   }[tone];
   return (
     <div
-      className={`flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border-[3px] border-dashed border-violet-200 bg-white/65 px-5 py-10 text-center ${ring}`}
+      className={`flex min-h-[160px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-violet-200 bg-white/65 px-5 py-8 text-center ${ring}`}
     >
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90">
+      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 text-2xl shadow-sm ring-1 ring-white/90">
         {icon}
       </div>
-      <p className="text-2xl font-black text-slate-950">{title}</p>
-      <p className="mt-2 max-w-sm text-base font-medium text-slate-500">{subtitle}</p>
+      <p className="text-base font-black text-slate-950">{title}</p>
+      <p className="mt-1 max-w-sm text-sm font-medium text-slate-500">{subtitle}</p>
     </div>
   );
 }
@@ -152,15 +152,15 @@ export function AutoTextarea({
 
 /** Sağ form cam paneli — hafif blur */
 export const formGlassPanelClass =
-  "flex min-h-[520px] min-w-0 flex-1 flex-col rounded-[30px] border-[3px] border-cyan-300/40 bg-gradient-to-br from-white/85 to-cyan-50/60 p-6 shadow-[0_0_35px_rgba(34,211,238,0.12)]";
+  "flex min-h-[240px] min-w-0 flex-1 flex-col rounded-2xl border border-cyan-200/50 bg-gradient-to-br from-white/85 to-cyan-50/60 p-4 shadow-[0_0_20px_rgba(34,211,238,0.08)]";
 
 /** Liste kolonu */
 export const listColumnClass =
-  "flex min-h-[520px] w-full min-w-0 flex-col rounded-[30px] border-[3px] border-violet-300/40 bg-gradient-to-br from-white/85 to-violet-50/60 p-6 shadow-[0_0_35px_rgba(139,92,246,0.12)] lg:flex-none lg:w-[min(100%,420px)] xl:w-[min(100%,460px)]";
+  "flex min-h-[240px] w-full min-w-0 flex-col rounded-2xl border border-violet-200/50 bg-gradient-to-br from-white/85 to-violet-50/60 p-4 shadow-[0_0_20px_rgba(139,92,246,0.08)] lg:flex-none lg:w-[min(100%,380px)] xl:w-[min(100%,420px)]";
 
 /** Ana bölüm kartı */
 export const sectionShellClass =
-  "rounded-[34px] border-[3px] border-cyan-300/45 bg-white/78 p-8 shadow-[0_0_50px_rgba(34,211,238,0.14)] backdrop-blur-xl";
+  "rounded-2xl border border-cyan-200/40 bg-white/78 p-4 shadow-[0_0_30px_rgba(34,211,238,0.09)] backdrop-blur-xl sm:p-5";
 
 export const newRecordBtnClass =
-  "inline-flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-6 py-4 font-black text-white shadow-[0_10px_30px_rgba(139,92,246,0.25)] transition-all duration-300 hover:-translate-y-1";
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
