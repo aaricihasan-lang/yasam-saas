@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -108,13 +108,13 @@ function formatDate(iso: string | null) {
 }
 
 const newRecordBtnPremium =
-  "inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-600 px-8 py-4 text-base font-black text-white shadow-[0_12px_32px_rgba(109,40,217,0.28)] transition duration-300 hover:-translate-y-0.5 hover:from-violet-700 hover:to-cyan-700 hover:shadow-[0_16px_40px_rgba(6,182,212,0.25)]";
+  "inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
 
 const loadMoreBtnClass =
-  "rounded-2xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-cyan-50 px-8 py-4 text-base font-black text-slate-800 shadow-md transition hover:from-amber-100 hover:to-cyan-100 disabled:opacity-60";
+  "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
 
 const detailOpenBtnClass =
-  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-2xl bg-slate-950 py-4 text-[17px] font-black text-white shadow-lg transition duration-300 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
+  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
 
 export default function Imajinasyonlar() {
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -296,68 +296,67 @@ export default function Imajinasyonlar() {
 
   return (
     <section className="w-full min-w-0">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
           + Yeni Kayıt
         </button>
       </div>
 
-      <div className="mb-6 grid w-full grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
-        <div className="rounded-2xl border-2 border-violet-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
-          <p className="text-base font-bold text-slate-500">Toplam kayıt</p>
-          <p className="mt-2 text-3xl font-black tabular-nums text-violet-700 sm:text-4xl">
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
+          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
             {totalInDb}
           </p>
         </div>
-        <div className="rounded-2xl border-2 border-cyan-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
-          <p className="text-base font-bold text-slate-500">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
             {isSearchActive ? "Arama sonucu" : "Görünen sonuç"}
           </p>
-          <p className="mt-2 text-3xl font-black tabular-nums text-cyan-700 sm:text-4xl">
+          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-cyan-700">
             {searchResultCount}
           </p>
         </div>
-        <div className="rounded-2xl border-2 border-amber-200/70 bg-white/90 px-5 py-5 shadow-md sm:px-6 sm:py-6">
-          <p className="text-base font-bold text-slate-500">Son kayıt</p>
-          <p className="mt-2 text-lg font-black leading-snug text-amber-800 sm:text-xl">
+        <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Son kayıt</p>
+          <p className="mt-0.5 truncate text-base font-black tracking-tight text-amber-800">
             {formatDate(lastCreatedAt)}
           </p>
         </div>
       </div>
 
-      <label className="mb-6 block w-full">
-        <span className="mb-2 block text-base font-bold text-slate-600">Kütüphane araması</span>
+      <label className="mb-4 block w-full xl:max-w-sm">
+        <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kütüphane araması</span>
         <input
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Başlık, kategori, metin, not ve kaynak içinde ara..."
-          className="h-[3.25rem] w-full rounded-2xl border-2 border-amber-200 bg-white/95 px-5 text-[17px] font-semibold text-slate-800 shadow-inner outline-none transition placeholder:text-base placeholder:font-medium placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-300/30"
+          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-amber-200/40"
         />
         {listBusy ? (
-          <p className="mt-2 text-sm font-bold text-amber-700">Aranıyor…</p>
+          <p className="mt-1 text-[10px] font-semibold text-amber-600">Aranıyor…</p>
         ) : isSearchActive ? (
-          <p className="mt-2 text-sm font-bold text-amber-700">
-            Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+          <p className="mt-1 text-[10px] font-semibold text-amber-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
           </p>
         ) : null}
       </label>
 
       {loadErrorMessage ? (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
+        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
           {loadErrorMessage}
         </div>
       ) : null}
 
       {(infoSuccess || infoError) && (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-800">
+            <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-bold text-rose-800">
+            <div className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
               {infoError}
             </div>
           ) : null}
@@ -365,7 +364,7 @@ export default function Imajinasyonlar() {
       )}
 
       {listLoading && rows.length === 0 ? (
-        <p className="py-16 text-center text-lg font-semibold text-slate-400">Yükleniyor…</p>
+        <p className="py-8 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
           icon="✧"
@@ -390,7 +389,7 @@ export default function Imajinasyonlar() {
               isExporting={wordBusy}
             />
           </div>
-          <div className="grid w-full grid-cols-1 gap-7 md:grid-cols-2 md:gap-8 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = imaginationDetailHref(row.id);
               const preview = previewImaginationText(row.text, row.notes, row.source);
@@ -403,7 +402,7 @@ export default function Imajinasyonlar() {
               return (
                 <div key={row.id} className="relative">
                   <label
-                    className="absolute right-4 top-4 z-20 flex h-6 w-6 cursor-pointer items-center justify-center"
+                    className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
                     onClick={(e) => e.preventDefault()}
                   >
                     <input
@@ -414,32 +413,32 @@ export default function Imajinasyonlar() {
                         if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
                         return next;
                       })}
-                      className="h-5 w-5 rounded border-white/80 accent-amber-600 shadow-lg"
+                      className="h-4 w-4 rounded accent-amber-600 shadow"
                     />
                   </label>
                 <Link
                   href={detailHref}
-                  className={`group relative flex h-[300px] flex-col overflow-hidden rounded-3xl border-[2.5px] p-6 shadow-[0_16px_40px_-14px_rgba(15,23,42,0.22)] transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${isExportSelected ? "ring-4 ring-amber-400/60 ring-offset-2" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${isExportSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {hasCategory ? (
                     <span
-                      className={`mb-3 inline-flex w-fit max-w-full truncate rounded-full px-3.5 py-1.5 text-xs font-black uppercase tracking-wide ${theme.badge}`}
+                      className={`mb-2 inline-flex w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${theme.badge}`}
                     >
                       {row.category}
                     </span>
                   ) : (
                     <span
-                      className={`mb-3 inline-flex w-fit rounded-full px-3.5 py-1.5 text-xs font-bold ${theme.badgeMuted}`}
+                      className={`mb-2 inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold ${theme.badgeMuted}`}
                     >
                       Kategorisiz
                     </span>
                   )}
 
-                  <h2 className="line-clamp-2 text-[20px] font-black leading-snug text-slate-950">
+                  <h2 className="line-clamp-2 text-[15px] font-black leading-snug text-slate-950">
                     {row.title?.trim() || "İsimsiz kayıt"}
                   </h2>
 
-                  <p className="mt-3 line-clamp-2 min-h-[3.25rem] flex-1 text-[16px] leading-relaxed text-slate-800/90">
+                  <p className="mt-2 line-clamp-2 flex-1 text-[13px] leading-relaxed text-slate-700/90">
                     {preview}
                   </p>
 
@@ -451,7 +450,7 @@ export default function Imajinasyonlar() {
           </div>
 
           {hasMore ? (
-            <div className="mt-10 flex justify-center">
+            <div className="mt-5 flex justify-center">
               <button
                 type="button"
                 disabled={loadingMore || listLoading}
