@@ -6,8 +6,9 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { odevDurumLabel, odevDurumClass } from "@/lib/odevStatus";
 
-type HomeworkStatus = "devam" | "tamamlandi" | "gecikti" | "iptal";
+type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
 type ClientHomework = {
   id: string;
@@ -116,28 +117,8 @@ function homeworkToForm(item: ClientHomework): HomeworkFormState {
   };
 }
 
-function statusLabel(status: HomeworkStatus | null) {
-  if (status === "tamamlandi") return "Tamamlandı";
-  if (status === "gecikti") return "Gecikti";
-  if (status === "iptal") return "İptal";
-  return "Devam Ediyor";
-}
-
-function statusClass(status: HomeworkStatus | null) {
-  if (status === "tamamlandi") {
-    return "border-emerald-200 bg-emerald-100 text-emerald-800";
-  }
-
-  if (status === "gecikti") {
-    return "border-red-200 bg-red-100 text-red-700";
-  }
-
-  if (status === "iptal") {
-    return "border-slate-200 bg-slate-100 text-slate-600";
-  }
-
-  return "border-amber-200 bg-amber-100 text-amber-800";
-}
+const statusLabel = odevDurumLabel;
+const statusClass  = odevDurumClass;
 
 function inputClass(
   tone: "emerald" | "blue" | "violet" | "amber" | "rose" | "slate" = "slate"

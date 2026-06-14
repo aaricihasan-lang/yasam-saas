@@ -9,6 +9,7 @@ import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+import { odevDurumLabel, odevDurumColor } from "@/lib/odevStatus";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -786,7 +787,6 @@ function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNod
   }
 
   if (entry.type === "odev") {
-    const durumRenk = d?.status === "tamamlandi" ? "#16a34a" : "#f59e0b";
     return (
       <div className={`flex flex-col gap-2 ${textSize}`}>
         <ModalRow label="Başlık"     value={d?.title || entry.title} />
@@ -795,7 +795,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNod
         {d?.status && (
           <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
             <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">Durum</span>
-            <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status)}</span>
+            <span className="text-[13px] font-black" style={{ color: odevDurumColor(d.status) }}>{odevDurumLabel(d.status)}</span>
           </div>
         )}
         {d?.description && <ModalRow label="Açıklama"   value={d.description} />}
