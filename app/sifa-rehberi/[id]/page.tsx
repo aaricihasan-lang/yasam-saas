@@ -720,7 +720,7 @@ export default function SifaRehberiDetailPage() {
   if (notFound || !record || !draft) {
     return (
       <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-        <div className="w-full px-4 py-10 lg:px-8 xl:px-12">
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-10 lg:px-8 xl:px-10">
           <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white/72 p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.04)] ring-1 ring-white/80">
             <div className="text-[52px]">✶</div>
             <h1 className="mt-3 text-[22px] font-black text-slate-900">Kayıt bulunamadı</h1>
