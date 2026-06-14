@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -16,20 +19,35 @@ import {
   UserPlus,
   UsersRound,
 } from "lucide-react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { supabase } from "@/lib/supabase";
 
-const PLACEHOLDER = "—";
+// ─── Yardımcı: ISO tarihi → DD.MM.YYYY ──────────────────────────────────────
+function isoToTR(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
-const summaryStatCards: {
+// ─── Yardımcı: Sayıyı okunabilir stringe çevir ──────────────────────────────
+function fmtCount(n: number | null): string {
+  if (n === null) return "—";
+  return String(n);
+}
+
+// ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
+type StatCardDef = {
   label: string;
-  value: string;
   Icon: LucideIcon;
   cardBg: string;
   border: string;
   iconBox: string;
-}[] = [
+};
+
+const STAT_CARD_DEFS: StatCardDef[] = [
   {
     label: "Toplam Danışan",
-    value: PLACEHOLDER,
     Icon: UsersRound,
     cardBg: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
     border: "border-violet-300/70",
@@ -37,7 +55,6 @@ const summaryStatCards: {
   },
   {
     label: "Son Kayıt",
-    value: PLACEHOLDER,
     Icon: CalendarDays,
     cardBg: "bg-gradient-to-br from-sky-100 via-white to-blue-100",
     border: "border-sky-300/70",
@@ -45,7 +62,6 @@ const summaryStatCards: {
   },
   {
     label: "Bu Ay Yeni",
-    value: PLACEHOLDER,
     Icon: Clock3,
     cardBg: "bg-gradient-to-br from-teal-100 via-white to-emerald-100",
     border: "border-teal-300/70",
@@ -53,7 +69,6 @@ const summaryStatCards: {
   },
   {
     label: "Son 3 Ay Ort.",
-    value: PLACEHOLDER,
     Icon: ChartColumn,
     cardBg: "bg-gradient-to-br from-amber-100 via-white to-orange-100",
     border: "border-amber-300/70",
@@ -61,7 +76,6 @@ const summaryStatCards: {
   },
   {
     label: "Bu Ay Randevu",
-    value: PLACEHOLDER,
     Icon: Activity,
     cardBg: "bg-gradient-to-br from-pink-100 via-white to-rose-100",
     border: "border-pink-300/70",
@@ -69,7 +83,6 @@ const summaryStatCards: {
   },
   {
     label: "En Yakın Randevu",
-    value: PLACEHOLDER,
     Icon: CalendarClock,
     cardBg: "bg-gradient-to-br from-cyan-100 via-white to-sky-100",
     border: "border-cyan-300/70",
@@ -77,15 +90,13 @@ const summaryStatCards: {
   },
   {
     label: "Bu Hafta",
-    value: PLACEHOLDER,
     Icon: CalendarRange,
     cardBg: "bg-gradient-to-br from-yellow-100 via-white to-amber-100",
     border: "border-yellow-300/70",
     iconBox: "bg-yellow-500 text-white",
   },
   {
-    label: "Bu Ay",
-    value: PLACEHOLDER,
+    label: "Bu Ay Tamamlanan",
     Icon: CalendarCheck,
     cardBg: "bg-gradient-to-br from-rose-100 via-white to-pink-100",
     border: "border-rose-300/70",
@@ -93,7 +104,6 @@ const summaryStatCards: {
   },
   {
     label: "Bu Yıl Toplam",
-    value: PLACEHOLDER,
     Icon: PieChart,
     cardBg: "bg-gradient-to-br from-purple-100 via-white to-violet-100",
     border: "border-purple-300/70",
@@ -101,7 +111,6 @@ const summaryStatCards: {
   },
   {
     label: "Bu Yıl Danışan",
-    value: PLACEHOLDER,
     Icon: TrendingUp,
     cardBg: "bg-gradient-to-br from-green-100 via-white to-emerald-100",
     border: "border-green-300/70",
@@ -159,6 +168,7 @@ const journeyFolders: {
   },
 ];
 
+// ─── Stat Kart Bileşeni ──────────────────────────────────────────────────────
 function SummaryStatCard({
   label,
   value,
@@ -166,7 +176,8 @@ function SummaryStatCard({
   cardBg,
   border,
   iconBox,
-}: (typeof summaryStatCards)[number]) {
+  loading,
+}: StatCardDef & { value: string; loading: boolean }) {
   return (
     <div
       className={`group relative z-0 flex flex-col justify-between gap-3 rounded-xl border p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${border} ${cardBg}`}
@@ -177,8 +188,12 @@ function SummaryStatCard({
         <Icon className="h-4 w-4" strokeWidth={2.25} aria-hidden />
       </div>
       <div>
-        <p className="text-2xl font-black tabular-nums leading-none tracking-tight text-slate-950">
-          {value}
+        <p
+          className={`text-2xl font-black tabular-nums leading-none tracking-tight text-slate-950 transition-all duration-300 ${
+            loading ? "animate-pulse text-slate-300" : ""
+          }`}
+        >
+          {loading ? "—" : value}
         </p>
         <p
           className="mt-1 truncate text-[10.5px] font-semibold leading-tight text-slate-600"
@@ -191,7 +206,167 @@ function SummaryStatCard({
   );
 }
 
+// ─── Ana Sayfa ────────────────────────────────────────────────────────────────
 export default function DanisanYolculuguPage() {
+  // 10 stat değeri — yükleme öncesi "—"
+  const [stats, setStats] = useState<string[]>(Array(10).fill("—"));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStats() {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) {
+        setLoading(false);
+        return;
+      }
+
+      const now = new Date();
+
+      // Ay sınırları
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      // Hafta sınırları (Pazartesi–Pazar)
+      const dayOfWeek = now.getDay(); // 0=Pazar
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() + diffToMonday);
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+      // Yıl sınırları
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1);
+
+      // Son 3 ay (bu ay hariç)
+      const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+      const [
+        totalClientsRes,
+        lastClientRes,
+        thisMonthClientsRes,
+        last3mClientsRes,
+        thisMonthApptsRes,
+        nextApptRes,
+        thisWeekApptsRes,
+        thisMonthCompletedRes,
+        thisYearApptsRes,
+        thisYearClientsRes,
+      ] = await Promise.all([
+        // 1 — Toplam Danışan
+        supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId),
+
+        // 2 — Son Kayıt tarihi
+        supabase
+          .from("clients")
+          .select("created_at")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(1),
+
+        // 3 — Bu Ay Yeni
+        supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("created_at", startOfMonth.toISOString())
+          .lt("created_at", startOfNextMonth.toISOString()),
+
+        // 4 — Son 3 Ay Ort. (son 3 ay toplamı / 3)
+        supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("created_at", start3MonthsAgo.toISOString())
+          .lt("created_at", startOfMonth.toISOString()),
+
+        // 5 — Bu Ay Randevu (toplam)
+        supabase
+          .from("appointments")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("appointment_date", startOfMonth.toISOString())
+          .lt("appointment_date", startOfNextMonth.toISOString()),
+
+        // 6 — En Yakın Randevu tarihi
+        supabase
+          .from("appointments")
+          .select("appointment_date")
+          .eq("tenant_id", tenantId)
+          .gt("appointment_date", now.toISOString())
+          .neq("status", "iptal")
+          .order("appointment_date", { ascending: true })
+          .limit(1),
+
+        // 7 — Bu Hafta Randevu
+        supabase
+          .from("appointments")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("appointment_date", startOfWeek.toISOString())
+          .lt("appointment_date", endOfWeek.toISOString()),
+
+        // 8 — Bu Ay Tamamlanan
+        supabase
+          .from("appointments")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "tamamlandi")
+          .gte("appointment_date", startOfMonth.toISOString())
+          .lt("appointment_date", startOfNextMonth.toISOString()),
+
+        // 9 — Bu Yıl Toplam Randevu
+        supabase
+          .from("appointments")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("appointment_date", startOfYear.toISOString())
+          .lt("appointment_date", startOfNextYear.toISOString()),
+
+        // 10 — Bu Yıl Danışan
+        supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("created_at", startOfYear.toISOString())
+          .lt("created_at", startOfNextYear.toISOString()),
+      ]);
+
+      if (cancelled) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lastClientDate = (lastClientRes.data as any)?.[0]?.created_at ?? null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nextApptDate = (nextApptRes.data as any)?.[0]?.appointment_date ?? null;
+
+      const last3mTotal = last3mClientsRes.count ?? 0;
+      const avg3m = Math.round(last3mTotal / 3);
+
+      setStats([
+        fmtCount(totalClientsRes.count ?? null),   // 1 Toplam Danışan
+        isoToTR(lastClientDate),                    // 2 Son Kayıt
+        fmtCount(thisMonthClientsRes.count ?? null),// 3 Bu Ay Yeni
+        fmtCount(avg3m),                            // 4 Son 3 Ay Ort.
+        fmtCount(thisMonthApptsRes.count ?? null),  // 5 Bu Ay Randevu
+        isoToTR(nextApptDate),                      // 6 En Yakın Randevu
+        fmtCount(thisWeekApptsRes.count ?? null),   // 7 Bu Hafta
+        fmtCount(thisMonthCompletedRes.count ?? null), // 8 Bu Ay Tamamlanan
+        fmtCount(thisYearApptsRes.count ?? null),   // 9 Bu Yıl Toplam
+        fmtCount(thisYearClientsRes.count ?? null), // 10 Bu Yıl Danışan
+      ]);
+      setLoading(false);
+    }
+
+    void loadStats();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.13),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-4 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -202,7 +377,7 @@ export default function DanisanYolculuguPage() {
 
       <div className="relative z-10 w-full">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start">
-          {/* LEFT COLUMN */}
+          {/* SOL KOLON */}
           <div className="flex flex-col gap-5">
             {/* Hero Header */}
             <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
@@ -224,7 +399,7 @@ export default function DanisanYolculuguPage() {
               </div>
             </header>
 
-            {/* Quick Actions */}
+            {/* Hızlı İşlemler */}
             <section className="flex flex-col gap-4">
               <div>
                 <h2 className="text-lg font-black text-slate-900">Hızlı İşlemler</h2>
@@ -276,7 +451,7 @@ export default function DanisanYolculuguPage() {
             </section>
           </div>
 
-          {/* RIGHT COLUMN */}
+          {/* SAĞ KOLON */}
           <aside>
             <div className="rounded-2xl border border-white/80 bg-white/90 p-6 shadow-lg">
               <div>
@@ -287,8 +462,13 @@ export default function DanisanYolculuguPage() {
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                {summaryStatCards.map((stat) => (
-                  <SummaryStatCard key={stat.label} {...stat} />
+                {STAT_CARD_DEFS.map((def, i) => (
+                  <SummaryStatCard
+                    key={def.label}
+                    {...def}
+                    value={stats[i]}
+                    loading={loading}
+                  />
                 ))}
               </div>
 
