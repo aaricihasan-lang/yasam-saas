@@ -1053,7 +1053,7 @@ function NumerolojikOzetKart({
   const lastName  = soyad.trim();
   const hasName   = Boolean(firstName || lastName);
 
-  // ── 5 temel sayı ──────────────────────────────────────────────────────────
+  // ── Temel sayılar ─────────────────────────────────────────────────────────
   let hayatYolu     = "—";
   let kaderSayisi   = "—";
   let ruhSayisi     = "—";
@@ -1068,12 +1068,27 @@ function NumerolojikOzetKart({
     try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
   }
 
+  // ── Güncel yaş ────────────────────────────────────────────────────────────
+  let guncelYas: number | null = null;
+  try {
+    const [y, m, d] = dogum.split("-").map(Number);
+    if (y && m && d) {
+      const today = new Date();
+      const birth = new Date(y, m - 1, d);
+      let age = today.getFullYear() - birth.getFullYear();
+      const dm = today.getMonth() - birth.getMonth();
+      if (dm < 0 || (dm === 0 && today.getDate() < birth.getDate())) age--;
+      guncelYas = age >= 0 ? age : null;
+    }
+  } catch { /* sessiz */ }
+
   const coreItems = [
-    { label: "Hayat Yolu / DM", value: hayatYolu,     color: "#7c3aed" },
-    { label: "İfade Sayısı",    value: kaderSayisi,   color: "#2563eb" },
     { label: "Ana Kulvar",      value: ruhSayisi,     color: "#16a34a" },
     { label: "Yan Kulvar",      value: kisilikSayisi, color: "#db2777" },
+    { label: "İfade Sayısı",    value: kaderSayisi,   color: "#2563eb" },
+    { label: "Hayat Yolu / DM", value: hayatYolu,     color: "#7c3aed" },
     { label: "Kişisel Yıl",    value: kisiselYil,    color: "#ea580c" },
+    ...(guncelYas != null ? [{ label: "Güncel Yaş", value: String(guncelYas), color: "#64748b" }] : []),
   ];
 
   // ── Element dağılımı — parseBirthDate DD.MM.YYYY ister ───────────────────
