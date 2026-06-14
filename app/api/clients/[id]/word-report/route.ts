@@ -4,6 +4,7 @@ import {
   BorderStyle,
   Document,
   Packer,
+  PageOrientation,
   Paragraph,
   ShadingType,
   Table,
@@ -647,6 +648,83 @@ function buildClosingPage(fullName: string, today: string, reportId: string): Re
   ];
 }
 
+// ─── Landscape section yardımcıları ──────────────────────────────────────────
+
+// A4 twip değerleri (1 inch = 1440 twips)
+const A4_LANDSCAPE_W = 16838; // 297mm
+const A4_LANDSCAPE_H = 11906; // 210mm
+const LANDSCAPE_MARGIN = 720; // 0.5 inch = 1.27cm
+// Landscape kullanılabilir genişlik: (16838 − 2×720) twips ≈ 770pt — 740 güvenli sığar
+const LANDSCAPE_IMG_MAXW = 740;
+
+type LandscapeInsert = { afterIndex: number; children: ReportChild[] };
+
+/** Landscape sayfada gösterilecek analiz görsel bloğu */
+function buildAnalysisLandscapePage(
+  an: { analysis_type?: string | null; created_at: string },
+  imgBuf: Buffer,
+  num: number,
+): ReportChild[] {
+  return [
+    new Paragraph({
+      children: [
+        new TextRun({ text: `ANALİZ #${String(num).padStart(3, "0")}`, bold: true, size: 24, font: REPORT_FONT, color: C.analizler, allCaps: true }),
+        new TextRun({ text: `  ·  ${analysisLabel(an.analysis_type)}`, size: 22, font: REPORT_FONT, color: C_MID }),
+        new TextRun({ text: `  ·  ${formatDateTimeTR(an.created_at)}`, size: 20, font: REPORT_FONT, color: C_LIGHT }),
+      ],
+      spacing: { before: 0, after: 160 },
+    }),
+    new Paragraph({
+      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
+      spacing: { before: 0, after: 280 },
+    }),
+    embedImageParagraph(imgBuf, LANDSCAPE_IMG_MAXW),
+  ];
+}
+
+/**
+ * Portrait içeriği (all[]) ile landscape insert'leri birleştirerek
+ * docx sections dizisi üretir. Insert yoksa tek portrait section döner.
+ */
+function buildDocSections(
+  portrait: ReportChild[],
+  inserts: LandscapeInsert[],
+  footerText: string,
+) {
+  const footer = buildFooter(footerText);
+  // Element type extracted so we can build a mutable array (source type is readonly)
+  type S = (ConstructorParameters<typeof Document>[0]["sections"])[number];
+  const sects: S[] = [];
+  let cursor = 0;
+
+  for (const ins of inserts) {
+    if (ins.afterIndex > cursor) {
+      sects.push({ properties: {}, footers: { default: footer }, children: portrait.slice(cursor, ins.afterIndex) });
+    }
+    sects.push({
+      properties: {
+        page: {
+          size: { orientation: PageOrientation.LANDSCAPE, width: A4_LANDSCAPE_W, height: A4_LANDSCAPE_H },
+          margin: { top: LANDSCAPE_MARGIN, bottom: LANDSCAPE_MARGIN, left: LANDSCAPE_MARGIN, right: LANDSCAPE_MARGIN },
+        },
+      },
+      footers: { default: footer },
+      children: ins.children,
+    });
+    cursor = ins.afterIndex;
+  }
+
+  if (cursor < portrait.length) {
+    sects.push({ properties: {}, footers: { default: footer }, children: portrait.slice(cursor) });
+  }
+
+  if (sects.length === 0) {
+    sects.push({ properties: {}, footers: { default: footer }, children: portrait });
+  }
+
+  return sects;
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(
@@ -744,6 +822,7 @@ export async function POST(
     if (tab !== "genel" && tab !== "notlar") statRows.push(["Toplam Kayıt", String(count)]);
 
     const all: ReportChild[] = [];
+    const tabLsInserts: LandscapeInsert[] = [];
     all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
     all.push(...buildStatsPage(statRows));
     all.push(...buildTOCPage());
@@ -860,14 +939,21 @@ export async function POST(
         all.push(muted("Henüz analiz kaydı yok."));
       } else {
         analyses.forEach((an, i) => {
-          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
           const imgBuf = tabAnalysisImages[i] ?? null;
-          if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
-          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-          else if (!imgBuf) all.push(muted("Analiz notu girilmemiş."));
-          if (i < analyses.length - 1) all.push(spacer());
+          if (imgBuf) {
+            all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+            all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+            all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+            tabLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
+            if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+          } else {
+            all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+            all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+            all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+            if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+            else all.push(muted("Analiz notu girilmemiş."));
+            if (i < analyses.length - 1) all.push(spacer());
+          }
         });
       }
     }
@@ -878,7 +964,7 @@ export async function POST(
     };
 
     const tabDoc = new Document({
-      sections: [{ properties: {}, footers: { default: buildFooter(`${cfg.title} · ${fullName}`) }, children: all }],
+      sections: buildDocSections(all, tabLsInserts, `${cfg.title} · ${fullName}`),
     });
 
     const tabBuffer = await Packer.toBuffer(tabDoc);
@@ -1093,28 +1179,32 @@ export async function POST(
     // ── 7. Analizler
     all.push(h1Colored(`7. Analizler (${drCounts.analizler})`, C.analizler));
     all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Kayıt tarihi (created_at) kullanılır`));
+    const drLsInserts: LandscapeInsert[] = [];
     if (drAn.length === 0) {
       all.push(muted("Bu tarih aralığında analiz kaydı bulunamadı."));
     } else {
       drAn.forEach((an, i) => {
-        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
         const imgBuf = drAnalysisImages[i] ?? null;
-        if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
-        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-        else if (!imgBuf) all.push(muted("Analiz notu girilmemiş."));
-        if (i < drAn.length - 1) all.push(spacer());
+        if (imgBuf) {
+          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          drLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
+          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+        } else {
+          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+          else all.push(muted("Analiz notu girilmemiş."));
+          if (i < drAn.length - 1) all.push(spacer());
+        }
       });
     }
 
     // ── Belge
     const drDoc = new Document({
-      sections: [{
-        properties: {},
-        footers: { default: buildFooter(`Tarih Aralığı Raporu · ${drFullName}`) },
-        children: all,
-      }],
+      sections: buildDocSections(all, drLsInserts, `Tarih Aralığı Raporu · ${drFullName}`),
     });
 
     const drBuffer = await Packer.toBuffer(drDoc);
@@ -1389,18 +1479,26 @@ export async function POST(
   all.push(h1Colored("7. Analizler", C.analizler, true));
   all.push(muted(`Toplam ${counts.analizler} analiz kaydı`));
 
+  const fullLsInserts: LandscapeInsert[] = [];
   if (analyses.length === 0) {
     all.push(muted("Henüz analiz kaydı yok."));
   } else {
     analyses.forEach((an, i) => {
-      all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-      all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-      all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
       const imgBuf = analysisImages[i] ?? null;
-      if (imgBuf) all.push(embedImageParagraph(imgBuf, 480));
-      if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-      else if (!imgBuf)    all.push(muted("Analiz notu girilmemiş."));
-      if (i < analyses.length - 1) all.push(spacer());
+      if (imgBuf) {
+        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+        fullLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
+        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+      } else {
+        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+        else all.push(muted("Analiz notu girilmemiş."));
+        if (i < analyses.length - 1) all.push(spacer());
+      }
     });
   }
 
@@ -1457,11 +1555,7 @@ export async function POST(
 
   // ── Word belgesi
   const doc = new Document({
-    sections: [{
-      properties: {},
-      footers: { default: buildFooter(`Danışan Raporu · ${fullName}`) },
-      children: all,
-    }],
+    sections: buildDocSections(all, fullLsInserts, `Danışan Raporu · ${fullName}`),
   });
 
   const buffer   = await Packer.toBuffer(doc);
