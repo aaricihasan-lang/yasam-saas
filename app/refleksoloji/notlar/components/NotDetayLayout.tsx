@@ -28,7 +28,7 @@ type NotDetayLayoutProps = {
 };
 
 const panelClass =
-  "rounded-2xl border border-purple-100 bg-white/80 p-4 shadow-sm ring-1 ring-violet-100/60";
+  "rounded-xl border border-purple-100/80 bg-white/80 p-3 shadow-sm";
 
 const headerBtnBase =
   "inline-flex h-9 items-center justify-center border px-3 text-sm font-semibold rounded-lg shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45";

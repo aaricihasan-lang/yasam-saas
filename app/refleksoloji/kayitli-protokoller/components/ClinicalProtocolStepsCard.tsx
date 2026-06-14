@@ -7,55 +7,55 @@ import {
 } from "../lib/protocolStepGroups";
 
 const clinicalCardClass =
-  "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
+  "rounded-xl border border-slate-200/70 bg-white/85 p-4 shadow-sm";
 
 const bodyTextClass =
-  "text-[17px] font-semibold leading-[1.85] text-slate-800 sm:text-[18px]";
+  "text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]";
 
 type GroupStyle = {
   wrap: string;
-  title: string;
+  label: string;
   bullet: string;
 };
 
 const GROUP_STYLES: Record<ProtocolStepGroupKey, GroupStyle> = {
   preparation: {
-    wrap: "rounded-2xl border border-cyan-200/90 bg-gradient-to-br from-cyan-50/95 to-sky-50/70 px-5 py-4 ring-1 ring-cyan-100/80",
-    title: "text-cyan-950",
+    wrap: "rounded-lg border border-cyan-200/70 bg-cyan-50/50 px-3 py-2.5",
+    label: "text-cyan-600",
     bullet: "bg-cyan-500",
   },
   leftRegion: {
-    wrap: "rounded-2xl border border-violet-200/90 bg-gradient-to-br from-violet-50/95 to-fuchsia-50/65 px-5 py-4 ring-1 ring-violet-100/80",
-    title: "text-violet-950",
+    wrap: "rounded-lg border border-violet-200/70 bg-violet-50/50 px-3 py-2.5",
+    label: "text-violet-600",
     bullet: "bg-violet-600",
   },
   rightRegion: {
-    wrap: "rounded-2xl border border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 to-teal-50/65 px-5 py-4 ring-1 ring-emerald-100/80",
-    title: "text-emerald-950",
+    wrap: "rounded-lg border border-emerald-200/70 bg-emerald-50/50 px-3 py-2.5",
+    label: "text-emerald-600",
     bullet: "bg-emerald-600",
   },
   warnings: {
-    wrap: "rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-orange-50/70 px-5 py-4 ring-1 ring-amber-100/80",
-    title: "text-amber-950",
+    wrap: "rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2.5",
+    label: "text-amber-600",
     bullet: "bg-amber-600",
   },
   extra: {
-    wrap: "rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/95 to-slate-100/80 px-5 py-4 ring-1 ring-slate-100/80",
-    title: "text-slate-800",
+    wrap: "rounded-lg border border-slate-200/70 bg-slate-50/50 px-3 py-2.5",
+    label: "text-slate-500",
     bullet: "bg-slate-500",
   },
 };
 
 const introWrapClass =
-  "rounded-2xl border border-violet-200/80 bg-gradient-to-r from-violet-50/90 to-fuchsia-50/70 px-5 py-4 ring-1 ring-violet-100/70";
+  "rounded-lg border border-violet-200/70 bg-violet-50/50 px-3 py-2.5";
 
 function BulletList({ items, bulletClass }: { items: string[]; bulletClass: string }) {
   return (
-    <ul className="mt-3 space-y-2.5">
+    <ul className="mt-2 space-y-1.5">
       {items.map((item, index) => (
-        <li key={`${index}-${item.slice(0, 20)}`} className="flex gap-3">
+        <li key={`${index}-${item.slice(0, 20)}`} className="flex gap-2.5">
           <span
-            className={`mt-[0.55rem] h-2 w-2 shrink-0 rounded-full ${bulletClass}`}
+            className={`mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full ${bulletClass}`}
             aria-hidden
           />
           <span className={`min-w-0 flex-1 ${bodyTextClass}`}>{item}</span>
@@ -69,7 +69,7 @@ function StepGroupSection({ group }: { group: ProtocolGroupedView["groups"][numb
   const style = GROUP_STYLES[group.key];
   return (
     <div className={style.wrap}>
-      <h3 className={`text-lg font-black sm:text-xl ${style.title}`}>{group.title}</h3>
+      <h3 className={`text-[11px] font-semibold uppercase tracking-wide ${style.label}`}>{group.title}</h3>
       <BulletList items={group.items} bulletClass={style.bullet} />
     </div>
   );
@@ -89,18 +89,15 @@ export function ClinicalProtocolStepsCard({ grouped }: ClinicalProtocolStepsCard
 
   return (
     <section className={clinicalCardClass}>
-      <h2 className="text-xl font-black text-violet-950 sm:text-2xl">Uygulama Adımları</h2>
-      <p className="mt-1 text-[15px] font-semibold text-violet-800/80">
-        Klinik protokol akışı — hazırlık, bölge çalışmaları ve uyarılar
-      </p>
+      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-violet-600">Uygulama Adımları</h2>
 
-      <div className="mt-5 space-y-4">
+      <div className="space-y-2.5">
         {showIntro ? (
           <div className={introWrapClass}>
-            <h3 className="text-lg font-black text-violet-950 sm:text-xl">
-              Protokol Başlığı / Kısa Açıklama
+            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">
+              Protokol Aciklamasi
             </h3>
-            <p className={`mt-3 ${bodyTextClass}`}>{grouped.intro}</p>
+            <p className={`mt-1.5 ${bodyTextClass}`}>{grouped.intro}</p>
           </div>
         ) : null}
 

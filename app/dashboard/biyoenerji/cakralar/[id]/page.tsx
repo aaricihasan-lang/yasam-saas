@@ -16,7 +16,7 @@ export default function CakralarDetailPage() {
       title="Çakralar"
       subtitle="Kayıt detayı — organ, renk, taş ve enerji notları"
     >
-      <div className="w-full min-w-0 max-w-none px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="w-full min-w-0 max-w-4xl">
         <CakralarDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

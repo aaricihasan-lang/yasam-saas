@@ -356,23 +356,23 @@ export default function SembolDiliDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full min-w-0 max-w-none">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <Link
           href={SYMBOL_LANGUAGE_LIST_PATH}
-          className="inline-flex items-center gap-1 rounded-md border border-emerald-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50"
+          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-50"
         >
           ← Listeye Dön
         </Link>
         <Link
           href={BIOENERJI_FOLDER_BASE}
-          className="inline-flex items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-900 shadow-sm transition hover:bg-violet-50"
+          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-violet-800 shadow-sm transition hover:bg-violet-50"
         >
-          Biyoenerji Ana Klasörüne Dön
+          Biyoenerji
         </Link>
       </div>
 
       {(infoSuccess || infoError || showRecordWithWarning) && (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
             <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
               {infoSuccess}

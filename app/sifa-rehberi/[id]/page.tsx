@@ -207,7 +207,7 @@ const sectionPremiumCard =
   "rounded-xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50/30 p-4 shadow-sm ring-1 ring-white/90";
 
 const sectionNoteBody =
-  "whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/90 p-3.5 text-sm leading-6 text-slate-700";
+  "whitespace-pre-wrap rounded-lg border border-slate-100 bg-white/90 p-3 text-sm leading-6 text-slate-700";
 
 const detailNavBtnBase =
   "flex w-full min-h-[34px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-semibold transition lg:min-w-0";
@@ -777,11 +777,11 @@ export default function SifaRehberiDetailPage() {
                 )}
               </div>
               {!editEnabled && symptoms?.trim() ? (
-                <div className="mt-3 rounded-2xl border border-emerald-100/90 bg-emerald-50/50 px-4 py-3 ring-1 ring-emerald-100/60">
-                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-800">
+                <div className="mt-2 rounded-lg border border-emerald-100/90 bg-emerald-50/40 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                     Belirtiler
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-6 text-slate-700">
+                  <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-5 text-slate-600">
                     {symptoms.trim()}
                   </p>
                 </div>
@@ -1043,7 +1043,7 @@ export default function SifaRehberiDetailPage() {
                             className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/50"
                           />
                         ) : (
-                          <div className={`min-h-[32px] ${sectionNoteBody}`}>
+                          <div className={sectionNoteBody}>
                             {value.trim() ? value : (
                               <span className="text-slate-400">Henüz kayıt yok</span>
                             )}

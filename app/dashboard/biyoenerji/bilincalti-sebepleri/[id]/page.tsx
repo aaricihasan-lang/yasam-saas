@@ -16,7 +16,7 @@ export default function BilincaltiSebepleriDetailPage() {
       title="Bilinçaltı Sebepleri"
       subtitle="Kayıt detayı — içerik ve notlar"
     >
-      <div className="w-full min-w-0 max-w-none px-4 sm:px-6 lg:px-12">
+      <div className="w-full min-w-0 max-w-4xl">
         <BilincaltiSebepleriDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

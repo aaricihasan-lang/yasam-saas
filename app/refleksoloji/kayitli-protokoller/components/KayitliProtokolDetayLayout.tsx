@@ -39,7 +39,7 @@ const footMapPanelLargeClass =
   "flex w-full flex-col overflow-hidden rounded-[28px] border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white/95 to-fuchsia-50/80 shadow-[0_20px_50px_-16px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/60 xl:sticky xl:top-6 xl:max-h-[calc(100vh-1.5rem)] xl:min-h-[min(78vh,900px)] xl:self-start";
 
 const footMapPanelCompactClass =
-  "w-full rounded-[22px] border-2 border-dashed border-violet-200/75 bg-gradient-to-br from-violet-50/85 via-white/95 to-fuchsia-50/50 px-5 py-4 shadow-sm ring-1 ring-violet-100/60 sm:px-6 sm:py-5 xl:max-w-md xl:justify-self-end";
+  "w-full rounded-xl border border-dashed border-violet-200/60 bg-violet-50/30 px-3 py-3 xl:max-w-md xl:justify-self-end";
 
 type CardTone = "violet" | "fuchsia" | "cyan" | "amber" | "emerald";
 
@@ -138,15 +138,15 @@ function FootMapAtlasCompactCard({
   hasOrgans: boolean;
 }) {
   return (
-    <section className={footMapPanelCompactClass} aria-label="Ayak haritası bilgisi">
-      <h2 className="text-base font-black text-violet-950 sm:text-lg">Ayak Haritası</h2>
-      <p className="mt-2 text-[15px] font-semibold leading-[1.75] text-violet-900 sm:text-[16px]">
-        Bu protokol için atlas eşleşmesi bulunamadı.
+    <section className={footMapPanelCompactClass} aria-label="Ayak haritasi bilgisi">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Ayak Haritasi</h2>
+      <p className="mt-1.5 text-sm font-medium text-violet-900">
+        Bu protokol icin atlas eslesme bulunamadi.
       </p>
-      <p className="mt-1.5 text-sm font-medium leading-relaxed text-violet-800/85">
+      <p className="mt-1 text-xs font-medium text-violet-700/80">
         {hasOrgans
-          ? "Organlar kayıtlı; bölge haritasında eşleşen bölge tanımlayın."
-          : "Organ eklendiğinde harita otomatik gösterilir."}
+          ? "Organlar kayitli; bolge haritasinda eslesen bolge tanimlayin."
+          : "Organ eklendiginde harita otomatik gosterilir."}
       </p>
     </section>
   );

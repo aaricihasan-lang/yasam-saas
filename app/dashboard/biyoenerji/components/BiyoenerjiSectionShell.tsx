@@ -27,26 +27,7 @@ export default function BiyoenerjiSectionShell({
       <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_38%,#f8fafc_100%)] text-slate-950">
         <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-violet-400/12 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-
-        <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-2 sm:px-5 xl:px-8 2xl:px-12">
-          <header className="mb-3 shrink-0 flex flex-wrap items-center gap-2 rounded-lg border border-violet-200/40 bg-white/60 px-3 py-1.5 shadow-sm backdrop-blur-md">
-            <Link
-              href={BIOENERJI_FOLDER_BASE}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-violet-700"
-            >
-              <span aria-hidden>←</span>
-              Biyoenerji
-            </Link>
-            <Link
-              href="/enerji-beden"
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-cyan-700"
-            >
-              Enerji &amp; Beden
-            </Link>
-            <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">
-              {badge}
-            </span>
-          </header>
+        <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-3 sm:px-5 sm:py-3.5 xl:px-8 2xl:px-12">
           <div className="min-h-0 min-w-0 flex-1 pb-2">{children}</div>
         </div>
       </main>

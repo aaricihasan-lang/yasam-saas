@@ -353,31 +353,26 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   const noteText = record.note_text?.trim() ?? "";
   const categoryText = record.category?.trim() ?? "";
   const sourceUidText = record.source_uid?.trim() ?? "";
-  const hasExtraInfo = Boolean(categoryText || sourceUidText);
-
-  const extraLines: string[] = [];
-  if (categoryText) extraLines.push(`Kategori: ${categoryText}`);
-  if (sourceUidText) extraLines.push(`Kaynak UID: ${sourceUidText}`);
 
   return (
     <div className="w-full min-w-0 max-w-none">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <Link
           href={SUBCONSCIOUS_CAUSES_LIST_PATH}
-          className="inline-flex items-center gap-1 rounded-md border border-fuchsia-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-fuchsia-900 shadow-sm transition hover:bg-fuchsia-50"
+          className="inline-flex items-center gap-1 rounded-md border border-fuchsia-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-fuchsia-800 shadow-sm transition hover:bg-fuchsia-50"
         >
           ← Listeye Dön
         </Link>
         <Link
           href={BIOENERJI_FOLDER_BASE}
-          className="inline-flex items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-900 shadow-sm transition hover:bg-violet-50"
+          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-violet-800 shadow-sm transition hover:bg-violet-50"
         >
-          Biyoenerji Ana Klasörüne Dön
+          Biyoenerji
         </Link>
       </div>
 
       {(infoSuccess || infoError) && (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
             <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
               {infoSuccess}
@@ -402,9 +397,16 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             <h1 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">
               {record.title?.trim() || "İsimsiz kayıt"}
             </h1>
-            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-              {formatDate(record.created_at)}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-medium text-slate-400">
+                {formatDate(record.created_at)}
+              </p>
+              {sourceUidText ? (
+                <span className="text-[11px] font-medium text-slate-400">
+                  UID: {sourceUidText}
+                </span>
+              ) : null}
+            </div>
           </div>
           <div className="shrink-0">
             <DogaltasFontSizeControl
@@ -462,14 +464,6 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             text={noteText}
             typography={contentTypography}
             tone="amber"
-          />
-        ) : null}
-        {hasExtraInfo ? (
-          <DetailContentCard
-            title="Kategori / Ek Bilgiler"
-            text={extraLines.join("\n\n")}
-            typography={contentTypography}
-            tone="slate"
           />
         ) : null}
       </div>
