@@ -16,7 +16,7 @@ export default function SembolDiliDetailPage() {
       title="Sembol Dili"
       subtitle="Kayıt detayı — anlam ve bilinçaltı mesajı"
     >
-      <div className="w-full min-w-0 max-w-4xl">
+      <div className="w-full min-w-0 max-w-5xl">
         <SembolDiliDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

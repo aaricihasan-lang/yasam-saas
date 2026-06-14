@@ -16,7 +16,7 @@ export default function ImajinasyonlarDetailPage() {
       title="İmajinasyonlar"
       subtitle="Kayıt detayı — metin, not ve kaynak"
     >
-      <div className="w-full min-w-0 max-w-4xl">
+      <div className="w-full min-w-0 max-w-5xl">
         <ImajinasyonlarDetail id={safeId} />
       </div>
     </BiyoenerjiSectionShell>

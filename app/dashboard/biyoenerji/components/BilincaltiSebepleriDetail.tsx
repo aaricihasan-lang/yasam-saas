@@ -39,26 +39,6 @@ type SubconsciousCauseForm = {
   note_text: string;
 };
 
-type DetailSectionTone = "violet" | "amber" | "slate";
-
-const SECTION_SHELL: Record<
-  DetailSectionTone,
-  { wrap: string; label: string }
-> = {
-  violet: {
-    wrap: "rounded-lg border border-slate-200/70 bg-white p-4",
-    label: "text-violet-400",
-  },
-  amber: {
-    wrap: "rounded-lg border border-slate-200/70 bg-white p-4",
-    label: "text-amber-400",
-  },
-  slate: {
-    wrap: "rounded-lg border border-slate-200/70 bg-white p-4",
-    label: "text-slate-400",
-  },
-};
-
 const tbBtn =
   "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
 const tbBtnDanger =
@@ -108,26 +88,22 @@ function useMobileViewport() {
   return isMobile;
 }
 
-function DetailContentCard({
+function DetailSection({
   title,
   text,
   typography,
-  tone,
 }: {
   title: string;
   text: string;
   typography: SubconsciousCausesTypography;
-  tone: DetailSectionTone;
 }) {
-  const shell = SECTION_SHELL[tone];
-
   return (
-    <article className={shell.wrap}>
-      <h2 className={`mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${shell.label}`}>{title}</h2>
+    <section className="border-t border-slate-200/60 py-5">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</h2>
       <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
-    </article>
+    </section>
   );
 }
 
@@ -362,18 +338,46 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   return (
     <div className="w-full min-w-0 max-w-none">
 
-      {/* Toolbar */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
-          <Link href={SUBCONSCIOUS_CAUSES_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
-            ← Listeye Dön
-          </Link>
-          <span className="text-slate-300" aria-hidden>/</span>
-          <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
-            Biyoenerji
-          </Link>
-        </nav>
-        <div className="flex shrink-0 items-center gap-1.5">
+      {/* Breadcrumb */}
+      <nav className="mb-5 flex items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
+        <Link href={SUBCONSCIOUS_CAUSES_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
+          ← Listeye Dön
+        </Link>
+        <span className="text-slate-300" aria-hidden>/</span>
+        <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
+          Biyoenerji
+        </Link>
+      </nav>
+
+      {/* Feedback */}
+      {(infoSuccess || infoError) && (
+        <div className="mb-4 flex flex-col gap-1.5 sm:flex-row">
+          {infoSuccess ? (
+            <div className="flex-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-medium text-emerald-700">{infoSuccess}</div>
+          ) : null}
+          {infoError ? (
+            <div className="flex-1 rounded-md border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[12px] font-medium text-rose-700">{infoError}</div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Title row + actions */}
+      <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
+        <div className="min-w-0 flex-1">
+          {categoryText ? (
+            <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+              {categoryText}
+            </span>
+          ) : null}
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+            {record.title?.trim() || "Isimsiz kayit"}
+          </h1>
+          <p className="mt-2 text-xs text-slate-500">
+            {formatDate(record.created_at)}
+            {sourceUidText ? ` · ${sourceUidText}` : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -386,73 +390,17 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             compact
           />
           <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
-            Düzenle
-          </button>
-          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
-            Sil
-          </button>
+          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
+          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
           <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
             {wordBusy ? "..." : "Word"}
           </button>
         </div>
       </div>
 
-      {/* Feedback */}
-      {(infoSuccess || infoError) && (
-        <div className="mb-4 flex flex-col gap-1.5 sm:flex-row">
-          {infoSuccess ? (
-            <div className="flex-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-medium text-emerald-700">
-              {infoSuccess}
-            </div>
-          ) : null}
-          {infoError ? (
-            <div className="flex-1 rounded-md border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[12px] font-medium text-rose-700">
-              {infoError}
-            </div>
-          ) : null}
-        </div>
-      )}
-
-      {/* Page title — no card */}
-      <div className="mb-5">
-        {categoryText ? (
-          <span className="mb-2 inline-flex items-center rounded-full bg-fuchsia-50 px-2.5 py-0.5 text-[10px] font-medium text-fuchsia-700 ring-1 ring-fuchsia-200/60">
-            {categoryText}
-          </span>
-        ) : null}
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-[22px] sm:leading-tight">
-          {record.title?.trim() || "İsimsiz kayıt"}
-        </h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400">
-          <span>{formatDate(record.created_at)}</span>
-          {sourceUidText ? (
-            <>
-              <span aria-hidden className="text-slate-300">·</span>
-              <span className="font-mono text-[10px]">{sourceUidText}</span>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2.5">
-        {contentText ? (
-          <DetailContentCard
-            title="İçerik"
-            text={contentText}
-            typography={contentTypography}
-            tone="violet"
-          />
-        ) : null}
-        {noteText ? (
-          <DetailContentCard
-            title="Not"
-            text={noteText}
-            typography={contentTypography}
-            tone="amber"
-          />
-        ) : null}
-      </div>
+      {/* Document sections */}
+      {contentText ? <DetailSection title="Icerik" text={contentText} typography={contentTypography} /> : null}
+      {noteText ? <DetailSection title="Not" text={noteText} typography={contentTypography} /> : null}
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}

@@ -40,16 +40,6 @@ type BioImaginationForm = {
   source: string;
 };
 
-type DetailSectionTone = "violet" | "cyan" | "amber" | "emerald" | "slate";
-
-const SECTION_SHELL: Record<DetailSectionTone, { wrap: string; label: string }> = {
-  violet:  { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-violet-400" },
-  cyan:    { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-cyan-400" },
-  amber:   { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-amber-400" },
-  emerald: { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-emerald-400" },
-  slate:   { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-slate-400" },
-};
-
 const tbBtn =
   "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
 const tbBtnDanger =
@@ -97,22 +87,18 @@ function DetailContentCard({
   title,
   text,
   typography,
-  tone,
 }: {
   title: string;
   text: string;
   typography: ImaginationsTypography;
-  tone: DetailSectionTone;
 }) {
-  const shell = SECTION_SHELL[tone];
-
   return (
-    <article className={shell.wrap}>
-      <h2 className={`mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${shell.label}`}>{title}</h2>
+    <section className="border-t border-slate-200/60 py-5">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</h2>
       <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
-    </article>
+    </section>
   );
 }
 
@@ -347,37 +333,16 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full min-w-0 max-w-none">
-      {/* Toolbar */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
-          <Link href={IMAGINATIONS_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
-            ← Listeye Dön
-          </Link>
-          <span className="text-slate-300" aria-hidden>/</span>
-          <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
-            Biyoenerji
-          </Link>
-        </nav>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <DogaltasFontSizeControl
-            fontSizePx={fontSizePx}
-            onDecrease={decreaseFontSize}
-            onReset={resetFontSize}
-            onIncrease={increaseFontSize}
-            canDecrease={canDecreaseFontSize}
-            canIncrease={canIncreaseFontSize}
-            isDefault={isDefaultFontSize}
-            defaultFontSizePx={IMAGINATIONS_FONT_DEFAULT}
-            compact
-          />
-          <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
-          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
-          <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
-            {wordBusy ? "..." : "Word"}
-          </button>
-        </div>
-      </div>
+      {/* Breadcrumb */}
+      <nav className="mb-5 flex items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
+        <Link href={IMAGINATIONS_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
+          ← Listeye Dön
+        </Link>
+        <span className="text-slate-300" aria-hidden>/</span>
+        <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
+          Biyoenerji
+        </Link>
+      </nav>
 
       {/* Feedback */}
       {(infoSuccess || infoError) && (
@@ -391,53 +356,47 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Page title */}
-      <div className="mb-5">
-        {categoryText ? (
-          <span className="mb-2 inline-flex rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200/60">
-            {categoryText}
-          </span>
-        ) : null}
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-[22px] sm:leading-tight">
-          {record.title?.trim() || "Isimsiz kayit"}
-        </h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400">
-          <span>{formatDate(record.created_at)}</span>
-          {sourceIdText ? (
-            <>
-              <span aria-hidden className="text-slate-300">·</span>
-              <span className="font-mono text-[10px]">{sourceIdText}</span>
-            </>
+      {/* Title + actions */}
+      <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
+        <div className="min-w-0 flex-1">
+          {categoryText ? (
+            <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+              {categoryText}
+            </span>
           ) : null}
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+            {record.title?.trim() || "Isimsiz kayit"}
+          </h1>
+          <p className="mt-2 text-xs text-slate-500">
+            {formatDate(record.created_at)}
+            {sourceIdText ? ` · ${sourceIdText}` : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <DogaltasFontSizeControl
+            fontSizePx={fontSizePx}
+            onDecrease={decreaseFontSize}
+            onReset={resetFontSize}
+            onIncrease={increaseFontSize}
+            canDecrease={canDecreaseFontSize}
+            canIncrease={canIncreaseFontSize}
+            isDefault={isDefaultFontSize}
+            defaultFontSizePx={IMAGINATIONS_FONT_DEFAULT}
+            compact
+          />
+          <div className="h-4 w-px bg-slate-200" aria-hidden />
+          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
+          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+          <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+            {wordBusy ? "..." : "Word"}
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        {textContent ? (
-          <DetailContentCard
-            title="Metin"
-            text={textContent}
-            typography={contentTypography}
-            tone="violet"
-          />
-        ) : null}
-        {notesContent ? (
-          <DetailContentCard
-            title="Not"
-            text={notesContent}
-            typography={contentTypography}
-            tone="amber"
-          />
-        ) : null}
-        {sourceContent ? (
-          <DetailContentCard
-            title="Kaynak"
-            text={sourceContent}
-            typography={contentTypography}
-            tone="emerald"
-          />
-        ) : null}
-      </div>
+      {/* Document sections */}
+      {textContent ? <DetailContentCard title="Metin" text={textContent} typography={contentTypography} /> : null}
+      {notesContent ? <DetailContentCard title="Not" text={notesContent} typography={contentTypography} /> : null}
+      {sourceContent ? <DetailContentCard title="Kaynak" text={sourceContent} typography={contentTypography} /> : null}
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
