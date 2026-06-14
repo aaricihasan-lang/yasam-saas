@@ -926,10 +926,10 @@ export default function YolculukTab({
             const yas = calcAge(clientDogum);
 
             const descParts: string[] = [
-              `Yaşam Yolu: ${hayatYolu}`,
-              `Kader Sayısı: ${kaderSayisi}`,
-              `Ruh Sayısı: ${ruhSayisi}`,
-              `Kişilik Sayısı: ${kisilikSayisi}`,
+              `Hayat Yolu / DM: ${hayatYolu}`,
+              `İfade Sayısı: ${kaderSayisi}`,
+              `Ana Kulvar: ${ruhSayisi}`,
+              `Yan Kulvar: ${kisilikSayisi}`,
               `Kişisel Yıl (${new Date().getFullYear()}): ${kisiselYil}`,
             ];
             if (yas != null) descParts.push(`Güncel Yaş: ${yas}`);

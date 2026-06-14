@@ -1069,11 +1069,11 @@ function NumerolojikOzetKart({
   }
 
   const coreItems = [
-    { label: "Yaşam Yolu",     value: hayatYolu,     color: "#7c3aed" },
-    { label: "Kader Sayısı",   value: kaderSayisi,   color: "#2563eb" },
-    { label: "Ruh Sayısı",     value: ruhSayisi,     color: "#16a34a" },
-    { label: "Kişilik Sayısı", value: kisilikSayisi, color: "#db2777" },
-    { label: "Kişisel Yıl",   value: kisiselYil,    color: "#ea580c" },
+    { label: "Hayat Yolu / DM", value: hayatYolu,     color: "#7c3aed" },
+    { label: "İfade Sayısı",    value: kaderSayisi,   color: "#2563eb" },
+    { label: "Ana Kulvar",      value: ruhSayisi,     color: "#16a34a" },
+    { label: "Yan Kulvar",      value: kisilikSayisi, color: "#db2777" },
+    { label: "Kişisel Yıl",    value: kisiselYil,    color: "#ea580c" },
   ];
 
   // ── Element dağılımı — parseBirthDate DD.MM.YYYY ister ───────────────────

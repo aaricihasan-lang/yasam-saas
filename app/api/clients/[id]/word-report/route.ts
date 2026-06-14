@@ -504,11 +504,11 @@ function buildNumerolojiBolumu(client: ClientRow): ReportChild[] {
   const out: ReportChild[] = [
     h2("Numeroloji Özeti"),
     twoColTable([
-      ["Yaşam Yolu",     hayatYolu],
-      ["Kader Sayısı",   kaderSayisi],
-      ["Ruh Sayısı",     ruhSayisi],
-      ["Kişilik Sayısı", kisilikSayisi],
-      ["Kişisel Yıl",   kisiselYil],
+      ["Hayat Yolu / DM", hayatYolu],
+      ["İfade Sayısı",    kaderSayisi],
+      ["Ana Kulvar",      ruhSayisi],
+      ["Yan Kulvar",      kisilikSayisi],
+      ["Kişisel Yıl",    kisiselYil],
     ]),
   ];
 
