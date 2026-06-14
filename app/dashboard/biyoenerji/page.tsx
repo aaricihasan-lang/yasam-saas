@@ -13,29 +13,29 @@ export default function BiyoenerjiFolderPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col px-4 py-5 sm:px-6 xl:px-10 2xl:px-14">
-        <div className="mb-5 flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-4 sm:px-5 xl:px-8 2xl:px-12">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <Link
             href="/enerji-beden"
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:border-cyan-300/40 hover:bg-white/15 sm:px-5 sm:py-3"
+            className="inline-flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:border-cyan-300/40 hover:bg-white/15"
           >
             <span aria-hidden>←</span>
-            Enerji & Beden&apos;e Dön
+            Enerji &amp; Beden
           </Link>
         </div>
 
         <header className="mb-4 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-cyan-300/90">
+          <p className="text-[9px] font-bold uppercase tracking-[0.35em] text-cyan-300/80">
             ENERJİ &amp; BEDEN
           </p>
-          <h1 className="mt-1.5 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-3xl xl:text-4xl">
+          <h1 className="mt-1 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl xl:text-3xl">
             Biyoenerji
           </h1>
-          <p className="mx-auto mt-1.5 max-w-xl text-xs font-medium text-slate-400 sm:text-sm">
+          <p className="mx-auto mt-1 max-w-lg text-[11px] font-medium text-slate-400 sm:text-xs">
             Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir
           </p>
           <div
-            className="mx-auto mt-3 h-px w-full max-w-xs rounded-full bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent"
+            className="mx-auto mt-2.5 h-px w-full max-w-[200px] rounded-full bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent"
             aria-hidden
           />
         </header>
