@@ -28,6 +28,9 @@ type SessionProcess = {
   gunFarki: number | null;
   yaklasanRandevu: string | null;
   durum: "aktif" | "takip" | "pasif" | "baslamadi";
+  avgDurationMin: number | null;
+  totalFee: number | null;
+  avgSiklikGun: number | null;
 };
 
 type HomeworkProcess = {
@@ -463,6 +466,7 @@ function SeansCard({ process }: { process: SessionProcess }) {
         </span>
       </div>
 
+      {/* Temel stats: tarihler + gün farkı */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <SeansStat label="Toplam Seans" value={String(process.totalSeans)} color="#0f172a" accent="#f8fafc" />
         <SeansStat label="İlk Seans" value={process.ilkSeans ?? "—"} color="#64748b" accent="#f8fafc" />
@@ -484,6 +488,39 @@ function SeansCard({ process }: { process: SessionProcess }) {
           }
         />
       </div>
+
+      {/* Seans Sıklığı Özeti */}
+      {process.totalSeans > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Seans Sıklığı Özeti
+            </span>
+            <div className="h-px flex-1 bg-slate-100" />
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <SeansStat
+              label="Ort. Seans Süresi"
+              value={process.avgDurationMin != null ? `${process.avgDurationMin} dk` : "—"}
+              color={process.avgDurationMin != null ? "#7c3aed" : "#94a3b8"}
+              accent={process.avgDurationMin != null ? "#f5f3ff" : "#f8fafc"}
+            />
+            <SeansStat
+              label="Toplam Ücret"
+              value={process.totalFee != null ? `${process.totalFee.toLocaleString("tr-TR")} ₺` : "—"}
+              color={process.totalFee != null ? "#0891b2" : "#94a3b8"}
+              accent={process.totalFee != null ? "#e0f2fe" : "#f8fafc"}
+            />
+            <SeansStat
+              label="Ort. Sıklık"
+              value={process.avgSiklikGun != null ? `${process.avgSiklikGun} günde bir` : "Yeterli veri yok"}
+              color={process.avgSiklikGun != null ? "#16a34a" : "#94a3b8"}
+              accent={process.avgSiklikGun != null ? "#f0fdf4" : "#f8fafc"}
+            />
+          </div>
+        </>
+      )}
 
       {process.yaklasanRandevu ? (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
@@ -758,6 +795,9 @@ export default function YolculukTab({
     gunFarki: null,
     yaklasanRandevu: null,
     durum: "baslamadi",
+    avgDurationMin: null,
+    totalFee: null,
+    avgSiklikGun: null,
   });
   const [homeworkProcess, setHomeworkProcess] = useState<HomeworkProcess>({
     total: 0,
@@ -924,6 +964,9 @@ export default function YolculukTab({
           gunFarki: null,
           yaklasanRandevu: null,
           durum: "baslamadi",
+          avgDurationMin: null,
+          totalFee: null,
+          avgSiklikGun: null,
         };
 
         const seansWithDate = sessionList
@@ -945,6 +988,33 @@ export default function YolculukTab({
           .sort((a, b) => (a.appointment_date < b.appointment_date ? -1 : 1));
         if (upcoming.length > 0) {
           newProcess.yaklasanRandevu = isoToTR(upcoming[0].appointment_date);
+        }
+
+        // ── Seans sıklık özeti hesabı ──────────────────────────────────────
+        // Ortalama süre: duration_minutes alanı olan seansların ortalaması
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sessionsWithDuration = sessionList.filter((s: any) => s.duration_minutes != null);
+        if (sessionsWithDuration.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const totalMin = sessionsWithDuration.reduce((sum: number, s: any) => sum + (s.duration_minutes as number), 0);
+          newProcess.avgDurationMin = Math.round(totalMin / sessionsWithDuration.length);
+        }
+
+        // Toplam ücret: en az bir seansta fee dolu ise topla, tümü null ise null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anyFee = sessionList.some((s: any) => s.fee != null);
+        if (anyFee) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          newProcess.totalFee = sessionList.reduce((sum: number, s: any) => sum + (s.fee ?? 0), 0);
+        }
+
+        // Ortalama sıklık: ilk ve son tarihli seans arasındaki gün / (toplam - 1) aralık
+        // En az 2 tarihli seans gerekir
+        if (seansWithDate.length >= 2) {
+          const firstMs = new Date(seansWithDate[0].session_date).getTime();
+          const lastMs  = new Date(seansWithDate[seansWithDate.length - 1].session_date).getTime();
+          const totalDays = Math.floor((lastMs - firstMs) / 86400000);
+          newProcess.avgSiklikGun = Math.round(totalDays / (seansWithDate.length - 1));
         }
 
         setSessionProcess(newProcess);
