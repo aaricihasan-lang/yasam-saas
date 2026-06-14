@@ -75,6 +75,16 @@ function birthDateForMotor(display: string): string {
   return display.trim().replace(/\//g, ".");
 }
 
+/** ISO "YYYY-MM-DD" → display "GG/AA/YYYY" için analiz formu input'u */
+function isoBirthDateToDisplay(iso: string): string {
+  const parts = iso.split("-");
+  if (parts.length !== 3) return "";
+  const [y, m, d] = parts;
+  if (y.length !== 4 || m.length !== 2 || d.length !== 2) return "";
+  if (!/^\d+$/.test(y) || !/^\d+$/.test(m) || !/^\d+$/.test(d)) return "";
+  return `${d}/${m}/${y}`;
+}
+
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
@@ -103,6 +113,23 @@ export default function NumerolojiAnalizPage() {
   const gorselRaporRef = useRef<HTMLDivElement>(null);
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const gorselIndirmeKilitli = gorselPngHazirlaniyor;
+
+  // URL parametrelerinden form prefill — ?ad=...&soyad=...&dogum=YYYY-MM-DD
+  // window.location.search kullanımı Suspense gerektirmez, "use client" ile güvenli.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ad    = params.get("ad");
+    const soyad = params.get("soyad");
+    const dogum = params.get("dogum");
+    if (ad)    setFirstName(formatFirstNameTurkish(ad));
+    if (soyad) setLastName(formatLastNameTurkish(soyad));
+    if (dogum) {
+      const display = isoBirthDateToDisplay(dogum);
+      if (display) setBirthDate(display);
+    }
+  // Sadece mount'ta bir kez çalışır — URL param'ları yeniden izlemeye gerek yok.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     runInEffect(() => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -1093,6 +1094,24 @@ function NumerolojikOzetKart({
           </div>
         ))}
       </div>
+
+      {/* Deeplink — dogum zorunlu, ad/soyad opsiyonel */}
+      <div className="mt-3 flex justify-end">
+        <Link
+          href={buildAnalizHref(dogum, firstName, lastName)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-white px-3.5 py-2 text-[12px] font-black text-violet-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md"
+        >
+          ∞ Tam Numeroloji Analizi Aç →
+        </Link>
+      </div>
     </div>
   );
+}
+
+function buildAnalizHref(dogum: string, ad: string, soyad: string): string {
+  const p = new URLSearchParams();
+  if (dogum) p.set("dogum", dogum);   // ISO YYYY-MM-DD
+  if (ad)    p.set("ad",   ad);
+  if (soyad) p.set("soyad", soyad);
+  return `/numeroloji/analiz?${p.toString()}`;
 }
