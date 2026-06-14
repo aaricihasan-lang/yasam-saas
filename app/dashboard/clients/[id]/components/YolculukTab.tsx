@@ -1138,18 +1138,36 @@ export default function YolculukTab({
             {menuItems.map((item) => {
               const isActive = activeMenu === item.id;
               const hasTab = Boolean(item.tabId && onNavigate);
+
+              if (!hasTab) {
+                return (
+                  <div
+                    key={item.id}
+                    className="flex w-full items-center gap-2.5 border-l-[3px] border-l-transparent px-3.5 py-2.5 text-[12px] font-extrabold text-slate-400"
+                  >
+                    <span
+                      className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none"
+                      style={{ color: `${item.color}88` }}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="flex-1 truncate">{item.label}</span>
+                    <span className="ml-auto inline-flex flex-shrink-0 items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-400">
+                      Yakında
+                    </span>
+                  </div>
+                );
+              }
+
               return (
                 <button
                   key={item.id}
                   onClick={() => handleMenuClick(item)}
-                  title={!hasTab ? "Bu modül henüz mevcut sekmede açılmıyor" : undefined}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[12px] font-extrabold transition-colors"
                   style={{
                     background: isActive ? `${item.color}12` : "transparent",
                     borderLeft: isActive ? `3px solid ${item.color}` : "3px solid transparent",
                     color: isActive ? item.color : "#475569",
-                    opacity: hasTab || isActive ? 1 : 0.55,
-                    cursor: hasTab ? "pointer" : "default",
                   }}
                 >
                   <span
@@ -1158,8 +1176,8 @@ export default function YolculukTab({
                   >
                     {item.icon}
                   </span>
-                  {item.label}
-                  {hasTab && <span className="ml-auto text-[11px] opacity-50">→</span>}
+                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="ml-auto text-[11px] opacity-50">→</span>
                 </button>
               );
             })}
