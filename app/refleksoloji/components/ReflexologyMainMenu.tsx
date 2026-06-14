@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 type HubModule = {
   href: string;
@@ -84,7 +84,7 @@ function ReflexologyHubCard({
   size?: "top" | "bottom";
 }) {
   const heightClass =
-    size === "bottom" ? "h-[220px] max-h-[220px]" : "h-[260px] max-h-[260px]";
+    size === "bottom" ? "h-[160px] max-h-[160px]" : "h-[190px] max-h-[190px]";
   const isKayitliProtokoller = module.href === "/refleksoloji/kayitli-protokoller";
 
   return (
@@ -135,8 +135,8 @@ function ReflexologyHubCard({
       <span
         className={
           isKayitliProtokoller
-            ? "relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-100 via-cyan-50 to-sky-100 text-[1.65rem] shadow-[0_8px_24px_-10px_rgba(16,185,129,0.22)] ring-1 ring-emerald-100/90 transition-transform duration-300 group-hover:scale-105 sm:h-[3.25rem] sm:w-[3.25rem] sm:text-[1.85rem]"
-            : "relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/90 bg-white/90 text-[1.65rem] shadow-[0_8px_24px_-10px_rgba(109,40,217,0.25)] ring-1 ring-white/80 transition-transform duration-300 group-hover:scale-105 sm:h-[3.25rem] sm:w-[3.25rem] sm:text-[1.85rem]"
+            ? "relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-100 via-cyan-50 to-sky-100 text-xl shadow-sm ring-1 ring-emerald-100/90 transition-transform duration-300 group-hover:scale-105"
+            : "relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/90 bg-white/90 text-xl shadow-sm ring-1 ring-white/80 transition-transform duration-300 group-hover:scale-105"
         }
         aria-hidden
       >
@@ -144,12 +144,12 @@ function ReflexologyHubCard({
       </span>
 
       <div className="relative flex flex-col items-center justify-center px-1">
-        <h2 className="text-[1.35rem] font-black leading-tight tracking-tight text-slate-900 sm:text-[1.65rem] lg:text-[1.75rem]">
+        <h2 className="text-base font-black leading-tight tracking-tight text-slate-900 sm:text-lg">
           {module.title}
         </h2>
         <div className="mt-2 w-full space-y-1">
           {module.lines.map((line) => (
-            <p key={line} className="text-[0.9375rem] font-semibold leading-relaxed text-slate-700/95 sm:text-base">
+            <p key={line} className="text-xs font-medium leading-relaxed text-slate-700/90">
               {line}
             </p>
           ))}
@@ -184,19 +184,19 @@ function ReflexologyMainMenu() {
         <div className="absolute left-[48%] top-[38%] h-48 w-48 -translate-x-1/2 rounded-full bg-indigo-300/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full flex-col px-4 py-2 sm:px-6 lg:px-8 xl:px-12 lg:py-3">
+      <div className="relative z-10 flex h-full w-full flex-col px-3 py-2 sm:px-5 xl:px-8">
         <div className="flex shrink-0 items-start justify-between gap-4">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-violet-700/90 sm:text-[11px]">
               Yaşam Sistemi
             </p>
-            <h1 className="mt-0.5 bg-gradient-to-r from-violet-950 via-indigo-900 to-violet-800 bg-clip-text text-3xl font-black tracking-tight text-transparent sm:text-4xl lg:text-5xl">
+            <h1 className="mt-0.5 bg-gradient-to-r from-violet-950 via-indigo-900 to-violet-800 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl lg:text-3xl">
               Refleksoloji
             </h1>
-            <p className="mt-1.5 max-w-3xl text-base font-medium leading-snug text-slate-600/95 sm:text-lg">
+            <p className="mt-1.5 max-w-3xl text-sm font-medium leading-snug text-slate-600/90">
               Ayak refleksoloji atlası, protokoller ve klinik çalışma alanı
             </p>
-            <p className="mt-2 inline-flex max-w-full flex-wrap items-center gap-x-1.5 rounded-full border border-violet-200/70 bg-white/55 px-3 py-1.5 text-[10px] font-bold leading-snug text-violet-900/90 shadow-sm ring-1 ring-white/60 backdrop-blur-sm sm:text-[11px]">
+            <p className="mt-2 inline-flex max-w-full flex-wrap items-center gap-x-1.5 rounded-full border border-violet-200/70 bg-white/55 px-3 py-1 text-[10px] font-bold leading-snug text-violet-900/90 shadow-sm ring-1 ring-white/60 backdrop-blur-sm sm:text-[11px]">
               Ayak Refleksolojisi • Atlas • Protokol • Klinik Notlar
             </p>
           </header>
@@ -204,15 +204,15 @@ function ReflexologyMainMenu() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col justify-center pt-2 pb-3 lg:pt-3 lg:pb-4">
-          <section className="w-full shrink-0 rounded-[26px] border border-white/70 bg-white/40 px-4 py-4 shadow-[0_20px_56px_-22px_rgba(91,33,182,0.3)] ring-1 ring-white/50 backdrop-blur-xl sm:px-5 sm:py-5 lg:px-6 lg:py-5">
-            <div className="flex flex-col gap-3.5 lg:gap-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
+          <section className="w-full shrink-0 rounded-2xl border border-white/70 bg-white/40 px-3 py-3 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.22)] ring-1 ring-white/50 backdrop-blur-xl sm:px-4 sm:py-4">
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-3">
                 {MENU_MODULES.slice(0, 3).map((module) => (
                   <ReflexologyHubCard key={module.href} module={module} size="top" />
                 ))}
               </div>
               <div className="flex justify-center">
-                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[92%] lg:max-w-[1320px] lg:gap-5">
+                <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2 lg:w-[92%] lg:max-w-[1320px] lg:gap-3">
                   {MENU_MODULES.slice(3).map((module) => (
                     <ReflexologyHubCard key={module.href} module={module} size="bottom" />
                   ))}

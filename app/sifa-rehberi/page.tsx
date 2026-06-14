@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -268,30 +268,30 @@ const uiContentCard =
   "w-full rounded-[34px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_50px_rgba(16,185,129,0.14)] backdrop-blur-xl xl:p-8";
 const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 
-const listPageContent = "relative z-10 w-full space-y-3 px-5 py-4 sm:px-6 xl:px-8 2xl:px-10";
+const listPageContent = "relative z-10 w-full space-y-3 px-3 py-3 sm:px-5 xl:px-7";
 const listHeaderCard =
-  "max-h-[220px] shrink-0 overflow-hidden rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.1)] backdrop-blur-xl sm:py-5";
+  "shrink-0 overflow-hidden rounded-2xl border border-emerald-200/50 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const listStatCard =
   "min-w-[4.5rem] rounded-xl border border-cyan-200/80 bg-white/90 px-3 py-2 text-center shadow-sm sm:min-w-[5rem]";
 const listFilterCard =
-  "rounded-[22px] border border-cyan-300/40 bg-white/85 p-4 shadow-[0_6px_24px_rgba(34,211,238,0.08)] backdrop-blur-xl";
+  "rounded-2xl border border-cyan-200/40 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const listSearchInput =
-  "h-11 w-full rounded-xl border border-emerald-200 bg-white/90 pl-10 pr-4 text-sm font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/60";
+  "h-9 w-full rounded-lg border border-emerald-200 bg-white/90 pl-9 pr-3 text-sm font-medium shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/40";
 const listViewBtn =
-  "rounded-xl px-4 py-2 text-[12px] font-black shadow-sm transition hover:-translate-y-0.5";
+  "rounded-lg px-3 py-1.5 text-[12px] font-semibold shadow-sm transition hover:-translate-y-0.5";
 const listNewBtn =
-  "rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5";
+  "rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:-translate-y-0.5";
 const listContentCard =
-  "w-full rounded-[22px] border border-emerald-300/40 bg-white/85 p-4 shadow-[0_8px_28px_rgba(16,185,129,0.08)] backdrop-blur-xl sm:p-5";
+  "w-full rounded-2xl border border-emerald-200/40 bg-white/85 p-4 shadow-sm backdrop-blur-xl";
 const listGuideCardGrid = "grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3";
 const listGuideCard =
-  "group flex flex-col rounded-[32px] border border-emerald-100 bg-white/85 p-5 shadow-[0_10px_40px_rgba(16,185,129,0.12)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_20px_50px_rgba(16,185,129,0.18)]";
+  "group flex flex-col rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md";
 const listGuideCardBadge =
   "inline-flex rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-3 py-0.5 text-[11px] font-semibold tracking-wide text-white shadow-[0_6px_22px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40";
 const listGuideCardCategory =
   "inline-flex rounded-full border border-emerald-100/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800";
 const listGuideCardCta =
-  "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 text-[13px] font-semibold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] ring-1 ring-white/25 transition-all duration-300 group-hover:shadow-[0_14px_36px_rgba(16,185,129,0.48)] hover:brightness-105";
+  "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-3 text-[12px] font-semibold text-white shadow-sm ring-1 ring-white/25 transition-all duration-200 hover:brightness-105";
 
 type PageView = "menu" | "new" | "list";
 
@@ -301,7 +301,7 @@ function pageViewFromQueryParam(value: string | null): PageView | null {
 }
 
 const uiMenuCardBase =
-  "group relative flex h-auto min-h-[200px] w-full flex-col overflow-hidden rounded-2xl border-2 p-5 text-left shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_14px_36px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 lg:p-6";
+  "group relative flex h-auto min-h-[160px] w-full flex-col overflow-hidden rounded-2xl border p-4 text-left shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40";
 
 const uiMenuBadge =
   "inline-flex rounded-full border bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm";
@@ -415,9 +415,9 @@ function MenuChoiceCard({
 const menuPageShell =
   "relative flex h-screen flex-col overflow-hidden max-lg:min-h-screen max-lg:h-auto max-lg:overflow-y-auto";
 const menuPageContent =
-  "relative z-10 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden px-4 py-3 sm:px-6 lg:gap-4 lg:px-10 lg:py-4";
+  "relative z-10 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden px-3 py-3 sm:px-5 lg:gap-3 lg:px-8 lg:py-3";
 const menuHeaderCard =
-  "shrink-0 rounded-[26px] border-2 border-emerald-300/45 bg-white/75 p-4 shadow-[0_0_32px_rgba(16,185,129,0.12)] backdrop-blur-xl lg:p-5";
+  "shrink-0 rounded-2xl border border-emerald-200/50 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const menuStatCard =
   "rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 text-center shadow-sm sm:px-4 sm:py-3";
 
@@ -426,7 +426,7 @@ function SifaRehberiMainMenuButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mb-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-emerald-400/50 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_14px_36px_-10px_rgba(5,150,105,0.55)] ring-2 ring-white/40 transition duration-200 hover:scale-[1.03] hover:border-emerald-300/70 hover:shadow-[0_18px_44px_-8px_rgba(16,185,129,0.65)] sm:w-auto sm:justify-start sm:px-7 sm:text-[17px]"
+      className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-400/50 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 sm:w-auto sm:justify-start"
     >
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-lg shadow-sm"
@@ -456,13 +456,13 @@ function SifaRehberiToolbarMenuButton({ onClick }: { onClick: () => void }) {
 }
 
 const uiFormFieldInput =
-  "h-12 w-full rounded-2xl border border-emerald-100 bg-white/90 px-4 text-base font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
+  "h-9 w-full rounded-xl border border-emerald-100 bg-white/90 px-3.5 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
 
 const uiFormFieldTextarea =
   "min-h-[104px] max-h-[148px] w-full cursor-pointer resize-y rounded-2xl border border-emerald-100 bg-white/90 px-4 py-3 text-base leading-relaxed text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100/80";
 
 const uiFormMiniCard =
-  "rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm";
+  "rounded-xl border border-emerald-100 bg-white p-4 shadow-sm";
 
 function FormFieldMiniCard({
   title,
@@ -1194,10 +1194,10 @@ function SifaRehberiContent() {
             <h1
               className={
                 isMenuView
-                  ? "text-2xl font-black tracking-tight text-slate-950 lg:text-3xl"
+                  ? "text-xl font-black tracking-tight text-slate-950 lg:text-2xl"
                   : isListView
-                    ? "text-2xl font-black tracking-tight text-slate-950"
-                    : "text-3xl font-black tracking-tight text-slate-950 xl:text-4xl"
+                    ? "text-xl font-black tracking-tight text-slate-950"
+                    : "text-xl font-black tracking-tight text-slate-950 xl:text-2xl"
               }
             >
               Şifa Rehberi
@@ -1206,9 +1206,9 @@ function SifaRehberiContent() {
             <p
               className={
                 isMenuView
-                  ? "mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-slate-600 lg:text-[15px]"
+                  ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
                   : isListView
-                    ? "mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-600"
+                    ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
                     : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
               }
             >
@@ -1228,9 +1228,9 @@ function SifaRehberiContent() {
               <div
                 className={
                   isMenuView
-                    ? "text-xl font-black lg:text-2xl"
+                    ? "text-lg font-black lg:text-xl"
                     : isListView
-                      ? "text-lg font-black sm:text-xl"
+                      ? "text-base font-black sm:text-lg"
                       : "text-3xl font-black"
                 }
               >
@@ -1250,9 +1250,9 @@ function SifaRehberiContent() {
               <div
                 className={
                   isMenuView
-                    ? "text-xl font-black lg:text-2xl"
+                    ? "text-lg font-black lg:text-xl"
                     : isListView
-                      ? "text-lg font-black sm:text-xl"
+                      ? "text-base font-black sm:text-lg"
                       : "text-3xl font-black"
                 }
               >
@@ -1272,9 +1272,9 @@ function SifaRehberiContent() {
               <div
                 className={
                   isMenuView
-                    ? "text-xl font-black lg:text-2xl"
+                    ? "text-lg font-black lg:text-xl"
                     : isListView
-                      ? "text-lg font-black sm:text-xl"
+                      ? "text-base font-black sm:text-lg"
                       : "text-3xl font-black"
                 }
               >

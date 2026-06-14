@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -104,7 +104,7 @@ export function KayitliProtokollerLayout() {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full px-4 py-4 lg:px-8 xl:px-12">
+      <div className="relative z-10 w-full px-3 py-3 lg:px-6 xl:px-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
@@ -142,14 +142,14 @@ export function KayitliProtokollerLayout() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Başlık, hedef, organ veya nota göre ara..."
-              className="h-9 w-full rounded-xl border border-violet-200/90 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2"
+              className="h-9 w-full rounded-lg border border-violet-200/80 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2"
             />
           </div>
         ) : null}
 
         {!loadErrorMessage && protocols.length === 0 ? (
-          <section className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/60">
-            <p className="text-lg font-bold text-violet-900">Henüz protokol yok</p>
+          <section className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-8 text-center shadow-sm">
+            <p className="text-base font-bold text-violet-900">Henüz protokol yok</p>
             <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
               Toplu veri aktarımı veya Protokol Haritası ile yeni kayıt ekleyebilirsiniz.
             </p>

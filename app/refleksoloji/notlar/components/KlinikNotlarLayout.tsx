@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
@@ -254,11 +254,11 @@ export function KlinikNotlarLayout() {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-none px-6 py-6 xl:px-10">
-        <div className="flex flex-wrap items-start gap-4">
+      <div className="relative z-10 mx-auto w-full max-w-none px-4 py-4 xl:px-7">
+        <div className="flex flex-wrap items-start gap-3">
           <Link
             href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-violet-300/95 bg-white/90 px-4 py-2.5 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-950 shadow-sm transition hover:border-violet-400"
           >
             <span aria-hidden>←</span>
             Ana Menü
@@ -278,14 +278,14 @@ export function KlinikNotlarLayout() {
                 <li className="text-slate-700">Notlar</li>
               </ol>
             </nav>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+            <h1 className="mt-2 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
               Klinik Notlar
             </h1>
           </header>
         </div>
 
         <div
-          className="mt-6 inline-flex rounded-2xl border border-violet-200/80 bg-white/80 p-1 shadow-sm ring-1 ring-violet-100/60"
+          className="mt-4 inline-flex rounded-2xl border border-violet-200/80 bg-white/80 p-1 shadow-sm ring-1 ring-violet-100/60"
           role="tablist"
           aria-label="Not sekmeleri"
         >
@@ -294,7 +294,7 @@ export function KlinikNotlarLayout() {
             role="tab"
             aria-selected={activeTab === "kayit"}
             onClick={() => setActiveTab("kayit")}
-            className={`rounded-xl px-6 py-2.5 text-base font-bold transition ${
+            className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition ${
               activeTab === "kayit"
                 ? "bg-violet-600 text-white shadow-md"
                 : "text-violet-900 hover:bg-violet-50"
@@ -307,7 +307,7 @@ export function KlinikNotlarLayout() {
             role="tab"
             aria-selected={activeTab === "liste"}
             onClick={() => setActiveTab("liste")}
-            className={`rounded-xl px-6 py-2.5 text-base font-bold transition ${
+            className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition ${
               activeTab === "liste"
                 ? "bg-violet-600 text-white shadow-md"
                 : "text-violet-900 hover:bg-violet-50"
@@ -317,7 +317,7 @@ export function KlinikNotlarLayout() {
           </button>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4">
           {activeTab === "kayit" ? (
             <>
               <input

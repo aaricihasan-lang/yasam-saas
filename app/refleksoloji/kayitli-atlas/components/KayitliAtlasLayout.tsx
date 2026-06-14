@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -52,66 +52,66 @@ export function KayitliAtlasLayout() {
       </div>
 
       <div className="relative z-10 flex min-h-screen w-full max-w-none flex-col px-4 py-4 md:px-6 xl:px-8">
-        <div className="flex shrink-0 flex-wrap items-center gap-4 pb-6">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 pb-4">
           <Link
             href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-violet-300/95 bg-white/90 px-4 py-2.5 text-base font-extrabold text-violet-950 shadow-md ring-1 ring-violet-200/80 backdrop-blur-sm transition hover:border-violet-400 hover:bg-white"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-950 shadow-sm transition hover:border-violet-400"
           >
             <span aria-hidden>←</span>
             Ana Menü
           </Link>
           <header className="min-w-0 flex-1">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
               Refleksoloji · Kayıtlı Atlas
             </p>
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
               Kayıtlı Atlas
             </h1>
-            <p className="mt-1 max-w-3xl text-lg font-medium text-slate-600">
+            <p className="mt-0.5 max-w-2xl text-sm font-medium text-slate-600">
               Bölge Haritası&apos;ndan kaydedilen organ koordinatları burada yönetilir.
             </p>
           </header>
           <Link
             href="/refleksoloji/bolge-haritasi"
-            className="shrink-0 rounded-xl border border-violet-300/80 bg-violet-100 px-5 py-3 text-base font-bold text-violet-950 transition hover:bg-violet-200/90"
+            className="shrink-0 rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-200/90"
           >
             Bölge Haritasına Git
           </Link>
         </div>
 
         {summaries.length > 0 ? (
-          <div className="mb-5">
+          <div className="mb-3">
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Organ adına göre ara…"
-              className="w-full max-w-xl rounded-xl border border-violet-200/90 bg-white/90 px-4 py-3 text-base font-medium text-slate-800 outline-none ring-violet-300/30 focus:border-violet-400 focus:ring-2 md:max-w-md"
+              className="h-9 w-full max-w-md rounded-lg border border-violet-200/80 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2"
             />
           </div>
         ) : null}
 
         {summaries.length === 0 ? (
-          <section className="flex flex-1 flex-col items-center justify-center rounded-[32px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-20 text-center shadow-sm ring-1 ring-violet-100/60">
-            <p className="max-w-lg text-xl font-bold text-violet-900">
+          <section className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/60">
+            <p className="max-w-lg text-base font-bold text-violet-900">
               Henüz kayıtlı organ yok.
             </p>
-            <p className="mt-3 text-base font-medium text-slate-600">
+            <p className="mt-2 text-sm font-medium text-slate-600">
               Bölge Haritası&apos;ndan organ ekleyip Kaydet ile atlas oluşturun.
             </p>
             <Link
               href="/refleksoloji/bolge-haritasi"
-              className="mt-6 rounded-xl border border-violet-300/80 bg-violet-100 px-6 py-3 text-base font-bold text-violet-950 transition hover:bg-violet-200/90"
+              className="mt-4 rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-200/90"
             >
               Bölge Haritasına Git
             </Link>
           </section>
         ) : filtered.length === 0 ? (
-          <p className="rounded-2xl border border-violet-100 bg-white/80 px-6 py-8 text-center text-base font-medium text-slate-600">
+          <p className="rounded-xl border border-violet-100 bg-white/80 px-4 py-5 text-center text-sm font-medium text-slate-600">
             Aramanızla eşleşen organ bulunamadı.
           </p>
         ) : (
-          <section className="grid grid-cols-1 gap-4 pb-8 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid grid-cols-1 gap-3 pb-5 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((summary) => (
               <OrganAtlasCard
                 key={summary.name}
