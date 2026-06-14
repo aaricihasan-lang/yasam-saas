@@ -131,9 +131,12 @@ type ClientHomeworkRow = {
   created_at: string;
 };
 
+type ChakraValueEntry = { mark?: string; male?: string; female?: string };
+
 type ClientAnalysisRow = {
   id: string;
   analysis_type?: string | null;
+  analysis_data?: { title?: string; values?: Record<string, ChakraValueEntry>; saved_at?: string } | null;
   note?: string | null;
   created_at: string;
   image_url?: string | null;
@@ -725,6 +728,111 @@ function buildDocSections(
   return sects;
 }
 
+// ─── Çakra Analizi Word Tablo Yardımcıları ───────────────────────────────────
+
+const CHAKRA_ENERGY_BODIES = [
+  { key: "ruhsal",   label: "Ruhsal Enerji Bedeni",   color: "6d5bd0" },
+  { key: "zihinsel", label: "Zihinsel Enerji Bedeni", color: "43a047" },
+  { key: "duygusal", label: "Duygusal Enerji Bedeni", color: "f2b824" },
+  { key: "eterik",   label: "Eterik Enerji Bedeni",   color: "2196c9" },
+  { key: "fiziksel", label: "Fiziksel Enerji Bedeni", color: "4b5563" },
+] as const;
+
+const CHAKRA_CHAKRA_ROWS = [
+  { key: "tac",    label: "Tepe / Taç Çakrası",    color: "a78bfa" },
+  { key: "goz",    label: "3. Göz Çakrası",         color: "6366f1" },
+  { key: "bogaz",  label: "Boğaz Çakrası",           color: "38bdf8" },
+  { key: "kalp",   label: "Kalp Çakrası",            color: "22c55e" },
+  { key: "mide",   label: "Mide Çakrası",            color: "facc15" },
+  { key: "sakral", label: "Sakral (Karın) Çakrası",  color: "f97316" },
+  { key: "kok",    label: "Kök Çakrası",             color: "ef4444" },
+] as const;
+
+function chakraTextColor(val: string): string {
+  const t = val.trim();
+  if (t.startsWith("+")) return "166534"; // yeşil
+  if (t.startsWith("-")) return "991b1b"; // kırmızı
+  return C_DARK;
+}
+
+function buildChakraSectionTable(
+  sectionTitle: string,
+  scope: string,
+  rows: ReadonlyArray<{ key: string; label: string; color: string }>,
+  values: Record<string, ChakraValueEntry>,
+): ReportChild[] {
+  const mkHeader = (text: string, pct: number) =>
+    new TableCell({
+      shading: { fill: "1e3a5f", type: ShadingType.CLEAR, color: "auto" },
+      width: { size: pct, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      children: [new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 16, font: REPORT_FONT, color: "ffffff" })],
+      })],
+    });
+
+  const mkLabel = (text: string, color: string) =>
+    new TableCell({
+      shading: { fill: color, type: ShadingType.CLEAR, color: "auto" },
+      width: { size: 40, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      children: [new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 17, font: REPORT_FONT, color: "ffffff" })],
+      })],
+    });
+
+  const mkVal = (val: string) => {
+    const display = val.trim() || "—";
+    return new TableCell({
+      width: { size: 20, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 100, right: 100 },
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: display, bold: !!val.trim(), size: 18, font: REPORT_FONT, color: chakraTextColor(val) })],
+      })],
+    });
+  };
+
+  const tableRows: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [mkHeader("Alan", 40), mkHeader("İşaret / Sayı %", 20), mkHeader("Eril Enerji", 20), mkHeader("Dişil Enerji", 20)],
+    }),
+    ...rows.map((row) => {
+      const key = `${scope}_${row.key}`;
+      const val = values[key] ?? {};
+      return new TableRow({
+        children: [
+          mkLabel(row.label, row.color),
+          mkVal(val.mark ?? ""),
+          mkVal(val.male ?? ""),
+          mkVal(val.female ?? ""),
+        ],
+      });
+    }),
+  ];
+
+  return [
+    new Paragraph({
+      children: [new TextRun({ text: sectionTitle, bold: true, size: 22, font: REPORT_FONT, color: C.analizler })],
+      spacing: { before: 360, after: 140 },
+    }),
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
+  ];
+}
+
+function buildChakraAnalysisTables(values: Record<string, ChakraValueEntry>): ReportChild[] {
+  return [
+    ...buildChakraSectionTable("Seans Öncesi — Enerji Bedenleri", "before_energy", CHAKRA_ENERGY_BODIES, values),
+    spacer(),
+    ...buildChakraSectionTable("Seans Sonrası — Enerji Bedenleri", "after_energy",  CHAKRA_ENERGY_BODIES, values),
+    spacer(),
+    ...buildChakraSectionTable("Çakralar — Seans Öncesi",          "before_chakra", CHAKRA_CHAKRA_ROWS,   values),
+    spacer(),
+    ...buildChakraSectionTable("Çakralar — Seans Sonrası",         "after_chakra",  CHAKRA_CHAKRA_ROWS,   values),
+  ];
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(
@@ -792,7 +900,7 @@ export async function POST(
       const { data } = await db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
     } else if (tab === "analizler") {
-      const { data } = await db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      const { data } = await db.from("client_analyses").select("id, analysis_type, analysis_data, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false });
       extraRows = (data || []) as AnyRow[];
     }
 
@@ -940,20 +1048,19 @@ export async function POST(
       } else {
         analyses.forEach((an, i) => {
           const imgBuf = tabAnalysisImages[i] ?? null;
-          if (imgBuf) {
-            all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-            all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-            all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          const chakraVals = an.analysis_type === "chakra" ? (an.analysis_data?.values ?? null) : null;
+          const hasChakraTable = chakraVals && Object.keys(chakraVals).length > 0;
+          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+          if (hasChakraTable) {
+            all.push(...buildChakraAnalysisTables(chakraVals!));
+          } else if (imgBuf) {
             tabLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
-            if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-          } else {
-            all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-            all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-            all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
-            if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-            else all.push(muted("Analiz notu girilmemiş."));
-            if (i < analyses.length - 1) all.push(spacer());
           }
+          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+          else if (!hasChakraTable && !imgBuf) all.push(muted("Analiz notu girilmemiş."));
+          if (i < analyses.length - 1) all.push(spacer());
         });
       }
     }
@@ -996,7 +1103,7 @@ export async function POST(
       db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
       db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
       db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-      db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+      db.from("client_analyses").select("id, analysis_type, analysis_data, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     ]);
 
     if (drCliRes.error || !drCliRes.data)
@@ -1185,20 +1292,19 @@ export async function POST(
     } else {
       drAn.forEach((an, i) => {
         const imgBuf = drAnalysisImages[i] ?? null;
-        if (imgBuf) {
-          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+        const chakraVals = an.analysis_type === "chakra" ? (an.analysis_data?.values ?? null) : null;
+        const hasChakraTable = chakraVals && Object.keys(chakraVals).length > 0;
+        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+        if (hasChakraTable) {
+          all.push(...buildChakraAnalysisTables(chakraVals!));
+        } else if (imgBuf) {
           drLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
-          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-        } else {
-          all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-          all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-          all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
-          if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-          else all.push(muted("Analiz notu girilmemiş."));
-          if (i < drAn.length - 1) all.push(spacer());
         }
+        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+        else if (!hasChakraTable && !imgBuf) all.push(muted("Analiz notu girilmemiş."));
+        if (i < drAn.length - 1) all.push(spacer());
       });
     }
 
@@ -1236,7 +1342,7 @@ export async function POST(
     db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-    db.from("client_analyses").select("id, analysis_type, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+    db.from("client_analyses").select("id, analysis_type, analysis_data, note, created_at, image_url").eq("client_id", clientId).eq("tenant_id", tenantId).order("created_at", { ascending: false }),
   ]);
 
   if (clientRes.error || !clientRes.data)
@@ -1485,20 +1591,19 @@ export async function POST(
   } else {
     analyses.forEach((an, i) => {
       const imgBuf = analysisImages[i] ?? null;
-      if (imgBuf) {
-        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+      const chakraVals = an.analysis_type === "chakra" ? (an.analysis_data?.values ?? null) : null;
+      const hasChakraTable = chakraVals && Object.keys(chakraVals).length > 0;
+      all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
+      all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
+      all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
+      if (hasChakraTable) {
+        all.push(...buildChakraAnalysisTables(chakraVals!));
+      } else if (imgBuf) {
         fullLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
-        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-      } else {
-        all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-        all.push(h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-        all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
-        if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-        else all.push(muted("Analiz notu girilmemiş."));
-        if (i < analyses.length - 1) all.push(spacer());
       }
+      if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
+      else if (!hasChakraTable && !imgBuf) all.push(muted("Analiz notu girilmemiş."));
+      if (i < analyses.length - 1) all.push(spacer());
     });
   }
 
