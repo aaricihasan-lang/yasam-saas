@@ -4,12 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
-import { ArrowLeft, ListFilter, UserPlus, UsersRound } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpDown,
+  CalendarCheck,
+  ListFilter,
+  Phone,
+  UserPlus,
+  UsersRound,
+} from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
   id: string;
   ad: string | null;
@@ -20,6 +29,7 @@ type Client = {
   burc: string | null;
   kan: string | null;
   mizac: string | null;
+  created_at: string;
 };
 
 type HomeworkAlert = {
@@ -29,6 +39,17 @@ type HomeworkAlert = {
   alert_dismissed_at?: string | null;
 };
 
+type SortKey =
+  | "newest"
+  | "oldest"
+  | "name-az"
+  | "name-za"
+  | "gorusme-new"
+  | "gorusme-old";
+
+type AktifDurum = "aktif" | "takip" | "pasif" | "notr";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function todayForInput() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -40,6 +61,37 @@ function formatDateTR(date: string | null) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
+function goreleSure(date: string | null): string {
+  if (!date) return "";
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  if (diff < 1)   return "bugün";
+  if (diff < 7)   return `${diff} gün önce`;
+  if (diff < 30)  return `${Math.floor(diff / 7)} hafta önce`;
+  if (diff < 365) return `${Math.floor(diff / 30)} ay önce`;
+  return `${Math.floor(diff / 365)} yıl önce`;
+}
+
+function calcAktifDurum(gorusme: string | null): AktifDurum {
+  if (!gorusme) return "notr";
+  const diff = Math.floor((Date.now() - new Date(gorusme).getTime()) / 86400000);
+  if (diff <= 30)  return "aktif";
+  if (diff <= 90)  return "takip";
+  return "pasif";
+}
+
+const DURUM_META: Record<AktifDurum, { label: string; cls: string }> = {
+  aktif: { label: "Aktif", cls: "bg-emerald-100 text-emerald-700" },
+  takip: { label: "Takip", cls: "bg-amber-100 text-amber-700" },
+  pasif: { label: "Pasif", cls: "bg-red-100 text-red-600" },
+  notr:  { label: "",      cls: "" },
+};
+
+function clientInitials(ad: string | null, soyad: string | null): string {
+  const a = (ad?.trim() ?? "").toLocaleUpperCase("tr-TR");
+  const s = (soyad?.trim() ?? "").toLocaleUpperCase("tr-TR");
+  return `${a[0] ?? ""}${s[0] ?? ""}` || "?";
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col gap-2">
@@ -49,6 +101,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DanisanListePage() {
   const router = useRouter();
   useBfcacheRefresh();
@@ -64,6 +117,7 @@ export default function DanisanListePage() {
   const [filterBurc, setFilterBurc] = useState("");
   const [filterKan, setFilterKan] = useState("");
   const [filterMizac, setFilterMizac] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
 
   // Toplu seçim ve Word export
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
@@ -79,7 +133,7 @@ export default function DanisanListePage() {
 
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return clients.filter((c) => {
+    const filtered = clients.filter((c) => {
       const fullName = `${c.ad || ""} ${c.soyad || ""}`.toLowerCase();
       const phone = (c.telefon || "").toLowerCase();
       const searchOk = !q || fullName.includes(q) || phone.includes(q);
@@ -88,7 +142,24 @@ export default function DanisanListePage() {
       const mizacOk = !filterMizac || c.mizac === filterMizac;
       return searchOk && burcOk && kanOk && mizacOk;
     });
-  }, [clients, search, filterBurc, filterKan, filterMizac]);
+
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "name-az":
+          return `${a.ad ?? ""} ${a.soyad ?? ""}`.localeCompare(`${b.ad ?? ""} ${b.soyad ?? ""}`, "tr-TR");
+        case "name-za":
+          return `${b.ad ?? ""} ${b.soyad ?? ""}`.localeCompare(`${a.ad ?? ""} ${a.soyad ?? ""}`, "tr-TR");
+        case "oldest":
+          return a.created_at.localeCompare(b.created_at);
+        case "gorusme-new":
+          return (b.gorusme ?? "").localeCompare(a.gorusme ?? "");
+        case "gorusme-old":
+          return (a.gorusme ?? "").localeCompare(b.gorusme ?? "");
+        default: // "newest"
+          return b.created_at.localeCompare(a.created_at);
+      }
+    });
+  }, [clients, search, filterBurc, filterKan, filterMizac, sortBy]);
 
   const hasActiveFilter = Boolean(search.trim() || filterBurc || filterKan || filterMizac);
 
@@ -346,6 +417,23 @@ export default function DanisanListePage() {
                 <span className="ml-2 text-base font-bold text-slate-400">({filteredClients.length})</span>
               )}
             </h2>
+
+            {/* Sort selector */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="newest">En Yeni Kayıt</option>
+                <option value="oldest">En Eski Kayıt</option>
+                <option value="name-az">Ad A → Z</option>
+                <option value="name-za">Ad Z → A</option>
+                <option value="gorusme-new">Görüşme (Yeni)</option>
+                <option value="gorusme-old">Görüşme (Eski)</option>
+              </select>
+            </div>
           </div>
 
           {/* Toplu işlem / Word export çubuğu */}
@@ -389,28 +477,31 @@ export default function DanisanListePage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredClients.map((client) => {
-                const expiredCount = homeworkAlerts[client.id] || 0;
-                const hasExpiredHomework = expiredCount > 0;
-                const isSelected = selectedClientIds.has(client.id);
+                const expiredCount   = homeworkAlerts[client.id] || 0;
+                const hasExpiredHw   = expiredCount > 0;
+                const isSelected     = selectedClientIds.has(client.id);
+                const durum          = DURUM_META[calcAktifDurum(client.gorusme)];
+                const initText       = clientInitials(client.ad, client.soyad);
+                const gorceleSureStr = goreleSure(client.gorusme);
 
                 return (
                   <div
                     key={client.id}
-                    className={`group relative cursor-pointer rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
+                    className={`group relative cursor-pointer rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
                       isSelected ? "ring-2 ring-blue-400 ring-offset-1" : ""
                     }`}
                     style={{
-                      borderColor: isSelected ? "#60a5fa" : hasExpiredHomework ? "#fecaca" : "#e2e8f0",
+                      borderColor: isSelected ? "#60a5fa" : hasExpiredHw ? "#fecaca" : "#e2e8f0",
                       background: isSelected
                         ? "linear-gradient(135deg,#eff6ff,#eef2ff)"
-                        : hasExpiredHomework
+                        : hasExpiredHw
                           ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
                           : "white",
                     }}
                     onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                     title="Danışan detayını aç"
                   >
-                    {/* Checkbox — tıklamayı durdurur, sadece seçim yapar */}
+                    {/* Checkbox */}
                     <label
                       className="absolute right-3 top-3 z-10 flex h-6 w-6 cursor-pointer items-center justify-center"
                       onClick={(e) => e.stopPropagation()}
@@ -423,28 +514,49 @@ export default function DanisanListePage() {
                       />
                     </label>
 
-                    <div className="mb-3 flex items-start justify-between gap-2 pr-7">
-                      <span className="text-lg font-black leading-tight text-slate-900">
-                        {client.ad} {client.soyad}
-                      </span>
-                      {hasExpiredHomework && (
-                        <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
-                          ⚠️ {expiredCount} ödev
+                    {/* Avatar + İsim + Durum */}
+                    <div className="mb-3 flex items-start gap-3 pr-7">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-[13px] font-black text-white shadow-sm">
+                        {initText}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start gap-1.5">
+                          <span className="truncate text-[15px] font-black leading-tight text-slate-900">
+                            {client.ad} {client.soyad}
+                          </span>
+                          {hasExpiredHw && (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                              ⚠ {expiredCount} ödev
+                            </span>
+                          )}
+                        </div>
+                        {durum.label && (
+                          <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black ${durum.cls}`}>
+                            {durum.label}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Veri satırları */}
+                    <div className="space-y-1.5 text-[12px] text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
+                        <span className="truncate">{client.telefon || "Telefon yok"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
+                        <span className="truncate">
+                          {client.gorusme
+                            ? `${formatDateTR(client.gorusme)}${gorceleSureStr ? ` · ${gorceleSureStr}` : ""}`
+                            : "Görüşme tarihi yok"}
                         </span>
-                      )}
+                      </div>
                     </div>
 
-                    <div className="space-y-1 text-[13px] text-slate-500">
-                      <p>📞 {client.telefon || "Telefon yok"}</p>
-                      <p>🎂 {formatDateTR(client.dogum) || "Doğum tarihi yok"}</p>
-                      <p>🗓️ {formatDateTR(client.gorusme) || "Görüşme tarihi yok"}</p>
-                      <p>♈ {client.burc || "Burç yok"}</p>
-                      <p>🩸 {client.kan || "Kan grubu yok"}</p>
-                      <p>🌿 {client.mizac || "Mizaç yok"}</p>
-                    </div>
-
-                    <div className="mt-4 flex justify-end">
-                      <span className="rounded-full bg-sky-100 px-3.5 py-1.5 text-xs font-bold text-sky-700 transition-all group-hover:bg-sky-200">
+                    {/* Footer */}
+                    <div className="mt-3 flex justify-end">
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold text-sky-700 transition-all group-hover:bg-sky-200">
                         Detay →
                       </span>
                     </div>
