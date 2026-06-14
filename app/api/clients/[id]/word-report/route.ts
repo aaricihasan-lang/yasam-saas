@@ -1237,7 +1237,6 @@ export async function POST(
   all.push(...buildTOCPage());
 
   // ── 1. Danışan Temel Bilgileri
-  all.push(...buildSectionDivider("◈  DANIŞAN BİLGİLERİ", "Temel Kimlik ve Profil Bilgileri", C.danisan));
   all.push(h1Colored("1. Danışan Temel Bilgileri", C.danisan, true));
   all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
   all.push(twoColTable([
@@ -1252,7 +1251,6 @@ export async function POST(
   ]));
 
   // ── 2. Genel Bilgiler
-  all.push(...buildSectionDivider("✎  GENEL BİLGİLER", "Sağlık Notu, Adres ve Öneriler", C.notlar));
   all.push(h1Colored("2. Genel Bilgiler", C.notlar, true));
 
   all.push(h2("Sağlık Notu"));
@@ -1268,7 +1266,6 @@ export async function POST(
   all.push(notes?.notlar?.trim() ? bodyText(notes.notlar.trim()) : muted("Bilgi girilmemiş."));
 
   // ── 3. Randevular
-  all.push(...buildSectionDivider(`◷  RANDEVULAR  (${counts.randevular})`, "Danışana Ait Tüm Randevular", C.randevular));
   all.push(h1Colored("3. Randevular", C.randevular, true));
   all.push(muted(`Toplam ${counts.randevular} randevu kaydı`));
 
@@ -1288,7 +1285,6 @@ export async function POST(
   }
 
   // ── 4. Taş Önerileri
-  all.push(...buildSectionDivider(`◆  TAŞ ÖNERİLERİ  (${counts.taslar})`, "Danışana Atanmış Doğaltaşlar", C.taslar));
   all.push(h1Colored("4. Taş Önerileri / Atanmış Taşlar", C.taslar, true));
   all.push(muted(`Toplam ${counts.taslar} taş kaydı`));
 
@@ -1313,7 +1309,6 @@ export async function POST(
   }
 
   // ── 5. Seanslar
-  all.push(...buildSectionDivider(`◎  SEANSLAR  (${counts.seanslar})`, "Danışan Seans Geçmişi", C.seanslar));
   all.push(h1Colored("5. Seanslar", C.seanslar, true));
   all.push(muted(`Toplam ${counts.seanslar} seans kaydı`));
 
@@ -1348,7 +1343,6 @@ export async function POST(
   }
 
   // ── 6. Ödevler
-  all.push(...buildSectionDivider(`▣  ÖDEVLER  (${counts.odevler})`, "Danışana Verilen Ödevler", C.odevler));
   all.push(h1Colored("6. Ödevler", C.odevler, true));
   all.push(muted(`Toplam ${counts.odevler} ödev kaydı`));
 
@@ -1372,7 +1366,6 @@ export async function POST(
   }
 
   // ── 7. Analizler
-  all.push(...buildSectionDivider(`◉  ANALİZLER  (${counts.analizler})`, "Danışana Ait Analiz Kayıtları", C.analizler));
   all.push(h1Colored("7. Analizler", C.analizler, true));
   all.push(muted(`Toplam ${counts.analizler} analiz kaydı`));
 
@@ -1390,7 +1383,6 @@ export async function POST(
   }
 
   // ── 8. Danışan Yolculuğu
-  all.push(...buildSectionDivider("✦  DANIŞAN YOLCULUĞU", "İstatistikler, Numeroloji ve Kronolojik Takip", C.yolculuk));
   all.push(h1Colored("8. Danışan Yolculuğu", C.yolculuk, true));
 
   // 8.1 Yolculuk İstatistikleri
