@@ -134,6 +134,11 @@ export default function ClientDetailPage() {
   const [editKan, setEditKan] = useState("");
   const [editMizac, setEditMizac] = useState("");
   const [savingAll, setSavingAll] = useState(false);
+  const [isEditingGeneral, setIsEditingGeneral] = useState(false);
+  const [generalSnap, setGeneralSnap] = useState<{
+    ad: string; soyad: string; telefon: string; dogum: string;
+    kan: string; mizac: string; saglikNotu: string; adres: string; oneriler: string;
+  } | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [tabWordBusy, setTabWordBusy] = useState(false);
   const [drStart, setDrStart] = useState("");
@@ -220,6 +225,29 @@ export default function ClientDetailPage() {
     if (notesData?.id) setNoteId(notesData.id);
     showToast({ title: "Başarılı", message: "Değişiklikler kaydedildi.", type: "success" });
     setSavingAll(false);
+    setIsEditingGeneral(false);
+    setGeneralSnap(null);
+  }
+
+  function enterGeneralEdit() {
+    setGeneralSnap({ ad: editAd, soyad: editSoyad, telefon: editTelefon, dogum: editDogum, kan: editKan, mizac: editMizac, saglikNotu, adres, oneriler });
+    setIsEditingGeneral(true);
+  }
+
+  function cancelGeneralEdit() {
+    if (generalSnap) {
+      setEditAd(generalSnap.ad);
+      setEditSoyad(generalSnap.soyad);
+      setEditTelefon(generalSnap.telefon);
+      setEditDogum(generalSnap.dogum);
+      setEditKan(generalSnap.kan);
+      setEditMizac(generalSnap.mizac);
+      setSaglikNotu(generalSnap.saglikNotu);
+      setAdres(generalSnap.adres);
+      setOneriler(generalSnap.oneriler);
+    }
+    setIsEditingGeneral(false);
+    setGeneralSnap(null);
   }
 
   async function saveClientNotes() {
@@ -478,81 +506,117 @@ export default function ClientDetailPage() {
         {/* Tab content area */}
         <div className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
 
-          {activeTab === "genel" && (
-            <>
-              <div className="mb-2.5">
-                <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Genel Bilgiler Word"}
-                </button>
-              </div>
+          {activeTab === "genel" && (() => {
+              // Salt okunur mod sınıfları
+              const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 text-slate-800 cursor-default select-text";
+              const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[12px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
+              const fldCls   = isEditingGeneral ? inputCls    : roCls;
+              const areaCls  = isEditingGeneral ? textareaCls : roAreaCls;
+              return (
+                <>
+                  <div className="mb-2.5">
+                    <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
+                      {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Genel Bilgiler Word"}
+                    </button>
+                  </div>
 
-              <div className="mb-2.5">
-                <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1.5 text-[11px] font-black text-blue-700">Genel Bilgiler</span>
-                <h2 className="mt-2 text-[22px] font-black text-slate-950">Danışan Bilgilerini Düzenle</h2>
-              </div>
+                  {/* Başlık + düzenle/vazgeç butonu */}
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1.5 text-[11px] font-black text-blue-700">Genel Bilgiler</span>
+                      <h2 className="mt-2 text-[22px] font-black text-slate-950">
+                        {isEditingGeneral ? "Danışan Bilgilerini Düzenle" : "Danışan Bilgileri"}
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isEditingGeneral ? (
+                        <button
+                          onClick={enterGeneralEdit}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100"
+                        >
+                          ✎ Bilgileri Güncelle
+                        </button>
+                      ) : (
+                        <button
+                          onClick={cancelGeneralEdit}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50"
+                        >
+                          ✕ Vazgeç
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="mb-1 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
-                <div>
-                  <label className={labelCls}>Ad</label>
-                  <input value={editAd} onChange={(e) => setEditAd(e.target.value)} className={inputCls} placeholder="Ad" />
-                </div>
-                <div>
-                  <label className={labelCls}>Soyad</label>
-                  <input value={editSoyad} onChange={(e) => setEditSoyad(e.target.value)} className={inputCls} placeholder="Soyad" />
-                </div>
-                <div>
-                  <label className={labelCls}>Telefon</label>
-                  <input value={editTelefon} onChange={(e) => setEditTelefon(e.target.value)} className={inputCls} placeholder="05xx xxx xx xx" />
-                </div>
-                <div>
-                  <label className={labelCls}>Doğum Tarihi</label>
-                  <BirthDateInput value={editDogum} onChange={setEditDogum} className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Kan Grubu</label>
-                  <select value={editKan} onChange={(e) => setEditKan(e.target.value)} className={inputCls}>
-                    <option value="">Seçiniz</option>
-                    <option>A Rh+</option><option>A Rh-</option>
-                    <option>B Rh+</option><option>B Rh-</option>
-                    <option>AB Rh+</option><option>AB Rh-</option>
-                    <option>0 Rh+</option><option>0 Rh-</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Mizaç</label>
-                  <select value={editMizac} onChange={(e) => setEditMizac(e.target.value)} className={inputCls}>
-                    <option value="">Seçiniz</option>
-                    <option value="safra">Safra</option>
-                    <option value="sovdavi">Sovdavi</option>
-                    <option value="dem">Dem</option>
-                    <option value="balgam">Balgam</option>
-                  </select>
-                </div>
-              </div>
+                  {/* Bilgi alanları */}
+                  <div className="mb-1 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+                    <div>
+                      <label className={labelCls}>Ad</label>
+                      <input readOnly={!isEditingGeneral} value={editAd} onChange={(e) => setEditAd(e.target.value)} className={fldCls} placeholder="Ad" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Soyad</label>
+                      <input readOnly={!isEditingGeneral} value={editSoyad} onChange={(e) => setEditSoyad(e.target.value)} className={fldCls} placeholder="Soyad" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Telefon</label>
+                      <input readOnly={!isEditingGeneral} value={editTelefon} onChange={(e) => setEditTelefon(e.target.value)} className={fldCls} placeholder="05xx xxx xx xx" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Doğum Tarihi</label>
+                      <BirthDateInput value={editDogum} onChange={isEditingGeneral ? setEditDogum : () => {}} className={fldCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Kan Grubu</label>
+                      <select disabled={!isEditingGeneral} value={editKan} onChange={(e) => setEditKan(e.target.value)} className={`${fldCls} disabled:opacity-100`}>
+                        <option value="">Seçiniz</option>
+                        <option>A Rh+</option><option>A Rh-</option>
+                        <option>B Rh+</option><option>B Rh-</option>
+                        <option>AB Rh+</option><option>AB Rh-</option>
+                        <option>0 Rh+</option><option>0 Rh-</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Mizaç</label>
+                      <select disabled={!isEditingGeneral} value={editMizac} onChange={(e) => setEditMizac(e.target.value)} className={`${fldCls} disabled:opacity-100`}>
+                        <option value="">Seçiniz</option>
+                        <option value="safra">Safra</option>
+                        <option value="sovdavi">Sovdavi</option>
+                        <option value="dem">Dem</option>
+                        <option value="balgam">Balgam</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="mt-4 flex flex-col gap-3.5">
-                <div>
-                  <label className={labelCls}>Sağlık Notu</label>
-                  <textarea value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={textareaCls} placeholder="Danışanın sağlık notları..." />
-                </div>
-                <div>
-                  <label className={labelCls}>Adres</label>
-                  <textarea value={adres} onChange={(e) => setAdres(e.target.value)} className={textareaCls} placeholder="Adres bilgisi..." />
-                </div>
-                <div>
-                  <label className={labelCls}>Öneriler</label>
-                  <textarea value={oneriler} onChange={(e) => setOneriler(e.target.value)} className={textareaCls} placeholder="Danışana verilen genel öneriler..." />
-                </div>
-                <div className="border-t border-slate-200 pt-4">
-                  <button onClick={saveAllGeneralInfo} disabled={savingAll} className="btn-primary disabled:opacity-70">
-                    {savingAll ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
-                  </button>
-                </div>
-              </div>
+                  <div className="mt-4 flex flex-col gap-3.5">
+                    <div>
+                      <label className={labelCls}>Sağlık Notu</label>
+                      <textarea readOnly={!isEditingGeneral} value={saglikNotu} onChange={(e) => setSaglikNotu(e.target.value)} className={areaCls} placeholder="Danışanın sağlık notları..." />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Adres</label>
+                      <textarea readOnly={!isEditingGeneral} value={adres} onChange={(e) => setAdres(e.target.value)} className={areaCls} placeholder="Adres bilgisi..." />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Öneriler</label>
+                      <textarea readOnly={!isEditingGeneral} value={oneriler} onChange={(e) => setOneriler(e.target.value)} className={areaCls} placeholder="Danışana verilen genel öneriler..." />
+                    </div>
+                    {isEditingGeneral && (
+                      <div className="flex items-center gap-3 border-t border-slate-200 pt-4">
+                        <button onClick={saveAllGeneralInfo} disabled={savingAll} className="btn-primary disabled:opacity-70">
+                          {savingAll ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
+                        </button>
+                        <button onClick={cancelGeneralEdit} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50">
+                          Vazgeç
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-              <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
-            </>
-          )}
+                  <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
+                </>
+              );
+            })()
+          }
 
           {activeTab === "notlar" && (
             <>
