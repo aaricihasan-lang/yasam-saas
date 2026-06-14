@@ -20,6 +20,8 @@ import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
+import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
+import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -1028,8 +1030,16 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
 }
 
 // ─── NumerolojikOzetKart ──────────────────────────────────────────────────────
-// Danışan doğum tarihi varsa Genel Bilgiler sekmesinde anlık numeroloji özeti.
+// Genel Bilgiler sekmesinde anlık numeroloji özeti.
 // Saf hesaplama — DB çağrısı yok, hata olursa sessizce "—" gösterir.
+
+const ELEMENT_META: Record<string, { color: string; bg: string }> = {
+  Hava:   { color: "#0284c7", bg: "#e0f2fe" },
+  Su:     { color: "#1d4ed8", bg: "#dbeafe" },
+  Ateş:   { color: "#c2410c", bg: "#ffedd5" },
+  Toprak: { color: "#92400e", bg: "#fef3c7" },
+};
+
 function NumerolojikOzetKart({
   ad, soyad, dogum,
 }: {
@@ -1043,21 +1053,22 @@ function NumerolojikOzetKart({
   const lastName  = soyad.trim();
   const hasName   = Boolean(firstName || lastName);
 
-  let hayatYolu    = "—";
-  let kaderSayisi  = "—";
-  let ruhSayisi    = "—";
+  // ── 5 temel sayı ──────────────────────────────────────────────────────────
+  let hayatYolu     = "—";
+  let kaderSayisi   = "—";
+  let ruhSayisi     = "—";
   let kisilikSayisi = "—";
-  let kisiselYil   = "—";
+  let kisiselYil    = "—";
 
-  try { hayatYolu   = calcHayatYolu(dogum).display; }   catch { /* sessiz */ }
-  try { kisiselYil  = calcKisiselYil(dogum).display; }  catch { /* sessiz */ }
+  try { hayatYolu   = calcHayatYolu(dogum).display; }  catch { /* sessiz */ }
+  try { kisiselYil  = calcKisiselYil(dogum).display; } catch { /* sessiz */ }
   if (hasName) {
-    try { kaderSayisi  = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
-    try { ruhSayisi    = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
-    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }  catch { /* sessiz */ }
+    try { kaderSayisi   = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
+    try { ruhSayisi     = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
+    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
   }
 
-  const items = [
+  const coreItems = [
     { label: "Yaşam Yolu",     value: hayatYolu,     color: "#7c3aed" },
     { label: "Kader Sayısı",   value: kaderSayisi,   color: "#2563eb" },
     { label: "Ruh Sayısı",     value: ruhSayisi,     color: "#16a34a" },
@@ -1065,8 +1076,37 @@ function NumerolojikOzetKart({
     { label: "Kişisel Yıl",   value: kisiselYil,    color: "#ea580c" },
   ];
 
+  // ── Element dağılımı — parseBirthDate DD.MM.YYYY ister ───────────────────
+  const dogumTR = isoToDDMMYYYY(dogum);
+
+  let elementCounts: Partial<Record<string, number>> = {};
+  let dominantElement = "";
+  if (dogumTR) {
+    try {
+      const res = calcElementleri(dogumTR);
+      ELEMENT_ORDER.forEach((e) => { elementCounts[e] = res.counts[e] ?? 0; });
+      dominantElement = res.key || "";
+    } catch { /* sessiz */ }
+  }
+  const hasElements = Object.keys(elementCounts).length > 0;
+
+  // ── En yakın zirve yaşı ───────────────────────────────────────────────────
+  let nearestPeakLabel = "";
+  if (dogumTR) {
+    try {
+      const zirve = calcZirveYillari(dogumTR);
+      if (zirve && zirve.peaks.length > 0) {
+        // Yaşını bilmesek de tüm zirveleri göster — birincisini al
+        const p = zirve.peaks[0];
+        nearestPeakLabel = `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`;
+        // Varsa sonraki zirveleri de kontrol et — en küçük yaşlı birincisi zaten
+      }
+    } catch { /* sessiz */ }
+  }
+
   return (
     <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4">
+      {/* Başlık */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-base text-violet-500">∞</span>
         <span className="text-[13px] font-black text-violet-900">Numeroloji Özeti</span>
@@ -1079,8 +1119,10 @@ function NumerolojikOzetKart({
           </span>
         )}
       </div>
+
+      {/* 5 temel sayı */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {items.map(({ label, value, color }) => (
+        {coreItems.map(({ label, value, color }) => (
           <div
             key={label}
             className="flex flex-col items-center rounded-xl border border-white/70 bg-white px-2 py-3 shadow-sm"
@@ -1095,7 +1137,39 @@ function NumerolojikOzetKart({
         ))}
       </div>
 
-      {/* Deeplink — dogum zorunlu, ad/soyad opsiyonel */}
+      {/* Element dağılımı */}
+      {hasElements && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
+          <span className="text-[10px] font-black text-slate-500">Element:</span>
+          {ELEMENT_ORDER.map((name) => {
+            const meta = ELEMENT_META[name];
+            return (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold"
+                style={{ background: meta.bg, color: meta.color }}
+              >
+                {name} <strong>{elementCounts[name] ?? 0}</strong>
+              </span>
+            );
+          })}
+          {dominantElement && (
+            <span className="ml-auto text-[10px] font-bold text-slate-400">
+              baskın: {dominantElement}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* En yakın zirve */}
+      {nearestPeakLabel && (
+        <div className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
+          <span className="text-[10px] font-black text-slate-500">Zirve:</span>
+          <span className="text-[11px] font-black text-indigo-700">{nearestPeakLabel}</span>
+        </div>
+      )}
+
+      {/* Deeplink */}
       <div className="mt-3 flex justify-end">
         <Link
           href={buildAnalizHref(dogum, firstName, lastName)}
@@ -1110,8 +1184,15 @@ function NumerolojikOzetKart({
 
 function buildAnalizHref(dogum: string, ad: string, soyad: string): string {
   const p = new URLSearchParams();
-  if (dogum) p.set("dogum", dogum);   // ISO YYYY-MM-DD
+  if (dogum) p.set("dogum", dogum);
   if (ad)    p.set("ad",   ad);
   if (soyad) p.set("soyad", soyad);
   return `/numeroloji/analiz?${p.toString()}`;
+}
+
+/** ISO "YYYY-MM-DD" → "DD.MM.YYYY" — parseBirthDate kullanan motor fonksiyonları için */
+function isoToDDMMYYYY(iso: string): string {
+  const p = iso.split("-");
+  if (p.length !== 3 || p[0].length !== 4) return "";
+  return `${p[2]}.${p[1]}.${p[0]}`;
 }
