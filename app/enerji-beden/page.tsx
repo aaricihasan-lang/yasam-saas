@@ -27,12 +27,23 @@ const energyFolders = [
     title: "Aromaterapi",
     desc: "Uçucu yağlar, sabit yağlar ve karışımlar",
     href: "/aromaterapi",
-    icon: "🌿",
+    icon: "🌸",
     badge: "Koku & Yağ",
     gradient: "from-orange-100 to-yellow-50",
     border: "border-orange-200/70",
     accent: "text-orange-900",
     button: "bg-orange-800/90 text-white hover:bg-orange-900",
+  },
+  {
+    title: "Şifa Rehberi",
+    desc: "Rahatsızlık kayıtları, belirtiler ve destekleyici öneriler",
+    href: "/sifa-rehberi",
+    icon: "🌿",
+    badge: "Şifa",
+    gradient: "from-green-100 to-teal-50",
+    border: "border-green-200/70",
+    accent: "text-green-900",
+    button: "bg-green-800/90 text-white hover:bg-green-900",
   },
 ] as const;
 
@@ -57,7 +68,7 @@ export default function EnerjiBedenPage() {
             Enerji &amp; Beden
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
-            Biyoenerji, Refleksoloji ve Aromaterapi çalışma alanları
+            Biyoenerji, Refleksoloji, Aromaterapi ve Şifa Rehberi çalışma alanları
           </p>
           <div
             className="mx-auto mt-4 h-1 w-full max-w-sm rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent"
@@ -65,7 +76,7 @@ export default function EnerjiBedenPage() {
           />
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-5 pb-2 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-5 pb-2 sm:grid-cols-2 xl:grid-cols-4">
           {energyFolders.map((folder) => (
             <Link
               key={folder.title}
