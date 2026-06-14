@@ -9,6 +9,7 @@ import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
 import { odevDurumLabel, odevDurumColor } from "@/lib/odevStatus";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ type HomeworkProcess = {
   total: number;
   tamamlanan: number;
   devamEden: number;
+  gecikti: number;
   yuzde: number;
   sonOdevTarihi: string | null;
   aktifOdevBaslik: string | null;
@@ -111,17 +113,18 @@ type MenuItem = {
   icon: string;
   color: string;
   tabId: string | null;
+  typeFilter: string | null; // null = tüm kayıtlar; string = o tipe filtrele
 };
 
 const menuItems: MenuItem[] = [
-  { id: "genel",        label: "Genel Bilgiler", icon: "◈", color: "#2563eb", tabId: "genel"      },
-  { id: "numeroloji",   label: "Numeroloji",     icon: "∞", color: "#7c3aed", tabId: null         },
-  { id: "dogaltas",     label: "Doğaltaş",       icon: "◆", color: "#0891b2", tabId: "taslar"    },
-  { id: "refleksoloji", label: "Refleksoloji",   icon: "◎", color: "#db2777", tabId: null         },
-  { id: "biyoenerji",   label: "Biyoenerji",     icon: "⚡", color: "#ea580c", tabId: null         },
-  { id: "notlar",       label: "Notlar",          icon: "✎", color: "#6d28d9", tabId: "notlar"    },
-  { id: "randevular",   label: "Randevular",     icon: "◷", color: "#16a34a", tabId: "randevular" },
-  { id: "dosyalar",     label: "Dosyalar",        icon: "▣", color: "#475569", tabId: null         },
+  { id: "genel",        label: "Genel Bilgiler", icon: "◈", color: "#2563eb", tabId: "genel",      typeFilter: null            },
+  { id: "numeroloji",   label: "Numeroloji",     icon: "∞", color: "#7c3aed", tabId: null,         typeFilter: "numeroloji"    },
+  { id: "dogaltas",     label: "Doğaltaş",       icon: "◆", color: "#0891b2", tabId: "taslar",     typeFilter: "dogaltas"      },
+  { id: "refleksoloji", label: "Refleksoloji",   icon: "◎", color: "#db2777", tabId: null,         typeFilter: "refleksoloji"  },
+  { id: "biyoenerji",   label: "Biyoenerji",     icon: "⚡", color: "#ea580c", tabId: null,         typeFilter: "biyoenerji"    },
+  { id: "notlar",       label: "Notlar",          icon: "✎", color: "#6d28d9", tabId: "notlar",     typeFilter: "not"           },
+  { id: "randevular",   label: "Randevular",     icon: "◷", color: "#16a34a", tabId: "randevular", typeFilter: "randevu"       },
+  { id: "dosyalar",     label: "Dosyalar",        icon: "▣", color: "#475569", tabId: null,         typeFilter: null            },
 ];
 
 // ─── Tip → görsel eşleşmesi ──────────────────────────────────────────────────
@@ -213,8 +216,11 @@ function buildAlerts({
   if (!sessionProcess.yaklasanRandevu)
     alerts.push({ id: "no-upcoming", message: "Yaklaşan randevu yok", category: "takip" });
 
+  if (homeworkProcess.gecikti > 0)
+    alerts.push({ id: "hw-gecikti", message: `${homeworkProcess.gecikti} geciken ödev var`, category: "kritik" });
+
   if (homeworkProcess.devamEden > 0)
-    alerts.push({ id: "hw-pending", message: `${homeworkProcess.devamEden} tamamlanmamış ödev var`, category: "takip" });
+    alerts.push({ id: "hw-pending", message: `${homeworkProcess.devamEden} devam eden ödev var`, category: "takip" });
 
   if (counts.taslar === 0)
     alerts.push({ id: "no-tas", message: "Hiç taş önerisi girilmemiş", category: "takip" });
@@ -233,6 +239,9 @@ function buildAlerts({
 
   if (counts.seanslar === 0 && counts.randevular === 0)
     alerts.push({ id: "new-client", message: "Danışan yeni kayıt — süreç henüz başlamamış", category: "bilgi" });
+
+  if (sessionProcess.yaklasanRandevu)
+    alerts.push({ id: "upcoming-ok", message: `Yaklaşan randevu: ${sessionProcess.yaklasanRandevu}`, category: "olumlu" });
 
   const hasProblem = alerts.some((a) => a.category === "kritik" || a.category === "takip");
   if (!hasProblem) {
@@ -410,18 +419,31 @@ function LifeScoreCard(props: LifeScoreProps) {
         </div>
       </div>
 
-      {/* Eksik bilgiler */}
-      {missing.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="mb-0.5 text-[11px] font-black tracking-wide text-amber-900">Eksik Bilgiler</p>
-          {missing.map((m) => (
-            <div key={m} className="flex items-center gap-1.5 text-[11px] font-extrabold text-amber-700">
-              <span className="text-amber-500">⚠</span>
-              <span>{m}</span>
-            </div>
-          ))}
-        </div>
-      )}
+    </div>
+  );
+}
+
+// ─── EksikAlanlarCard ─────────────────────────────────────────────────────────
+function EksikAlanlarCard(props: LifeScoreProps) {
+  const missing = SCORE_CRITERIA.filter((c) => !props[c.key]).map((c) => c.missingLabel);
+  if (missing.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="text-base text-amber-500">⚠</span>
+        <span className="text-[14px] font-black tracking-tight text-amber-900">Eksik Alanlar</span>
+        <span className="ml-auto inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">
+          {missing.length} eksik
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {missing.map((m) => (
+          <div key={m} className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm">
+            <span className="flex-shrink-0 text-[11px] text-amber-400">⚠</span>
+            <span className="text-[11px] font-extrabold text-amber-800">{m}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -867,10 +889,43 @@ function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNod
                 );
               })}
             </div>
-            {d.elementler?.key && (
-              <span className="text-[11px] font-bold text-slate-500">
-                Baskın Element: <strong>{d.elementler.key}</strong>
-              </span>
+            <div className="flex flex-wrap gap-4">
+              {d.elementler?.key && (
+                <span className="text-[11px] font-bold text-slate-500">
+                  Baskın: <strong>{d.elementler.key}</strong>
+                </span>
+              )}
+              {d?.eksikElement?.length > 0 && (
+                <span className="text-[11px] font-bold text-slate-500">
+                  Eksik: <strong>{(d.eksikElement as string[]).join(", ")}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Güçlü / Eksik sayılar */}
+        {(d?.gucluSayilar?.length > 0 || d?.eksikSayilar?.length > 0) && (
+          <div className="grid grid-cols-2 gap-2">
+            {d?.gucluSayilar?.length > 0 && (
+              <div className="flex flex-col gap-1.5 rounded-xl border bg-slate-50 p-3">
+                <span className="text-[11px] font-black text-slate-500">Güçlü Sayılar</span>
+                <div className="flex flex-wrap gap-1">
+                  {(d.gucluSayilar as number[]).map(n => (
+                    <span key={n} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[12px] font-black text-emerald-700">{n}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {d?.eksikSayilar?.length > 0 && (
+              <div className="flex flex-col gap-1.5 rounded-xl border bg-slate-50 p-3">
+                <span className="text-[11px] font-black text-slate-500">Eksik Sayılar</span>
+                <div className="flex flex-wrap gap-1">
+                  {(d.eksikSayilar as number[]).map(n => (
+                    <span key={n} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-[12px] font-black text-red-600">{n}</span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1042,9 +1097,6 @@ function TimelineCard({
             >
               {entry.date}
             </div>
-            <span className="text-[10px] font-black" style={{ color: meta.color }}>
-              Oku →
-            </span>
           </div>
         </div>
         <div
@@ -1069,7 +1121,12 @@ export default function YolculukTab({
   clientDogum,
   onNavigate,
 }: YolculukTabProps) {
-  const [activeMenu, setActiveMenu] = useState("genel");
+  const INITIAL_COUNT = 5;
+  const LOAD_STEP     = 5;
+
+  const [activeMenu,    setActiveMenu]    = useState("genel");
+  const [activeFilter,  setActiveFilter]  = useState<string | null>(null);
+  const [displayCount,  setDisplayCount]  = useState(INITIAL_COUNT);
   const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(null);
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0, taslar: 0, odevler: 0 });
@@ -1088,6 +1145,7 @@ export default function YolculukTab({
     total: 0,
     tamamlanan: 0,
     devamEden: 0,
+    gecikti: 0,
     yuzde: 0,
     sonOdevTarihi: null,
     aktifOdevBaslik: null,
@@ -1221,9 +1279,25 @@ export default function YolculukTab({
             let elementler: any = null;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let zirve: any = null;
+            let gucluSayilar: number[] = [];
+            let eksikSayilar: number[] = [];
+            let eksikElement: string[] = [];
             if (dogumTR) {
               try { elementler = calcElementleri(dogumTR); } catch { /* sessiz */ }
               try { zirve = calcZirveYillari(dogumTR); }    catch { /* sessiz */ }
+              try {
+                const pin = hesaplaPinKodu(dogumTR);
+                const pinDigits = [pin.k1, pin.k2, pin.k3, pin.k4, pin.k5, pin.k6, pin.k7, pin.k8];
+                const freq: Record<number, number> = {};
+                for (const d of pinDigits) if (d >= 1 && d <= 9) freq[d] = (freq[d] ?? 0) + 1;
+                gucluSayilar = [1,2,3,4,5,6,7,8,9].filter(n => (freq[n] ?? 0) >= 2);
+                eksikSayilar = [1,2,3,4,5,6,7,8,9].filter(n => !(freq[n]));
+              } catch { /* sessiz */ }
+              if (elementler) {
+                eksikElement = (["Hava","Su","Ateş","Toprak"] as const).filter(
+                  e => (elementler.counts[e] ?? 0) === 0
+                );
+              }
             }
 
             const descParts: string[] = [
@@ -1244,7 +1318,7 @@ export default function YolculukTab({
               date: isoToTR(now),
               dateRaw: now,
               badge: "Otomatik hesaplandı",
-              rawData: { hayatYolu, ifadeSayisi, anaKulvar, yanKulvar, kisiselYil, yas, elementler, zirve },
+              rawData: { hayatYolu, ifadeSayisi, anaKulvar, yanKulvar, kisiselYil, yas, elementler, zirve, gucluSayilar, eksikSayilar, eksikElement },
             });
           } catch {
             // numeroloji hatası sayfayı kırmasın
@@ -1326,6 +1400,7 @@ export default function YolculukTab({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const hwList = (homeworksRes.data ?? []) as any[];
         const hwTamamlanan = hwList.filter((h) => h.status === "tamamlandi");
+        const hwGecikti    = hwList.filter((h) => h.status === "gecikti");
         const hwDevam = hwList.filter((h) => h.status !== "tamamlandi");
         const hwTotal = hwList.length;
         const hwYuzde = hwTotal === 0 ? 0 : Math.round((hwTamamlanan.length / hwTotal) * 100);
@@ -1355,6 +1430,7 @@ export default function YolculukTab({
           total: hwTotal,
           tamamlanan: hwTamamlanan.length,
           devamEden: hwDevam.length,
+          gecikti: hwGecikti.length,
           yuzde: hwYuzde,
           sonOdevTarihi: hwSonTarih ? isoToTR(hwSonTarih) : null,
           aktifOdevBaslik: hwAktifBaslik,
@@ -1404,9 +1480,8 @@ export default function YolculukTab({
 
   function handleMenuClick(item: MenuItem) {
     setActiveMenu(item.id);
-    if (item.tabId && onNavigate) {
-      onNavigate(item.tabId);
-    }
+    setActiveFilter(item.typeFilter);
+    setDisplayCount(INITIAL_COUNT);
   }
 
   // Uyarıları bir kez hesapla — hem banner hem kart için
@@ -1414,6 +1489,25 @@ export default function YolculukTab({
     ? buildAlerts({ clientDogum, clientPhone, counts, sessionProcess, homeworkProcess, extraAlertData })
     : [];
   const kritikAlerts = currentAlerts.filter((a) => a.category === "kritik");
+
+  // Sayfa içi timeline filtresi + sayfalama
+  const filteredEntries = activeFilter
+    ? entries.filter((e) => e.type === activeFilter)
+    : entries;
+  const visibleEntries  = filteredEntries.slice(0, displayCount);
+  const remainingCount  = filteredEntries.length - displayCount;
+
+  // Yaşam skoru eksik listesi (LifeScoreCard ve EksikAlanlarCard paylaşıyor)
+  const scoreProps = {
+    hasDogum:    Boolean(clientDogum),
+    hasTelefon:  Boolean(clientPhone),
+    hasNot:      counts.notlar    > 0,
+    hasSeans:    counts.seanslar  > 0,
+    hasRandevu:  counts.randevular > 0,
+    hasAnaliz:   counts.analizler > 0,
+    hasTas:      counts.taslar    > 0,
+    hasOdev:     counts.odevler   > 0,
+  };
 
   return (
     <>
@@ -1443,16 +1537,8 @@ export default function YolculukTab({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <LifeScoreCard
-            hasDogum={Boolean(clientDogum)}
-            hasTelefon={Boolean(clientPhone)}
-            hasNot={counts.notlar > 0}
-            hasSeans={counts.seanslar > 0}
-            hasRandevu={counts.randevular > 0}
-            hasAnaliz={counts.analizler > 0}
-            hasTas={counts.taslar > 0}
-            hasOdev={counts.odevler > 0}
-          />
+          <LifeScoreCard {...scoreProps} />
+          <EksikAlanlarCard {...scoreProps} />
           <SeansCard process={sessionProcess} />
           <OdevCard process={homeworkProcess} />
           <AlertCard alerts={currentAlerts} />
@@ -1493,22 +1579,23 @@ export default function YolculukTab({
             </div>
           </div>
 
-          {/* Modül menüsü */}
+          {/* Modül menüsü — tüm öğeler timeline'ı filtreler */}
           <nav className="rounded-2xl border border-slate-200 bg-white py-2 shadow-sm">
             {menuItems.map((item) => {
-              const isActive = activeMenu === item.id;
-              const hasTab = Boolean(item.tabId && onNavigate);
+              const isActive   = activeMenu === item.id;
+              // Filtrelenemez öğeler: typeFilter null VE "genel" değil VE "dosyalar"
+              const isDisabled = item.typeFilter === null && item.id !== "genel";
+              const filterCount = item.typeFilter
+                ? entries.filter((e) => e.type === item.typeFilter).length
+                : null;
 
-              if (!hasTab) {
+              if (isDisabled) {
                 return (
                   <div
                     key={item.id}
                     className="flex w-full items-center gap-2.5 border-l-[3px] border-l-transparent px-3.5 py-2.5 text-[12px] font-extrabold text-slate-400"
                   >
-                    <span
-                      className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none"
-                      style={{ color: `${item.color}88` }}
-                    >
+                    <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: `${item.color}88` }}>
                       {item.icon}
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
@@ -1525,19 +1612,24 @@ export default function YolculukTab({
                   onClick={() => handleMenuClick(item)}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[12px] font-extrabold transition-colors"
                   style={{
-                    background: isActive ? `${item.color}12` : "transparent",
-                    borderLeft: isActive ? `3px solid ${item.color}` : "3px solid transparent",
-                    color: isActive ? item.color : "#475569",
+                    background:  isActive ? `${item.color}12` : "transparent",
+                    borderLeft:  isActive ? `3px solid ${item.color}` : "3px solid transparent",
+                    color:       isActive ? item.color : "#475569",
                   }}
                 >
-                  <span
-                    className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none"
-                    style={{ color: item.color, opacity: isActive ? 1 : 0.65 }}
-                  >
+                  <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: item.color, opacity: isActive ? 1 : 0.65 }}>
                     {item.icon}
                   </span>
                   <span className="flex-1 truncate">{item.label}</span>
-                  <span className="ml-auto text-[11px] opacity-50">→</span>
+                  {filterCount !== null && (
+                    <span
+                      className="ml-auto mr-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-black"
+                      style={{ background: `${item.color}18`, color: item.color }}
+                    >
+                      {filterCount}
+                    </span>
+                  )}
+                  {filterCount === null && <span className="ml-auto text-[11px] opacity-40">→</span>}
                 </button>
               );
             })}
@@ -1547,12 +1639,28 @@ export default function YolculukTab({
         {/* Timeline orta alan */}
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="mb-5">
-            <span className="mb-2 inline-flex items-center rounded-full bg-gradient-to-r from-violet-100 to-pink-100 px-3 py-1 text-[10px] font-black tracking-widest text-violet-700">
-              Yolculuk
-            </span>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-violet-100 to-pink-100 px-3 py-1 text-[10px] font-black tracking-widest text-violet-700">
+                Yolculuk
+              </span>
+              {activeFilter && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black"
+                  style={{ background: `${getMeta(activeFilter).color}15`, color: getMeta(activeFilter).color }}
+                >
+                  {getMeta(activeFilter).icon} {activeFilter} filtresi
+                  <button
+                    onClick={() => { setActiveFilter(null); setActiveMenu("genel"); setDisplayCount(INITIAL_COUNT); }}
+                    className="ml-1 opacity-60 hover:opacity-100"
+                  >✕</button>
+                </span>
+              )}
+            </div>
             <h2 className="mb-1 text-[20px] font-black tracking-tight text-slate-950">Son Çalışmalar</h2>
             <p className="text-[12px] font-bold text-slate-500">
-              Danışana ait tüm modül çalışmalarının kronolojik özeti
+              {activeFilter
+                ? `${filteredEntries.length} kayıt · ${activeFilter} filtresi aktif`
+                : "Danışana ait tüm modül çalışmalarının kronolojik özeti"}
             </p>
           </div>
 
@@ -1560,18 +1668,26 @@ export default function YolculukTab({
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-12">
               <div className="text-[15px] font-black text-slate-400">Yükleniyor...</div>
             </div>
-          ) : entries.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="flex flex-col">
-              {entries.map((entry, idx) => (
+              {visibleEntries.map((entry, idx) => (
                 <TimelineCard
                   key={entry.id}
                   entry={entry}
-                  isLast={idx === entries.length - 1}
+                  isLast={idx === visibleEntries.length - 1 && remainingCount <= 0}
                   onOpen={setSelectedEntry}
                 />
               ))}
+              {remainingCount > 0 && (
+                <button
+                  onClick={() => setDisplayCount((c) => Math.min(c + LOAD_STEP, filteredEntries.length))}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-3.5 text-[12px] font-black text-slate-500 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                >
+                  + {remainingCount} kayıt daha göster
+                </button>
+              )}
             </div>
           )}
         </main>
