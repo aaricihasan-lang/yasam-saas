@@ -43,27 +43,17 @@ type BioImaginationForm = {
 type DetailSectionTone = "violet" | "cyan" | "amber" | "emerald" | "slate";
 
 const SECTION_SHELL: Record<DetailSectionTone, { wrap: string; label: string }> = {
-  violet: {
-    wrap: "rounded-lg border border-violet-200/60 bg-violet-50/40 p-3 sm:p-4",
-    label: "text-violet-600",
-  },
-  cyan: {
-    wrap: "rounded-lg border border-cyan-200/60 bg-cyan-50/40 p-3 sm:p-4",
-    label: "text-cyan-600",
-  },
-  amber: {
-    wrap: "rounded-lg border border-amber-200/60 bg-amber-50/40 p-3 sm:p-4",
-    label: "text-amber-600",
-  },
-  emerald: {
-    wrap: "rounded-lg border border-emerald-200/60 bg-emerald-50/40 p-3 sm:p-4",
-    label: "text-emerald-600",
-  },
-  slate: {
-    wrap: "rounded-lg border border-slate-200/60 bg-slate-50/40 p-3 sm:p-4",
-    label: "text-slate-500",
-  },
+  violet:  { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-violet-400" },
+  cyan:    { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-cyan-400" },
+  amber:   { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-amber-400" },
+  emerald: { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-emerald-400" },
+  slate:   { wrap: "rounded-lg border border-slate-200/70 bg-white p-4", label: "text-slate-400" },
 };
+
+const tbBtn =
+  "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
+const tbBtnDanger =
+  "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
 
 function trimOrNull(v: string) {
   const t = v.trim();
@@ -118,7 +108,7 @@ function DetailContentCard({
 
   return (
     <article className={shell.wrap}>
-      <h2 className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${shell.label}`}>{title}</h2>
+      <h2 className={`mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${shell.label}`}>{title}</h2>
       <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
@@ -357,100 +347,72 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full min-w-0 max-w-none">
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <Link
-          href={IMAGINATIONS_LIST_PATH}
-          className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-800 shadow-sm transition hover:bg-amber-50"
-        >
-          ← Listeye Dön
-        </Link>
-        <Link
-          href={BIOENERJI_FOLDER_BASE}
-          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-violet-800 shadow-sm transition hover:bg-violet-50"
-        >
-          Biyoenerji
-        </Link>
+      {/* Toolbar */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
+          <Link href={IMAGINATIONS_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
+            ← Listeye Dön
+          </Link>
+          <span className="text-slate-300" aria-hidden>/</span>
+          <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
+            Biyoenerji
+          </Link>
+        </nav>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <DogaltasFontSizeControl
+            fontSizePx={fontSizePx}
+            onDecrease={decreaseFontSize}
+            onReset={resetFontSize}
+            onIncrease={increaseFontSize}
+            canDecrease={canDecreaseFontSize}
+            canIncrease={canIncreaseFontSize}
+            isDefault={isDefaultFontSize}
+            defaultFontSizePx={IMAGINATIONS_FONT_DEFAULT}
+            compact
+          />
+          <div className="h-4 w-px bg-slate-200" aria-hidden />
+          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
+          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+          <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+            {wordBusy ? "..." : "Word"}
+          </button>
+        </div>
       </div>
 
+      {/* Feedback */}
       {(infoSuccess || infoError) && (
-        <div className="mb-2 flex flex-col gap-2 sm:flex-row">
+        <div className="mb-4 flex flex-col gap-1.5 sm:flex-row">
           {infoSuccess ? (
-            <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-              {infoSuccess}
-            </div>
+            <div className="flex-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-medium text-emerald-700">{infoSuccess}</div>
           ) : null}
           {infoError ? (
-            <div className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
-              {infoError}
-            </div>
+            <div className="flex-1 rounded-md border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[12px] font-medium text-rose-700">{infoError}</div>
           ) : null}
         </div>
       )}
 
-      <header className="mb-3 rounded-xl border border-amber-200/50 bg-white/70 p-3 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            {categoryText ? (
-              <span className="mb-1.5 inline-flex rounded-full bg-gradient-to-r from-violet-600 to-cyan-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                {categoryText}
-              </span>
-            ) : null}
-            <h1 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">
-              {record.title?.trim() || "İsimsiz kayıt"}
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-medium text-slate-400">
-                {formatDate(record.created_at)}
-              </p>
-              {sourceIdText ? (
-                <span className="text-[11px] font-medium text-slate-400">
-                  ID: {sourceIdText}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <div className="shrink-0">
-            <DogaltasFontSizeControl
-              fontSizePx={fontSizePx}
-              onDecrease={decreaseFontSize}
-              onReset={resetFontSize}
-              onIncrease={increaseFontSize}
-              canDecrease={canDecreaseFontSize}
-              canIncrease={canIncreaseFontSize}
-              isDefault={isDefaultFontSize}
-              defaultFontSizePx={IMAGINATIONS_FONT_DEFAULT}
-            />
-          </div>
+      {/* Page title */}
+      <div className="mb-5">
+        {categoryText ? (
+          <span className="mb-2 inline-flex rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200/60">
+            {categoryText}
+          </span>
+        ) : null}
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-[22px] sm:leading-tight">
+          {record.title?.trim() || "Isimsiz kayit"}
+        </h1>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400">
+          <span>{formatDate(record.created_at)}</span>
+          {sourceIdText ? (
+            <>
+              <span aria-hidden className="text-slate-300">·</span>
+              <span className="font-mono text-[10px]">{sourceIdText}</span>
+            </>
+          ) : null}
         </div>
+      </div>
 
-        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-200/50 pt-2.5">
-          <button
-            type="button"
-            onClick={() => setFormModalOpen(true)}
-            className="inline-flex h-7 items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100"
-          >
-            Düzenle
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="inline-flex h-7 items-center rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-45"
-          >
-            Sil
-          </button>
-          <button
-            type="button"
-            disabled={wordBusy}
-            onClick={() => void downloadWord()}
-            className="inline-flex h-7 items-center rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-45"
-          >
-            {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
-          </button>
-        </div>
-      </header>
-
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {textContent ? (
           <DetailContentCard
             title="Metin"
@@ -570,37 +532,20 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
       </BiyoenerjiCrudFormModal>
 
       {deleteConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
-          role="presentation"
-          onClick={() => !saving && setDeleteConfirmOpen(false)}
-        >
-          <div
-            className="w-full max-w-[420px] rounded-[22px] border border-white/88 bg-white/88 p-6 shadow-2xl ring-1 ring-amber-100/50"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-black text-slate-950">
-              Bu imajinasyon kaydını silmek istediğinizden emin misiniz?
-            </h3>
-            <p className="mt-2 text-base text-slate-500">İşlem geri alınamaz.</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700"
-              >
-                Vazgeç
+        <div className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
+          role="presentation" onClick={() => !saving && setDeleteConfirmOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl border border-slate-200/80 bg-white p-5 shadow-xl"
+            role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-slate-900">Bu imajinasyon kaydini silmek istediginizden emin misiniz?</h3>
+            <p className="mt-1 text-[13px] text-slate-500">Bu islem geri alinamaz.</p>
+            <div className="mt-4 flex gap-2">
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(false)}
+                className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
+                Vazgec
               </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void executeDelete()}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white"
-              >
-                {saving ? "Siliniyor…" : "Evet, sil"}
+              <button type="button" disabled={saving} onClick={() => void executeDelete()}
+                className="h-8 flex-1 rounded-md bg-rose-600 text-[12px] font-medium text-white transition hover:bg-rose-700 disabled:opacity-60">
+                {saving ? "Siliniyor..." : "Evet, sil"}
               </button>
             </div>
           </div>
