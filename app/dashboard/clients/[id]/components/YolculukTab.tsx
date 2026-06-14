@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
+import { calcElementleri } from "@/lib/numeroloji/elementler";
+import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -19,6 +20,8 @@ export type TimelineEntry = {
   dateRaw: string;
   href?: string;
   badge?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rawData?: any;
 };
 
 type SessionProcess = {
@@ -92,6 +95,12 @@ function calcAge(dogum: string): number | null {
   } catch {
     return null;
   }
+}
+
+function isoToDDMMYYYY(iso: string): string {
+  const p = iso.split("-");
+  if (p.length !== 3 || p[0].length !== 4) return "";
+  return `${p[2]}.${p[1]}.${p[0]}`;
 }
 
 // ─── Sol menü tanımları ──────────────────────────────────────────────────────
@@ -695,53 +704,295 @@ function EmptyState() {
   );
 }
 
-// ─── TimelineCard ─────────────────────────────────────────────────────────────
-function TimelineCard({ entry, isLast }: { entry: TimelineEntry; isLast: boolean }) {
-  const meta = getMeta(entry.type);
+// ─── TimelineDetailModal ──────────────────────────────────────────────────────
 
-  const cardContent = (
-    <div
-      className="mb-3 min-w-0 flex-1 rounded-[14px] border bg-white p-3.5 shadow-sm"
-      style={{ borderColor: `${meta.color}22`, cursor: entry.href ? "pointer" : "default" }}
-    >
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black capitalize tracking-wide"
-              style={{ background: meta.accent, color: meta.color }}
-            >
-              {entry.type}
-            </span>
-            {entry.badge && (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                {entry.badge}
+const FONT_SIZES = { sm: "text-[12px]", md: "text-[14px]", lg: "text-[16px]" } as const;
+type FontSize = keyof typeof FONT_SIZES;
+
+const MODAL_TITLE_MAP: Record<string, string> = {
+  not:        "Danışan Notu",
+  randevu:    "Randevu Detayı",
+  seans:      "Seans Detayı",
+  dogaltas:   "Doğaltaş Kaydı",
+  odev:       "Ödev Detayı",
+  analiz:     "Analiz Detayı",
+  numeroloji: "Otomatik Numeroloji Özeti",
+};
+
+const ELEMENT_COLOR: Record<string, string> = { Hava: "#0284c7", Su: "#1d4ed8", "Ateş": "#c2410c", Toprak: "#92400e" };
+const ELEMENT_BG:    Record<string, string> = { Hava: "#e0f2fe", Su: "#dbeafe", "Ateş": "#ffedd5", Toprak: "#fef3c7" };
+
+function ModalRow({ label, value }: { label: string; value: React.ReactNode }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+      <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <span className="flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNode {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = entry.rawData as any;
+
+  if (entry.type === "seans") {
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Seans Tipi"  value={d?.session_type || entry.title} />
+        <ModalRow label="Tarih"       value={entry.date} />
+        {d?.duration_minutes != null && <ModalRow label="Süre"         value={`${d.duration_minutes} dk`} />}
+        {d?.fee              != null && <ModalRow label="Ücret"        value={`${d.fee} ₺`} />}
+        {d?.session_note             && <ModalRow label="Seans Notu"   value={d.session_note} />}
+        {d?.actions_done             && <ModalRow label="Yapılan"      value={d.actions_done} />}
+        {d?.suggestions              && <ModalRow label="Öneriler"     value={d.suggestions} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "randevu") {
+    const durumRenk = d?.status === "tamamlandi" ? "#16a34a" : d?.status === "iptal" ? "#ef4444" : "#f59e0b";
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Başlık" value={d?.title || entry.title} />
+        <ModalRow label="Tarih"  value={entry.date} />
+        {d?.status && (
+          <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">Durum</span>
+            <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status)}</span>
+          </div>
+        )}
+        {d?.notes && <ModalRow label="Not" value={d.notes} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "dogaltas") {
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Taş Adı"     value={d?.stone_name || entry.title} />
+        <ModalRow label="Tarih"       value={entry.date} />
+        {d?.stone_type && <ModalRow label="Türü"      value={d.stone_type} />}
+        {d?.usage_area && <ModalRow label="Kullanım"  value={d.usage_area} />}
+        {d?.note       && <ModalRow label="Not"       value={d.note} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "odev") {
+    const durumRenk = d?.status === "tamamlandi" ? "#16a34a" : "#f59e0b";
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Başlık"     value={d?.title || entry.title} />
+        {d?.start_date  && <ModalRow label="Başlangıç"  value={isoToTR(d.start_date)} />}
+        {d?.end_date    && <ModalRow label="Bitiş"      value={isoToTR(d.end_date)} />}
+        {d?.status && (
+          <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">Durum</span>
+            <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status)}</span>
+          </div>
+        )}
+        {d?.description && <ModalRow label="Açıklama"   value={d.description} />}
+        {d?.expert_note && <ModalRow label="Uzman Notu" value={d.expert_note} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "analiz") {
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Analiz Tipi"   value={d?.analysis_type || entry.title} />
+        <ModalRow label="Tarih"         value={entry.date} />
+        {d?.note && <ModalRow label="Sonuç / Özet" value={d.note} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "not") {
+    return (
+      <div className={`flex flex-col gap-2 ${textSize}`}>
+        <ModalRow label="Tarih" value={entry.date} />
+        {d?.notlar      && <ModalRow label="Notlar"      value={d.notlar} />}
+        {d?.oneriler    && <ModalRow label="Öneriler"    value={d.oneriler} />}
+        {d?.saglik_notu && <ModalRow label="Sağlık Notu" value={d.saglik_notu} />}
+        {!d && <p className="text-slate-600 leading-relaxed">{entry.description || "—"}</p>}
+      </div>
+    );
+  }
+
+  if (entry.type === "numeroloji") {
+    const numItems = [
+      { label: "Hayat Yolu / DM", value: d?.hayatYolu,    color: "#7c3aed" },
+      { label: "İfade Sayısı",    value: d?.ifadeSayisi,  color: "#2563eb" },
+      { label: "Ana Kulvar",      value: d?.anaKulvar,    color: "#16a34a" },
+      { label: "Yan Kulvar",      value: d?.yanKulvar,    color: "#db2777" },
+      { label: "Kişisel Yıl",    value: d?.kisiselYil,   color: "#ea580c" },
+      ...(d?.yas != null ? [{ label: "Güncel Yaş", value: String(d.yas), color: "#64748b" }] : []),
+    ];
+    return (
+      <div className={`flex flex-col gap-3 ${textSize}`}>
+        {/* Temel sayılar */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {numItems.map(({ label, value, color }) => (
+            <div key={label} className="flex flex-col items-center rounded-xl border bg-white px-3 py-3 shadow-sm">
+              <span className="text-[26px] font-black leading-none" style={{ color }}>{value || "—"}</span>
+              <span className="mt-1.5 text-center text-[10px] font-extrabold text-slate-400">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Element dağılımı */}
+        {d?.elementler && (
+          <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-3">
+            <span className="text-[11px] font-black text-slate-500">Element Dağılımı</span>
+            <div className="flex flex-wrap gap-1.5">
+              {(["Hava", "Su", "Ateş", "Toprak"] as const).map((name) => {
+                const count = d.elementler?.counts?.[name] ?? 0;
+                return (
+                  <span
+                    key={name}
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-extrabold"
+                    style={{ background: ELEMENT_BG[name], color: ELEMENT_COLOR[name] }}
+                  >
+                    {name} <strong>{count}</strong>
+                  </span>
+                );
+              })}
+            </div>
+            {d.elementler?.key && (
+              <span className="text-[11px] font-bold text-slate-500">
+                Baskın Element: <strong>{d.elementler.key}</strong>
               </span>
             )}
           </div>
-          <div className="mb-1 text-[14px] font-black text-slate-950">{entry.title}</div>
-          <div className="text-[12px] font-bold text-slate-500">{entry.description}</div>
-        </div>
-        <div className="flex flex-shrink-0 flex-col items-end gap-1">
-          <div
-            className="mt-0.5 whitespace-nowrap text-[10px] font-extrabold"
-            style={{ color: `${meta.color}cc` }}
-          >
-            {entry.date}
+        )}
+
+        {/* Zirve bilgisi */}
+        {d?.zirve?.peaks?.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-3">
+            <span className="text-[11px] font-black text-slate-500">Zirve Bilgisi</span>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(d.zirve.peaks as any[]).slice(0, 4).map((p) => (
+              <div key={p.index} className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
+                <span className="font-black text-indigo-600">{p.index}. Zirve</span>
+                <span className="text-slate-400">·</span>
+                <span>{p.age} yaş</span>
+                <span className="text-slate-400">·</span>
+                <span>{p.topic}. çakra</span>
+              </div>
+            ))}
           </div>
-          {entry.href && (
-            <span className="text-[10px] font-black" style={{ color: meta.color }}>
-              Detay →
-            </span>
-          )}
-        </div>
+        )}
       </div>
-      <div
-        className="mt-3.5 h-0.5 rounded-full"
-        style={{ background: `linear-gradient(90deg, ${meta.color}55, transparent)` }}
-      />
+    );
+  }
+
+  return (
+    <div className={textSize}>
+      <p className="leading-relaxed text-slate-700">{entry.description || "—"}</p>
     </div>
   );
+}
+
+function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose: () => void }) {
+  const [fontSize, setFontSize] = useState<FontSize>("md");
+  const meta = getMeta(entry.type);
+  const modalTitle = MODAL_TITLE_MAP[entry.type] || entry.title;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+      style={{ background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="relative flex max-h-[90dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ border: `1px solid ${meta.color}33` }}
+      >
+        {/* Header */}
+        <div
+          className="flex flex-shrink-0 items-start gap-3 px-5 py-4"
+          style={{
+            background: `linear-gradient(135deg, ${meta.accent}, #ffffff)`,
+            borderBottom: `1px solid ${meta.color}22`,
+          }}
+        >
+          <div
+            className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl text-[16px] text-white"
+            style={{ background: meta.color }}
+          >
+            {meta.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-black text-slate-950">{modalTitle}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400">{entry.date}</span>
+              {entry.badge && (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                  {entry.badge}
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Yazı boyutu + kapat */}
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {(["sm", "md", "lg"] as FontSize[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setFontSize(s)}
+                className="flex h-[26px] w-[28px] items-center justify-center rounded-lg border text-[10px] font-black transition-colors"
+                style={{
+                  background:   fontSize === s ? meta.color : "white",
+                  color:        fontSize === s ? "white"    : meta.color,
+                  borderColor:  `${meta.color}44`,
+                }}
+              >
+                {s === "sm" ? "A−" : s === "lg" ? "A+" : "A"}
+              </button>
+            ))}
+            <button
+              onClick={onClose}
+              className="ml-1.5 flex h-[30px] w-[30px] items-center justify-center rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {renderModalBody(entry, FONT_SIZES[fontSize])}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TimelineCard ─────────────────────────────────────────────────────────────
+function TimelineCard({
+  entry,
+  isLast,
+  onOpen,
+}: {
+  entry: TimelineEntry;
+  isLast: boolean;
+  onOpen: (entry: TimelineEntry) => void;
+}) {
+  const meta = getMeta(entry.type);
 
   return (
     <div className="flex items-start gap-3.5">
@@ -761,13 +1012,46 @@ function TimelineCard({ entry, isLast }: { entry: TimelineEntry; isLast: boolean
         )}
       </div>
 
-      {entry.href ? (
-        <Link href={entry.href} className="min-w-0 flex-1 no-underline">
-          {cardContent}
-        </Link>
-      ) : (
-        <div className="min-w-0 flex-1">{cardContent}</div>
-      )}
+      <button
+        className="mb-3 min-w-0 flex-1 rounded-[14px] border bg-white p-3.5 text-left shadow-sm transition-shadow hover:shadow-md"
+        style={{ borderColor: `${meta.color}22`, cursor: "pointer" }}
+        onClick={() => onOpen(entry)}
+      >
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black capitalize tracking-wide"
+                style={{ background: meta.accent, color: meta.color }}
+              >
+                {entry.type}
+              </span>
+              {entry.badge && (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                  {entry.badge}
+                </span>
+              )}
+            </div>
+            <div className="mb-1 text-[14px] font-black text-slate-950">{entry.title}</div>
+            <div className="text-[12px] font-bold text-slate-500">{entry.description}</div>
+          </div>
+          <div className="flex flex-shrink-0 flex-col items-end gap-1">
+            <div
+              className="mt-0.5 whitespace-nowrap text-[10px] font-extrabold"
+              style={{ color: `${meta.color}cc` }}
+            >
+              {entry.date}
+            </div>
+            <span className="text-[10px] font-black" style={{ color: meta.color }}>
+              Oku →
+            </span>
+          </div>
+        </div>
+        <div
+          className="mt-3.5 h-0.5 rounded-full"
+          style={{ background: `linear-gradient(90deg, ${meta.color}55, transparent)` }}
+        />
+      </button>
     </div>
   );
 }
@@ -786,6 +1070,7 @@ export default function YolculukTab({
   onNavigate,
 }: YolculukTabProps) {
   const [activeMenu, setActiveMenu] = useState("genel");
+  const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(null);
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [counts, setCounts] = useState({ analizler: 0, seanslar: 0, randevular: 0, notlar: 0, taslar: 0, odevler: 0 });
   const [sessionProcess, setSessionProcess] = useState<SessionProcess>({
@@ -843,6 +1128,7 @@ export default function YolculukTab({
               "Seans gerçekleşti",
             date: isoToTR(s.session_date || s.created_at),
             dateRaw: s.session_date || s.created_at || "",
+            rawData: s,
           });
         }
 
@@ -855,6 +1141,7 @@ export default function YolculukTab({
             description: a.notes || statusLabel(a.status),
             date: isoToTR(a.appointment_date),
             dateRaw: a.appointment_date || "",
+            rawData: a,
           });
         }
 
@@ -868,6 +1155,7 @@ export default function YolculukTab({
               ([t.usage_area, t.stone_type] as (string | null)[]).filter(Boolean).join(" — ") || t.note || "",
             date: isoToTR(t.stone_date || t.created_at),
             dateRaw: t.stone_date || t.created_at || "",
+            rawData: t,
           });
         }
 
@@ -880,6 +1168,7 @@ export default function YolculukTab({
             description: an.note || "",
             date: isoToTR(an.created_at),
             dateRaw: an.created_at || "",
+            rawData: an,
           });
         }
 
@@ -893,6 +1182,7 @@ export default function YolculukTab({
               ([hw.description, hw.expert_note] as (string | null)[]).filter(Boolean).join(" • ").slice(0, 150) || "",
             date: isoToTR(hw.start_date || hw.created_at),
             dateRaw: hw.start_date || hw.created_at || "",
+            rawData: hw,
           });
         }
 
@@ -910,6 +1200,7 @@ export default function YolculukTab({
               description: noteText.slice(0, 150),
               date: isoToTR(noteData.created_at ?? new Date().toISOString()),
               dateRaw: noteData.created_at ?? new Date(0).toISOString(),
+              rawData: noteData,
             });
           }
         }
@@ -918,18 +1209,28 @@ export default function YolculukTab({
           try {
             const firstName = clientAd || "";
             const lastName = clientSoyad || "";
-            const hayatYolu = calcHayatYolu(clientDogum).display;
-            const kaderSayisi = calcIfadeSayisi(firstName, lastName).display;
-            const ruhSayisi = calcAnaKulvar(firstName, lastName).display;
-            const kisilikSayisi = calcYanKulvar(firstName, lastName).display;
-            const kisiselYil = calcKisiselYil(clientDogum).display;
-            const yas = calcAge(clientDogum);
+            const hayatYolu   = calcHayatYolu(clientDogum).display;
+            const ifadeSayisi = calcIfadeSayisi(firstName, lastName).display;
+            const anaKulvar   = calcAnaKulvar(firstName, lastName).display;
+            const yanKulvar   = calcYanKulvar(firstName, lastName).display;
+            const kisiselYil  = calcKisiselYil(clientDogum).display;
+            const yas         = calcAge(clientDogum);
+
+            const dogumTR = isoToDDMMYYYY(clientDogum);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let elementler: any = null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let zirve: any = null;
+            if (dogumTR) {
+              try { elementler = calcElementleri(dogumTR); } catch { /* sessiz */ }
+              try { zirve = calcZirveYillari(dogumTR); }    catch { /* sessiz */ }
+            }
 
             const descParts: string[] = [
               `Hayat Yolu / DM: ${hayatYolu}`,
-              `İfade Sayısı: ${kaderSayisi}`,
-              `Ana Kulvar: ${ruhSayisi}`,
-              `Yan Kulvar: ${kisilikSayisi}`,
+              `İfade Sayısı: ${ifadeSayisi}`,
+              `Ana Kulvar: ${anaKulvar}`,
+              `Yan Kulvar: ${yanKulvar}`,
               `Kişisel Yıl (${new Date().getFullYear()}): ${kisiselYil}`,
             ];
             if (yas != null) descParts.push(`Güncel Yaş: ${yas}`);
@@ -943,6 +1244,7 @@ export default function YolculukTab({
               date: isoToTR(now),
               dateRaw: now,
               badge: "Otomatik hesaplandı",
+              rawData: { hayatYolu, ifadeSayisi, anaKulvar, yanKulvar, kisiselYil, yas, elementler, zirve },
             });
           } catch {
             // numeroloji hatası sayfayı kırmasın
@@ -1114,6 +1416,10 @@ export default function YolculukTab({
   const kritikAlerts = currentAlerts.filter((a) => a.category === "kritik");
 
   return (
+    <>
+    {selectedEntry && (
+      <TimelineDetailModal entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+    )}
     <div className="flex flex-col gap-5">
       {/* Üst özet stat kartlar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1259,12 +1565,18 @@ export default function YolculukTab({
           ) : (
             <div className="flex flex-col">
               {entries.map((entry, idx) => (
-                <TimelineCard key={entry.id} entry={entry} isLast={idx === entries.length - 1} />
+                <TimelineCard
+                  key={entry.id}
+                  entry={entry}
+                  isLast={idx === entries.length - 1}
+                  onOpen={setSelectedEntry}
+                />
               ))}
             </div>
           )}
         </main>
       </div>
     </div>
+    </>
   );
 }
