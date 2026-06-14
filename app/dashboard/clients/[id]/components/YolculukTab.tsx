@@ -1014,7 +1014,8 @@ export default function YolculukTab({
           const firstMs = new Date(seansWithDate[0].session_date).getTime();
           const lastMs  = new Date(seansWithDate[seansWithDate.length - 1].session_date).getTime();
           const totalDays = Math.floor((lastMs - firstMs) / 86400000);
-          newProcess.avgSiklikGun = Math.round(totalDays / (seansWithDate.length - 1));
+          const computed  = Math.round(totalDays / (seansWithDate.length - 1));
+          newProcess.avgSiklikGun = computed > 0 ? computed : null;
         }
 
         setSessionProcess(newProcess);
