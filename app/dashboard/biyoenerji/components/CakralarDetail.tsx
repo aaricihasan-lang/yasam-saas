@@ -40,41 +40,34 @@ type ChakraForm = {
 
 type DetailSectionTone = "violet" | "cyan" | "amber" | "emerald" | "fuchsia" | "indigo" | "rose";
 
-const SECTION_SHELL: Record<DetailSectionTone, { wrap: string; title: string }> = {
+const SECTION_SHELL: Record<DetailSectionTone, { wrap: string; label: string }> = {
   violet: {
-    wrap:
-      "rounded-xl border border-2 border-violet-300/60 bg-gradient-to-br from-violet-100/95 via-violet-50/90 to-purple-50/85 p-4 shadow-sm",
-    title: "text-violet-950",
+    wrap: "rounded-lg border border-violet-200/60 bg-violet-50/40 p-3 sm:p-4",
+    label: "text-violet-600",
   },
   cyan: {
-    wrap:
-      "rounded-xl border border-2 border-cyan-300/60 bg-gradient-to-br from-cyan-100/95 via-cyan-50/90 to-sky-50/85 p-4 shadow-sm",
-    title: "text-cyan-950",
+    wrap: "rounded-lg border border-cyan-200/60 bg-cyan-50/40 p-3 sm:p-4",
+    label: "text-cyan-600",
   },
   amber: {
-    wrap:
-      "rounded-xl border border-2 border-amber-300/60 bg-gradient-to-br from-amber-100/95 via-amber-50/90 to-yellow-50/85 p-4 shadow-sm",
-    title: "text-amber-950",
+    wrap: "rounded-lg border border-amber-200/60 bg-amber-50/40 p-3 sm:p-4",
+    label: "text-amber-600",
   },
   emerald: {
-    wrap:
-      "rounded-xl border border-2 border-emerald-300/60 bg-gradient-to-br from-emerald-100/95 via-emerald-50/90 to-teal-50/85 p-4 shadow-sm",
-    title: "text-emerald-950",
+    wrap: "rounded-lg border border-emerald-200/60 bg-emerald-50/40 p-3 sm:p-4",
+    label: "text-emerald-600",
   },
   fuchsia: {
-    wrap:
-      "rounded-xl border border-2 border-fuchsia-300/60 bg-gradient-to-br from-fuchsia-100/95 via-pink-50/90 to-violet-50/85 p-4 shadow-sm",
-    title: "text-fuchsia-950",
+    wrap: "rounded-lg border border-fuchsia-200/60 bg-fuchsia-50/40 p-3 sm:p-4",
+    label: "text-fuchsia-600",
   },
   indigo: {
-    wrap:
-      "rounded-xl border border-2 border-indigo-300/60 bg-gradient-to-br from-indigo-100/95 via-indigo-50/90 to-blue-50/85 p-4 shadow-sm",
-    title: "text-indigo-950",
+    wrap: "rounded-lg border border-indigo-200/60 bg-indigo-50/40 p-3 sm:p-4",
+    label: "text-indigo-600",
   },
   rose: {
-    wrap:
-      "rounded-xl border border-2 border-rose-300/60 bg-gradient-to-br from-rose-100/95 via-rose-50/90 to-pink-50/85 p-4 shadow-sm",
-    title: "text-rose-950",
+    wrap: "rounded-lg border border-rose-200/60 bg-rose-50/40 p-3 sm:p-4",
+    label: "text-rose-600",
   },
 };
 
@@ -123,11 +116,8 @@ function DetailContentCard({
   const shell = SECTION_SHELL[tone];
   return (
     <article className={shell.wrap}>
-      <h2 className={`text-2xl font-black sm:text-3xl ${shell.title}`}>{title}</h2>
-      <div
-        className="mt-3 min-w-0"
-        style={typography.bodyStyle}
-      >
+      <h2 className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${shell.label}`}>{title}</h2>
+      <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
     </article>
@@ -437,24 +427,24 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
       )}
 
-      <header className="mb-4 rounded-2xl border border-fuchsia-200/60 bg-gradient-to-br from-fuchsia-100/95 via-white/95 to-violet-50/90 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <header className="mb-3 rounded-xl border border-fuchsia-200/50 bg-white/70 p-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             {badge ? (
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 py-2 text-sm font-black uppercase tracking-wider text-white shadow-md ring-2 ring-white/50">
+              <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                 <span
-                  className="h-3 w-3 shrink-0 rounded-full ring-2 ring-white/80"
+                  className="h-2 w-2 shrink-0 rounded-full"
                   style={{ backgroundColor: dotColor }}
                   aria-hidden
                 />
                 {badge}
               </span>
             ) : null}
-            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
+            <h1 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">
               {displayTitle}
             </h1>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Kayıt tarihi: {formatDate(record.created_at)}
+            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+              {formatDate(record.created_at)}
             </p>
           </div>
           <div className="shrink-0">
@@ -471,21 +461,21 @@ export default function CakralarDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200/60 pt-4">
+        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-200/50 pt-2.5">
           {record && (
             <button
               type="button"
               onClick={() => void downloadWord()}
               disabled={wordBusy}
-              className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+              className="inline-flex h-7 items-center rounded-md border border-blue-200 bg-blue-50 px-2.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
             >
-              {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+              {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
             </button>
           )}
           <button
             type="button"
             onClick={() => setFormModalOpen(true)}
-            className="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-1.5 text-sm font-semibold text-fuchsia-950 transition hover:bg-fuchsia-100"
+            className="inline-flex h-7 items-center rounded-md border border-fuchsia-200 bg-fuchsia-50 px-2.5 text-[11px] font-semibold text-fuchsia-800 transition hover:bg-fuchsia-100"
           >
             Düzenle
           </button>
@@ -493,14 +483,14 @@ export default function CakralarDetail({ id }: { id: string }) {
             type="button"
             disabled={saving}
             onClick={() => setDeleteConfirmOpen(true)}
-            className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
+            className="inline-flex h-7 items-center rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-45"
           >
             Sil
           </button>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 sm:gap-5">
+      <div className="flex w-full flex-col gap-3">
         {sections.length > 0 ? (
           sections.map((section) => (
             <DetailContentCard

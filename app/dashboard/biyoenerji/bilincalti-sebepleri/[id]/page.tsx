@@ -11,7 +11,7 @@ export default function BilincaltiSebepleriDetailPage() {
 
   return (
     <BiyoenerjiSectionShell
-      headerVariant="premium"
+      headerVariant="detail"
       badge="BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ"
       title="Bilinçaltı Sebepleri"
       subtitle="Kayıt detayı — içerik ve notlar"

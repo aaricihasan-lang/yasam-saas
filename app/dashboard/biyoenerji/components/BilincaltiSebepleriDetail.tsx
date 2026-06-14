@@ -43,22 +43,19 @@ type DetailSectionTone = "violet" | "amber" | "slate";
 
 const SECTION_SHELL: Record<
   DetailSectionTone,
-  { wrap: string; title: string }
+  { wrap: string; label: string }
 > = {
   violet: {
-    wrap:
-      "rounded-xl border border-2 border-violet-300/60 bg-gradient-to-br from-violet-100/95 via-violet-50/90 to-purple-50/85 p-4 shadow-sm",
-    title: "text-violet-950",
+    wrap: "rounded-lg border border-violet-200/60 bg-violet-50/40 p-3 sm:p-4",
+    label: "text-violet-600",
   },
   amber: {
-    wrap:
-      "rounded-xl border border-2 border-amber-300/60 bg-gradient-to-br from-amber-100/95 via-amber-50/90 to-yellow-50/85 p-4 shadow-sm",
-    title: "text-amber-950",
+    wrap: "rounded-lg border border-amber-200/60 bg-amber-50/40 p-3 sm:p-4",
+    label: "text-amber-600",
   },
   slate: {
-    wrap:
-      "rounded-xl border border-2 border-slate-300/60 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-zinc-50/85 p-4 shadow-sm",
-    title: "text-slate-900",
+    wrap: "rounded-lg border border-slate-200/60 bg-slate-50/40 p-3 sm:p-4",
+    label: "text-slate-500",
   },
 };
 
@@ -121,8 +118,8 @@ function DetailContentCard({
 
   return (
     <article className={shell.wrap}>
-      <h2 className={`text-2xl font-black sm:text-3xl ${shell.title}`}>{title}</h2>
-      <div className="mt-3 min-w-0" style={typography.bodyStyle}>
+      <h2 className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${shell.label}`}>{title}</h2>
+      <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
     </article>
@@ -394,19 +391,19 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         </div>
       )}
 
-      <header className="mb-4 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-100/95 via-white/95 to-cyan-50/90 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <header className="mb-3 rounded-xl border border-violet-200/50 bg-white/70 p-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             {categoryText ? (
-              <span className="mb-2 inline-flex rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
+              <span className="mb-1.5 inline-flex rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                 {categoryText}
               </span>
             ) : null}
-            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
+            <h1 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">
               {record.title?.trim() || "İsimsiz kayıt"}
             </h1>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Kayıt tarihi: {formatDate(record.created_at)}
+            <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+              {formatDate(record.created_at)}
             </p>
           </div>
           <div className="shrink-0">
@@ -423,11 +420,11 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200/60 pt-4">
+        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-200/50 pt-2.5">
           <button
             type="button"
             onClick={() => setFormModalOpen(true)}
-            className="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-1.5 text-sm font-semibold text-fuchsia-950 transition hover:bg-fuchsia-100"
+            className="inline-flex h-7 items-center rounded-md border border-fuchsia-200 bg-fuchsia-50 px-2.5 text-[11px] font-semibold text-fuchsia-800 transition hover:bg-fuchsia-100"
           >
             Düzenle
           </button>
@@ -435,7 +432,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             type="button"
             disabled={saving}
             onClick={() => setDeleteConfirmOpen(true)}
-            className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-45"
+            className="inline-flex h-7 items-center rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-45"
           >
             Sil
           </button>
@@ -443,14 +440,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             type="button"
             disabled={wordBusy}
             onClick={() => void downloadWord()}
-            className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-100 disabled:opacity-45"
+            className="inline-flex h-7 items-center rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-45"
           >
-            {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+            {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
           </button>
         </div>
       </header>
 
-      <div className="flex flex-col gap-4 sm:gap-5">
+      <div className="flex flex-col gap-3">
         {contentText ? (
           <DetailContentCard
             title="İçerik"

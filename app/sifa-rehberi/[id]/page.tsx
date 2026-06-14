@@ -210,7 +210,7 @@ const sectionNoteBody =
   "whitespace-pre-wrap rounded-xl border border-slate-100 bg-white/90 p-3.5 text-sm leading-6 text-slate-700";
 
 const detailNavBtnBase =
-  "flex w-full min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-left text-sm font-semibold transition lg:min-w-0";
+  "flex w-full min-h-[34px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-semibold transition lg:min-w-0";
 
 type SectionBadgeTone = "emerald" | "cyan" | "violet";
 
@@ -743,21 +743,21 @@ export default function SifaRehberiDetailPage() {
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
       <div className="w-full px-4 py-4 lg:px-8 xl:px-12">
-        <header className="mb-3 rounded-2xl bg-white/70 p-3.5 shadow-sm ring-1 ring-white/80">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+              <div className="mb-1.5 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-emerald-700 ring-1 ring-emerald-100">
                 ŞİFA REHBERİ DETAY
               </div>
               {editEnabled ? (
                 <input
                   value={draft.name}
                   onChange={(e) => setDraftField("name", e.target.value)}
-                  className="mt-1 w-full max-w-2xl rounded-2xl border border-slate-200/90 bg-white px-4 py-2.5 text-[22px] font-black text-slate-950 outline-none ring-emerald-100/0 transition focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/60"
+                  className="mt-1 w-full max-w-2xl rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-lg font-bold text-slate-950 outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/60"
                   placeholder="Rahatsızlık adı"
                 />
               ) : (
-                <h1 className="mt-1 text-[24px] font-black leading-tight tracking-tight text-slate-950 lg:text-[28px]">
+                <h1 className="mt-1 text-lg font-bold leading-snug tracking-tight text-slate-950 lg:text-xl">
                   {draft.name || record.name}
                 </h1>
               )}
@@ -771,7 +771,7 @@ export default function SifaRehberiDetailPage() {
                     placeholder="—"
                   />
                 ) : (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-black text-slate-700 ring-1 ring-slate-200/80">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/60">
                     {draft.category.trim() || "—"}
                   </span>
                 )}
@@ -855,15 +855,15 @@ export default function SifaRehberiDetailPage() {
                         key={t.type}
                         type="button"
                         onClick={() => setSectionTab(t.type)}
-                        className={`${detailNavBtnBase} min-w-[168px] ${
+                        className={`${detailNavBtnBase} min-w-[148px] ${
                           active ? detailNavBtnActive : detailNavBtnIdle
                         }`}
                       >
-                        <span className="text-xl leading-none">{t.icon}</span>
-                        <span className="flex-1 text-base leading-snug">{t.label}</span>
+                        <span className="text-sm leading-none">{t.icon}</span>
+                        <span className="flex-1 leading-snug">{t.label}</span>
                         {count > 0 ? (
                           <span
-                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                               active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
                             }`}
                           >
@@ -880,12 +880,12 @@ export default function SifaRehberiDetailPage() {
                         key={t.id}
                         type="button"
                         onClick={() => setTab(t.id)}
-                        className={`${detailNavBtnBase} min-w-[168px] ${
+                        className={`${detailNavBtnBase} min-w-[148px] ${
                           active ? detailNavBtnActive : detailNavBtnIdle
                         }`}
                       >
-                        <span className="text-xl leading-none">{t.icon}</span>
-                        <span className="text-base leading-snug">{t.label}</span>
+                        <span className="text-sm leading-none">{t.icon}</span>
+                        <span className="leading-snug">{t.label}</span>
                       </button>
                     );
                   })}
@@ -905,8 +905,8 @@ export default function SifaRehberiDetailPage() {
               <h2
                 className={
                   useSectionView
-                    ? "text-2xl font-black tracking-tight text-slate-950 lg:text-3xl"
-                    : "text-[20px] font-black tracking-tight text-slate-950"
+                    ? "text-base font-bold tracking-tight text-slate-950 lg:text-lg"
+                    : "text-[15px] font-bold tracking-tight text-slate-950"
                 }
               >
                 {useSectionView ? activeSectionMeta.label : activeTab.label}
@@ -914,8 +914,8 @@ export default function SifaRehberiDetailPage() {
               <p
                 className={
                   useSectionView
-                    ? "mt-1.5 text-sm font-medium leading-relaxed text-slate-600 lg:text-base"
-                    : "mt-1.5 text-[13px] font-medium leading-relaxed text-slate-500"
+                    ? "mt-1 text-xs font-medium leading-relaxed text-slate-500 lg:text-sm"
+                    : "mt-1 text-[12px] font-medium leading-relaxed text-slate-500"
                 }
               >
                 {useSectionView ? activeSectionMeta.desc : activeTab.desc}
@@ -971,7 +971,7 @@ export default function SifaRehberiDetailPage() {
                 </div>
               ) : null}
 
-              <div className="mt-5 space-y-5">
+              <div className="mt-3 space-y-3">
                 {useSectionView ? (
                   sectionsInActiveTab.length === 0 ? (
                     <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
@@ -990,9 +990,9 @@ export default function SifaRehberiDetailPage() {
 
                       return (
                         <article key={section.id} className={sectionPremiumCard}>
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start gap-2.5">
                             <span
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-lg shadow-[0_8px_20px_rgba(16,185,129,0.32)] ring-2 ring-white/80"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 text-sm shadow-sm ring-1 ring-white/70"
                               aria-hidden
                             >
                               {cardIcon}
@@ -1000,31 +1000,27 @@ export default function SifaRehberiDetailPage() {
                             <div className="min-w-0 flex-1">
                               {badge ? (
                                 <span
-                                  className={`mb-2 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${SECTION_BADGE_STYLES[badge.tone]}`}
+                                  className={`mb-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${SECTION_BADGE_STYLES[badge.tone]}`}
                                 >
                                   {badge.label}
                                 </span>
                               ) : null}
-                              <h3 className="text-xl font-black tracking-tight text-slate-950">
+                              <h3 className="text-[13px] font-semibold tracking-tight text-slate-950">
                                 {displayTitle}
                               </h3>
-                              <div
-                                className="mt-2 h-0.5 w-16 rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
-                                aria-hidden
-                              />
                             </div>
                           </div>
                           {hasNote ? (
-                            <div className={`mt-4 ${sectionNoteBody}`}>{section.note!.trim()}</div>
+                            <div className={`mt-2.5 ${sectionNoteBody}`}>{section.note!.trim()}</div>
                           ) : null}
                           {hasSource ? (
-                            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-500">
+                            <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
                               <span className="font-bold text-slate-600">Kaynak:</span>{" "}
                               {section.source!.trim()}
                             </p>
                           ) : null}
                           {!hasNote && !hasSource ? (
-                            <p className="mt-3 text-sm font-medium text-slate-400">
+                            <p className="mt-2 text-xs font-medium text-slate-400">
                               Bu başlık için henüz açıklama eklenmemiş.
                             </p>
                           ) : null}
@@ -1038,30 +1034,16 @@ export default function SifaRehberiDetailPage() {
                     const value = draft[key];
                     return (
                       <div key={key} className={sectionPremiumCard}>
-                        <div className="flex items-start gap-3">
-                          <span
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-base text-white shadow-md ring-2 ring-white/80"
-                            aria-hidden
-                          >
-                            ✦
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-xl font-black tracking-tight text-slate-950">{label}</h3>
-                            <div
-                              className="mt-2 h-0.5 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400"
-                              aria-hidden
-                            />
-                          </div>
-                        </div>
+                        <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">{label}</h3>
                         {editEnabled ? (
                           <textarea
                             value={value}
                             onChange={(e) => setDraftField(key, e.target.value)}
                             rows={6}
-                            className="mt-3 w-full resize-y rounded-xl border border-slate-200/90 bg-white/95 p-3.5 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/50"
+                            className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/50"
                           />
                         ) : (
-                          <div className={`mt-4 min-h-[40px] ${sectionNoteBody}`}>
+                          <div className={`min-h-[32px] ${sectionNoteBody}`}>
                             {value.trim() ? value : (
                               <span className="text-slate-400">Henüz kayıt yok</span>
                             )}

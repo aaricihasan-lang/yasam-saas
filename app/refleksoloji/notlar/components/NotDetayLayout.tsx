@@ -228,9 +228,9 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-none px-4 py-4 xl:px-7">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-4">
+      <div className="relative z-10 mx-auto w-full max-w-none px-4 py-3 xl:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Link
               href="/refleksoloji/notlar"
               className={`${headerBtnBase} shrink-0 gap-1.5 border-purple-200 bg-white text-purple-800`}
@@ -239,10 +239,10 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               Notlara Dön
             </Link>
             <header>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-600">
                 Klinik Notlar
               </p>
-              <h1 className="text-xl font-black text-slate-900 sm:text-2xl">Not Detayı</h1>
+              <h1 className="text-base font-bold text-slate-900 sm:text-lg">Not Detayı</h1>
             </header>
           </div>
 
@@ -289,7 +289,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
           </p>
         ) : null}
 
-        <div className="mt-6 space-y-6">
+        <div className="mt-4 space-y-4">
           <section className={panelClass}>
             {editing ? (
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -314,8 +314,8 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               </div>
             ) : (
               <>
-                <h2 className="text-xl font-black text-slate-900 sm:text-2xl">{draft.title}</h2>
-                <p className="mt-2 text-base font-semibold text-violet-700">
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">{draft.title}</h2>
+                <p className="mt-1 text-sm font-medium text-violet-600">
                   {formatNoteDate(draft.date)}
                 </p>
               </>

@@ -11,7 +11,7 @@ export default function SembolDiliDetailPage() {
 
   return (
     <BiyoenerjiSectionShell
-      headerVariant="premium"
+      headerVariant="detail"
       badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
       title="Sembol Dili"
       subtitle="Kayıt detayı — anlam ve bilinçaltı mesajı"

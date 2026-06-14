@@ -11,7 +11,7 @@ export default function ImajinasyonlarDetailPage() {
 
   return (
     <BiyoenerjiSectionShell
-      headerVariant="premium"
+      headerVariant="detail"
       badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
       title="İmajinasyonlar"
       subtitle="Kayıt detayı — metin, not ve kaynak"

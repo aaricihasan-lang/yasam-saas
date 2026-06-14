@@ -11,7 +11,7 @@ export default function CakralarDetailPage() {
 
   return (
     <BiyoenerjiSectionShell
-      headerVariant="premium"
+      headerVariant="detail"
       badge="BİYOENERJİ · ÇAKRA KÜTÜPHANESİ"
       title="Çakralar"
       subtitle="Kayıt detayı — organ, renk, taş ve enerji notları"

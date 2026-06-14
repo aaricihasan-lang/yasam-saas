@@ -24,22 +24,16 @@ type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
 };
 
-const navBtnBase =
-  "inline-flex w-full items-center justify-center gap-3 rounded-2xl border-2 px-6 py-4 text-[16px] font-black leading-tight shadow-[0_12px_32px_-10px_rgba(91,33,182,0.4)] ring-2 ring-white/75 transition duration-200 hover:scale-[1.03] active:scale-[0.98] sm:w-auto sm:justify-start sm:px-7 sm:py-4 sm:text-[17px]";
-
-/** Kayıtlı Protokollere Dön — mor/cyan pastel gradient */
 const navBtnBackToList =
-  `${navBtnBase} border-violet-300/90 bg-gradient-to-r from-violet-200 via-fuchsia-100 to-cyan-100 text-violet-950 hover:border-violet-400 hover:shadow-[0_16px_40px_-10px_rgba(139,92,246,0.5)] hover:from-violet-300/90 hover:via-fuchsia-200 hover:to-cyan-200`;
+  "inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-300/70 bg-violet-50 px-3 text-[12px] font-semibold text-violet-900 transition hover:bg-violet-100";
 
-/** Refleksoloji ana menü — fuchsia/amber pastel */
 const navBtnBackToMenu =
-  `${navBtnBase} border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-100 via-rose-50 to-amber-100 text-fuchsia-950 hover:border-fuchsia-400 hover:shadow-[0_16px_40px_-10px_rgba(217,70,239,0.4)] hover:from-fuchsia-200 hover:via-rose-100 hover:to-amber-200`;
+  "inline-flex h-8 items-center gap-1.5 rounded-lg border border-fuchsia-300/70 bg-fuchsia-50 px-3 text-[12px] font-semibold text-fuchsia-900 transition hover:bg-fuchsia-100";
 
-const navBtnIconWrap =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/85 text-lg shadow-sm";
+const navBtnIconWrap = "text-sm leading-none";
 
 const clinicalCardClass =
-  "rounded-[28px] border-2 border-white/90 bg-white/85 p-6 shadow-[0_16px_44px_-18px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md sm:p-8";
+  "rounded-xl border border-slate-200/70 bg-white/85 p-4 shadow-sm";
 
 const footMapPanelLargeClass =
   "flex w-full flex-col overflow-hidden rounded-[28px] border-2 border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white/95 to-fuchsia-50/80 shadow-[0_20px_50px_-16px_rgba(139,92,246,0.28)] ring-1 ring-violet-200/60 xl:sticky xl:top-6 xl:max-h-[calc(100vh-1.5rem)] xl:min-h-[min(78vh,900px)] xl:self-start";
@@ -71,15 +65,15 @@ function ClinicalCard({
   if (hidden) return null;
   return (
     <section className={clinicalCardClass}>
-      <h2 className={`text-xl font-black sm:text-2xl ${CARD_TITLE[tone]}`}>{title}</h2>
-      <div className="mt-4">{children}</div>
+      <h2 className={`mb-2 text-[11px] font-semibold uppercase tracking-wide ${CARD_TITLE[tone]}`}>{title}</h2>
+      <div>{children}</div>
     </section>
   );
 }
 
 function EmptyHint({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-xl border border-dashed border-violet-200/90 bg-violet-50/50 px-4 py-3 text-[15px] font-semibold leading-relaxed text-violet-800/85">
+    <p className="rounded-lg border border-dashed border-violet-200/90 bg-violet-50/50 px-3 py-2 text-sm font-medium leading-relaxed text-violet-800/85">
       {children}
     </p>
   );
@@ -90,11 +84,11 @@ function ApplicationNotesBody({ text }: { text: string }) {
 
   if (paragraphs.length >= 2) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {paragraphs.map((paragraph, index) => (
           <p
             key={`${index}-${paragraph.slice(0, 20)}`}
-            className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
+            className="text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]"
           >
             {paragraph}
           </p>
@@ -104,7 +98,7 @@ function ApplicationNotesBody({ text }: { text: string }) {
   }
 
   return (
-    <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+    <p className="whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
       {text}
     </p>
   );
@@ -120,14 +114,14 @@ function OrganPills({
   if (organs.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2.5">
+    <div className="flex flex-wrap gap-1.5">
       {organStatuses.map((status) => (
         <span
           key={status.name}
-          className={`inline-flex max-w-full items-center gap-2 rounded-full px-4 py-2 text-[15px] font-black shadow-sm ring-2 ring-white/70 ${status.color.chipClass}`}
+          className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm ${status.color.chipClass}`}
         >
           <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white/80"
+            className="h-2 w-2 shrink-0 rounded-full"
             style={{ backgroundColor: status.color.stroke }}
             aria-hidden
           />
@@ -322,66 +316,61 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         <div className="absolute bottom-0 left-[20%] h-64 w-64 rounded-full bg-cyan-200/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="relative z-10 w-full px-4 py-3 sm:px-6 lg:px-8 xl:px-12">
         <nav
-          className="rounded-[24px] border-2 border-violet-200/70 bg-white/70 p-4 shadow-[0_12px_36px_-14px_rgba(139,92,246,0.25)] ring-1 ring-violet-100/80 backdrop-blur-md sm:p-5"
+          className="rounded-xl border border-violet-200/50 bg-white/70 p-2.5 backdrop-blur-md"
           aria-label="Sayfa gezintisi"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
-              <span className={navBtnIconWrap} aria-hidden>
-                🗂️
-              </span>
-              <span>← Kayıtlı Protokollere Dön</span>
+              <span className={navBtnIconWrap} aria-hidden>🗂️</span>
+              <span>← Protokollere Dön</span>
             </Link>
             <Link href="/refleksoloji" className={navBtnBackToMenu}>
-              <span className={navBtnIconWrap} aria-hidden>
-                ←
-              </span>
-              <span>Refleksoloji&apos;ye Dön</span>
+              <span>← Refleksoloji</span>
             </Link>
             {protocol && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-50 px-6 py-4 text-[16px] font-black text-blue-800 transition duration-200 hover:bg-blue-100 disabled:opacity-60 sm:w-auto sm:text-[17px]"
+                className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
               >
-                {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
               </button>
             )}
             <Link
               href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
-              className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-emerald-300/80 bg-emerald-500 px-6 py-4 text-[16px] font-black text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] transition duration-200 hover:scale-[1.02] hover:bg-emerald-600 sm:ml-auto sm:w-auto sm:text-[17px]"
+              className="ml-auto inline-flex h-8 items-center rounded-lg border border-emerald-300 bg-emerald-500 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-600"
             >
               Protokolü Düzenle
             </Link>
           </div>
         </nav>
 
-        <header className="mt-6 rounded-[32px] border-2 border-violet-200/70 bg-gradient-to-br from-violet-100/90 via-white/95 to-fuchsia-50/90 p-6 shadow-[0_20px_50px_-18px_rgba(139,92,246,0.22)] sm:p-8 lg:p-10">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-700/90">
+        <header className="mt-3 rounded-xl border border-violet-200/50 bg-white/70 p-3 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-500">
             Klinik Protokol Detayı
           </p>
-          <h1 className="mt-3 text-[32px] font-black leading-[1.12] tracking-tight text-slate-950 sm:text-[42px] lg:text-[48px]">
+          <h1 className="mt-1 text-xl font-bold leading-snug tracking-tight text-slate-950 sm:text-2xl">
             {heroTitle}
           </h1>
-          <div className="mt-5 flex flex-wrap gap-2.5">
-            <span className="inline-flex rounded-full border border-violet-200/90 bg-white/90 px-4 py-1.5 text-sm font-bold text-violet-900 shadow-sm">
-              Kayıt: {formatProtocolDate(protocol.created_at)}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className="inline-flex rounded-full border border-violet-200/80 bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-violet-800">
+              {formatProtocolDate(protocol.created_at)}
             </span>
             {protocol.source_uid?.trim() ? (
-              <span className="inline-flex max-w-full truncate rounded-full border border-fuchsia-200/90 bg-fuchsia-50/90 px-4 py-1.5 text-sm font-bold text-fuchsia-950 shadow-sm">
+              <span className="inline-flex max-w-full truncate rounded-full border border-fuchsia-200/80 bg-fuchsia-50 px-2.5 py-0.5 text-[11px] font-medium text-fuchsia-900">
                 UID: {protocol.source_uid}
               </span>
             ) : null}
             {protocol.title?.trim() && protocol.title.trim() !== heroTitle ? (
-              <span className="inline-flex rounded-full border border-cyan-200/90 bg-cyan-50/90 px-4 py-1.5 text-sm font-bold text-cyan-950 shadow-sm">
-                Başlık: {protocol.title}
+              <span className="inline-flex rounded-full border border-cyan-200/80 bg-cyan-50 px-2.5 py-0.5 text-[11px] font-medium text-cyan-900">
+                {protocol.title}
               </span>
             ) : null}
             {organs.length > 0 ? (
-              <span className="inline-flex rounded-full border border-emerald-200/90 bg-emerald-50/90 px-4 py-1.5 text-sm font-bold text-emerald-950 shadow-sm">
+              <span className="inline-flex rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-900">
                 {organs.length} organ
               </span>
             ) : null}
@@ -391,22 +380,22 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         <div
           className={
             hasAtlasMapping
-              ? "mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[58%_42%] xl:items-start xl:gap-8"
-              : "mt-8 grid grid-cols-1 gap-6"
+              ? "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[58%_42%] xl:items-start xl:gap-6"
+              : "mt-4 grid grid-cols-1 gap-4"
           }
         >
-          <div className="min-w-0 space-y-6">
-            <div className="rounded-[28px] border-2 border-violet-300/50 bg-violet-50/40 px-5 py-4 sm:px-6">
-              <h2 className="text-lg font-black text-violet-950 sm:text-xl">
+          <div className="min-w-0 space-y-3">
+            <div className="rounded-lg border border-violet-200/40 bg-violet-50/30 px-4 py-2.5">
+              <h2 className="text-sm font-bold text-violet-950">
                 Klinik Protokol Bilgileri
               </h2>
-              <p className="mt-1 text-[15px] font-medium text-violet-800/85">
+              <p className="mt-0.5 text-xs font-medium text-violet-800/85">
                 Hedef, organlar, uygulama adımları ve seans notları
               </p>
             </div>
 
             <ClinicalCard title="Hedef / Sorun" tone="fuchsia" hidden={!targetText}>
-              <p className="text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+              <p className="text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
                 {targetText}
               </p>
             </ClinicalCard>
@@ -419,11 +408,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
 
             <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
               {notesParagraphs.length >= 2 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {notesParagraphs.map((paragraph, index) => (
                     <p
                       key={`note-${index}-${paragraph.slice(0, 16)}`}
-                      className="rounded-2xl border border-amber-100/90 bg-amber-50/50 px-4 py-3 text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]"
+                      className="rounded-lg border border-amber-100/80 bg-amber-50/40 px-3 py-2 text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]"
                     >
                       {paragraph}
                     </p>
@@ -435,7 +424,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             </ClinicalCard>
 
             <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
-              <p className="whitespace-pre-wrap text-[17px] font-semibold leading-[1.8] text-slate-800 sm:text-[18px]">
+              <p className="whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
                 {sourceDescription}
               </p>
             </ClinicalCard>
@@ -454,11 +443,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
 
           {hasAtlasMapping ? (
             <section className={footMapPanelLargeClass} aria-label="Ayak haritası önizleme">
-              <div className="shrink-0 border-b border-violet-200/70 px-5 py-4 sm:px-6">
-                <h2 className="text-xl font-black text-violet-950 sm:text-2xl">
+              <div className="shrink-0 border-b border-violet-200/70 px-4 py-3">
+                <h2 className="text-sm font-bold text-violet-950">
                   Ayak Haritası Önizleme
                 </h2>
-                <p className="mt-1 text-[15px] font-semibold text-violet-800/80">
+                <p className="mt-0.5 text-xs font-medium text-violet-800/80">
                   Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
                 </p>
               </div>
