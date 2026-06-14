@@ -19,6 +19,7 @@ import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+import { odevDurumLabel } from "@/lib/odevStatus";
 import {
   bodyText,
   buildFooter,
@@ -199,12 +200,7 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function hwStatus(s: string | null | undefined): string {
-  if (s === "tamamlandi") return "Tamamlandı";
-  if (s === "gecikti") return "Gecikti";
-  if (s === "iptal") return "İptal";
-  return "Devam Ediyor";
-}
+const hwStatus = odevDurumLabel;
 
 function aptStatus(s: string | null | undefined, date: string): string {
   if (s === "tamamlandi") return "Tamamlandı";
