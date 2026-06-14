@@ -765,7 +765,7 @@ function buildChakraSectionTable(
     new TableCell({
       shading: { fill: "1e3a5f", type: ShadingType.CLEAR, color: "auto" },
       width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
       children: [new Paragraph({
         children: [new TextRun({ text, bold: true, size: 16, font: REPORT_FONT, color: "ffffff" })],
       })],
@@ -775,7 +775,7 @@ function buildChakraSectionTable(
     new TableCell({
       shading: { fill: color, type: ShadingType.CLEAR, color: "auto" },
       width: { size: 40, type: WidthType.PERCENTAGE },
-      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      margins: { top: 60, bottom: 60, left: 120, right: 120 },
       children: [new Paragraph({
         children: [new TextRun({ text, bold: true, size: 17, font: REPORT_FONT, color: "ffffff" })],
       })],
@@ -785,7 +785,7 @@ function buildChakraSectionTable(
     const display = val.trim() || "—";
     return new TableCell({
       width: { size: 20, type: WidthType.PERCENTAGE },
-      margins: { top: 80, bottom: 80, left: 100, right: 100 },
+      margins: { top: 60, bottom: 60, left: 100, right: 100 },
       children: [new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new TextRun({ text: display, bold: !!val.trim(), size: 18, font: REPORT_FONT, color: chakraTextColor(val) })],
@@ -796,12 +796,14 @@ function buildChakraSectionTable(
   const tableRows: TableRow[] = [
     new TableRow({
       tableHeader: true,
+      cantSplit: true,
       children: [mkHeader("Alan", 40), mkHeader("İşaret / Sayı %", 20), mkHeader("Eril Enerji", 20), mkHeader("Dişil Enerji", 20)],
     }),
     ...rows.map((row) => {
       const key = `${scope}_${row.key}`;
       const val = values[key] ?? {};
       return new TableRow({
+        cantSplit: true,
         children: [
           mkLabel(row.label, row.color),
           mkVal(val.mark ?? ""),
@@ -813,22 +815,26 @@ function buildChakraSectionTable(
   ];
 
   return [
+    // keepNext: true başlık paragrafını tablosundan ayırmaz
     new Paragraph({
       children: [new TextRun({ text: sectionTitle, bold: true, size: 22, font: REPORT_FONT, color: C.analizler })],
-      spacing: { before: 360, after: 140 },
+      spacing: { before: 200, after: 80 },
+      keepNext: true,
     }),
     new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
   ];
 }
 
 function buildChakraAnalysisTables(values: Record<string, ChakraValueEntry>): ReportChild[] {
+  // Tablolar arası küçük boşluk (spacer() 200 twips yerine 120 twips)
+  const gap = new Paragraph({ spacing: { after: 120 } });
   return [
     ...buildChakraSectionTable("Seans Öncesi — Enerji Bedenleri", "before_energy", CHAKRA_ENERGY_BODIES, values),
-    spacer(),
+    gap,
     ...buildChakraSectionTable("Seans Sonrası — Enerji Bedenleri", "after_energy",  CHAKRA_ENERGY_BODIES, values),
-    spacer(),
+    gap,
     ...buildChakraSectionTable("Çakralar — Seans Öncesi",          "before_chakra", CHAKRA_CHAKRA_ROWS,   values),
-    spacer(),
+    gap,
     ...buildChakraSectionTable("Çakralar — Seans Sonrası",         "after_chakra",  CHAKRA_CHAKRA_ROWS,   values),
   ];
 }
