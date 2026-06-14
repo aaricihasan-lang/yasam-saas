@@ -257,34 +257,52 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function saveAnalysis() {
+    console.log("[saveAnalysis] Başladı — activeAnalysis:", activeAnalysis, "tenantId:", tenantId, "clientId:", clientId);
     if (!activeAnalysis) { showToast({ title: "İşlem başarısız", message: "Önce analiz seçmelisiniz.", type: "error" }); return; }
     setSavingAnalysis(true);
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
+
+    console.log("[saveAnalysis] Insert gönderiliyor...");
     const { data: insertData, error } = await supabase
       .from("client_analyses")
       .insert({ tenant_id: tenantId, client_id: clientId, analysis_type: activeAnalysis, analysis_data: analysisData, note })
       .select("id")
       .single();
+
+    console.log("[saveAnalysis] Insert sonucu — data:", insertData, "error:", error);
+
     if (error) {
-      console.error("Analiz kaydedilemedi:", error);
+      console.error("[saveAnalysis] Insert hatası:", error);
       showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + error.message, type: "error" });
       setSavingAnalysis(false);
       return;
     }
+
+    const newId = (insertData as { id: string } | null)?.id;
+    console.log("[saveAnalysis] Yeni kayıt ID:", newId);
+
     await loadSavedAnalyses();
     showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
     setSavingAnalysis(false);
-    // Fire-and-forget snapshot — only for chakra analyses; failure doesn't affect the saved record
-    const newId = (insertData as { id: string } | null)?.id;
-    if (activeAnalysis === "chakra" && newId && tenantId) {
-      void captureAndUploadSnapshot(newId);
+
+    // Fire-and-forget snapshot — only for chakra analyses
+    const shouldCapture = activeAnalysis === "chakra" && !!newId && !!tenantId;
+    console.log("[saveAnalysis] Capture koşulu:", { activeAnalysis, newId, tenantId, shouldCapture });
+    if (shouldCapture) {
+      void captureAndUploadSnapshot(newId!);
     }
   }
 
   async function captureAndUploadSnapshot(analysisId: string) {
+    console.log("[captureAndUploadSnapshot] Başladı — analysisId:", analysisId);
     const element = document.getElementById("analysis-print-area");
-    if (!element) return;
+    console.log("[captureAndUploadSnapshot] DOM element bulundu mu:", !!element, element?.id);
+    if (!element) {
+      console.warn("[captureAndUploadSnapshot] #analysis-print-area bulunamadı, durduruluyor.");
+      return;
+    }
     try {
+      console.log("[captureAndUploadSnapshot] html2canvas başlatılıyor...");
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -292,22 +310,36 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         ignoreElements: (node) =>
           node instanceof HTMLElement && node.classList.contains("no-pdf"),
       });
+      console.log("[captureAndUploadSnapshot] html2canvas tamamlandı — boyut:", canvas.width, "x", canvas.height);
+
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), "image/png"),
       );
-      if (!blob) return;
+      console.log("[captureAndUploadSnapshot] Blob oluşturuldu:", blob ? `${(blob.size / 1024).toFixed(1)} KB` : "null");
+      if (!blob) {
+        console.warn("[captureAndUploadSnapshot] Blob null, durduruluyor.");
+        return;
+      }
+
       const fd = new FormData();
       fd.append("file", blob, "analysis.png");
       fd.append("analysisId", analysisId);
       fd.append("tenantId", tenantId!);
-      const res = await fetch(`/api/clients/${clientId}/analyses/upload-image`, {
-        method: "POST",
-        body: fd,
-      });
+      const uploadUrl = `/api/clients/${clientId}/analyses/upload-image`;
+      console.log("[captureAndUploadSnapshot] Upload gönderiliyor →", uploadUrl);
+
+      const res = await fetch(uploadUrl, { method: "POST", body: fd });
+      const resText = await res.text();
+      console.log("[captureAndUploadSnapshot] Upload yanıtı — status:", res.status, "body:", resText);
+
       if (!res.ok) {
+        console.error("[captureAndUploadSnapshot] Upload başarısız:", res.status, resText);
         showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
+      } else {
+        console.log("[captureAndUploadSnapshot] Görsel başarıyla yüklendi.");
       }
-    } catch {
+    } catch (err) {
+      console.error("[captureAndUploadSnapshot] Hata:", err);
       showToast({ title: "Uyarı", message: "Analiz kaydedildi, görsel eklenemedi.", type: "info" });
     }
   }
