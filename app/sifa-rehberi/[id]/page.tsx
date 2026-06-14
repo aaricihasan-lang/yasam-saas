@@ -742,7 +742,7 @@ export default function SifaRehberiDetailPage() {
 
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
-      <div className="w-full px-4 py-4 lg:px-8 xl:px-12">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-4 lg:px-8 xl:px-10">
         <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
