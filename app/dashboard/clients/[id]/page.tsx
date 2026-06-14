@@ -14,6 +14,11 @@ import HomeworkTab from "./components/HomeworkTab";
 import AnalizlerTab from "./components/AnalizlerTab";
 import YolculukTab from "./components/YolculukTab";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
+import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
+import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
+import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
+import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
+import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -541,6 +546,8 @@ export default function ClientDetailPage() {
                   </button>
                 </div>
               </div>
+
+              <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
             </>
           )}
 
@@ -1016,5 +1023,76 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
     >
       {label}
     </button>
+  );
+}
+
+// ─── NumerolojikOzetKart ──────────────────────────────────────────────────────
+// Danışan doğum tarihi varsa Genel Bilgiler sekmesinde anlık numeroloji özeti.
+// Saf hesaplama — DB çağrısı yok, hata olursa sessizce "—" gösterir.
+function NumerolojikOzetKart({
+  ad, soyad, dogum,
+}: {
+  ad: string;
+  soyad: string;
+  dogum: string;
+}) {
+  if (!dogum.trim()) return null;
+
+  const firstName = ad.trim();
+  const lastName  = soyad.trim();
+  const hasName   = Boolean(firstName || lastName);
+
+  let hayatYolu    = "—";
+  let kaderSayisi  = "—";
+  let ruhSayisi    = "—";
+  let kisilikSayisi = "—";
+  let kisiselYil   = "—";
+
+  try { hayatYolu   = calcHayatYolu(dogum).display; }   catch { /* sessiz */ }
+  try { kisiselYil  = calcKisiselYil(dogum).display; }  catch { /* sessiz */ }
+  if (hasName) {
+    try { kaderSayisi  = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
+    try { ruhSayisi    = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
+    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }  catch { /* sessiz */ }
+  }
+
+  const items = [
+    { label: "Yaşam Yolu",     value: hayatYolu,     color: "#7c3aed" },
+    { label: "Kader Sayısı",   value: kaderSayisi,   color: "#2563eb" },
+    { label: "Ruh Sayısı",     value: ruhSayisi,     color: "#16a34a" },
+    { label: "Kişilik Sayısı", value: kisilikSayisi, color: "#db2777" },
+    { label: "Kişisel Yıl",   value: kisiselYil,    color: "#ea580c" },
+  ];
+
+  return (
+    <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-base text-violet-500">∞</span>
+        <span className="text-[13px] font-black text-violet-900">Numeroloji Özeti</span>
+        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-600">
+          Salt Okunur · Otomatik
+        </span>
+        {!hasName && (
+          <span className="text-[10px] font-bold text-slate-400">
+            Ad/soyad girilince tamamlanır
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {items.map(({ label, value, color }) => (
+          <div
+            key={label}
+            className="flex flex-col items-center rounded-xl border border-white/70 bg-white px-2 py-3 shadow-sm"
+          >
+            <span className="text-[22px] font-black leading-none" style={{ color }}>
+              {value}
+            </span>
+            <span className="mt-1.5 text-center text-[10px] font-extrabold leading-tight text-slate-500">
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

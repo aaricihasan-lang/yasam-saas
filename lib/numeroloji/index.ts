@@ -3,6 +3,7 @@ export * from "./anaKulvar";
 export * from "./yanKulvar";
 export * from "./ifadeSayisi";
 export * from "./hayatYolu";
+export * from "./kisiselYil";
 export * from "./pinKodu";
 export * from "./cakraOmurgasi";
 export * from "./elementler";

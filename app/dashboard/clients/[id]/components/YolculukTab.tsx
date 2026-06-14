@@ -7,6 +7,7 @@ import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
+import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -74,24 +75,6 @@ function statusLabel(status: string | null | undefined): string {
   return "Bekliyor";
 }
 
-function calcPersonalYear(dogum: string): string {
-  try {
-    const parts = dogum.split("-");
-    if (parts.length !== 3) return "-";
-    const syntheticDate = `${parts[2]}.${parts[1]}.${new Date().getFullYear()}`;
-    const digits = Array.from(syntheticDate)
-      .filter((c) => /\d/.test(c))
-      .map(Number);
-    let total = digits.reduce((a, b) => a + b, 0);
-    const specials = new Set([11, 22, 33]);
-    while (total > 9 && !specials.has(total)) {
-      total = Array.from(String(total)).reduce((a, c) => a + Number(c), 0);
-    }
-    return String(total);
-  } catch {
-    return "-";
-  }
-}
 
 function calcAge(dogum: string): number | null {
   try {
@@ -899,7 +882,7 @@ export default function YolculukTab({
             const kaderSayisi = calcIfadeSayisi(firstName, lastName).display;
             const ruhSayisi = calcAnaKulvar(firstName, lastName).display;
             const kisilikSayisi = calcYanKulvar(firstName, lastName).display;
-            const kisiselYil = calcPersonalYear(clientDogum);
+            const kisiselYil = calcKisiselYil(clientDogum).display;
             const yas = calcAge(clientDogum);
 
             const descParts: string[] = [
