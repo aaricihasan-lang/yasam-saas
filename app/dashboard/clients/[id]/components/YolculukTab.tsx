@@ -220,25 +220,37 @@ function buildAlerts({
     alerts.push({ id: "hw-gecikti", message: `${homeworkProcess.gecikti} geciken ödev var`, category: "kritik" });
 
   if (homeworkProcess.devamEden > 0)
-    alerts.push({ id: "hw-pending", message: `${homeworkProcess.devamEden} devam eden ödev var`, category: "takip" });
+    alerts.push({ id: "hw-pending", message: `${homeworkProcess.devamEden} aktif ödev devam ediyor`, category: "takip" });
 
   if (counts.taslar === 0)
-    alerts.push({ id: "no-tas", message: "Hiç taş önerisi girilmemiş", category: "takip" });
+    alerts.push({ id: "no-tas", message: "Taş önerisi henüz girilmemiş", category: "takip" });
 
   if (counts.notlar === 0)
-    alerts.push({ id: "no-not", message: "Hiç not girilmemiş", category: "takip" });
+    alerts.push({ id: "no-not", message: "Danışan notu henüz eklenmemiş", category: "takip" });
 
   if (counts.seanslar === 0)
     alerts.push({ id: "no-seans", message: "Henüz seans yapılmamış", category: "takip" });
 
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki >= 14 && sessionProcess.gunFarki < 30)
-    alerts.push({ id: "seans-14", message: `Son seanstan ${sessionProcess.gunFarki} gün geçti`, category: "bilgi" });
+    alerts.push({ id: "seans-14", message: `Son görüşmeden ${sessionProcess.gunFarki} gün geçti`, category: "bilgi" });
 
   if (extraAlertData.lastAnalizDaysAgo != null && extraAlertData.lastAnalizDaysAgo >= 60)
     alerts.push({ id: "analiz-old", message: `Son analizden ${extraAlertData.lastAnalizDaysAgo} gün geçti`, category: "bilgi" });
 
   if (counts.seanslar === 0 && counts.randevular === 0)
-    alerts.push({ id: "new-client", message: "Danışan yeni kayıt — süreç henüz başlamamış", category: "bilgi" });
+    alerts.push({ id: "new-client", message: "Yeni danışan — süreç henüz başlamadı", category: "bilgi" });
+
+  if (counts.randevular > 0)
+    alerts.push({ id: "randevu-count", message: `${counts.randevular} randevu planlandı`, category: "bilgi" });
+
+  if (sessionProcess.totalSeans > 0)
+    alerts.push({ id: "seans-count", message: `${sessionProcess.totalSeans} seans tamamlandı`, category: "bilgi" });
+
+  if (clientDogum)
+    alerts.push({ id: "numeroloji-ok", message: "Numeroloji özeti otomatik hesaplandı", category: "bilgi" });
+
+  if (sessionProcess.gunFarki != null && sessionProcess.gunFarki < 14)
+    alerts.push({ id: "seans-fresh", message: `Son görüşmeden ${sessionProcess.gunFarki} gün geçti — süreç aktif`, category: "olumlu" });
 
   if (sessionProcess.yaklasanRandevu)
     alerts.push({ id: "upcoming-ok", message: `Yaklaşan randevu: ${sessionProcess.yaklasanRandevu}`, category: "olumlu" });
@@ -852,10 +864,10 @@ function renderModalBody(entry: TimelineEntry, textSize: string): React.ReactNod
 
   if (entry.type === "numeroloji") {
     const numItems = [
-      { label: "Hayat Yolu / DM", value: d?.hayatYolu,    color: "#7c3aed" },
-      { label: "İfade Sayısı",    value: d?.ifadeSayisi,  color: "#2563eb" },
       { label: "Ana Kulvar",      value: d?.anaKulvar,    color: "#16a34a" },
       { label: "Yan Kulvar",      value: d?.yanKulvar,    color: "#db2777" },
+      { label: "İfade Sayısı",    value: d?.ifadeSayisi,  color: "#2563eb" },
+      { label: "Hayat Yolu / DM", value: d?.hayatYolu,    color: "#7c3aed" },
       { label: "Kişisel Yıl",    value: d?.kisiselYil,   color: "#ea580c" },
       ...(d?.yas != null ? [{ label: "Güncel Yaş", value: String(d.yas), color: "#64748b" }] : []),
     ];
@@ -1068,13 +1080,13 @@ function TimelineCard({
       </div>
 
       <button
-        className="mb-3 min-w-0 flex-1 rounded-[14px] border bg-white p-3.5 text-left shadow-sm transition-shadow hover:shadow-md"
+        className="mb-1.5 min-w-0 flex-1 rounded-[14px] border bg-white px-3 py-2.5 text-left shadow-sm transition-shadow hover:shadow-md"
         style={{ borderColor: `${meta.color}22`, cursor: "pointer" }}
         onClick={() => onOpen(entry)}
       >
-        <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
               <span
                 className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black capitalize tracking-wide"
                 style={{ background: meta.accent, color: meta.color }}
@@ -1087,22 +1099,15 @@ function TimelineCard({
                 </span>
               )}
             </div>
-            <div className="mb-1 text-[14px] font-black text-slate-950">{entry.title}</div>
-            <div className="text-[12px] font-bold text-slate-500">{entry.description}</div>
+            <div className="mb-0.5 text-[13px] font-black text-slate-950">{entry.title}</div>
+            {entry.description && (
+              <div className="line-clamp-2 text-[11px] font-bold leading-snug text-slate-400">{entry.description}</div>
+            )}
           </div>
-          <div className="flex flex-shrink-0 flex-col items-end gap-1">
-            <div
-              className="mt-0.5 whitespace-nowrap text-[10px] font-extrabold"
-              style={{ color: `${meta.color}cc` }}
-            >
-              {entry.date}
-            </div>
+          <div className="ml-2 flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold" style={{ color: `${meta.color}cc` }}>
+            {entry.date}
           </div>
         </div>
-        <div
-          className="mt-3.5 h-0.5 rounded-full"
-          style={{ background: `linear-gradient(90deg, ${meta.color}55, transparent)` }}
-        />
       </button>
     </div>
   );
@@ -1301,10 +1306,10 @@ export default function YolculukTab({
             }
 
             const descParts: string[] = [
-              `Hayat Yolu / DM: ${hayatYolu}`,
-              `İfade Sayısı: ${ifadeSayisi}`,
               `Ana Kulvar: ${anaKulvar}`,
               `Yan Kulvar: ${yanKulvar}`,
+              `İfade Sayısı: ${ifadeSayisi}`,
+              `Hayat Yolu / DM: ${hayatYolu}`,
               `Kişisel Yıl (${new Date().getFullYear()}): ${kisiselYil}`,
             ];
             if (yas != null) descParts.push(`Güncel Yaş: ${yas}`);
