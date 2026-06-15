@@ -243,6 +243,9 @@ export default function BilgiBankasiPage() {
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Bilgi Bankası
               </h1>
+              <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+                🔒 Paylaşımlı referans içeriği — salt okunur
+              </p>
             </div>
             <Link
               href="/aromaterapi"

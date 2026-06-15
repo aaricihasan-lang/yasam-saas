@@ -531,7 +531,7 @@ export default function OilDetailPage() {
                   <>
                     <button type="button" onClick={startEdit}
                       className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
-                      Düzenle
+                      Güncelle
                     </button>
                     <button type="button" onClick={() => { setDeleteConfirmOpen(true); setErrorMessage(""); }}
                       className={`${btnBase} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}>
@@ -610,7 +610,7 @@ export default function OilDetailPage() {
                 {!isSharedContent ? (
                   <button type="button" onClick={startEdit}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[12px] font-bold text-amber-700 transition hover:bg-amber-100">
-                    ✏️ Bilgi Ekle
+                    ✏️ Güncelle
                   </button>
                 ) : (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
