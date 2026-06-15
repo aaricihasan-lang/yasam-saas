@@ -418,7 +418,6 @@ export default function OilDetailPage() {
   // Ana Render
   // -------------------------------------------------------
 
-  const scrollArea = "overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const btnBase = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition disabled:opacity-60";
 
   const plantPartChip = oil.plant_part.trim();
@@ -563,10 +562,10 @@ export default function OilDetailPage() {
         </header>
 
         {/* ─── ANA İÇERİK ──────────────────────────────────── */}
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row">
+        <section className="flex flex-col rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row lg:items-start">
 
           {/* Sidebar */}
-          <nav className={`flex shrink-0 gap-0.5 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:overflow-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5 ${scrollArea}`}>
+          <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:overflow-x-hidden lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5">
             {DETAIL_TABS.map((t) => {
               const active  = tab === t.id;
               const hasDot  = !active && tabHasData(t, draft);
@@ -590,7 +589,7 @@ export default function OilDetailPage() {
           </nav>
 
           {/* İçerik paneli */}
-          <div className={`${scrollArea} min-h-0 flex-1 p-4 lg:p-5`}>
+          <div className="min-w-0 p-4 lg:flex-1 lg:p-5">
 
             {/* Sekme başlığı */}
             <div className="mb-4 flex items-center gap-2.5 border-b border-amber-100/50 pb-3">
