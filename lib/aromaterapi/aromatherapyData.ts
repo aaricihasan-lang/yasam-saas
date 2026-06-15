@@ -119,12 +119,17 @@ export type OilListRow = Pick<
   | "category"
   | "origin"
   | "aroma_profile"
+  | "plant_part"
+  | "main_components"
   | "benefits"
   | "physical_benefits"
   | "emotional_benefits"
   | "skin_benefits"
   | "spiritual_benefits"
+  | "diffuser_usage"
+  | "massage_usage"
   | "usage_methods"
+  | "safety_notes"
   | "chakra_connection"
   | "element_connection"
   | "therapeutic_properties"
@@ -135,8 +140,9 @@ export type OilListRow = Pick<
 >;
 
 const LIST_SELECT =
-  "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile,benefits," +
-  "physical_benefits,emotional_benefits,skin_benefits,spiritual_benefits,usage_methods," +
+  "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile," +
+  "plant_part,main_components,benefits,physical_benefits,emotional_benefits,skin_benefits," +
+  "spiritual_benefits,diffuser_usage,massage_usage,usage_methods,safety_notes," +
   "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
   "created_at,updated_at";
 
@@ -194,12 +200,17 @@ export function matchesOilSearch(row: OilListRow, search: string): boolean {
     row.category,
     row.origin,
     row.aroma_profile,
+    row.plant_part,
+    row.main_components,
     row.benefits,
     row.physical_benefits,
     row.emotional_benefits,
     row.skin_benefits,
     row.spiritual_benefits,
+    row.diffuser_usage,
+    row.massage_usage,
     row.usage_methods,
+    row.safety_notes,
     row.chakra_connection,
     row.element_connection,
   ];

@@ -168,6 +168,25 @@ const FIELD_META: Record<
 };
 
 // -------------------------------------------------------
+// Boş alan kontrolü — görünüm modunda gizleme için
+// -------------------------------------------------------
+
+function isOilFieldEmpty(fieldKey: keyof OilFormData, draft: OilFormData): boolean {
+  const meta = FIELD_META[fieldKey as string];
+  if (!meta) return true;
+  // Boolean: false ise boş sayılır (fotosensitif değilse gösterme)
+  if (meta.isBooleanToggle) return !draft.is_photosensitive;
+  const rawValue = draft[fieldKey as keyof OilFormData];
+  const value = typeof rawValue === "string" ? rawValue : "";
+  // Görsel listesi
+  if (meta.isImageList) return parseImageUrls(value).length === 0;
+  // Tag listesi (blends, target_systems, therapeutic_properties)
+  if (meta.isTags) return parseTagsInput(value).length === 0;
+  // Normal metin / select
+  return value.trim() === "";
+}
+
+// -------------------------------------------------------
 // Tasarım token'ları
 // -------------------------------------------------------
 
@@ -236,6 +255,16 @@ export default function OilDetailPage() {
     () => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0],
     [tab],
   );
+
+  // Görünüm modunda boş alanlar gizlenir; edit modunda tümü gösterilir
+  const activeFields = useMemo(() => {
+    if (editEnabled || !draft) return activeTab.fields;
+    return activeTab.fields.filter(
+      (f) => !isOilFieldEmpty(f as keyof OilFormData, draft),
+    );
+  }, [editEnabled, activeTab.fields, draft]);
+
+  const tabIsEmpty = !editEnabled && activeFields.length === 0;
 
   const isSharedContent = oil?.tenant_id === null;
 
@@ -655,8 +684,25 @@ export default function OilDetailPage() {
               <h2 className="text-[15px] font-bold tracking-tight text-slate-950">{activeTab.label}</h2>
               <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">{activeTab.desc}</p>
 
+              {tabIsEmpty ? (
+                <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
+                  <span className="text-3xl opacity-40">📋</span>
+                  <p className="mt-2 text-[13px] font-medium text-slate-400">
+                    Bu bölümde kayıtlı bilgi yok
+                  </p>
+                  {!isSharedContent && (
+                    <button
+                      type="button"
+                      onClick={startEdit}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                    >
+                      ✏️ Düzenle
+                    </button>
+                  )}
+                </div>
+              ) : (
               <div className="mt-4 space-y-3">
-                {activeTab.fields.map((fieldKey) => {
+                {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
 
@@ -783,6 +829,7 @@ export default function OilDetailPage() {
                   );
                 })}
               </div>
+              )}
             </div>
           </div>
         </section>

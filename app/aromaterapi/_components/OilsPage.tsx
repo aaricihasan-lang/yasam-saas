@@ -815,7 +815,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     <p className="mt-0.5 text-[12px] font-medium italic text-slate-500">{row.latin_name}</p>
                   ) : null}
                   {row.english_name.trim() ? (
-                    <p className="text-[11px] font-medium text-slate-400">{row.english_name}</p>
+                    <p className="line-clamp-1 text-[11px] font-medium text-slate-400" title={row.english_name}>
+                      {row.english_name}
+                    </p>
                   ) : null}
 
                   <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-slate-600">
@@ -854,7 +856,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                           <p className="truncate text-[11px] italic text-slate-400">{row.latin_name}</p>
                         ) : null}
                         {row.english_name.trim() ? (
-                          <p className="truncate text-[10px] text-slate-400">{row.english_name}</p>
+                          <p className="truncate text-[10px] text-slate-400" title={row.english_name}>
+                            {row.english_name}
+                          </p>
                         ) : null}
                       </div>
                       <div>
