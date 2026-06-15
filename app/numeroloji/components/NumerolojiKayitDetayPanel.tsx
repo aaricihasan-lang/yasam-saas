@@ -103,6 +103,7 @@ import {
   type GorselTemaId,
 } from "./NumerolojiGorselRaporInfografik";
 import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
+import { NumerolojiIliskiAnaliziTab } from "./NumerolojiIliskiAnaliziTab";
 import {
   ContentFontSizeProvider,
   NumerolojiFontSizeControl,
@@ -130,6 +131,7 @@ const DETAY_TABS = [
   { id: "detailed" as const, label: "Analiz (Hesap Özetli)" },
   { id: "tas" as const, label: "Taş Açıklamaları" },
   { id: "gorsel" as const, label: "Görsel Rapor" },
+  { id: "iliski" as const, label: "İlişki Analizi" },
 ];
 
 type DetayTabId = (typeof DETAY_TABS)[number]["id"];
@@ -367,6 +369,7 @@ export function NumerolojiKayitDetayPanel({
   const [contentFontSize, setContentFontSize] = useState<ContentFontSize>("normal");
 
   const isOkumaTab = tab === "summary" || tab === "plain" || tab === "detailed" || tab === "tas";
+  const isIliskiTab = tab === "iliski";
 
   useEffect(() => {
     const next = gorselDefaults(extractGorselFromAnalysisData(analysisData));
@@ -478,6 +481,15 @@ export function NumerolojiKayitDetayPanel({
               </div>
             ) : null}
           </ContentFontSizeProvider>
+        ) : null}
+
+        {isIliskiTab ? (
+          <NumerolojiIliskiAnaliziTab
+            kisi1Name={name}
+            kisi1Surname={surname}
+            kisi1BirthDate={birthDate}
+            kisi1Pin={out.pinKodu}
+          />
         ) : null}
 
         {tab === "gorsel" ? (
