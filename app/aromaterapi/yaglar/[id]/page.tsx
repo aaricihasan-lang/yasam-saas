@@ -20,7 +20,7 @@ import {
 import { supabase } from "@/lib/supabase";
 
 // -------------------------------------------------------
-// Detay Sekmeleri — 9 sekme, form yapısıyla örtüşür
+// Sekme tanımları
 // -------------------------------------------------------
 
 type DetailTabId =
@@ -43,69 +43,15 @@ type DetailTab = {
 };
 
 const DETAIL_TABS: DetailTab[] = [
-  {
-    id: "kimlik",
-    label: "Kimlik",
-    icon: "🌿",
-    desc: "Ad, Latince/İngilizce ad, yağ tipi ve kategori.",
-    fields: ["name", "latin_name", "english_name", "oil_type", "category"],
-  },
-  {
-    id: "botanik",
-    label: "Botanik & Kaynak",
-    icon: "🌱",
-    desc: "Menşei, çıkarma yöntemi, kullanılan bitki bölümü ve raf ömrü.",
-    fields: ["origin", "extraction_method", "plant_part", "shelf_life"],
-  },
-  {
-    id: "yag-ozellikleri",
-    label: "Yağ Özellikleri",
-    icon: "✨",
-    desc: "Koku profili, nota, renk, kıvam ve fotosensitiflik.",
-    fields: ["aroma_profile", "aroma_note", "color", "consistency", "is_photosensitive"],
-  },
-  {
-    id: "kimyasal",
-    label: "Kimyasal İçerik",
-    icon: "🔬",
-    desc: "Ana kimyasal bileşenler ve terapötik özellikler.",
-    fields: ["main_components", "therapeutic_properties_raw"],
-  },
-  {
-    id: "ruhsal-duygusal",
-    label: "Ruhsal & Duygusal",
-    icon: "💚",
-    desc: "Duygusal, ruhsal, fiziksel ve cilt faydaları.",
-    fields: ["emotional_benefits", "spiritual_benefits", "physical_benefits", "skin_benefits", "benefits"],
-  },
-  {
-    id: "kullanim",
-    label: "Kullanım Şekilleri",
-    icon: "💧",
-    desc: "Difüzyon, masaj, genel kullanım ve seyreltme oranı.",
-    fields: ["diffuser_usage", "massage_usage", "usage_methods", "dilution_ratio"],
-  },
-  {
-    id: "uyumlu",
-    label: "Uyumlu Yağlar",
-    icon: "🔮",
-    desc: "İyi karıştığı yağlar, hedef sistemler, çakra ve element bağlantısı.",
-    fields: ["blends_well_with_raw", "target_systems_raw", "chakra_connection", "element_connection"],
-  },
-  {
-    id: "onlemler",
-    label: "Önlemler & Güvenlik",
-    icon: "⚠️",
-    desc: "Güvenlik notları ve kontrendikasyonlar.",
-    fields: ["safety_notes", "contraindications"],
-  },
-  {
-    id: "notlar",
-    label: "Notlar",
-    icon: "📝",
-    desc: "Görseller (URL), ek notlar ve kaynak bilgisi.",
-    fields: ["images_raw", "notes", "source"],
-  },
+  { id: "kimlik",        label: "Kimlik",             icon: "🌿", desc: "Ad, Latince/İngilizce ad, yağ tipi ve kategori.",             fields: ["name", "latin_name", "english_name", "oil_type", "category"] },
+  { id: "botanik",       label: "Botanik & Kaynak",   icon: "🌱", desc: "Menşei, çıkarma yöntemi, kullanılan bitki bölümü ve raf ömrü.", fields: ["origin", "extraction_method", "plant_part", "shelf_life"] },
+  { id: "yag-ozellikleri", label: "Yağ Özellikleri", icon: "✨", desc: "Koku profili, nota, renk, kıvam ve fotosensitiflik.",          fields: ["aroma_profile", "aroma_note", "color", "consistency", "is_photosensitive"] },
+  { id: "kimyasal",      label: "Kimyasal İçerik",    icon: "🔬", desc: "Ana kimyasal bileşenler ve terapötik özellikler.",            fields: ["main_components", "therapeutic_properties_raw"] },
+  { id: "ruhsal-duygusal", label: "Ruhsal & Duygusal", icon: "💚", desc: "Duygusal, ruhsal, fiziksel ve cilt faydaları.",              fields: ["emotional_benefits", "spiritual_benefits", "physical_benefits", "skin_benefits", "benefits"] },
+  { id: "kullanim",      label: "Kullanım Şekilleri", icon: "💧", desc: "Difüzyon, masaj, genel kullanım ve seyreltme oranı.",         fields: ["diffuser_usage", "massage_usage", "usage_methods", "dilution_ratio"] },
+  { id: "uyumlu",        label: "Uyumlu Yağlar",      icon: "🔮", desc: "İyi karıştığı yağlar, hedef sistemler, çakra ve element.",   fields: ["blends_well_with_raw", "target_systems_raw", "chakra_connection", "element_connection"] },
+  { id: "onlemler",      label: "Önlemler & Güvenlik", icon: "⚠️", desc: "Güvenlik notları ve kontrendikasyonlar.",                   fields: ["safety_notes", "contraindications"] },
+  { id: "notlar",        label: "Notlar",              icon: "📝", desc: "Görseller (URL), ek notlar ve kaynak bilgisi.",              fields: ["images_raw", "notes", "source"] },
 ];
 
 // -------------------------------------------------------
@@ -114,106 +60,65 @@ const DETAIL_TABS: DetailTab[] = [
 
 const FIELD_META: Record<
   string,
-  {
-    label: string;
-    multiline?: boolean;
-    isOilType?: boolean;
-    isTags?: boolean;
-    isBooleanToggle?: boolean;
-    isImageList?: boolean;
-  }
+  { label: string; multiline?: boolean; isOilType?: boolean; isTags?: boolean; isBooleanToggle?: boolean; isImageList?: boolean }
 > = {
   name:              { label: "Yağ Adı" },
   latin_name:        { label: "Latince Adı" },
   english_name:      { label: "İngilizce Adı" },
   oil_type:          { label: "Yağ Tipi", isOilType: true },
   category:          { label: "Kategori" },
-
   origin:            { label: "Menşei / Ülke" },
   extraction_method: { label: "Çıkarma Yöntemi" },
   plant_part:        { label: "Kullanılan Bitki Bölümü" },
   shelf_life:        { label: "Raf Ömrü" },
-
   aroma_profile:     { label: "Koku Profili", multiline: true },
   aroma_note:        { label: "Koku Notası" },
   color:             { label: "Renk" },
   consistency:       { label: "Kıvam / Yoğunluk" },
   is_photosensitive: { label: "Fotosensitif", isBooleanToggle: true },
-
   main_components:            { label: "Ana Kimyasal Bileşenler", multiline: true },
   therapeutic_properties_raw: { label: "Terapötik Özellikler", multiline: true, isTags: true },
-
   emotional_benefits: { label: "Duygusal Etkiler", multiline: true },
   spiritual_benefits: { label: "Ruhsal Etkiler", multiline: true },
   physical_benefits:  { label: "Fiziksel Faydalar", multiline: true },
   skin_benefits:      { label: "Cilt Faydaları", multiline: true },
   benefits:           { label: "Genel Faydalar", multiline: true },
-
-  diffuser_usage: { label: "Brülör & Buharlaştırıcı", multiline: true },
-  massage_usage:  { label: "Masaj Kullanımı", multiline: true },
-  usage_methods:  { label: "Genel Kullanım Yöntemleri", multiline: true },
-  dilution_ratio: { label: "Seyreltme Oranı" },
-
+  diffuser_usage:     { label: "Brülör & Buharlaştırıcı", multiline: true },
+  massage_usage:      { label: "Masaj Kullanımı", multiline: true },
+  usage_methods:      { label: "Genel Kullanım Yöntemleri", multiline: true },
+  dilution_ratio:     { label: "Seyreltme Oranı" },
   blends_well_with_raw: { label: "İyi Karıştığı Yağlar", isTags: true, multiline: true },
   target_systems_raw:   { label: "Hedef Sistemler", isTags: true, multiline: true },
   chakra_connection:    { label: "Çakra Bağlantısı" },
   element_connection:   { label: "Element Bağlantısı" },
-
-  safety_notes:      { label: "Güvenlik Notları", multiline: true },
-  contraindications: { label: "Kontrendikasyonlar", multiline: true },
-
+  safety_notes:         { label: "Güvenlik Notları", multiline: true },
+  contraindications:    { label: "Kontrendikasyonlar", multiline: true },
   images_raw: { label: "Görseller", isImageList: true, multiline: true },
   notes:      { label: "Ek Notlar", multiline: true },
   source:     { label: "Kaynak" },
 };
 
 // -------------------------------------------------------
-// Boş alan kontrolü — görünüm modunda gizleme için
+// Boş alan kontrolü
 // -------------------------------------------------------
 
 function isOilFieldEmpty(fieldKey: keyof OilFormData, draft: OilFormData): boolean {
   const meta = FIELD_META[fieldKey as string];
   if (!meta) return true;
-  // Boolean: false ise boş sayılır (fotosensitif değilse gösterme)
   if (meta.isBooleanToggle) return !draft.is_photosensitive;
   const rawValue = draft[fieldKey as keyof OilFormData];
   const value = typeof rawValue === "string" ? rawValue : "";
-  // Görsel listesi
   if (meta.isImageList) return parseImageUrls(value).length === 0;
-  // Tag listesi (blends, target_systems, therapeutic_properties)
   if (meta.isTags) return parseTagsInput(value).length === 0;
-  // Normal metin / select
   return value.trim() === "";
 }
 
 // -------------------------------------------------------
-// Tasarım token'ları
-// -------------------------------------------------------
-
-const toolbarBtn =
-  "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
-
-const navBtnBase =
-  "flex w-full min-h-[34px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-semibold transition";
-
-const navBtnActive =
-  "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_10px_28px_rgba(245,158,11,0.38)] ring-2 ring-amber-300/55";
-
-const navBtnIdle =
-  "bg-white/75 text-slate-700 ring-1 ring-amber-100/70 hover:bg-white hover:ring-amber-200/90";
-
-const sectionCard =
-  "rounded-xl border border-amber-100 bg-gradient-to-br from-white via-amber-50/30 to-rose-50/20 p-4 shadow-sm ring-1 ring-white/90";
-
-const sectionBody =
-  "whitespace-pre-wrap rounded-lg border border-slate-100 bg-white/90 p-3 text-sm leading-6 text-slate-700";
-
-// -------------------------------------------------------
-// Tag gösterim bileşeni
+// Tag bileşeni
 // -------------------------------------------------------
 
 function TagsList({ tags }: { tags: string[] }) {
-  if (!tags.length) return <span className="text-sm text-slate-400">Henüz eklenmemiş</span>;
+  if (!tags.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.map((tag) => (
@@ -251,21 +156,14 @@ export default function OilDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const activeTab = useMemo(
-    () => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0],
-    [tab],
-  );
+  const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
 
-  // Görünüm modunda boş alanlar gizlenir; edit modunda tümü gösterilir
   const activeFields = useMemo(() => {
     if (editEnabled || !draft) return activeTab.fields;
-    return activeTab.fields.filter(
-      (f) => !isOilFieldEmpty(f as keyof OilFormData, draft),
-    );
+    return activeTab.fields.filter((f) => !isOilFieldEmpty(f as keyof OilFormData, draft));
   }, [editEnabled, activeTab.fields, draft]);
 
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
-
   const isSharedContent = oil?.tenant_id === null;
 
   const loadOil = useCallback(async () => {
@@ -273,200 +171,92 @@ export default function OilDetailPage() {
     setLoading(true);
     setErrorMessage("");
     setNotFound(false);
-
     const tid = await getSyncedTenantId();
     if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
     setTenantId(tid);
-
     const { oil: data, error, notFound: missing } = await fetchOilDetail(tid, id);
     setLoading(false);
     if (error) { setErrorMessage(`Kayıt yüklenemedi: ${error}`); return; }
     if (missing || !data) { setNotFound(true); return; }
-
     setOil(data);
     setDraft(oilToFormData(data));
   }, [id]);
 
-  useEffect(() => {
-    runInEffect(() => { void loadOil(); });
-  }, [loadOil]);
-
+  useEffect(() => { runInEffect(() => { void loadOil(); }); }, [loadOil]);
   useBfcacheRefresh();
-
-  // -------------------------------------------------------
-  // Navigasyon
-  // -------------------------------------------------------
 
   function handleNavigation(href: string) {
     if (editEnabled) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
     else router.push(href);
   }
-
-  function confirmLeave() {
-    setLeaveConfirmOpen(false);
-    setEditEnabled(false);
-    if (pendingNavHref) router.push(pendingNavHref);
-    setPendingNavHref(null);
-  }
-
+  function confirmLeave() { setLeaveConfirmOpen(false); setEditEnabled(false); if (pendingNavHref) router.push(pendingNavHref); setPendingNavHref(null); }
   function cancelLeave() { setLeaveConfirmOpen(false); setPendingNavHref(null); }
-
-  // -------------------------------------------------------
-  // Edit kontrolleri
-  // -------------------------------------------------------
 
   function setDraftField(key: keyof OilFormData, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
-
-  function startEdit() {
-    if (!oil) return;
-    setDraft(oilToFormData(oil));
-    setEditEnabled(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-  }
-
-  function cancelEdit() {
-    if (!oil) return;
-    setDraft(oilToFormData(oil));
-    setEditEnabled(false);
-    setErrorMessage("");
-  }
+  function startEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(true); setErrorMessage(""); setSuccessMessage(""); }
+  function cancelEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(false); setErrorMessage(""); }
 
   async function handleSave() {
     if (!draft || !id || !tenantId) return;
     const nameTrim = draft.name.trim();
     if (!nameTrim) { setErrorMessage("Yağ adı zorunludur."); return; }
-
-    setSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
+    setSaving(true); setErrorMessage(""); setSuccessMessage("");
     const t = (v: string) => v.trim() || "";
-
-    const { data: updatedRows, error } = await supabase
-      .from("aromatherapy_oils")
-      .update({
-        name: nameTrim,
-        latin_name: t(draft.latin_name),
-        english_name: t(draft.english_name),
-        oil_type: draft.oil_type || "essential",
-        category: t(draft.category),
-        extraction_method: t(draft.extraction_method),
-        plant_part: t(draft.plant_part),
-        origin: t(draft.origin),
-        shelf_life: t(draft.shelf_life),
-        aroma_profile: t(draft.aroma_profile),
-        aroma_note: t(draft.aroma_note),
-        color: t(draft.color),
-        consistency: t(draft.consistency),
-        is_photosensitive: draft.is_photosensitive,
-        main_components: t(draft.main_components),
-        therapeutic_properties: parseTagsInput(draft.therapeutic_properties_raw),
-        emotional_benefits: t(draft.emotional_benefits),
-        spiritual_benefits: t(draft.spiritual_benefits),
-        physical_benefits: t(draft.physical_benefits),
-        skin_benefits: t(draft.skin_benefits),
-        benefits: t(draft.benefits),
-        diffuser_usage: t(draft.diffuser_usage),
-        massage_usage: t(draft.massage_usage),
-        usage_methods: t(draft.usage_methods),
-        dilution_ratio: t(draft.dilution_ratio),
-        blends_well_with: parseTagsInput(draft.blends_well_with_raw),
-        target_systems: parseTagsInput(draft.target_systems_raw),
-        chakra_connection: t(draft.chakra_connection),
-        element_connection: t(draft.element_connection),
-        safety_notes: t(draft.safety_notes),
-        contraindications: t(draft.contraindications),
-        images: parseImageUrls(draft.images_raw),
-        notes: t(draft.notes),
-        source: t(draft.source),
-      })
-      .eq("tenant_id", tenantId)
-      .eq("id", id)
-      .select("id");
-
+    const { data: updatedRows, error } = await supabase.from("aromatherapy_oils").update({
+      name: nameTrim, latin_name: t(draft.latin_name), english_name: t(draft.english_name),
+      oil_type: draft.oil_type || "essential", category: t(draft.category),
+      extraction_method: t(draft.extraction_method), plant_part: t(draft.plant_part),
+      origin: t(draft.origin), shelf_life: t(draft.shelf_life),
+      aroma_profile: t(draft.aroma_profile), aroma_note: t(draft.aroma_note),
+      color: t(draft.color), consistency: t(draft.consistency), is_photosensitive: draft.is_photosensitive,
+      main_components: t(draft.main_components), therapeutic_properties: parseTagsInput(draft.therapeutic_properties_raw),
+      emotional_benefits: t(draft.emotional_benefits), spiritual_benefits: t(draft.spiritual_benefits),
+      physical_benefits: t(draft.physical_benefits), skin_benefits: t(draft.skin_benefits), benefits: t(draft.benefits),
+      diffuser_usage: t(draft.diffuser_usage), massage_usage: t(draft.massage_usage),
+      usage_methods: t(draft.usage_methods), dilution_ratio: t(draft.dilution_ratio),
+      blends_well_with: parseTagsInput(draft.blends_well_with_raw), target_systems: parseTagsInput(draft.target_systems_raw),
+      chakra_connection: t(draft.chakra_connection), element_connection: t(draft.element_connection),
+      safety_notes: t(draft.safety_notes), contraindications: t(draft.contraindications),
+      images: parseImageUrls(draft.images_raw), notes: t(draft.notes), source: t(draft.source),
+    }).eq("tenant_id", tenantId).eq("id", id).select("id");
     setSaving(false);
-
     if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error.message}`); return; }
-    if (!updatedRows || updatedRows.length === 0) {
-      setErrorMessage("Güncelleme başarısız — bu kayıt değiştirilemez veya erişim izniniz yok.");
-      return;
-    }
-
-    setEditEnabled(false);
-    setSuccessMessage("Kayıt güncellendi.");
-    await loadOil();
+    if (!updatedRows || updatedRows.length === 0) { setErrorMessage("Güncelleme başarısız — erişim izniniz yok."); return; }
+    setEditEnabled(false); setSuccessMessage("Kayıt güncellendi."); await loadOil();
   }
 
   async function handleDelete() {
     if (!id || !tenantId) return;
-    setDeleting(true);
-    setErrorMessage("");
-
-    const { error } = await supabase
-      .from("aromatherapy_oils")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("id", id);
-
+    setDeleting(true); setErrorMessage("");
+    const { error } = await supabase.from("aromatherapy_oils").delete().eq("tenant_id", tenantId).eq("id", id);
     setDeleting(false);
     if (error) { setErrorMessage(`Silinemedi: ${error.message}`); return; }
-
-    setDeleteConfirmOpen(false);
-    router.push("/aromaterapi/yaglar?view=list");
+    setDeleteConfirmOpen(false); router.push("/aromaterapi/yaglar?view=list");
   }
 
   async function handleCopy() {
     if (!oil || !tenantId) return;
-    setCopying(true);
-    setErrorMessage("");
-
+    setCopying(true); setErrorMessage("");
     const t = (v: string) => v || "";
-
-    const { data, error } = await supabase
-      .from("aromatherapy_oils")
-      .insert({
-        tenant_id: tenantId,
-        name: `${oil.name} (Kopya)`,
-        latin_name: t(oil.latin_name),
-        english_name: t(oil.english_name),
-        oil_type: oil.oil_type,
-        category: t(oil.category),
-        extraction_method: t(oil.extraction_method),
-        plant_part: t(oil.plant_part),
-        origin: t(oil.origin),
-        shelf_life: t(oil.shelf_life),
-        aroma_profile: t(oil.aroma_profile),
-        aroma_note: t(oil.aroma_note),
-        color: t(oil.color),
-        consistency: t(oil.consistency),
-        is_photosensitive: oil.is_photosensitive ?? false,
-        main_components: t(oil.main_components),
-        therapeutic_properties: oil.therapeutic_properties ?? [],
-        emotional_benefits: t(oil.emotional_benefits),
-        spiritual_benefits: t(oil.spiritual_benefits),
-        physical_benefits: t(oil.physical_benefits),
-        skin_benefits: t(oil.skin_benefits),
-        benefits: t(oil.benefits),
-        diffuser_usage: t(oil.diffuser_usage),
-        massage_usage: t(oil.massage_usage),
-        usage_methods: t(oil.usage_methods),
-        dilution_ratio: t(oil.dilution_ratio),
-        blends_well_with: oil.blends_well_with ?? [],
-        target_systems: oil.target_systems ?? [],
-        chakra_connection: t(oil.chakra_connection),
-        element_connection: t(oil.element_connection),
-        safety_notes: t(oil.safety_notes),
-        contraindications: t(oil.contraindications),
-        images: oil.images ?? [],
-        notes: t(oil.notes),
-        source: t(oil.source),
-      })
-      .select("id")
-      .single();
-
+    const { data, error } = await supabase.from("aromatherapy_oils").insert({
+      tenant_id: tenantId, name: `${oil.name} (Kopya)`,
+      latin_name: t(oil.latin_name), english_name: t(oil.english_name), oil_type: oil.oil_type,
+      category: t(oil.category), extraction_method: t(oil.extraction_method), plant_part: t(oil.plant_part),
+      origin: t(oil.origin), shelf_life: t(oil.shelf_life), aroma_profile: t(oil.aroma_profile),
+      aroma_note: t(oil.aroma_note), color: t(oil.color), consistency: t(oil.consistency),
+      is_photosensitive: oil.is_photosensitive ?? false, main_components: t(oil.main_components),
+      therapeutic_properties: oil.therapeutic_properties ?? [],
+      emotional_benefits: t(oil.emotional_benefits), spiritual_benefits: t(oil.spiritual_benefits),
+      physical_benefits: t(oil.physical_benefits), skin_benefits: t(oil.skin_benefits), benefits: t(oil.benefits),
+      diffuser_usage: t(oil.diffuser_usage), massage_usage: t(oil.massage_usage),
+      usage_methods: t(oil.usage_methods), dilution_ratio: t(oil.dilution_ratio),
+      blends_well_with: oil.blends_well_with ?? [], target_systems: oil.target_systems ?? [],
+      chakra_connection: t(oil.chakra_connection), element_connection: t(oil.element_connection),
+      safety_notes: t(oil.safety_notes), contraindications: t(oil.contraindications),
+      images: oil.images ?? [], notes: t(oil.notes), source: t(oil.source),
+    }).select("id").single();
     setCopying(false);
     if (error || !data) { setErrorMessage("Kopyalama başarısız."); return; }
     router.push(`/aromaterapi/yaglar/${data.id}`);
@@ -476,363 +266,459 @@ export default function OilDetailPage() {
   // Yükleniyor / Bulunamadı
   // -------------------------------------------------------
 
+  const pageBg = "bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)]";
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)]">
-        <div className="flex w-full items-center justify-center py-24">
-          <p className="text-sm font-bold text-slate-500">Yükleniyor...</p>
-        </div>
+      <main className={`flex min-h-screen items-center justify-center ${pageBg}`}>
+        <p className="text-sm font-bold text-slate-500">Yükleniyor...</p>
       </main>
     );
   }
 
   if (notFound || !oil || !draft) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)]">
-        <div className="mx-auto w-full max-w-[1400px] px-4 py-10 lg:px-8">
-          <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white/72 p-8 text-center shadow ring-1 ring-white/80">
-            <div className="text-[52px]">🌸</div>
-            <h1 className="mt-3 text-[22px] font-black text-slate-900">Kayıt bulunamadı</h1>
-            <p className="mt-2 max-w-md text-[14px] font-medium leading-relaxed text-slate-500">
-              Bu yağ kaydı bulunamadı veya erişim izniniz yok.
-            </p>
-            <Link
-              href="/aromaterapi/yaglar?view=list"
-              className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-6 py-3 text-[13px] font-black text-white shadow transition hover:brightness-105"
-            >
-              <span aria-hidden>←</span>
-              Listeye Dön
-            </Link>
-          </div>
+      <main className={`flex min-h-screen items-center justify-center p-4 ${pageBg}`}>
+        <div className="flex max-w-md flex-col items-center rounded-[28px] bg-white/80 p-10 text-center shadow ring-1 ring-white/80">
+          <div className="text-[52px]">🌸</div>
+          <h1 className="mt-3 text-[22px] font-black text-slate-900">Kayıt bulunamadı</h1>
+          <p className="mt-2 text-[14px] font-medium text-slate-500">Bu yağ kaydı bulunamadı veya erişim izniniz yok.</p>
+          <Link href="/aromaterapi/yaglar?view=list" className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-6 py-3 text-[13px] font-black text-white shadow transition hover:brightness-105">
+            <span aria-hidden>←</span> Listeye Dön
+          </Link>
         </div>
       </main>
     );
   }
 
   // -------------------------------------------------------
-  // Detay Görünümü
+  // Ana Render
   // -------------------------------------------------------
 
-  const detailScrollArea =
-    "min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  const scrollArea = "overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+  const btnBase = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition disabled:opacity-60";
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950">
-      <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-5 lg:px-8 xl:px-10">
+    <main className={`flex min-h-screen flex-col text-slate-950 ${pageBg}`}>
+      <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-2 px-3 py-4 sm:px-5 lg:px-8 xl:px-10">
 
-        {/* Toolbar */}
-        <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
-                AROMATERAPİ — YAĞ DETAY
+        {/* ─── HERO HEADER ──────────────────────────────────── */}
+        <header className="overflow-hidden rounded-[20px] bg-white/95 shadow-[0_2px_20px_rgba(245,158,11,0.09)] ring-1 ring-amber-200/40">
+          <div className="px-4 py-3.5 sm:px-5">
+            <div className="flex items-start gap-3">
+
+              {/* Sol: isim + meta */}
+              <div className="min-w-0 flex-1">
+                {/* Breadcrumb */}
+                <div className="mb-2 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigation("/aromaterapi")}
+                    className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-600/70 hover:text-amber-700"
+                  >
+                    Aromaterapi
+                  </button>
+                  <span className="text-[10px] text-amber-400">/</span>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigation("/aromaterapi/yaglar?view=list")}
+                    className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-600/70 hover:text-amber-700"
+                  >
+                    Yağlar
+                  </button>
+                </div>
+
+                {/* İsim */}
+                {editEnabled ? (
+                  <input
+                    value={draft.name}
+                    onChange={(e) => setDraftField("name", e.target.value)}
+                    className="w-full max-w-2xl rounded-xl border border-amber-200 bg-amber-50/30 px-3 py-2 text-[18px] font-black text-slate-950 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100/70"
+                    placeholder="Yağ adı"
+                  />
+                ) : (
+                  <h1 className="text-[18px] font-black leading-tight tracking-tight text-slate-950 sm:text-[20px]">
+                    {oil.name}
+                  </h1>
+                )}
+
+                {/* Meta satırı */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(oil.oil_type)}`}>
+                    {oilTypeLabel(oil.oil_type)}
+                  </span>
+                  {oil.latin_name.trim() ? (
+                    <span className="text-[12px] font-medium italic text-slate-500">{oil.latin_name}</span>
+                  ) : null}
+                  {oil.english_name.trim() ? (
+                    <span className="text-[11px] text-slate-400">
+                      · {oil.english_name.split(";")[0]?.trim()}
+                    </span>
+                  ) : null}
+                  {oil.category.trim() ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {oil.category}
+                    </span>
+                  ) : null}
+                  {oil.is_photosensitive ? (
+                    <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                      ☀️ Fotosensitif
+                    </span>
+                  ) : null}
+                  {isSharedContent ? (
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                      🔒 Paylaşımlı
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
-              {editEnabled ? (
-                <input
-                  value={draft.name}
-                  onChange={(e) => setDraftField("name", e.target.value)}
-                  className="mt-1 w-full max-w-2xl rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-lg font-bold text-slate-950 outline-none transition focus:border-amber-200 focus:ring-2 focus:ring-amber-100/60"
-                  placeholder="Yağ adı"
-                />
-              ) : (
-                <h1 className="mt-1 text-lg font-bold leading-snug tracking-tight text-slate-950 lg:text-xl">
-                  {oil.name}
-                </h1>
-              )}
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${oilTypeBadgeClass(oil.oil_type)}`}>
-                  {oilTypeLabel(oil.oil_type)}
-                </span>
-                {oil.category.trim() ? (
-                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/60">
-                    {oil.category}
-                  </span>
-                ) : null}
-                {oil.latin_name.trim() ? (
-                  <span className="text-[12px] font-medium italic text-slate-500">{oil.latin_name}</span>
-                ) : null}
-                {oil.english_name.trim() ? (
-                  <span className="text-[11px] font-medium text-slate-400">{oil.english_name}</span>
-                ) : null}
-                {oil.is_photosensitive ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
-                    ☀️ Fotosensitif
-                  </span>
-                ) : null}
-                {isSharedContent ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
-                    🔒 Paylaşımlı içerik
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Toolbar butonları */}
-            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/90 bg-white/60 p-1 shadow-sm ring-1 ring-slate-100/80 backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => handleNavigation("/aromaterapi/yaglar?view=list")}
-                className={`${toolbarBtn} border border-slate-200/90 bg-white/90 text-slate-800 shadow-sm ring-1 ring-white/90 hover:bg-white`}
-              >
-                <span aria-hidden className="text-base leading-none">←</span>
-                Listeye Dön
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigation("/aromaterapi")}
-                className={`${toolbarBtn} border border-amber-200/90 bg-amber-50/95 text-amber-800 shadow-sm hover:bg-amber-100`}
-              >
-                Ana
-              </button>
-
-              {isSharedContent ? (
+              {/* Sağ: aksiyon butonları */}
+              <div className="flex shrink-0 flex-wrap items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => void handleCopy()}
-                  disabled={copying}
-                  className={`${toolbarBtn} bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow ring-1 ring-violet-400/30 hover:brightness-105`}
+                  onClick={() => handleNavigation("/aromaterapi/yaglar?view=list")}
+                  className={`${btnBase} border border-slate-200/90 bg-white text-slate-700 shadow-sm hover:bg-slate-50`}
                 >
-                  {copying ? "Kopyalanıyor..." : "📋 Kopyala ve Düzenle"}
+                  <span aria-hidden className="text-sm leading-none">←</span>
+                  <span className="hidden sm:inline">Listeye Dön</span>
                 </button>
-              ) : editEnabled ? (
-                <>
+
+                {isSharedContent ? (
                   <button
                     type="button"
-                    onClick={() => void handleSave()}
-                    disabled={saving}
-                    className={`${toolbarBtn} bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow ring-1 ring-amber-400/30 hover:brightness-105`}
+                    onClick={() => void handleCopy()}
+                    disabled={copying}
+                    className={`${btnBase} bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow ring-1 ring-violet-400/30 hover:brightness-105`}
                   >
-                    {saving ? "Kaydediliyor..." : "Kaydet"}
+                    {copying ? "Kopyalanıyor…" : "📋 Kopyala"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    disabled={saving}
-                    className={`${toolbarBtn} border border-slate-200/90 bg-white/90 text-slate-700 shadow-sm hover:bg-slate-50`}
-                  >
-                    Vazgeç
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={startEdit}
-                    className={`${toolbarBtn} bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 text-white shadow ring-1 ring-slate-700/40 hover:shadow-lg`}
-                  >
-                    Düzenle
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setDeleteConfirmOpen(true); setErrorMessage(""); }}
-                    className={`${toolbarBtn} border border-red-200/90 bg-red-50/95 text-red-700 hover:bg-red-100`}
-                  >
-                    Sil
-                  </button>
-                </>
-              )}
+                ) : editEnabled ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void handleSave()}
+                      disabled={saving}
+                      className={`${btnBase} bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow ring-1 ring-amber-400/30 hover:brightness-105`}
+                    >
+                      {saving ? "Kaydediliyor…" : "Kaydet"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={saving}
+                      className={`${btnBase} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
+                    >
+                      Vazgeç
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={startEdit}
+                      className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}
+                    >
+                      Düzenle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setDeleteConfirmOpen(true); setErrorMessage(""); }}
+                      className={`${btnBase} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}
+                    >
+                      Sil
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* İnce bilgi şeridi */}
+          {editEnabled && (
+            <div className="border-t border-amber-100 bg-amber-50/70 px-4 py-1.5 text-[11px] font-semibold text-amber-700">
+              ✏️ Düzenleme modundasınız — kaydetmeden çıkmak için Vazgeç&apos;e basın
+            </div>
+          )}
+          {isSharedContent && !editEnabled && (
+            <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-1.5 text-[11px] font-medium text-slate-500">
+              🔒 Paylaşımlı içerik — &quot;Kopyala&quot; butonu ile kendi hesabınıza ekleyebilirsiniz
+            </div>
+          )}
+
+          {/* Hata / başarı */}
+          {errorMessage ? (
+            <div className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-[12px] font-black text-rose-700">
+              {errorMessage}
+            </div>
+          ) : null}
+          {successMessage ? (
+            <div className="border-t border-emerald-100 bg-emerald-50 px-4 py-2 text-[12px] font-black text-emerald-700">
+              {successMessage}
+            </div>
+          ) : null}
         </header>
 
-        {editEnabled && (
-          <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-2.5 text-[12px] font-bold text-amber-800 shadow-sm ring-1 ring-amber-100">
-            <span aria-hidden>✏️</span>
-            <span>Düzenleme modundasınız — değişiklikler henüz kaydedilmedi.</span>
-          </div>
-        )}
+        {/* ─── ANA İÇERİK ──────────────────────────────────── */}
+        <section className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row flex flex-col">
 
-        {isSharedContent && !editEnabled && (
-          <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-4 py-2.5 text-[12px] font-medium text-slate-600 shadow-sm ring-1 ring-slate-100">
-            <span aria-hidden>🔒</span>
-            <span>Bu kayıt paylaşımlı içeriktir — <strong>&quot;Kopyala ve Düzenle&quot;</strong> butonu ile kendi hesabınıza kopyalayabilirsiniz.</span>
-          </div>
-        )}
-
-        {errorMessage ? (
-          <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-2.5 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">{errorMessage}</div>
-        ) : null}
-        {successMessage ? (
-          <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">{successMessage}</div>
-        ) : null}
-
-        {/* Ana İçerik */}
-        <section className="flex max-h-[min(92vh,920px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 lg:max-h-[min(88vh,960px)] lg:flex-row">
-
-          {/* Sekme navigasyonu */}
-          <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 lg:w-[220px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
-            <div className="space-y-1 rounded-2xl bg-[linear-gradient(165deg,rgba(255,247,237,0.95)_0%,rgba(253,244,255,0.55)_48%,rgba(255,255,255,0.75)_100%)] p-2 ring-1 ring-white/90">
-              {DETAIL_TABS.map((t) => (
+          {/* Sidebar — mobil yatay scroll, desktop dikey */}
+          <nav className={`flex shrink-0 gap-1 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/60 to-white/30 p-2 lg:w-[196px] lg:flex-col lg:overflow-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5 ${scrollArea}`}>
+            {DETAIL_TABS.map((t) => {
+              const active = tab === t.id;
+              return (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`${navBtnBase} min-w-[140px] ${tab === t.id ? navBtnActive : navBtnIdle}`}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-bold transition lg:w-full lg:rounded-lg ${
+                    active
+                      ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_14px_rgba(245,158,11,0.32)]"
+                      : "text-slate-600 hover:bg-white/80 hover:text-slate-800"
+                  }`}
                 >
-                  <span className="text-sm leading-none">{t.icon}</span>
-                  <span className="flex-1 leading-snug">{t.label}</span>
+                  <span className="shrink-0 text-sm leading-none">{t.icon}</span>
+                  <span className="whitespace-nowrap lg:whitespace-normal">{t.label}</span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </nav>
 
           {/* İçerik paneli */}
-          <div className={`${detailScrollArea} p-4 lg:p-5`}>
-            <div className="rounded-2xl border border-white/90 bg-white/80 p-4 shadow-sm">
-              <h2 className="text-[15px] font-bold tracking-tight text-slate-950">{activeTab.label}</h2>
-              <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">{activeTab.desc}</p>
+          <div className={`${scrollArea} min-h-0 flex-1 p-5 lg:p-6`}>
 
-              {tabIsEmpty ? (
-                <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
-                  <span className="text-3xl opacity-40">📋</span>
-                  <p className="mt-2 text-[13px] font-medium text-slate-400">
-                    Bu bölümde kayıtlı bilgi yok
-                  </p>
-                  {!isSharedContent && (
-                    <button
-                      type="button"
-                      onClick={startEdit}
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                    >
-                      ✏️ Düzenle
-                    </button>
-                  )}
+            {/* Sekme başlığı */}
+            <div className="mb-5 flex items-center gap-2.5 border-b border-amber-100/50 pb-3.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50/60 text-base leading-none shadow-sm">
+                {activeTab.icon}
+              </span>
+              <div>
+                <h2 className="text-[14px] font-black tracking-tight text-slate-950">{activeTab.label}</h2>
+                <p className="text-[11px] font-medium text-slate-400">{activeTab.desc}</p>
+              </div>
+            </div>
+
+            {/* Boş sekme */}
+            {tabIsEmpty ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/50 text-2xl shadow-sm">
+                  📋
                 </div>
-              ) : (
-              <div className="mt-4 space-y-3">
+                <p className="mt-3 text-[13px] font-medium text-slate-400">Bu bölümde kayıtlı bilgi yok</p>
+                {!isSharedContent ? (
+                  <button
+                    type="button"
+                    onClick={startEdit}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[12px] font-bold text-amber-700 transition hover:bg-amber-100"
+                  >
+                    ✏️ Bilgi Ekle
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleCopy()}
+                    disabled={copying}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-1.5 text-[12px] font-bold text-white shadow disabled:opacity-60"
+                  >
+                    📋 Kopyala ve Düzenle
+                  </button>
+                )}
+              </div>
+
+            ) : editEnabled ? (
+              /* ── Edit modu: kart+input yapısı ── */
+              <div className="space-y-3">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
-
                   const rawValue = draft[fieldKey as keyof OilFormData];
                   const value = typeof rawValue === "string" ? rawValue : "";
 
-                  /* Boolean toggle */
+                  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
+                  const textareaCls = "w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-[13px] leading-[1.65] text-slate-900 shadow-inner outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100/60";
+                  const cardCls = "rounded-xl border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/20 p-3.5 shadow-sm";
+                  const labelCls = "mb-2 block text-[10px] font-black uppercase tracking-[0.13em] text-amber-600";
+
                   if (meta.isBooleanToggle) {
                     const boolVal = draft.is_photosensitive;
                     return (
-                      <div key={fieldKey} className={sectionCard}>
-                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
-                        {editEnabled ? (
-                          <button
-                            type="button"
-                            onClick={() => setDraft((prev) => prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev)}
-                            className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${
-                              boolVal ? "bg-amber-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"
-                            }`}
-                          >
-                            <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
-                            {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
-                          </button>
-                        ) : boolVal ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-bold text-amber-800">
-                            ☀️ Fotosensitif — Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
-                          </span>
-                        ) : (
-                          <p className="text-sm font-medium text-slate-500">Fotosensitif değil</p>
-                        )}
+                      <div key={fieldKey} className={cardCls}>
+                        <p className={labelCls}>{meta.label}</p>
+                        <button
+                          type="button"
+                          onClick={() => setDraft((prev) => prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev)}
+                          className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${boolVal ? "bg-amber-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"}`}
+                        >
+                          <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
+                          {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
+                        </button>
                       </div>
                     );
                   }
 
-                  /* Görsel listesi */
-                  if (meta.isImageList) {
-                    const urls = parseImageUrls(value);
+                  if (meta.isOilType) {
                     return (
-                      <div key={fieldKey} className={sectionCard}>
-                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
-                        {editEnabled ? (
-                          <>
-                            <textarea
-                              value={value}
-                              onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
-                              rows={4}
-                              placeholder={"Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg"}
-                              className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
-                            />
-                            <p className="mt-1.5 text-[10px] font-medium text-slate-400">Her satıra bir URL girin. Galeri yükleme ilerleyen aşamada eklenecek.</p>
-                          </>
-                        ) : urls.length === 0 ? (
-                          <p className="text-sm text-slate-400">Henüz görsel eklenmemiş</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {urls.map((url, i) => (
-                              <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white p-2">
-                                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL, next/image remotePatterns ilerleyen aşamada */}
-                                <img
-                                  src={url}
-                                  alt={`Görsel ${i + 1}`}
-                                  className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover"
-                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
-                                />
-                                <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2">
-                                  {url}
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div key={fieldKey} className={cardCls}>
+                        <p className={labelCls}>{meta.label}</p>
+                        <select
+                          value={draft.oil_type}
+                          onChange={(e) => setDraftField("oil_type", e.target.value)}
+                          className={inputCls}
+                        >
+                          {OIL_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                      </div>
+                    );
+                  }
+
+                  if (meta.isImageList) {
+                    return (
+                      <div key={fieldKey} className={cardCls}>
+                        <p className={labelCls}>{meta.label}</p>
+                        <textarea
+                          value={value}
+                          onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
+                          rows={4}
+                          placeholder={"Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg"}
+                          className={textareaCls}
+                        />
+                        <p className="mt-1.5 text-[10px] font-medium text-slate-400">Her satıra bir URL girin.</p>
                       </div>
                     );
                   }
 
                   return (
-                    <div key={fieldKey} className={sectionCard}>
-                      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
-
-                      {editEnabled ? (
-                        meta.isOilType ? (
-                          <select
-                            value={draft.oil_type}
-                            onChange={(e) => setDraftField("oil_type", e.target.value)}
-                            className="h-9 w-full rounded-lg border border-slate-200/90 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
-                          >
-                            {OIL_TYPES.map((t) => (
-                              <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
-                          </select>
-                        ) : meta.multiline ? (
-                          <textarea
-                            value={value}
-                            onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
-                            rows={5}
-                            className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={value}
-                            onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
-                            className="h-9 w-full rounded-lg border border-slate-200/90 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
-                          />
-                        )
+                    <div key={fieldKey} className={cardCls}>
+                      <p className={labelCls}>{meta.label}</p>
+                      {meta.multiline ? (
+                        <textarea
+                          value={value}
+                          onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
+                          rows={4}
+                          className={textareaCls}
+                        />
                       ) : (
-                        meta.isTags ? (
-                          <TagsList tags={parseTagsInput(value)} />
-                        ) : meta.isOilType ? (
-                          <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${oilTypeBadgeClass(draft.oil_type)}`}>
-                            {oilTypeLabel(draft.oil_type)}
-                          </span>
-                        ) : meta.multiline ? (
-                          <div className={sectionBody}>
-                            {value.trim() ? value : <span className="text-slate-400">Henüz kayıt yok</span>}
-                          </div>
-                        ) : (
-                          <p className="text-sm font-medium text-slate-700">
-                            {value.trim() ? value : <span className="text-slate-400">—</span>}
-                          </p>
-                        )
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
+                          className={inputCls}
+                        />
                       )}
                     </div>
                   );
                 })}
+
+                {/* Edit footer */}
+                <div className="flex gap-2 border-t border-amber-100/60 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => void handleSave()}
+                    disabled={saving}
+                    className="inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60"
+                  >
+                    {saving ? "Kaydediliyor…" : "Kaydet"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 hover:bg-slate-50"
+                  >
+                    Vazgeç
+                  </button>
+                </div>
               </div>
-              )}
-            </div>
+
+            ) : (
+              /* ── Görünüm modu: definition list ── */
+              <dl className="divide-y divide-slate-100/70">
+                {activeFields.map((fieldKey) => {
+                  const meta = FIELD_META[fieldKey as string];
+                  if (!meta) return null;
+                  const rawValue = draft[fieldKey as keyof OilFormData];
+                  const value = typeof rawValue === "string" ? rawValue : "";
+                  const labelCls = "mb-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-amber-600/80";
+
+                  if (meta.isBooleanToggle) {
+                    return draft.is_photosensitive ? (
+                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd>
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-bold text-amber-800">
+                            ☀️ Fotosensitif — Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
+                          </span>
+                        </dd>
+                      </div>
+                    ) : null;
+                  }
+
+                  if (meta.isImageList) {
+                    const urls = parseImageUrls(value);
+                    if (!urls.length) return null;
+                    return (
+                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd className="space-y-2">
+                          {urls.map((url, i) => (
+                            <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL */}
+                              <img src={url} alt={`Görsel ${i + 1}`} className="h-12 w-12 shrink-0 rounded-md border border-amber-100 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2">{url}</a>
+                            </div>
+                          ))}
+                        </dd>
+                      </div>
+                    );
+                  }
+
+                  if (meta.isTags) {
+                    const tags = parseTagsInput(value);
+                    if (!tags.length) return null;
+                    return (
+                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd><TagsList tags={tags} /></dd>
+                      </div>
+                    );
+                  }
+
+                  if (meta.isOilType) {
+                    return (
+                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd>
+                          <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${oilTypeBadgeClass(draft.oil_type)}`}>
+                            {oilTypeLabel(draft.oil_type)}
+                          </span>
+                        </dd>
+                      </div>
+                    );
+                  }
+
+                  if (meta.multiline) {
+                    return (
+                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">
+                          {value}
+                        </dd>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <dt className={labelCls}>{meta.label}</dt>
+                      <dd className="text-[13px] font-medium text-slate-800">{value}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            )}
           </div>
         </section>
+
       </div>
 
       {/* Kaydedilmemiş değişiklik onayı */}
@@ -882,7 +768,7 @@ export default function OilDetailPage() {
               </button>
               <button type="button" onClick={() => void handleDelete()} disabled={deleting}
                 className="rounded-2xl bg-rose-600 px-5 py-2.5 text-[12px] font-black text-white shadow hover:bg-rose-700 disabled:opacity-60">
-                {deleting ? "Siliniyor..." : "Evet, Sil"}
+                {deleting ? "Siliniyor…" : "Evet, Sil"}
               </button>
             </div>
           </div>
