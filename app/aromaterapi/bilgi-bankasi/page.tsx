@@ -2,15 +2,13 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import {
-  fetchKnowledgeArticles,
-  getCategoryMeta,
-  parseArticleContent,
-  KNOWLEDGE_CATEGORIES,
-  type KnowledgeArticle,
+  fetchReferenceSheets,
+  type ReferenceRow,
+  type ReferenceSheet,
 } from "@/lib/aromaterapi/aromatherapyKnowledgeData";
 
 // -------------------------------------------------------
@@ -18,160 +16,181 @@ import {
 // -------------------------------------------------------
 
 const pageBg =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
-
-const scrollArea =
-  "overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
 
 // -------------------------------------------------------
-// Makale içerik render bileşeni
+// Tab metadata
 // -------------------------------------------------------
 
-function ArticleBody({ content }: { content: string }) {
-  const blocks = useMemo(() => parseArticleContent(content), [content]);
+const TAB_ICONS: Record<string, string> = {
+  "Genel Bilgi":                        "📖",
+  "Uçucu Yağ Elde Etme Yöntemleri":    "⚗️",
+  "Uçucu Yağların Etki Mekanizması":   "🧠",
+};
+
+// -------------------------------------------------------
+// Genel Bilgi — satır sınıflandırıcı
+// -------------------------------------------------------
+
+type RowKind = "skip" | "major" | "section" | "paragraph" | "definition";
+
+function classifyRow(row: ReferenceRow): RowKind {
+  if (row.is_header) return "skip";
+  const col0 = (row.cells["0"] ?? "").trim();
+  const col1 = (row.cells["1"] ?? "").trim();
+  if (!col0 && !col1) return "skip";
+  if (col0 && col1) return "definition";
+  const text = (col1 || col0).trim();
+  const letters = text.replace(/[^a-zA-ZğüşıöçĞÜŞİÖÇ]/g, "");
+  const allCaps = letters.length > 0 && letters.toLocaleUpperCase("tr") === letters;
+  if (allCaps) return "major";
+  if (text.length <= 60) return "section";
+  return "paragraph";
+}
+
+// -------------------------------------------------------
+// Genel Bilgi renderer
+// -------------------------------------------------------
+
+function GenelBilgiRenderer({ rows }: { rows: ReferenceRow[] }) {
+  const sorted = [...rows].sort((a, b) => a.row_index - b.row_index);
   return (
-    <div className="space-y-3">
-      {blocks.map((block, i) =>
-        block.type === "heading" ? (
-          <h3
-            key={i}
-            className="pt-2 text-[14px] font-black tracking-tight text-slate-900"
+    <div className="space-y-0">
+      {sorted.map((row) => {
+        const kind = classifyRow(row);
+        if (kind === "skip") return null;
+
+        const col0 = (row.cells["0"] ?? "").trim();
+        const col1 = (row.cells["1"] ?? "").trim();
+        const text = (col1 || col0).trim();
+
+        if (kind === "major") {
+          return (
+            <div key={row.id} className="mb-2 mt-8 first:mt-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-50 to-rose-50/60 px-4 py-1.5 shadow-sm">
+                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-800">
+                  {text}
+                </span>
+              </div>
+            </div>
+          );
+        }
+
+        if (kind === "section") {
+          return (
+            <div key={row.id} className="mb-3 mt-6 border-l-2 border-amber-300/70 pl-3.5 first:mt-0">
+              <p className="text-[14px] font-black tracking-tight text-slate-900">{text}</p>
+            </div>
+          );
+        }
+
+        if (kind === "paragraph") {
+          return (
+            <p key={row.id} className="mb-2.5 text-[13px] leading-[1.75] text-slate-700">
+              {text}
+            </p>
+          );
+        }
+
+        // definition
+        return (
+          <div
+            key={row.id}
+            className="grid grid-cols-1 gap-x-6 gap-y-1 border-b border-slate-100/60 py-3 last:border-0 sm:grid-cols-[minmax(140px,220px)_1fr]"
           >
-            {block.text}
-          </h3>
-        ) : (
-          <p key={i} className="text-[13px] leading-[1.7] text-slate-700">
-            {block.text}
-          </p>
-        ),
-      )}
-    </div>
-  );
-}
-
-// -------------------------------------------------------
-// Makale kartı
-// -------------------------------------------------------
-
-function ArticleCard({
-  article,
-  isSelected,
-  onSelect,
-}: {
-  article: KnowledgeArticle;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const cat = getCategoryMeta(article.category);
-
-  return (
-    <article
-      className={`group flex cursor-pointer flex-col rounded-2xl border bg-gradient-to-br p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${cat.cardCls} ${
-        isSelected
-          ? "ring-2 ring-violet-400/60 ring-offset-1"
-          : ""
-      }`}
-      onClick={onSelect}
-    >
-      <div className="mb-2 flex items-center gap-2">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black ${cat.badgeCls}`}
-        >
-          <span>{cat.icon}</span>
-          <span>{cat.label}</span>
-        </span>
-      </div>
-
-      <h2 className="text-[14px] font-black leading-snug tracking-tight text-slate-950">
-        {article.title}
-      </h2>
-
-      <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-slate-600">
-        {article.summary}
-      </p>
-
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-[10px] font-medium text-slate-400">
-          {article.content.length} karakter
-        </span>
-        <span
-          className={`text-[11px] font-bold text-violet-600 transition group-hover:text-violet-800`}
-        >
-          Oku →
-        </span>
-      </div>
-    </article>
-  );
-}
-
-// -------------------------------------------------------
-// Okuma Bölmesi
-// -------------------------------------------------------
-
-function ReadingPane({
-  article,
-  onClose,
-}: {
-  article: KnowledgeArticle | null;
-  onClose: () => void;
-}) {
-  const cat = article ? getCategoryMeta(article.category) : null;
-
-  if (!article || !cat) {
-    return (
-      <div className="hidden lg:flex h-full flex-col items-center justify-center rounded-[26px] border border-slate-100 bg-white/70 p-8 text-center shadow-sm">
-        <div className="text-4xl opacity-30">📖</div>
-        <p className="mt-3 text-[13px] font-medium text-slate-400">
-          Okumak için bir makale seçin
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/90 shadow-[0_12px_40px_rgba(15,23,42,0.07)] ring-1 ring-white/90">
-      {/* Başlık */}
-      <div className="shrink-0 border-b border-slate-100/80 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <span
-              className={`mb-2 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${cat.badgeCls}`}
-            >
-              <span>{cat.icon}</span>
-              <span>{cat.label}</span>
-            </span>
-            <h2 className="mt-1.5 text-[18px] font-black leading-snug tracking-tight text-slate-950">
-              {article.title}
-            </h2>
-            {article.source && (
-              <p className="mt-1 text-[11px] font-medium text-slate-400">
-                Kaynak: {article.source}
-              </p>
-            )}
+            <dt className="text-[12px] font-black text-amber-800">{col0}</dt>
+            <dd className="text-[13px] leading-[1.75] text-slate-700">{col1}</dd>
           </div>
-          {/* Mobil kapatma butonu */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="lg:hidden shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 shadow-sm hover:bg-slate-50"
-          >
-            ← Geri
-          </button>
-        </div>
-      </div>
-
-      {/* İçerik */}
-      <div className={`${scrollArea} flex-1 p-5`}>
-        <ArticleBody content={article.content} />
-
-        <div className="mt-8 border-t border-slate-100 pt-4">
-          <p className="text-[11px] font-medium text-slate-400">
-            📋 {article.source}
-          </p>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
+}
+
+// -------------------------------------------------------
+// Elde Etme Yöntemleri — 4-kolon tablo
+// -------------------------------------------------------
+
+function EldeEtmeRenderer({ rows }: { rows: ReferenceRow[] }) {
+  const sorted = [...rows].sort((a, b) => a.row_index - b.row_index);
+  const nonHeader = sorted.filter((r) => !r.is_header);
+  if (nonHeader.length === 0) return null;
+
+  const [colHeaderRow, ...bodyRows] = nonHeader;
+
+  // Sütun sayısını veriden belirle
+  const numCols = colHeaderRow
+    ? Math.max(0, ...Object.keys(colHeaderRow.cells).map(Number)) + 1
+    : 4;
+
+  const cols = Array.from({ length: numCols }, (_, i) => i);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] border-collapse text-left">
+        <thead>
+          <tr>
+            {cols.map((c) => (
+              <th
+                key={c}
+                className="border-b-2 border-amber-200/60 bg-amber-50/60 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-amber-800"
+              >
+                {colHeaderRow?.cells[String(c)] ?? ""}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bodyRows.map((row, ri) => (
+            <tr key={row.id} className={ri % 2 === 0 ? "bg-white/50" : "bg-slate-50/40"}>
+              {cols.map((c) => (
+                <td
+                  key={c}
+                  className="border-b border-slate-100/60 px-4 py-2.5 align-top text-[13px] text-slate-700"
+                >
+                  {row.cells[String(c)] ?? ""}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// -------------------------------------------------------
+// Genel (fallback) renderer — hücreleri düz metin olarak gösterir
+// -------------------------------------------------------
+
+function DefaultRenderer({ rows }: { rows: ReferenceRow[] }) {
+  const sorted = [...rows].sort((a, b) => a.row_index - b.row_index);
+  const allValues = sorted.flatMap((row) =>
+    Object.values(row.cells as Record<string, string>).filter((v) => v.trim().length > 0)
+  );
+  return (
+    <div className="space-y-2">
+      {allValues.map((v, i) => (
+        <p key={i} className="text-[13px] leading-[1.75] text-slate-600">
+          {v}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+// -------------------------------------------------------
+// Sheet içerik — sheet_name'e göre renderer seçer
+// -------------------------------------------------------
+
+function SheetContent({ sheet }: { sheet: ReferenceSheet }) {
+  if (sheet.sheet_name === "Genel Bilgi") {
+    return <GenelBilgiRenderer rows={sheet.rows} />;
+  }
+  if (sheet.sheet_name === "Uçucu Yağ Elde Etme Yöntemleri") {
+    return <EldeEtmeRenderer rows={sheet.rows} />;
+  }
+  return <DefaultRenderer rows={sheet.rows} />;
 }
 
 // -------------------------------------------------------
@@ -179,104 +198,59 @@ function ReadingPane({
 // -------------------------------------------------------
 
 export default function BilgiBankasiPage() {
-  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+  const [sheets, setSheets] = useState<ReferenceSheet[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const loadArticles = useCallback(async (tid: string) => {
+  const loadSheets = useCallback(async () => {
     setLoading(true);
     setErrorMsg("");
-    const { articles: data, error } = await fetchKnowledgeArticles(tid);
+    const tid = await getSyncedTenantId();
+    if (!tid) {
+      setLoading(false);
+      setErrorMsg(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+    const { sheets: data, error } = await fetchReferenceSheets(tid);
     setLoading(false);
-    if (error) { setErrorMsg(`Makaleler yüklenemedi: ${error}`); return; }
-    setArticles(data);
-    // İlk makaleyi otomatik seç
-    if (data.length > 0 && !selectedId) setSelectedId(data[0]!.id);
+    if (error) { setErrorMsg(`Veriler yüklenemedi: ${error}`); return; }
+    setSheets(data);
+    if (data.length > 0 && !activeId) setActiveId(data[0]!.id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    runInEffect(() => {
-      void (async () => {
-        const tid = await getSyncedTenantId();
-        if (!tid) { setLoading(false); setErrorMsg(MISSING_SESSION_TENANT_MESSAGE); return; }
-        await loadArticles(tid);
-      })();
-    });
-  }, [loadArticles]);
-
+  useEffect(() => { runInEffect(() => { void loadSheets(); }); }, [loadSheets]);
   useBfcacheRefresh();
 
-  const filteredArticles = useMemo(
-    () =>
-      activeCategory === "all"
-        ? articles
-        : articles.filter((a) => a.category === activeCategory),
-    [articles, activeCategory],
-  );
-
-  const selectedArticle = useMemo(
-    () => articles.find((a) => a.id === selectedId) ?? null,
-    [articles, selectedId],
-  );
-
-  // Mobilde: makale seçilince sadece okuma bölmesi gösterilir
-  const mobileShowArticle = selectedId !== null;
-
-  function selectArticle(id: string) {
-    setSelectedId(id);
-  }
-
-  function clearSelection() {
-    setSelectedId(null);
-  }
-
-  // Kategori değişince otomatik seçimi güncelleme (opsiyonel)
-  function changeCategory(slug: string) {
-    setActiveCategory(slug);
-    setSelectedId(null);
-  }
+  const activeSheet = sheets.find((s) => s.id === activeId) ?? null;
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute -left-20 -top-20 h-[420px] w-[420px] rounded-full bg-violet-200/20 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-20 top-40 h-[320px] w-[320px] rounded-full bg-amber-200/15 blur-[100px]" />
+      {/* Arka plan blur lekeleri */}
+      <div className="pointer-events-none absolute -left-20 -top-20 h-[400px] w-[400px] rounded-full bg-violet-200/20 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-20 top-40 h-[300px] w-[300px] rounded-full bg-amber-200/15 blur-[100px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
 
-        {/* Header */}
-        <header className="rounded-[28px] border border-violet-200/50 bg-white/80 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+        {/* ─── HEADER ─────────────────────────────────────────────── */}
+        <header className="rounded-[24px] border border-amber-200/50 bg-white/85 p-5 shadow-sm backdrop-blur-xl sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-violet-800 shadow-sm">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/90 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-800 shadow-sm">
                 <span>📚</span>
                 <span>Aromaterapi — Bilgi Bankası</span>
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Bilgi Bankası
               </h1>
-              <p className="mt-1.5 max-w-xl text-sm font-medium leading-relaxed text-slate-600">
-                Kimyasal bileşenler, elde etme yöntemleri, etki mekanizmaları ve klinik
-                uygulamalar — aromaterapi referans makale kütüphanesi.
-              </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              {!loading && (
-                <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700">
-                  {articles.length} makale
-                </span>
-              )}
-              <Link
-                href="/aromaterapi"
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-violet-300/55 bg-gradient-to-r from-violet-500 to-purple-500 px-3.5 text-[12px] font-black text-white shadow-md ring-1 ring-white/35 transition hover:brightness-105"
-              >
-                <span aria-hidden className="text-sm leading-none">←</span>
-                <span className="hidden sm:inline">Aromaterapi Ana</span>
-                <span className="sm:hidden">Ana</span>
-              </Link>
-            </div>
+            <Link
+              href="/aromaterapi"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-200/60 bg-gradient-to-r from-amber-500 to-rose-500 px-3.5 text-[12px] font-black text-white shadow-md transition hover:brightness-105"
+            >
+              <span aria-hidden className="text-sm leading-none">←</span>
+              <span className="hidden sm:inline">Aromaterapi</span>
+            </Link>
           </div>
         </header>
 
@@ -286,102 +260,62 @@ export default function BilgiBankasiPage() {
           </div>
         ) : null}
 
-        {/* Kategori filtreleri */}
-        <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max gap-2 pb-0.5">
-            {KNOWLEDGE_CATEGORIES.map((cat) => {
-              const count =
-                cat.slug === "all"
-                  ? articles.length
-                  : articles.filter((a) => a.category === cat.slug).length;
-              const active = activeCategory === cat.slug;
-              return (
-                <button
-                  key={cat.slug}
-                  type="button"
-                  onClick={() => changeCategory(cat.slug)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-bold transition ${
-                    active
-                      ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
-                      : "border border-violet-100/80 bg-white/80 text-slate-600 hover:bg-violet-50"
-                  }`}
-                >
-                  <span className="text-sm leading-none">{cat.icon}</span>
-                  <span>{cat.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 text-[9px] font-black ${
-                      active ? "bg-white/20 text-white" : "bg-violet-50 text-violet-700"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* İçerik — 2 kolon (desktop) / tek kolon (mobil) */}
         {loading ? (
-          <div className="flex min-h-[320px] items-center justify-center rounded-[26px] bg-white/70 shadow-sm">
-            <p className="text-sm font-bold text-slate-500">Makaleler yükleniyor…</p>
+          <div className="flex min-h-[280px] items-center justify-center rounded-[20px] bg-white/80 shadow-sm">
+            <p className="text-sm font-bold text-slate-500">Yükleniyor…</p>
           </div>
-        ) : articles.length === 0 ? (
-          <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[26px] bg-white/70 p-8 text-center shadow-sm">
+        ) : sheets.length === 0 ? (
+          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[20px] bg-white/80 p-8 text-center shadow-sm">
             <div className="text-4xl">📚</div>
-            <h2 className="mt-3 text-lg font-black text-slate-900">Henüz makale yok</h2>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Bilgi bankası içeriği import aşamasında yüklenecek.
-            </p>
+            <h2 className="mt-3 text-lg font-black text-slate-900">İçerik bulunamadı</h2>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr] lg:items-start">
-
-            {/* Sol: makale listesi */}
-            <div className={`${mobileShowArticle ? "hidden lg:block" : "block"}`}>
-              {filteredArticles.length === 0 ? (
-                <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white/70 p-6 text-center shadow-sm">
-                  <p className="text-[13px] font-medium text-slate-400">
-                    Bu kategoride makale yok
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredArticles.map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      isSelected={selectedId === article.id}
-                      onSelect={() => selectArticle(article.id)}
-                    />
-                  ))}
-                </div>
-              )}
+          <>
+            {/* ─── TAB ÇUBUĞU ─────────────────────────────────────── */}
+            <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max gap-1.5 pb-0.5">
+                {sheets.map((sheet) => {
+                  const active = sheet.id === activeId;
+                  const icon = TAB_ICONS[sheet.sheet_name] ?? "📄";
+                  return (
+                    <button
+                      key={sheet.id}
+                      type="button"
+                      onClick={() => setActiveId(sheet.id)}
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-[12px] font-bold transition ${
+                        active
+                          ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_14px_rgba(245,158,11,0.30)]"
+                          : "border border-amber-100/80 bg-white/80 text-slate-600 hover:bg-amber-50 hover:text-amber-800"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{icon}</span>
+                      <span>{sheet.display_title}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Sağ: okuma bölmesi */}
-            <div
-              className={`lg:sticky lg:top-4 ${
-                mobileShowArticle ? "block" : "hidden lg:block"
-              }`}
-              style={{ maxHeight: "calc(100vh - 7rem)" }}
-            >
-              <ReadingPane
-                article={selectedArticle}
-                onClose={clearSelection}
-              />
-            </div>
+            {/* ─── İÇERİK KARTI ────────────────────────────────────── */}
+            {activeSheet ? (
+              <div className="rounded-[20px] border border-amber-100/70 bg-white/92 px-5 py-6 shadow-[0_4px_24px_rgba(15,23,42,0.05)] sm:px-7 sm:py-7">
 
-          </div>
+                {/* Sekme başlığı */}
+                <div className="mb-5 flex items-center gap-3 border-b border-amber-100/60 pb-4">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50/60 text-lg leading-none shadow-sm">
+                    {TAB_ICONS[activeSheet.sheet_name] ?? "📄"}
+                  </span>
+                  <h2 className="text-[16px] font-black tracking-tight text-slate-950">
+                    {activeSheet.display_title}
+                  </h2>
+                </div>
+
+                <SheetContent sheet={activeSheet} />
+              </div>
+            ) : null}
+          </>
         )}
 
-        {/* Alt bilgi */}
-        <div className="rounded-2xl border border-violet-100/60 bg-white/60 px-4 py-3 backdrop-blur-sm">
-          <p className="text-xs font-medium text-slate-500">
-            📋 Kaynak: Aromaterapi.xlsx — Genel Bilgi ve Elde Etme Yöntemleri sekmeleri.
-            Word raporu dışa aktarma özelliği ilerleyen aşamada eklenecek.
-          </p>
-        </div>
       </div>
     </main>
   );
