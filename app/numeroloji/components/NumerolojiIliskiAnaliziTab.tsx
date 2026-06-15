@@ -116,6 +116,35 @@ function scoreLabel(score: number): { label: string; color: string; textColor: s
   return             { label: "Zorlayıcı",              color: "bg-rose-500",    textColor: "text-rose-700",    ringColor: "ring-rose-200" };
 }
 
+function generateScoreExplanation(
+  el: ElementCounts,
+  dom: { baskin: number; edilgen: number },
+  score: number,
+): string {
+  const parts: string[] = [];
+  const dominant = ELEMENT_ORDER.reduce((best, e) => (el[e] > el[best] ? e : best), ELEMENT_ORDER[0]);
+  const nonZero = ELEMENT_ORDER.filter((e) => el[e] > 0).length;
+  const zeroMain = ELEMENT_ORDER.filter((e) => e !== "Nötr" && el[e] === 0).length;
+  const diff = Math.abs(dom.baskin - dom.edilgen);
+
+  if (el[dominant] >= 4)
+    parts.push(`${ELEMENT_EMOJI[dominant]} ${dominant} elementi baskın (${el[dominant]} hane)`);
+  else if (nonZero >= 4)
+    parts.push(`element çeşitliliği yüksek (${nonZero}/5 element aktif)`);
+
+  if (diff <= 1)
+    parts.push(`baskın-edilgen dengesi yakın (${dom.baskin}/${dom.edilgen})`);
+  else if (diff > 3)
+    parts.push(`baskın-edilgen farkı yüksek (${dom.baskin}/${dom.edilgen})`);
+
+  if (zeroMain >= 2) parts.push(`${zeroMain} ana element eksik`);
+  if (el.Nötr >= 3)  parts.push(`Nötr enerji yoğun (${el.Nötr} hane)`);
+
+  if (!parts.length) return "Genel enerji dengesi ve element dağılımı bu skoru oluşturmuştur.";
+  const tail = score >= 60 ? "bu nedenle uyum skoru yüksek çıkmıştır." : "bu nedenle uyum skoru düşmüştür.";
+  return parts.join("; ") + " — " + tail;
+}
+
 type FullYorum = {
   genel: string;
   iletisim: string;
@@ -244,11 +273,16 @@ function SectionCard({ title, children, accent = "violet" }: {
   );
 }
 
-function YorumBlok({ title, text, color }: { title: string; text: string; color: string }) {
+function YorumBlok({ title, icon, text, color }: {
+  title: string; icon: string; text: string; color: string;
+}) {
   return (
-    <div className={`rounded-lg px-3 py-2.5 ${color}`}>
-      <p className="mb-1 text-[9px] font-black uppercase tracking-widest opacity-70">{title}</p>
-      <p className="text-[11px] leading-relaxed text-slate-800">{text}</p>
+    <div className={`rounded-xl px-3 py-3 ${color}`}>
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="text-sm leading-none">{icon}</span>
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">{title}</p>
+      </div>
+      <p className="text-xs leading-[1.7] text-slate-700">{text}</p>
     </div>
   );
 }
@@ -335,6 +369,10 @@ export function NumerolojiIliskiAnaliziTab({
     : [];
 
   const skorInfo = uyumSkoru !== null ? scoreLabel(uyumSkoru) : null;
+  const scoreExplanation =
+    iliskiEl && iliskiDom && uyumSkoru !== null
+      ? generateScoreExplanation(iliskiEl, iliskiDom, uyumSkoru)
+      : null;
 
   // ── Render ────────────────────────────────────────────────────────
   return (
@@ -344,30 +382,29 @@ export function NumerolojiIliskiAnaliziTab({
       <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[1fr_40px_1fr]">
 
         {/* Kişi 1 — readonly */}
-        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-white p-3 shadow-[0_0_12px_rgba(139,92,246,0.07)]">
+        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-white px-3 py-2.5 shadow-[0_0_12px_rgba(139,92,246,0.07)]">
           <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-violet-200/20 blur-xl" aria-hidden />
-          <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-violet-500">1. Kişi · Mevcut Kayıt</p>
+          <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-violet-500">1. Kişi · Mevcut Kayıt</p>
           <p className="text-sm font-black text-slate-900 leading-tight">{kisi1AdSoyad}</p>
-          <p className="mt-0.5 text-[10px] text-slate-400 tabular-nums">{kisi1BirthDate || "—"}</p>
-          <div className="mt-2">
+          <p className="text-[10px] text-slate-400 tabular-nums">{kisi1BirthDate || "—"}</p>
+          <div className="mt-1.5">
             <PinRow pin={kisi1Pin8} shade="violet" />
           </div>
         </div>
 
         {/* Center connector */}
-        <div className="flex items-center justify-center py-1 sm:py-0">
-          <div className="flex flex-col items-center gap-0.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-[0_2px_12px_rgba(139,92,246,0.35)] text-sm text-white">
-              ♥
-            </div>
-            <span className="text-[8px] font-black uppercase tracking-widest text-violet-400 hidden sm:block">bağ</span>
+        <div className="relative flex items-center justify-center py-1 sm:py-0">
+          {/* vertical line desktop */}
+          <div className="absolute inset-y-0 left-1/2 hidden w-px -translate-x-px bg-gradient-to-b from-transparent via-violet-300/60 to-transparent sm:block" aria-hidden />
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-base text-white shadow-[0_0_0_5px_rgba(139,92,246,0.12),0_2px_16px_rgba(139,92,246,0.40)]">
+            ♥
           </div>
         </div>
 
         {/* Kişi 2 — editable */}
-        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/70 via-white to-white p-3 shadow-[0_0_12px_rgba(217,70,239,0.07)]">
+        <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/70 via-white to-white px-3 py-2.5 shadow-[0_0_12px_rgba(217,70,239,0.07)]">
           <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-fuchsia-200/20 blur-xl" aria-hidden />
-          <div className="relative mb-2 flex min-w-0 items-center justify-between gap-2">
+          <div className="relative mb-1.5 flex min-w-0 items-center justify-between gap-2">
             <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
             <button
               type="button"
@@ -409,8 +446,8 @@ export function NumerolojiIliskiAnaliziTab({
               </div>
             </div>
           ) : (
-            <div className="space-y-1.5">
-              <div className="grid grid-cols-2 gap-1.5">
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-1">
                 <div>
                   <label className={labelClass}>Ad</label>
                   <input type="text" value={kisi2Name} onChange={(e) => setKisi2Name(e.target.value)} placeholder="Ad" className={inputClass} />
@@ -527,6 +564,11 @@ export function NumerolojiIliskiAnaliziTab({
                   </div>
                 </div>
               </div>
+              {scoreExplanation && (
+                <p className="mt-2.5 border-t border-violet-100/80 pt-2 text-[10px] leading-[1.6] text-slate-500">
+                  {scoreExplanation}
+                </p>
+              )}
             </SectionCard>
           )}
 
@@ -651,17 +693,20 @@ export function NumerolojiIliskiAnaliziTab({
           {iliskiYorum && (
             <SectionCard title="İlişki Yorumu" accent="violet">
               <div className="space-y-2">
-                <YorumBlok title="1 · Genel Enerji"         text={iliskiYorum.genel}         color="bg-violet-50/80" />
-                <YorumBlok title="2 · İletişim"             text={iliskiYorum.iletisim}       color="bg-sky-50/80" />
-                <YorumBlok title="3 · Duygusal Uyum"        text={iliskiYorum.duygusalUyum}   color="bg-blue-50/80" />
+                <YorumBlok icon="✦" title="Genel Enerji"   text={iliskiYorum.genel}       color="bg-violet-50/80" />
+                <YorumBlok icon="💬" title="İletişim"       text={iliskiYorum.iletisim}     color="bg-sky-50/70" />
+                <YorumBlok icon="💙" title="Duygusal Uyum"  text={iliskiYorum.duygusalUyum} color="bg-blue-50/70" />
 
                 {iliskiYorum.gucluTaraflar.length > 0 && (
-                  <div className="rounded-lg bg-emerald-50/80 px-3 py-2.5">
-                    <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-600">4 · Güçlü Taraflar</p>
-                    <ul className="space-y-1">
+                  <div className="rounded-xl bg-emerald-50/80 px-3 py-3">
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <span className="text-sm leading-none">🌟</span>
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Güçlü Taraflar</p>
+                    </div>
+                    <ul className="space-y-1.5">
                       {iliskiYorum.gucluTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-slate-800">
-                          <span className="mt-0.5 shrink-0 text-emerald-500">✓</span>{s}
+                        <li key={i} className="flex gap-2 text-xs leading-[1.65] text-slate-700">
+                          <span className="mt-px shrink-0 font-black text-emerald-500">✓</span>{s}
                         </li>
                       ))}
                     </ul>
@@ -669,20 +714,23 @@ export function NumerolojiIliskiAnaliziTab({
                 )}
 
                 {iliskiYorum.zorlayiciTaraflar.length > 0 && (
-                  <div className="rounded-lg bg-amber-50/80 px-3 py-2.5">
-                    <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-amber-600">5 · Zorlayıcı Taraflar</p>
-                    <ul className="space-y-1">
+                  <div className="rounded-xl bg-amber-50/80 px-3 py-3">
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <span className="text-sm leading-none">⚡</span>
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Zorlayıcı Taraflar</p>
+                    </div>
+                    <ul className="space-y-1.5">
                       {iliskiYorum.zorlayiciTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-slate-800">
-                          <span className="mt-0.5 shrink-0 text-amber-500">◆</span>{s}
+                        <li key={i} className="flex gap-2 text-xs leading-[1.65] text-slate-700">
+                          <span className="mt-px shrink-0 font-black text-amber-500">◆</span>{s}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <YorumBlok title="6 · Birlikte Gelişim Alanı" text={iliskiYorum.gelisimAlani} color="bg-fuchsia-50/80" />
-                <YorumBlok title="7 · İlişki Önerisi"         text={iliskiYorum.oneri}        color="bg-violet-100/60" />
+                <YorumBlok icon="🌱" title="Birlikte Gelişim Alanı" text={iliskiYorum.gelisimAlani} color="bg-fuchsia-50/80" />
+                <YorumBlok icon="🔮" title="İlişki Önerisi"         text={iliskiYorum.oneri}        color="bg-violet-100/60" />
               </div>
             </SectionCard>
           )}
