@@ -1,6 +1,103 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+
+const GORSEL_BASE_W = 1400;
+
+function GorselScalePreview({
+  out,
+  isimGoster,
+  dogumGoster,
+  firstName,
+  lastName,
+  temaId,
+  uzmanAdi,
+  gorselTaslariGoster,
+  tasBileklik,
+  tasKolye,
+  tasKutle,
+}: {
+  out: NumerolojiMotorOut;
+  isimGoster: string;
+  dogumGoster: string;
+  firstName: string;
+  lastName: string;
+  temaId: GorselTemaId;
+  uzmanAdi: string;
+  gorselTaslariGoster: boolean;
+  tasBileklik: string;
+  tasKolye: string;
+  tasKutle: string;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [scaledH, setScaledH] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const inner = innerRef.current;
+    if (!wrap || !inner) return;
+
+    let sc = 1;
+    let ih = 0;
+
+    const wObs = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) {
+        sc = Math.min(1, w / GORSEL_BASE_W);
+        setScale(sc);
+        if (ih > 0) setScaledH(Math.ceil(ih * sc));
+      }
+    });
+
+    const iObs = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height ?? 0;
+      if (h > 0) {
+        ih = h;
+        setScaledH(Math.ceil(h * sc));
+      }
+    });
+
+    wObs.observe(wrap);
+    iObs.observe(inner);
+    return () => {
+      wObs.disconnect();
+      iObs.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="min-w-0 w-full overflow-hidden"
+      style={{ height: scaledH }}
+    >
+      <div
+        ref={innerRef}
+        style={{
+          width: GORSEL_BASE_W,
+          transformOrigin: "top left",
+          transform: `scale(${scale})`,
+        }}
+      >
+        <GorselRaporInfografik
+          out={out}
+          isimGoster={isimGoster}
+          dogumGoster={dogumGoster}
+          firstName={firstName}
+          lastName={lastName}
+          temaId={temaId}
+          uzmanAdi={uzmanAdi}
+          gorselTaslariGoster={gorselTaslariGoster}
+          tasBileklik={tasBileklik}
+          tasKolye={tasKolye}
+          tasKutle={tasKutle}
+        />
+      </div>
+    </div>
+  );
+}
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -333,38 +430,6 @@ export function NumerolojiKayitDetayPanel({
     }
   }
 
-  const gorselPreviewWrapRef = useRef<HTMLDivElement>(null);
-  const gorselPreviewInnerRef = useRef<HTMLDivElement>(null);
-  const GORSEL_BASE_W = 1400;
-  const [gorselPreviewScale, setGorselPreviewScale] = useState(1);
-  const [gorselPreviewH, setGorselPreviewH] = useState<number | undefined>(undefined);
-
-  useEffect(() => {
-    const wrap = gorselPreviewWrapRef.current;
-    const inner = gorselPreviewInnerRef.current;
-    if (!wrap || !inner) return;
-    let sc = 1;
-    let ih = 0;
-    const wObs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width ?? 0;
-      if (w > 0) {
-        sc = Math.min(1, w / GORSEL_BASE_W);
-        setGorselPreviewScale(sc);
-        if (ih > 0) setGorselPreviewH(ih * sc);
-      }
-    });
-    const iObs = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height ?? 0;
-      if (h > 0) {
-        ih = h;
-        setGorselPreviewH(h * sc);
-      }
-    });
-    wObs.observe(wrap);
-    iObs.observe(inner);
-    return () => { wObs.disconnect(); iObs.disconnect(); };
-  }, []);
-
   return (
     <div className="w-full overflow-hidden rounded-[16px] border border-violet-200/55 bg-white/80 shadow-[0_0_18px_rgba(139,92,246,0.08)] backdrop-blur-xl">
       <div className="border-b border-violet-100/60 bg-gradient-to-r from-violet-50/60 via-white/80 to-fuchsia-50/40 px-3 py-2 sm:px-4">
@@ -416,11 +481,8 @@ export function NumerolojiKayitDetayPanel({
         ) : null}
 
         {tab === "gorsel" ? (
-          <div
-            className="flex flex-col gap-3 lg:flex-row lg:items-start"
-            data-gorsel-rapor-scroll-host
-          >
-            <div className="w-full shrink-0 lg:w-[320px] xl:w-[340px]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div>
               <KayitGorselKontrolPanel
                 gorselTaslariGoster={gorselTaslariGoster}
                 setGorselTaslariGoster={setGorselTaslariGoster}
@@ -439,34 +501,19 @@ export function NumerolojiKayitDetayPanel({
                 onPngIndir={() => void handleGorselPngIndir()}
               />
             </div>
-            <div
-              ref={gorselPreviewWrapRef}
-              className="min-w-0 flex-1 overflow-hidden rounded-lg"
-              style={{ height: gorselPreviewH }}
-            >
-              <div
-                ref={gorselPreviewInnerRef}
-                style={{
-                  width: GORSEL_BASE_W,
-                  transformOrigin: "top left",
-                  transform: `scale(${gorselPreviewScale})`,
-                }}
-              >
-                <GorselRaporInfografik
-                  out={out}
-                  isimGoster={isimGoster}
-                  dogumGoster={birthDate}
-                  firstName={name}
-                  lastName={surname}
-                  temaId={gorselTema}
-                  uzmanAdi={uzmanAdi}
-                  gorselTaslariGoster={gorselTaslariGoster}
-                  tasBileklik={tasBileklik}
-                  tasKolye={tasKolye}
-                  tasKutle={tasKutle}
-                />
-              </div>
-            </div>
+            <GorselScalePreview
+              out={out}
+              isimGoster={isimGoster}
+              dogumGoster={birthDate}
+              firstName={name}
+              lastName={surname}
+              temaId={gorselTema}
+              uzmanAdi={uzmanAdi}
+              gorselTaslariGoster={gorselTaslariGoster}
+              tasBileklik={tasBileklik}
+              tasKolye={tasKolye}
+              tasKutle={tasKutle}
+            />
           </div>
         ) : null}
       </div>
