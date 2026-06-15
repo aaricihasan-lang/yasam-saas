@@ -99,7 +99,7 @@ const FIELD_META: Record<
 };
 
 // -------------------------------------------------------
-// Boş alan kontrolü
+// Yardımcı fonksiyonlar
 // -------------------------------------------------------
 
 function isOilFieldEmpty(fieldKey: keyof OilFormData, draft: OilFormData): boolean {
@@ -113,8 +113,12 @@ function isOilFieldEmpty(fieldKey: keyof OilFormData, draft: OilFormData): boole
   return value.trim() === "";
 }
 
+function tabHasData(t: DetailTab, draft: OilFormData): boolean {
+  return t.fields.some((f) => !isOilFieldEmpty(f as keyof OilFormData, draft));
+}
+
 // -------------------------------------------------------
-// Tag bileşeni
+// Küçük bileşenler
 // -------------------------------------------------------
 
 function TagsList({ tags }: { tags: string[] }) {
@@ -122,8 +126,44 @@ function TagsList({ tags }: { tags: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.map((tag) => (
-        <span key={tag} className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+        <span key={tag} className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
           {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function BlendChipsList({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/70 bg-gradient-to-r from-violet-50 to-purple-50/80 px-3 py-1 text-[11px] font-semibold text-violet-800 shadow-sm ring-1 ring-violet-100/40"
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/60" />
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ChemicalChips({ raw }: { raw: string }) {
+  const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (items.length < 2) {
+    return <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">{raw}</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((c) => (
+        <span
+          key={c}
+          className="inline-flex rounded-lg border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm"
+        >
+          {c}
         </span>
       ))}
     </div>
@@ -296,8 +336,13 @@ export default function OilDetailPage() {
   // -------------------------------------------------------
 
   const scrollArea = "overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
-
   const btnBase = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition disabled:opacity-60";
+
+  // Hero'da gösterilecek hızlı bilgi chip'leri
+  const plantPartChip = oil.plant_part.trim();
+  const originChip = oil.origin.trim().split(",")[0]?.trim() ?? "";
+  const blendsCount = (oil.blends_well_with ?? []).length;
+  const hasInfoChips = plantPartChip || originChip || blendsCount > 0;
 
   return (
     <main className={`flex min-h-screen flex-col text-slate-950 ${pageBg}`}>
@@ -343,7 +388,7 @@ export default function OilDetailPage() {
                   </h1>
                 )}
 
-                {/* Meta satırı */}
+                {/* Meta satırı: tip + latince + ingilizce + kategori + fotosensitif + paylaşımlı */}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(oil.oil_type)}`}>
                     {oilTypeLabel(oil.oil_type)}
@@ -367,11 +412,32 @@ export default function OilDetailPage() {
                     </span>
                   ) : null}
                   {isSharedContent ? (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">
                       🔒 Paylaşımlı
                     </span>
                   ) : null}
                 </div>
+
+                {/* İkinci chip satırı: botanik özet bilgiler */}
+                {hasInfoChips ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {plantPartChip ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        🌱 {plantPartChip}
+                      </span>
+                    ) : null}
+                    {originChip ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50/80 px-2.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                        📍 {originChip}
+                      </span>
+                    ) : null}
+                    {blendsCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50/80 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                        🔮 {blendsCount} uyumlu yağ
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {/* Sağ: aksiyon butonları */}
@@ -461,35 +527,39 @@ export default function OilDetailPage() {
         </header>
 
         {/* ─── ANA İÇERİK ──────────────────────────────────── */}
-        <section className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row flex flex-col">
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row">
 
           {/* Sidebar — mobil yatay scroll, desktop dikey */}
-          <nav className={`flex shrink-0 gap-1 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/60 to-white/30 p-2 lg:w-[196px] lg:flex-col lg:overflow-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5 ${scrollArea}`}>
+          <nav className={`flex shrink-0 gap-0.5 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:overflow-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5 ${scrollArea}`}>
             {DETAIL_TABS.map((t) => {
               const active = tab === t.id;
+              const hasDot = !active && tabHasData(t, draft);
               return (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-bold transition lg:w-full lg:rounded-lg ${
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-[9px] text-[12px] font-bold transition lg:w-full lg:rounded-lg ${
                     active
-                      ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_14px_rgba(245,158,11,0.32)]"
-                      : "text-slate-600 hover:bg-white/80 hover:text-slate-800"
+                      ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_16px_rgba(245,158,11,0.35)]"
+                      : "text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm"
                   }`}
                 >
                   <span className="shrink-0 text-sm leading-none">{t.icon}</span>
-                  <span className="whitespace-nowrap lg:whitespace-normal">{t.label}</span>
+                  <span className="flex-1 whitespace-nowrap text-left lg:whitespace-normal">{t.label}</span>
+                  {hasDot ? (
+                    <span className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80 lg:block" />
+                  ) : null}
                 </button>
               );
             })}
           </nav>
 
           {/* İçerik paneli */}
-          <div className={`${scrollArea} min-h-0 flex-1 p-5 lg:p-6`}>
+          <div className={`${scrollArea} min-h-0 flex-1 p-4 lg:p-5`}>
 
             {/* Sekme başlığı */}
-            <div className="mb-5 flex items-center gap-2.5 border-b border-amber-100/50 pb-3.5">
+            <div className="mb-4 flex items-center gap-2.5 border-b border-amber-100/50 pb-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50/60 text-base leading-none shadow-sm">
                 {activeTab.icon}
               </span>
@@ -527,7 +597,7 @@ export default function OilDetailPage() {
               </div>
 
             ) : editEnabled ? (
-              /* ── Edit modu: kart+input yapısı ── */
+              /* ── Edit modu ── */
               <div className="space-y-3">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
@@ -631,18 +701,20 @@ export default function OilDetailPage() {
               </div>
 
             ) : (
-              /* ── Görünüm modu: definition list ── */
-              <dl className="divide-y divide-slate-100/70">
+              /* ── Görünüm modu ── */
+              <dl className="space-y-2">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
                   const rawValue = draft[fieldKey as keyof OilFormData];
                   const value = typeof rawValue === "string" ? rawValue : "";
+
+                  const itemCls = "rounded-xl border border-slate-100/80 bg-white/70 px-4 py-3.5 shadow-[0_1px_4px_rgba(15,23,42,0.04)]";
                   const labelCls = "mb-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-amber-600/80";
 
                   if (meta.isBooleanToggle) {
                     return draft.is_photosensitive ? (
-                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd>
                           <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-bold text-amber-800">
@@ -657,17 +729,29 @@ export default function OilDetailPage() {
                     const urls = parseImageUrls(value);
                     if (!urls.length) return null;
                     return (
-                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd className="space-y-2">
                           {urls.map((url, i) => (
-                            <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                            <div key={i} className="flex items-center gap-3 rounded-xl border border-amber-100/60 bg-amber-50/20 p-2.5 shadow-sm">
                               {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL */}
-                              <img src={url} alt={`Görsel ${i + 1}`} className="h-12 w-12 shrink-0 rounded-md border border-amber-100 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                              <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2">{url}</a>
+                              <img src={url} alt={`Görsel ${i + 1}`} className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900">{url}</a>
                             </div>
                           ))}
                         </dd>
+                      </div>
+                    );
+                  }
+
+                  /* Uyumlu yağlar: premium violet chips */
+                  if (fieldKey === "blends_well_with_raw") {
+                    const tags = parseTagsInput(value);
+                    if (!tags.length) return null;
+                    return (
+                      <div key={fieldKey} className={itemCls}>
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd><BlendChipsList tags={tags} /></dd>
                       </div>
                     );
                   }
@@ -676,16 +760,26 @@ export default function OilDetailPage() {
                     const tags = parseTagsInput(value);
                     if (!tags.length) return null;
                     return (
-                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd><TagsList tags={tags} /></dd>
                       </div>
                     );
                   }
 
+                  /* Kimyasal bileşenler: virgüllü ise chip grid */
+                  if (fieldKey === "main_components" && value.trim()) {
+                    return (
+                      <div key={fieldKey} className={itemCls}>
+                        <dt className={labelCls}>{meta.label}</dt>
+                        <dd><ChemicalChips raw={value} /></dd>
+                      </div>
+                    );
+                  }
+
                   if (meta.isOilType) {
                     return (
-                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd>
                           <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${oilTypeBadgeClass(draft.oil_type)}`}>
@@ -698,7 +792,7 @@ export default function OilDetailPage() {
 
                   if (meta.multiline) {
                     return (
-                      <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                      <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd className="whitespace-pre-wrap text-[13px] leading-[1.75] text-slate-800">
                           {value}
@@ -708,7 +802,7 @@ export default function OilDetailPage() {
                   }
 
                   return (
-                    <div key={fieldKey} className="py-4 first:pt-0 last:pb-0">
+                    <div key={fieldKey} className={itemCls}>
                       <dt className={labelCls}>{meta.label}</dt>
                       <dd className="text-[13px] font-medium text-slate-800">{value}</dd>
                     </div>
