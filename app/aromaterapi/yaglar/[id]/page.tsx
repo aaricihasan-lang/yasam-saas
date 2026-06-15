@@ -514,7 +514,7 @@ export default function OilDetailPage() {
                 {isSharedContent ? (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
                     className={`${btnBase} bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow ring-1 ring-violet-400/30 hover:brightness-105`}>
-                    {copying ? "Kopyalanıyor…" : "📋 Kopyala"}
+                    {copying ? "Kopyalanıyor…" : "📋 Kopyala ve Düzenle"}
                   </button>
                 ) : editEnabled ? (
                   <>
@@ -550,7 +550,7 @@ export default function OilDetailPage() {
           )}
           {isSharedContent && !editEnabled && (
             <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-1.5 text-[11px] font-medium text-slate-500">
-              🔒 Paylaşımlı içerik — &quot;Kopyala&quot; butonu ile kendi hesabınıza ekleyebilirsiniz
+              🔒 Bu kayıt paylaşımlı içeriktir. Düzenlemek için kendi hesabınıza kopyalayın.
             </div>
           )}
           {errorMessage ? (
