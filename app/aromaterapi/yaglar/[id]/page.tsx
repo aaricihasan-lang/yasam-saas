@@ -513,8 +513,8 @@ export default function OilDetailPage() {
 
                 {isSharedContent ? (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
-                    className={`${btnBase} bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow ring-1 ring-violet-400/30 hover:brightness-105`}>
-                    {copying ? "Kopyalanıyor…" : "📋 Kopyala ve Düzenle"}
+                    className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
+                    {copying ? "Düzenleniyor…" : "✏️ Düzenle"}
                   </button>
                 ) : editEnabled ? (
                   <>
@@ -531,7 +531,7 @@ export default function OilDetailPage() {
                   <>
                     <button type="button" onClick={startEdit}
                       className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>
-                      Güncelle
+                      ✏️ Düzenle
                     </button>
                     <button type="button" onClick={() => { setDeleteConfirmOpen(true); setErrorMessage(""); }}
                       className={`${btnBase} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}>
@@ -550,7 +550,7 @@ export default function OilDetailPage() {
           )}
           {isSharedContent && !editEnabled && (
             <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-1.5 text-[11px] font-medium text-slate-500">
-              🔒 Bu kayıt paylaşımlı içeriktir. Düzenlemek için kendi hesabınıza kopyalayın.
+              Bu kayıt ortak kütüphaneden kullanılmaktadır. Düzenleme yaptığınızda size özel bir kopya oluşturulur.
             </div>
           )}
           {errorMessage ? (
@@ -609,13 +609,13 @@ export default function OilDetailPage() {
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Bu bölümde kayıtlı bilgi yok</p>
                 {!isSharedContent ? (
                   <button type="button" onClick={startEdit}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[12px] font-bold text-amber-700 transition hover:bg-amber-100">
-                    ✏️ Güncelle
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white transition hover:brightness-110">
+                    ✏️ Düzenle
                   </button>
                 ) : (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-1.5 text-[12px] font-bold text-white shadow disabled:opacity-60">
-                    📋 Kopyala ve Düzenle
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white shadow disabled:opacity-60 hover:brightness-110">
+                    ✏️ Düzenle
                   </button>
                 )}
               </div>
