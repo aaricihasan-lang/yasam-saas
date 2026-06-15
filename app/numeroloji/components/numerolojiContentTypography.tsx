@@ -19,36 +19,36 @@ export function getContentTypography(size: ContentFontSize): ContentTypography {
   switch (size) {
     case "large":
       return {
-        body: "w-full min-w-0 text-xl leading-7 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-xl leading-6 font-mono text-slate-700",
-        label: "text-xl font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-xl leading-6 font-medium text-slate-700",
-        sectionTitle: "text-xl font-black tracking-wide text-slate-800",
+        body: "w-full min-w-0 text-base leading-6 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-sm leading-5 font-mono text-slate-700",
+        label: "text-sm font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-sm leading-5 font-medium text-slate-700",
+        sectionTitle: "text-base font-black tracking-wide text-slate-800",
         display: "text-5xl font-black text-slate-950",
-        boxPadding: "rounded-[18px] p-4",
-        infoBoxPadding: "rounded-[16px] p-3.5",
+        boxPadding: "rounded-[16px] p-3.5",
+        infoBoxPadding: "rounded-[14px] p-3",
       };
     case "xlarge":
       return {
-        body: "w-full min-w-0 text-2xl leading-7 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-2xl leading-6 font-mono text-slate-700",
-        label: "text-2xl font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-2xl leading-6 font-medium text-slate-700",
-        sectionTitle: "text-2xl font-black tracking-wide text-slate-800",
+        body: "w-full min-w-0 text-lg leading-7 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-base leading-6 font-mono text-slate-700",
+        label: "text-base font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-base leading-6 font-medium text-slate-700",
+        sectionTitle: "text-lg font-black tracking-wide text-slate-800",
         display: "text-6xl font-black text-slate-950",
         boxPadding: "rounded-[18px] p-4",
         infoBoxPadding: "rounded-[16px] p-3.5",
       };
     default:
       return {
-        body: "w-full min-w-0 text-lg leading-7 font-medium text-slate-700",
-        pre: "w-full min-w-0 text-lg leading-6 font-mono text-slate-700",
-        label: "text-lg font-black tracking-wide text-slate-600",
-        caption: "w-full min-w-0 text-lg leading-6 font-medium text-slate-700",
-        sectionTitle: "text-lg font-black tracking-wide text-slate-800",
-        display: "text-5xl font-black text-slate-950",
-        boxPadding: "rounded-[18px] p-4",
-        infoBoxPadding: "rounded-[16px] p-3.5",
+        body: "w-full min-w-0 text-sm leading-5 font-medium text-slate-700",
+        pre: "w-full min-w-0 text-xs leading-5 font-mono text-slate-700",
+        label: "text-xs font-black tracking-wide text-slate-600",
+        caption: "w-full min-w-0 text-xs leading-5 font-medium text-slate-700",
+        sectionTitle: "text-sm font-black tracking-wide text-slate-800",
+        display: "text-4xl font-black text-slate-950",
+        boxPadding: "rounded-[14px] p-3",
+        infoBoxPadding: "rounded-[12px] p-2.5",
       };
   }
 }
@@ -69,9 +69,6 @@ export function useContentTypography(): ContentTypography {
   return getContentTypography(useContext(ContentFontSizeContext));
 }
 
-const fontBtnBase =
-  "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-bold transition-all";
-
 export function NumerolojiFontSizeControl({
   value,
   onChange,
@@ -89,47 +86,29 @@ export function NumerolojiFontSizeControl({
     else if (value === "large") onChange("xlarge");
   }
 
-  const segmentOptions: { id: ContentFontSize; label: string }[] = [
-    { id: "normal", label: "Normal" },
-    { id: "large", label: "Büyük" },
-    { id: "xlarge", label: "Çok Büyük" },
-  ];
+  const sizeLabel = value === "normal" ? "S" : value === "large" ? "M" : "L";
 
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 p-2 shadow-sm sm:gap-2"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-violet-200 bg-white/80 px-1 py-0.5 shadow-sm"
       role="group"
       aria-label="Yazı boyutu"
     >
-      <span className="hidden text-sm font-bold text-slate-600 sm:inline">Yazı boyutu</span>
       <button
         type="button"
         onClick={decrease}
         disabled={value === "normal"}
-        className={`${fontBtnBase} border-2 border-violet-100 bg-white text-violet-900 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45`}
+        className="flex h-6 w-6 items-center justify-center rounded text-[11px] font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
         aria-label="Yazıyı küçült"
       >
         A−
       </button>
-      <div className="flex gap-1">
-        {segmentOptions.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => onChange(opt.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${
-              value === opt.id ? "bg-violet-500 text-white shadow-sm" : "text-slate-700 hover:bg-violet-50"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <span className="min-w-[1.5rem] text-center text-[10px] font-bold text-slate-500">{sizeLabel}</span>
       <button
         type="button"
         onClick={increase}
         disabled={value === "xlarge"}
-        className={`${fontBtnBase} border-2 border-violet-100 bg-white text-violet-900 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45`}
+        className="flex h-6 w-6 items-center justify-center rounded text-[11px] font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
         aria-label="Yazıyı büyüt"
       >
         A+

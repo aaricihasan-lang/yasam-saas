@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   GorselRaporInfografik,
   type GorselTemaId,
@@ -40,8 +40,8 @@ type DetayTabId = (typeof DETAY_TABS)[number]["id"];
 function KayitBosBolum({ children }: { children?: string }) {
   const typo = useContentTypography();
   return (
-    <div className="min-w-0 rounded-[28px] border-[3px] border-dashed border-violet-200/90 bg-white/80 p-7 text-center shadow-[0_0_32px_rgba(139,92,246,0.10)]">
-      <p className={`min-h-[140px] w-full px-6 py-5 ${typo.body}`}>{children ?? kayitBolumYokMesaji()}</p>
+    <div className="min-w-0 rounded-xl border-2 border-dashed border-violet-200/80 bg-white/80 p-4 text-center shadow-[0_0_16px_rgba(139,92,246,0.08)]">
+      <p className={`w-full px-3 py-3 ${typo.body}`}>{children ?? kayitBolumYokMesaji()}</p>
     </div>
   );
 }
@@ -55,24 +55,24 @@ function TasKayitGorunum({ tas }: { tas: AnalysisTasData }) {
   ].filter((k) => k.metin && k.metin.trim());
 
   return (
-    <div className="space-y-6 sm:space-y-7">
+    <div className="space-y-3">
       {kolonlar.length > 0 ? (
-        <div className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {kolonlar.map((k) => (
             <section
               key={k.baslik}
-              className="rounded-[26px] border border-slate-200/90 bg-white/95 p-6 shadow-md ring-1 ring-violet-100/40 sm:p-7"
+              className="rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-sm ring-1 ring-violet-100/40"
             >
-              <h3 className="text-lg font-black tracking-wide text-slate-950">{k.baslik}</h3>
-              <p className={`mt-4 ${typo.body} font-medium text-slate-800`}>{k.metin}</p>
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">{k.baslik}</h3>
+              <p className={`mt-2 ${typo.body} font-medium text-slate-800`}>{k.metin}</p>
             </section>
           ))}
         </div>
       ) : null}
       {tas.notlar ? (
-        <section className="rounded-[28px] border-[3px] border-amber-300/45 bg-white/80 p-6 shadow-[0_0_32px_rgba(245,158,11,0.10)] xl:p-7">
-          <h3 className="text-lg font-black tracking-wide text-slate-950">Notlar</h3>
-          <p className={`mt-4 whitespace-pre-wrap ${typo.body} text-slate-800`}>{tas.notlar}</p>
+        <section className="rounded-xl border border-amber-300/45 bg-white/80 p-3 shadow-[0_0_16px_rgba(245,158,11,0.08)]">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Notlar</h3>
+          <p className={`mt-2 whitespace-pre-wrap ${typo.body} text-slate-800`}>{tas.notlar}</p>
         </section>
       ) : null}
     </div>
@@ -91,10 +91,10 @@ function gorselDefaults(gorsel: AnalysisGorselData | null) {
 }
 
 const kayitGorselInputClass =
-  "h-14 w-full rounded-2xl border border-violet-200/80 bg-white px-4 text-base leading-7 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+  "h-9 w-full rounded-xl border border-violet-200/80 bg-white px-3 text-sm font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40";
 
 const kayitGorselTextareaClass =
-  "min-h-[130px] w-full resize-y rounded-2xl border border-violet-200/80 bg-white px-4 py-3 text-base leading-7 font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-200/40";
+  "min-h-[70px] w-full resize-y rounded-xl border border-violet-200/80 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none ring-1 ring-violet-100/60 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40";
 
 function KayitGorselKontrolPanel({
   gorselTaslariGoster,
@@ -130,21 +130,21 @@ function KayitGorselKontrolPanel({
   onPngIndir: () => void;
 }) {
   return (
-    <aside className="w-full space-y-4 rounded-[26px] border border-violet-200/70 bg-gradient-to-br from-white/95 via-violet-50/30 to-white/90 p-5 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/55 sm:p-6 lg:sticky lg:top-3">
-      <p className="text-lg font-black tracking-wide text-violet-800">Görsel rapor ayarları</p>
+    <aside className="w-full space-y-2.5 rounded-[14px] border border-violet-200/70 bg-gradient-to-br from-white/95 via-violet-50/30 to-white/90 p-3 shadow-[0_8px_24px_-10px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 lg:sticky lg:top-3">
+      <p className="text-sm font-black tracking-wide text-violet-800">Görsel rapor ayarları</p>
 
-      <label className="flex cursor-pointer items-start gap-3 text-base leading-7 font-semibold text-slate-800">
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-800">
         <input
           type="checkbox"
           checked={gorselTaslariGoster}
           onChange={(e) => setGorselTaslariGoster(e.target.checked)}
-          className="mt-1 size-5 shrink-0 rounded-md border-slate-300 text-violet-600 focus:ring-violet-500"
+          className="size-4 shrink-0 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
         />
         <span>Taş önerilerini görsel raporda göster</span>
       </label>
 
       <div>
-        <label htmlFor="kayit-noj-uzman" className="mb-2 block text-base font-bold leading-7 text-slate-700">
+        <label htmlFor="kayit-noj-uzman" className="mb-1 block text-xs font-bold text-slate-600">
           Uzman adı
         </label>
         <input
@@ -159,42 +159,42 @@ function KayitGorselKontrolPanel({
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-bileklik" className="mb-2 block text-base font-bold leading-7 text-slate-700">
+        <label htmlFor="kayit-noj-tas-bileklik" className="mb-1 block text-xs font-bold text-slate-600">
           Bileklik taşları
         </label>
         <textarea
           id="kayit-noj-tas-bileklik"
           value={tasBileklik}
           onChange={(e) => setTasBileklik(formatVirgulluTasGirdi(e.target.value))}
-          rows={3}
+          rows={2}
           placeholder="Örn. Ametist, Sitrin, Turmalin"
           className={kayitGorselTextareaClass}
         />
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-kolye" className="mb-2 block text-base font-bold leading-7 text-slate-700">
+        <label htmlFor="kayit-noj-tas-kolye" className="mb-1 block text-xs font-bold text-slate-600">
           Kolye taşları
         </label>
         <textarea
           id="kayit-noj-tas-kolye"
           value={tasKolye}
           onChange={(e) => setTasKolye(formatVirgulluTasGirdi(e.target.value))}
-          rows={3}
+          rows={2}
           placeholder="Örn. Ametist, Sitrin, Turmalin"
           className={kayitGorselTextareaClass}
         />
       </div>
 
       <div>
-        <label htmlFor="kayit-noj-tas-kutle" className="mb-2 block text-base font-bold leading-7 text-slate-700">
+        <label htmlFor="kayit-noj-tas-kutle" className="mb-1 block text-xs font-bold text-slate-600">
           Kütle taşları
         </label>
         <textarea
           id="kayit-noj-tas-kutle"
           value={tasKutle}
           onChange={(e) => setTasKutle(formatVirgulluTasGirdi(e.target.value))}
-          rows={3}
+          rows={2}
           placeholder="Örn. Ametist, Sitrin, Turmalin"
           className={kayitGorselTextareaClass}
         />
@@ -202,7 +202,7 @@ function KayitGorselKontrolPanel({
 
       {kayitGorselMesaj ? (
         <p
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+          className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
             kayitGorselMesaj.startsWith("Kaydedildi")
               ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/60"
               : "bg-rose-50 text-rose-800 ring-1 ring-rose-200/60"
@@ -213,12 +213,12 @@ function KayitGorselKontrolPanel({
         </p>
       ) : null}
 
-      <div className="space-y-3 pt-1">
+      <div className="space-y-1.5 pt-0.5">
         <button
           type="button"
           onClick={onKaydet}
           disabled={kayitGorselKaydediliyor || gorselPngHazirlaniyor}
-          className="h-14 w-full rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-base font-black text-white shadow-[0_10px_28px_-8px_rgba(91,33,182,0.45)] ring-1 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-9 w-full rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(91,33,182,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {kayitGorselKaydediliyor ? "Kaydediliyor…" : "Ayarları Kaydet"}
         </button>
@@ -226,7 +226,7 @@ function KayitGorselKontrolPanel({
           type="button"
           disabled={gorselPngHazirlaniyor || kayitGorselKaydediliyor}
           onClick={onPngIndir}
-          className="h-14 w-full rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-base font-black text-white shadow-[0_10px_28px_-8px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-9 w-full rounded-xl border border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
         </button>
@@ -333,35 +333,69 @@ export function NumerolojiKayitDetayPanel({
     }
   }
 
+  const gorselPreviewWrapRef = useRef<HTMLDivElement>(null);
+  const gorselPreviewInnerRef = useRef<HTMLDivElement>(null);
+  const GORSEL_BASE_W = 1400;
+  const [gorselPreviewScale, setGorselPreviewScale] = useState(1);
+  const [gorselPreviewH, setGorselPreviewH] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const wrap = gorselPreviewWrapRef.current;
+    const inner = gorselPreviewInnerRef.current;
+    if (!wrap || !inner) return;
+    let sc = 1;
+    let ih = 0;
+    const wObs = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) {
+        sc = Math.min(1, w / GORSEL_BASE_W);
+        setGorselPreviewScale(sc);
+        if (ih > 0) setGorselPreviewH(ih * sc);
+      }
+    });
+    const iObs = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height ?? 0;
+      if (h > 0) {
+        ih = h;
+        setGorselPreviewH(h * sc);
+      }
+    });
+    wObs.observe(wrap);
+    iObs.observe(inner);
+    return () => { wObs.disconnect(); iObs.disconnect(); };
+  }, []);
+
   return (
-    <div className="w-full overflow-hidden rounded-[20px] border border-violet-200/55 bg-white/80 shadow-[0_0_22px_rgba(139,92,246,0.09)] backdrop-blur-xl">
-      <div className="border-b border-violet-100/60 bg-gradient-to-r from-violet-50/60 via-white/80 to-fuchsia-50/40 px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className="flex flex-wrap gap-1.5">
-            {DETAY_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-150 ${
-                  tab === t.id
-                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_2px_8px_rgba(139,92,246,0.25)]"
-                    : "border border-violet-100/80 bg-white/80 text-slate-600 hover:border-violet-200 hover:bg-violet-50"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+    <div className="w-full overflow-hidden rounded-[16px] border border-violet-200/55 bg-white/80 shadow-[0_0_18px_rgba(139,92,246,0.08)] backdrop-blur-xl">
+      <div className="border-b border-violet-100/60 bg-gradient-to-r from-violet-50/60 via-white/80 to-fuchsia-50/40 px-3 py-2 sm:px-4">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex min-w-max gap-1 pb-px">
+              {DETAY_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide transition-all duration-150 ${
+                    tab === t.id
+                      ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_2px_8px_rgba(139,92,246,0.25)]"
+                      : "border border-violet-100/80 bg-white/80 text-slate-600 hover:border-violet-200 hover:bg-violet-50"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
           {isOkumaTab ? (
-            <div className="ml-auto">
+            <div className="shrink-0">
               <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="w-full bg-gradient-to-b from-white/98 via-slate-50/30 to-violet-50/20 p-4 sm:p-5 xl:p-7">
+      <div className="w-full bg-gradient-to-b from-white/98 via-slate-50/30 to-violet-50/20 p-3 sm:p-4">
         {isOkumaTab ? (
           <ContentFontSizeProvider size={contentFontSize}>
             {tab === "summary" ? (
@@ -373,7 +407,7 @@ export function NumerolojiKayitDetayPanel({
             {tab === "detailed" ? <TabAnalizOzetli out={out} layout="detay" /> : null}
 
             {tab === "tas" ? (
-              <div className="space-y-6 sm:space-y-8">
+              <div className="space-y-3">
                 <TabTasAtamalari out={out} />
                 {tas ? <TasKayitGorunum tas={tas} /> : null}
               </div>
@@ -383,10 +417,10 @@ export function NumerolojiKayitDetayPanel({
 
         {tab === "gorsel" ? (
           <div
-            className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6 xl:gap-8"
+            className="flex flex-col gap-3 lg:flex-row lg:items-start"
             data-gorsel-rapor-scroll-host
           >
-            <div className="w-full shrink-0 lg:w-[min(100%,400px)] xl:w-[420px]">
+            <div className="w-full shrink-0 lg:w-[320px] xl:w-[340px]">
               <KayitGorselKontrolPanel
                 gorselTaslariGoster={gorselTaslariGoster}
                 setGorselTaslariGoster={setGorselTaslariGoster}
@@ -405,8 +439,19 @@ export function NumerolojiKayitDetayPanel({
                 onPngIndir={() => void handleGorselPngIndir()}
               />
             </div>
-            <div className="min-w-0 w-full flex-1 overflow-x-clip py-1 sm:py-2">
-              <div className="[zoom:0.22] sm:[zoom:0.42] lg:[zoom:0.38] xl:[zoom:0.54] 2xl:[zoom:0.70]">
+            <div
+              ref={gorselPreviewWrapRef}
+              className="min-w-0 flex-1 overflow-hidden rounded-lg"
+              style={{ height: gorselPreviewH }}
+            >
+              <div
+                ref={gorselPreviewInnerRef}
+                style={{
+                  width: GORSEL_BASE_W,
+                  transformOrigin: "top left",
+                  transform: `scale(${gorselPreviewScale})`,
+                }}
+              >
                 <GorselRaporInfografik
                   out={out}
                   isimGoster={isimGoster}

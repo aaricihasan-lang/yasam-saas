@@ -14,10 +14,10 @@ import {
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
 
 const detayNavSecondaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-4 py-2 text-sm font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
 
 const detayNavPrimaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_14px_rgba(139,92,246,0.28)] no-underline transition-all duration-200 hover:shadow-[0_6px_18px_rgba(139,92,246,0.35)]";
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_14px_rgba(139,92,246,0.28)] no-underline transition-all duration-200 hover:shadow-[0_6px_18px_rgba(139,92,246,0.35)]";
 
 export default function NumerolojiKayitDetayPage() {
   const params = useParams();
@@ -106,8 +106,9 @@ export default function NumerolojiKayitDetayPage() {
         className="pointer-events-none absolute right-0 top-0 h-[220px] w-[220px] rounded-full bg-amber-300/18 blur-[90px]"
         aria-hidden
       />
-      <div className="relative z-10 w-full px-5 py-4 xl:px-8 2xl:px-12">
-        <div className="mb-3 flex flex-wrap gap-2">
+      <div className="relative z-10 w-full px-3 py-3 sm:px-5 xl:px-6">
+        <div className="mx-auto max-w-[1400px]">
+        <div className="mb-2 flex flex-wrap gap-1.5">
           <Link href="/numeroloji/liste" className={detayNavSecondaryClass}>
             ← Listeye dön
           </Link>
@@ -122,7 +123,7 @@ export default function NumerolojiKayitDetayPage() {
               type="button"
               onClick={() => void downloadWord()}
               disabled={wordBusy}
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
             >
               {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
             </button>
@@ -130,14 +131,14 @@ export default function NumerolojiKayitDetayPage() {
         </div>
 
         {loading ? (
-          <div className="rounded-2xl border border-violet-300/40 bg-white/80 px-6 py-5 text-base font-semibold text-slate-600 shadow-[0_0_28px_rgba(139,92,246,0.12)] backdrop-blur-xl">
+          <div className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_28px_rgba(139,92,246,0.12)] backdrop-blur-xl">
             Yükleniyor…
           </div>
         ) : null}
 
         {error ? (
           <div
-            className="rounded-2xl border border-rose-300/50 bg-rose-50/90 px-6 py-4 text-base font-semibold text-rose-900 shadow-[0_0_24px_rgba(244,63,94,0.1)] backdrop-blur-xl"
+            className="rounded-xl border border-rose-300/50 bg-rose-50/90 px-4 py-3 text-sm font-semibold text-rose-900 shadow-[0_0_24px_rgba(244,63,94,0.1)] backdrop-blur-xl"
             role="alert"
           >
             {error}
@@ -145,17 +146,17 @@ export default function NumerolojiKayitDetayPage() {
         ) : null}
 
         {row && !error ? (
-          <div className="w-full space-y-3">
-            <header className="relative overflow-hidden rounded-[20px] border border-violet-200/60 bg-white/82 px-5 py-4 shadow-[0_0_20px_rgba(139,92,246,0.09)] backdrop-blur-xl sm:px-6">
-              <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-200/20 blur-2xl" aria-hidden />
-              <div className="pointer-events-none absolute right-14 top-2 h-14 w-14 rounded-full bg-amber-200/18 blur-xl" aria-hidden />
-              <div className="relative flex items-start justify-between gap-4">
+          <div className="w-full space-y-2">
+            <header className="relative overflow-hidden rounded-[16px] border border-violet-200/60 bg-white/82 px-4 py-3 shadow-[0_0_16px_rgba(139,92,246,0.08)] backdrop-blur-xl sm:px-5">
+              <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-violet-200/20 blur-2xl" aria-hidden />
+              <div className="pointer-events-none absolute right-12 top-2 h-12 w-12 rounded-full bg-amber-200/18 blur-xl" aria-hidden />
+              <div className="relative flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="inline-block rounded-full border border-violet-200/60 bg-violet-50/70 px-2.5 py-0.5 text-[10px] font-black tracking-[0.20em] text-violet-600">
+                  <p className="inline-block rounded-full border border-violet-200/60 bg-violet-50/70 px-2 py-0.5 text-[9px] font-black tracking-[0.20em] text-violet-600">
                     KAYITLI ANALİZ
                   </p>
-                  <h1 className="mt-1.5 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{adSoyad}</h1>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0 text-xs font-medium text-slate-400">
+                  <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{adSoyad}</h1>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs font-medium text-slate-400">
                     <span>Doğum: {row.birth_date}</span>
                     <span aria-hidden className="opacity-50">·</span>
                     <span>
@@ -166,8 +167,8 @@ export default function NumerolojiKayitDetayPage() {
                     </span>
                   </div>
                 </div>
-                <div className="shrink-0 opacity-[0.13]" aria-hidden>
-                  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" className="text-violet-700">
+                <div className="shrink-0 opacity-[0.11]" aria-hidden>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" className="text-violet-700">
                     <path d="M12 2l2.2 6.8H21l-5.5 4 2.1 6.5L12 15.3 6.4 19.3l2.1-6.5L3 8.8h6.8L12 2z" stroke="currentColor" strokeWidth="0.55" fill="currentColor" fillOpacity="0.25" />
                   </svg>
                 </div>
@@ -185,12 +186,13 @@ export default function NumerolojiKayitDetayPage() {
                 onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
               />
             ) : (
-              <p className="rounded-2xl border border-violet-300/40 bg-white/80 px-6 py-4 text-base font-semibold text-slate-600 shadow-[0_0_24px_rgba(139,92,246,0.1)] backdrop-blur-xl">
+              <p className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_24px_rgba(139,92,246,0.1)] backdrop-blur-xl">
                 Kayıtlı analiz verisi okunamadı veya eski formatta.
               </p>
             )}
           </div>
         ) : null}
+        </div>
       </div>
     </div>
   );
