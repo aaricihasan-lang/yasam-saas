@@ -20,16 +20,18 @@ import {
 import { supabase } from "@/lib/supabase";
 
 // -------------------------------------------------------
-// Detay sekmeleri
+// Detay Sekmeleri — 9 sekme, form yapısıyla örtüşür
 // -------------------------------------------------------
 
 type DetailTabId =
   | "kimlik"
-  | "koku"
-  | "bilesim"
-  | "faydalar"
+  | "botanik"
+  | "yag-ozellikleri"
+  | "kimyasal"
+  | "ruhsal-duygusal"
   | "kullanim"
-  | "enerji"
+  | "uyumlu"
+  | "onlemler"
   | "notlar";
 
 type DetailTab = {
@@ -43,52 +45,66 @@ type DetailTab = {
 const DETAIL_TABS: DetailTab[] = [
   {
     id: "kimlik",
-    label: "Kimlik & Botanik",
+    label: "Kimlik",
     icon: "🌿",
-    desc: "Ad, tip, kategori, menşei, çıkarma yöntemi, bitki bölümü, raf ömrü ve görseller.",
-    fields: ["name", "latin_name", "oil_type", "category", "origin", "extraction_method", "plant_part", "shelf_life", "images_raw"],
+    desc: "Ad, Latince/İngilizce ad, yağ tipi ve kategori.",
+    fields: ["name", "latin_name", "english_name", "oil_type", "category"],
   },
   {
-    id: "koku",
-    label: "Koku & Görünüm",
+    id: "botanik",
+    label: "Botanik & Kaynak",
+    icon: "🌱",
+    desc: "Menşei, çıkarma yöntemi, kullanılan bitki bölümü ve raf ömrü.",
+    fields: ["origin", "extraction_method", "plant_part", "shelf_life"],
+  },
+  {
+    id: "yag-ozellikleri",
+    label: "Yağ Özellikleri",
     icon: "✨",
-    desc: "Koku profili, nota, renk ve kıvam bilgileri.",
-    fields: ["aroma_profile", "aroma_note", "color", "consistency"],
+    desc: "Koku profili, nota, renk, kıvam ve fotosensitiflik.",
+    fields: ["aroma_profile", "aroma_note", "color", "consistency", "is_photosensitive"],
   },
   {
-    id: "bilesim",
-    label: "Bileşim & Terapötik",
+    id: "kimyasal",
+    label: "Kimyasal İçerik",
     icon: "🔬",
-    desc: "Ana bileşenler ve terapötik özellikler.",
+    desc: "Ana kimyasal bileşenler ve terapötik özellikler.",
     fields: ["main_components", "therapeutic_properties_raw"],
   },
   {
-    id: "faydalar",
-    label: "Faydalar",
+    id: "ruhsal-duygusal",
+    label: "Ruhsal & Duygusal",
     icon: "💚",
-    desc: "Fiziksel, duygusal, manevi, cilt faydaları ve hedef sistemler.",
-    fields: ["physical_benefits", "emotional_benefits", "spiritual_benefits", "skin_benefits", "benefits", "target_systems_raw"],
+    desc: "Duygusal, ruhsal, fiziksel ve cilt faydaları.",
+    fields: ["emotional_benefits", "spiritual_benefits", "physical_benefits", "skin_benefits", "benefits"],
   },
   {
     id: "kullanim",
-    label: "Kullanım & Güvenlik",
-    icon: "⚠️",
-    desc: "Kullanım yöntemleri, seyreltme oranı, güvenlik notları ve fotosensitiflik.",
-    fields: ["usage_methods", "dilution_ratio", "safety_notes", "contraindications", "is_photosensitive"],
+    label: "Kullanım Şekilleri",
+    icon: "💧",
+    desc: "Difüzyon, masaj, genel kullanım ve seyreltme oranı.",
+    fields: ["diffuser_usage", "massage_usage", "usage_methods", "dilution_ratio"],
   },
   {
-    id: "enerji",
-    label: "Enerji & Bağlantı",
+    id: "uyumlu",
+    label: "Uyumlu Yağlar",
     icon: "🔮",
-    desc: "Çakra bağlantısı, element ve iyi karıştığı yağlar.",
-    fields: ["chakra_connection", "element_connection", "blends_well_with_raw"],
+    desc: "İyi karıştığı yağlar, hedef sistemler, çakra ve element bağlantısı.",
+    fields: ["blends_well_with_raw", "target_systems_raw", "chakra_connection", "element_connection"],
+  },
+  {
+    id: "onlemler",
+    label: "Önlemler & Güvenlik",
+    icon: "⚠️",
+    desc: "Güvenlik notları ve kontrendikasyonlar.",
+    fields: ["safety_notes", "contraindications"],
   },
   {
     id: "notlar",
-    label: "Notlar & Kaynak",
+    label: "Notlar",
     icon: "📝",
-    desc: "Ek notlar ve referans kaynak.",
-    fields: ["notes", "source"],
+    desc: "Görseller (URL), ek notlar ve kaynak bilgisi.",
+    fields: ["images_raw", "notes", "source"],
   },
 ];
 
@@ -98,39 +114,57 @@ const DETAIL_TABS: DetailTab[] = [
 
 const FIELD_META: Record<
   string,
-  { label: string; multiline?: boolean; isSelect?: boolean; isOilType?: boolean; isTags?: boolean; isBooleanToggle?: boolean; isImageList?: boolean }
+  {
+    label: string;
+    multiline?: boolean;
+    isOilType?: boolean;
+    isTags?: boolean;
+    isBooleanToggle?: boolean;
+    isImageList?: boolean;
+  }
 > = {
-  name: { label: "Yağ Adı" },
-  latin_name: { label: "Latince Adı" },
-  oil_type: { label: "Yağ Tipi", isSelect: true, isOilType: true },
-  category: { label: "Kategori" },
-  origin: { label: "Menşei / Ülke" },
+  name:              { label: "Yağ Adı" },
+  latin_name:        { label: "Latince Adı" },
+  english_name:      { label: "İngilizce Adı" },
+  oil_type:          { label: "Yağ Tipi", isOilType: true },
+  category:          { label: "Kategori" },
+
+  origin:            { label: "Menşei / Ülke" },
   extraction_method: { label: "Çıkarma Yöntemi" },
-  plant_part: { label: "Kullanılan Bitki Bölümü" },
-  aroma_profile: { label: "Koku Profili", multiline: true },
-  aroma_note: { label: "Koku Notası" },
-  color: { label: "Renk" },
-  consistency: { label: "Kıvam / Yoğunluk" },
-  main_components: { label: "Ana Bileşenler", multiline: true },
-  therapeutic_properties_raw: { label: "Terapötik Özellikler", multiline: true, isTags: true },
-  physical_benefits: { label: "Fiziksel Faydalar", multiline: true },
-  emotional_benefits: { label: "Duygusal Faydalar", multiline: true },
-  spiritual_benefits: { label: "Manevi Faydalar", multiline: true },
-  skin_benefits: { label: "Cilt Faydaları", multiline: true },
-  benefits: { label: "Genel Faydalar", multiline: true },
-  usage_methods: { label: "Kullanım Yöntemleri", multiline: true },
-  dilution_ratio: { label: "Seyreltme Oranı" },
-  safety_notes: { label: "Güvenlik Notları", multiline: true },
-  contraindications: { label: "Kontrendikasyonlar", multiline: true },
-  chakra_connection: { label: "Çakra Bağlantısı" },
-  element_connection: { label: "Element Bağlantısı" },
-  blends_well_with_raw: { label: "İyi Karıştığı Yağlar", isTags: true, multiline: true },
-  notes: { label: "Ek Notlar", multiline: true },
-  source: { label: "Kaynak" },
-  shelf_life: { label: "Raf Ömrü" },
-  images_raw: { label: "Görseller", isImageList: true, multiline: true },
+  plant_part:        { label: "Kullanılan Bitki Bölümü" },
+  shelf_life:        { label: "Raf Ömrü" },
+
+  aroma_profile:     { label: "Koku Profili", multiline: true },
+  aroma_note:        { label: "Koku Notası" },
+  color:             { label: "Renk" },
+  consistency:       { label: "Kıvam / Yoğunluk" },
   is_photosensitive: { label: "Fotosensitif", isBooleanToggle: true },
-  target_systems_raw: { label: "Hedef Sistemler", isTags: true, multiline: true },
+
+  main_components:            { label: "Ana Kimyasal Bileşenler", multiline: true },
+  therapeutic_properties_raw: { label: "Terapötik Özellikler", multiline: true, isTags: true },
+
+  emotional_benefits: { label: "Duygusal Etkiler", multiline: true },
+  spiritual_benefits: { label: "Ruhsal Etkiler", multiline: true },
+  physical_benefits:  { label: "Fiziksel Faydalar", multiline: true },
+  skin_benefits:      { label: "Cilt Faydaları", multiline: true },
+  benefits:           { label: "Genel Faydalar", multiline: true },
+
+  diffuser_usage: { label: "Brülör & Buharlaştırıcı", multiline: true },
+  massage_usage:  { label: "Masaj Kullanımı", multiline: true },
+  usage_methods:  { label: "Genel Kullanım Yöntemleri", multiline: true },
+  dilution_ratio: { label: "Seyreltme Oranı" },
+
+  blends_well_with_raw: { label: "İyi Karıştığı Yağlar", isTags: true, multiline: true },
+  target_systems_raw:   { label: "Hedef Sistemler", isTags: true, multiline: true },
+  chakra_connection:    { label: "Çakra Bağlantısı" },
+  element_connection:   { label: "Element Bağlantısı" },
+
+  safety_notes:      { label: "Güvenlik Notları", multiline: true },
+  contraindications: { label: "Kontrendikasyonlar", multiline: true },
+
+  images_raw: { label: "Görseller", isImageList: true, multiline: true },
+  notes:      { label: "Ek Notlar", multiline: true },
+  source:     { label: "Kaynak" },
 };
 
 // -------------------------------------------------------
@@ -164,10 +198,7 @@ function TagsList({ tags }: { tags: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800"
-        >
+        <span key={tag} className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
           {tag}
         </span>
       ))}
@@ -176,7 +207,7 @@ function TagsList({ tags }: { tags: string[] }) {
 }
 
 // -------------------------------------------------------
-// Detay sayfası
+// Detay Sayfası
 // -------------------------------------------------------
 
 export default function OilDetailPage() {
@@ -215,16 +246,11 @@ export default function OilDetailPage() {
     setNotFound(false);
 
     const tid = await getSyncedTenantId();
-    if (!tid) {
-      setLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
+    if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
     setTenantId(tid);
 
     const { oil: data, error, notFound: missing } = await fetchOilDetail(tid, id);
     setLoading(false);
-
     if (error) { setErrorMessage(`Kayıt yüklenemedi: ${error}`); return; }
     if (missing || !data) { setNotFound(true); return; }
 
@@ -239,16 +265,12 @@ export default function OilDetailPage() {
   useBfcacheRefresh();
 
   // -------------------------------------------------------
-  // Navigasyon — unsaved changes koruması
+  // Navigasyon
   // -------------------------------------------------------
 
   function handleNavigation(href: string) {
-    if (editEnabled) {
-      setPendingNavHref(href);
-      setLeaveConfirmOpen(true);
-    } else {
-      router.push(href);
-    }
+    if (editEnabled) { setPendingNavHref(href); setLeaveConfirmOpen(true); }
+    else router.push(href);
   }
 
   function confirmLeave() {
@@ -258,10 +280,7 @@ export default function OilDetailPage() {
     setPendingNavHref(null);
   }
 
-  function cancelLeave() {
-    setLeaveConfirmOpen(false);
-    setPendingNavHref(null);
-  }
+  function cancelLeave() { setLeaveConfirmOpen(false); setPendingNavHref(null); }
 
   // -------------------------------------------------------
   // Edit kontrolleri
@@ -302,35 +321,38 @@ export default function OilDetailPage() {
       .update({
         name: nameTrim,
         latin_name: t(draft.latin_name),
+        english_name: t(draft.english_name),
         oil_type: draft.oil_type || "essential",
         category: t(draft.category),
         extraction_method: t(draft.extraction_method),
         plant_part: t(draft.plant_part),
         origin: t(draft.origin),
+        shelf_life: t(draft.shelf_life),
         aroma_profile: t(draft.aroma_profile),
         aroma_note: t(draft.aroma_note),
         color: t(draft.color),
         consistency: t(draft.consistency),
+        is_photosensitive: draft.is_photosensitive,
         main_components: t(draft.main_components),
         therapeutic_properties: parseTagsInput(draft.therapeutic_properties_raw),
-        benefits: t(draft.benefits),
         emotional_benefits: t(draft.emotional_benefits),
-        physical_benefits: t(draft.physical_benefits),
         spiritual_benefits: t(draft.spiritual_benefits),
+        physical_benefits: t(draft.physical_benefits),
         skin_benefits: t(draft.skin_benefits),
+        benefits: t(draft.benefits),
+        diffuser_usage: t(draft.diffuser_usage),
+        massage_usage: t(draft.massage_usage),
         usage_methods: t(draft.usage_methods),
         dilution_ratio: t(draft.dilution_ratio),
-        safety_notes: t(draft.safety_notes),
-        contraindications: t(draft.contraindications),
         blends_well_with: parseTagsInput(draft.blends_well_with_raw),
+        target_systems: parseTagsInput(draft.target_systems_raw),
         chakra_connection: t(draft.chakra_connection),
         element_connection: t(draft.element_connection),
+        safety_notes: t(draft.safety_notes),
+        contraindications: t(draft.contraindications),
+        images: parseImageUrls(draft.images_raw),
         notes: t(draft.notes),
         source: t(draft.source),
-        images: parseImageUrls(draft.images_raw),
-        is_photosensitive: draft.is_photosensitive,
-        shelf_life: t(draft.shelf_life),
-        target_systems: parseTagsInput(draft.target_systems_raw),
       })
       .eq("tenant_id", tenantId)
       .eq("id", id)
@@ -338,11 +360,7 @@ export default function OilDetailPage() {
 
     setSaving(false);
 
-    if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
-      return;
-    }
-
+    if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error.message}`); return; }
     if (!updatedRows || updatedRows.length === 0) {
       setErrorMessage("Güncelleme başarısız — bu kayıt değiştirilemez veya erişim izniniz yok.");
       return;
@@ -384,51 +402,49 @@ export default function OilDetailPage() {
         tenant_id: tenantId,
         name: `${oil.name} (Kopya)`,
         latin_name: t(oil.latin_name),
+        english_name: t(oil.english_name),
         oil_type: oil.oil_type,
         category: t(oil.category),
         extraction_method: t(oil.extraction_method),
         plant_part: t(oil.plant_part),
         origin: t(oil.origin),
+        shelf_life: t(oil.shelf_life),
         aroma_profile: t(oil.aroma_profile),
         aroma_note: t(oil.aroma_note),
         color: t(oil.color),
         consistency: t(oil.consistency),
+        is_photosensitive: oil.is_photosensitive ?? false,
         main_components: t(oil.main_components),
         therapeutic_properties: oil.therapeutic_properties ?? [],
-        benefits: t(oil.benefits),
         emotional_benefits: t(oil.emotional_benefits),
-        physical_benefits: t(oil.physical_benefits),
         spiritual_benefits: t(oil.spiritual_benefits),
+        physical_benefits: t(oil.physical_benefits),
         skin_benefits: t(oil.skin_benefits),
+        benefits: t(oil.benefits),
+        diffuser_usage: t(oil.diffuser_usage),
+        massage_usage: t(oil.massage_usage),
         usage_methods: t(oil.usage_methods),
         dilution_ratio: t(oil.dilution_ratio),
-        safety_notes: t(oil.safety_notes),
-        contraindications: t(oil.contraindications),
         blends_well_with: oil.blends_well_with ?? [],
+        target_systems: oil.target_systems ?? [],
         chakra_connection: t(oil.chakra_connection),
         element_connection: t(oil.element_connection),
+        safety_notes: t(oil.safety_notes),
+        contraindications: t(oil.contraindications),
+        images: oil.images ?? [],
         notes: t(oil.notes),
         source: t(oil.source),
-        images: oil.images ?? [],
-        is_photosensitive: oil.is_photosensitive ?? false,
-        shelf_life: t(oil.shelf_life),
-        target_systems: oil.target_systems ?? [],
       })
       .select("id")
       .single();
 
     setCopying(false);
-
-    if (error || !data) {
-      setErrorMessage("Kopyalama başarısız.");
-      return;
-    }
-
+    if (error || !data) { setErrorMessage("Kopyalama başarısız."); return; }
     router.push(`/aromaterapi/yaglar/${data.id}`);
   }
 
   // -------------------------------------------------------
-  // Yükleniyor
+  // Yükleniyor / Bulunamadı
   // -------------------------------------------------------
 
   if (loading) {
@@ -440,10 +456,6 @@ export default function OilDetailPage() {
       </main>
     );
   }
-
-  // -------------------------------------------------------
-  // Bulunamadı
-  // -------------------------------------------------------
 
   if (notFound || !oil || !draft) {
     return (
@@ -469,7 +481,7 @@ export default function OilDetailPage() {
   }
 
   // -------------------------------------------------------
-  // Detay görünümü
+  // Detay Görünümü
   // -------------------------------------------------------
 
   const detailScrollArea =
@@ -501,9 +513,7 @@ export default function OilDetailPage() {
               )}
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${oilTypeBadgeClass(oil.oil_type)}`}
-                >
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${oilTypeBadgeClass(oil.oil_type)}`}>
                   {oilTypeLabel(oil.oil_type)}
                 </span>
                 {oil.category.trim() ? (
@@ -512,9 +522,10 @@ export default function OilDetailPage() {
                   </span>
                 ) : null}
                 {oil.latin_name.trim() ? (
-                  <span className="text-[12px] font-medium italic text-slate-500">
-                    {oil.latin_name}
-                  </span>
+                  <span className="text-[12px] font-medium italic text-slate-500">{oil.latin_name}</span>
+                ) : null}
+                {oil.english_name.trim() ? (
+                  <span className="text-[11px] font-medium text-slate-400">{oil.english_name}</span>
                 ) : null}
                 {oil.is_photosensitive ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
@@ -548,7 +559,6 @@ export default function OilDetailPage() {
               </button>
 
               {isSharedContent ? (
-                /* Paylaşımlı içerik: sadece kopyala */
                 <button
                   type="button"
                   onClick={() => void handleCopy()}
@@ -558,7 +568,6 @@ export default function OilDetailPage() {
                   {copying ? "Kopyalanıyor..." : "📋 Kopyala ve Düzenle"}
                 </button>
               ) : editEnabled ? (
-                /* Edit modu: Kaydet + Vazgeç */
                 <>
                   <button
                     type="button"
@@ -578,7 +587,6 @@ export default function OilDetailPage() {
                   </button>
                 </>
               ) : (
-                /* Normal mod: Düzenle + Sil */
                 <>
                   <button
                     type="button"
@@ -600,34 +608,28 @@ export default function OilDetailPage() {
           </div>
         </header>
 
-        {/* Düzenleme modu banner */}
         {editEnabled && (
           <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-2.5 text-[12px] font-bold text-amber-800 shadow-sm ring-1 ring-amber-100">
             <span aria-hidden>✏️</span>
-            <span>Düzenleme modundasınız — değişiklikler henüz kaydedilmedi. Kaydet veya Vazgeç butonunu kullanın.</span>
+            <span>Düzenleme modundasınız — değişiklikler henüz kaydedilmedi.</span>
           </div>
         )}
 
-        {/* Paylaşımlı içerik banner */}
         {isSharedContent && !editEnabled && (
           <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-4 py-2.5 text-[12px] font-medium text-slate-600 shadow-sm ring-1 ring-slate-100">
             <span aria-hidden>🔒</span>
-            <span>Bu kayıt paylaşımlı içeriktir ve doğrudan düzenlenemez. Kendi hesabınıza kopyalamak için <strong>&quot;Kopyala ve Düzenle&quot;</strong> butonunu kullanın.</span>
+            <span>Bu kayıt paylaşımlı içeriktir — <strong>&quot;Kopyala ve Düzenle&quot;</strong> butonu ile kendi hesabınıza kopyalayabilirsiniz.</span>
           </div>
         )}
 
         {errorMessage ? (
-          <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-2.5 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
-            {errorMessage}
-          </div>
+          <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-2.5 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">{errorMessage}</div>
         ) : null}
         {successMessage ? (
-          <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">
-            {successMessage}
-          </div>
+          <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-100">{successMessage}</div>
         ) : null}
 
-        {/* Ana içerik */}
+        {/* Ana İçerik */}
         <section className="flex max-h-[min(92vh,920px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 lg:max-h-[min(88vh,960px)] lg:flex-row">
 
           {/* Sekme navigasyonu */}
@@ -651,9 +653,7 @@ export default function OilDetailPage() {
           <div className={`${detailScrollArea} p-4 lg:p-5`}>
             <div className="rounded-2xl border border-white/90 bg-white/80 p-4 shadow-sm">
               <h2 className="text-[15px] font-bold tracking-tight text-slate-950">{activeTab.label}</h2>
-              <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">
-                {activeTab.desc}
-              </p>
+              <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">{activeTab.desc}</p>
 
               <div className="mt-4 space-y-3">
                 {activeTab.fields.map((fieldKey) => {
@@ -663,26 +663,18 @@ export default function OilDetailPage() {
                   const rawValue = draft[fieldKey as keyof OilFormData];
                   const value = typeof rawValue === "string" ? rawValue : "";
 
-                  /* Özel: Boolean toggle */
+                  /* Boolean toggle */
                   if (meta.isBooleanToggle) {
                     const boolVal = draft.is_photosensitive;
                     return (
                       <div key={fieldKey} className={sectionCard}>
-                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                          {meta.label}
-                        </h3>
+                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
                         {editEnabled ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              setDraft((prev) =>
-                                prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev,
-                              )
-                            }
+                            onClick={() => setDraft((prev) => prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev)}
                             className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${
-                              boolVal
-                                ? "bg-amber-500 text-white shadow-sm"
-                                : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"
+                              boolVal ? "bg-amber-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"
                             }`}
                           >
                             <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
@@ -699,14 +691,12 @@ export default function OilDetailPage() {
                     );
                   }
 
-                  /* Özel: Görsel listesi */
+                  /* Görsel listesi */
                   if (meta.isImageList) {
                     const urls = parseImageUrls(value);
                     return (
                       <div key={fieldKey} className={sectionCard}>
-                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                          {meta.label}
-                        </h3>
+                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
                         {editEnabled ? (
                           <>
                             <textarea
@@ -716,9 +706,7 @@ export default function OilDetailPage() {
                               placeholder={"Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg"}
                               className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
                             />
-                            <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                              Her satıra bir URL girin. Galeri yükleme desteği ilerleyen aşamada eklenecek.
-                            </p>
+                            <p className="mt-1.5 text-[10px] font-medium text-slate-400">Her satıra bir URL girin. Galeri yükleme ilerleyen aşamada eklenecek.</p>
                           </>
                         ) : urls.length === 0 ? (
                           <p className="text-sm text-slate-400">Henüz görsel eklenmemiş</p>
@@ -726,21 +714,14 @@ export default function OilDetailPage() {
                           <div className="space-y-2">
                             {urls.map((url, i) => (
                               <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white p-2">
-                                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL, next/image remotePatterns yapılandırması ilerleyen aşamada */}
+                                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL, next/image remotePatterns ilerleyen aşamada */}
                                 <img
                                   src={url}
                                   alt={`Görsel ${i + 1}`}
                                   className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                  }}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                                 />
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2"
-                                >
+                                <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2">
                                   {url}
                                 </a>
                               </div>
@@ -753,9 +734,7 @@ export default function OilDetailPage() {
 
                   return (
                     <div key={fieldKey} className={sectionCard}>
-                      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                        {meta.label}
-                      </h3>
+                      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">{meta.label}</h3>
 
                       {editEnabled ? (
                         meta.isOilType ? (
@@ -792,9 +771,7 @@ export default function OilDetailPage() {
                           </span>
                         ) : meta.multiline ? (
                           <div className={sectionBody}>
-                            {value.trim() ? value : (
-                              <span className="text-slate-400">Henüz kayıt yok</span>
-                            )}
+                            {value.trim() ? value : <span className="text-slate-400">Henüz kayıt yok</span>}
                           </div>
                         ) : (
                           <p className="text-sm font-medium text-slate-700">
@@ -811,44 +788,28 @@ export default function OilDetailPage() {
         </section>
       </div>
 
-      {/* Kaydedilmemiş değişiklik — ayrılma onayı */}
+      {/* Kaydedilmemiş değişiklik onayı */}
       {leaveConfirmOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div
-            className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60"
-            role="dialog"
-            aria-modal="true"
-          >
+          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
             <div className="mb-1 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
               KAYDEDİLMEMİŞ DEĞİŞİKLİK
             </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">
-              Değişiklikleriniz kaydedilmedi
-            </h2>
+            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Değişiklikleriniz kaydedilmedi</h2>
             <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-              Düzenleme modunda kaydedilmemiş değişiklikler var. Çıkmadan önce ne yapmak istiyorsunuz?
+              Düzenleme modunda kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?
             </p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => { cancelLeave(); void handleSave(); }}
-                disabled={saving}
-                className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 py-2.5 text-[12px] font-black text-white shadow hover:brightness-105 disabled:opacity-60"
-              >
+              <button type="button" onClick={() => { cancelLeave(); void handleSave(); }} disabled={saving}
+                className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 py-2.5 text-[12px] font-black text-white shadow hover:brightness-105 disabled:opacity-60">
                 Kaydet ve Çık
               </button>
-              <button
-                type="button"
-                onClick={confirmLeave}
-                className="rounded-2xl bg-slate-100 px-4 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200"
-              >
+              <button type="button" onClick={confirmLeave}
+                className="rounded-2xl bg-slate-100 px-4 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200">
                 Kaydetmeden Çık
               </button>
-              <button
-                type="button"
-                onClick={cancelLeave}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-black text-slate-600 hover:bg-slate-50"
-              >
+              <button type="button" onClick={cancelLeave}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-black text-slate-600 hover:bg-slate-50">
                 İptal
               </button>
             </div>
@@ -859,35 +820,21 @@ export default function OilDetailPage() {
       {/* Silme onayı */}
       {deleteConfirmOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div
-            className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60"
-            role="dialog"
-            aria-modal="true"
-          >
+          <div className="w-full max-w-[420px] rounded-[26px] border border-white/90 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/60" role="dialog" aria-modal="true">
             <div className="mb-1 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-rose-700 ring-1 ring-rose-100">
               ONAY
             </div>
-            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">
-              Bu yağ kaydını silmek istiyor musunuz?
-            </h2>
+            <h2 className="mt-3 text-[18px] font-black leading-snug text-slate-950">Bu yağ kaydını silmek istiyor musunuz?</h2>
             <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
               Bu işlem geri alınamaz. <strong>{oil.name}</strong> kaydı kalıcı olarak silinecek.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmOpen(false)}
-                disabled={deleting}
-                className="rounded-2xl bg-slate-100 px-5 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-              >
+              <button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}
+                className="rounded-2xl bg-slate-100 px-5 py-2.5 text-[12px] font-black text-slate-700 hover:bg-slate-200 disabled:opacity-50">
                 Vazgeç
               </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-                className="rounded-2xl bg-rose-600 px-5 py-2.5 text-[12px] font-black text-white shadow hover:bg-rose-700 disabled:opacity-60"
-              >
+              <button type="button" onClick={() => void handleDelete()} disabled={deleting}
+                className="rounded-2xl bg-rose-600 px-5 py-2.5 text-[12px] font-black text-white shadow hover:bg-rose-700 disabled:opacity-60">
                 {deleting ? "Siliniyor..." : "Evet, Sil"}
               </button>
             </div>

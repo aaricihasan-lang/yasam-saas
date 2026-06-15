@@ -1,23 +1,25 @@
 import { supabase } from "@/lib/supabase";
 
 // -------------------------------------------------------
-// Tipler
+// Yağ Tipleri
 // -------------------------------------------------------
 
 export const OIL_TYPES: { value: string; label: string }[] = [
-  { value: "essential", label: "Uçucu Yağ" },
-  { value: "carrier", label: "Sabit Yağ" },
-  { value: "hydrosol", label: "Hidrosol" },
-  { value: "resin", label: "Reçine" },
-  { value: "absolute", label: "Mutlak / Ekstrakt" },
+  { value: "essential",  label: "Uçucu Yağ" },
+  { value: "carrier",    label: "Sabit Yağ" },
+  { value: "maceration", label: "Maserasyon Yağı" },
+  { value: "hydrosol",   label: "Hidrosol" },
+  { value: "resin",      label: "Reçine" },
+  { value: "absolute",   label: "Mutlak / Ekstrakt" },
 ];
 
 export const OIL_TYPE_LABELS: Record<string, string> = {
-  essential: "Uçucu Yağ",
-  carrier: "Sabit Yağ",
-  hydrosol: "Hidrosol",
-  resin: "Reçine",
-  absolute: "Mutlak / Ekstrakt",
+  essential:  "Uçucu Yağ",
+  carrier:    "Sabit Yağ",
+  maceration: "Maserasyon Yağı",
+  hydrosol:   "Hidrosol",
+  resin:      "Reçine",
+  absolute:   "Mutlak / Ekstrakt",
 };
 
 export function oilTypeLabel(oilType: string): string {
@@ -26,59 +28,85 @@ export function oilTypeLabel(oilType: string): string {
 
 export function oilTypeBadgeClass(oilType: string): string {
   switch (oilType) {
-    case "essential":
-      return "border-amber-200 bg-amber-50 text-amber-800";
-    case "carrier":
-      return "border-emerald-200 bg-emerald-50 text-emerald-800";
-    case "hydrosol":
-      return "border-cyan-200 bg-cyan-50 text-cyan-800";
-    case "resin":
-      return "border-orange-200 bg-orange-50 text-orange-800";
-    case "absolute":
-      return "border-violet-200 bg-violet-50 text-violet-800";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
+    case "essential":  return "border-amber-200 bg-amber-50 text-amber-800";
+    case "carrier":    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+    case "maceration": return "border-rose-200 bg-rose-50 text-rose-800";
+    case "hydrosol":   return "border-cyan-200 bg-cyan-50 text-cyan-800";
+    case "resin":      return "border-orange-200 bg-orange-50 text-orange-800";
+    case "absolute":   return "border-violet-200 bg-violet-50 text-violet-800";
+    default:           return "border-slate-200 bg-slate-50 text-slate-700";
   }
 }
+
+// -------------------------------------------------------
+// Ana Tip
+// -------------------------------------------------------
 
 export type AromatherapyOil = {
   id: string;
   tenant_id: string | null;
+
+  // Kimlik
   name: string;
   latin_name: string;
+  english_name: string;
   oil_type: string;
   category: string;
+
+  // Botanik & Kaynak
   extraction_method: string;
   plant_part: string;
   origin: string;
+  shelf_life: string;
+
+  // Yağ Özellikleri
   aroma_profile: string;
   aroma_note: string;
   color: string;
   consistency: string;
+  is_photosensitive: boolean;
+
+  // Kimyasal İçerik
   main_components: string;
   therapeutic_properties: string[];
-  benefits: string;
+
+  // Ruhsal & Duygusal
   emotional_benefits: string;
-  physical_benefits: string;
   spiritual_benefits: string;
+  physical_benefits: string;
   skin_benefits: string;
+  benefits: string;
+
+  // Kullanım Şekilleri
+  diffuser_usage: string;
+  massage_usage: string;
   usage_methods: string;
   dilution_ratio: string;
-  safety_notes: string;
-  contraindications: string;
+
+  // Uyumlu Yağlar
   blends_well_with: string[];
+  target_systems: string[];
   chakra_connection: string;
   element_connection: string;
+
+  // Önlemler & Güvenlik
+  safety_notes: string;
+  contraindications: string;
+
+  // Notlar
+  images: string[];
   notes: string;
   source: string;
-  images: string[];
-  is_photosensitive: boolean;
-  shelf_life: string;
-  target_systems: string[];
+
+  // Meta
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
 };
+
+// -------------------------------------------------------
+// Liste Satırı
+// -------------------------------------------------------
 
 export type OilListRow = Pick<
   AromatherapyOil,
@@ -86,6 +114,7 @@ export type OilListRow = Pick<
   | "tenant_id"
   | "name"
   | "latin_name"
+  | "english_name"
   | "oil_type"
   | "category"
   | "origin"
@@ -106,35 +135,37 @@ export type OilListRow = Pick<
 >;
 
 const LIST_SELECT =
-  "id,tenant_id,name,latin_name,oil_type,category,origin,aroma_profile,benefits,physical_benefits,emotional_benefits,skin_benefits,spiritual_benefits,usage_methods,chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems,created_at,updated_at";
+  "id,tenant_id,name,latin_name,english_name,oil_type,category,origin,aroma_profile,benefits," +
+  "physical_benefits,emotional_benefits,skin_benefits,spiritual_benefits,usage_methods," +
+  "chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems," +
+  "created_at,updated_at";
 
 // -------------------------------------------------------
 // Sorgular
 // -------------------------------------------------------
 
-export async function fetchOilList(tenantId: string): Promise<{
-  rows: OilListRow[];
-  error: string | null;
-}> {
-  const { data, error } = await supabase
+export async function fetchOilList(
+  tenantId: string,
+  oilType?: string,
+): Promise<{ rows: OilListRow[]; error: string | null }> {
+  const base = supabase
     .from("aromatherapy_oils")
     .select(LIST_SELECT)
     .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+    .eq("is_active", true);
+
+  const { data, error } = await (oilType
+    ? base.eq("oil_type", oilType).order("name", { ascending: true })
+    : base.order("name", { ascending: true }));
 
   if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as OilListRow[], error: null };
+  return { rows: (data ?? []) as unknown as OilListRow[], error: null };
 }
 
 export async function fetchOilDetail(
   tenantId: string,
   id: string,
-): Promise<{
-  oil: AromatherapyOil | null;
-  error: string | null;
-  notFound: boolean;
-}> {
+): Promise<{ oil: AromatherapyOil | null; error: string | null; notFound: boolean }> {
   const { data, error } = await supabase
     .from("aromatherapy_oils")
     .select("*")
@@ -159,6 +190,7 @@ export function matchesOilSearch(row: OilListRow, search: string): boolean {
   const fields = [
     row.name,
     row.latin_name,
+    row.english_name,
     row.category,
     row.origin,
     row.aroma_profile,
@@ -205,7 +237,7 @@ export function parseImageUrls(raw: string): string[] {
 }
 
 // -------------------------------------------------------
-// Boş form
+// Form Tipi
 // -------------------------------------------------------
 
 export type OilFormData = Omit<
@@ -219,79 +251,110 @@ export type OilFormData = Omit<
 };
 
 export const EMPTY_OIL_FORM: OilFormData = {
+  // Kimlik
   name: "",
   latin_name: "",
+  english_name: "",
   oil_type: "essential",
   category: "",
+
+  // Botanik & Kaynak
   extraction_method: "",
   plant_part: "",
   origin: "",
+  shelf_life: "",
+
+  // Yağ Özellikleri
   aroma_profile: "",
   aroma_note: "",
   color: "",
   consistency: "",
+  is_photosensitive: false,
+
+  // Kimyasal İçerik
   main_components: "",
   therapeutic_properties: [],
   therapeutic_properties_raw: "",
-  benefits: "",
+
+  // Ruhsal & Duygusal
   emotional_benefits: "",
-  physical_benefits: "",
   spiritual_benefits: "",
+  physical_benefits: "",
   skin_benefits: "",
+  benefits: "",
+
+  // Kullanım Şekilleri
+  diffuser_usage: "",
+  massage_usage: "",
   usage_methods: "",
   dilution_ratio: "",
-  safety_notes: "",
-  contraindications: "",
+
+  // Uyumlu Yağlar
   blends_well_with: [],
   blends_well_with_raw: "",
-  chakra_connection: "",
-  element_connection: "",
-  notes: "",
-  source: "",
-  images: [],
-  images_raw: "",
-  is_photosensitive: false,
-  shelf_life: "",
   target_systems: [],
   target_systems_raw: "",
+  chakra_connection: "",
+  element_connection: "",
+
+  // Önlemler & Güvenlik
+  safety_notes: "",
+  contraindications: "",
+
+  // Notlar
+  images: [],
+  images_raw: "",
+  notes: "",
+  source: "",
 };
 
 export function oilToFormData(oil: AromatherapyOil): OilFormData {
   return {
     name: oil.name,
     latin_name: oil.latin_name,
+    english_name: oil.english_name ?? "",
     oil_type: oil.oil_type,
     category: oil.category,
+
     extraction_method: oil.extraction_method,
     plant_part: oil.plant_part,
     origin: oil.origin,
+    shelf_life: oil.shelf_life ?? "",
+
     aroma_profile: oil.aroma_profile,
     aroma_note: oil.aroma_note,
     color: oil.color,
     consistency: oil.consistency,
+    is_photosensitive: oil.is_photosensitive ?? false,
+
     main_components: oil.main_components,
     therapeutic_properties: oil.therapeutic_properties ?? [],
     therapeutic_properties_raw: tagsToInput(oil.therapeutic_properties ?? []),
-    benefits: oil.benefits,
+
     emotional_benefits: oil.emotional_benefits,
-    physical_benefits: oil.physical_benefits,
     spiritual_benefits: oil.spiritual_benefits,
+    physical_benefits: oil.physical_benefits,
     skin_benefits: oil.skin_benefits,
+    benefits: oil.benefits,
+
+    diffuser_usage: oil.diffuser_usage ?? "",
+    massage_usage: oil.massage_usage ?? "",
     usage_methods: oil.usage_methods,
     dilution_ratio: oil.dilution_ratio,
-    safety_notes: oil.safety_notes,
-    contraindications: oil.contraindications,
+
     blends_well_with: oil.blends_well_with ?? [],
     blends_well_with_raw: tagsToInput(oil.blends_well_with ?? []),
-    chakra_connection: oil.chakra_connection,
-    element_connection: oil.element_connection,
-    notes: oil.notes,
-    source: oil.source,
-    images: oil.images ?? [],
-    images_raw: (oil.images ?? []).join("\n"),
-    is_photosensitive: oil.is_photosensitive ?? false,
-    shelf_life: oil.shelf_life ?? "",
     target_systems: oil.target_systems ?? [],
     target_systems_raw: tagsToInput(oil.target_systems ?? []),
+    chakra_connection: oil.chakra_connection,
+    element_connection: oil.element_connection,
+
+    safety_notes: oil.safety_notes,
+    contraindications: oil.contraindications,
+
+    images: oil.images ?? [],
+    images_raw: (oil.images ?? []).join("\n"),
+    notes: oil.notes,
+    source: oil.source,
   };
 }
