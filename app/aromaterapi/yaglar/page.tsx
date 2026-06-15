@@ -20,6 +20,7 @@ import {
   oilTypeLabel,
   OIL_TYPES,
   parseTagsInput,
+  parseImageUrls,
   EMPTY_OIL_FORM,
   type OilListRow,
   type OilFormData,
@@ -88,8 +89,8 @@ const FORM_TABS: {
     id: "kimlik",
     label: "Kimlik",
     icon: "🌿",
-    desc: "Ad, Latince ad, yağ tipi, kategori, menşei.",
-    fields: ["name", "latin_name", "oil_type", "category", "origin"],
+    desc: "Ad, Latince ad, yağ tipi, kategori, menşei, raf ömrü ve görseller.",
+    fields: ["name", "latin_name", "oil_type", "category", "origin", "shelf_life", "images_raw"],
   },
   {
     id: "botanik",
@@ -116,15 +117,15 @@ const FORM_TABS: {
     id: "faydalar",
     label: "Faydalar",
     icon: "💚",
-    desc: "Fiziksel, duygusal, manevi ve cilt faydaları.",
-    fields: ["physical_benefits", "emotional_benefits", "spiritual_benefits", "skin_benefits", "benefits"],
+    desc: "Fiziksel, duygusal, manevi, cilt faydaları ve hedef sistemler.",
+    fields: ["physical_benefits", "emotional_benefits", "spiritual_benefits", "skin_benefits", "benefits", "target_systems_raw"],
   },
   {
     id: "kullanim",
     label: "Kullanım & Güvenlik",
     icon: "⚠️",
-    desc: "Kullanım yöntemleri, seyreltme ve güvenlik notları.",
-    fields: ["usage_methods", "dilution_ratio", "safety_notes", "contraindications"],
+    desc: "Kullanım yöntemleri, seyreltme, güvenlik notları ve fotosensitiflik.",
+    fields: ["usage_methods", "dilution_ratio", "safety_notes", "contraindications", "is_photosensitive"],
   },
   {
     id: "enerji",
@@ -144,7 +145,7 @@ const FORM_TABS: {
 
 const FIELD_META: Record<
   string,
-  { label: string; placeholder?: string; multiline?: boolean; isSelect?: boolean; isOilType?: boolean }
+  { label: string; placeholder?: string; multiline?: boolean; isSelect?: boolean; isOilType?: boolean; isBooleanToggle?: boolean; isImageList?: boolean }
 > = {
   name: { label: "Yağ Adı", placeholder: "Örn. Lavanta", multiline: false },
   latin_name: { label: "Latince Adı", placeholder: "Örn. Lavandula angustifolia", multiline: false },
@@ -181,6 +182,19 @@ const FIELD_META: Record<
   },
   notes: { label: "Ek Notlar", placeholder: "Ek notlar…", multiline: true },
   source: { label: "Kaynak", placeholder: "Kitap, eğitim, kaynak adı…", multiline: false },
+  shelf_life: { label: "Raf Ömrü", placeholder: "Örn. 12–18 ay", multiline: false },
+  images_raw: {
+    label: "Görseller (URL)",
+    placeholder: "Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg",
+    multiline: true,
+    isImageList: true,
+  },
+  is_photosensitive: { label: "Fotosensitif mi?", isBooleanToggle: true },
+  target_systems_raw: {
+    label: "Hedef Sistemler",
+    placeholder: "Virgülle ayırın: sinir sistemi, bağışıklık sistemi, sindirim sistemi…",
+    multiline: true,
+  },
 };
 
 type PageView = "list" | "new";
@@ -277,6 +291,10 @@ function NewOilForm({
       element_connection: t(form.element_connection),
       notes: t(form.notes),
       source: t(form.source),
+      images: parseImageUrls(form.images_raw),
+      is_photosensitive: form.is_photosensitive,
+      shelf_life: t(form.shelf_life),
+      target_systems: parseTagsInput(form.target_systems_raw),
     });
 
     setSaving(false);
@@ -392,6 +410,36 @@ function NewOilForm({
                   const meta = FIELD_META[fieldKey as string];
                   if (!meta) return null;
 
+                  if (meta.isBooleanToggle) {
+                    const boolVal = form.is_photosensitive;
+                    return (
+                      <section key={fieldKey} className={`${miniCard} sm:col-span-2`}>
+                        <header className="mb-2.5">
+                          <h4 className="text-[13px] font-black text-slate-900">{meta.label}</h4>
+                        </header>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({ ...prev, is_photosensitive: !prev.is_photosensitive }))
+                          }
+                          className={`inline-flex h-10 items-center gap-2.5 rounded-xl px-4 text-[13px] font-bold transition ${
+                            boolVal
+                              ? "bg-amber-500 text-white shadow-sm"
+                              : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"
+                          }`}
+                        >
+                          <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
+                          {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
+                        </button>
+                        {boolVal && (
+                          <p className="mt-2 text-[11px] font-medium text-amber-700">
+                            Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
+                          </p>
+                        )}
+                      </section>
+                    );
+                  }
+
                   if (meta.isOilType) {
                     return (
                       <section key={fieldKey} className={miniCard}>
@@ -422,18 +470,25 @@ function NewOilForm({
                         <h4 className="text-[13px] font-black text-slate-900">{meta.label}</h4>
                       </header>
                       {meta.multiline ? (
-                        <textarea
-                          readOnly
-                          value={form[fieldKey as keyof OilFormData] as string}
-                          onClick={() => openLarge(fieldKey as string)}
-                          onFocus={(e) => {
-                            openLarge(fieldKey as string);
-                            e.target.blur();
-                          }}
-                          rows={3}
-                          placeholder={meta.placeholder}
-                          className={`${fieldTextarea} cursor-pointer`}
-                        />
+                        <>
+                          <textarea
+                            readOnly
+                            value={form[fieldKey as keyof OilFormData] as string}
+                            onClick={() => openLarge(fieldKey as string)}
+                            onFocus={(e) => {
+                              openLarge(fieldKey as string);
+                              e.target.blur();
+                            }}
+                            rows={3}
+                            placeholder={meta.placeholder}
+                            className={`${fieldTextarea} cursor-pointer`}
+                          />
+                          {meta.isImageList ? (
+                            <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                              Her satıra bir URL girin. Galeri yükleme desteği ilerleyen aşamada eklenecek.
+                            </p>
+                          ) : null}
+                        </>
                       ) : (
                         <input
                           type="text"
@@ -764,6 +819,11 @@ function YaglarContent() {
                         {row.category}
                       </span>
                     ) : null}
+                    {row.is_photosensitive ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                        ☀️ Fotosensitif
+                      </span>
+                    ) : null}
                   </div>
 
                   <h2 className="mt-2.5 text-[17px] font-black tracking-tight text-slate-950">
@@ -818,6 +878,11 @@ function YaglarContent() {
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(row.oil_type)}`}>
                           {oilTypeLabel(row.oil_type)}
                         </span>
+                        {row.is_photosensitive ? (
+                          <span className="mt-0.5 block text-[9px] font-bold text-amber-600">
+                            ☀️ Fotosensitif
+                          </span>
+                        ) : null}
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>
                       <div className="min-w-0">

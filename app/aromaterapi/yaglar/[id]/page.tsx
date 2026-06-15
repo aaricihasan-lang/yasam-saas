@@ -12,6 +12,7 @@ import {
   oilTypeLabel,
   oilToFormData,
   parseTagsInput,
+  parseImageUrls,
   OIL_TYPES,
   type AromatherapyOil,
   type OilFormData,
@@ -44,8 +45,8 @@ const DETAIL_TABS: DetailTab[] = [
     id: "kimlik",
     label: "Kimlik & Botanik",
     icon: "🌿",
-    desc: "Ad, tip, kategori, menşei, çıkarma yöntemi ve bitki bölümü.",
-    fields: ["name", "latin_name", "oil_type", "category", "origin", "extraction_method", "plant_part"],
+    desc: "Ad, tip, kategori, menşei, çıkarma yöntemi, bitki bölümü, raf ömrü ve görseller.",
+    fields: ["name", "latin_name", "oil_type", "category", "origin", "extraction_method", "plant_part", "shelf_life", "images_raw"],
   },
   {
     id: "koku",
@@ -65,15 +66,15 @@ const DETAIL_TABS: DetailTab[] = [
     id: "faydalar",
     label: "Faydalar",
     icon: "💚",
-    desc: "Fiziksel, duygusal, manevi ve cilt faydaları.",
-    fields: ["physical_benefits", "emotional_benefits", "spiritual_benefits", "skin_benefits", "benefits"],
+    desc: "Fiziksel, duygusal, manevi, cilt faydaları ve hedef sistemler.",
+    fields: ["physical_benefits", "emotional_benefits", "spiritual_benefits", "skin_benefits", "benefits", "target_systems_raw"],
   },
   {
     id: "kullanim",
     label: "Kullanım & Güvenlik",
     icon: "⚠️",
-    desc: "Kullanım yöntemleri, seyreltme oranı ve güvenlik notları.",
-    fields: ["usage_methods", "dilution_ratio", "safety_notes", "contraindications"],
+    desc: "Kullanım yöntemleri, seyreltme oranı, güvenlik notları ve fotosensitiflik.",
+    fields: ["usage_methods", "dilution_ratio", "safety_notes", "contraindications", "is_photosensitive"],
   },
   {
     id: "enerji",
@@ -97,7 +98,7 @@ const DETAIL_TABS: DetailTab[] = [
 
 const FIELD_META: Record<
   string,
-  { label: string; multiline?: boolean; isSelect?: boolean; isOilType?: boolean; isTags?: boolean }
+  { label: string; multiline?: boolean; isSelect?: boolean; isOilType?: boolean; isTags?: boolean; isBooleanToggle?: boolean; isImageList?: boolean }
 > = {
   name: { label: "Yağ Adı" },
   latin_name: { label: "Latince Adı" },
@@ -126,6 +127,10 @@ const FIELD_META: Record<
   blends_well_with_raw: { label: "İyi Karıştığı Yağlar", isTags: true, multiline: true },
   notes: { label: "Ek Notlar", multiline: true },
   source: { label: "Kaynak" },
+  shelf_life: { label: "Raf Ömrü" },
+  images_raw: { label: "Görseller", isImageList: true, multiline: true },
+  is_photosensitive: { label: "Fotosensitif", isBooleanToggle: true },
+  target_systems_raw: { label: "Hedef Sistemler", isTags: true, multiline: true },
 };
 
 // -------------------------------------------------------
@@ -322,6 +327,10 @@ export default function OilDetailPage() {
         element_connection: t(draft.element_connection),
         notes: t(draft.notes),
         source: t(draft.source),
+        images: parseImageUrls(draft.images_raw),
+        is_photosensitive: draft.is_photosensitive,
+        shelf_life: t(draft.shelf_life),
+        target_systems: parseTagsInput(draft.target_systems_raw),
       })
       .eq("tenant_id", tenantId)
       .eq("id", id)
@@ -400,6 +409,10 @@ export default function OilDetailPage() {
         element_connection: t(oil.element_connection),
         notes: t(oil.notes),
         source: t(oil.source),
+        images: oil.images ?? [],
+        is_photosensitive: oil.is_photosensitive ?? false,
+        shelf_life: t(oil.shelf_life),
+        target_systems: oil.target_systems ?? [],
       })
       .select("id")
       .single();
@@ -501,6 +514,11 @@ export default function OilDetailPage() {
                 {oil.latin_name.trim() ? (
                   <span className="text-[12px] font-medium italic text-slate-500">
                     {oil.latin_name}
+                  </span>
+                ) : null}
+                {oil.is_photosensitive ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
+                    ☀️ Fotosensitif
                   </span>
                 ) : null}
                 {isSharedContent ? (
@@ -644,6 +662,94 @@ export default function OilDetailPage() {
 
                   const rawValue = draft[fieldKey as keyof OilFormData];
                   const value = typeof rawValue === "string" ? rawValue : "";
+
+                  /* Özel: Boolean toggle */
+                  if (meta.isBooleanToggle) {
+                    const boolVal = draft.is_photosensitive;
+                    return (
+                      <div key={fieldKey} className={sectionCard}>
+                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                          {meta.label}
+                        </h3>
+                        {editEnabled ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDraft((prev) =>
+                                prev ? { ...prev, is_photosensitive: !prev.is_photosensitive } : prev,
+                              )
+                            }
+                            className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-bold transition ${
+                              boolVal
+                                ? "bg-amber-500 text-white shadow-sm"
+                                : "border border-slate-200 bg-white text-slate-600 hover:border-amber-200"
+                            }`}
+                          >
+                            <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
+                            {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
+                          </button>
+                        ) : boolVal ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-bold text-amber-800">
+                            ☀️ Fotosensitif — Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
+                          </span>
+                        ) : (
+                          <p className="text-sm font-medium text-slate-500">Fotosensitif değil</p>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  /* Özel: Görsel listesi */
+                  if (meta.isImageList) {
+                    const urls = parseImageUrls(value);
+                    return (
+                      <div key={fieldKey} className={sectionCard}>
+                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                          {meta.label}
+                        </h3>
+                        {editEnabled ? (
+                          <>
+                            <textarea
+                              value={value}
+                              onChange={(e) => setDraftField(fieldKey as keyof OilFormData, e.target.value)}
+                              rows={4}
+                              placeholder={"Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg"}
+                              className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-amber-200 focus:ring-2 focus:ring-amber-100/50"
+                            />
+                            <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                              Her satıra bir URL girin. Galeri yükleme desteği ilerleyen aşamada eklenecek.
+                            </p>
+                          </>
+                        ) : urls.length === 0 ? (
+                          <p className="text-sm text-slate-400">Henüz görsel eklenmemiş</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {urls.map((url, i) => (
+                              <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white p-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL, next/image remotePatterns yapılandırması ilerleyen aşamada */}
+                                <img
+                                  src={url}
+                                  alt={`Görsel ${i + 1}`}
+                                  className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="min-w-0 flex-1 truncate text-[12px] font-medium text-amber-700 underline underline-offset-2"
+                                >
+                                  {url}
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={fieldKey} className={sectionCard}>

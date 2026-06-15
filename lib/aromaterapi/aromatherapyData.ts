@@ -71,6 +71,10 @@ export type AromatherapyOil = {
   element_connection: string;
   notes: string;
   source: string;
+  images: string[];
+  is_photosensitive: boolean;
+  shelf_life: string;
+  target_systems: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
@@ -95,12 +99,14 @@ export type OilListRow = Pick<
   | "chakra_connection"
   | "element_connection"
   | "therapeutic_properties"
+  | "is_photosensitive"
+  | "target_systems"
   | "created_at"
   | "updated_at"
 >;
 
 const LIST_SELECT =
-  "id,tenant_id,name,latin_name,oil_type,category,origin,aroma_profile,benefits,physical_benefits,emotional_benefits,skin_benefits,spiritual_benefits,usage_methods,chakra_connection,element_connection,therapeutic_properties,created_at,updated_at";
+  "id,tenant_id,name,latin_name,oil_type,category,origin,aroma_profile,benefits,physical_benefits,emotional_benefits,skin_benefits,spiritual_benefits,usage_methods,chakra_connection,element_connection,therapeutic_properties,is_photosensitive,target_systems,created_at,updated_at";
 
 // -------------------------------------------------------
 // Sorgular
@@ -167,7 +173,8 @@ export function matchesOilSearch(row: OilListRow, search: string): boolean {
   ];
   return (
     fields.some((f) => f?.toLowerCase().includes(q)) ||
-    (row.therapeutic_properties ?? []).some((p) => p.toLowerCase().includes(q))
+    (row.therapeutic_properties ?? []).some((p) => p.toLowerCase().includes(q)) ||
+    (row.target_systems ?? []).some((s) => s.toLowerCase().includes(q))
   );
 }
 
@@ -190,6 +197,13 @@ export function tagsToInput(tags: string[]): string {
   return tags.join(", ");
 }
 
+export function parseImageUrls(raw: string): string[] {
+  return raw
+    .split(/\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // -------------------------------------------------------
 // Boş form
 // -------------------------------------------------------
@@ -200,6 +214,8 @@ export type OilFormData = Omit<
 > & {
   therapeutic_properties_raw: string;
   blends_well_with_raw: string;
+  images_raw: string;
+  target_systems_raw: string;
 };
 
 export const EMPTY_OIL_FORM: OilFormData = {
@@ -232,6 +248,12 @@ export const EMPTY_OIL_FORM: OilFormData = {
   element_connection: "",
   notes: "",
   source: "",
+  images: [],
+  images_raw: "",
+  is_photosensitive: false,
+  shelf_life: "",
+  target_systems: [],
+  target_systems_raw: "",
 };
 
 export function oilToFormData(oil: AromatherapyOil): OilFormData {
@@ -265,5 +287,11 @@ export function oilToFormData(oil: AromatherapyOil): OilFormData {
     element_connection: oil.element_connection,
     notes: oil.notes,
     source: oil.source,
+    images: oil.images ?? [],
+    images_raw: (oil.images ?? []).join("\n"),
+    is_photosensitive: oil.is_photosensitive ?? false,
+    shelf_life: oil.shelf_life ?? "",
+    target_systems: oil.target_systems ?? [],
+    target_systems_raw: tagsToInput(oil.target_systems ?? []),
   };
 }
