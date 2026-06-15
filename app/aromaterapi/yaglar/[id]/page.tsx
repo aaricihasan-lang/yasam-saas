@@ -118,6 +118,45 @@ function tabHasData(t: DetailTab, draft: OilFormData): boolean {
 }
 
 // -------------------------------------------------------
+// Blend lookup — 3 kademeli isim eşleştirme
+// -------------------------------------------------------
+
+type BlendEntry = { id: string; name: string };
+
+function normTR(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
+    .trim();
+}
+
+function stripYagSuffix(s: string): string {
+  return s.replace(/\s+yağı\.?\s*$/i, "").replace(/\s+yağ\.?\s*$/i, "").trim();
+}
+
+function buildBlendMap(oils: BlendEntry[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const oil of oils) {
+    const { id, name } = oil;
+    if (!map.has(name))                          map.set(name, id);          // exact
+    if (!map.has(name.toLowerCase()))            map.set(name.toLowerCase(), id); // CI
+    const norm = normTR(stripYagSuffix(name));
+    if (!map.has(norm))                          map.set(norm, id);          // TR normalize
+  }
+  return map;
+}
+
+function lookupBlend(name: string, map: Map<string, string>): string | null {
+  return (
+    map.get(name) ??
+    map.get(name.toLowerCase()) ??
+    map.get(normTR(stripYagSuffix(name))) ??
+    null
+  );
+}
+
+// -------------------------------------------------------
 // Küçük bileşenler
 // -------------------------------------------------------
 
@@ -134,19 +173,34 @@ function TagsList({ tags }: { tags: string[] }) {
   );
 }
 
-function BlendChipsList({ tags }: { tags: string[] }) {
+const BLEND_CHIP_BASE = "inline-flex items-center gap-1.5 rounded-full border border-violet-200/70 bg-gradient-to-r from-violet-50 to-purple-50/80 px-3 py-1 text-[11px] font-semibold text-violet-800 shadow-sm ring-1 ring-violet-100/40";
+
+function BlendChipsList({ tags, blendMap }: { tags: string[]; blendMap: Map<string, string> | null }) {
   if (!tags.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/70 bg-gradient-to-r from-violet-50 to-purple-50/80 px-3 py-1 text-[11px] font-semibold text-violet-800 shadow-sm ring-1 ring-violet-100/40"
-        >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/60" />
-          {tag}
-        </span>
-      ))}
+      {tags.map((tag) => {
+        const targetId = blendMap ? lookupBlend(tag, blendMap) : null;
+        if (targetId) {
+          return (
+            <Link
+              key={tag}
+              href={`/aromaterapi/yaglar/${targetId}`}
+              className={`${BLEND_CHIP_BASE} transition-all hover:border-violet-300 hover:from-violet-100 hover:to-purple-100/80 hover:text-violet-900 hover:shadow-md`}
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/60" />
+              {tag}
+              <span className="ml-0.5 text-[9px] leading-none text-violet-400/70">↗</span>
+            </Link>
+          );
+        }
+        return (
+          <span key={tag} className={BLEND_CHIP_BASE}>
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300/50" />
+            {tag}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -195,6 +249,7 @@ export default function OilDetailPage() {
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
 
@@ -214,12 +269,26 @@ export default function OilDetailPage() {
     const tid = await getSyncedTenantId();
     if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
     setTenantId(tid);
-    const { oil: data, error, notFound: missing } = await fetchOilDetail(tid, id);
+
+    // Yağ detayı + blend haritası için isim listesi paralel çekilir
+    const [oilResult, namesResult] = await Promise.all([
+      fetchOilDetail(tid, id),
+      supabase
+        .from("aromatherapy_oils")
+        .select("id, name")
+        .eq("is_active", true)
+        .or(`tenant_id.is.null,tenant_id.eq.${tid}`),
+    ]);
+
     setLoading(false);
-    if (error) { setErrorMessage(`Kayıt yüklenemedi: ${error}`); return; }
-    if (missing || !data) { setNotFound(true); return; }
-    setOil(data);
-    setDraft(oilToFormData(data));
+    if (oilResult.error) { setErrorMessage(`Kayıt yüklenemedi: ${oilResult.error}`); return; }
+    if (oilResult.notFound || !oilResult.oil) { setNotFound(true); return; }
+    setOil(oilResult.oil);
+    setDraft(oilToFormData(oilResult.oil));
+
+    if (!namesResult.error && namesResult.data) {
+      setBlendMap(buildBlendMap(namesResult.data as BlendEntry[]));
+    }
   }, [id]);
 
   useEffect(() => { runInEffect(() => { void loadOil(); }); }, [loadOil]);
@@ -744,14 +813,14 @@ export default function OilDetailPage() {
                     );
                   }
 
-                  /* Uyumlu yağlar: premium violet chips */
+                  /* Uyumlu yağlar: link destekli violet chips */
                   if (fieldKey === "blends_well_with_raw") {
                     const tags = parseTagsInput(value);
                     if (!tags.length) return null;
                     return (
                       <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
-                        <dd><BlendChipsList tags={tags} /></dd>
+                        <dd><BlendChipsList tags={tags} blendMap={blendMap} /></dd>
                       </div>
                     );
                   }
