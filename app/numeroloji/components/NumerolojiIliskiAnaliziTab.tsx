@@ -278,11 +278,11 @@ function YorumBlok({ title, icon, text, color }: {
 }) {
   return (
     <div className={`rounded-xl px-3 py-3 ${color}`}>
-      <div className="mb-1.5 flex items-center gap-1.5">
+      <div className="mb-2 flex items-center gap-1.5">
         <span className="text-sm leading-none">{icon}</span>
         <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">{title}</p>
       </div>
-      <p className="text-xs leading-[1.7] text-slate-700">{text}</p>
+      <p className="max-w-[72ch] text-xs leading-[1.75] text-slate-700">{text}</p>
     </div>
   );
 }
@@ -306,6 +306,7 @@ export function NumerolojiIliskiAnaliziTab({
   const [kisi2Surname, setKisi2Surname] = useState("");
   const [kisi2BirthDate, setKisi2BirthDate] = useState("");
   const [showDanisan, setShowDanisan] = useState(false);
+  const [kisi2Editing, setKisi2Editing] = useState(true);
   const [danisanList, setDanisanList] = useState<NumerologyRecordListItem[]>([]);
   const [danisanLoading, setDanisanLoading] = useState(false);
   const [danisanSearch, setDanisanSearch] = useState("");
@@ -345,6 +346,7 @@ export function NumerolojiIliskiAnaliziTab({
     setKisi2BirthDate(item.birth_date);
     setShowDanisan(false);
     setDanisanSearch("");
+    setKisi2Editing(false);
   };
 
   const filteredDanisan = danisanSearch.trim()
@@ -394,82 +396,114 @@ export function NumerolojiIliskiAnaliziTab({
 
         {/* Center connector */}
         <div className="relative flex items-center justify-center py-1 sm:py-0">
-          {/* vertical line desktop */}
-          <div className="absolute inset-y-0 left-1/2 hidden w-px -translate-x-px bg-gradient-to-b from-transparent via-violet-300/60 to-transparent sm:block" aria-hidden />
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-base text-white shadow-[0_0_0_5px_rgba(139,92,246,0.12),0_2px_16px_rgba(139,92,246,0.40)]">
+          <div className="absolute inset-y-0 left-1/2 hidden w-px -translate-x-px bg-gradient-to-b from-violet-200/0 via-violet-400/50 to-violet-200/0 sm:block" aria-hidden />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-base text-white shadow-[0_0_0_6px_rgba(139,92,246,0.10),0_0_20px_rgba(139,92,246,0.45)]">
             ♥
           </div>
         </div>
 
-        {/* Kişi 2 — editable */}
+        {/* Kişi 2 */}
         <div className="relative min-w-0 overflow-hidden rounded-[14px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/70 via-white to-white px-3 py-2.5 shadow-[0_0_12px_rgba(217,70,239,0.07)]">
           <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-fuchsia-200/20 blur-xl" aria-hidden />
-          <div className="relative mb-1.5 flex min-w-0 items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
-            <button
-              type="button"
-              onClick={handleDanisanToggle}
-              className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50"
-            >
-              {showDanisan ? "✕ Kapat" : "Danışandan Seç"}
-            </button>
-          </div>
 
-          {showDanisan ? (
-            <div className="space-y-1.5">
-              <input
-                type="text"
-                value={danisanSearch}
-                onChange={(e) => setDanisanSearch(e.target.value)}
-                placeholder="İsim veya tarih ile ara..."
-                className={inputClass}
-                autoFocus
-              />
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-violet-100 bg-white">
-                {danisanLoading ? (
-                  <p className="px-3 py-2 text-xs text-slate-400">Yükleniyor…</p>
-                ) : filteredDanisan.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-slate-400">Kayıt bulunamadı.</p>
-                ) : (
-                  filteredDanisan.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => handleDanisanSec(d)}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-violet-50"
-                    >
-                      <span className="min-w-0 truncate font-bold text-slate-900">{d.name} {d.surname}</span>
-                      <span className="shrink-0 tabular-nums text-slate-400">{d.birth_date}</span>
-                    </button>
-                  ))
-                )}
+          {/* Compact readonly mode — mirrors Kişi 1 */}
+          {!kisi2Editing && kisi2Pin8 && !showDanisan ? (
+            <>
+              <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
+                <button
+                  type="button"
+                  onClick={() => setKisi2Editing(true)}
+                  className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50"
+                >
+                  ✎ Düzenle
+                </button>
               </div>
-            </div>
+              <p className="text-sm font-black text-slate-900 leading-tight">
+                {kisi2AdSoyad || "—"}
+              </p>
+              <p className="text-[10px] text-slate-400 tabular-nums">{kisi2BirthDate || "—"}</p>
+              <div className="mt-1.5">
+                <PinRow pin={kisi2Pin8} shade="fuchsia" />
+              </div>
+            </>
           ) : (
-            <div className="space-y-1">
-              <div className="grid grid-cols-2 gap-1">
-                <div>
-                  <label className={labelClass}>Ad</label>
-                  <input type="text" value={kisi2Name} onChange={(e) => setKisi2Name(e.target.value)} placeholder="Ad" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Soyad</label>
-                  <input type="text" value={kisi2Surname} onChange={(e) => setKisi2Surname(e.target.value)} placeholder="Soyad" className={inputClass} />
-                </div>
+            /* Edit / initial form mode */
+            <>
+              <div className="relative mb-1.5 flex min-w-0 items-center justify-between gap-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
+                <button
+                  type="button"
+                  onClick={handleDanisanToggle}
+                  className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50"
+                >
+                  {showDanisan ? "✕ Kapat" : "Danışandan Seç"}
+                </button>
               </div>
-              <div>
-                <label className={labelClass}>Doğum Tarihi (GG.AA.YYYY)</label>
-                <input type="text" value={kisi2BirthDate} onChange={(e) => setKisi2BirthDate(e.target.value)} placeholder="15.03.1990" className={inputClass} />
-              </div>
-              {kisi2Pin8 ? (
-                <>
-                  {kisi2AdSoyad && <p className="text-[10px] font-bold text-slate-700">{kisi2AdSoyad}</p>}
-                  <PinRow pin={kisi2Pin8} shade="fuchsia" />
-                </>
-              ) : normalizedBirthDate ? (
-                <p className="text-[10px] font-semibold text-rose-500">Geçerli tarih girin (GG.AA.YYYY)</p>
-              ) : null}
-            </div>
+
+              {showDanisan ? (
+                <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    value={danisanSearch}
+                    onChange={(e) => setDanisanSearch(e.target.value)}
+                    placeholder="İsim veya tarih ile ara..."
+                    className={inputClass}
+                    autoFocus
+                  />
+                  <div className="max-h-36 overflow-y-auto rounded-lg border border-violet-100 bg-white">
+                    {danisanLoading ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">Yükleniyor…</p>
+                    ) : filteredDanisan.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">Kayıt bulunamadı.</p>
+                    ) : (
+                      filteredDanisan.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => handleDanisanSec(d)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-violet-50"
+                        >
+                          <span className="min-w-0 truncate font-bold text-slate-900">{d.name} {d.surname}</span>
+                          <span className="shrink-0 tabular-nums text-slate-400">{d.birth_date}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="grid grid-cols-2 gap-1">
+                    <div>
+                      <label className={labelClass}>Ad</label>
+                      <input type="text" value={kisi2Name} onChange={(e) => setKisi2Name(e.target.value)} placeholder="Ad" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Soyad</label>
+                      <input type="text" value={kisi2Surname} onChange={(e) => setKisi2Surname(e.target.value)} placeholder="Soyad" className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Doğum Tarihi (GG.AA.YYYY)</label>
+                    <input type="text" value={kisi2BirthDate} onChange={(e) => setKisi2BirthDate(e.target.value)} placeholder="15.03.1990" className={inputClass} />
+                  </div>
+                  {kisi2Pin8 ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <PinRow pin={kisi2Pin8} shade="fuchsia" />
+                      <button
+                        type="button"
+                        onClick={() => setKisi2Editing(false)}
+                        className="shrink-0 rounded-md bg-fuchsia-100 px-2 py-0.5 text-[9px] font-bold text-fuchsia-700 transition hover:bg-fuchsia-200"
+                      >
+                        ✓ Onayla
+                      </button>
+                    </div>
+                  ) : normalizedBirthDate ? (
+                    <p className="text-[10px] font-semibold text-rose-500">Geçerli tarih girin (GG.AA.YYYY)</p>
+                  ) : null}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -705,8 +739,9 @@ export function NumerolojiIliskiAnaliziTab({
                     </div>
                     <ul className="space-y-1.5">
                       {iliskiYorum.gucluTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-xs leading-[1.65] text-slate-700">
-                          <span className="mt-px shrink-0 font-black text-emerald-500">✓</span>{s}
+                        <li key={i} className="flex gap-2 text-xs leading-[1.75] text-slate-700">
+                          <span className="mt-px shrink-0 font-black text-emerald-500">✓</span>
+                          <span className="max-w-[72ch]">{s}</span>
                         </li>
                       ))}
                     </ul>
@@ -721,8 +756,9 @@ export function NumerolojiIliskiAnaliziTab({
                     </div>
                     <ul className="space-y-1.5">
                       {iliskiYorum.zorlayiciTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-xs leading-[1.65] text-slate-700">
-                          <span className="mt-px shrink-0 font-black text-amber-500">◆</span>{s}
+                        <li key={i} className="flex gap-2 text-xs leading-[1.75] text-slate-700">
+                          <span className="mt-px shrink-0 font-black text-amber-500">◆</span>
+                          <span className="max-w-[72ch]">{s}</span>
                         </li>
                       ))}
                     </ul>
