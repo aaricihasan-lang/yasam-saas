@@ -330,7 +330,7 @@ export default function BelgeCeviriPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8">
 
         {/* hero — rozet + başlık + buton tek satırda */}
-        <header className="mb-4 sm:mb-5">
+        <header className="mb-3 sm:mb-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/80 bg-sky-50/95 px-3 py-1 text-xs font-bold text-sky-800 shadow-sm">
@@ -343,7 +343,7 @@ export default function BelgeCeviriPage() {
                   Çeviri Merkezi
                 </span>
               </h1>
-              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+              <p className="mt-1.5 max-w-[700px] text-xs leading-relaxed text-slate-600 sm:text-sm">
                 PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
               </p>
             </div>
@@ -380,10 +380,10 @@ export default function BelgeCeviriPage() {
 
                 {/* başlık */}
                 <h2 className="mt-3 text-base font-black text-slate-900">{card.title}</h2>
-                <p className="mt-1 flex-1 text-xs leading-relaxed text-slate-600">{card.subtitle}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 space-y-2">
                   <button
                     type="button"
                     disabled={disabled}
@@ -432,15 +432,15 @@ export default function BelgeCeviriPage() {
 
                 {/* çeviri modu seçici — sadece pdf-to-turkce-word */}
                 {card.id === "pdf-to-turkce-word" && !disabled && (
-                  <div className="rounded-xl border border-slate-200/80 bg-white/70 p-2.5">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="mt-2 rounded-xl border border-slate-200/80 bg-white/70 p-2">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Çeviri Modu
                     </p>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       {(["standard", "academic"] as const).map((m) => (
                         <label
                           key={m}
-                          className={`flex cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 transition ${
+                          className={`flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition ${
                             translationMode === m
                               ? "bg-slate-100 ring-1 ring-slate-300"
                               : "hover:bg-slate-50"
@@ -833,11 +833,11 @@ export default function BelgeCeviriPage() {
               { icon: "🌐", title: "Çoklu Dil", desc: "İngilizce, Almanca, Fransızca ve daha fazlası." },
               { icon: "📄", title: "Format Koruma", desc: "Çeviri sonrası belge formatı korunur." },
             ].map((item, i) => (
-              <div key={item.title} className={`flex flex-col items-center gap-2 px-6 py-5 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-2xl" aria-hidden>{item.icon}</span>
+              <div key={item.title} className={`flex flex-col items-center gap-1.5 px-4 py-4 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-xl" aria-hidden>{item.icon}</span>
                 <div>
-                  <p className="text-sm font-black text-white">{item.title}</p>
-                  <p className="mt-1 text-xs font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
+                  <p className="text-xs font-black text-white">{item.title}</p>
+                  <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
                 </div>
               </div>
             ))}
