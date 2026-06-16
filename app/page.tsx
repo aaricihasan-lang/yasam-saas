@@ -338,7 +338,7 @@ const dashboardModules: ModuleCard[] = [
     },
   },
   {
-    title: "Yaşam Takvimi",
+    title: "Yaşam Takvimi / Kozmik Ajanda",
     desc: "Hicri takvim, hacamat günleri ve günlük kozmik akış",
     count: "Aktif",
     badge: "Merkez",
