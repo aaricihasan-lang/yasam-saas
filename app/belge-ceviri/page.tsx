@@ -59,7 +59,7 @@ const CARDS: CardDef[] = [
     id: "pdf-to-word",
     title: "PDF → Word",
     subtitle: "PDF belgeni düzenlenebilir Word dosyasına dönüştür.",
-    icon: <FileText className="h-7 w-7" strokeWidth={1.75} />,
+    icon: <FileText className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".pdf,application/pdf",
     acceptLabel: "PDF",
     gradient: "from-violet-50/90 via-white to-indigo-50/80",
@@ -72,7 +72,7 @@ const CARDS: CardDef[] = [
     id: "pdf-to-turkce-word",
     title: "PDF → Türkçe Word",
     subtitle: "PDF içeriğini Türkçeye çevir, düzenlenebilir Word belgesi olarak indir.",
-    icon: <Languages className="h-7 w-7" strokeWidth={1.75} />,
+    icon: <Languages className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".pdf,application/pdf",
     acceptLabel: "PDF",
     gradient: "from-sky-50/90 via-white to-cyan-50/80",
@@ -85,7 +85,7 @@ const CARDS: CardDef[] = [
     id: "ocr",
     title: "📷 Görsel OCR",
     subtitle: "Fotoğraf veya ekran görüntüsündeki yazıları dijital metne dönüştürün. PNG, JPG, WEBP desteklenir.",
-    icon: <ScanLine className="h-7 w-7" strokeWidth={1.75} />,
+    icon: <ScanLine className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp",
     acceptLabel: "Görüntü",
     gradient: "from-amber-50/90 via-white to-orange-50/80",
@@ -330,93 +330,93 @@ export default function BelgeCeviriPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8">
 
         {/* hero — rozet + başlık + buton tek satırda */}
-        <header className="mb-3 sm:mb-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <header className="mb-2 sm:mb-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/80 bg-sky-50/95 px-3 py-1 text-xs font-bold text-sky-800 shadow-sm">
-                <BookOpen className="h-3.5 w-3.5" aria-hidden />
+              <div className="inline-flex items-center gap-1 rounded-full border border-sky-200/80 bg-sky-50/95 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 shadow-sm">
+                <BookOpen className="h-3 w-3" aria-hidden />
                 Belge Dönüştürme ve Çeviri
               </div>
-              <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
+              <h1 className="mt-1 text-xl font-black leading-tight tracking-tight text-slate-950 sm:text-2xl">
                 Belge{" "}
                 <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
                   Çeviri Merkezi
                 </span>
               </h1>
-              <p className="mt-1.5 max-w-[700px] text-xs leading-relaxed text-slate-600 sm:text-sm">
+              <p className="mt-0.5 max-w-[700px] text-[11px] leading-relaxed text-slate-500 sm:text-xs">
                 PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
-              className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-4 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:w-auto"
+              className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 text-[11px] font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:w-auto"
             >
-              <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
+              <Clock className="h-3 w-3" strokeWidth={2.25} />
               Çevrilen Belgeler
             </button>
           </div>
         </header>
 
         {/* kartlar — lg+ 3 sütun, sm 2 sütun, mobil tek sütun */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CARDS.map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
             return (
               <div
                 key={card.id}
-                className={`flex flex-col rounded-2xl border bg-gradient-to-br p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
+                className={`flex flex-col rounded-xl border bg-gradient-to-br p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
               >
                 {/* ikon + badge */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${card.iconWrap}`}>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm ${card.iconWrap}`}>
                     {card.icon}
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${card.badgeColor}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${card.badgeColor}`}>
                     {card.badge}
                   </span>
                 </div>
 
                 {/* başlık */}
-                <h2 className="mt-3 text-base font-black text-slate-900">{card.title}</h2>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">{card.subtitle}</p>
+                <h2 className="mt-2 text-sm font-black text-slate-900">{card.title}</h2>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-1.5">
                   <button
                     type="button"
                     disabled={disabled}
                     onClick={() => inputRefs.current[card.id]?.click()}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-slate-300/70 bg-white/60 px-4 py-2.5 text-xs font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300/70 bg-white/60 px-3 py-2 text-[11px] font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span className="flex items-center gap-2">
-                      <FileUp className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                    <span className="flex items-center gap-1.5">
+                      <FileUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
                       {file ? "Dosyayı Değiştir" : `${card.acceptLabel} Seç`}
                     </span>
-                    <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
                   </button>
 
                   {file && !disabled && (
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-1.5">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                           Seçilen Dosya
                         </p>
-                        <p className="mt-0.5 truncate text-sm font-bold text-slate-700" title={file.name}>
+                        <p className="mt-0.5 truncate text-[11px] font-bold text-slate-700" title={file.name}>
                           {file.name}
                         </p>
-                        <p className="text-[11px] font-medium text-slate-400">
+                        <p className="text-[10px] font-medium text-slate-400">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => clearFile(card.id)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
                         aria-label="Dosyayı kaldır"
                       >
-                        <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        <X className="h-3 w-3" strokeWidth={2.5} />
                       </button>
                     </div>
                   )}
@@ -432,15 +432,15 @@ export default function BelgeCeviriPage() {
 
                 {/* çeviri modu seçici — sadece pdf-to-turkce-word */}
                 {card.id === "pdf-to-turkce-word" && !disabled && (
-                  <div className="mt-2 rounded-xl border border-slate-200/80 bg-white/70 p-2">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="mt-1.5 rounded-lg border border-slate-200/80 bg-white/70 p-1.5">
+                    <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Çeviri Modu
                     </p>
                     <div className="flex flex-col gap-0.5">
                       {(["standard", "academic"] as const).map((m) => (
                         <label
                           key={m}
-                          className={`flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition ${
+                          className={`flex cursor-pointer items-start gap-1.5 rounded-md px-1.5 py-1 transition ${
                             translationMode === m
                               ? "bg-slate-100 ring-1 ring-slate-300"
                               : "hover:bg-slate-50"
@@ -455,7 +455,7 @@ export default function BelgeCeviriPage() {
                             className="mt-0.5 accent-slate-800"
                           />
                           <div>
-                            <p className="text-xs font-bold text-slate-800">
+                            <p className="text-[11px] font-bold text-slate-800">
                               {m === "standard" ? "Standart Çeviri" : "Akademik Çeviri"}
                             </p>
                             <p className="text-[10px] font-medium text-slate-500">
@@ -472,12 +472,12 @@ export default function BelgeCeviriPage() {
 
                 {/* boyut uyarıları */}
                 {file && !disabled && file.size > RECOMMENDED_MAX_BYTES && (
-                  <p className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-yellow-800">
+                  <p className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-yellow-800">
                     Bu PDF 80 MB üzerindedir. Yükleme devam edebilir ancak büyük dosyalarda yükleme süresi uzayabilir. Sorun yaşarsanız PDF'i sıkıştırmanız önerilir.
                   </p>
                 )}
                 {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= RECOMMENDED_MAX_BYTES && (
-                  <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs font-medium leading-relaxed text-sky-800">
+                  <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-sky-800">
                     Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.
                   </p>
                 )}
@@ -487,7 +487,7 @@ export default function BelgeCeviriPage() {
                   type="button"
                   disabled={!file || !!submitting || disabled || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
-                  className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-[11px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting === card.id ? (
                     <>
@@ -635,7 +635,7 @@ export default function BelgeCeviriPage() {
 
                 {/* Job takip paneli */}
                 {activeJob && activeJob.cardId === card.id && (
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-white/80 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         {activeJob.status === "pending" && (
@@ -705,11 +705,11 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* Büyük PDF Yardım Accordion */}
-        <div className="mt-5">
+        <div className="mt-4">
           <button
             type="button"
             onClick={() => setHelpOpen((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-violet-200/70 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white/80 px-4 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md"
           >
             <span className="text-base">📄</span>
             Büyük PDF Yardımı
@@ -720,8 +720,8 @@ export default function BelgeCeviriPage() {
           </button>
 
           {helpOpen && (
-            <div className="mt-3 overflow-hidden rounded-[24px] border border-violet-100 bg-white/90 shadow-md">
-              <div className="px-7 py-6">
+            <div className="mt-2 overflow-hidden rounded-2xl border border-violet-100 bg-white/90 shadow-md">
+              <div className="px-5 py-4">
                 <h3 className="text-base font-black text-slate-900">📄 Büyük PDF Yükleme Rehberi</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
                   Belge Çeviri Merkezi yüksek boyutlu PDF dosyalarını çevirebilir. Ancak bazı PDF'ler yüksek
@@ -826,18 +826,18 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* bilgi şeridi */}
-        <div className="mt-5 overflow-hidden rounded-2xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
+        <div className="mt-4 overflow-hidden rounded-xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
               { icon: "🔒", title: "Güvenli İşlem", desc: "Belgeler işlem sonrası sunucudan silinir." },
               { icon: "🌐", title: "Çoklu Dil", desc: "İngilizce, Almanca, Fransızca ve daha fazlası." },
               { icon: "📄", title: "Format Koruma", desc: "Çeviri sonrası belge formatı korunur." },
             ].map((item, i) => (
-              <div key={item.title} className={`flex flex-col items-center gap-1.5 px-4 py-4 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-xl" aria-hidden>{item.icon}</span>
-                <div>
-                  <p className="text-xs font-black text-white">{item.title}</p>
-                  <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
+              <div key={item.title} className={`flex items-center gap-3 px-4 py-3 sm:flex-col sm:items-center sm:gap-1 sm:px-3 sm:py-3 sm:text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-base shrink-0" aria-hidden>{item.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-white">{item.title}</p>
+                  <p className="mt-0.5 text-[10px] font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
                 </div>
               </div>
             ))}
