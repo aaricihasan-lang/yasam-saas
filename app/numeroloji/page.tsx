@@ -3,21 +3,21 @@
 import Link from "next/link";
 
 const cardGlass =
-  "group relative flex min-h-[280px] flex-col justify-between overflow-hidden rounded-[24px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-6 shadow-[0_8px_48px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform sm:min-h-[300px] sm:p-7 lg:min-h-0 lg:p-6 xl:p-7";
+  "group relative flex min-h-[200px] flex-col justify-between overflow-hidden rounded-[20px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-4 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform sm:min-h-[220px] sm:p-5 lg:min-h-0 lg:p-4 xl:p-5";
 
 const cardHover =
-  "hover:z-[1] hover:scale-[1.03] hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_60px_-8px_rgba(167,139,250,0.45),0_0_80px_-20px_rgba(251,191,36,0.12),0_32px_64px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
+  "hover:z-[1] hover:scale-[1.03] hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_40px_-8px_rgba(167,139,250,0.40),0_0_60px_-20px_rgba(251,191,36,0.10),0_24px_48px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
 
 const cardIcon =
-  "inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-400/35 bg-gradient-to-br from-violet-900/60 to-[#0c0618] text-5xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_40px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md lg:h-[4.5rem] lg:w-[4.5rem] lg:text-[2.75rem]";
+  "inline-flex h-14 w-14 items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-900/60 to-[#0c0618] text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_28px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md lg:h-14 lg:w-14 lg:text-3xl";
 
-const cardTitle = "mt-5 text-2xl font-black tracking-tight text-white sm:mt-6 sm:text-[1.65rem] lg:mt-5 lg:text-2xl lg:leading-tight";
+const cardTitle = "mt-3 text-xl font-black tracking-tight text-white sm:mt-3 sm:text-xl lg:mt-3 lg:text-xl lg:leading-tight";
 
 const cardDesc =
-  "mt-3 text-sm font-medium leading-relaxed text-violet-100/88 sm:text-[0.95rem] lg:mt-3 lg:text-sm lg:leading-relaxed";
+  "mt-2 line-clamp-3 text-xs font-medium leading-relaxed text-violet-100/88 sm:text-xs lg:mt-2 lg:text-xs lg:leading-relaxed";
 
 const cardCta =
-  "relative mt-6 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 sm:text-sm lg:mt-7";
+  "relative mt-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 sm:text-xs lg:mt-4";
 
 export default function NumerolojiHubPage() {
   return (
@@ -27,38 +27,38 @@ export default function NumerolojiHubPage() {
         aria-hidden
       />
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute -left-[15%] top-0 h-[32rem] w-[32rem] rounded-full bg-violet-600/30 blur-[120px]" />
-        <div className="absolute right-[-8%] top-[18%] h-[36rem] w-[36rem] rounded-full bg-indigo-700/22 blur-[130px]" />
-        <div className="absolute bottom-[-12%] left-[20%] h-[28rem] w-[28rem] rounded-full bg-fuchsia-700/18 blur-[100px]" />
-        <div className="absolute right-[12%] top-[45%] h-[18rem] w-[18rem] rounded-full bg-amber-500/10 blur-[80px]" />
+        <div className="absolute -left-[15%] top-0 h-[22rem] w-[22rem] rounded-full bg-violet-600/28 blur-[90px]" />
+        <div className="absolute right-[-8%] top-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-700/20 blur-[100px]" />
+        <div className="absolute bottom-[-12%] left-[20%] h-[20rem] w-[20rem] rounded-full bg-fuchsia-700/16 blur-[80px]" />
+        <div className="absolute right-[12%] top-[45%] h-[14rem] w-[14rem] rounded-full bg-amber-500/10 blur-[60px]" />
       </div>
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col px-4 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6 lg:px-10 lg:pb-8 lg:pt-7 xl:px-12">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4 lg:px-8 lg:pb-5 lg:pt-4">
         <header className="shrink-0 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.4em] text-amber-200/85 sm:text-sm">Yaşam Sistemi</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-200/85 sm:text-xs">Yaşam Sistemi</p>
           <h1
-            className="mt-2 font-black tracking-tight text-white sm:mt-3 text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-[4.25rem]"
+            className="mt-1.5 font-black tracking-tight text-white sm:mt-2 text-3xl sm:text-4xl lg:text-4xl xl:text-5xl"
             style={{
               fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif",
               lineHeight: 1.02,
               textShadow:
-                "0 0 50px rgba(167,139,250,0.55), 0 0 100px rgba(109,40,217,0.35), 0 4px 0 rgba(0,0,0,0.45)",
+                "0 0 30px rgba(167,139,250,0.50), 0 0 60px rgba(109,40,217,0.28), 0 3px 0 rgba(0,0,0,0.45)",
             }}
           >
             Numeroloji
           </h1>
           <div
-            className="mx-auto mt-4 h-px max-w-lg bg-gradient-to-r from-transparent via-amber-400/45 to-transparent sm:mt-5 lg:mt-5"
+            className="mx-auto mt-3 h-px max-w-lg bg-gradient-to-r from-transparent via-amber-400/45 to-transparent"
             aria-hidden
           />
-          <p className="mx-auto mt-4 max-w-3xl text-base font-medium leading-relaxed text-violet-100/92 sm:mt-5 sm:text-lg lg:mt-6 lg:text-xl lg:leading-relaxed">
-            Yaşam haritanızı hesaplayın, premium görsel raporunuzu oluşturun ve analizlerinizi güvenle saklayın. Aşağıdan devam etmek istediğiniz modülü seçin.
+          <p className="mx-auto mt-2.5 max-w-xl text-xs font-medium leading-relaxed text-violet-100/92 sm:text-sm lg:text-sm">
+            Yaşam haritanızı hesaplayın, raporunuzu oluşturun ve analizlerinizi saklayın. Modülü seçin.
           </p>
         </header>
 
-        <div className="mt-8 flex flex-1 flex-col justify-center sm:mt-10 lg:mt-8">
-          <div className="grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-3 lg:gap-6 xl:gap-8">
+        <div className="mt-5 flex flex-1 flex-col justify-center sm:mt-6 lg:mt-5">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-3 lg:gap-4 xl:gap-5">
             <Link href="/numeroloji/analiz" className={`${cardGlass} ${cardHover} no-underline`}>
               <div
                 className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-600/20 via-transparent to-sky-600/10 opacity-50 transition-all duration-300 group-hover:opacity-100"
