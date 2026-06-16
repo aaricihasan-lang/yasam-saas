@@ -104,6 +104,7 @@ import {
 } from "./NumerolojiGorselRaporInfografik";
 import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
 import { NumerolojiIliskiAnaliziTab } from "./NumerolojiIliskiAnaliziTab";
+import { NumerolojiEvIsYeriSayisiTab } from "./NumerolojiEvIsYeriSayisiTab";
 import {
   ContentFontSizeProvider,
   NumerolojiFontSizeControl,
@@ -132,6 +133,7 @@ const DETAY_TABS = [
   { id: "tas" as const, label: "Taş Açıklamaları" },
   { id: "gorsel" as const, label: "Görsel Rapor" },
   { id: "iliski" as const, label: "İlişki Analizi" },
+  { id: "ev-is-yeri" as const, label: "Ev / İş Yeri Sayısı" },
 ];
 
 type DetayTabId = (typeof DETAY_TABS)[number]["id"];
@@ -491,6 +493,8 @@ export function NumerolojiKayitDetayPanel({
             kisi1Pin={out.pinKodu}
           />
         ) : null}
+
+        {tab === "ev-is-yeri" ? <NumerolojiEvIsYeriSayisiTab /> : null}
 
         {tab === "gorsel" ? (
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_minmax(0,1fr)]">
