@@ -35,6 +35,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Brain,
+  CalendarDays,
   Check,
   Gem,
   Layers,
@@ -336,6 +337,21 @@ const dashboardModules: ModuleCard[] = [
       border: "border-violet-200/70",
     },
   },
+  {
+    title: "Yaşam Takvimi",
+    desc: "Hicri takvim, hacamat günleri ve günlük kozmik akış",
+    count: "Aktif",
+    badge: "Merkez",
+    href: "/dashboard/cosmic-calendar",
+    permissionKey: "cosmic_calendar",
+    emoji: "🌙",
+    Icon: CalendarDays,
+    theme: {
+      iconWrap: "from-indigo-400 to-violet-600",
+      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
+      border: "border-indigo-200/70",
+    },
+  },
 ];
 
 /** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
@@ -359,6 +375,7 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   ders_notu: [],
   human_design: [],
   digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
+  cosmic_calendar: [],
 };
 
 function getRawPermissionRow(user: YasamUser): Record<string, unknown> | null {

@@ -17,7 +17,8 @@ export type ModulePermissionKey =
   | "belge_ceviri"
   | "ders_notu"
   | "human_design"
-  | "digital_content";
+  | "digital_content"
+  | "cosmic_calendar";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -35,6 +36,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "ders_notu",
   "human_design",
   "digital_content",
+  "cosmic_calendar",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -51,6 +53,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   ders_notu: "Temizlenmiş Ders Notu Merkezi",
   human_design: "Human Design",
   digital_content: "Dijital İçerik Merkezi",
+  cosmic_calendar: "Yaşam Takvimi / Kozmik Ajanda",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -67,6 +70,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   ders_notu: false,
   human_design: false,
   digital_content: false,
+  cosmic_calendar: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
@@ -104,6 +108,7 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "belge_ceviri",
   "ders_notu",
   "digital_content",
+  "cosmic_calendar",
   // human_design: yakında — premium paketinden de hariç
   "danisan_yonetimi",
   "ajanda",
@@ -128,6 +133,7 @@ export const PREMIUM_HOME_MODULE_KEYS: ModulePermissionKey[] = [
   "energy_body",
   "digital_content",
   "numerology",
+  "cosmic_calendar",
   // human_design: yakında — premium dahil tüm uzmanlar için kilitli
 ];
 
@@ -208,6 +214,7 @@ export function hasModulePermission(
 ): boolean {
   if (!user) return false;
   if (isAdminRole(user)) return true;
+  if (key === "cosmic_calendar") return true;
   if (isPremiumExpertUser(user)) {
     return isPremiumModuleAccessKey(key);
   }
