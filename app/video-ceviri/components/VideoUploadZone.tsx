@@ -300,17 +300,17 @@ export default function VideoUploadZone({ onSuccess }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm">
-      <h2 className="mb-3 flex items-center gap-2 text-base font-black text-slate-900">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
-          <UploadCloud className="h-4 w-4" strokeWidth={2.25} />
+    <div className="rounded-xl border border-white/80 bg-white/90 p-3 shadow-sm">
+      <h2 className="mb-2 flex items-center gap-1.5 text-sm font-black text-slate-900">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
+          <UploadCloud className="h-3.5 w-3.5" strokeWidth={2.25} />
         </span>
         Video Yükle
       </h2>
 
       {/* drop zone */}
       <div
-        className={`relative flex min-h-[140px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-5 text-center transition ${
+        className={`relative flex min-h-[110px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-3 text-center transition ${
           isDragging
             ? "border-violet-400 bg-violet-50/90"
             : selectedFile && phase === "idle"
@@ -324,8 +324,8 @@ export default function VideoUploadZone({ onSuccess }: Props) {
       >
         {isBusy && (
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
-            <p className="text-sm font-bold text-slate-600">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+            <p className="text-xs font-bold text-slate-600">
               {phase === "uploading" && uploadProgress > 0
                 ? `Yükleniyor… %${uploadProgress}`
                 : PHASE_LABEL[phase]}
@@ -342,18 +342,18 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         )}
 
         {!isBusy && phase === "done" && (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-1.5">
             <CheckCircle2
-              className="h-7 w-7 text-emerald-600"
+              className="h-6 w-6 text-emerald-600"
               strokeWidth={1.75}
             />
-            <p className="text-sm font-bold text-emerald-700">
+            <p className="text-xs font-bold text-emerald-700">
               Dosya başarıyla yüklendi.
             </p>
             <button
               type="button"
               onClick={resetToIdle}
-              className="mt-1 text-xs font-bold text-violet-600 underline underline-offset-2 transition hover:text-violet-800"
+              className="text-[11px] font-bold text-violet-600 underline underline-offset-2 transition hover:text-violet-800"
             >
               Yeni dosya yükle
             </button>
@@ -362,16 +362,16 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
         {!isBusy && phase !== "done" && (
           <>
-            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 text-violet-600 shadow-sm">
-              <Video className="h-5 w-5" strokeWidth={1.75} />
+            <div className="mb-1.5 flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 text-violet-600 shadow-sm">
+              <Video className="h-4 w-4" strokeWidth={1.75} />
             </div>
 
             {selectedFile ? (
-              <div className="flex flex-col items-center gap-1">
-                <p className="max-w-[260px] truncate text-sm font-black text-slate-800 sm:max-w-xs">
+              <div className="flex flex-col items-center gap-0.5">
+                <p className="max-w-[260px] truncate text-xs font-black text-slate-800 sm:max-w-xs">
                   {selectedFile.name}
                 </p>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-[11px] font-medium text-slate-500">
                   {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
                 </p>
                 <button
@@ -381,24 +381,18 @@ export default function VideoUploadZone({ onSuccess }: Props) {
                     setPhase("idle");
                     setErrorMsg("");
                   }}
-                  className="mt-1 text-xs font-semibold text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
+                  className="text-[11px] font-semibold text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
                 >
                   Değiştir
                 </button>
               </div>
             ) : (
               <>
-                <p className="text-sm font-black text-slate-700">
-                  Video veya ses dosyanızı sürükleyin
+                <p className="text-xs font-black text-slate-700">
+                  Sürükleyin veya seçin
                 </p>
-                <p className="mt-1 text-xs font-medium text-slate-500">
-                  veya dosya seçin
-                </p>
-                <p className="mt-3 text-xs font-semibold text-slate-400">
-                  Video: MP4, MOV, WEBM, MKV, AVI, OGG
-                </p>
-                <p className="text-xs font-semibold text-slate-400">
-                  Ses: MP3, M4A, WAV, AAC, AMR — maks. 5 GB
+                <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                  MP4 · MOV · MP3 · WAV · M4A · maks. 5 GB
                 </p>
               </>
             )}
@@ -406,9 +400,9 @@ export default function VideoUploadZone({ onSuccess }: Props) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
+              className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-[11px] font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
             >
-              <UploadCloud className="h-3.5 w-3.5" strokeWidth={2.25} />
+              <UploadCloud className="h-3 w-3" strokeWidth={2.25} />
               Dosya Seç
             </button>
           </>
@@ -425,30 +419,30 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
       {/* error banner */}
       {phase === "error" && errorMsg && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-200/80 bg-rose-50 px-4 py-3">
+        <div className="mt-2 flex items-start gap-2 rounded-xl border border-rose-200/80 bg-rose-50 px-3 py-2">
           <AlertCircle
-            className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600"
             strokeWidth={2.25}
           />
-          <p className="text-sm font-bold text-rose-700">{errorMsg}</p>
+          <p className="text-[11px] font-bold text-rose-700">{errorMsg}</p>
         </div>
       )}
 
       {/* settings row */}
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Kaynak Dil
           </p>
-          <p className="mt-1 text-sm font-black text-slate-700">
+          <p className="mt-0.5 text-xs font-black text-slate-700">
             Otomatik Algıla
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <div className="rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Çıktı Formatı
           </p>
-          <p className="mt-1 text-sm font-black text-slate-700">Word + PDF</p>
+          <p className="mt-0.5 text-xs font-black text-slate-700">Word + PDF</p>
         </div>
       </div>
 
@@ -457,11 +451,11 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         type="button"
         onClick={handleUpload}
         disabled={!selectedFile || isBusy || phase === "done"}
-        className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 text-base font-bold text-white shadow-xl transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2.5 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isBusy ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.25} />
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.25} />
             {PHASE_LABEL[phase]}
           </>
         ) : (
