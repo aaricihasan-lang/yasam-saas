@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
+import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 
-const MONTH_NAMES_TR = [
+// ─── Sabit veriler ────────────────────────────────────────────────────────────
+
+const MONTH_NAMES_TR: ReadonlyArray<string> = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-] as const;
+];
 
 const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
 
 type CalEvent = { icon: string; label: string };
 
+// MVP — bu ay için statik mock etkinlikler
 const MONTH_EVENTS: Partial<Record<number, CalEvent[]>> = {
   17: [{ icon: "🩸", label: "Hacamat" }],
   19: [{ icon: "📅", label: "Beyaz Gün" }],
@@ -18,26 +23,6 @@ const MONTH_EVENTS: Partial<Record<number, CalEvent[]>> = {
 };
 
 const HACAMAT_DAYS = new Set([3, 5, 17, 19, 21]);
-
-// Full-width cosmic briefing — hero altında
-const COSMIC_SUMMARY = [
-  { icon: "📅", label: "Miladi Tarih",     value: "16 Haziran 2026" },
-  { icon: "🌙", label: "Hicri Tarih",      value: "20 Zilhicce 1447" },
-  { icon: "🌔", label: "Ay Fazı",          value: "Şişen Ay" },
-  { icon: "♊", label: "Ay Burcu",         value: "İkizler" },
-  { icon: "🔢", label: "Numeroloji",       value: "5 · Değişim · Özgürlük" },
-  { icon: "⏰", label: "Aktif Gezegen",    value: "Venüs" },
-  { icon: "🩸", label: "Sonraki Hacamat",  value: "3 gün sonra" },
-] as const;
-
-// Sağ panel mini durum kartları
-const RIGHT_STATS = [
-  { icon: "🌔", label: "Ay Fazı",            value: "Şişen Ay",         color: "text-violet-700" },
-  { icon: "🕋", label: "Hicri",              value: "20 Zilhicce 1447",  color: "text-slate-800" },
-  { icon: "🩸", label: "Sonraki Hacamat",    value: "3 gün sonra",       color: "text-rose-600" },
-  { icon: "🪐", label: "Retro Durumu",       value: "Aktif Retro Yok",   color: "text-emerald-600" },
-  { icon: "⏰", label: "Gezegen Saati",      value: "Venüs",             color: "text-indigo-700" },
-] as const;
 
 const UPCOMING_EVENTS = [
   { days: 3,  text: "Beyaz Gün",                icon: "📅" },
@@ -62,9 +47,11 @@ const BADGES = [
   "🪐 Gezegen Saatleri",
 ] as const;
 
+// ─── Yardımcı ─────────────────────────────────────────────────────────────────
+
 function buildCalendarCells(year: number, month: number): (number | null)[] {
   const firstDayOfWeek = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth    = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -72,12 +59,53 @@ function buildCalendarCells(year: number, month: number): (number | null)[] {
   return cells;
 }
 
+function formatMiladiDate(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("tr-TR", {
+      day: "numeric", month: "long", year: "numeric",
+    }).format(date);
+  } catch {
+    return date.toLocaleDateString("tr-TR");
+  }
+}
+
+// ─── Sayfa ───────────────────────────────────────────────────────────────────
+
 export default function CosmicCalendarPage() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+
+  // Takvim grid
+  const year     = now.getFullYear();
+  const month    = now.getMonth();
   const todayDay = now.getDate();
-  const cells = buildCalendarCells(year, month);
+  const cells    = buildCalendarCells(year, month);
+
+  // Gerçek kozmik hesaplamalar
+  const hijriDate      = getHijriDate(now);
+  const hijriMonthYear = getHijriMonthYear(now);
+  const moonPhase      = getMoonPhase(now);
+  const moonSign       = getMoonSign(now);
+  const miladiDate     = formatMiladiDate(now);
+
+  // Kozmik Özet kartı içeriği (hicri + ay fazı + ay burcu gerçek; gerisi MVP mock)
+  const cosmicSummary = [
+    { icon: "📅",            label: "Miladi Tarih",    value: miladiDate },
+    { icon: "🌙",            label: "Hicri Tarih",     value: hijriDate },
+    { icon: moonPhase.emoji, label: "Ay Fazı",         value: moonPhase.name },
+    { icon: moonSign.emoji,  label: "Ay Burcu",        value: moonSign.name },
+    { icon: "🔢",            label: "Numeroloji",      value: "5 · Değişim · Özgürlük" },
+    { icon: "⏰",            label: "Aktif Gezegen",   value: "Venüs" },
+    { icon: "🩸",            label: "Sonraki Hacamat", value: "3 gün sonra" },
+  ];
+
+  // Sağ panel durum satırları
+  const rightStats = [
+    { icon: moonPhase.emoji, label: "Ay Fazı",           value: moonPhase.name,     color: "text-violet-700" },
+    { icon: "🕋",            label: "Hicri",             value: hijriDate,           color: "text-slate-800" },
+    { icon: "🩸",            label: "Sonraki Hacamat",   value: "3 gün sonra",       color: "text-rose-600" },
+    { icon: "🪐",            label: "Retro Durumu",      value: "Aktif Retro Yok",   color: "text-emerald-600" },
+    { icon: "⏰",            label: "Gezegen Saati",     value: "Venüs",             color: "text-indigo-700" },
+  ];
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f0f0ff_45%,#fff0f8_100%)] text-slate-900 antialiased">
@@ -134,13 +162,13 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Bugünün Kozmik Özeti (tam genişlik) ── */}
+        {/* ── Bugünün Kozmik Özeti — tam genişlik ── */}
         <div className="mb-4 overflow-hidden rounded-[20px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.09] via-violet-500/[0.06] to-cyan-400/[0.09] p-3 shadow-sm backdrop-blur-md sm:p-4">
           <p className="mb-2.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
             🌙 Bugünün Kozmik Özeti
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-            {COSMIC_SUMMARY.map(({ icon, label, value }) => (
+            {cosmicSummary.map(({ icon, label, value }) => (
               <div
                 key={label}
                 className="rounded-2xl border border-white/90 bg-white/60 px-2.5 py-2 backdrop-blur-sm"
@@ -156,23 +184,22 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Main Grid: Takvim (sol) + Panel (sağ) ── */}
+        {/* ── Ana Grid: Takvim (sol) + Panel (sağ) ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
 
           {/* ── Sol: Aylık Takvim ── */}
           <div className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
 
-            {/* Ay başlığı + legend birlikte */}
+            {/* Ay başlığı + legend */}
             <div className="mb-2">
               <div className="mb-1.5 flex items-center justify-between">
                 <h2 className="text-base font-black text-slate-800">
                   {MONTH_NAMES_TR[month]} {year}
                 </h2>
                 <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">
-                  🌙 Zilhicce 1447
+                  🌙 {hijriMonthYear}
                 </span>
               </div>
-              {/* Legend takvim başlığının hemen altında */}
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-2">
                 {LEGEND_ITEMS.map(({ icon, label }) => (
                   <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">
@@ -200,10 +227,10 @@ export default function CosmicCalendarPage() {
                 if (day === null) {
                   return <div key={`e-${i}`} className="h-10 rounded-lg" />;
                 }
-                const isToday = day === todayDay;
-                const events = MONTH_EVENTS[day] ?? [];
+                const isToday         = day === todayDay;
+                const events          = MONTH_EVENTS[day] ?? [];
                 const hasHacamatEvent = events.some((e) => e.icon === "🩸");
-                const showHacamatDot = HACAMAT_DAYS.has(day) && !hasHacamatEvent && !isToday;
+                const showHacamatDot  = HACAMAT_DAYS.has(day) && !hasHacamatEvent && !isToday;
 
                 return (
                   <div
@@ -218,11 +245,7 @@ export default function CosmicCalendarPage() {
                             : "bg-white/30 hover:bg-white/60"
                     }`}
                   >
-                    <span
-                      className={`text-xs font-black leading-tight ${
-                        isToday ? "text-white" : "text-slate-700"
-                      }`}
-                    >
+                    <span className={`text-xs font-black leading-tight ${isToday ? "text-white" : "text-slate-700"}`}>
                       {day}
                     </span>
 
@@ -241,9 +264,7 @@ export default function CosmicCalendarPage() {
                     )}
 
                     {showHacamatDot && (
-                      <span className="text-[9px] leading-none" title="Hacamat günü">
-                        🩸
-                      </span>
+                      <span className="text-[9px] leading-none" title="Hacamat günü">🩸</span>
                     )}
                   </div>
                 );
@@ -254,13 +275,13 @@ export default function CosmicCalendarPage() {
           {/* ── Sağ Panel ── */}
           <div className="flex flex-col gap-3">
 
-            {/* Mini Durum Kartları */}
+            {/* Günlük Durum */}
             <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
               <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
                 Günlük Durum
               </p>
               <div className="space-y-1">
-                {RIGHT_STATS.map(({ icon, label, value, color }) => (
+                {rightStats.map(({ icon, label, value, color }) => (
                   <div
                     key={label}
                     className="flex items-center justify-between rounded-xl bg-slate-50/70 px-2.5 py-1.5"
