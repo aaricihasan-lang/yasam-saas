@@ -327,39 +327,39 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-sky-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8">
 
-        {/* nav */}
-        <nav className="mb-4 flex items-center justify-end" aria-label="Üst navigasyon">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-4 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-          >
-            <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
-            Çevrilen Belgeler
-          </button>
-        </nav>
-
-        {/* header */}
-        <header className="mb-5">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/80 bg-sky-50/95 px-3 py-1 text-xs font-bold text-sky-800 shadow-sm">
-            <BookOpen className="h-3.5 w-3.5" aria-hidden />
-            Belge Dönüştürme ve Çeviri
+        {/* hero — rozet + başlık + buton tek satırda */}
+        <header className="mb-4 sm:mb-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/80 bg-sky-50/95 px-3 py-1 text-xs font-bold text-sky-800 shadow-sm">
+                <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                Belge Dönüştürme ve Çeviri
+              </div>
+              <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
+                Belge{" "}
+                <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
+                  Çeviri Merkezi
+                </span>
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+                PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-4 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:w-auto"
+            >
+              <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
+              Çevrilen Belgeler
+            </button>
           </div>
-          <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
-            Belge{" "}
-            <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
-              Çeviri Merkezi
-            </span>
-          </h1>
-          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-            PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.
-          </p>
         </header>
 
-        {/* kartlar — masaüstü 3 sütun, tablet 2 sütun, mobil tek sütun */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/* kartlar — lg+ 3 sütun, sm 2 sütun, mobil tek sütun */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CARDS.map((card) => {
             const file = selectedFiles[card.id];
             const disabled = isDisabled(card.id);
@@ -705,7 +705,7 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* Büyük PDF Yardım Accordion */}
-        <div className="mt-8">
+        <div className="mt-5">
           <button
             type="button"
             onClick={() => setHelpOpen((v) => !v)}
@@ -826,15 +826,15 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* bilgi şeridi */}
-        <div className="mt-10 overflow-hidden rounded-[28px] border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
               { icon: "🔒", title: "Güvenli İşlem", desc: "Belgeler işlem sonrası sunucudan silinir." },
               { icon: "🌐", title: "Çoklu Dil", desc: "İngilizce, Almanca, Fransızca ve daha fazlası." },
               { icon: "📄", title: "Format Koruma", desc: "Çeviri sonrası belge formatı korunur." },
             ].map((item, i) => (
-              <div key={item.title} className={`flex flex-col items-center gap-3 px-6 py-7 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-3xl" aria-hidden>{item.icon}</span>
+              <div key={item.title} className={`flex flex-col items-center gap-2 px-6 py-5 text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-2xl" aria-hidden>{item.icon}</span>
                 <div>
                   <p className="text-sm font-black text-white">{item.title}</p>
                   <p className="mt-1 text-xs font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
@@ -865,7 +865,7 @@ export default function BelgeCeviriPage() {
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center px-7 py-20 text-center">
+            <div className="flex flex-col items-center justify-center px-7 py-10 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400">
                 <BookOpen className="h-8 w-8" strokeWidth={1.75} />
               </div>
