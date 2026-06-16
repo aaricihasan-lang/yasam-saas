@@ -12,10 +12,10 @@ import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/N
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 
 const listeNavSecondaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-4 py-2 text-sm font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
 
 const listeNavPrimaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_14px_rgba(139,92,246,0.28)] no-underline transition-all duration-200 hover:shadow-[0_6px_18px_rgba(139,92,246,0.35)]";
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_2px_10px_rgba(139,92,246,0.22)] no-underline transition-all duration-200 hover:shadow-[0_4px_14px_rgba(139,92,246,0.30)]";
 
 export default function NumerolojiListePage() {
   const pathname = usePathname();
@@ -123,10 +123,11 @@ export default function NumerolojiListePage() {
       <BfcacheRefreshHandler />
       <div className="pointer-events-none absolute left-0 top-0 h-[280px] w-[280px] rounded-full bg-fuchsia-300/20 blur-[100px]" aria-hidden />
       <div className="pointer-events-none absolute right-0 top-0 h-[280px] w-[280px] rounded-full bg-amber-300/20 blur-[100px]" aria-hidden />
-      <div className="relative z-10 w-full px-5 py-4 xl:px-8 2xl:px-12">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-5 py-3 xl:px-8">
 
-        <div className="rounded-[22px] border border-violet-300/40 bg-white/80 px-5 py-4 shadow-[0_0_28px_rgba(139,92,246,0.10)] backdrop-blur-xl sm:px-6 sm:py-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* Hero */}
+        <div className="rounded-[18px] border border-violet-300/40 bg-white/80 px-4 py-3 shadow-[0_0_20px_rgba(139,92,246,0.08)] backdrop-blur-xl sm:px-5 sm:py-3.5">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             <Link href="/numeroloji" className={listeNavSecondaryClass}>
               ← Modül seçimi
             </Link>
@@ -134,16 +135,16 @@ export default function NumerolojiListePage() {
               <span aria-hidden>✨</span> Yeni analiz
             </Link>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-950">
+          <h1 className="text-2xl font-black tracking-tight text-slate-950">
             Kayıtlı analizler
           </h1>
-          <p className="mt-1.5 max-w-lg text-sm font-medium text-slate-500">
+          <p className="mt-1 max-w-lg text-xs font-medium text-slate-500">
             Tüm numeroloji kayıtlarınızı görüntüleyin ve yönetin.
           </p>
         </div>
 
         {!loading && rows.length > 0 ? (
-          <div className="mt-3 space-y-3">
+          <div className="mt-2.5 space-y-2">
             <input
               id="noj-liste-ara"
               aria-label="Ad veya soyad ara"
@@ -151,11 +152,12 @@ export default function NumerolojiListePage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ad veya soyad ara…"
-              className="h-10 w-full rounded-xl border border-violet-200 bg-white/90 px-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-300/25"
+              className="h-9 w-full rounded-xl border border-violet-200 bg-white/90 px-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-300/25"
               autoComplete="off"
             />
 
             <BulkExportBar
+              compact
               selectedCount={selectedIds.size}
               totalCount={rows.length}
               filteredCount={filteredRows.length}
@@ -171,31 +173,31 @@ export default function NumerolojiListePage() {
         ) : null}
 
         {loading ? (
-          <div className="mt-4 rounded-[18px] border border-violet-300/35 bg-white/80 px-5 py-6 text-sm font-semibold text-slate-500 shadow-[0_0_20px_rgba(139,92,246,0.08)] backdrop-blur-xl">
+          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-5 text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
             Yükleniyor…
           </div>
         ) : null}
 
         {!loading && error ? (
-          <p className="mt-4 text-sm font-medium text-rose-700" role="alert">
+          <p className="mt-3 text-sm font-medium text-rose-700" role="alert">
             {error}
           </p>
         ) : null}
 
         {!loading && !error && rows.length === 0 ? (
-          <div className="mt-4 rounded-[18px] border border-violet-300/35 bg-white/80 px-5 py-10 text-center text-sm font-semibold text-slate-500 shadow-[0_0_20px_rgba(139,92,246,0.08)] backdrop-blur-xl">
+          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-8 text-center text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
             Henüz kayıtlı analiz yok.
           </div>
         ) : null}
 
         {!loading && !error && rows.length > 0 && filteredRows.length === 0 ? (
-          <div className="mt-4 rounded-[18px] border border-violet-300/35 bg-white/80 px-5 py-8 text-center text-sm font-semibold text-slate-500 shadow-[0_0_20px_rgba(139,92,246,0.08)] backdrop-blur-xl">
+          <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-6 text-center text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
             Aramanızla eşleşen kayıt bulunamadı.
           </div>
         ) : null}
 
         {!loading && !error && filteredRows.length > 0 ? (
-          <ul className="mt-3 w-full space-y-2">
+          <ul className="mt-2.5 w-full space-y-1.5">
             {filteredRows.map((r) => (
               <NumerolojiListeKarti
                 key={r.id}

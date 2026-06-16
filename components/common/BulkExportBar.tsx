@@ -11,6 +11,7 @@ export type BulkExportBarProps = {
   onExportAll: () => void;
   onExportFiltered?: () => void;
   isExporting?: boolean;
+  compact?: boolean;
 };
 
 export function BulkExportBar({
@@ -24,8 +25,70 @@ export function BulkExportBar({
   onExportAll,
   onExportFiltered,
   isExporting,
+  compact,
 }: BulkExportBarProps) {
   const busy = Boolean(isExporting);
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-1.5 shadow-sm">
+        <span className="shrink-0 rounded-full border border-blue-300 bg-white px-2.5 py-0.5 text-[11px] font-black text-blue-800 shadow-sm">
+          {selectedCount > 0 ? `✓ ${selectedCount} seçili` : "Seçim yok"}
+        </span>
+
+        <button
+          type="button"
+          onClick={onSelectAll}
+          disabled={busy}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          Tümünü Seç ({totalCount})
+        </button>
+
+        {selectedCount > 0 && (
+          <button
+            type="button"
+            onClick={onClearSelection}
+            disabled={busy}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            Seçimi Temizle
+          </button>
+        )}
+
+        <div className="hidden h-3 w-px bg-blue-200 sm:block" aria-hidden />
+
+        <button
+          type="button"
+          onClick={onExportSelected}
+          disabled={selectedCount === 0 || busy}
+          className="rounded-lg border border-blue-400 bg-blue-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri (${selectedCount})`}
+        </button>
+
+        {hasActiveFilter && onExportFiltered && filteredCount !== undefined && (
+          <button
+            type="button"
+            onClick={onExportFiltered}
+            disabled={busy || filteredCount === 0}
+            className="rounded-lg border border-violet-400 bg-violet-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? "⏳..." : `📄 Filtreli (${filteredCount})`}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onExportAll}
+          disabled={busy}
+          className="rounded-lg border border-slate-400 bg-slate-700 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
+        >
+          {busy ? "⏳..." : `📄 Tümü (${totalCount})`}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-2 shadow-sm">
