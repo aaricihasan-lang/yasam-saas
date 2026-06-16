@@ -327,10 +327,10 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute -right-24 top-[20%] h-72 w-72 rounded-full bg-sky-300/18 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {/* hero — rozet + başlık + buton tek satırda */}
-        <header className="mb-2 sm:mb-3">
+        <header className="mb-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1 rounded-full border border-sky-200/80 bg-sky-50/95 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 shadow-sm">
@@ -366,11 +366,11 @@ export default function BelgeCeviriPage() {
             return (
               <div
                 key={card.id}
-                className={`flex flex-col rounded-xl border bg-gradient-to-br p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
+                className={`flex flex-col rounded-xl border bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
               >
                 {/* ikon + badge */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm ${card.iconWrap}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm ${card.iconWrap}`}>
                     {card.icon}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${card.badgeColor}`}>
@@ -379,16 +379,16 @@ export default function BelgeCeviriPage() {
                 </div>
 
                 {/* başlık */}
-                <h2 className="mt-2 text-sm font-black text-slate-900">{card.title}</h2>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{card.subtitle}</p>
+                <h2 className="mt-1.5 text-sm font-black text-slate-900">{card.title}</h2>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{card.subtitle}</p>
 
                 {/* dosya seçici alanı */}
-                <div className="mt-2 space-y-1.5">
+                <div className="mt-1.5 space-y-1">
                   <button
                     type="button"
                     disabled={disabled}
                     onClick={() => inputRefs.current[card.id]?.click()}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300/70 bg-white/60 px-3 py-2 text-[11px] font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300/70 bg-white/60 px-3 py-1.5 text-[11px] font-bold text-slate-500 transition hover:border-slate-400/80 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="flex items-center gap-1.5">
                       <FileUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
@@ -432,7 +432,7 @@ export default function BelgeCeviriPage() {
 
                 {/* çeviri modu seçici — sadece pdf-to-turkce-word */}
                 {card.id === "pdf-to-turkce-word" && !disabled && (
-                  <div className="mt-1.5 rounded-lg border border-slate-200/80 bg-white/70 p-1.5">
+                  <div className="mt-1 rounded-lg border border-slate-200/80 bg-white/70 p-1.5">
                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Çeviri Modu
                     </p>
@@ -440,7 +440,7 @@ export default function BelgeCeviriPage() {
                       {(["standard", "academic"] as const).map((m) => (
                         <label
                           key={m}
-                          className={`flex cursor-pointer items-start gap-1.5 rounded-md px-1.5 py-1 transition ${
+                          className={`flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 transition ${
                             translationMode === m
                               ? "bg-slate-100 ring-1 ring-slate-300"
                               : "hover:bg-slate-50"
@@ -452,16 +452,16 @@ export default function BelgeCeviriPage() {
                             value={m}
                             checked={translationMode === m}
                             onChange={() => setTranslationMode(m)}
-                            className="mt-0.5 accent-slate-800"
+                            className="accent-slate-800 shrink-0"
                           />
-                          <div>
-                            <p className="text-[11px] font-bold text-slate-800">
-                              {m === "standard" ? "Standart Çeviri" : "Akademik Çeviri"}
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-bold leading-none text-slate-800">
+                              {m === "standard" ? "Standart" : "Akademik"}
                             </p>
-                            <p className="text-[10px] font-medium text-slate-500">
+                            <p className="text-[10px] font-medium leading-tight text-slate-400">
                               {m === "standard"
-                                ? "gpt-4o-mini · Hızlı ve ekonomik"
-                                : "gpt-4.1 · Kitap, tez ve araştırma metinleri"}
+                                ? "gpt-4o-mini · hızlı"
+                                : "gpt-4.1 · kitap, tez"}
                             </p>
                           </div>
                         </label>
@@ -487,7 +487,7 @@ export default function BelgeCeviriPage() {
                   type="button"
                   disabled={!file || !!submitting || disabled || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
-                  className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-[11px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="mt-1.5 flex h-7 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-[11px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {submitting === card.id ? (
                     <>
@@ -705,7 +705,7 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* Büyük PDF Yardım Accordion */}
-        <div className="mt-4">
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => setHelpOpen((v) => !v)}
@@ -721,7 +721,7 @@ export default function BelgeCeviriPage() {
 
           {helpOpen && (
             <div className="mt-2 overflow-hidden rounded-2xl border border-violet-100 bg-white/90 shadow-md">
-              <div className="px-5 py-4">
+              <div className="px-4 py-3">
                 <h3 className="text-base font-black text-slate-900">📄 Büyük PDF Yükleme Rehberi</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
                   Belge Çeviri Merkezi yüksek boyutlu PDF dosyalarını çevirebilir. Ancak bazı PDF'ler yüksek
@@ -826,18 +826,18 @@ export default function BelgeCeviriPage() {
         </div>
 
         {/* bilgi şeridi */}
-        <div className="mt-4 overflow-hidden rounded-xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
+        <div className="mt-3 overflow-hidden rounded-lg border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
-              { icon: "🔒", title: "Güvenli İşlem", desc: "Belgeler işlem sonrası sunucudan silinir." },
-              { icon: "🌐", title: "Çoklu Dil", desc: "İngilizce, Almanca, Fransızca ve daha fazlası." },
-              { icon: "📄", title: "Format Koruma", desc: "Çeviri sonrası belge formatı korunur." },
+              { icon: "🔒", title: "Güvenli İşlem", desc: "Belgeler işlem sonrası silinir." },
+              { icon: "🌐", title: "Çoklu Dil", desc: "İng, Alm, Fr ve daha fazlası." },
+              { icon: "📄", title: "Format Koruma", desc: "Belge formatı korunur." },
             ].map((item, i) => (
-              <div key={item.title} className={`flex items-center gap-3 px-4 py-3 sm:flex-col sm:items-center sm:gap-1 sm:px-3 sm:py-3 sm:text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
-                <span className="text-base shrink-0" aria-hidden>{item.icon}</span>
+              <div key={item.title} className={`flex items-center gap-2 px-4 py-2 sm:flex-col sm:items-center sm:gap-1 sm:px-3 sm:py-2 sm:text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
+                <span className="text-sm shrink-0" aria-hidden>{item.icon}</span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-black text-white">{item.title}</p>
-                  <p className="mt-0.5 text-[10px] font-medium leading-relaxed text-indigo-200/80">{item.desc}</p>
+                  <p className="text-[10px] font-medium leading-tight text-indigo-200/70">{item.desc}</p>
                 </div>
               </div>
             ))}
