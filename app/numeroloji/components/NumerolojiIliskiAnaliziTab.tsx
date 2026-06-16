@@ -145,80 +145,21 @@ function generateScoreExplanation(
   return parts.join("; ") + " — " + tail;
 }
 
-type FullYorum = {
-  genel: string;
-  iletisim: string;
-  duygusalUyum: string;
-  gucluTaraflar: string[];
-  zorlayiciTaraflar: string[];
-  gelisimAlani: string;
-  oneri: string;
-};
+// ─── Input formatters ─────────────────────────────────────────────
 
-function generateFullYorum(el: ElementCounts, dom: { baskin: number; edilgen: number }): FullYorum {
-  const diff = Math.abs(dom.baskin - dom.edilgen);
+function formatAdInput(raw: string): string {
+  return raw.replace(/(?:^|[ ])[\wğüşıöçĞÜŞİÖÇ]/gu, (ch) => ch.toLocaleUpperCase("tr-TR"));
+}
 
-  // Genel
-  const genel =
-    diff <= 1
-      ? "Bu ilişkinin enerji dengesi akışkandır. Baskın ve edilgen enerjiler birbirini dengeler; bu da uzun vadeli bir uyum için güçlü bir temel oluşturur. İki taraf da hem yön veren hem de alan rolüne girebilir."
-      : dom.baskin > dom.edilgen
-      ? "İlişkide baskın enerji ağır basmaktadır. Her iki tarafın da yönlendirici olma isteği güçlü; bu dinamizm enerjik bir ortam yaratır ancak zaman zaman gerilime dönüşebilir. Güç dengesi konusunda farkındalık önemlidir."
-      : "İlişkide alıcı ve destekleyici enerji baskındır. Sabır, empati ve bekleyiş bu ilişkinin temel tonunu oluşturur. Karar alma süreçlerinde teşvik ve netlik değerli bir katkı sağlar.";
+function formatSoyadInput(raw: string): string {
+  return raw.toLocaleUpperCase("tr-TR");
+}
 
-  // İletişim
-  const iletisim =
-    el.Hava >= 3
-      ? "İletişim bu ilişkinin en parlak alanlarından biridir. Fikir alışverişi doğal bir akışla gerçekleşir; konuşmalar genellikle zenginleştirici ve canlandırıcıdır. Ortak projeler ve entelektüel paylaşımlar ilişkiyi derinleştirir."
-      : el.Hava >= 1
-      ? "İletişimde belirli bir zemin mevcuttur. Yüzeysel konuşmalar kolayca gerçekleşir; ancak derin ve dürüst ifadeler için bilinçli alan açmak gerekir. Dinleme kalitesini artırmak ilişkiye önemli katkı sağlar."
-      : "Hava enerjisinin yokluğu iletişimde zaman zaman boşluklar yaratabilir. Söylenmeyen şeyler birikmeden önce düzenli ve yapılandırılmış konuşma zamanları belirlemek faydalıdır. Yazılı iletişim de bu açığı kapatmaya yardımcı olabilir.";
-
-  // Duygusal uyum
-  const duygusalUyum =
-    el.Su >= 3
-      ? "Duygusal bağ bu ilişkinin kalbinde yer alır. Sezgi ve empati o kadar güçlüdür ki söze gerek kalmadan bile iç dünya anlaşılabilir. Bu derin duyarlılık güveni pekiştirir ve ilişkiye anlam katmanları ekler."
-      : el.Su >= 1
-      ? "Duygusal temas kurulabilmektedir; ancak bazı alanlarda daha derin bir his paylaşımına ihtiyaç olabilir. Birbirinin duygusal dilini keşfetmek ilişkinin kalitesini belirgin biçimde artırır."
-      : "Duygusal bağ kurma ve empati geliştirme bu ilişkide geliştirilmesi gereken bir alandır. Mantıksal yaklaşım duyguların önüne geçebilir; hisleri kabul etmek ve ifade etmek için güvenli ortamlar yaratmak önemlidir.";
-
-  // Güçlü taraflar
-  const gucluTaraflar: string[] = [];
-  if (el.Hava >= 3)   gucluTaraflar.push("Zihinsel uyum ve fikir alışverişi son derece güçlüdür.");
-  if (el.Su >= 3)     gucluTaraflar.push("Derin duygusal bağ ve sezgisel anlayış bu ilişkiyi besler.");
-  if (el.Ateş >= 3)   gucluTaraflar.push("Ortak tutku ve motivasyon ilişkiye canlılık katar.");
-  if (el.Toprak >= 3) gucluTaraflar.push("Güven, istikrar ve pratik dayanışma ilişkinin temeli.");
-  if (el.Nötr >= 2)   gucluTaraflar.push("Dönüşüm ve büyüme kapasitesi yüksek; ilişki öğretici bir nitelik taşıyor.");
-  if (diff <= 1)      gucluTaraflar.push("Enerji dengesi sağlıklı; ilişki doğal bir ritimde ilerler.");
-  if (!gucluTaraflar.length) gucluTaraflar.push("Farklı enerji alanları birbirini tamamlama potansiyeli taşır.");
-
-  // Zorlayıcı taraflar
-  const zorlayiciTaraflar: string[] = [];
-  if (el.Hava === 0)   zorlayiciTaraflar.push("İletişim boşlukları zaman zaman yanlış anlaşılmalara zemin hazırlayabilir.");
-  if (el.Su === 0)     zorlayiciTaraflar.push("Duygusal ifade ve empati geliştirme alanında çaba gerekebilir.");
-  if (el.Ateş === 0)   zorlayiciTaraflar.push("Motivasyon ve heyecan düşük dönemlerde ilişki durağanlaşabilir.");
-  if (el.Toprak === 0) zorlayiciTaraflar.push("Pratik kararlar ve maddi konularda ortak zemin bulmak güçleşebilir.");
-  if (dom.baskin > dom.edilgen + 2) zorlayiciTaraflar.push("Güç ve kontrol dengesi üzerine açık konuşmalar gerekebilir.");
-  if (dom.edilgen > dom.baskin + 2) zorlayiciTaraflar.push("Pasiflik ve karar erteleme dinamiği ilişkiye ağırlık katabilir.");
-  if (!zorlayiciTaraflar.length) zorlayiciTaraflar.push("Belirgin zorlayıcı bir alan tespit edilmedi; farkındalık korunmalı.");
-
-  // Gelişim alanı
-  const gelisimAlani =
-    el.Hava === 0 || el.Su === 0
-      ? "İlişkide en büyük gelişim alanı, eksik elementlerin bilinçli olarak beslendiği alanlardır. Birlikte yeni şeyler öğrenmek, yaratıcı projeler geliştirmek ve duygu paylaşımına alan açmak bu boşlukları doldurur."
-      : el.Toprak === 0 || el.Ateş === 0
-      ? "Ortak hedefler belirlemek ve somut adımlar atmak ilişkiyi güçlendirir. Rutinler oluşturmak, birlikte plan yapmak ve gerçekleştirebileceğiniz küçük projeler başlatmak enerjiyi topraklar."
-      : "Her iki tarafın da güçlü yönleri mevcut. Gelişim, mevcut güçleri dengeli kullanmak ve birbirinin tamamlayıcı enerjisini fark etmekten geçiyor. Dönüşüm dönemlerinde birbirinize destek olmak ilişkiyi derinleştirir.";
-
-  // Öneri
-  const oneri =
-    gucluTaraflar.length >= 3 && zorlayiciTaraflar.length <= 1
-      ? "Bu ilişki güçlü bir enerji tabanına sahip. Mevcut uyumu beslemek için birlikte yeni deneyimler yaşayın ve birbirinizdeki büyümeyi kutlayın. Küçük ritüeller ilişkiyi canlı tutar."
-      : gucluTaraflar.length > 0 && zorlayiciTaraflar.length > 0
-      ? "Güçlü alanlarınızı farkındalıkla kullanın; zorlayıcı alanları ise yargılamadan keşfedin. Her zorluk, ilişkiye derinlik katma fırsatıdır. Düzenli ve samimi iletişim dönüştürücü olacaktır."
-      : "Bu ilişki büyük bir öğrenme alanı sunuyor. Farklılıkları tehdit olarak değil, tamamlanma fırsatı olarak görmek ilişkinin seyrini değiştirebilir. Sabır ve merak en güçlü araçlarınız.";
-
-  return { genel, iletisim, duygusalUyum, gucluTaraflar, zorlayiciTaraflar, gelisimAlani, oneri };
+function formatTarihInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 // ─── Style constants ──────────────────────────────────────────────
@@ -273,20 +214,6 @@ function SectionCard({ title, children, accent = "violet" }: {
   );
 }
 
-function YorumBlok({ title, icon, text, color }: {
-  title: string; icon: string; text: string; color: string;
-}) {
-  return (
-    <div className={`rounded-xl px-3 py-3 ${color}`}>
-      <div className="mb-2 flex items-center gap-1.5">
-        <span className="text-sm leading-none">{icon}</span>
-        <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">{title}</p>
-      </div>
-      <p className="max-w-[72ch] text-xs leading-[1.75] text-slate-700">{text}</p>
-    </div>
-  );
-}
-
 // ─── Main export ──────────────────────────────────────────────────
 
 export interface NumerolojiIliskiAnaliziTabProps {
@@ -320,7 +247,6 @@ export function NumerolojiIliskiAnaliziTab({
   const iliskiPin: Pin8 | null = kisi2Pin8 ? calcRelationPin(kisi1Pin8, kisi2Pin8) : null;
   const iliskiEl = iliskiPin ? calcElementCounts(iliskiPin) : null;
   const iliskiDom = iliskiPin ? calcDominance(iliskiPin) : null;
-  const iliskiYorum = iliskiEl && iliskiDom ? generateFullYorum(iliskiEl, iliskiDom) : null;
   const uyumSkoru = iliskiEl && iliskiDom ? calcCompatibilityScore(iliskiEl, iliskiDom) : null;
 
   // ── Danışan helpers ──────────────────────────────────────────────
@@ -341,8 +267,8 @@ export function NumerolojiIliskiAnaliziTab({
   };
 
   const handleDanisanSec = (item: NumerologyRecordListItem) => {
-    setKisi2Name(item.name);
-    setKisi2Surname(item.surname);
+    setKisi2Name(formatAdInput(item.name));
+    setKisi2Surname(formatSoyadInput(item.surname));
     setKisi2BirthDate(item.birth_date);
     setShowDanisan(false);
     setDanisanSearch("");
@@ -476,16 +402,36 @@ export function NumerolojiIliskiAnaliziTab({
                   <div className="grid grid-cols-2 gap-1">
                     <div>
                       <label className={labelClass}>Ad</label>
-                      <input type="text" value={kisi2Name} onChange={(e) => setKisi2Name(e.target.value)} placeholder="Ad" className={inputClass} />
+                      <input
+                        type="text"
+                        value={kisi2Name}
+                        onChange={(e) => setKisi2Name(formatAdInput(e.target.value))}
+                        placeholder="Esra Nur"
+                        className={inputClass}
+                      />
                     </div>
                     <div>
                       <label className={labelClass}>Soyad</label>
-                      <input type="text" value={kisi2Surname} onChange={(e) => setKisi2Surname(e.target.value)} placeholder="Soyad" className={inputClass} />
+                      <input
+                        type="text"
+                        value={kisi2Surname}
+                        onChange={(e) => setKisi2Surname(formatSoyadInput(e.target.value))}
+                        placeholder="ARICI"
+                        className={inputClass}
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Doğum Tarihi (GG.AA.YYYY)</label>
-                    <input type="text" value={kisi2BirthDate} onChange={(e) => setKisi2BirthDate(e.target.value)} placeholder="15.03.1990" className={inputClass} />
+                    <label className={labelClass}>Doğum Tarihi (GG/AA/YYYY)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={kisi2BirthDate}
+                      onChange={(e) => setKisi2BirthDate(formatTarihInput(e.target.value))}
+                      placeholder="15/03/1990"
+                      maxLength={10}
+                      className={inputClass}
+                    />
                   </div>
                   {kisi2Pin8 ? (
                     <div className="flex items-center justify-between gap-2">
@@ -499,7 +445,7 @@ export function NumerolojiIliskiAnaliziTab({
                       </button>
                     </div>
                   ) : normalizedBirthDate ? (
-                    <p className="text-[10px] font-semibold text-rose-500">Geçerli tarih girin (GG.AA.YYYY)</p>
+                    <p className="text-[10px] font-semibold text-rose-500">Geçerli tarih girin (GG/AA/YYYY)</p>
                   ) : null}
                 </div>
               )}
@@ -723,53 +669,13 @@ export function NumerolojiIliskiAnaliziTab({
             </SectionCard>
           )}
 
-          {/* ── Yorumlar ───────────────────────────────────────────── */}
-          {iliskiYorum && (
-            <SectionCard title="İlişki Yorumu" accent="violet">
-              <div className="space-y-2">
-                <YorumBlok icon="✦" title="Genel Enerji"   text={iliskiYorum.genel}       color="bg-violet-50/80" />
-                <YorumBlok icon="💬" title="İletişim"       text={iliskiYorum.iletisim}     color="bg-sky-50/70" />
-                <YorumBlok icon="💙" title="Duygusal Uyum"  text={iliskiYorum.duygusalUyum} color="bg-blue-50/70" />
-
-                {iliskiYorum.gucluTaraflar.length > 0 && (
-                  <div className="rounded-xl bg-emerald-50/80 px-3 py-3">
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <span className="text-sm leading-none">🌟</span>
-                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Güçlü Taraflar</p>
-                    </div>
-                    <ul className="space-y-1.5">
-                      {iliskiYorum.gucluTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-xs leading-[1.75] text-slate-700">
-                          <span className="mt-px shrink-0 font-black text-emerald-500">✓</span>
-                          <span className="max-w-[72ch]">{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {iliskiYorum.zorlayiciTaraflar.length > 0 && (
-                  <div className="rounded-xl bg-amber-50/80 px-3 py-3">
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <span className="text-sm leading-none">⚡</span>
-                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Zorlayıcı Taraflar</p>
-                    </div>
-                    <ul className="space-y-1.5">
-                      {iliskiYorum.zorlayiciTaraflar.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-xs leading-[1.75] text-slate-700">
-                          <span className="mt-px shrink-0 font-black text-amber-500">◆</span>
-                          <span className="max-w-[72ch]">{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <YorumBlok icon="🌱" title="Birlikte Gelişim Alanı" text={iliskiYorum.gelisimAlani} color="bg-fuchsia-50/80" />
-                <YorumBlok icon="🔮" title="İlişki Önerisi"         text={iliskiYorum.oneri}        color="bg-violet-100/60" />
-              </div>
-            </SectionCard>
-          )}
+          {/* ── Nötr bilgi notu ────────────────────────────────────── */}
+          <div className="flex min-w-0 items-start gap-2.5 rounded-[12px] border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
+            <span className="mt-px shrink-0 text-slate-400">ℹ</span>
+            <p className="text-[11px] leading-[1.65] text-slate-500">
+              Bu ekran yalnızca iki kişinin PIN kodu, element dağılımı ve baskın/edilgen dengesini hesaplar. Yorumlama uzman tarafından yapılmalıdır.
+            </p>
+          </div>
         </>
       ) : (
         <div className="min-w-0 rounded-[14px] border-2 border-dashed border-violet-200/70 bg-white/60 px-4 py-8 text-center">
