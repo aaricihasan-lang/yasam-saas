@@ -425,24 +425,21 @@ export default function CosmicCalendarPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-violet-300/[0.12] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 pt-4 pb-12 lg:px-8">
+      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Hero ── */}
-        <section className="relative mb-3 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-indigo-200 via-violet-100 to-cyan-100 px-5 py-4 shadow-[0_12px_40px_rgba(99,102,241,0.18)] backdrop-blur-xl sm:px-6">
+        <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-indigo-200 via-violet-100 to-cyan-100 px-5 py-3.5 shadow-[0_12px_40px_rgba(99,102,241,0.18)] backdrop-blur-xl sm:px-6">
           <div className="pointer-events-none absolute -left-12 -top-12 h-56 w-56 rounded-full bg-violet-400/20 blur-[80px]" aria-hidden />
           <div className="pointer-events-none absolute -right-12 -top-12 h-52 w-52 rounded-full bg-cyan-400/20 blur-[80px]" aria-hidden />
-          <div className="relative flex flex-wrap items-start justify-between gap-3">
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 text-xl text-white shadow-md">🌙</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 text-lg text-white shadow-md">🌙</div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Yaşam Sistemi</p>
-                  <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Yaşam Takvimi / Kozmik Ajanda</h1>
+                  <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">Yaşam Takvimi / Kozmik Ajanda</h1>
                 </div>
               </div>
-              <p className="mt-1.5 max-w-2xl text-xs font-medium text-slate-600 sm:text-sm">
-                Günlük enerji, hicri takvim, ay fazları ve retro dönemleri tek merkezde.
-              </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {BADGES.map(b => (
                   <span key={b} className="rounded-full border border-indigo-200/80 bg-white/70 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 backdrop-blur-sm">{b}</span>
@@ -455,8 +452,74 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
+        {/* ── Kozmik Merkezler — kompakt, mobilde yatay scroll ── */}
+        <section className="mb-4">
+          <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🪐 Kozmik Merkezler</p>
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+            {([
+              {
+                emoji: "⭐",
+                title: "Güçlü Günler",
+                desc:  "Numeroloji + Ay Fazı",
+                href:  "/dashboard/cosmic-calendar/power-days",
+                color: "from-amber-50/90 to-yellow-50/60 border-amber-200/70 hover:border-amber-300",
+                titleColor: "text-amber-700",
+                descColor:  "text-amber-500",
+                live: true,
+              },
+              {
+                emoji: "☿",
+                title: "Retro Takvimi",
+                desc:  "Gezegen retro dönemleri",
+                href:  "/dashboard/cosmic-calendar/retro-calendar",
+                color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
+                titleColor: "text-rose-700",
+                descColor:  "text-rose-400",
+                live: true,
+              },
+              {
+                emoji: "🌙",
+                title: "Ay Fazları",
+                desc:  "Yeni Ay, Dolunay, dördünler",
+                href:  "/dashboard/cosmic-calendar/moon-phases",
+                color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
+                titleColor: "text-violet-700",
+                descColor:  "text-violet-400",
+                live: true,
+              },
+              {
+                emoji: "🩸",
+                title: "Hacamat Takvimi",
+                desc:  "Hicri takvime göre günler",
+                href:  "/dashboard/cosmic-calendar/hacamat",
+                color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
+                titleColor: "text-teal-700",
+                descColor:  "text-teal-400",
+                live: true,
+              },
+            ] as const).map(({ emoji, title, desc, href, color, titleColor, descColor, live }) => (
+              <Link
+                key={title}
+                href={href}
+                className={`group flex h-28 flex-none w-[190px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-3 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
+                aria-disabled={!live}
+                tabIndex={live ? 0 : -1}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xl leading-none">{emoji}</span>
+                  <span className={`text-[9px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
+                </div>
+                <div>
+                  <p className={`text-[12px] font-black leading-snug ${titleColor}`}>{title}</p>
+                  <p className={`mt-0.5 text-[10px] leading-snug ${descColor}`}>{desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* ── Enerji Kartı ── */}
-        <section className="relative mb-3 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)] sm:p-5">
+        <section className="relative mb-4 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)] sm:p-5">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-12 left-1/4 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl" aria-hidden />
@@ -491,7 +554,7 @@ export default function CosmicCalendarPage() {
         </section>
 
         {/* ── Kozmik Özet ── */}
-        <div className="mb-3 overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-2.5 shadow-sm backdrop-blur-md sm:p-3">
+        <div className="mb-4 overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-2.5 shadow-sm backdrop-blur-md sm:p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
             🌙 Kozmik Özet
             {!isSelectedToday && <span className="normal-case text-[9px] font-semibold text-slate-400">— {miladiDate}</span>}
@@ -506,28 +569,28 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Kozmik Arama ── */}
-        <div className="mb-3 rounded-[18px] border border-white/80 bg-white/70 p-2.5 shadow-sm backdrop-blur-md sm:p-3">
-          <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🔍 Kozmik Arama</p>
-          <div className="flex gap-1.5">
+        {/* ── Kozmik Arama — premium ── */}
+        <div className="mb-4 rounded-[18px] border border-slate-200/80 bg-white/85 p-3 shadow-md backdrop-blur-md">
+          <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🔍 Kozmik Arama</p>
+          <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-300" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Dolunay, Merkür retrosu, 15 Ağustos 2026 veya 42 gün sonra…"
+                placeholder="Dolunay, Retro, Hacamat, Altın Gün veya tarih ara..."
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setSearchResult(null); }}
                 onKeyDown={e => e.key === "Enter" && handleSearch()}
-                className="w-full rounded-xl border border-slate-200 bg-white/80 py-1.5 pl-7 pr-7 text-[11px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-8 text-[12px] font-medium text-slate-700 placeholder:text-slate-400 shadow-inner focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300/30"
               />
               {searchQuery && (
-                <button onClick={() => { setSearchQuery(""); setSearchResult(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
-                  <X className="h-3 w-3" />
+                <button onClick={() => { setSearchQuery(""); setSearchResult(null); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
-            <button onClick={handleSearch} disabled={!searchQuery.trim()} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-40">
+            <button onClick={handleSearch} disabled={!searchQuery.trim()} className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-[12px] font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-40">
               Ara
             </button>
           </div>
@@ -632,7 +695,7 @@ export default function CosmicCalendarPage() {
         </div>
 
         {/* ── Ana Grid ── */}
-        <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_300px]">
 
           {/* ── Sol Kolon ── */}
           <div className="flex flex-col gap-4">
@@ -768,97 +831,87 @@ export default function CosmicCalendarPage() {
 
             {/* Seçili Gün Detayı */}
             <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-2.5 flex items-center gap-2">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm text-white shadow-sm">📅</div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">Seçili Gün Detayı</p>
                   {isSelectedToday && <span className="text-[9px] font-semibold text-emerald-600">● Bugün</span>}
                 </div>
               </div>
-              <div className="space-y-1.5">
+
+              {/* 2-kolon bilgi grid */}
+              <div className="grid grid-cols-2 gap-1">
                 {[
-                  { icon: "📅",            label: "Miladi Tarih", value: miladiDate,                               color: "text-slate-800" },
-                  { icon: "🕋",            label: "Hicri Tarih",  value: hijriDate,                                color: "text-slate-700" },
-                  { icon: moonPhase.emoji, label: "Ay Fazı",      value: moonPhase.name,                           color: "text-violet-700" },
-                  { icon: moonSign.emoji,  label: "Ay Burcu",     value: moonSign.name,                            color: "text-indigo-700" },
-                  { icon: "🔢",            label: "Numeroloji",   value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}`, color: "text-slate-800" },
+                  { icon: "📅",            label: "Miladi",     value: miladiDate,                               color: "text-slate-800" },
+                  { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
+                  { icon: moonPhase.emoji, label: "Ay Fazı",    value: moonPhase.name,                           color: "text-violet-700" },
+                  { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
+                  { icon: "🔢",            label: "Numeroloji", value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}`, color: "text-slate-800" },
+                  { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
                 ].map(({ icon, label, value, color }) => (
-                  <div key={label} className="rounded-xl bg-slate-50/70 px-2.5 py-2">
-                    <p className="text-[9px] text-slate-400">{icon} {label}</p>
-                    <p className={`text-[12px] font-black ${color}`}>{value}</p>
+                  <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
+                    <p className="text-[8px] text-slate-400">{icon} {label}</p>
+                    <p className={`truncate text-[11px] font-black leading-snug ${color}`}>{value}</p>
                   </div>
                 ))}
-
-                {/* Retro Durumu — tema + kalan gün */}
-                <div className={`rounded-xl px-2.5 py-2 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
-                  <p className="text-[9px] text-slate-400">🪐 Retro Durumu</p>
-                  {activeRetros.length === 0 ? (
-                    <p className="text-[12px] font-black text-emerald-600">Aktif Retro Bulunmuyor</p>
-                  ) : (
-                    <div className="mt-0.5 space-y-2.5">
-                      {activeRetros.map(r => {
-                        const selMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                        const endDate     = parseRetroDate(r.end);
-                        const kalan       = Math.max(0, Math.ceil((endDate.getTime() - selMidnight.getTime()) / 86_400_000));
-                        return (
-                          <div key={r.planet} className="space-y-0.5">
-                            <p className="text-[12px] font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
-                            {r.theme && (
-                              <p className="text-[9px] leading-snug text-slate-500">{r.theme}</p>
-                            )}
-                            <p className="text-[9px] text-slate-400">
-                              {formatShortDate(parseRetroDate(r.start))} – {formatShortDate(endDate)}
-                            </p>
-                            <div className="flex items-center gap-2 pt-0.5">
-                              <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[8px] font-black text-rose-600">Aktif dönemde</span>
-                              <span className="text-[9px] font-semibold text-slate-600">{kalan} gün kaldı</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
-                  <p className="text-[9px] text-slate-400">{dayRuler.symbol} Gezegen Saati Özeti</p>
-                  <p className="text-[12px] font-black text-indigo-700">{dayRuler.name} Günü</p>
-                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{dayRuler.description}</p>
-                </div>
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-2.5 py-2">
-                  <p className="text-[9px] text-slate-400">💫 Günlük Enerji Yorumu</p>
-                  <p className="text-[12px] font-black text-violet-700">{energy.title}</p>
-                  <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">{energy.mainTheme}</p>
-                </div>
               </div>
 
-              {/* Tarih Rehberi */}
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">🔮 Günlük Rehber</p>
+              {/* Retro Durumu */}
+              <div className={`mt-1.5 rounded-xl px-2.5 py-2 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
+                <p className="text-[8px] text-slate-400">🪐 Retro Durumu</p>
+                {activeRetros.length === 0 ? (
+                  <p className="text-[11px] font-black text-emerald-600">Aktif Retro Yok</p>
+                ) : (
+                  <div className="mt-0.5 space-y-1.5">
+                    {activeRetros.map(r => {
+                      const selMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                      const endDate     = parseRetroDate(r.end);
+                      const kalan       = Math.max(0, Math.ceil((endDate.getTime() - selMidnight.getTime()) / 86_400_000));
+                      return (
+                        <div key={r.planet} className="space-y-0.5">
+                          <p className="text-[11px] font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
+                          {r.theme && <p className="text-[9px] leading-snug text-slate-500">{r.theme}</p>}
+                          <p className="text-[9px] text-slate-400">
+                            {formatShortDate(parseRetroDate(r.start))} – {formatShortDate(endDate)}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[8px] font-black text-rose-600">Aktif</span>
+                            <span className="text-[9px] font-semibold text-slate-600">{kalan} gün kaldı</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Günlük Rehber */}
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">🔮 Günlük Rehber</p>
                 <div className="space-y-1.5">
                   <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-violet-600">✨ Günün Potansiyeli</p>
-                    <p className="text-[10px] leading-snug text-slate-700">{guidance.potential}</p>
+                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-violet-600">✨ Günün Potansiyeli</p>
+                    <p className="text-[14px] leading-6 text-slate-700">{guidance.potential}</p>
                   </div>
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-700">✓ Uygun Aktiviteler</p>
+                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun Aktiviteler</p>
                     <ul className="space-y-0.5">
                       {guidance.activities.map((a, i) => (
-                        <li key={i} className="flex items-center gap-1 text-[10px] text-slate-700"><span className="shrink-0 font-black text-emerald-500">✓</span>{a}</li>
+                        <li key={i} className="flex items-center gap-1 text-[14px] leading-6 text-slate-700"><span className="shrink-0 font-black text-emerald-500">✓</span>{a}</li>
                       ))}
                     </ul>
                   </div>
                   <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-700">⚠ Dikkat Edilmesi Gerekenler</p>
+                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
                     <ul className="space-y-0.5">
                       {guidance.cautions.map((c, i) => (
-                        <li key={i} className="flex items-center gap-1 text-[10px] text-slate-700"><span className="shrink-0 font-black text-amber-500">⚠</span>{c}</li>
+                        <li key={i} className="flex items-center gap-1 text-[14px] leading-6 text-slate-700"><span className="shrink-0 font-black text-amber-500">⚠</span>{c}</li>
                       ))}
                     </ul>
                   </div>
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-indigo-700">🧘 Ruhsal Öneri</p>
-                    <p className="text-[10px] leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
+                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal Öneri</p>
+                    <p className="text-[14px] leading-6 text-slate-600">{guidance.spiritualSuggestion}</p>
                   </div>
                 </div>
               </div>
@@ -910,76 +963,6 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Kozmik Merkezler ── */}
-        <div className="mt-4">
-          <p className="mb-3 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🪐 Kozmik Merkezler</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {([
-              {
-                emoji: "⭐",
-                title: "Güçlü Günler Merkezi",
-                desc:  "Numeroloji + Ay Fazı en güçlü günler",
-                href:  "/dashboard/cosmic-calendar/power-days",
-                color: "from-amber-50/90 to-yellow-50/60 border-amber-200/70 hover:border-amber-300",
-                titleColor: "text-amber-700",
-                descColor:  "text-amber-500",
-                live: true,
-              },
-              {
-                emoji: "☿",
-                title: "Retro Takvimi",
-                desc:  "Gezegen retro dönemleri ve etkileri",
-                href:  "/dashboard/cosmic-calendar/retro-calendar",
-                color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
-                titleColor: "text-rose-700",
-                descColor:  "text-rose-400",
-                live: true,
-              },
-              {
-                emoji: "🌙",
-                title: "Ay Fazları Rehberi",
-                desc:  "Yeni Ay, Dolunay ve dördünler rehberi",
-                href:  "/dashboard/cosmic-calendar/moon-phases",
-                color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
-                titleColor: "text-violet-700",
-                descColor:  "text-violet-400",
-                live: true,
-              },
-              {
-                emoji: "🩸",
-                title: "Hacamat Takvimi",
-                desc:  "Hicri takvime göre hacamat günleri",
-                href:  "/dashboard/cosmic-calendar/hacamat",
-                color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
-                titleColor: "text-teal-700",
-                descColor:  "text-teal-400",
-                live: true,
-              },
-            ] as const).map(({ emoji, title, desc, href, color, titleColor, descColor, live }) => (
-              <Link
-                key={title}
-                href={href}
-                className={`group flex flex-col gap-2 rounded-2xl border bg-gradient-to-br p-3.5 shadow-sm backdrop-blur-md transition-all hover:shadow-md ${color} ${!live ? "pointer-events-none opacity-60" : ""}`}
-                aria-disabled={!live}
-                tabIndex={live ? 0 : -1}
-              >
-                <div className="flex items-start justify-between">
-                  <span className="text-2xl leading-none">{emoji}</span>
-                  {!live && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-400">Yakında</span>
-                  )}
-                </div>
-                <div>
-                  <p className={`text-[12px] font-black leading-snug ${titleColor}`}>{title}</p>
-                  <p className={`mt-0.5 text-[10px] leading-snug ${descColor}`}>{desc}</p>
-                </div>
-                {live && (
-                  <span className={`mt-auto self-end text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </div>
 
       </div>
     </main>
