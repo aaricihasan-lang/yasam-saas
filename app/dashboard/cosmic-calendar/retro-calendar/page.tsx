@@ -177,42 +177,36 @@ export default function RetroCalendarPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-orange-200/[0.15] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-pink-200/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-12 lg:px-8">
+      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Hero ── */}
-        <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-rose-100 via-pink-50 to-orange-50 px-5 py-4 shadow-[0_12px_40px_rgba(244,63,94,0.15)] backdrop-blur-xl sm:px-6">
+        <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-rose-100 via-pink-50 to-orange-50 px-5 py-3 shadow-[0_12px_40px_rgba(244,63,94,0.15)] backdrop-blur-xl sm:px-6">
           <div className="pointer-events-none absolute -left-12 -top-12 h-56 w-56 rounded-full bg-rose-400/15 blur-[80px]" aria-hidden />
           <div className="pointer-events-none absolute -right-12 -top-12 h-52 w-52 rounded-full bg-orange-300/15 blur-[80px]" aria-hidden />
-          <div className="relative flex flex-wrap items-start justify-between gap-3">
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-xl text-white shadow-md">☿</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-lg text-white shadow-md">☿</div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">Kozmik Merkezler</p>
-                  <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Retro Takvimi</h1>
+                  <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">Retro Takvimi</h1>
                 </div>
               </div>
-              <p className="mt-1.5 max-w-2xl text-xs font-medium text-slate-600 sm:text-sm">
-                Merkür, Venüs, Mars, Jüpiter ve Satürn retro dönemleri.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <div className="flex items-center gap-1.5 rounded-xl border border-rose-200/60 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm">
-                  <span className={`h-2 w-2 rounded-full ${activeCountAll > 0 ? "animate-pulse bg-rose-400" : "bg-emerald-400"}`} />
-                  <span className="text-[11px] font-black text-slate-700">
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="flex items-center gap-1.5 rounded-xl border border-rose-200/60 bg-white/70 px-2.5 py-1 backdrop-blur-sm">
+                  <span className={`h-1.5 w-1.5 rounded-full ${activeCountAll > 0 ? "animate-pulse bg-rose-400" : "bg-emerald-400"}`} />
+                  <span className="text-[10px] font-black text-slate-700">
                     {activeCountAll > 0 ? `${activeCountAll} Aktif Retro` : "Aktif Retro Yok"}
                   </span>
                 </div>
                 {nextRetroAny && (
-                  <div className="flex items-center gap-1.5 rounded-xl border border-orange-200/60 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm">
-                    <span className="text-[11px] leading-none">{PLANET_SYMBOLS[nextRetroAny.planet]}</span>
-                    <span className="text-[11px] font-semibold text-slate-600">
+                  <div className="flex items-center gap-1.5 rounded-xl border border-orange-200/60 bg-white/70 px-2.5 py-1 backdrop-blur-sm">
+                    <span className="text-[10px] leading-none">{PLANET_SYMBOLS[nextRetroAny.planet]}</span>
+                    <span className="text-[10px] font-semibold text-slate-600">
                       Sıradaki: <span className="text-slate-800">{nextRetroAny.planet}</span> — {formatDate(parseRetroDate(nextRetroAny.start))}
                     </span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm">
-                  <span className="text-[11px] text-slate-500">Veri: 2026–2036</span>
-                </div>
               </div>
             </div>
             <Link
@@ -528,38 +522,38 @@ export default function RetroCalendarPage() {
                   key={planet}
                   className={`rounded-[16px] border ${style.border} bg-gradient-to-br ${style.lightBg} to-white/80 p-3 shadow-sm backdrop-blur-md`}
                 >
-                  <div className="mb-2.5 flex items-center gap-2">
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg ${style.bg}`}>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base ${style.bg}`}>
                       {PLANET_SYMBOLS[planet]}
                     </span>
                     <div className="min-w-0">
-                      <p className={`text-[12px] font-black leading-tight ${style.darkText}`}>{planet}</p>
+                      <p className={`text-[11px] font-black leading-tight ${style.darkText}`}>{planet}</p>
                       {isCurrentlyActive && (
                         <p className="text-[8px] font-bold text-rose-500">● Aktif</p>
                       )}
                     </div>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <div>
                       <p className="text-[8px] text-slate-400">Sonraki Retro</p>
                       {next ? (
                         <>
-                          <p className="text-[10px] font-semibold text-slate-700">{formatDate(parseRetroDate(next.start))}</p>
+                          <p className="text-[9px] font-semibold text-slate-700">{formatDate(parseRetroDate(next.start))}</p>
                           {daysUntilNext !== null && (
-                            <p className={`text-[9px] font-bold ${daysUntilNext <= 30 ? "text-rose-600" : daysUntilNext <= 90 ? "text-orange-600" : style.text}`}>
-                              {daysUntilNext} gün sonra
+                            <p className={`text-[8px] font-bold ${daysUntilNext <= 30 ? "text-rose-600" : daysUntilNext <= 90 ? "text-orange-600" : style.text}`}>
+                              {daysUntilNext}g sonra
                             </p>
                           )}
                         </>
                       ) : (
-                        <p className="text-[9px] text-slate-400">Veri yok</p>
+                        <p className="text-[8px] text-slate-400">Veri yok</p>
                       )}
                     </div>
-                    <div className="border-t border-slate-100/80 pt-1.5 space-y-0.5">
+                    <div className="border-t border-slate-100/80 pt-1 space-y-0.5">
                       {[
-                        ["Ort. sıklık", `~${stats.avgFrequency}g`],
-                        ["Ort. süre",   `~${stats.avgDuration}g`],
-                        ["Kayıt",       `${stats.count} retro`],
+                        ["Sıklık", `~${stats.avgFrequency}g`],
+                        ["Süre",   `~${stats.avgDuration}g`],
+                        ["Kayıt",  `${stats.count}`],
                       ].map(([label, value]) => (
                         <div key={label} className="flex items-center justify-between">
                           <span className="text-[8px] text-slate-400">{label}</span>

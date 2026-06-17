@@ -100,7 +100,9 @@ function getUpcomingPowerDays(from: Date, days: number): PowerDay[] {
 
 export default function PowerDaysPage() {
   const now = useMemo(() => new Date(), []);
-  const [filter, setFilter] = useState<PowerFilter>("all");
+  const [filter,   setFilter]   = useState<PowerFilter>("all");
+  const [showAll,  setShowAll]  = useState(false);
+  const INITIAL_SHOW = 20;
 
   const thisMonthDays = useMemo(
     () => getMonthPowerDays(now.getFullYear(), now.getMonth()),
@@ -137,7 +139,7 @@ export default function PowerDaysPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-yellow-200/[0.15] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-orange-200/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[900px] px-4 pt-4 pb-12 lg:px-8">
+      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Başlık ── */}
         <div className="mb-4 flex items-center gap-3">
@@ -166,7 +168,7 @@ export default function PowerDaysPage() {
               {top3.map((day, i) => (
                 <div
                   key={day.date.toISOString()}
-                  className={`rounded-2xl border p-3 ${
+                  className={`rounded-2xl border p-2.5 ${
                     i === 0
                       ? "border-amber-200/80 bg-gradient-to-br from-amber-50 to-yellow-50/60"
                       : i === 1
@@ -174,21 +176,21 @@ export default function PowerDaysPage() {
                       : "border-orange-100/80 bg-gradient-to-br from-orange-50/60 to-white/60"
                   }`}
                 >
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xl leading-none">{MEDAL[i]}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-lg leading-none">{MEDAL[i]}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${
                       i === 0 ? "bg-amber-100 text-amber-700" :
                       i === 1 ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-600"
                     }`}>
-                      {day.score} puan
+                      {day.score}p
                     </span>
                   </div>
-                  <p className="text-[15px] font-black text-slate-800">
+                  <p className="text-[13px] font-black text-slate-800">
                     {day.date.getDate()} {MONTH_NAMES_TR[day.date.getMonth()]}
                   </p>
-                  <div className="mt-1.5 flex flex-col gap-0.5">
+                  <div className="mt-1 flex flex-col gap-0.5">
                     {day.reasons.map(r => (
-                      <span key={r.label} className="text-[10px] text-slate-500">
+                      <span key={r.label} className="text-[9px] text-slate-500">
                         {r.label} <span className="font-bold text-amber-600">+{r.pts}</span>
                       </span>
                     ))}
@@ -230,52 +232,41 @@ export default function PowerDaysPage() {
             </p>
           ) : (
             <>
-              {/* Başlık satırı */}
               <div className="mb-1.5 grid grid-cols-[3rem_1fr_4rem_auto] gap-2 border-b border-slate-100 pb-1.5 sm:grid-cols-[3rem_1fr_5rem_5rem_4rem]">
                 <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Süre</span>
                 <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Tarih</span>
                 <span className="hidden text-[8px] font-bold uppercase tracking-wider text-slate-400 sm:block">Ay Fazı</span>
                 <span className="hidden text-[8px] font-bold uppercase tracking-wider text-slate-400 sm:block">Numeroloji</span>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400 text-right">Puan</span>
+                <span className="text-right text-[8px] font-bold uppercase tracking-wider text-slate-400">Puan</span>
               </div>
 
               <div className="divide-y divide-slate-100/60">
-                {filtered.map((day, idx) => (
+                {(showAll ? filtered : filtered.slice(0, INITIAL_SHOW)).map((day, idx) => (
                   <div
                     key={`${day.date.toISOString()}-${idx}`}
-                    className="grid grid-cols-[3rem_1fr_4rem] items-center gap-2 py-2 sm:grid-cols-[3rem_1fr_5rem_5rem_4rem]"
+                    className="grid grid-cols-[3rem_1fr_4rem] items-center gap-2 py-1.5 sm:grid-cols-[3rem_1fr_5rem_5rem_4rem]"
                   >
-                    {/* Geri sayım */}
                     <span className={`text-right text-[10px] font-black tabular-nums ${
                       day.daysFromNow <= 7  ? "text-rose-600" :
                       day.daysFromNow <= 21 ? "text-amber-600" : "text-slate-400"
                     }`}>
                       {day.daysFromNow === 1 ? "yarın" : `${day.daysFromNow}g`}
                     </span>
-
-                    {/* Tarih */}
                     <div>
                       <p className="text-[12px] font-black text-slate-800">
                         {day.date.getDate()} {MONTH_NAMES_TR[day.date.getMonth()]}
                       </p>
-                      {/* Mobilde kompakt detay */}
                       <p className="text-[9px] text-slate-400 sm:hidden">
                         {day.moonPts > 0 ? `${day.moonEmoji} ${day.moonLabel}` : "—"}
                         {" · "}{day.numValue} sayısı
                       </p>
                     </div>
-
-                    {/* Ay fazı — sadece masaüstü */}
                     <span className="hidden truncate text-[10px] text-slate-600 sm:block">
                       {day.moonPts > 0 ? `${day.moonEmoji} ${day.moonLabel}` : <span className="text-slate-300">—</span>}
                     </span>
-
-                    {/* Numeroloji — sadece masaüstü */}
                     <span className="hidden text-[10px] text-slate-600 sm:block">
                       {day.numPts > 0 ? `${day.numValue} sayısı` : <span className="text-slate-300">—</span>}
                     </span>
-
-                    {/* Puan rozeti */}
                     <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-black ${
                       day.score >= 4 ? "bg-amber-100 text-amber-700" :
                       day.score >= 3 ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-500"
@@ -285,6 +276,17 @@ export default function PowerDaysPage() {
                   </div>
                 ))}
               </div>
+
+              {filtered.length > INITIAL_SHOW && (
+                <button
+                  onClick={() => setShowAll(v => !v)}
+                  className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                >
+                  {showAll
+                    ? "Daha Az Göster ↑"
+                    : `Daha Fazla Göster — ${filtered.length - INITIAL_SHOW} kayıt daha ↓`}
+                </button>
+              )}
             </>
           )}
         </div>

@@ -245,7 +245,7 @@ export default function MoonPhasesPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-indigo-200/[0.15] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-200/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-12 lg:px-8">
+      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Hero ── */}
         <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-indigo-100 via-violet-50 to-cyan-50 px-5 py-4 shadow-[0_12px_40px_rgba(99,102,241,0.15)] backdrop-blur-xl sm:px-6">
@@ -628,7 +628,7 @@ export default function MoonPhasesPage() {
               return (
                 <div
                   key={bound.name}
-                  className={`relative rounded-[16px] border bg-gradient-to-br p-3.5 shadow-sm backdrop-blur-md transition-shadow ${
+                  className={`relative rounded-[16px] border bg-gradient-to-br p-3 shadow-sm backdrop-blur-md transition-shadow ${
                     guide.bgFrom} ${guide.bgTo} ${guide.border
                   } ${isCurrent ? "ring-2 ring-violet-400 shadow-lg shadow-violet-200/40" : ""}`}
                 >
@@ -637,34 +637,31 @@ export default function MoonPhasesPage() {
                       Şu An
                     </div>
                   )}
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-2xl leading-none">{bound.emoji}</span>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xl leading-none">{bound.emoji}</span>
                     {isMainPhase && (
                       <span className={`rounded-full px-1.5 py-0.5 text-[7px] font-black ${guide.badge} ${guide.badgeText}`}>
                         Ana Faz
                       </span>
                     )}
                   </div>
-                  <h3 className={`mb-1 text-[13px] font-black ${guide.textColor}`}>{bound.name}</h3>
-                  <p className={`mb-2 text-[9px] font-semibold leading-snug ${guide.textColor} opacity-80`}>
+                  <h3 className={`mb-0.5 text-[12px] font-black ${guide.textColor}`}>{bound.name}</h3>
+                  <p className={`mb-1.5 text-[9px] font-semibold leading-snug ${guide.textColor} opacity-80`}>
                     {guide.energy}
                   </p>
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">Uygun</p>
-                    <ul className="space-y-0.5">
-                      {guide.activities.map((a, i) => (
-                        <li key={i} className="flex items-start gap-1 text-[9px] text-slate-600">
-                          <span className="mt-0.5 shrink-0 font-black text-emerald-400">✓</span>
-                          {a}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="mt-2 rounded-lg bg-white/40 px-2 py-1.5">
+                  <ul className="space-y-0.5 mb-1.5">
+                    {guide.activities.map((a, i) => (
+                      <li key={i} className="flex items-start gap-1 text-[9px] text-slate-600">
+                        <span className="mt-0.5 shrink-0 font-black text-emerald-400">✓</span>
+                        {a}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="rounded-lg bg-white/40 px-2 py-1">
                     <p className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">⚠ Dikkat</p>
                     <p className="text-[9px] text-slate-600">{guide.caution}</p>
                   </div>
-                  <div className="mt-2 border-t border-white/40 pt-2">
+                  <div className="mt-1.5 border-t border-white/40 pt-1.5">
                     <p className={`text-[9px] italic leading-snug ${guide.textColor} opacity-70`}>
                       "{guide.insight}"
                     </p>

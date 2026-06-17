@@ -84,8 +84,8 @@ function MonthContent({
 
   return (
     <div className="space-y-4">
-      {/* Grid: Takvim + Tablo */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_560px]">
+      {/* Grid: Takvim 45% + Tablo 55% */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[9fr_11fr]">
 
         {/* Aylık Takvim */}
         <section className="rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md sm:p-4">
@@ -302,7 +302,7 @@ export default function HacamatPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-cyan-200/[0.15] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-red-200/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-12 lg:px-8">
+      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Hero ── */}
         <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-teal-100 via-cyan-50 to-emerald-50 px-5 py-4 shadow-[0_12px_40px_rgba(20,184,166,0.18)] backdrop-blur-xl sm:px-6">
@@ -341,8 +341,8 @@ export default function HacamatPage() {
             { count: buAyData.uygun.length,          label: "Uygun Gün",      bg: "bg-yellow-50",  border: "border-yellow-200",  text: "text-yellow-700",  num: "text-yellow-500" },
             { count: buAyData.yasakliNotable.length, label: "Yasaklı (17-24)", bg: "bg-red-50",     border: "border-red-200",     text: "text-red-700",     num: "text-red-400"    },
           ].map(({ count, label, bg, border, text, num }) => (
-            <div key={label} className={`rounded-[16px] border ${bg} ${border} px-3 py-3 shadow-sm backdrop-blur-md`}>
-              <p className={`text-2xl font-black ${num}`}>{count}</p>
+            <div key={label} className={`rounded-[14px] border ${bg} ${border} px-3 py-2 shadow-sm backdrop-blur-md`}>
+              <p className={`text-xl font-black ${num}`}>{count}</p>
               <p className={`text-[10px] font-semibold ${text}`}>{label}</p>
               <p className="text-[9px] text-slate-400">{MONTH_NAMES_TR[todayMonth]} {todayYear}</p>
             </div>
