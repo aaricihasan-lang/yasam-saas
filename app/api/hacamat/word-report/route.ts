@@ -147,7 +147,7 @@ export async function POST(request: Request): Promise<Response> {
   const data        = getHacamatMonthData(year, month);
   const monthLabel  = `${MONTH_NAMES_TR[month]} ${year}`;
   const today       = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  const dateSlug    = new Date().toISOString().slice(0, 10);
+
 
   const all: ReportChild[] = [];
 
@@ -283,7 +283,7 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   const buffer   = await Packer.toBuffer(doc);
-  const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}-${dateSlug}.docx`;
+  const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.docx`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {
