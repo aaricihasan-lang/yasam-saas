@@ -244,7 +244,7 @@ export default function CosmicCalendarPage() {
         </div>
 
         {/* ── Ana Grid: Takvim (sol) + Panel (sağ) ── */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
 
           {/* ── Sol: Aylık Takvim ── */}
           <div className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
