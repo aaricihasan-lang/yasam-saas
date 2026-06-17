@@ -929,11 +929,11 @@ export default function CosmicCalendarPage() {
                 emoji: "☿",
                 title: "Retro Takvimi",
                 desc:  "Gezegen retro dönemleri ve etkileri",
-                href:  "#",
+                href:  "/dashboard/cosmic-calendar/retro-calendar",
                 color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
                 titleColor: "text-rose-700",
                 descColor:  "text-rose-400",
-                live: false,
+                live: true,
               },
               {
                 emoji: "🌙",
