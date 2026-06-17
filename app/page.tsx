@@ -27,6 +27,7 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
+import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -518,39 +519,6 @@ function getMoonSign(date: Date): typeof ZODIAC_SIGNS[number] {
   return ZODIAC_SIGNS.find((z) => z.tr === signName) ?? ZODIAC_SIGNS[0];
 }
 
-const PLANET_NAMES = ["Güneş","Venüs","Merkür","Ay","Satürn","Jüpiter","Mars"] as const;
-const PLANET_EMOJIS = ["☀️","♀️","☿","🌙","♄","♃","♂"] as const;
-// Chaldean order indices into PLANET_NAMES: Saturn=4, Jupiter=5, Mars=6, Sun=0, Venus=1, Mercury=2, Moon=3
-const CHALDEAN_IDX = [4, 5, 6, 0, 1, 2, 3] as const;
-// Starting Chaldean position for hour-0 of each weekday (0=Sun through 6=Sat)
-const DAY_START_POS = [3, 6, 2, 5, 1, 4, 0] as const;
-
-function fmtHour(h: number): string {
-  return `${String(h % 24).padStart(2, "0")}:00`;
-}
-
-function getPlanetaryHour(date: Date) {
-  const h = date.getHours();
-  const curPos = (DAY_START_POS[date.getDay()]! + h) % 7;
-  const nextPos = (curPos + 1) % 7;
-  return {
-    current: {
-      name: PLANET_NAMES[CHALDEAN_IDX[curPos]!]!,
-      emoji: PLANET_EMOJIS[CHALDEAN_IDX[curPos]!]!,
-      startTime: fmtHour(h),
-      endTime: fmtHour(h + 1),
-    },
-    next: {
-      name: PLANET_NAMES[CHALDEAN_IDX[nextPos]!]!,
-      emoji: PLANET_EMOJIS[CHALDEAN_IDX[nextPos]!]!,
-      startTime: fmtHour(h + 1),
-      endTime: fmtHour(h + 2),
-    },
-    minutesLeft: 60 - date.getMinutes(),
-    pct: Math.round((date.getMinutes() / 60) * 100),
-  };
-}
-
 const WEEKDAY_STONES = ["Kehribar","Aytaşı","Karneol","Amazont","Lapis Lazuli","Gül Kuvars","Obsidyen"] as const;
 const WEEKDAY_CHAKRAS = [
   { name: "Güneş Sinir Ağı", emoji: "🟡" },
@@ -637,6 +605,10 @@ function LivePanel({ date }: { date: Date | null }) {
   const numDay = numerologicalDay(date);
   const numDesc = NUMEROLOGY_DESC[numDay] ?? "";
 
+  function fmtTime(d: Date): string {
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+
   const rows = [
     { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.tr}` },
     { label: "Ay Burcu",       value: `${moon.emoji} ${moon.tr}` },
@@ -644,8 +616,8 @@ function LivePanel({ date }: { date: Date | null }) {
     { label: "Numeroloji",     value: `🔢 ${numDay} · ${numDesc}` },
     {
       label: "Gezegen Saati",
-      value: `${planetary.current.emoji} ${planetary.current.name}`,
-      sub: `${planetary.current.startTime}–${planetary.current.endTime} · ${planetary.minutesLeft} dk kaldı`,
+      value: `${planetary.aktifGezegen.symbol} ${planetary.aktifGezegen.name}`,
+      sub: `${fmtTime(planetary.hourStart)}–${fmtTime(planetary.hourEnd)} · ${planetary.kalanDakika} dk kaldı`,
     },
   ];
 
