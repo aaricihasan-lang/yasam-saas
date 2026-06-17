@@ -378,7 +378,8 @@ export default function CosmicCalendarPage() {
     [viewYear, viewMonth, showNumeroloji],
   );
   const upcomingPhaseEvents = useMemo(() => getUpcomingPhaseEvents(realNow, 60), [realNow]);
-  const upcomingRetroEvents = useMemo(() => getUpcomingRetros(realNow, 90), [realNow]);
+  const upcomingRetroEvents = useMemo(() => getUpcomingRetros(realNow, 90),  [realNow]);
+  const upcomingRetroList   = useMemo(() => getUpcomingRetros(realNow, 365).slice(0, 3), [realNow]);
   const strongDays          = useMemo(() => getStrongDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
   // Zaman çizelgesi: ay fazları + retro başlangıçları birlikte
@@ -883,6 +884,38 @@ export default function CosmicCalendarPage() {
                 </div>
               )}
             </div>
+
+            {/* Yaklaşan Retro Dönemleri */}
+            {upcomingRetroList.length > 0 && (
+              <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">
+                  🪐 Yaklaşan Retro Dönemleri
+                </p>
+                <div className="space-y-1.5">
+                  {upcomingRetroList.map(r => {
+                    const startDate   = parseRetroDate(r.start);
+                    const daysFromNow = Math.max(1, Math.ceil((startDate.getTime() - realNow.getTime()) / 86_400_000));
+                    return (
+                      <button
+                        key={`${r.planet}-${r.start}`}
+                        onClick={() => navigateToDate(startDate)}
+                        className="flex w-full items-center gap-2 rounded-xl bg-slate-50/70 px-2.5 py-2 text-left transition-colors hover:bg-rose-50/60"
+                      >
+                        <span className="shrink-0 text-base leading-none">{r.symbol}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-black text-slate-800">{r.planet} Retrosu</p>
+                          <p className="text-[9px] text-slate-400">{formatShortDate(startDate)}</p>
+                          <p className="text-[9px] text-slate-400 leading-tight">{r.theme}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">
+                          {daysFromNow}g
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Sağ Panel ── */}
@@ -911,22 +944,33 @@ export default function CosmicCalendarPage() {
                   </div>
                 ))}
 
-                {/* Retro Durumu — gerçek veriye bağlı */}
+                {/* Retro Durumu — tema + kalan gün */}
                 <div className={`rounded-xl px-2.5 py-2 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
                   <p className="text-[9px] text-slate-400">🪐 Retro Durumu</p>
                   {activeRetros.length === 0 ? (
                     <p className="text-[12px] font-black text-emerald-600">Aktif Retro Bulunmuyor</p>
                   ) : (
-                    <div className="mt-0.5 space-y-1.5">
-                      {activeRetros.map(r => (
-                        <div key={r.planet}>
-                          <p className="text-[11px] font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
-                          <p className="text-[9px] text-slate-400">
-                            {formatShortDate(parseRetroDate(r.start))} – {formatShortDate(parseRetroDate(r.end))}
-                          </p>
-                          <p className="text-[9px] font-semibold text-rose-500">Aktif dönemde</p>
-                        </div>
-                      ))}
+                    <div className="mt-0.5 space-y-2.5">
+                      {activeRetros.map(r => {
+                        const selMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                        const endDate     = parseRetroDate(r.end);
+                        const kalan       = Math.max(0, Math.ceil((endDate.getTime() - selMidnight.getTime()) / 86_400_000));
+                        return (
+                          <div key={r.planet} className="space-y-0.5">
+                            <p className="text-[12px] font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
+                            {r.theme && (
+                              <p className="text-[9px] leading-snug text-slate-500">{r.theme}</p>
+                            )}
+                            <p className="text-[9px] text-slate-400">
+                              {formatShortDate(parseRetroDate(r.start))} – {formatShortDate(endDate)}
+                            </p>
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[8px] font-black text-rose-600">Aktif dönemde</span>
+                              <span className="text-[9px] font-semibold text-slate-600">{kalan} gün kaldı</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
