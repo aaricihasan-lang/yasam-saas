@@ -151,7 +151,7 @@ function buildSummaryBox(items: SummaryItem[]): Table {
       children: items.map(item =>
         new TableCell({
           width:   { size: pct, type: WidthType.PERCENTAGE },
-          shading: { type: ShadingType.SOLID, fill: item.fill },
+          shading: { type: ShadingType.CLEAR, fill: item.fill },
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -181,7 +181,7 @@ function tableCell(
 ): TableCell {
   return new TableCell({
     width:   { size: colPct, type: WidthType.PERCENTAGE },
-    shading: { type: ShadingType.SOLID, fill },
+    shading: { type: ShadingType.CLEAR, fill },
     children: [
       new Paragraph({
         children: [new TextRun({ text, bold, size: 19, font: FONT, color: textColor })],
@@ -206,7 +206,7 @@ function buildTable(days: CalendarDay[]): Table {
     children: COLS.map(c =>
       new TableCell({
         width:   { size: c.pct, type: WidthType.PERCENTAGE },
-        shading: { type: ShadingType.SOLID, fill: TH_FILL },
+        shading: { type: ShadingType.CLEAR, fill: TH_FILL },
         children: [
           new Paragraph({
             children: [new TextRun({ text: c.label, bold: true, size: 19, font: FONT, color: TH_TEXT })],

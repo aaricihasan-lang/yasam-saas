@@ -133,6 +133,25 @@ function statusDescription(s: HacamatStatus, weekDayName: string): string {
   return "";
 }
 
+// ─── Türkçe ek yardımcısı ─────────────────────────────────────────────────────
+
+const _FRONT_V = new Set(['e', 'i', 'ö', 'ü']);
+const _ALL_V   = new Set(['a', 'e', 'ı', 'i', 'o', 'ö', 'u', 'ü']);
+
+// Hicri ay adına doğru Türkçe "-e/-a" datif ekini ekler.
+// Sesli harf ile biten adlar (Zilhicce, Zilkade) "-ye/-ya" alır.
+function hijriDative(name: string): string {
+  const lower = name.toLowerCase();
+  const last  = lower[lower.length - 1]!;
+  let lastVowel = 'e';
+  for (let i = lower.length - 1; i >= 0; i--) {
+    if (_ALL_V.has(lower[i]!)) { lastVowel = lower[i]!; break; }
+  }
+  const suffix    = _FRONT_V.has(lastVowel) ? 'e' : 'a';
+  const connector = _ALL_V.has(last) ? "'y" : "'";
+  return `${name}${connector}${suffix}`;
+}
+
 // ─── Not üreteci ──────────────────────────────────────────────────────────────
 //
 // KRİTİK KURAL:
@@ -181,7 +200,7 @@ function generateNote(
     if (nextStatus === "altin") {
       return (
         `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
-        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriDative(hijriMonthName)} ` +
         `geçildiğinden Altın Gün'e girilmiş olur.`
       );
     }
@@ -190,7 +209,7 @@ function generateNote(
     if (nextStatus === "sunnet") {
       return (
         `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
-        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriDative(hijriMonthName)} ` +
         `geçildiğinden sünnet gününe girilmiş olur.`
       );
     }
@@ -199,7 +218,7 @@ function generateNote(
     if (nextStatus === "uygun") {
       return (
         `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
-        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriDative(hijriMonthName)} ` +
         `geçildiğinden hacamat yapılabilir.`
       );
     }
