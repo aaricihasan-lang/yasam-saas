@@ -60,3 +60,34 @@ export function getMoonSign(date: Date): { name: string; emoji: string } {
   const sign      = ZODIAC_SIGNS[signIndex];
   return sign ? { name: sign.name, emoji: sign.emoji } : { name: "Koç", emoji: "♈" };
 }
+
+// ─── Ek hesaplamalar ─────────────────────────────────────────────────────────
+
+/** Sinodik ay süresi (gün) */
+export const SYNODIC_MONTH_DAYS = SYNODIC_MONTH;
+
+/** Faz geçiş sınırları (ageMin dahil, ageMax hariç) */
+export const MOON_PHASE_BOUNDS: ReadonlyArray<{
+  name: string; emoji: string; ageMin: number; ageMax: number;
+}> = [
+  { name: "Yeni Ay",       emoji: "🌑", ageMin: 0,     ageMax: 1.85  },
+  { name: "Büyüyen Hilal", emoji: "🌒", ageMin: 1.85,  ageMax: 7.38  },
+  { name: "İlk Dördün",   emoji: "🌓", ageMin: 7.38,  ageMax: 14.77 },
+  { name: "Şişen Ay",     emoji: "🌔", ageMin: 14.77, ageMax: 22.15 },
+  { name: "Dolunay",      emoji: "🌕", ageMin: 22.15, ageMax: 24.0  },
+  { name: "Azalan Ay",    emoji: "🌖", ageMin: 24.0,  ageMax: 26.38 },
+  { name: "Son Dördün",   emoji: "🌗", ageMin: 26.38, ageMax: 27.69 },
+  { name: "Balsamik",     emoji: "🌘", ageMin: 27.69, ageMax: 29.53 },
+];
+
+/** Ayın yaşı — yeni aydan itibaren gün (0–29.53) */
+export function getMoonAge(date: Date): number {
+  const daysSince = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
+  return ((daysSince % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH;
+}
+
+/** Aydınlanma yüzdesi (0–100, kosinüs yaklaşımı) */
+export function getMoonIllumination(date: Date): number {
+  const age = getMoonAge(date);
+  return Math.round((1 - Math.cos(2 * Math.PI * age / SYNODIC_MONTH)) / 2 * 100);
+}

@@ -939,11 +939,11 @@ export default function CosmicCalendarPage() {
                 emoji: "🌙",
                 title: "Ay Fazları Rehberi",
                 desc:  "Yeni Ay, Dolunay ve dördünler rehberi",
-                href:  "#",
+                href:  "/dashboard/cosmic-calendar/moon-phases",
                 color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
                 titleColor: "text-violet-700",
                 descColor:  "text-violet-400",
-                live: false,
+                live: true,
               },
               {
                 emoji: "🩸",
