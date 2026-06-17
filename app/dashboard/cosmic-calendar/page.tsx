@@ -123,7 +123,7 @@ export default function CosmicCalendarPage() {
   ];
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f0f0ff_45%,#fff0f8_100%)] text-slate-900 antialiased">
+    <main className="relative w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f0f0ff_45%,#fff0f8_100%)] text-slate-900 antialiased">
 
       {/* Ambient glows */}
       <div className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-indigo-400/15 blur-[100px]" aria-hidden />
@@ -246,79 +246,100 @@ export default function CosmicCalendarPage() {
         {/* ── Ana Grid: Takvim (sol) + Panel (sağ) ── */}
         <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
 
-          {/* ── Sol: Aylık Takvim ── */}
-          <div className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+          {/* ── Sol: Aylık Takvim + Yaklaşan Olaylar ── */}
+          <div className="flex flex-col gap-4">
 
-            <div className="mb-2">
-              <div className="mb-1.5 flex items-center justify-between">
-                <h2 className="text-base font-black text-slate-800">
-                  {MONTH_NAMES_TR[month]} {year}
-                </h2>
-                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">
-                  🌙 {hijriMonthYear}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-2">
-                {LEGEND_ITEMS.map(({ icon, label }) => (
-                  <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">
-                    {icon} {label}
+            <div className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+
+              <div className="mb-2">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <h2 className="text-base font-black text-slate-800">
+                    {MONTH_NAMES_TR[month]} {year}
+                  </h2>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">
+                    🌙 {hijriMonthYear}
                   </span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-2">
+                  {LEGEND_ITEMS.map(({ icon, label }) => (
+                    <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                      {icon} {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-0.5 grid grid-cols-7 gap-0.5">
+                {DAY_HEADERS.map((h) => (
+                  <div key={h} className="py-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    {h}
+                  </div>
                 ))}
               </div>
+
+              <div className="grid grid-cols-7 gap-0.5">
+                {cells.map((day, i) => {
+                  if (day === null) {
+                    return <div key={`e-${i}`} className="h-10 rounded-lg" />;
+                  }
+                  const isToday         = day === todayDay;
+                  const events          = MONTH_EVENTS[day] ?? [];
+                  const hasHacamatEvent = events.some((e) => e.icon === "🩸");
+                  const showHacamatDot  = HACAMAT_DAYS.has(day) && !hasHacamatEvent && !isToday;
+
+                  return (
+                    <div
+                      key={day}
+                      className={`flex h-10 flex-col items-center justify-start gap-0.5 rounded-lg p-1 transition-colors ${
+                        isToday
+                          ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40"
+                          : events.length > 0
+                            ? "border border-indigo-100 bg-indigo-50/60"
+                            : showHacamatDot
+                              ? "border border-rose-100 bg-rose-50/50"
+                              : "bg-white/30 hover:bg-white/60"
+                      }`}
+                    >
+                      <span className={`text-xs font-black leading-tight ${isToday ? "text-white" : "text-slate-700"}`}>
+                        {day}
+                      </span>
+                      {isToday && (
+                        <span className="text-[7px] leading-none text-white/80">bugün</span>
+                      )}
+                      {!isToday && events.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-0.5">
+                          {events.slice(0, 2).map((ev, ei) => (
+                            <span key={ei} className="text-[9px] leading-none" title={ev.label}>
+                              {ev.icon}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {showHacamatDot && (
+                        <span className="text-[9px] leading-none" title="Hacamat günü">🩸</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="mb-0.5 grid grid-cols-7 gap-0.5">
-              {DAY_HEADERS.map((h) => (
-                <div key={h} className="py-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                  {h}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-0.5">
-              {cells.map((day, i) => {
-                if (day === null) {
-                  return <div key={`e-${i}`} className="h-10 rounded-lg" />;
-                }
-                const isToday         = day === todayDay;
-                const events          = MONTH_EVENTS[day] ?? [];
-                const hasHacamatEvent = events.some((e) => e.icon === "🩸");
-                const showHacamatDot  = HACAMAT_DAYS.has(day) && !hasHacamatEvent && !isToday;
-
-                return (
-                  <div
-                    key={day}
-                    className={`flex h-10 flex-col items-center justify-start gap-0.5 rounded-lg p-1 transition-colors ${
-                      isToday
-                        ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40"
-                        : events.length > 0
-                          ? "border border-indigo-100 bg-indigo-50/60"
-                          : showHacamatDot
-                            ? "border border-rose-100 bg-rose-50/50"
-                            : "bg-white/30 hover:bg-white/60"
-                    }`}
-                  >
-                    <span className={`text-xs font-black leading-tight ${isToday ? "text-white" : "text-slate-700"}`}>
-                      {day}
-                    </span>
-                    {isToday && (
-                      <span className="text-[7px] leading-none text-white/80">bugün</span>
-                    )}
-                    {!isToday && events.length > 0 && (
-                      <div className="flex flex-wrap justify-center gap-0.5">
-                        {events.slice(0, 2).map((ev, ei) => (
-                          <span key={ei} className="text-[9px] leading-none" title={ev.label}>
-                            {ev.icon}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {showHacamatDot && (
-                      <span className="text-[9px] leading-none" title="Hacamat günü">🩸</span>
-                    )}
+            {/* Yaklaşan Olaylar — takvimin altına taşındı (sol kolon dengelendi) */}
+            <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
+                Yaklaşan Olaylar
+              </p>
+              <div className="space-y-1">
+                {UPCOMING_EVENTS.map(({ days, text, icon }) => (
+                  <div key={text} className="flex items-center gap-2 rounded-xl bg-slate-50/70 px-2.5 py-1.5">
+                    <span className="text-sm leading-none">{icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-slate-800">{text}</p>
+                      <p className="text-[10px] text-slate-400">{days} gün sonra</p>
+                    </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
@@ -338,23 +359,6 @@ export default function CosmicCalendarPage() {
                     <div className="min-w-0 text-right">
                       <span className={`text-[11px] font-black ${color}`}>{value}</span>
                       {sub ? <p className="text-[10px] text-slate-400">{sub}</p> : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
-                Yaklaşan Olaylar
-              </p>
-              <div className="space-y-1">
-                {UPCOMING_EVENTS.map(({ days, text, icon }) => (
-                  <div key={text} className="flex items-center gap-2 rounded-xl bg-slate-50/70 px-2.5 py-1.5">
-                    <span className="text-sm leading-none">{icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold text-slate-800">{text}</p>
-                      <p className="text-[10px] text-slate-400">{days} gün sonra</p>
                     </div>
                   </div>
                 ))}
