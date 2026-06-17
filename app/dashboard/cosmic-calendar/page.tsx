@@ -91,7 +91,7 @@ type TimelineEvent =
   | { kind: "retro"; symbol: string; planet: string; date: Date; daysFromNow: number; theme: string };
 
 // Kozmik Ajanda — birleşik olay tipi
-type AgendaEventKind = "phase" | "retro" | "guclu";
+type AgendaEventKind = "phase" | "retro" | "hacamat";
 type AgendaEvent = {
   kind:      AgendaEventKind;
   emoji:     string;
@@ -100,7 +100,7 @@ type AgendaEvent = {
   date:      Date;
   daysFromNow: number;
 };
-type AgendaFilter = "all" | "phase" | "retro" | "guclu";
+type AgendaFilter = "all" | "phase" | "retro" | "hacamat";
 
 type SearchResultPhase     = { kind: "phase" } & PhaseEvent;
 type SearchResultDay       = { kind: "day";       date: Date };
@@ -230,61 +230,53 @@ function getMonthNumeroDays(year: number, month: number): Map<number, number> {
   return map;
 }
 
-/**
- * Yaklaşan kozmik olayları birleştirir: ay fazları + retro başlangıçları + güçlü günler.
- * Fazlar ve retrolar tümü dahil edilir. Güçlü günler skora göre sıralanıp en iyi 15'i alınır
- * (kategori başına limit uygulanarak retro olaylarının liste dışına itilmesi önlenir).
- */
+// Hicri takvimde hacamat için önerilen günler (17, 19, 21. günler)
+const HACAMAT_HIJRI_DAYS = new Set([17, 19, 21]);
+
+function getUpcomingHacamatEvents(from: Date, days: number): AgendaEvent[] {
+  const events: AgendaEvent[] = [];
+  const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  let fmt: Intl.DateTimeFormat;
+  try {
+    fmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", { day: "numeric" });
+  } catch {
+    return [];
+  }
+  for (let i = 1; i <= days; i++) {
+    const date = new Date(fromMidnight.getFullYear(), fromMidnight.getMonth(), fromMidnight.getDate() + i);
+    try {
+      const parts = fmt.formatToParts(date);
+      const hijriDay = parseInt(parts.find(p => p.type === "day")?.value ?? "0", 10);
+      if (HACAMAT_HIJRI_DAYS.has(hijriDay)) {
+        events.push({
+          kind: "hacamat", emoji: "🩸",
+          label: "Hacamat Günü",
+          sublabel: `${hijriDay}. Hicri Gün`,
+          date, daysFromNow: i,
+        });
+      }
+    } catch {}
+  }
+  return events;
+}
+
+/** Yaklaşan kozmik olayları birleştirir: ay fazları + retro başlangıçları + hacamat günleri. */
 function getUpcomingAgendaEvents(from: Date, days: number): AgendaEvent[] {
   const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
 
-  // Ay fazı olayları — tümü
   const phases: AgendaEvent[] = getUpcomingPhaseEvents(from, days).map(e => ({
     kind: "phase" as const, emoji: e.emoji, label: e.name, date: e.date, daysFromNow: e.daysFromNow,
   }));
 
-  // Retro başlangıçları — tümü
   const retros: AgendaEvent[] = getUpcomingRetros(from, days).map(r => {
     const d = parseRetroDate(r.start);
     const df = Math.max(1, Math.ceil((d.getTime() - fromMidnight.getTime()) / 86_400_000));
     return { kind: "retro" as const, emoji: r.symbol, label: `${r.planet} Retrosu Başlangıcı`, sublabel: r.theme, date: d, daysFromNow: df };
   });
 
-  // Güçlü günler — numeroloji katkısı olan günler, en iyi 15'i
-  type GucluCandidate = AgendaEvent & { score: number };
-  const SPECIAL_NUMS = new Set([1, 8, 11, 22, 33]);
-  const monthsToCheck = Math.ceil(days / 28) + 1;
-  const gucluAll: GucluCandidate[] = [];
-  for (let m = 0; m <= monthsToCheck; m++) {
-    const baseDate = new Date(from.getFullYear(), from.getMonth() + m, 1);
-    const yr = baseDate.getFullYear(), mo = baseDate.getMonth();
-    const daysInMonth = new Date(yr, mo + 1, 0).getDate();
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(yr, mo, d, 12, 0, 0);
-      if (date <= fromMidnight) continue;
-      const df = Math.ceil((date.getTime() - fromMidnight.getTime()) / 86_400_000);
-      if (df > days) continue;
-      const num = numerologicalDay(date);
-      if (!SPECIAL_NUMS.has(num)) continue;
-      const phase = getMoonPhase(date);
-      let score = 0;
-      const parts: string[] = [];
-      if      (phase.name === "Dolunay")    { score += 3; parts.push(`${phase.emoji} Dolunay +3`); }
-      else if (phase.name === "Yeni Ay")    { score += 2; parts.push(`${phase.emoji} Yeni Ay +2`); }
-      else if (phase.name === "İlk Dördün") { score += 1; parts.push(`${phase.emoji} İlk Dördün +1`); }
-      const numPts = (num === 11 || num === 22 || num === 33) ? 3 : 1;
-      score += numPts;
-      parts.push(`${num} sayısı +${numPts}`);
-      gucluAll.push({ kind: "guclu", emoji: "⭐", label: `Güçlü Gün (${score}p)`, sublabel: parts.join(" · "), date, daysFromNow: df, score });
-    }
-  }
-  // Skora göre azalan sırada en iyi 15'i al, ardından tarihe göre sırala
-  const guclu: AgendaEvent[] = gucluAll
-    .sort((a, b) => b.score - a.score || a.daysFromNow - b.daysFromNow)
-    .slice(0, 15)
-    .map(({ score: _s, ...ev }) => ev);
+  const hacamat = getUpcomingHacamatEvents(from, days);
 
-  return [...phases, ...retros, ...guclu].sort((a, b) => a.daysFromNow - b.daysFromNow);
+  return [...phases, ...retros, ...hacamat].sort((a, b) => a.daysFromNow - b.daysFromNow);
 }
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
@@ -771,10 +763,10 @@ export default function CosmicCalendarPage() {
             </p>
             <div data-testid="ajanda-filters" className="flex flex-wrap gap-1">
               {([
-                { key: "all",   label: "Tümü",         color: "indigo" },
-                { key: "phase", label: "Ay Fazları",   color: "violet" },
-                { key: "retro", label: "Retrolar",     color: "rose"   },
-                { key: "guclu", label: "Güçlü Günler", color: "amber"  },
+                { key: "all",     label: "Tümü",      },
+                { key: "phase",   label: "Ay Fazları" },
+                { key: "retro",   label: "Retrolar"   },
+                { key: "hacamat", label: "Hacamat"    },
               ] as const).map(({ key, label }) => (
                 <button
                   key={key}
@@ -824,16 +816,16 @@ export default function CosmicCalendarPage() {
                     </span>
                     {/* Emoji */}
                     <span className={`shrink-0 text-base leading-none ${
-                      ev.kind === "retro" ? "text-rose-500" :
-                      ev.kind === "guclu" ? "text-amber-500" : ""
+                      ev.kind === "retro"   ? "text-rose-500" :
+                      ev.kind === "hacamat" ? "text-rose-400" : ""
                     }`}>
                       {ev.emoji}
                     </span>
                     {/* İçerik */}
                     <div className="min-w-0 flex-1">
                       <p className={`truncate text-[11px] font-black ${
-                        ev.kind === "retro" ? "text-rose-700" :
-                        ev.kind === "guclu" ? "text-amber-700" : "text-slate-800"
+                        ev.kind === "retro"   ? "text-rose-700" :
+                        ev.kind === "hacamat" ? "text-rose-600" : "text-slate-800"
                       }`}>
                         {ev.label}
                       </p>
@@ -850,6 +842,23 @@ export default function CosmicCalendarPage() {
               </div>
             );
           })()}
+
+          {/* Güçlü Günler giriş noktası */}
+          <div className="mt-2 border-t border-slate-100/60 pt-2">
+            <Link
+              href="/dashboard/cosmic-calendar/power-days"
+              className="flex items-center justify-between rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 to-yellow-50/60 px-3 py-2 transition hover:border-amber-200 hover:from-amber-100/80"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-base leading-none">⭐</span>
+                <div>
+                  <p className="text-[11px] font-black text-amber-700">Güçlü Günler</p>
+                  <p className="text-[9px] text-amber-500">Numeroloji + Ay Fazı en güçlü günler</p>
+                </div>
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">→</span>
+            </Link>
+          </div>
         </div>
 
         {/* ── Ana Grid ── */}
