@@ -949,11 +949,11 @@ export default function CosmicCalendarPage() {
                 emoji: "🩸",
                 title: "Hacamat Takvimi",
                 desc:  "Hicri takvime göre hacamat günleri",
-                href:  "#",
+                href:  "/dashboard/cosmic-calendar/hacamat",
                 color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
                 titleColor: "text-teal-700",
                 descColor:  "text-teal-400",
-                live: false,
+                live: true,
               },
             ] as const).map(({ emoji, title, desc, href, color, titleColor, descColor, live }) => (
               <Link
