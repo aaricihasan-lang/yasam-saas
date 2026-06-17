@@ -7,6 +7,7 @@ import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getDailyEnergySummary } from "@/lib/cosmic/energy";
 import { getPlanetaryHour, getDayRuler, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
+import { getDailyGuidance } from "@/lib/cosmic/guidance";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
 
@@ -42,6 +43,14 @@ const NUM_NAMES: Record<number, string> = {
   1: "Liderlik", 2: "Uyum", 3: "Yaratıcılık", 4: "Düzen",
   5: "Değişim", 6: "Sevgi", 7: "Derinlik", 8: "Güç",
   9: "Tamamlanma", 11: "Sezgi", 22: "Vizyon", 33: "Şefkat",
+};
+
+// Takvim tooltip metinleri — 4 ana ay fazı geçiş ikonu için
+const PHASE_TOOLTIP: Record<string, string> = {
+  "🌑": "Yeni Ay — Başlangıçlar için en güçlü an",
+  "🌓": "İlk Dördün — Karar ve azim zamanı",
+  "🌕": "Dolunay — Tamamlanma ve serbest bırakma",
+  "🌗": "Son Dördün — Arınma ve döngü kapama",
 };
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
@@ -140,6 +149,7 @@ export default function CosmicCalendarPage() {
   const miladiDate = useMemo(() => formatMiladiDate(selectedDate), [selectedDate]);
   const numDay     = useMemo(() => numerologicalDay(selectedDate), [selectedDate]);
   const dayRuler   = useMemo(() => getDayRuler(selectedDate),    [selectedDate]);
+  const guidance   = useMemo(() => getDailyGuidance(selectedDate), [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
 
   // Gerçek zamanlı gezegen saati (bugün için)
@@ -369,7 +379,7 @@ export default function CosmicCalendarPage() {
                     <button
                       key={day}
                       onClick={() => selectDay(day)}
-                      className={`flex h-10 flex-col items-center justify-start gap-0.5 rounded-lg p-1 transition-colors ${
+                      className={`group/day relative flex h-10 flex-col items-center justify-start gap-0.5 rounded-lg p-1 transition-colors ${
                         isToday
                           ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40"
                           : isSelected
@@ -386,9 +396,14 @@ export default function CosmicCalendarPage() {
                         <span className="text-[7px] leading-none text-white/80">bugün</span>
                       )}
                       {!isToday && moonMarker && (
-                        <span className="text-[10px] leading-none" title={`Ay fazı geçişi`}>
-                          {moonMarker}
-                        </span>
+                        <>
+                          <span className="text-[10px] leading-none">{moonMarker}</span>
+                          {/* Tooltip */}
+                          <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-[9px] font-semibold leading-tight text-white shadow-xl group-hover/day:block">
+                            {PHASE_TOOLTIP[moonMarker] ?? "Ay fazı geçişi"}
+                            <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                          </span>
+                        </>
                       )}
                     </button>
                   );
@@ -485,6 +500,61 @@ export default function CosmicCalendarPage() {
                   <p className="text-[9px] text-slate-400">💫 Günlük Enerji Yorumu</p>
                   <p className="text-[12px] font-black text-violet-700">{energy.title}</p>
                   <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">{energy.mainTheme}</p>
+                </div>
+              </div>
+
+              {/* ── Tarih Rehberi Katmanı ── */}
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">
+                  🔮 Günlük Rehber
+                </p>
+
+                <div className="space-y-1.5">
+                  {/* Günün Potansiyeli */}
+                  <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-2 py-1.5">
+                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-violet-600">
+                      ✨ Günün Potansiyeli
+                    </p>
+                    <p className="text-[10px] leading-snug text-slate-700">{guidance.potential}</p>
+                  </div>
+
+                  {/* Uygun Aktiviteler */}
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
+                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                      ✓ Uygun Aktiviteler
+                    </p>
+                    <ul className="space-y-0.5">
+                      {guidance.activities.map((a, i) => (
+                        <li key={i} className="flex items-center gap-1 text-[10px] text-slate-700">
+                          <span className="shrink-0 font-black text-emerald-500">✓</span>
+                          {a}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Dikkat Edilmesi Gerekenler */}
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
+                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-700">
+                      ⚠ Dikkat Edilmesi Gerekenler
+                    </p>
+                    <ul className="space-y-0.5">
+                      {guidance.cautions.map((c, i) => (
+                        <li key={i} className="flex items-center gap-1 text-[10px] text-slate-700">
+                          <span className="shrink-0 font-black text-amber-500">⚠</span>
+                          {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Ruhsal Öneri */}
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
+                    <p className="mb-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-indigo-700">
+                      🧘 Ruhsal Öneri
+                    </p>
+                    <p className="text-[10px] leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
+                  </div>
                 </div>
               </div>
             </div>
