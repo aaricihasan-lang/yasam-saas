@@ -324,19 +324,19 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
-            {/* Yaklaşan Olaylar — takvimin altına taşındı (sol kolon dengelendi) */}
+            {/* Yaklaşan Olaylar */}
             <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
                 Yaklaşan Olaylar
               </p>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {UPCOMING_EVENTS.map(({ days, text, icon }) => (
                   <div key={text} className="flex items-center gap-2 rounded-xl bg-slate-50/70 px-2.5 py-1.5">
                     <span className="text-sm leading-none">{icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold text-slate-800">{text}</p>
-                      <p className="text-[10px] text-slate-400">{days} gün sonra</p>
-                    </div>
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-800">{text}</span>
+                    <span className="shrink-0 rounded-full bg-indigo-100/80 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-indigo-700">
+                      {days}g
+                    </span>
                   </div>
                 ))}
               </div>
