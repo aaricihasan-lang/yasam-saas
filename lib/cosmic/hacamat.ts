@@ -15,17 +15,17 @@ export type CalendarDay = {
   day:             number;
   weekDay:         number;
   weekDayName:     string;
-  miladiFull:      string;   // "17 Haziran 2026"
+  miladiFull:      string;
   hijriDay:        number;
   hijriMonthIdx:   number;
   hijriMonthName:  string;
   hijriYear:       number;
-  hijriFormatted:  string;   // "17 Muharrem 1447"
+  hijriFormatted:  string;
   status:          HacamatStatus;
   statusLabel:     string;
   stars:           string;
   description:     string;
-  isNotable:       boolean;  // Hicri 17–24
+  isNotable:       boolean;
 };
 
 export type HacamatMonthData = {
@@ -40,6 +40,14 @@ export type HacamatMonthData = {
   uygun:           CalendarDay[];
   yasakliNotable:  CalendarDay[];
   notes:           string[];
+};
+
+export type AltinDay = {
+  miladi:         Date;
+  miladiFull:     string;
+  hijriFormatted: string;
+  weekDayName:    string;
+  year:           number;
 };
 
 export type HijamRule = {
@@ -65,11 +73,11 @@ const HIJRI_MONTHS: ReadonlyArray<string> = [
   "Ramazan", "Şevval", "Zilkade", "Zilhicce",
 ];
 
-/** Çarşamba=3, Cuma=5, Cumartesi=6 — her türlü hacamat yasaklıdır */
+/** Çarşamba=3, Cuma=5, Cumartesi=6 — her koşulda hacamat yasaktır */
 const YASAKLI_WEEKDAYS = new Set([3, 5, 6]);
 
-const SUNNET_HICRI = new Set([17, 19, 21]);
-const UYGUN_HICRI  = new Set([18, 20, 22, 23, 24]);
+const SUNNET_HICRI  = new Set([17, 19, 21]);
+const UYGUN_HICRI   = new Set([18, 20, 22, 23, 24]);
 const NOTABLE_HICRI = new Set([17, 18, 19, 20, 21, 22, 23, 24]);
 
 // ─── Varsayılan kurallar ──────────────────────────────────────────────────────
@@ -91,17 +99,13 @@ export const DEFAULT_HIJAMA_RULES: HijamRule[] = [
   { id: 14, category: "genel",   text: "Kullanılan tüm malzemelerin sterilizasyonundan emin olunmalıdır." },
 ];
 
-// ─── Yardımcı ─────────────────────────────────────────────────────────────────
+// ─── Durum hesaplayıcı ────────────────────────────────────────────────────────
 
-function getStatus(weekDay: number, hijriDay: number): HacamatStatus {
-  // Yasak her şeyden üstündür
+export function getStatus(weekDay: number, hijriDay: number): HacamatStatus {
   if (YASAKLI_WEEKDAYS.has(weekDay)) return "yasakli";
-  // Altın: Hicri 17 + Salı
   if (hijriDay === 17 && weekDay === 2) return "altin";
-  // Sünnet: Hicri 17/19/21 + izin günü
   if (SUNNET_HICRI.has(hijriDay)) return "sunnet";
-  // Uygun: Hicri 18/20/22/23/24 + izin günü
-  if (UYGUN_HICRI.has(hijriDay)) return "uygun";
+  if (UYGUN_HICRI.has(hijriDay))  return "uygun";
   return "normal";
 }
 
@@ -110,7 +114,7 @@ function statusLabel(s: HacamatStatus): string {
   if (s === "sunnet")  return "SÜNNET GÜN";
   if (s === "uygun")   return "UYGUN GÜN";
   if (s === "yasakli") return "YASAKLI GÜN";
-  return "Normal";
+  return "";
 }
 
 function statusStars(s: HacamatStatus): string {
@@ -130,34 +134,84 @@ function statusDescription(s: HacamatStatus, weekDayName: string): string {
 }
 
 // ─── Not üreteci ──────────────────────────────────────────────────────────────
+//
+// KRİTİK KURAL:
+// Bir yasaklı günün akşamında bir sonraki Hicri güne geçilir.
+// Ancak o yeni günün GERÇEK STATÜSÜ hesaplanmalıdır.
+// Yeni gün de yasaklıysa "hacamat yapılabilir" söylenemez.
 
 function generateNote(
-  weekDay: number,
-  weekDayName: string,
-  hijriDay: number,
+  weekDay:        number,
+  weekDayName:    string,
+  hijriDay:       number,
   hijriMonthName: string,
-  status: HacamatStatus,
+  status:         HacamatStatus,
 ): string | null {
   const prevWeekDay     = (weekDay + 6) % 7;
   const prevWeekDayName = WEEK_DAY_NAMES_TR[prevWeekDay]!;
 
+  // ── Altın Gün ──────────────────────────────────────────────────────────────
   if (status === "altin") {
     return (
-      `${hijriDay} ${hijriMonthName} ${weekDayName} gününe denk geldiğinden bu tarih ` +
-      `Altın Gün olarak değerlendirilmektedir. Yılın en güçlü hacamat günleri arasında yer alır.`
+      `${hijriDay} ${hijriMonthName} ${weekDayName} gününe denk geldiğinden bu tarih Altın Gün olarak ` +
+      `değerlendirilmektedir. Yılın en güçlü hacamat günleri arasında yer alır.`
     );
   }
 
-  // Sünnet/Uygun gün yasak günde: akşam ezanı sonrası sonraki Hicri gün başlar
+  // ── Yasaklı günde notable Hicri gün ────────────────────────────────────────
+  // Akşam ezanıyla bir sonraki Hicri gün başlar; o günün statüsü gerçek olarak hesaplanır.
   if (status === "yasakli" && (SUNNET_HICRI.has(hijriDay) || UYGUN_HICRI.has(hijriDay))) {
+    const nextWeekDay     = (weekDay + 1) % 7;
+    const nextWeekDayName = WEEK_DAY_NAMES_TR[nextWeekDay]!;
+    const nextHijriDay    = hijriDay + 1;          // Aynı Hicri ay içinde (17-24 → 18-25)
+    const nextStatus      = getStatus(nextWeekDay, nextHijriDay);
+
+    // YASAK → YASAK: Yeni gün de yasaklı
+    if (nextStatus === "yasakli") {
+      return (
+        `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden hacamat uygun değildir. ` +
+        `${weekDayName} akşamı Hicri ${nextHijriDay} ${hijriMonthName} ${nextWeekDayName} gününe ` +
+        `geçildiğinden hacamat hâlâ uygun değildir.`
+      );
+    }
+
+    // YASAK → ALTIN: Nadir, ama mümkün (Hicri 17 Pazartesi yasaklıysa... hayır, 17+Pzt=sünnet.
+    //   Pratikte Hicri 16 yasaklı olup akşamı Hicri 17 Salı'ya geçilebilir — bu altin durumu)
+    if (nextStatus === "altin") {
+      return (
+        `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `geçildiğinden Altın Gün'e girilmiş olur.`
+      );
+    }
+
+    // YASAK → SÜNNET
+    if (nextStatus === "sunnet") {
+      return (
+        `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `geçildiğinden sünnet gününe girilmiş olur.`
+      );
+    }
+
+    // YASAK → UYGUN
+    if (nextStatus === "uygun") {
+      return (
+        `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
+        `değildir. ${weekDayName} akşam ezanından sonra Hicri ${nextHijriDay} ${hijriMonthName}'e ` +
+        `geçildiğinden hacamat yapılabilir.`
+      );
+    }
+
+    // YASAK → NORMAL (Hicri 24 sonrası — nadir)
     return (
-      `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden gündüz hacamat uygun ` +
-      `değildir. Ancak ${weekDayName} akşam ezanından sonra Hicri gün ${hijriDay + 1} ${hijriMonthName}'e ` +
-      `geçtiği için hacamat yapılabilir.`
+      `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden hacamat uygun değildir. ` +
+      `${weekDayName} akşamı geçilen yeni Hicri gün ${nextHijriDay} ${nextWeekDayName} günüdür.`
     );
   }
 
-  // İzin günü ama bir önceki gün yasaklıydı: hicri gün önceki akşamdan başlamış
+  // ── İzin günü ama bir önceki gün yasaklıydı ────────────────────────────────
+  // Hicri gün önceki akşamdan başlamış olduğu için yararlanılabilir.
   if ((status === "sunnet" || status === "uygun") && YASAKLI_WEEKDAYS.has(prevWeekDay)) {
     const label = status === "sunnet" ? "sünnet gününe" : "uygun günlere";
     return (
@@ -170,7 +224,7 @@ function generateNote(
   return null;
 }
 
-// ─── Ana hesaplama fonksiyonu ─────────────────────────────────────────────────
+// ─── Ana aylık hesaplama ─────────────────────────────────────────────────────
 
 export function getHacamatMonthData(year: number, month: number): HacamatMonthData {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -187,10 +241,10 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
 
     let hijriDay = 0, hijriMonthIdx = 0, hijriYear = 0;
     try {
-      const parts    = hijriFmt.formatToParts(miladi);
-      hijriDay       = parseInt(parts.find(p => p.type === "day")?.value   ?? "0", 10);
-      hijriMonthIdx  = parseInt(parts.find(p => p.type === "month")?.value ?? "1", 10) - 1;
-      hijriYear      = parseInt(parts.find(p => p.type === "year")?.value   ?? "0", 10);
+      const parts   = hijriFmt.formatToParts(miladi);
+      hijriDay      = parseInt(parts.find(p => p.type === "day")?.value   ?? "0", 10);
+      hijriMonthIdx = parseInt(parts.find(p => p.type === "month")?.value ?? "1", 10) - 1;
+      hijriYear     = parseInt(parts.find(p => p.type === "year")?.value   ?? "0", 10);
     } catch { /* ignore */ }
 
     const hijriMonthName = HIJRI_MONTHS[Math.max(0, Math.min(11, hijriMonthIdx))] ?? "?";
@@ -222,7 +276,6 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
   const uygun          = days.filter(d => d.status === "uygun");
   const yasakliNotable = days.filter(d => d.status === "yasakli" && d.isNotable);
 
-  // Dinamik notlar — her notable gün için
   const notes: string[] = [];
   const seen = new Set<string>();
   for (const day of notable) {
@@ -230,7 +283,6 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
     if (note && !seen.has(note)) { seen.add(note); notes.push(note); }
   }
 
-  // Bu ayın baskın Hicri ayı (15. günün ayı)
   const mid = days.find(d => d.day === 15) ?? days[0];
   const hijriMonthName = mid?.hijriMonthName ?? "?";
 
@@ -240,4 +292,44 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
     hijriMonthName,
     days, notable, altin, sunnet, uygun, yasakliNotable, notes,
   };
+}
+
+// ─── Altın Gün tarayıcı (2026-2036) ─────────────────────────────────────────
+
+export function getAllAltinDays(fromYear: number, toYear: number): AltinDay[] {
+  const hijriFmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+    day: "numeric", month: "numeric", year: "numeric",
+  });
+  const result: AltinDay[] = [];
+
+  for (let year = fromYear; year <= toYear; year++) {
+    for (let month = 0; month < 12; month++) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date    = new Date(year, month, day);
+        const weekDay = date.getDay();
+        if (weekDay !== 2) continue; // Sadece Salı
+
+        let hijriDay = 0, hijriMonthIdx = 0, hijriYear = 0;
+        try {
+          const parts   = hijriFmt.formatToParts(date);
+          hijriDay      = parseInt(parts.find(p => p.type === "day")?.value   ?? "0", 10);
+          hijriMonthIdx = parseInt(parts.find(p => p.type === "month")?.value ?? "1", 10) - 1;
+          hijriYear     = parseInt(parts.find(p => p.type === "year")?.value   ?? "0", 10);
+        } catch { continue; }
+
+        if (hijriDay !== 17) continue;
+
+        const hijriMonthName = HIJRI_MONTHS[Math.max(0, Math.min(11, hijriMonthIdx))] ?? "?";
+        result.push({
+          miladi:         date,
+          miladiFull:     `${day} ${MONTH_NAMES_TR[month]} ${year}`,
+          hijriFormatted: `17 ${hijriMonthName} ${hijriYear}`,
+          weekDayName:    "Salı",
+          year,
+        });
+      }
+    }
+  }
+  return result;
 }
