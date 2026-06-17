@@ -55,8 +55,6 @@ const PHASE_TOOLTIP: Record<string, string> = {
   "🌗": "Son Dördün — Arınma, bırakma ve yeni dönem hazırlığı",
 };
 
-const MEDAL = ["🥇", "🥈", "🥉"] as const;
-
 // ─── Arama sabitleri ──────────────────────────────────────────────────────────
 
 const PHASE_KEYWORDS: Record<string, { name: string; emoji: string }> = {
@@ -82,25 +80,6 @@ const RETRO_PLANET_KEYWORDS: Record<string, PlanetName> = {
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
 type PhaseEvent = { name: string; emoji: string; date: Date; daysFromNow: number };
-
-type StrongDayReason = { label: string; pts: number };
-type StrongDay       = { day: number; score: number; reasons: StrongDayReason[] };
-
-type TimelineEvent =
-  | { kind: "phase"; emoji: string; name: string; date: Date; daysFromNow: number }
-  | { kind: "retro"; symbol: string; planet: string; date: Date; daysFromNow: number; theme: string };
-
-// Kozmik Ajanda — birleşik olay tipi
-type AgendaEventKind = "phase" | "retro" | "hacamat";
-type AgendaEvent = {
-  kind:      AgendaEventKind;
-  emoji:     string;
-  label:     string;
-  sublabel?: string;
-  date:      Date;
-  daysFromNow: number;
-};
-type AgendaFilter = "all" | "phase" | "retro" | "hacamat";
 
 type SearchResultPhase     = { kind: "phase" } & PhaseEvent;
 type SearchResultDay       = { kind: "day";       date: Date };
@@ -175,40 +154,6 @@ function getMonthRetroMarkers(year: number, month: number): Map<number, RetroPer
   return map;
 }
 
-function getUpcomingPhaseEvents(from: Date, daysAhead: number): PhaseEvent[] {
-  const events: PhaseEvent[] = [];
-  const mainPhases = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
-  const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  for (let i = 1; i <= daysAhead; i++) {
-    const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12, 0, 0);
-    const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12, 0, 0);
-    const tp = getMoonPhase(d), pp = getMoonPhase(prev);
-    if (mainPhases.has(tp.name) && tp.name !== pp.name) {
-      events.push({ name: tp.name, emoji: tp.emoji, date: d, daysFromNow: i });
-    }
-  }
-  return events;
-}
-
-function getStrongDays(year: number, month: number): StrongDay[] {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const scored: StrongDay[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date  = new Date(year, month, d, 12, 0, 0);
-    const phase = getMoonPhase(date);
-    const num   = numerologicalDay(date);
-    let score = 0;
-    const reasons: StrongDayReason[] = [];
-    if      (phase.name === "Dolunay")    { score += 3; reasons.push({ label: `${phase.emoji} Dolunay`,     pts: 3 }); }
-    else if (phase.name === "Yeni Ay")    { score += 2; reasons.push({ label: `${phase.emoji} Yeni Ay`,     pts: 2 }); }
-    else if (phase.name === "İlk Dördün") { score += 1; reasons.push({ label: `${phase.emoji} İlk Dördün`, pts: 1 }); }
-    if      (num === 11 || num === 22 || num === 33) { score += 3; reasons.push({ label: `${num} üstay`,   pts: 3 }); }
-    else if (num === 1 || num === 8)                  { score += 1; reasons.push({ label: `${num} sayısı`, pts: 1 }); }
-    if (score > 0) scored.push({ day: d, score, reasons });
-  }
-  return scored.sort((a, b) => b.score - a.score).slice(0, 3);
-}
-
 function getMonthHijriDays(year: number, month: number): Map<number, number> {
   const map = new Map<number, number>();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -228,55 +173,6 @@ function getMonthNumeroDays(year: number, month: number): Map<number, number> {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   for (let d = 1; d <= daysInMonth; d++) map.set(d, numerologicalDay(new Date(year, month, d)));
   return map;
-}
-
-// Hicri takvimde hacamat için önerilen günler (17, 19, 21. günler)
-const HACAMAT_HIJRI_DAYS = new Set([17, 19, 21]);
-
-function getUpcomingHacamatEvents(from: Date, days: number): AgendaEvent[] {
-  const events: AgendaEvent[] = [];
-  const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  let fmt: Intl.DateTimeFormat;
-  try {
-    fmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", { day: "numeric" });
-  } catch {
-    return [];
-  }
-  for (let i = 1; i <= days; i++) {
-    const date = new Date(fromMidnight.getFullYear(), fromMidnight.getMonth(), fromMidnight.getDate() + i);
-    try {
-      const parts = fmt.formatToParts(date);
-      const hijriDay = parseInt(parts.find(p => p.type === "day")?.value ?? "0", 10);
-      if (HACAMAT_HIJRI_DAYS.has(hijriDay)) {
-        events.push({
-          kind: "hacamat", emoji: "🩸",
-          label: "Hacamat Günü",
-          sublabel: `${hijriDay}. Hicri Gün`,
-          date, daysFromNow: i,
-        });
-      }
-    } catch {}
-  }
-  return events;
-}
-
-/** Yaklaşan kozmik olayları birleştirir: ay fazları + retro başlangıçları + hacamat günleri. */
-function getUpcomingAgendaEvents(from: Date, days: number): AgendaEvent[] {
-  const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-
-  const phases: AgendaEvent[] = getUpcomingPhaseEvents(from, days).map(e => ({
-    kind: "phase" as const, emoji: e.emoji, label: e.name, date: e.date, daysFromNow: e.daysFromNow,
-  }));
-
-  const retros: AgendaEvent[] = getUpcomingRetros(from, days).map(r => {
-    const d = parseRetroDate(r.start);
-    const df = Math.max(1, Math.ceil((d.getTime() - fromMidnight.getTime()) / 86_400_000));
-    return { kind: "retro" as const, emoji: r.symbol, label: `${r.planet} Retrosu Başlangıcı`, sublabel: r.theme, date: d, daysFromNow: df };
-  });
-
-  const hacamat = getUpcomingHacamatEvents(from, days);
-
-  return [...phases, ...retros, ...hacamat].sort((a, b) => a.daysFromNow - b.daysFromNow);
 }
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
@@ -421,8 +317,6 @@ export default function CosmicCalendarPage() {
   const [dateInput,        setDateInput]        = useState("");
   const [searchQuery,      setSearchQuery]      = useState("");
   const [searchResult,     setSearchResult]     = useState<SearchResult>(null);
-  const [agendaFilter,     setAgendaFilter]     = useState<AgendaFilter>("all");
-
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -439,21 +333,6 @@ export default function CosmicCalendarPage() {
     () => showNumeroloji ? getMonthNumeroDays(viewYear, viewMonth) : new Map<number, number>(),
     [viewYear, viewMonth, showNumeroloji],
   );
-  const upcomingPhaseEvents = useMemo(() => getUpcomingPhaseEvents(realNow, 60), [realNow]);
-  const upcomingRetroEvents = useMemo(() => getUpcomingRetros(realNow, 90),  [realNow]);
-  const agendaEvents        = useMemo(() => getUpcomingAgendaEvents(realNow, 90), [realNow]);
-
-  // Zaman çizelgesi: ay fazları + retro başlangıçları birlikte
-  const timelineEvents = useMemo((): TimelineEvent[] => {
-    const phases: TimelineEvent[] = upcomingPhaseEvents.map(e => ({ kind: "phase", ...e }));
-    const retros: TimelineEvent[] = upcomingRetroEvents.map(r => {
-      const d = parseRetroDate(r.start);
-      const daysFromNow = Math.max(1, Math.round((d.getTime() - realNow.getTime()) / 86_400_000));
-      return { kind: "retro", symbol: r.symbol, planet: r.planet, date: d, daysFromNow, theme: r.theme };
-    });
-    return [...phases, ...retros].sort((a, b) => a.daysFromNow - b.daysFromNow);
-  }, [upcomingPhaseEvents, upcomingRetroEvents, realNow]);
-
   // ── Seçili güne ait veriler ───────────────────────────────────────────────
   const moonPhase   = useMemo(() => getMoonPhase(selectedDate),          [selectedDate]);
   const moonSign    = useMemo(() => getMoonSign(selectedDate),           [selectedDate]);
@@ -750,113 +629,6 @@ export default function CosmicCalendarPage() {
               )}
             </div>
           )}
-        </div>
-
-        {/* ── Kozmik Ajanda — Faz 12 ── */}
-        <div data-testid="kozmik-ajanda" className="mb-4 rounded-[18px] border border-white/80 bg-white/70 p-2.5 shadow-sm backdrop-blur-md sm:p-3">
-          {/* Başlık + Filtreler */}
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
-              🗓 Kozmik Ajanda
-            </p>
-            <div data-testid="ajanda-filters" className="flex flex-wrap gap-1">
-              {([
-                { key: "all",     label: "Tümü",      },
-                { key: "phase",   label: "Ay Fazları" },
-                { key: "retro",   label: "Retrolar"   },
-                { key: "hacamat", label: "Hacamat"    },
-              ] as const).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setAgendaFilter(key)}
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors ${
-                    agendaFilter === key
-                      ? "border border-indigo-200 bg-indigo-100 text-indigo-700"
-                      : "border border-slate-200 bg-slate-100 text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Olay listesi */}
-          {(() => {
-            const filtered = agendaFilter === "all"
-              ? agendaEvents
-              : agendaEvents.filter(e => e.kind === agendaFilter);
-            if (filtered.length === 0) {
-              return (
-                <p className="py-3 text-center text-[10px] text-slate-400">
-                  Bu kategoride yaklaşan olay bulunamadı.
-                </p>
-              );
-            }
-            return (
-              <div className="divide-y divide-slate-100/60">
-                {filtered.map((ev, idx) => (
-                  <button
-                    key={`${ev.kind}-${ev.date.toISOString()}-${idx}`}
-                    onClick={() => {
-                      const y = ev.date.getFullYear(), mo = ev.date.getMonth(), d = ev.date.getDate();
-                      setViewYear(y); setViewMonth(mo);
-                      setSelectedDate(new Date(y, mo, d));
-                    }}
-                    className="flex w-full items-center gap-2.5 py-1.5 text-left transition-colors hover:bg-slate-50/60 first:pt-0.5 last:pb-0.5"
-                  >
-                    {/* Geri sayım rozeti */}
-                    <span className={`w-8 shrink-0 text-right text-[10px] font-black tabular-nums ${
-                      ev.daysFromNow <= 7  ? "text-rose-600" :
-                      ev.daysFromNow <= 21 ? "text-amber-600" : "text-slate-400"
-                    }`}>
-                      {ev.daysFromNow === 1 ? "yarın" : `${ev.daysFromNow}g`}
-                    </span>
-                    {/* Emoji */}
-                    <span className={`shrink-0 text-base leading-none ${
-                      ev.kind === "retro"   ? "text-rose-500" :
-                      ev.kind === "hacamat" ? "text-rose-400" : ""
-                    }`}>
-                      {ev.emoji}
-                    </span>
-                    {/* İçerik */}
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate text-[11px] font-black ${
-                        ev.kind === "retro"   ? "text-rose-700" :
-                        ev.kind === "hacamat" ? "text-rose-600" : "text-slate-800"
-                      }`}>
-                        {ev.label}
-                      </p>
-                      {ev.sublabel && (
-                        <p className="truncate text-[9px] text-slate-400">{ev.sublabel}</p>
-                      )}
-                    </div>
-                    {/* Tarih */}
-                    <span className="shrink-0 whitespace-nowrap text-[9px] text-slate-400">
-                      {ev.date.getDate()} {MONTH_NAMES_TR[ev.date.getMonth()]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Güçlü Günler giriş noktası */}
-          <div className="mt-2 border-t border-slate-100/60 pt-2">
-            <Link
-              href="/dashboard/cosmic-calendar/power-days"
-              className="flex items-center justify-between rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 to-yellow-50/60 px-3 py-2 transition hover:border-amber-200 hover:from-amber-100/80"
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-base leading-none">⭐</span>
-                <div>
-                  <p className="text-[11px] font-black text-amber-700">Güçlü Günler</p>
-                  <p className="text-[9px] text-amber-500">Numeroloji + Ay Fazı en güçlü günler</p>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-amber-400">→</span>
-            </Link>
-          </div>
         </div>
 
         {/* ── Ana Grid ── */}
