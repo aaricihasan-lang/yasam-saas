@@ -28,32 +28,30 @@ export const runtime = "nodejs";
 
 const FONT = "Calibri";
 
-// ─── Renkler ──────────────────────────────────────────────────────────────────
+// ─── Renkler — sabit HEX, ThemeColor yok ─────────────────────────────────────
 
-const C_TEAL  = "0F766E";   // teal-700 — başlıklar
-const C_DARK  = "1E293B";   // slate-900 — ana metin
-const C_MID   = "475569";   // slate-600 — ikincil metin
-const C_LIGHT = "94A3B8";   // slate-400 — yardımcı metin
+const C_TEAL  = "0F766E";
+const C_DARK  = "1E293B";
+const C_MID   = "475569";
+const C_LIGHT = "94A3B8";
 
-// Tablo — başlık satırı
-const TH_FILL = "CCFBF1";   // teal-100
-const TH_TEXT = "134E4A";   // teal-900
+const TH_FILL = "CCFBF1";
+const TH_TEXT = "134E4A";
 
-// Tablo — durum renkleri (zemin açık, yazı koyu)
 const FILL: Record<HacamatStatus, string> = {
-  altin:   "FEF3C7",  // amber-100
-  sunnet:  "D1FAE5",  // emerald-100
-  uygun:   "FEF9C3",  // yellow-100
-  yasakli: "FEE2E2",  // red-100
-  normal:  "F8FAFC",  // slate-50
+  altin:   "FEF3C7",
+  sunnet:  "D1FAE5",
+  uygun:   "FEF9C3",
+  yasakli: "FEE2E2",
+  normal:  "F8FAFC",
 };
 
 const STATUS_COLOR: Record<HacamatStatus, string> = {
-  altin:   "B45309",  // amber-700
-  sunnet:  "047857",  // emerald-700
-  uygun:   "A16207",  // yellow-700
-  yasakli: "B91C1C",  // red-700
-  normal:  "334155",  // slate-700
+  altin:   "B45309",
+  sunnet:  "047857",
+  uygun:   "A16207",
+  yasakli: "B91C1C",
+  normal:  "334155",
 };
 
 const LABEL: Record<HacamatStatus, string> = {
@@ -64,78 +62,70 @@ const LABEL: Record<HacamatStatus, string> = {
   normal:  "—",
 };
 
+// ─── Kenarlık sıfırı (kurul tablosu için) ─────────────────────────────────────
+
+const BORDER_NONE = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const;
+
 // ─── Paragraph yardımcıları ───────────────────────────────────────────────────
 
 function docTitle(text: string): Paragraph {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
-    children:  [new TextRun({ text, bold: true, size: 52, font: FONT, color: C_TEAL, allCaps: true })],
-    spacing:   { before: 0, after: 100 },
+    children:  [new TextRun({ text, bold: true, size: 44, font: FONT, color: C_TEAL, allCaps: true })],
+    spacing:   { before: 0, after: 80 },
   });
 }
 
 function docSubtitle(text: string): Paragraph {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
-    children:  [new TextRun({ text, size: 22, font: FONT, color: C_MID, italics: true })],
-    spacing:   { before: 0, after: 80 },
+    children:  [new TextRun({ text, size: 20, font: FONT, color: C_MID, italics: true })],
+    spacing:   { before: 0, after: 60 },
   });
 }
 
-function secH1(text: string, pageBreak = false): Paragraph {
+function secH1(text: string): Paragraph {
   return new Paragraph({
-    children:       [new TextRun({ text, bold: true, size: 28, font: FONT, color: C_TEAL })],
-    pageBreakBefore: pageBreak,
-    spacing:        { before: pageBreak ? 0 : 240, after: 120 },
-    border:         { bottom: { style: BorderStyle.SINGLE, size: 6, color: "CCFBF1" } },
+    children: [new TextRun({ text, bold: true, size: 26, font: FONT, color: C_TEAL })],
+    spacing:  { before: 160, after: 80 },
+    border:   { bottom: { style: BorderStyle.SINGLE, size: 6, color: "CCFBF1" } },
   });
 }
 
 function secH2(text: string): Paragraph {
   return new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 22, font: FONT, color: C_TEAL })],
-    spacing:  { before: 200, after: 80 },
+    children: [new TextRun({ text, bold: true, size: 20, font: FONT, color: C_TEAL })],
+    spacing:  { before: 140, after: 60 },
   });
 }
 
 function caption(text: string): Paragraph {
   return new Paragraph({
-    children: [new TextRun({ text, size: 18, font: FONT, color: C_LIGHT, italics: true })],
-    spacing:  { before: 40, after: 60 },
+    children: [new TextRun({ text, size: 17, font: FONT, color: C_LIGHT, italics: true })],
+    spacing:  { before: 20, after: 40 },
   });
 }
 
 function para(text: string): Paragraph {
   return new Paragraph({
-    children: [new TextRun({ text, size: 20, font: FONT, color: C_MID })],
-    spacing:  { before: 40, after: 60 },
-    indent:   { left: 200 },
+    children: [new TextRun({ text, size: 19, font: FONT, color: C_MID })],
+    spacing:  { before: 30, after: 50 },
+    indent:   { left: 180 },
   });
 }
 
 function noteItem(num: number, text: string): Paragraph {
   return new Paragraph({
     children: [
-      new TextRun({ text: `${num}.  `, bold: true, size: 20, font: FONT, color: C_TEAL }),
-      new TextRun({ text, size: 20, font: FONT, color: C_MID }),
-    ],
-    spacing: { before: 60, after: 80 },
-    indent:  { left: 200 },
-  });
-}
-
-function ruleItem(text: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: "•  ", size: 20, font: FONT, color: C_TEAL }),
-      new TextRun({ text, size: 20, font: FONT, color: C_MID }),
+      new TextRun({ text: `${num}.  `, bold: true, size: 19, font: FONT, color: C_TEAL }),
+      new TextRun({ text, size: 19, font: FONT, color: C_MID }),
     ],
     spacing: { before: 40, after: 60 },
-    indent:  { left: 240 },
+    indent:  { left: 180 },
   });
 }
 
-function gap(size = 120): Paragraph {
+function gap(size = 100): Paragraph {
   return new Paragraph({ spacing: { after: size } });
 }
 
@@ -155,13 +145,13 @@ function buildSummaryBox(items: SummaryItem[]): Table {
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
-              children:  [new TextRun({ text: item.label, size: 18, font: FONT, color: item.color })],
-              spacing:   { before: 80, after: 20 },
+              children:  [new TextRun({ text: item.label, size: 17, font: FONT, color: item.color })],
+              spacing:   { before: 50, after: 10 },
             }),
             new Paragraph({
               alignment: AlignmentType.CENTER,
-              children:  [new TextRun({ text: item.value, bold: true, size: 32, font: FONT, color: item.color })],
-              spacing:   { before: 0, after: 80 },
+              children:  [new TextRun({ text: item.value, bold: true, size: 28, font: FONT, color: item.color })],
+              spacing:   { before: 0, after: 50 },
             }),
           ],
         })
@@ -184,9 +174,9 @@ function tableCell(
     shading: { type: ShadingType.CLEAR, fill },
     children: [
       new Paragraph({
-        children: [new TextRun({ text, bold, size: 19, font: FONT, color: textColor })],
-        spacing:  { before: 60, after: 60 },
-        indent:   { left: 80 },
+        children: [new TextRun({ text, bold, size: 18, font: FONT, color: textColor })],
+        spacing:  { before: 40, after: 40 },
+        indent:   { left: 60 },
       }),
     ],
   });
@@ -209,9 +199,9 @@ function buildTable(days: CalendarDay[]): Table {
         shading: { type: ShadingType.CLEAR, fill: TH_FILL },
         children: [
           new Paragraph({
-            children: [new TextRun({ text: c.label, bold: true, size: 19, font: FONT, color: TH_TEXT })],
-            spacing:  { before: 60, after: 60 },
-            indent:   { left: 80 },
+            children: [new TextRun({ text: c.label, bold: true, size: 18, font: FONT, color: TH_TEXT })],
+            spacing:  { before: 40, after: 40 },
+            indent:   { left: 60 },
           }),
         ],
       })
@@ -235,6 +225,49 @@ function buildTable(days: CalendarDay[]): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows:  [headerRow, ...dataRows],
+  });
+}
+
+// ─── İki kolonlu kural tablosu ────────────────────────────────────────────────
+
+function ruleCell(text: string): TableCell {
+  return new TableCell({
+    width: { size: 50, type: WidthType.PERCENTAGE },
+    borders: { top: BORDER_NONE, bottom: BORDER_NONE, left: BORDER_NONE, right: BORDER_NONE },
+    children: [
+      new Paragraph({
+        children: text
+          ? [
+              new TextRun({ text: "•  ", size: 18, font: FONT, color: C_TEAL }),
+              new TextRun({ text, size: 18, font: FONT, color: C_MID }),
+            ]
+          : [new TextRun({ text: "" })],
+        spacing: { before: 30, after: 40 },
+        indent:  { left: 60 },
+      }),
+    ],
+  });
+}
+
+function buildRulesTable(rules: { text: string }[]): Table {
+  const rows: TableRow[] = [];
+  for (let i = 0; i < rules.length; i += 2) {
+    rows.push(new TableRow({
+      children: [
+        ruleCell(rules[i]!.text),
+        ruleCell(rules[i + 1]?.text ?? ""),
+      ],
+    }));
+  }
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top:    BORDER_NONE,
+      bottom: BORDER_NONE,
+      left:   BORDER_NONE,
+      right:  BORDER_NONE,
+    },
+    rows,
   });
 }
 
@@ -267,7 +300,7 @@ export async function POST(request: Request): Promise<Response> {
   // ── 1. Başlık ────────────────────────────────────────────────────────────────
   all.push(docTitle("HACAMAT TAKVİMİ"));
   all.push(docSubtitle(`${monthLabel}  ·  Hicri Ay: ${data.hijriMonthName}`));
-  all.push(gap(120));
+  all.push(gap(80));
 
   // ── 2. Ay Özeti kutusu ──────────────────────────────────────────────────────
   all.push(buildSummaryBox([
@@ -276,36 +309,36 @@ export async function POST(request: Request): Promise<Response> {
     { label: "Uygun Gün",   value: `${data.uygun.length} gün`,          fill: "FEF9C3", color: "A16207" },
     { label: "Yasaklı Gün", value: `${data.yasakliNotable.length} gün`, fill: "FEE2E2", color: "B91C1C" },
   ]));
-  all.push(gap(180));
+  all.push(gap(120));
 
   // ── 3. Aylık Hacamat Takvimi ────────────────────────────────────────────────
   all.push(secH1("Aylık Hacamat Takvimi"));
   all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${data.notable.length} gün`));
-  all.push(gap(80));
+  all.push(gap(60));
   all.push(buildTable(data.notable));
-  all.push(gap(180));
+  all.push(gap(120));
 
   // ── 4. Dinamik Hicri Gün Notları ─────────────────────────────────────────────
   if (data.notes.length > 0) {
     all.push(secH1("Dinamik Hicri Gün Notları"));
     all.push(caption("Hicri günlerin akşamdan başlaması kuralına göre otomatik üretilmiştir."));
-    all.push(gap(60));
+    all.push(gap(40));
     data.notes.forEach((note, i) => all.push(noteItem(i + 1, note)));
-    all.push(gap(160));
+    all.push(gap(100));
   }
 
-  // ── 5. Hacamat Öncesi Kurallar ───────────────────────────────────────────────
+  // ── 5. Hacamat Öncesi Kurallar — 2 kolon ─────────────────────────────────────
   if (oncesiRules.length > 0) {
     all.push(secH2("Hacamat Öncesi Kurallar"));
-    oncesiRules.forEach(r => all.push(ruleItem(r.text)));
-    all.push(gap(120));
+    all.push(buildRulesTable(oncesiRules));
+    all.push(gap(80));
   }
 
-  // ── 6. Hacamat Sonrası Kurallar ──────────────────────────────────────────────
+  // ── 6. Hacamat Sonrası Kurallar — 2 kolon ────────────────────────────────────
   if (sonrasiRules.length > 0) {
     all.push(secH2("Hacamat Sonrası Kurallar"));
-    sonrasiRules.forEach(r => all.push(ruleItem(r.text)));
-    all.push(gap(120));
+    all.push(buildRulesTable(sonrasiRules));
+    all.push(gap(80));
   }
 
   // ── 7. Uzman Notları — sadece boş değilse ────────────────────────────────────
@@ -314,10 +347,21 @@ export async function POST(request: Request): Promise<Response> {
     expertNotes.split("\n").filter(Boolean).forEach(line => all.push(para(line.trim())));
   }
 
-  // ── Oluştur ──────────────────────────────────────────────────────────────────
+  // ── Oluştur — sıkıştırılmış sayfa marjı ──────────────────────────────────────
   const doc = new Document({
     sections: [{
-      properties: {},
+      properties: {
+        page: {
+          margin: {
+            top:    640,   // ~0.44 inch
+            bottom: 500,   // ~0.35 inch
+            left:   720,   // 0.5 inch
+            right:  720,   // 0.5 inch
+            header: 280,
+            footer: 280,
+          },
+        },
+      },
       footers: { default: buildFooter(`Hacamat Takvimi · ${monthLabel}`) },
       children: all,
     }],
