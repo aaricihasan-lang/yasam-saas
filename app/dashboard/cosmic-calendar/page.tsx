@@ -179,44 +179,61 @@ export default function CosmicCalendarPage() {
 
         {/* ── Bugünün Enerjisi — ana yıldız kart ── */}
         <section className="relative mb-3 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)] sm:p-5">
-          {/* Subtle inner glow overlay */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" aria-hidden />
-          {/* Decorative orbs */}
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-12 left-1/4 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl" aria-hidden />
 
           <div className="relative">
-            {/* Label + title */}
             <p className="mb-1 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300/70">
               🌙 Bugünün Enerjisi
             </p>
-            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
               {energy.title}
             </h2>
-            <p className="mt-2 max-w-3xl text-[13px] font-medium leading-relaxed text-indigo-100/80 sm:text-sm">
-              {energy.summary}
+            <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-indigo-100/75 sm:text-[13px]">
+              {energy.mainTheme}
             </p>
 
             {/* 3 vurgu kutusu */}
-            <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+            <div className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
                 <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
                   🎯 Odak
                 </p>
-                <p className="text-[13px] font-bold text-white">{energy.focus}</p>
+                <p className="text-[12px] font-bold text-white">{energy.focus}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
                 <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
                   ⚡ Enerji Teması
                 </p>
-                <p className="text-[13px] font-bold text-white">{energy.theme}</p>
+                <p className="text-[12px] font-bold text-white">{energy.theme}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
                 <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
                   💡 Öneri
                 </p>
-                <p className="text-[13px] font-bold text-white">{energy.recommendation}</p>
+                <p className="text-[12px] font-bold text-white">{energy.recommendation}</p>
               </div>
+            </div>
+
+            {/* 4 mini rehber */}
+            <div className="mt-1.5 grid grid-cols-2 gap-1 sm:grid-cols-4">
+              {([
+                { label: "💞 İlişkiler",      value: energy.relationship },
+                { label: "💼 İş / Üretim",    value: energy.work },
+                { label: "🧘 Ruhsal Çalışma", value: energy.spiritualPractice },
+                { label: "⚠️ Dikkat",          value: energy.caution },
+              ] as const).map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-2 backdrop-blur-sm"
+                >
+                  <p className="mb-0.5 text-[8px] font-black uppercase tracking-wider text-indigo-300/50">
+                    {label}
+                  </p>
+                  <p className="text-[11px] font-medium leading-snug text-indigo-100/80">{value}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -325,15 +342,15 @@ export default function CosmicCalendarPage() {
             </div>
 
             {/* Yaklaşan Olaylar */}
-            <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+            <div className="rounded-3xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
               <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
                 Yaklaşan Olaylar
               </p>
-              <div className="space-y-0.5">
+              <div className="divide-y divide-slate-100/80">
                 {UPCOMING_EVENTS.map(({ days, text, icon }) => (
-                  <div key={text} className="flex items-center gap-2 rounded-xl bg-slate-50/70 px-2.5 py-1.5">
+                  <div key={text} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
                     <span className="text-sm leading-none">{icon}</span>
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-800">{text}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">{text}</span>
                     <span className="shrink-0 rounded-full bg-indigo-100/80 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-indigo-700">
                       {days}g
                     </span>

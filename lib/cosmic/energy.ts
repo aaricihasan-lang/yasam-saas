@@ -1,10 +1,7 @@
 /**
  * lib/cosmic/energy.ts
  * Kural tabanlı günlük enerji yorumu.
- *
- * Mevcut kaynaklar: ay fazı + ay burcu + numeroloji
- * İleride eklenecek: hacamat yorumları, retro yorumları,
- *   dolunay yorumları, kullanıcı tercihleri
+ * Kaynaklar: ay fazı + ay burcu + numeroloji
  */
 
 import { getMoonPhase, getMoonSign } from "./moon";
@@ -17,6 +14,11 @@ export type DailyEnergy = {
   focus: string;
   theme: string;
   recommendation: string;
+  mainTheme: string;
+  relationship: string;
+  work: string;
+  spiritualPractice: string;
+  caution: string;
 };
 
 type PhaseEnergy = {
@@ -106,12 +108,85 @@ const NUM_ACCENT = new Map<number, string>([
   [33, "33 üstay sayısının evrensel şefkat enerjisi yayılıyor."],
 ]);
 
+// ─── Ana tema (ay fazına göre) ────────────────────────────────────────────────
+
+const PHASE_MAIN_THEME = new Map<string, string>([
+  ["Yeni Ay",        "Niyet belirlemek ve içsel tohumları ekmek için güçlü bir an."],
+  ["Büyüyen Hilal",  "Attığınız adımlar şekilleniyor; enerji ve momentum yükseliyor."],
+  ["İlk Dördün",     "Zorluklar büyümeyi tetikler; kararlılıkla devam edin."],
+  ["Şişen Ay",       "Her şey olgunlaşıyor; sabır mükemmel sonucu getirir."],
+  ["Dolunay",        "Tamamlananlar bugün güçlü; sonuçları kutlayın ve bırakın."],
+  ["Azalan Ay",      "Değerlendirme zamanı; neyin işe yarayıp yaramadığını görün."],
+  ["Son Dördün",     "Eski kalıpları bırakmak için şimdi; arınma enerjisi güçlü."],
+  ["Balsamik",       "Sessizlik ve hazırlık; yeni bir dönem yaklaşıyor."],
+]);
+
+// ─── İlişki rehberi (ay burcuna göre) ────────────────────────────────────────
+
+const SIGN_RELATIONSHIP = new Map<string, string>([
+  ["Koç",     "Önce kendi ihtiyaçlarınıza yer açın; fazla reaktif olmaktan kaçının."],
+  ["Boğa",    "Güven ve sabır ilişkiyi besler; acele kararlar vermeyin."],
+  ["İkizler", "Sohbeti derinleştirin; yüzeysel kalmak bağı zayıflatır."],
+  ["Yengeç",  "Duyguları sessizce biriktirmek yerine paylaşmak iyileştirir."],
+  ["Aslan",   "Takdirin iki taraflı olmasına özen gösterin."],
+  ["Başak",   "Eleştiri yerine çözüm odaklı yaklaşmak bağı güçlendirir."],
+  ["Terazi",  "Karşılıklı dinleyerek orta noktayı bulmak kolaylaşıyor."],
+  ["Akrep",   "Kıskançlık yerine güveni seçin; derin konuşmalar iyileştiriyor."],
+  ["Yay",     "Özgürlük ve bağlılık dengesini gözlemleyin."],
+  ["Oğlak",   "Zaman ayırmak ilişkiyi besler; işi sürekli öne almayın."],
+  ["Kova",    "Bireysel alanı karşılıklı saygıyla koruyun."],
+  ["Balık",   "Sınırları net tutun; empati çok yoğunlaşabilir."],
+]);
+
+// ─── İş / üretim rehberi (ay burcuna göre) ───────────────────────────────────
+
+const SIGN_WORK = new Map<string, string>([
+  ["Koç",     "Girişimci ve bağımsız projeler için güçlü bir gün."],
+  ["Boğa",    "Uzun vadeli, somut sonuç üretecek işler için ideal tempo."],
+  ["İkizler", "Yazı, sunum ve bağlantı kurma için bereketli bir zaman."],
+  ["Yengeç",  "Bakım, ekip işleri ve iç düzenlemelerde enerji yüksek."],
+  ["Aslan",   "Sunum, yaratıcılık ve liderlik gerektiren işler öne çıkıyor."],
+  ["Başak",   "Detaylı analiz, düzeltme ve sağlık konuları için verimli."],
+  ["Terazi",  "Müzakere, tasarım ve ortak kararlar için güçlü bir gün."],
+  ["Akrep",   "Araştırma, derin inceleme ve finans işleri için doğru zaman."],
+  ["Yay",     "Strateji, eğitim ve yayıncılık işleri için uygun enerji."],
+  ["Oğlak",   "Kariyer adımları ve yapısal planlar için bereketli."],
+  ["Kova",    "Teknoloji, yenilik ve kolektif projeler için verimli."],
+  ["Balık",   "Sanatsal çalışma ve sezgisel kararlar için iyi bir zaman."],
+]);
+
+// ─── Ruhsal çalışma (ay burcuna göre) ────────────────────────────────────────
+
+const SIGN_SPIRITUAL = new Map<string, string>([
+  ["Koç",     "Hareket meditasyonu veya doğada yürüyüş denge getirir."],
+  ["Boğa",    "Topraklanma meditasyonu ve sessiz doğa zamanı önerilen pratik."],
+  ["İkizler", "Mantra okumak veya günlük tutmak zihinsel berraklık sağlar."],
+  ["Yengeç",  "Su ritüeli veya nefes çalışması bugün destekleyici."],
+  ["Aslan",   "Güneş selamlama ve kalp çakrası çalışması güçlendirici."],
+  ["Başak",   "Temizlik ritüeli veya bilinçli nefes çalışması dengeleyici."],
+  ["Terazi",  "Güzellik ve uyum üzerine meditasyon veya ses terapisi."],
+  ["Akrep",   "Derin nefes ve arınma ritüeli bugün çok destekleyici."],
+  ["Yay",     "Doğada uzun yürüyüş veya vizyon meditasyonu önerilen."],
+  ["Oğlak",   "Sabah rutini oluşturmak veya yapısal bir pratik başlatmak ideal."],
+  ["Kova",    "Akış meditasyonu veya kolektif enerji çalışması destekleyici."],
+  ["Balık",   "Ses banyosu, görselleştirme veya rüya günlüğü tutmak iyi."],
+]);
+
+// ─── Dikkat / uyarı (ay fazına göre) ─────────────────────────────────────────
+
+const PHASE_CAUTION = new Map<string, string>([
+  ["Yeni Ay",        "Büyük kararlara acele etmeyin; enerji henüz şekilleniyor."],
+  ["Büyüyen Hilal",  "Aşırı yüklenme tuzağına düşmeyin; adım adım ilerleyin."],
+  ["İlk Dördün",     "Direnç doğal; tükenmeden önce kendinize dinlenme verin."],
+  ["Şişen Ay",       "Aşırı heyecan kararları atlayabilir; sabırlı kalın."],
+  ["Dolunay",        "Duygusal yoğunluk yüksek; reaktif kararlardan kaçının."],
+  ["Azalan Ay",      "Bırakmakta güçlük çekebilirsiniz; akışa güvenin."],
+  ["Son Dördün",     "Yeni başlangıçlar için erken; mevcut işleri bitirmeye odaklanın."],
+  ["Balsamik",       "Aşırı izolasyondan kaçının; hafif bağlantılar iyileştirici."],
+]);
+
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
-/**
- * Verilen tarih için ay fazı + ay burcu + numeroloji verilerinden
- * kural tabanlı günlük enerji özeti üretir.
- */
 export function getDailyEnergySummary(date: Date): DailyEnergy {
   const phase = getMoonPhase(date);
   const sign  = getMoonSign(date);
@@ -128,10 +203,15 @@ export function getDailyEnergySummary(date: Date): DailyEnergy {
   ].filter(Boolean);
 
   return {
-    title: phaseData.title,
-    summary: summaryParts.join(" "),
-    focus: signData.focus,
-    theme: phaseData.theme,
-    recommendation: signData.recommendation,
+    title:            phaseData.title,
+    summary:          summaryParts.join(" "),
+    focus:            signData.focus,
+    theme:            phaseData.theme,
+    recommendation:   signData.recommendation,
+    mainTheme:        PHASE_MAIN_THEME.get(phase.name) ?? "Kozmik döngüler aktif; günü sezgilerinizle yönlendirin.",
+    relationship:     SIGN_RELATIONSHIP.get(sign.name) ?? "İlişkilerinizde sabır ve anlayış sergilediğinizde bağlar güçlenir.",
+    work:             SIGN_WORK.get(sign.name) ?? "Rutinlere sadık kalarak küçük adımlarla ilerlemek verimliliği artırır.",
+    spiritualPractice: SIGN_SPIRITUAL.get(sign.name) ?? "Kısa bir nefes veya meditasyon pratiği günü anlamlandırır.",
+    caution:          PHASE_CAUTION.get(phase.name) ?? "Aşırıya kaçmaktan kaçının; dengeli yaklaşım her alanda işe yarar.",
   };
 }
