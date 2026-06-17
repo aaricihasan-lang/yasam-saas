@@ -1,11 +1,12 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getDailyEnergySummary } from "@/lib/cosmic/energy";
-import { getPlanetaryHour, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
-
-export const dynamic = "force-dynamic";
+import { getPlanetaryHour, getDayRuler, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
 
@@ -16,17 +17,6 @@ const MONTH_NAMES_TR: ReadonlyArray<string> = [
 
 const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
 
-type CalEvent = { icon: string; label: string };
-
-const MONTH_EVENTS: Partial<Record<number, CalEvent[]>> = {
-  17: [{ icon: "🩸", label: "Hacamat" }],
-  19: [{ icon: "📅", label: "Beyaz Gün" }],
-  21: [{ icon: "🌕", label: "Dolunay" }, { icon: "🩸", label: "Hacamat" }],
-  28: [{ icon: "🪐", label: "Merkür Retro" }],
-};
-
-const HACAMAT_DAYS = new Set([3, 5, 17, 19, 21]);
-
 const UPCOMING_EVENTS = [
   { days: 3,  text: "Beyaz Gün",                icon: "📅" },
   { days: 5,  text: "Hacamat için uygun gün",    icon: "🩸" },
@@ -35,12 +25,10 @@ const UPCOMING_EVENTS = [
 ] as const;
 
 const LEGEND_ITEMS = [
-  { icon: "🌙", label: "Hicri" },
-  { icon: "🩸", label: "Hacamat" },
-  { icon: "🌕", label: "Dolunay" },
   { icon: "🌑", label: "Yeni Ay" },
-  { icon: "🪐", label: "Retro" },
-  { icon: "📅", label: "Randevu" },
+  { icon: "🌓", label: "İlk Dördün" },
+  { icon: "🌕", label: "Dolunay" },
+  { icon: "🌗", label: "Son Dördün" },
 ] as const;
 
 const BADGES = [
@@ -49,6 +37,12 @@ const BADGES = [
   "🌕 Ay Fazları",
   "🪐 Gezegen Saatleri",
 ] as const;
+
+const NUM_NAMES: Record<number, string> = {
+  1: "Liderlik", 2: "Uyum", 3: "Yaratıcılık", 4: "Düzen",
+  5: "Değişim", 6: "Sevgi", 7: "Derinlik", 8: "Güç",
+  9: "Tamamlanma", 11: "Sezgi", 22: "Vizyon", 33: "Şefkat",
+};
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 
@@ -72,54 +66,106 @@ function formatMiladiDate(date: Date): string {
   }
 }
 
+function numerologicalDay(date: Date): number {
+  const digits = `${date.getDate()}${date.getMonth() + 1}${date.getFullYear()}`
+    .split("")
+    .map(Number);
+  let n = digits.reduce((a, b) => a + b, 0);
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
+    n = String(n).split("").map(Number).reduce((a, b) => a + b, 0);
+  }
+  return n;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/**
+ * Her ay için 4 ana fazın (Yeni Ay, İlk Dördün, Dolunay, Son Dördün)
+ * geçiş yaptığı günleri bulur. Önceki günden farklılaşan ilk gün işaretlenir.
+ */
+function getMonthMoonMarkers(year: number, month: number): Map<number, string> {
+  const markers    = new Map<number, string>();
+  const mainPhases = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const today      = new Date(year, month, d, 12, 0, 0);
+    const prev       = new Date(year, month, d - 1, 12, 0, 0);
+    const todayPhase = getMoonPhase(today);
+    const prevPhase  = getMoonPhase(prev);
+    if (mainPhases.has(todayPhase.name) && todayPhase.name !== prevPhase.name) {
+      markers.set(d, todayPhase.emoji);
+    }
+  }
+  return markers;
+}
+
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function CosmicCalendarPage() {
-  const now = new Date();
+  // Sayfa yüklenme anı — kararlı referans
+  const [realNow] = useState(() => new Date());
+  const todayYear  = realNow.getFullYear();
+  const todayMonth = realNow.getMonth();
+  const todayDay   = realNow.getDate();
 
-  // Takvim
-  const year     = now.getFullYear();
-  const month    = now.getMonth();
-  const todayDay = now.getDate();
-  const cells    = buildCalendarCells(year, month);
+  // Seçili gün (varsayılan: bugün gece yarısı)
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    () => new Date(todayYear, todayMonth, todayDay),
+  );
 
-  // Kozmik hesaplamalar
-  const hijriDate      = getHijriDate(now);
-  const hijriMonthYear = getHijriMonthYear(now);
-  const moonPhase      = getMoonPhase(now);
-  const moonSign       = getMoonSign(now);
-  const miladiDate     = formatMiladiDate(now);
+  // Takvim görünüm ayı
+  const [viewYear,  setViewYear]  = useState(todayYear);
+  const [viewMonth, setViewMonth] = useState(todayMonth);
 
-  // Günlük enerji yorumu (kural tabanlı)
-  const energy = getDailyEnergySummary(now);
+  // ── Takvim hesapları ──────────────────────────────────────────────────────
+  const cells      = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
+  const moonMarkers = useMemo(() => getMonthMoonMarkers(viewYear, viewMonth), [viewYear, viewMonth]);
+  const hijriMonthYear = useMemo(
+    () => getHijriMonthYear(new Date(viewYear, viewMonth, 15)),
+    [viewYear, viewMonth],
+  );
 
-  // Gezegen saati hesaplama (gün doğumu/batımı tabanlı)
-  const ph = getPlanetaryHour(now);
+  // ── Seçili güne ait kozmik veriler ────────────────────────────────────────
+  const moonPhase  = useMemo(() => getMoonPhase(selectedDate),   [selectedDate]);
+  const moonSign   = useMemo(() => getMoonSign(selectedDate),    [selectedDate]);
+  const energy     = useMemo(() => getDailyEnergySummary(selectedDate), [selectedDate]);
+  const hijriDate  = useMemo(() => getHijriDate(selectedDate),   [selectedDate]);
+  const miladiDate = useMemo(() => formatMiladiDate(selectedDate), [selectedDate]);
+  const numDay     = useMemo(() => numerologicalDay(selectedDate), [selectedDate]);
+  const dayRuler   = useMemo(() => getDayRuler(selectedDate),    [selectedDate]);
+  const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
 
-  // Kozmik Özet kart satırları
+  // Gerçek zamanlı gezegen saati (bugün için)
+  const ph = useMemo(() => getPlanetaryHour(realNow), [realNow]);
+
+  // ── Ay navigasyonu ────────────────────────────────────────────────────────
+  function prevMonth() {
+    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
+    else setViewMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
+    else setViewMonth((m) => m + 1);
+  }
+  function selectDay(day: number) {
+    setSelectedDate(new Date(viewYear, viewMonth, day));
+  }
+
+  // ── Kozmik Özet satırları (seçili güne göre) ──────────────────────────────
   const cosmicSummary = [
-    { icon: "📅",            label: "Miladi",          value: miladiDate },
-    { icon: "🌙",            label: "Hicri",           value: hijriDate },
-    { icon: moonPhase.emoji, label: "Ay Fazı",         value: moonPhase.name },
-    { icon: moonSign.emoji,  label: "Ay Burcu",        value: moonSign.name },
-    { icon: "🔢",            label: "Numeroloji",      value: "5 · Değişim" },
-    { icon: "⏰",            label: "Gezegen Saati",   value: `${ph.aktifGezegen.symbol} ${ph.aktifGezegen.name}` },
-    { icon: "🩸",            label: "Sonraki Hacamat", value: "3 gün sonra" },
-  ];
-
-  // Sağ panel durum satırları
-  const rightStats: Array<{ icon: string; label: string; value: string; color: string; sub?: string }> = [
-    { icon: moonPhase.emoji, label: "Ay Fazı",           value: moonPhase.name,    color: "text-violet-700" },
-    { icon: "🕋",            label: "Hicri",             value: hijriDate,          color: "text-slate-800" },
-    { icon: "🩸",            label: "Sonraki Hacamat",   value: "3 gün sonra",      color: "text-rose-600" },
-    { icon: "🪐",            label: "Retro Durumu",      value: "Aktif Retro Yok",  color: "text-emerald-600" },
-    {
-      icon:  "⏰",
-      label: "Gezegen Saati",
-      value: `${ph.aktifGezegen.symbol} ${ph.aktifGezegen.name}`,
-      color: "text-indigo-700",
-      sub:   `Sonraki: ${ph.sonrakiGezegen.symbol} ${ph.sonrakiGezegen.name} · ${ph.kalanDakika} dk`,
-    },
+    { icon: "📅",            label: "Miladi",         value: miladiDate },
+    { icon: "🌙",            label: "Hicri",          value: hijriDate },
+    { icon: moonPhase.emoji, label: "Ay Fazı",        value: moonPhase.name },
+    { icon: moonSign.emoji,  label: "Ay Burcu",       value: moonSign.name },
+    { icon: "🔢",            label: "Numeroloji",     value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}` },
+    { icon: dayRuler.symbol, label: "Gün Yöneticisi", value: dayRuler.name },
   ];
 
   return (
@@ -177,7 +223,7 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Bugünün Enerjisi — ana yıldız kart ── */}
+        {/* ── Seçili Günün Enerjisi — ana yıldız kart ── */}
         <section className="relative mb-3 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)] sm:p-5">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
@@ -185,7 +231,7 @@ export default function CosmicCalendarPage() {
 
           <div className="relative">
             <p className="mb-1 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300/70">
-              🌙 Bugünün Enerjisi
+              🌙 {isSelectedToday ? "Bugünün Enerjisi" : `${miladiDate} Enerjisi`}
             </p>
             <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
               {energy.title}
@@ -197,21 +243,15 @@ export default function CosmicCalendarPage() {
             {/* 3 vurgu kutusu */}
             <div className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
-                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
-                  🎯 Odak
-                </p>
+                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">🎯 Odak</p>
                 <p className="text-[12px] font-bold text-white">{energy.focus}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
-                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
-                  ⚡ Enerji Teması
-                </p>
+                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">⚡ Enerji Teması</p>
                 <p className="text-[12px] font-bold text-white">{energy.theme}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
-                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">
-                  💡 Öneri
-                </p>
+                <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">💡 Öneri</p>
                 <p className="text-[12px] font-bold text-white">{energy.recommendation}</p>
               </div>
             </div>
@@ -228,9 +268,7 @@ export default function CosmicCalendarPage() {
                   key={label}
                   className="rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-2 backdrop-blur-sm"
                 >
-                  <p className="mb-0.5 text-[8px] font-black uppercase tracking-wider text-indigo-300/50">
-                    {label}
-                  </p>
+                  <p className="mb-0.5 text-[8px] font-black uppercase tracking-wider text-indigo-300/50">{label}</p>
                   <p className="text-[11px] font-medium leading-snug text-indigo-100/80">{value}</p>
                 </div>
               ))}
@@ -238,29 +276,30 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Bugünün Kozmik Özeti — kompakt ── */}
+        {/* ── Kozmik Özet — kompakt ── */}
         <div className="mb-4 overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-2.5 shadow-sm backdrop-blur-md sm:p-3">
-          <p className="mb-1.5 flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
             🌙 Kozmik Özet
+            {!isSelectedToday && (
+              <span className="normal-case text-[9px] font-semibold text-slate-400">
+                — {miladiDate}
+              </span>
+            )}
           </p>
-          <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-6">
             {cosmicSummary.map(({ icon, label, value }) => (
               <div
                 key={label}
                 className="rounded-xl border border-white/80 bg-white/60 px-2 py-1.5 backdrop-blur-sm"
               >
-                <p className="text-[8px] font-semibold text-slate-400">
-                  {icon} {label}
-                </p>
-                <p className="mt-0.5 truncate text-[11px] font-black leading-tight text-slate-900">
-                  {value}
-                </p>
+                <p className="text-[8px] font-semibold text-slate-400">{icon} {label}</p>
+                <p className="mt-0.5 truncate text-[11px] font-black leading-tight text-slate-900">{value}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── Ana Grid: Takvim (sol) + Panel (sağ) ── */}
+        {/* ── Ana Grid: Takvim (sol) + Seçili Gün Detayı (sağ) ── */}
         <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
 
           {/* ── Sol: Aylık Takvim + Yaklaşan Olaylar ── */}
@@ -268,24 +307,42 @@ export default function CosmicCalendarPage() {
 
             <div className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
 
-              <div className="mb-2">
-                <div className="mb-1.5 flex items-center justify-between">
+              {/* Ay navigasyon toolbar */}
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  onClick={prevMonth}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700"
+                  aria-label="Önceki ay"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex flex-1 items-center justify-between">
                   <h2 className="text-base font-black text-slate-800">
-                    {MONTH_NAMES_TR[month]} {year}
+                    {MONTH_NAMES_TR[viewMonth]} {viewYear}
                   </h2>
                   <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">
                     🌙 {hijriMonthYear}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-2">
-                  {LEGEND_ITEMS.map(({ icon, label }) => (
-                    <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">
-                      {icon} {label}
-                    </span>
-                  ))}
-                </div>
+                <button
+                  onClick={nextMonth}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700"
+                  aria-label="Sonraki ay"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
 
+              {/* Lejant */}
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-2 mb-2">
+                {LEGEND_ITEMS.map(({ icon, label }) => (
+                  <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                    {icon} {label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Gün başlıkları */}
               <div className="mb-0.5 grid grid-cols-7 gap-0.5">
                 {DAY_HEADERS.map((h) => (
                   <div key={h} className="py-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -294,26 +351,31 @@ export default function CosmicCalendarPage() {
                 ))}
               </div>
 
+              {/* Takvim hücreleri */}
               <div className="grid grid-cols-7 gap-0.5">
                 {cells.map((day, i) => {
                   if (day === null) {
                     return <div key={`e-${i}`} className="h-10 rounded-lg" />;
                   }
-                  const isToday         = day === todayDay;
-                  const events          = MONTH_EVENTS[day] ?? [];
-                  const hasHacamatEvent = events.some((e) => e.icon === "🩸");
-                  const showHacamatDot  = HACAMAT_DAYS.has(day) && !hasHacamatEvent && !isToday;
+
+                  const isToday    = day === todayDay && viewMonth === todayMonth && viewYear === todayYear;
+                  const isSelected = !isToday &&
+                    day === selectedDate.getDate() &&
+                    viewMonth === selectedDate.getMonth() &&
+                    viewYear === selectedDate.getFullYear();
+                  const moonMarker = moonMarkers.get(day);
 
                   return (
-                    <div
+                    <button
                       key={day}
+                      onClick={() => selectDay(day)}
                       className={`flex h-10 flex-col items-center justify-start gap-0.5 rounded-lg p-1 transition-colors ${
                         isToday
                           ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40"
-                          : events.length > 0
-                            ? "border border-indigo-100 bg-indigo-50/60"
-                            : showHacamatDot
-                              ? "border border-rose-100 bg-rose-50/50"
+                          : isSelected
+                            ? "ring-2 ring-inset ring-indigo-400 bg-indigo-50"
+                            : moonMarker
+                              ? "border border-violet-100 bg-violet-50/60 hover:bg-violet-100/60"
                               : "bg-white/30 hover:bg-white/60"
                       }`}
                     >
@@ -323,19 +385,12 @@ export default function CosmicCalendarPage() {
                       {isToday && (
                         <span className="text-[7px] leading-none text-white/80">bugün</span>
                       )}
-                      {!isToday && events.length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-0.5">
-                          {events.slice(0, 2).map((ev, ei) => (
-                            <span key={ei} className="text-[9px] leading-none" title={ev.label}>
-                              {ev.icon}
-                            </span>
-                          ))}
-                        </div>
+                      {!isToday && moonMarker && (
+                        <span className="text-[10px] leading-none" title={`Ay fazı geçişi`}>
+                          {moonMarker}
+                        </span>
                       )}
-                      {showHacamatDot && (
-                        <span className="text-[9px] leading-none" title="Hacamat günü">🩸</span>
-                      )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -360,127 +415,148 @@ export default function CosmicCalendarPage() {
             </div>
           </div>
 
-          {/* ── Sağ Panel ── */}
+          {/* ── Sağ Panel: Seçili Gün Detayı ── */}
           <div className="flex flex-col gap-3">
 
+            {/* Seçili Gün Detayı kartı */}
             <div className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
-                Günlük Durum
-              </p>
-              <div className="space-y-1">
-                {rightStats.map(({ icon, label, value, color, sub }) => (
-                  <div key={label} className="flex items-start justify-between rounded-xl bg-slate-50/70 px-2.5 py-1.5">
-                    <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                      {icon} {label}
-                    </span>
-                    <div className="min-w-0 text-right">
-                      <span className={`text-[11px] font-black ${color}`}>{value}</span>
-                      {sub ? <p className="text-[10px] text-slate-400">{sub}</p> : null}
-                    </div>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm text-white shadow-sm">
+                  📅
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
+                    Seçili Gün Detayı
+                  </p>
+                  {isSelectedToday && (
+                    <span className="text-[9px] font-semibold text-emerald-600">● Bugün</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                {/* Miladi Tarih */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">📅 Miladi Tarih</p>
+                  <p className="text-[12px] font-black text-slate-800">{miladiDate}</p>
+                </div>
+
+                {/* Hicri Tarih */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">🕋 Hicri Tarih</p>
+                  <p className="text-[12px] font-black text-slate-700">{hijriDate}</p>
+                </div>
+
+                {/* Ay Fazı */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">{moonPhase.emoji} Ay Fazı</p>
+                  <p className="text-[12px] font-black text-violet-700">{moonPhase.name}</p>
+                </div>
+
+                {/* Ay Burcu */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">{moonSign.emoji} Ay Burcu</p>
+                  <p className="text-[12px] font-black text-indigo-700">{moonSign.name}</p>
+                </div>
+
+                {/* Numeroloji */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">🔢 Numeroloji</p>
+                  <p className="text-[12px] font-black text-slate-800">
+                    {numDay} · {NUM_NAMES[numDay] ?? ""}
+                  </p>
+                </div>
+
+                {/* Retro Durumu */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">🪐 Retro Durumu</p>
+                  <p className="text-[12px] font-black text-emerald-600">Aktif Retro Yok</p>
+                </div>
+
+                {/* Gezegen Saati Özeti */}
+                <div className="rounded-xl bg-slate-50/70 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">{dayRuler.symbol} Gezegen Saati Özeti</p>
+                  <p className="text-[12px] font-black text-indigo-700">{dayRuler.name} Günü</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{dayRuler.description}</p>
+                </div>
+
+                {/* Günlük Enerji Yorumu */}
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-2.5 py-2">
+                  <p className="text-[9px] text-slate-400">💫 Günlük Enerji Yorumu</p>
+                  <p className="text-[12px] font-black text-violet-700">{energy.title}</p>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">{energy.mainTheme}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bugün seçiliyse gerçek zamanlı gezegen saati widget'ı */}
+            {isSelectedToday && (
+              <div className="overflow-hidden rounded-3xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 p-3 shadow-sm backdrop-blur-md">
+                <p className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
+                  ⏰ Şu Anki Gezegen Saati
+                </p>
+
+                {/* Aktif gezegen — büyük görsel */}
+                <div className="mb-2 flex items-center gap-3 rounded-2xl border border-indigo-200/50 bg-white/80 px-3 py-2.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-xl text-white shadow-md">
+                    {ph.aktifGezegen.symbol}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-rose-100 bg-rose-50/60 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">
-                Bu Ay Hacamat Günleri
-              </p>
-              <p className="mb-2 text-[11px] text-slate-500">
-                Hicri 3., 5., 17., 19. ve 21. günler.
-              </p>
-              <div className="mb-2.5 flex flex-wrap gap-1">
-                {Array.from(HACAMAT_DAYS).map((d) => (
-                  <span key={d} className="rounded-lg border border-rose-200 bg-white/80 px-2 py-0.5 text-[11px] font-black text-rose-700">
-                    {d}. Gün
-                  </span>
-                ))}
-              </div>
-              <p className="rounded-xl border border-amber-100 bg-amber-50/70 px-2.5 py-1.5 text-[10px] leading-relaxed text-amber-700">
-                ⚠️ Yalnızca bilgilendirme amaçlıdır. Tıbbi karar yerine geçmez.
-              </p>
-            </div>
-
-            {/* ── Şu Anki Gezegen Saati ── */}
-            <div className="overflow-hidden rounded-3xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">
-                ⏰ Şu Anki Gezegen Saati
-              </p>
-
-              {/* Aktif gezegen — büyük görsel */}
-              <div className="mb-2 flex items-center gap-3 rounded-2xl border border-indigo-200/50 bg-white/80 px-3 py-2.5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-xl text-white shadow-md">
-                  {ph.aktifGezegen.symbol}
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">
+                      {ph.isDayHour ? "Gündüz Saati" : "Gece Saati"} · {ph.isDayHour ? ph.saatIndex + 1 : ph.saatIndex - 11}. saat
+                    </p>
+                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
+                    <p className="text-[11px] leading-snug text-slate-500">{ph.aktifGezegen.description}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">
-                    {ph.isDayHour ? "Gündüz Saati" : "Gece Saati"} · {ph.isDayHour ? ph.saatIndex + 1 : ph.saatIndex - 11}. saat
-                  </p>
-                  <p className="text-sm font-black text-slate-900">
-                    {ph.aktifGezegen.name} Saati
-                  </p>
-                  <p className="text-[11px] leading-snug text-slate-500">
-                    {ph.aktifGezegen.description}
-                  </p>
-                </div>
-              </div>
 
-              {/* Aktif / Sonraki / Kalan */}
-              <div className="mb-2 grid grid-cols-3 gap-1.5">
-                <div className="rounded-xl bg-white/70 px-2 py-1.5">
-                  <p className="text-[9px] text-slate-400">Aktif</p>
-                  <p className="text-[12px] font-black text-indigo-700">
-                    {ph.aktifGezegen.symbol} {ph.aktifGezegen.name}
-                  </p>
+                {/* Aktif / Sonraki / Kalan */}
+                <div className="mb-2 grid grid-cols-3 gap-1.5">
+                  <div className="rounded-xl bg-white/70 px-2 py-1.5">
+                    <p className="text-[9px] text-slate-400">Aktif</p>
+                    <p className="text-[12px] font-black text-indigo-700">
+                      {ph.aktifGezegen.symbol} {ph.aktifGezegen.name}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/70 px-2 py-1.5">
+                    <p className="text-[9px] text-slate-400">Sonraki</p>
+                    <p className="text-[12px] font-black text-slate-700">
+                      {ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/70 px-2 py-1.5">
+                    <p className="text-[9px] text-slate-400">Kalan</p>
+                    <p className="text-[12px] font-black text-violet-700">{ph.kalanDakika} dk</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-white/70 px-2 py-1.5">
-                  <p className="text-[9px] text-slate-400">Sonraki</p>
-                  <p className="text-[12px] font-black text-slate-700">
-                    {ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-white/70 px-2 py-1.5">
-                  <p className="text-[9px] text-slate-400">Kalan</p>
-                  <p className="text-[12px] font-black text-violet-700">{ph.kalanDakika} dk</p>
-                </div>
-              </div>
 
-              {/* 7 gezegen sırası — aktif vurgulu */}
-              <div className="mb-2 flex items-center justify-between rounded-2xl border border-indigo-100/80 bg-white/60 px-2 py-1.5">
-                {CHALDEAN_PLANETS.map((planet, idx) => {
-                  const isActive = idx === ph.aktifChaldeanIdx;
-                  return (
-                    <div
-                      key={planet.name}
-                      className={`flex flex-col items-center gap-0.5 transition-all ${
-                        isActive ? "scale-125" : "opacity-35"
-                      }`}
-                    >
-                      <span
-                        className={`text-base leading-none ${
-                          isActive ? "text-indigo-600" : "text-slate-500"
-                        }`}
+                {/* 7 gezegen sırası — aktif vurgulu */}
+                <div className="mb-2 flex items-center justify-between rounded-2xl border border-indigo-100/80 bg-white/60 px-2 py-1.5">
+                  {CHALDEAN_PLANETS.map((planet, idx) => {
+                    const isActive = idx === ph.aktifChaldeanIdx;
+                    return (
+                      <div
+                        key={planet.name}
+                        className={`flex flex-col items-center gap-0.5 transition-all ${isActive ? "scale-125" : "opacity-35"}`}
                       >
-                        {planet.symbol}
-                      </span>
-                      <span
-                        className={`text-[8px] leading-none ${
-                          isActive ? "font-black text-indigo-700" : "text-slate-400"
-                        }`}
-                      >
-                        {planet.name.substring(0, 3)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                        <span className={`text-base leading-none ${isActive ? "text-indigo-600" : "text-slate-500"}`}>
+                          {planet.symbol}
+                        </span>
+                        <span className={`text-[8px] leading-none ${isActive ? "font-black text-indigo-700" : "text-slate-400"}`}>
+                          {planet.name.substring(0, 3)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
 
-              {/* Gün doğumu / batımı */}
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>☀️ Doğum: {ph.gunDogumuStr}</span>
-                <span>🌅 Batım: {ph.gunBatimiStr}</span>
+                {/* Gün doğumu / batımı */}
+                <div className="flex justify-between text-[10px] text-slate-400">
+                  <span>☀️ Doğum: {ph.gunDogumuStr}</span>
+                  <span>🌅 Batım: {ph.gunBatimiStr}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

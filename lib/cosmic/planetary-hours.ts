@@ -152,6 +152,17 @@ export type PlanetaryHourResult = {
   gunBatimiStr:      string; // e.g. "20:37"
 };
 
+// ─── Gün yöneticisi (haftanın gününe göre ilk gezegen saati) ─────────────────
+
+/** Seçili günün yönetici gezegenini döndürür (gün doğumu ilk saati baz alınır) */
+export function getDayRuler(date: Date): Planet {
+  const localMs   = date.getTime() + TZ_OFFSET_MIN * 60_000;
+  const localDate = new Date(localMs);
+  const weekday   = localDate.getUTCDay();
+  const idx       = DAY_START_IDX[weekday] ?? 3;
+  return CHALDEAN_PLANETS[idx]!;
+}
+
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
 export function getPlanetaryHour(
