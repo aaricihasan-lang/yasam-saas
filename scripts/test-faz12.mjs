@@ -12,11 +12,11 @@ page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
 
 const BASE = "http://localhost:3000/dashboard/cosmic-calendar";
 await page.goto(BASE, { waitUntil: "networkidle" });
-await page.waitForSelector("text=Kozmik Ajanda");
+await page.waitForSelector('[data-testid="kozmik-ajanda"]');
 
 // ── 1. Kozmik Ajanda varlık kontrolü ──────────────────────────────────────
 console.log("1) Kozmik Ajanda bölümü...");
-const ajandaBolum = page.locator("div").filter({ hasText: "🗓 Kozmik Ajanda" }).first();
+const ajandaBolum = page.locator('[data-testid="kozmik-ajanda"]');
 const bolumVarMi  = await ajandaBolum.count();
 console.log("   Bölüm var:", bolumVarMi > 0 ? "✓" : "✗");
 
@@ -24,8 +24,9 @@ console.log("   Bölüm var:", bolumVarMi > 0 ? "✓" : "✗");
 const rows = await ajandaBolum.locator("button.flex.w-full").count();
 console.log("   Olay sayısı:", rows, rows >= 5 ? "✓" : "⚠");
 
-// Filtreler
-const filters = await ajandaBolum.locator("button").filter({ hasText: /Tümü|Ay Fazları|Retrolar|Güçlü/ }).count();
+// Filtreler — data-testid="ajanda-filters" içindeki butonlar
+const filterBar = page.locator('[data-testid="ajanda-filters"]');
+const filters = await filterBar.locator("button").count();
 console.log("   Filtre sayısı:", filters, filters === 4 ? "✓" : "✗");
 
 await page.screenshot({ path: `${OUT}/01-ajanda-full.png`, fullPage: false });
@@ -33,7 +34,7 @@ await ajandaBolum.screenshot({ path: `${OUT}/01-ajanda-kart.png` });
 
 // ── 2. Ay Fazları filtresi ─────────────────────────────────────────────────
 console.log("2) 'Ay Fazları' filtresi...");
-await ajandaBolum.locator("button", { hasText: "Ay Fazları" }).click();
+await filterBar.locator("button", { hasText: "Ay Fazları" }).click();
 await page.waitForTimeout(200);
 const phaseRows = await ajandaBolum.locator("button.flex.w-full").count();
 console.log("   Ay Fazı satırı sayısı:", phaseRows, phaseRows >= 2 ? "✓" : "✗");
@@ -42,7 +43,7 @@ console.log("   Retro satırı:", retroRows === 0 ? "✓ (filtre çalışıyor)"
 
 // ── 3. Retrolar filtresi ───────────────────────────────────────────────────
 console.log("3) 'Retrolar' filtresi...");
-await ajandaBolum.locator("button", { hasText: "Retrolar" }).click();
+await filterBar.locator("button", { hasText: "Retrolar" }).click();
 await page.waitForTimeout(200);
 const retroOnly = await ajandaBolum.locator("button.flex.w-full").count();
 const noPhase   = await ajandaBolum.locator("button.flex.w-full").filter({ hasText: /Yeni Ay|Dolunay|İlk Dördün|Son Dördün/ }).count();
@@ -51,7 +52,7 @@ console.log("   Faz satırı:", noPhase === 0 ? "✓ yok" : "✗ görünüyor");
 
 // ── 4. Güçlü Günler filtresi ───────────────────────────────────────────────
 console.log("4) 'Güçlü Günler' filtresi...");
-await ajandaBolum.locator("button", { hasText: "Güçlü Günler" }).click();
+await filterBar.locator("button", { hasText: "Güçlü Günler" }).click();
 await page.waitForTimeout(200);
 const gucluRows = await ajandaBolum.locator("button.flex.w-full").count();
 console.log("   Güçlü gün satırı:", gucluRows, gucluRows >= 1 ? "✓" : "⚠ (hesaplamayı kontrol et)");
@@ -63,7 +64,7 @@ await ajandaBolum.screenshot({ path: `${OUT}/02-guclu-gunler-filtre.png` });
 
 // ── 5. Tümü filtresi geri dön ──────────────────────────────────────────────
 console.log("5) 'Tümü' filtresi + olaya tıklama...");
-await ajandaBolum.locator("button", { hasText: "Tümü" }).click();
+await filterBar.locator("button", { hasText: "Tümü" }).click();
 await page.waitForTimeout(200);
 const tumuRows = await ajandaBolum.locator("button.flex.w-full").count();
 console.log("   Tümü toplam olay:", tumuRows);
@@ -81,7 +82,7 @@ await page.screenshot({ path: `${OUT}/03-after-click.png`, fullPage: false });
 // ── 6. Geri sayım renkleri ─────────────────────────────────────────────────
 console.log("6) Geri sayım renkleri...");
 await page.goto(BASE, { waitUntil: "networkidle" });
-const ajanda2 = page.locator("div").filter({ hasText: "🗓 Kozmik Ajanda" }).first();
+const ajanda2 = page.locator('[data-testid="kozmik-ajanda"]');
 const roseCount  = await ajanda2.locator(".text-rose-600").count();
 const amberCount = await ajanda2.locator(".text-amber-600").count();
 const slateCount = await ajanda2.locator(".text-slate-400").count();
@@ -103,8 +104,8 @@ const mCtx  = await browser.newContext({ viewport: { width: 390, height: 844 } }
 const mPage = await mCtx.newPage();
 await mPage.goto(BASE, { waitUntil: "networkidle" });
 const overflow   = await mPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-const mAjanda    = await mPage.locator("div").filter({ hasText: "🗓 Kozmik Ajanda" }).count();
-const mFilterBtn = await mPage.locator("button", { hasText: "Ay Fazları" }).count();
+const mAjanda    = await mPage.locator('[data-testid="kozmik-ajanda"]').count();
+const mFilterBtn = await mPage.locator('[data-testid="ajanda-filters"] button', { hasText: "Ay Fazları" }).count();
 console.log("   Yatay taşma:", overflow ? "⚠ VAR" : "✓ yok");
 console.log("   Ajanda mobilde:", mAjanda > 0 ? "✓" : "✗");
 console.log("   Filtreler mobilde:", mFilterBtn > 0 ? "✓" : "✗");

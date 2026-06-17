@@ -232,31 +232,29 @@ function getMonthNumeroDays(year: number, month: number): Map<number, number> {
 
 /**
  * Yaklaşan kozmik olayları birleştirir: ay fazları + retro başlangıçları + güçlü günler.
- * Güçlü günler yalnızca numeroloji katkısı olduğunda eklenir (faz olaylarıyla çakışmaz).
+ * Fazlar ve retrolar tümü dahil edilir. Güçlü günler skora göre sıralanıp en iyi 15'i alınır
+ * (kategori başına limit uygulanarak retro olaylarının liste dışına itilmesi önlenir).
  */
 function getUpcomingAgendaEvents(from: Date, days: number): AgendaEvent[] {
-  const events: AgendaEvent[] = [];
   const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
 
-  // Ay fazı olayları
-  for (const e of getUpcomingPhaseEvents(from, days)) {
-    events.push({ kind: "phase", emoji: e.emoji, label: e.name, date: e.date, daysFromNow: e.daysFromNow });
-  }
+  // Ay fazı olayları — tümü
+  const phases: AgendaEvent[] = getUpcomingPhaseEvents(from, days).map(e => ({
+    kind: "phase" as const, emoji: e.emoji, label: e.name, date: e.date, daysFromNow: e.daysFromNow,
+  }));
 
-  // Retro başlangıçları
-  for (const r of getUpcomingRetros(from, days)) {
+  // Retro başlangıçları — tümü
+  const retros: AgendaEvent[] = getUpcomingRetros(from, days).map(r => {
     const d = parseRetroDate(r.start);
     const df = Math.max(1, Math.ceil((d.getTime() - fromMidnight.getTime()) / 86_400_000));
-    events.push({
-      kind: "retro", emoji: r.symbol,
-      label: `${r.planet} Retrosu Başlangıcı`, sublabel: r.theme,
-      date: d, daysFromNow: df,
-    });
-  }
+    return { kind: "retro" as const, emoji: r.symbol, label: `${r.planet} Retrosu Başlangıcı`, sublabel: r.theme, date: d, daysFromNow: df };
+  });
 
-  // Güçlü günler — sadece numeroloji katkısı olan günler (faz olaylarıyla çakışmaz)
+  // Güçlü günler — numeroloji katkısı olan günler, en iyi 15'i
+  type GucluCandidate = AgendaEvent & { score: number };
   const SPECIAL_NUMS = new Set([1, 8, 11, 22, 33]);
   const monthsToCheck = Math.ceil(days / 28) + 1;
+  const gucluAll: GucluCandidate[] = [];
   for (let m = 0; m <= monthsToCheck; m++) {
     const baseDate = new Date(from.getFullYear(), from.getMonth() + m, 1);
     const yr = baseDate.getFullYear(), mo = baseDate.getMonth();
@@ -268,7 +266,6 @@ function getUpcomingAgendaEvents(from: Date, days: number): AgendaEvent[] {
       if (df > days) continue;
       const num = numerologicalDay(date);
       if (!SPECIAL_NUMS.has(num)) continue;
-      // Puan hesabı
       const phase = getMoonPhase(date);
       let score = 0;
       const parts: string[] = [];
@@ -278,15 +275,16 @@ function getUpcomingAgendaEvents(from: Date, days: number): AgendaEvent[] {
       const numPts = (num === 11 || num === 22 || num === 33) ? 3 : 1;
       score += numPts;
       parts.push(`${num} sayısı +${numPts}`);
-      events.push({
-        kind: "guclu", emoji: "⭐",
-        label: `Güçlü Gün (${score}p)`, sublabel: parts.join(" · "),
-        date, daysFromNow: df,
-      });
+      gucluAll.push({ kind: "guclu", emoji: "⭐", label: `Güçlü Gün (${score}p)`, sublabel: parts.join(" · "), date, daysFromNow: df, score });
     }
   }
+  // Skora göre azalan sırada en iyi 15'i al, ardından tarihe göre sırala
+  const guclu: AgendaEvent[] = gucluAll
+    .sort((a, b) => b.score - a.score || a.daysFromNow - b.daysFromNow)
+    .slice(0, 15)
+    .map(({ score: _s, ...ev }) => ev);
 
-  return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 20);
+  return [...phases, ...retros, ...guclu].sort((a, b) => a.daysFromNow - b.daysFromNow);
 }
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
@@ -765,13 +763,13 @@ export default function CosmicCalendarPage() {
         </div>
 
         {/* ── Kozmik Ajanda — Faz 12 ── */}
-        <div className="mb-4 rounded-[18px] border border-white/80 bg-white/70 p-2.5 shadow-sm backdrop-blur-md sm:p-3">
+        <div data-testid="kozmik-ajanda" className="mb-4 rounded-[18px] border border-white/80 bg-white/70 p-2.5 shadow-sm backdrop-blur-md sm:p-3">
           {/* Başlık + Filtreler */}
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
               🗓 Kozmik Ajanda
             </p>
-            <div className="flex flex-wrap gap-1">
+            <div data-testid="ajanda-filters" className="flex flex-wrap gap-1">
               {([
                 { key: "all",   label: "Tümü",         color: "indigo" },
                 { key: "phase", label: "Ay Fazları",   color: "violet" },
