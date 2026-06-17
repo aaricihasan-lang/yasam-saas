@@ -146,6 +146,7 @@ function generateNote(
   hijriDay:       number,
   hijriMonthName: string,
   status:         HacamatStatus,
+  prevHijriDay:   number,   // bir önceki Miladi günün Hicri değeri (duplicate önleme)
 ): string | null {
   const prevWeekDay     = (weekDay + 6) % 7;
   const prevWeekDayName = WEEK_DAY_NAMES_TR[prevWeekDay]!;
@@ -203,16 +204,15 @@ function generateNote(
       );
     }
 
-    // YASAK → NORMAL (Hicri 24 sonrası — nadir)
-    return (
-      `${hijriDay} ${hijriMonthName} günü ${weekDayName} gününe denk geldiğinden hacamat uygun değildir. ` +
-      `${weekDayName} akşamı geçilen yeni Hicri gün ${nextHijriDay} ${nextWeekDayName} günüdür.`
-    );
+    // YASAK → NORMAL: Bilgi değeri yok, not üretme
+    return null;
   }
 
   // ── İzin günü ama bir önceki gün yasaklıydı ────────────────────────────────
-  // Hicri gün önceki akşamdan başlamış olduğu için yararlanılabilir.
+  // Hicri gün önceki akşamdan başlamıştır.
+  // Ancak önceki Hicri gün de notable (17-24) ise, o gün zaten bu geçişi anlatmıştır.
   if ((status === "sunnet" || status === "uygun") && YASAKLI_WEEKDAYS.has(prevWeekDay)) {
+    if (NOTABLE_HICRI.has(prevHijriDay)) return null;    // duplicate: yasaklı notable gün zaten yazdı
     const label = status === "sunnet" ? "sünnet gününe" : "uygun günlere";
     return (
       `Hicri takvimde gün akşamdan başladığından ${prevWeekDayName} akşam ezanı sonrasında ` +
@@ -276,10 +276,15 @@ export function getHacamatMonthData(year: number, month: number): HacamatMonthDa
   const uygun          = days.filter(d => d.status === "uygun");
   const yasakliNotable = days.filter(d => d.status === "yasakli" && d.isNotable);
 
+  // Önceki Miladi gün lookup'u (duplicate not önleme için)
+  const dayMap = new Map(days.map(d => [d.day, d]));
+
   const notes: string[] = [];
   const seen = new Set<string>();
   for (const day of notable) {
-    const note = generateNote(day.weekDay, day.weekDayName, day.hijriDay, day.hijriMonthName, day.status);
+    const prevCalDay   = dayMap.get(day.day - 1);
+    const prevHijriDay = prevCalDay?.hijriDay ?? 0;
+    const note = generateNote(day.weekDay, day.weekDayName, day.hijriDay, day.hijriMonthName, day.status, prevHijriDay);
     if (note && !seen.has(note)) { seen.add(note); notes.push(note); }
   }
 
