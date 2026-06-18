@@ -406,6 +406,69 @@ export default function CosmicCalendarPage() {
     return result.slice(0, 6);
   }, [todayYear, todayMonth, todayDay]);
 
+  // ── Kozmik Merkez kartları — mini özet ───────────────────────────────────────
+  const cosmicCenterCards = useMemo(() => {
+    const pd = upcomingPowerDays[0];
+    const rt = upcomingRetrosList[0];
+    const mp = upcomingMoonPhases[0];
+    const hd = upcomingHacamatDays[0];
+    return [
+      {
+        emoji: "⭐", title: "Güçlü Günler", href: "/dashboard/cosmic-calendar/power-days",
+        color: "from-amber-50/90 to-yellow-50/60 border-amber-200/70 hover:border-amber-300",
+        titleColor: "text-amber-700", summaryColor: "text-amber-600",
+        s1: pd ? pd.label.replace(/^🔢 Numeroloji /, "🔢 ").slice(0, 20) : "—",
+        s2: pd ? pd.date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", weekday: "short" }) : "Hesaplanıyor",
+      },
+      {
+        emoji: "☿", title: "Retro Takvimi", href: "/dashboard/cosmic-calendar/retro-calendar",
+        color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
+        titleColor: "text-rose-700", summaryColor: "text-rose-600",
+        s1: rt ? `${rt.symbol} ${rt.planet}` : "Retro yok",
+        s2: rt ? (() => { const d = Math.ceil((parseRetroDate(rt.start).getTime() - realNow.getTime()) / 86_400_000); return d > 0 ? `${d} gün sonra` : "Şu an aktif"; })() : "—",
+      },
+      {
+        emoji: "🌙", title: "Ay Fazları", href: "/dashboard/cosmic-calendar/moon-phases",
+        color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
+        titleColor: "text-violet-700", summaryColor: "text-violet-600",
+        s1: mp ? `${mp.emoji} ${mp.name}` : "—",
+        s2: mp ? (mp.daysFromNow === 1 ? "Yarın" : `${mp.daysFromNow} gün sonra`) : "",
+      },
+      {
+        emoji: "🩸", title: "Hacamat Takvimi", href: "/dashboard/cosmic-calendar/hacamat",
+        color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
+        titleColor: "text-teal-700", summaryColor: "text-teal-600",
+        s1: hd ? (hd.status === "altin" ? "⭐ Altın Gün" : hd.status === "sunnet" ? "Sünnet Günü" : "Uygun Gün") : "Bu ay yok",
+        s2: hd ? hd.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", weekday: "short" }) : "—",
+      },
+    ];
+  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, realNow]);
+
+  // ── Birleşik Yaklaşan Olaylar ─────────────────────────────────────────────────
+  const mergedUpcomingEvents = useMemo(() => {
+    type EventItem = { date: Date; daysFromNow: number; icon: string; label: string; detail: string; badgeClass: string };
+    const today = new Date(todayYear, todayMonth, todayDay);
+    const events: EventItem[] = [];
+    for (const { date, label } of upcomingPowerDays) {
+      const d = Math.round((date.getTime() - today.getTime()) / 86_400_000);
+      events.push({ date, daysFromNow: d, icon: "⭐", label, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-amber-100 text-amber-700" });
+    }
+    for (const r of upcomingRetrosList) {
+      const sd = parseRetroDate(r.start);
+      const d = Math.ceil((sd.getTime() - today.getTime()) / 86_400_000);
+      events.push({ date: sd, daysFromNow: d, icon: r.symbol, label: `${r.planet} Retrosu`, detail: sd.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-rose-100 text-rose-700" });
+    }
+    for (const { name, emoji, date, daysFromNow } of upcomingMoonPhases) {
+      events.push({ date, daysFromNow, icon: emoji, label: name, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-violet-100 text-violet-700" });
+    }
+    for (const day of upcomingHacamatDays) {
+      const d = Math.round((day.miladi.getTime() - today.getTime()) / 86_400_000);
+      const statusLabel = day.status === "altin" ? "⭐ Altın" : day.status === "sunnet" ? "Sünnet" : "Uygun";
+      events.push({ date: day.miladi, daysFromNow: d, icon: "🩸", label: `Hacamat · ${statusLabel}`, detail: day.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-teal-100 text-teal-700" });
+    }
+    return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
+  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, todayYear, todayMonth, todayDay]);
+
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
     if (!searchResult || searchResult.kind !== "day") return null;
@@ -516,62 +579,20 @@ export default function CosmicCalendarPage() {
         <section className="mb-4">
           <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🪐 Kozmik Merkezler</p>
           <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
-            {([
-              {
-                emoji: "⭐",
-                title: "Güçlü Günler",
-                desc:  "Numeroloji + Ay Fazı",
-                href:  "/dashboard/cosmic-calendar/power-days",
-                color: "from-amber-50/90 to-yellow-50/60 border-amber-200/70 hover:border-amber-300",
-                titleColor: "text-amber-700",
-                descColor:  "text-amber-500",
-                live: true,
-              },
-              {
-                emoji: "☿",
-                title: "Retro Takvimi",
-                desc:  "Gezegen retro dönemleri",
-                href:  "/dashboard/cosmic-calendar/retro-calendar",
-                color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
-                titleColor: "text-rose-700",
-                descColor:  "text-rose-400",
-                live: true,
-              },
-              {
-                emoji: "🌙",
-                title: "Ay Fazları",
-                desc:  "Yeni Ay, Dolunay, dördünler",
-                href:  "/dashboard/cosmic-calendar/moon-phases",
-                color: "from-violet-50/80 to-indigo-50/60 border-violet-100/70 hover:border-violet-200",
-                titleColor: "text-violet-700",
-                descColor:  "text-violet-400",
-                live: true,
-              },
-              {
-                emoji: "🩸",
-                title: "Hacamat Takvimi",
-                desc:  "Hicri takvime göre günler",
-                href:  "/dashboard/cosmic-calendar/hacamat",
-                color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
-                titleColor: "text-teal-700",
-                descColor:  "text-teal-400",
-                live: true,
-              },
-            ] as const).map(({ emoji, title, desc, href, color, titleColor, descColor, live }) => (
+            {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
               <Link
                 key={title}
                 href={href}
-                className={`group flex h-20 flex-none w-[170px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
-                aria-disabled={!live}
-                tabIndex={live ? 0 : -1}
+                className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xl leading-none">{emoji}</span>
                   <span className={`text-[9px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
                 </div>
                 <div>
-                  <p className={`text-[12px] font-black leading-snug ${titleColor}`}>{title}</p>
-                  <p className={`mt-0.5 text-[10px] leading-snug ${descColor}`}>{desc}</p>
+                  <p className={`text-[12px] font-black leading-tight ${titleColor}`}>{title}</p>
+                  <p className={`mt-0.5 truncate text-[10px] font-semibold leading-tight ${summaryColor}`}>{s1}</p>
+                  <p className={`truncate text-[9px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
                 </div>
               </Link>
             ))}
@@ -629,13 +650,13 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Kozmik Arama — kompakt ── */}
+        {/* ── Kozmik Arama — tek satır ── */}
         <div className="mb-4 rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-2 shadow-md backdrop-blur-md">
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <Search className="h-3 w-3 text-indigo-500" />
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">Kozmik Arama</p>
-          </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
+              <Search className="h-3 w-3 text-indigo-500" />
+              <p className="whitespace-nowrap text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">Kozmik Arama</p>
+            </div>
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -653,7 +674,7 @@ export default function CosmicCalendarPage() {
                 </button>
               )}
             </div>
-            <button onClick={handleSearch} disabled={!searchQuery.trim()} className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-[12px] font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-40">
+            <button onClick={handleSearch} disabled={!searchQuery.trim()} className="shrink-0 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-[12px] font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-40">
               Ara
             </button>
           </div>
@@ -873,105 +894,28 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
-            {/* ── Yaklaşan Güçlü Günler ── */}
-            <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-yellow-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">⭐ Yaklaşan Güçlü Günler</p>
-              {upcomingPowerDays.length === 0 ? (
-                <p className="text-[10px] text-slate-400">60 gün içinde yok.</p>
+            {/* ── Yaklaşan Olaylar — birleşik ── */}
+            <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">📆 Yaklaşan Olaylar</p>
+              {mergedUpcomingEvents.length === 0 ? (
+                <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
               ) : (
-                <div className="divide-y divide-amber-100/60">
-                  {upcomingPowerDays.map(({ date, label, numDay }, i) => (
+                <div className="divide-y divide-slate-100/80">
+                  {mergedUpcomingEvents.map((ev, i) => (
                     <button
                       key={i}
                       type="button"
-                      onClick={() => navigateToDate(date)}
-                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
+                      onClick={() => navigateToDate(ev.date)}
+                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-75 first:pt-0 last:pb-0"
                     >
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-amber-800">{label}</span>
-                      <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-amber-700">
-                        {date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}
+                      <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">{ev.label}</span>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-black tabular-nums ${ev.badgeClass}`}>
+                        {ev.detail}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ── Yaklaşan Retro Dönemleri ── */}
-            <div className="rounded-2xl border border-rose-200/70 bg-gradient-to-br from-rose-50/80 to-pink-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">☿ Yaklaşan Retro Dönemleri</p>
-              {upcomingRetrosList.length === 0 ? (
-                <p className="text-[10px] text-slate-400">180 gün içinde retro yok.</p>
-              ) : (
-                <div className="divide-y divide-rose-100/60">
-                  {upcomingRetrosList.map(r => {
-                    const startDate = parseRetroDate(r.start);
-                    const daysLeft = Math.ceil((startDate.getTime() - realNow.getTime()) / 86_400_000);
-                    return (
-                      <button
-                        key={`${r.planet}-${r.start}`}
-                        type="button"
-                        onClick={() => navigateToDate(startDate)}
-                        className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
-                      >
-                        <span className="text-sm leading-none">{r.symbol}</span>
-                        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-rose-800">{r.planet} Retrosu</span>
-                        <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-rose-700">
-                          {daysLeft > 0 ? `${daysLeft}g` : "Aktif"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* ── Yaklaşan Ay Fazları ── */}
-            <div className="rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/80 to-indigo-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">🌕 Yaklaşan Ay Fazları</p>
-              {upcomingMoonPhases.length === 0 ? (
-                <p className="text-[10px] text-slate-400">Veri bulunamadı.</p>
-              ) : (
-                <div className="divide-y divide-violet-100/60">
-                  {upcomingMoonPhases.map(({ name, emoji, date, daysFromNow }) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => navigateToDate(date)}
-                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
-                    >
-                      <span className="text-sm leading-none">{emoji}</span>
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-violet-800">{name}</span>
-                      <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-violet-700">
-                        {daysFromNow === 1 ? "Yarın" : `${daysFromNow}g`}
+                      <span className="shrink-0 w-9 text-right text-[9px] text-slate-400 tabular-nums">
+                        {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ── Yaklaşan Hacamat Günleri ── */}
-            <div className="rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-50/80 to-cyan-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">🩸 Yaklaşan Hacamat Günleri</p>
-              {upcomingHacamatDays.length === 0 ? (
-                <p className="text-[10px] text-slate-400">Bu ay uygun gün yok.</p>
-              ) : (
-                <div className="divide-y divide-teal-100/60">
-                  {upcomingHacamatDays.map((day, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => navigateToDate(day.miladi)}
-                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
-                    >
-                      <span className="min-w-0 flex-1 text-[11px] font-semibold text-teal-800">
-                        {day.miladiFull}
-                        <span className={`ml-1.5 text-[9px] font-black ${day.status === "altin" ? "text-amber-600" : day.status === "sunnet" ? "text-teal-700" : "text-slate-500"}`}>
-                          {day.status === "altin" ? "⭐ Altın" : day.status === "sunnet" ? "Sünnet" : "Uygun"}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[9px] text-teal-600">{day.hijriDay} {day.hijriMonthName.slice(0, 4)}</span>
                     </button>
                   ))}
                 </div>
