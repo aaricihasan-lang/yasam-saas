@@ -311,6 +311,7 @@ export default function CosmicCalendarPage() {
   const [dateInput,        setDateInput]        = useState("");
   const [searchQuery,      setSearchQuery]      = useState("");
   const [searchResult,     setSearchResult]     = useState<SearchResult>(null);
+  const [showAllEvents,    setShowAllEvents]    = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -894,14 +895,62 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
-            {/* ── Yaklaşan Olaylar — birleşik ── */}
+            {/* ── Günlük Rehber Kompakt ── */}
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">🔮 Günlük Rehber</p>
+              {/* Günün Potansiyeli */}
+              <div className="mb-2 rounded-xl border border-violet-100 bg-violet-50/50 px-2.5 py-2">
+                <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-600">✨ Günün Potansiyeli</p>
+                <p className="line-clamp-3 text-[12px] leading-5 text-slate-700">{guidance.potential}</p>
+              </div>
+              {/* 3 yatay kart */}
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun</p>
+                  <ul className="space-y-0.5">
+                    {guidance.activities.slice(0, 3).map((a, i) => (
+                      <li key={i} className="flex items-start gap-1 text-[11px] leading-snug text-slate-700">
+                        <span className="mt-0.5 shrink-0 font-black text-emerald-500">✓</span>{a}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
+                  <ul className="space-y-0.5">
+                    {guidance.cautions.slice(0, 3).map((c, i) => (
+                      <li key={i} className="flex items-start gap-1 text-[11px] leading-snug text-slate-700">
+                        <span className="mt-0.5 shrink-0 font-black text-amber-500">⚠</span>{c}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal</p>
+                  <p className="line-clamp-3 text-[11px] leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Yaklaşan Olaylar — birleşik (max 8) ── */}
             <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">📆 Yaklaşan Olaylar</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">📆 Yaklaşan Olaylar</p>
+                {mergedUpcomingEvents.length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllEvents(v => !v)}
+                    className="text-[9px] font-bold text-indigo-500 hover:text-indigo-700"
+                  >
+                    {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
+                  </button>
+                )}
+              </div>
               {mergedUpcomingEvents.length === 0 ? (
                 <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
               ) : (
                 <div className="divide-y divide-slate-100/80">
-                  {mergedUpcomingEvents.map((ev, i) => (
+                  {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 8)).map((ev, i) => (
                     <button
                       key={i}
                       type="button"
@@ -983,78 +1032,24 @@ export default function CosmicCalendarPage() {
                 )}
               </div>
 
-              {/* Günlük Rehber */}
-              <div className="mt-2 border-t border-slate-100 pt-2">
-                <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">🔮 Günlük Rehber</p>
-                <div className="space-y-1.5">
-                  <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-violet-600">✨ Günün Potansiyeli</p>
-                    <p className="text-[14px] leading-6 text-slate-700">{guidance.potential}</p>
-                  </div>
-                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun Aktiviteler</p>
-                    <ul className="space-y-0.5">
-                      {guidance.activities.map((a, i) => (
-                        <li key={i} className="flex items-center gap-1 text-[14px] leading-6 text-slate-700"><span className="shrink-0 font-black text-emerald-500">✓</span>{a}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
-                    <ul className="space-y-0.5">
-                      {guidance.cautions.map((c, i) => (
-                        <li key={i} className="flex items-center gap-1 text-[14px] leading-6 text-slate-700"><span className="shrink-0 font-black text-amber-500">⚠</span>{c}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
-                    <p className="mb-0.5 text-sm font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal Öneri</p>
-                    <p className="text-[14px] leading-6 text-slate-600">{guidance.spiritualSuggestion}</p>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Gezegen Saati — bugün seçiliyse */}
+            {/* Gezegen Saati — mini ── */}
             {isSelectedToday && (
-              <div className="overflow-hidden rounded-3xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 p-3 shadow-sm backdrop-blur-md">
-                <p className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">⏰ Şu Anki Gezegen Saati</p>
-                <div className="mb-2 flex items-center gap-3 rounded-2xl border border-indigo-200/50 bg-white/80 px-3 py-2.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-xl text-white shadow-md">{ph.aktifGezegen.symbol}</div>
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">
-                      {ph.isDayHour ? "Gündüz Saati" : "Gece Saati"} · {ph.isDayHour ? ph.saatIndex + 1 : ph.saatIndex - 11}. saat
-                    </p>
-                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
-                    <p className="text-[11px] leading-snug text-slate-500">{ph.aktifGezegen.description}</p>
+              <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
+                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-700">⏰ Gezegen Saati</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">
+                    {ph.aktifGezegen.symbol}
                   </div>
-                </div>
-                <div className="mb-2 grid grid-cols-3 gap-1.5">
-                  {[
-                    { label: "Aktif",   val: `${ph.aktifGezegen.symbol} ${ph.aktifGezegen.name}`,    color: "text-indigo-700" },
-                    { label: "Sonraki", val: `${ph.sonrakiGezegen.symbol} ${ph.sonrakiGezegen.name}`, color: "text-slate-700" },
-                    { label: "Kalan",   val: `${ph.kalanDakika} dk`,                                 color: "text-violet-700" },
-                  ].map(({ label, val, color }) => (
-                    <div key={label} className="rounded-xl bg-white/70 px-2 py-1.5">
-                      <p className="text-[9px] text-slate-400">{label}</p>
-                      <p className={`text-[12px] font-black ${color}`}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mb-2 flex items-center justify-between rounded-2xl border border-indigo-100/80 bg-white/60 px-2 py-1.5">
-                  {CHALDEAN_PLANETS.map((planet, idx) => {
-                    const isActive = idx === ph.aktifChaldeanIdx;
-                    return (
-                      <div key={planet.name} className={`flex flex-col items-center gap-0.5 transition-all ${isActive ? "scale-125" : "opacity-35"}`}>
-                        <span className={`text-base leading-none ${isActive ? "text-indigo-600" : "text-slate-500"}`}>{planet.symbol}</span>
-                        <span className={`text-[8px] leading-none ${isActive ? "font-black text-indigo-700" : "text-slate-400"}`}>{planet.name.substring(0, 3)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>☀️ Doğum: {ph.gunDogumuStr}</span>
-                  <span>🌅 Batım: {ph.gunBatimiStr}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
+                    <p className="text-[10px] text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[8px] text-slate-400">Sonraki</p>
+                    <p className="text-[11px] font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
+                  </div>
                 </div>
               </div>
             )}
