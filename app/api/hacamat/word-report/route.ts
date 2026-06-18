@@ -62,10 +62,6 @@ const LABEL: Record<HacamatStatus, string> = {
   normal:  "—",
 };
 
-// ─── Kenarlık sıfırı (kurul tablosu için) ─────────────────────────────────────
-
-const BORDER_NONE = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const;
-
 // ─── Paragraph yardımcıları ───────────────────────────────────────────────────
 
 function docTitle(text: string): Paragraph {
@@ -228,47 +224,19 @@ function buildTable(days: CalendarDay[]): Table {
   });
 }
 
-// ─── İki kolonlu kural tablosu ────────────────────────────────────────────────
+// ─── Tek sütun numaralı kural listesi ────────────────────────────────────────
 
-function ruleCell(text: string): TableCell {
-  return new TableCell({
-    width: { size: 50, type: WidthType.PERCENTAGE },
-    borders: { top: BORDER_NONE, bottom: BORDER_NONE, left: BORDER_NONE, right: BORDER_NONE },
-    children: [
-      new Paragraph({
-        children: text
-          ? [
-              new TextRun({ text: "•  ", size: 18, font: FONT, color: C_TEAL }),
-              new TextRun({ text, size: 18, font: FONT, color: C_MID }),
-            ]
-          : [new TextRun({ text: "" })],
-        spacing: { before: 30, after: 40 },
-        indent:  { left: 60 },
-      }),
-    ],
-  });
-}
-
-function buildRulesTable(rules: { rule_text: string }[]): Table {
-  const rows: TableRow[] = [];
-  for (let i = 0; i < rules.length; i += 2) {
-    rows.push(new TableRow({
+function buildRulesList(rules: { rule_text: string }[]): Paragraph[] {
+  return rules.map((rule, i) =>
+    new Paragraph({
       children: [
-        ruleCell(rules[i]!.rule_text),
-        ruleCell(rules[i + 1]?.rule_text ?? ""),
+        new TextRun({ text: `${i + 1})  `, bold: true, size: 20, font: FONT, color: C_TEAL }),
+        new TextRun({ text: rule.rule_text, size: 20, font: FONT, color: C_DARK }),
       ],
-    }));
-  }
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: {
-      top:    BORDER_NONE,
-      bottom: BORDER_NONE,
-      left:   BORDER_NONE,
-      right:  BORDER_NONE,
-    },
-    rows,
-  });
+      spacing: { before: 60, after: 80, line: 320, lineRule: "auto" },
+      indent:  { left: 200, hanging: 200 },
+    })
+  );
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -380,13 +348,13 @@ export async function POST(request: Request): Promise<Response> {
   if (inc.kurallar) {
     if (beforeRules.length > 0) {
       all.push(secH2("Hacamat Öncesi Kurallar"));
-      all.push(buildRulesTable(beforeRules));
-      all.push(gap(80));
+      all.push(...buildRulesList(beforeRules));
+      all.push(gap(60));
     }
     if (afterRules.length > 0) {
       all.push(secH2("Hacamat Sonrası Kurallar"));
-      all.push(buildRulesTable(afterRules));
-      all.push(gap(80));
+      all.push(...buildRulesList(afterRules));
+      all.push(gap(60));
     }
   }
 
