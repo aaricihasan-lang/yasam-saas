@@ -357,7 +357,7 @@ export default function HacamatPage() {
     setEditText("");
   }
 
-  // ─── Word export ─────────────────────────────────────────────────────────
+  // ─── Word / PDF export ───────────────────────────────────────────────────
 
   function buildReportPayload() {
     return {
@@ -371,35 +371,58 @@ export default function HacamatPage() {
     };
   }
 
-  async function downloadReport(endpoint: string, ext: "docx" | "pdf") {
+  async function downloadReport(format: "docx" | "pdf") {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const endpoint = format === "pdf" ? "/api/hacamat/pdf-report" : "/api/hacamat/word-report";
+    const filename = `hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.${format}`;
+
+    // Mobil: GET endpoint ile doğrudan yönlendir (blob desteği kırık olabilir)
+    if (isMobile) {
+      window.location.href = `${endpoint}?month=${wordMonth}&year=${wordYear}`;
+      return;
+    }
+
+    // Desktop: blob download
     try {
       const resp = await fetch(endpoint, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(buildReportPayload()),
       });
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Rapor oluşturulamadı.");
+      }
       const blob = await resp.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.${ext}`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert(`${ext.toUpperCase()} raporu oluşturulamadı. Lütfen tekrar deneyin.`);
+      a.remove();
+      // Blob URL'yi 30 saniye sonra temizle (tarayıcının dosyayı okuma süresi)
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (err) {
+      console.error("Rapor indirme hatası:", err);
+      // Desktop'ta da hata olursa GET fallback dene
+      try {
+        window.location.href = `${endpoint}?month=${wordMonth}&year=${wordYear}`;
+      } catch {
+        alert(`${format.toUpperCase()} raporu indirilemedi. Lütfen tekrar deneyin.`);
+      }
     }
   }
 
   async function handleWordReport() {
     setIsGenerating(true);
-    await downloadReport("/api/hacamat/word-report", "docx");
+    await downloadReport("docx");
     setIsGenerating(false);
   }
 
   async function handlePdfReport() {
     setIsGeneratingPdf(true);
-    await downloadReport("/api/hacamat/pdf-report", "pdf");
+    await downloadReport("pdf");
     setIsGeneratingPdf(false);
   }
 
@@ -869,23 +892,23 @@ export default function HacamatPage() {
               )}
             </div>
 
-            {/* Dışa Aktar */}
-            <div className="flex flex-wrap justify-end gap-2">
+            {/* Dışa Aktar — mobilde alt alta, full-width */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 onClick={() => void handlePdfReport()}
                 disabled={isGeneratingPdf || isGenerating}
-                className="flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-3 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50 sm:w-auto sm:py-2.5"
               >
-                <FileText className="h-4 w-4" />
-                {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
+                {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF İndir`}
               </button>
               <button
                 onClick={() => void handleWordReport()}
                 disabled={isGenerating || isGeneratingPdf}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50 sm:w-auto sm:py-2.5"
               >
-                <FileText className="h-4 w-4" />
-                {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}
+                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word İndir`}
               </button>
             </div>
           </section>

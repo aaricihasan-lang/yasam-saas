@@ -254,6 +254,144 @@ const DEFAULT_INCLUDE: IncludeSections = {
   altin: true, sunnet: true, uygun: true, yasakli: true, kurallar: true, uzmanNotu: true,
 };
 
+// ─── Belge oluşturucu ────────────────────────────────────────────────────────
+
+async function buildWordBuffer(params: {
+  year:            number;
+  month:           number;
+  rules?:          { rule_text: string; category: string }[];
+  expertNotes?:    string;
+  title?:          string;
+  expertName?:     string;
+  includeSections?: Partial<IncludeSections>;
+}): Promise<Buffer> {
+  const {
+    year, month,
+    rules       = [],
+    expertNotes = "",
+    title       = "HACAMAT TAKVİMİ",
+    expertName  = "",
+    includeSections = DEFAULT_INCLUDE,
+  } = params;
+
+  const inc: IncludeSections = { ...DEFAULT_INCLUDE, ...includeSections };
+  const data       = getHacamatMonthData(year, month);
+  const monthLabel = `${MONTH_NAMES_TR[month]} ${year}`;
+
+  const tableRows = data.notable.filter(d => {
+    if (d.status === "altin"   && !inc.altin)   return false;
+    if (d.status === "sunnet"  && !inc.sunnet)  return false;
+    if (d.status === "uygun"   && !inc.uygun)   return false;
+    if (d.status === "yasakli" && !inc.yasakli) return false;
+    return true;
+  });
+
+  const beforeRules = rules.filter(r => r.category === "before");
+  const afterRules  = rules.filter(r => r.category === "after");
+
+  const all: ReportChild[] = [];
+
+  all.push(docTitle(title || "HACAMAT TAKVİMİ"));
+  all.push(docSubtitle(`${monthLabel}  ·  Hicri Ay: ${data.hijriMonthName}`));
+  if (expertName?.trim()) {
+    all.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children:  [new TextRun({ text: expertName.trim(), size: 20, font: FONT, color: C_MID })],
+      spacing:   { before: 0, after: 40 },
+    }));
+  }
+  all.push(gap(35));
+
+  all.push(buildSummaryBox([
+    { label: "Altın Gün",   value: `${data.altin.length} gün`,          fill: "FEF3C7", color: "B45309" },
+    { label: "Sünnet Gün",  value: `${data.sunnet.length} gün`,         fill: "D1FAE5", color: "047857" },
+    { label: "Uygun Gün",   value: `${data.uygun.length} gün`,          fill: "FEF9C3", color: "A16207" },
+    { label: "Yasaklı Gün", value: `${data.yasakliNotable.length} gün`, fill: "FEE2E2", color: "B91C1C" },
+  ]));
+  all.push(gap(50));
+
+  all.push(secH1("Aylık Hacamat Takvimi"));
+  all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${tableRows.length} gün`));
+  all.push(gap(25));
+  if (tableRows.length > 0) {
+    all.push(buildTable(tableRows));
+  } else {
+    all.push(new Paragraph({
+      children: [new TextRun({ text: "Seçili filtrelerle gösterilecek gün bulunamadı.", size: 17, font: FONT, color: C_LIGHT, italics: true })],
+      spacing: { before: 25, after: 25 },
+      indent:  { left: 160 },
+    }));
+  }
+  all.push(gap(50));
+
+  if (data.notes.length > 0) {
+    all.push(secH1("Dinamik Hicri Gün Notları"));
+    all.push(caption("Hicri günlerin akşamdan başlaması kuralına göre otomatik üretilmiştir."));
+    all.push(gap(20));
+    data.notes.forEach((note, i) => all.push(noteItem(i + 1, note)));
+    all.push(gap(40));
+  }
+
+  if (inc.kurallar) {
+    if (beforeRules.length > 0) {
+      all.push(secH2("Hacamat Öncesi Kurallar"));
+      all.push(...buildRulesList(beforeRules));
+      all.push(gap(25));
+    }
+    if (afterRules.length > 0) {
+      all.push(secH2("Hacamat Sonrası Kurallar"));
+      all.push(...buildRulesList(afterRules));
+      all.push(gap(25));
+    }
+  }
+
+  if (inc.uzmanNotu && expertNotes.trim()) {
+    all.push(secH2("Hacamat Uzmanı Notları"));
+    expertNotes.split("\n").filter(l => l.trim()).forEach(line => all.push(para(line.trim())));
+  }
+
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 480, bottom: 380, left: 600, right: 600, header: 240, footer: 240 },
+        },
+      },
+      footers: { default: buildFooter(`Hacamat Takvimi · ${monthLabel}`) },
+      children: all,
+    }],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
+const WORD_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+// ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
+
+export async function GET(request: Request): Promise<Response> {
+  const { searchParams } = new URL(request.url);
+  const year  = parseInt(searchParams.get("year")  ?? String(new Date().getFullYear()), 10);
+  const month = parseInt(searchParams.get("month") ?? String(new Date().getMonth()), 10);
+
+  if (isNaN(year) || isNaN(month) || month < 0 || month > 11)
+    return new Response("Geçersiz ay/yıl.", { status: 400 });
+
+  const buffer   = await buildWordBuffer({ year, month });
+  const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.docx`;
+
+  return new Response(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type":        WORD_CONTENT_TYPE,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Length":      String(buffer.length),
+      "Cache-Control":       "no-store",
+    },
+  });
+}
+
+// ─── POST — tam özelleştirilmiş rapor ────────────────────────────────────────
+
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;
   try { body = await request.json(); }
@@ -279,119 +417,15 @@ export async function POST(request: Request): Promise<Response> {
   if (typeof year !== "number" || typeof month !== "number" || month < 0 || month > 11)
     return Response.json({ ok: false, error: "Geçersiz ay/yıl." }, { status: 400 });
 
-  const inc: IncludeSections = { ...DEFAULT_INCLUDE, ...includeSections };
-
-  const data       = getHacamatMonthData(year, month);
-  const monthLabel = `${MONTH_NAMES_TR[month]} ${year}`;
-
-  // Takvim tablosu: sadece seçili statüs satırları
-  const tableRows = data.notable.filter(d => {
-    if (d.status === "altin"   && !inc.altin)   return false;
-    if (d.status === "sunnet"  && !inc.sunnet)  return false;
-    if (d.status === "uygun"   && !inc.uygun)   return false;
-    if (d.status === "yasakli" && !inc.yasakli) return false;
-    return true;
-  });
-
-  // Kurallar: yalnızca before ve after (general Word'e dahil edilmez)
-  const beforeRules = rules.filter(r => r.category === "before");
-  const afterRules  = rules.filter(r => r.category === "after");
-
-  const all: ReportChild[] = [];
-
-  // ── 1. Başlık ────────────────────────────────────────────────────────────────
-  all.push(docTitle(title || "HACAMAT TAKVİMİ"));
-  all.push(docSubtitle(`${monthLabel}  ·  Hicri Ay: ${data.hijriMonthName}`));
-  if (expertName?.trim()) {
-    all.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children:  [new TextRun({ text: expertName.trim(), size: 20, font: FONT, color: C_MID })],
-      spacing:   { before: 0, after: 40 },
-    }));
-  }
-  all.push(gap(35));
-
-  // ── 2. Ay Özeti kutusu ──────────────────────────────────────────────────────
-  all.push(buildSummaryBox([
-    { label: "Altın Gün",   value: `${data.altin.length} gün`,          fill: "FEF3C7", color: "B45309" },
-    { label: "Sünnet Gün",  value: `${data.sunnet.length} gün`,         fill: "D1FAE5", color: "047857" },
-    { label: "Uygun Gün",   value: `${data.uygun.length} gün`,          fill: "FEF9C3", color: "A16207" },
-    { label: "Yasaklı Gün", value: `${data.yasakliNotable.length} gün`, fill: "FEE2E2", color: "B91C1C" },
-  ]));
-  all.push(gap(50));
-
-  // ── 3. Aylık Hacamat Takvimi ────────────────────────────────────────────────
-  all.push(secH1("Aylık Hacamat Takvimi"));
-  all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${tableRows.length} gün`));
-  all.push(gap(25));
-  if (tableRows.length > 0) {
-    all.push(buildTable(tableRows));
-  } else {
-    all.push(new Paragraph({
-      children: [new TextRun({ text: "Seçili filtrelerle gösterilecek gün bulunamadı.", size: 17, font: FONT, color: C_LIGHT, italics: true })],
-      spacing: { before: 25, after: 25 },
-      indent:  { left: 160 },
-    }));
-  }
-  all.push(gap(50));
-
-  // ── 4. Dinamik Hicri Gün Notları ─────────────────────────────────────────────
-  if (data.notes.length > 0) {
-    all.push(secH1("Dinamik Hicri Gün Notları"));
-    all.push(caption("Hicri günlerin akşamdan başlaması kuralına göre otomatik üretilmiştir."));
-    all.push(gap(20));
-    data.notes.forEach((note, i) => all.push(noteItem(i + 1, note)));
-    all.push(gap(40));
-  }
-
-  // ── 5. Kurallar (sadece inc.kurallar ise) ────────────────────────────────────
-  if (inc.kurallar) {
-    if (beforeRules.length > 0) {
-      all.push(secH2("Hacamat Öncesi Kurallar"));
-      all.push(...buildRulesList(beforeRules));
-      all.push(gap(25));
-    }
-    if (afterRules.length > 0) {
-      all.push(secH2("Hacamat Sonrası Kurallar"));
-      all.push(...buildRulesList(afterRules));
-      all.push(gap(25));
-    }
-  }
-
-  // ── 6. Uzman Notları (boşsa kesinlikle eklenmez) ──────────────────────────────
-  if (inc.uzmanNotu && expertNotes.trim()) {
-    all.push(secH2("Hacamat Uzmanı Notları"));
-    expertNotes.split("\n").filter(l => l.trim()).forEach(line => all.push(para(line.trim())));
-  }
-
-  // ── Oluştur — sıkıştırılmış sayfa marjı ──────────────────────────────────────
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top:    480,   // ~0.33 inch
-            bottom: 380,   // ~0.26 inch
-            left:   600,   // ~0.42 inch
-            right:  600,   // ~0.42 inch
-            header: 240,
-            footer: 240,
-          },
-        },
-      },
-      footers: { default: buildFooter(`Hacamat Takvimi · ${monthLabel}`) },
-      children: all,
-    }],
-  });
-
-  const buffer   = await Packer.toBuffer(doc);
+  const buffer   = await buildWordBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.docx`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {
-      "Content-Type":        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type":        WORD_CONTENT_TYPE,
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Content-Length":      String(buffer.length),
+      "Cache-Control":       "no-store",
     },
   });
 }
