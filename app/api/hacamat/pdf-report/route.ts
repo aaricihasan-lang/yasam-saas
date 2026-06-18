@@ -363,8 +363,9 @@ async function buildPdfBuffer(params: {
 
 export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
-  const year  = parseInt(searchParams.get("year")  ?? String(new Date().getFullYear()), 10);
-  const month = parseInt(searchParams.get("month") ?? String(new Date().getMonth()), 10);
+  const year        = parseInt(searchParams.get("year")  ?? String(new Date().getFullYear()), 10);
+  const month       = parseInt(searchParams.get("month") ?? String(new Date().getMonth()), 10);
+  const disposition = searchParams.get("disposition") === "inline" ? "inline" : "attachment";
 
   if (isNaN(year) || isNaN(month) || month < 0 || month > 11)
     return new Response("Geçersiz ay/yıl.", { status: 400 });
@@ -375,7 +376,7 @@ export async function GET(request: Request): Promise<Response> {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type":        "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `${disposition}; filename="${filename}"`,
       "Content-Length":      String(buffer.length),
       "Cache-Control":       "no-store",
     },

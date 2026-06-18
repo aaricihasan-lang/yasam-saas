@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useId, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
 import {
   getHacamatMonthData,
   getAllAltinDays,
@@ -371,18 +371,10 @@ export default function HacamatPage() {
     };
   }
 
+  // Desktop blob download — mobil <a> anchor'ları CSS ile ayrı render edilir
   async function downloadReport(format: "docx" | "pdf") {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const endpoint = format === "pdf" ? "/api/hacamat/pdf-report" : "/api/hacamat/word-report";
     const filename = `hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.${format}`;
-
-    // Mobil: GET endpoint ile doğrudan yönlendir (blob desteği kırık olabilir)
-    if (isMobile) {
-      window.location.href = `${endpoint}?month=${wordMonth}&year=${wordYear}`;
-      return;
-    }
-
-    // Desktop: blob download
     try {
       const resp = await fetch(endpoint, {
         method:  "POST",
@@ -401,16 +393,10 @@ export default function HacamatPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // Blob URL'yi 30 saniye sonra temizle (tarayıcının dosyayı okuma süresi)
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch (err) {
       console.error("Rapor indirme hatası:", err);
-      // Desktop'ta da hata olursa GET fallback dene
-      try {
-        window.location.href = `${endpoint}?month=${wordMonth}&year=${wordYear}`;
-      } catch {
-        alert(`${format.toUpperCase()} raporu indirilemedi. Lütfen tekrar deneyin.`);
-      }
+      alert(`${format.toUpperCase()} raporu oluşturulamadı. Lütfen tekrar deneyin.`);
     }
   }
 
@@ -892,23 +878,56 @@ export default function HacamatPage() {
               )}
             </div>
 
-            {/* Dışa Aktar — mobilde alt alta, full-width */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            {/* ── Mobil: gerçek <a> anchor'lar — sm altında görünür ── */}
+            <div className="flex flex-col gap-2 sm:hidden">
+              {/* Raporu Aç — PWA içinde kalır, rapor sayfasına gider */}
+              <Link
+                href={`/dashboard/cosmic-calendar/hacamat/report?month=${wordMonth}&year=${wordYear}`}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-[12px] font-black text-teal-800 shadow-sm no-underline transition active:scale-[0.98]"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {MONTH_NAMES_TR[wordMonth]} {wordYear} — Raporu Aç
+              </Link>
+
+              {/* PDF aç — yeni sekmede (sistem PDF görüntüleyicisi) */}
+              <a
+                href={`/api/hacamat/pdf-report?month=${wordMonth}&year=${wordYear}&disposition=inline`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-3 text-[12px] font-black text-teal-700 shadow-sm transition active:scale-[0.98]"
+              >
+                <FileText className="h-4 w-4" />
+                PDF Aç
+              </a>
+
+              {/* Word indir */}
+              <a
+                href={`/api/hacamat/word-report?month=${wordMonth}&year=${wordYear}`}
+                download={`hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.docx`}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition active:scale-[0.98]"
+              >
+                <Download className="h-4 w-4" />
+                Word İndir
+              </a>
+            </div>
+
+            {/* ── Desktop: blob POST download — sm ve üzerinde görünür ── */}
+            <div className="hidden gap-2 sm:flex sm:justify-end">
               <button
                 onClick={() => void handlePdfReport()}
                 disabled={isGeneratingPdf || isGenerating}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-3 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50 sm:w-auto sm:py-2.5"
+                className="flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
               >
                 {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF İndir`}
+                {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
               </button>
               <button
                 onClick={() => void handleWordReport()}
                 disabled={isGenerating || isGeneratingPdf}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50 sm:w-auto sm:py-2.5"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
               >
                 {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word İndir`}
+                {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}
               </button>
             </div>
           </section>
