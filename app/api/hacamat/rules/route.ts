@@ -1,6 +1,12 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+
+// Server-side: service role key (RLS bypass, sadece API route içinde kullanılır)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
 export async function GET() {
   const { data, error } = await supabase
