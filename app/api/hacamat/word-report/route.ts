@@ -249,13 +249,13 @@ function ruleCell(text: string): TableCell {
   });
 }
 
-function buildRulesTable(rules: { text: string }[]): Table {
+function buildRulesTable(rules: { rule_text: string }[]): Table {
   const rows: TableRow[] = [];
   for (let i = 0; i < rules.length; i += 2) {
     rows.push(new TableRow({
       children: [
-        ruleCell(rules[i]!.text),
-        ruleCell(rules[i + 1]?.text ?? ""),
+        ruleCell(rules[i]!.rule_text),
+        ruleCell(rules[i + 1]?.rule_text ?? ""),
       ],
     }));
   }
@@ -273,33 +273,74 @@ function buildRulesTable(rules: { text: string }[]): Table {
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
+type IncludeSections = {
+  altin:     boolean;
+  sunnet:    boolean;
+  uygun:     boolean;
+  yasakli:   boolean;
+  kurallar:  boolean;
+  uzmanNotu: boolean;
+};
+
+const DEFAULT_INCLUDE: IncludeSections = {
+  altin: true, sunnet: true, uygun: true, yasakli: true, kurallar: true, uzmanNotu: true,
+};
+
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }
 
-  const { year, month, rules = [], expertNotes = "" } = body as {
-    year:        number;
-    month:       number;
-    rules:       { text: string; category: string }[];
-    expertNotes: string;
+  const {
+    year, month,
+    rules       = [],
+    expertNotes = "",
+    title       = "HACAMAT TAKVİMİ",
+    expertName  = "",
+    includeSections = DEFAULT_INCLUDE,
+  } = body as {
+    year:             number;
+    month:            number;
+    rules:            { rule_text: string; category: string }[];
+    expertNotes:      string;
+    title?:           string;
+    expertName?:      string;
+    includeSections?: Partial<IncludeSections>;
   };
 
   if (typeof year !== "number" || typeof month !== "number" || month < 0 || month > 11)
     return Response.json({ ok: false, error: "Geçersiz ay/yıl." }, { status: 400 });
 
+  const inc: IncludeSections = { ...DEFAULT_INCLUDE, ...includeSections };
+
   const data       = getHacamatMonthData(year, month);
   const monthLabel = `${MONTH_NAMES_TR[month]} ${year}`;
 
-  const oncesiRules  = rules.filter(r => r.category === "oncesi");
-  const sonrasiRules = rules.filter(r => r.category === "sonrasi");
-  // "genel" kategorisi Word raporuna dahil edilmez
+  // Takvim tablosu: sadece seçili statüs satırları
+  const tableRows = data.notable.filter(d => {
+    if (d.status === "altin"   && !inc.altin)   return false;
+    if (d.status === "sunnet"  && !inc.sunnet)  return false;
+    if (d.status === "uygun"   && !inc.uygun)   return false;
+    if (d.status === "yasakli" && !inc.yasakli) return false;
+    return true;
+  });
+
+  // Kurallar: yalnızca before ve after (general Word'e dahil edilmez)
+  const beforeRules = rules.filter(r => r.category === "before");
+  const afterRules  = rules.filter(r => r.category === "after");
 
   const all: ReportChild[] = [];
 
   // ── 1. Başlık ────────────────────────────────────────────────────────────────
-  all.push(docTitle("HACAMAT TAKVİMİ"));
+  all.push(docTitle(title || "HACAMAT TAKVİMİ"));
   all.push(docSubtitle(`${monthLabel}  ·  Hicri Ay: ${data.hijriMonthName}`));
+  if (expertName?.trim()) {
+    all.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children:  [new TextRun({ text: expertName.trim(), size: 20, font: FONT, color: C_MID })],
+      spacing:   { before: 0, after: 40 },
+    }));
+  }
   all.push(gap(80));
 
   // ── 2. Ay Özeti kutusu ──────────────────────────────────────────────────────
@@ -313,9 +354,17 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── 3. Aylık Hacamat Takvimi ────────────────────────────────────────────────
   all.push(secH1("Aylık Hacamat Takvimi"));
-  all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${data.notable.length} gün`));
+  all.push(caption(`${monthLabel} — Hicri 17–24 aralığı · ${tableRows.length} gün`));
   all.push(gap(60));
-  all.push(buildTable(data.notable));
+  if (tableRows.length > 0) {
+    all.push(buildTable(tableRows));
+  } else {
+    all.push(new Paragraph({
+      children: [new TextRun({ text: "Seçili filtrelerle gösterilecek gün bulunamadı.", size: 18, font: FONT, color: C_LIGHT, italics: true })],
+      spacing: { before: 40, after: 40 },
+      indent:  { left: 180 },
+    }));
+  }
   all.push(gap(120));
 
   // ── 4. Dinamik Hicri Gün Notları ─────────────────────────────────────────────
@@ -327,22 +376,22 @@ export async function POST(request: Request): Promise<Response> {
     all.push(gap(100));
   }
 
-  // ── 5. Hacamat Öncesi Kurallar — 2 kolon ─────────────────────────────────────
-  if (oncesiRules.length > 0) {
-    all.push(secH2("Hacamat Öncesi Kurallar"));
-    all.push(buildRulesTable(oncesiRules));
-    all.push(gap(80));
+  // ── 5. Kurallar (sadece inc.kurallar ise) ────────────────────────────────────
+  if (inc.kurallar) {
+    if (beforeRules.length > 0) {
+      all.push(secH2("Hacamat Öncesi Kurallar"));
+      all.push(buildRulesTable(beforeRules));
+      all.push(gap(80));
+    }
+    if (afterRules.length > 0) {
+      all.push(secH2("Hacamat Sonrası Kurallar"));
+      all.push(buildRulesTable(afterRules));
+      all.push(gap(80));
+    }
   }
 
-  // ── 6. Hacamat Sonrası Kurallar — 2 kolon ────────────────────────────────────
-  if (sonrasiRules.length > 0) {
-    all.push(secH2("Hacamat Sonrası Kurallar"));
-    all.push(buildRulesTable(sonrasiRules));
-    all.push(gap(80));
-  }
-
-  // ── 7. Uzman Notları — sadece boş değilse ────────────────────────────────────
-  if (expertNotes.trim()) {
+  // ── 6. Uzman Notları ─────────────────────────────────────────────────────────
+  if (inc.uzmanNotu && expertNotes.trim()) {
     all.push(secH2("Hacamat Uzmanı Notları"));
     expertNotes.split("\n").filter(Boolean).forEach(line => all.push(para(line.trim())));
   }

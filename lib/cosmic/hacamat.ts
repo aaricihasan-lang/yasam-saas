@@ -51,9 +51,10 @@ export type AltinDay = {
 };
 
 export type HijamRule = {
-  id:       number;
-  text:     string;
-  category: "oncesi" | "sonrasi" | "genel";
+  id:         string;
+  category:   "before" | "after" | "general";
+  rule_text:  string;
+  sort_order: number;
 };
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
@@ -79,25 +80,6 @@ const YASAKLI_WEEKDAYS = new Set([3, 5, 6]);
 const SUNNET_HICRI  = new Set([17, 19, 21]);
 const UYGUN_HICRI   = new Set([18, 20, 22, 23, 24]);
 const NOTABLE_HICRI = new Set([17, 18, 19, 20, 21, 22, 23, 24]);
-
-// ─── Varsayılan kurallar ──────────────────────────────────────────────────────
-
-export const DEFAULT_HIJAMA_RULES: HijamRule[] = [
-  { id: 1,  category: "oncesi",  text: "Hacamat öncesi en az 3 saat aç kalınmalıdır." },
-  { id: 2,  category: "oncesi",  text: "Uygulama öncesi bol su içilmelidir (1–2 saat öncesi)." },
-  { id: 3,  category: "oncesi",  text: "Yoğun fiziksel aktiviteden 24 saat öncesinden kaçınılmalıdır." },
-  { id: 4,  category: "oncesi",  text: "Kan sulandırıcı ilaç kullananlar uzman doktora danışmalıdır." },
-  { id: 5,  category: "oncesi",  text: "Hacamat bölgelerinde açık yara veya aktif cilt hastalığı olmamalıdır." },
-  { id: 6,  category: "oncesi",  text: "Hamile ve yeni doğum yapmış kadınlar doktora danışmadan yaptırmamalıdır." },
-  { id: 7,  category: "sonrasi", text: "Hacamat sonrası 1–2 saat uyuma veya dinlenme önerilir." },
-  { id: 8,  category: "sonrasi", text: "Uygulama sonrası 24 saat duş alınmamalıdır." },
-  { id: 9,  category: "sonrasi", text: "Soğuk su ve soğuk içeceklerden 24 saat kaçınılmalıdır." },
-  { id: 10, category: "sonrasi", text: "Hacamat bölgeleri 24 saat güneşe maruz bırakılmamalıdır." },
-  { id: 11, category: "sonrasi", text: "Uygulama günü ağır yemek yenmemelidir." },
-  { id: 12, category: "genel",   text: "Hacamat ayda en fazla 1–2 kez yaptırılmalıdır." },
-  { id: 13, category: "genel",   text: "Çocuklar için mutlaka uzman denetiminde uygulanmalıdır." },
-  { id: 14, category: "genel",   text: "Kullanılan tüm malzemelerin sterilizasyonundan emin olunmalıdır." },
-];
 
 // ─── Durum hesaplayıcı ────────────────────────────────────────────────────────
 
