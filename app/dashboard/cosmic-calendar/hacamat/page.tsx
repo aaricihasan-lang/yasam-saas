@@ -240,7 +240,8 @@ export default function HacamatPage() {
   const [digerMonth,  setDigerMonth]  = useState(todayMonth);
   const [wordYear,    setWordYear]    = useState(todayYear);
   const [wordMonth,   setWordMonth]   = useState(todayMonth);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating,    setIsGenerating]    = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Word rapor ayarları
   const [wordTitle,      setWordTitle]      = useState("HACAMAT TAKVİMİ");
@@ -358,35 +359,48 @@ export default function HacamatPage() {
 
   // ─── Word export ─────────────────────────────────────────────────────────
 
-  async function handleWordReport() {
-    setIsGenerating(true);
+  function buildReportPayload() {
+    return {
+      year:       wordYear,
+      month:      wordMonth,
+      rules:      rules.map(r => ({ rule_text: r.rule_text, category: r.category })),
+      expertNotes,
+      title:      wordTitle,
+      expertName: wordExpertName,
+      includeSections,
+    };
+  }
+
+  async function downloadReport(endpoint: string, ext: "docx" | "pdf") {
     try {
-      const resp = await fetch("/api/hacamat/word-report", {
+      const resp = await fetch(endpoint, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          year:       wordYear,
-          month:      wordMonth,
-          rules:      rules.map(r => ({ rule_text: r.rule_text, category: r.category })),
-          expertNotes,
-          title:      wordTitle,
-          expertName: wordExpertName,
-          includeSections,
-        }),
+        body:    JSON.stringify(buildReportPayload()),
       });
       if (!resp.ok) throw new Error();
       const blob = await resp.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.docx`;
+      a.download = `hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert("Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
-    } finally {
-      setIsGenerating(false);
+      alert(`${ext.toUpperCase()} raporu oluşturulamadı. Lütfen tekrar deneyin.`);
     }
+  }
+
+  async function handleWordReport() {
+    setIsGenerating(true);
+    await downloadReport("/api/hacamat/word-report", "docx");
+    setIsGenerating(false);
+  }
+
+  async function handlePdfReport() {
+    setIsGeneratingPdf(true);
+    await downloadReport("/api/hacamat/pdf-report", "pdf");
+    setIsGeneratingPdf(false);
   }
 
   function toggleSection(key: keyof typeof includeSections) {
@@ -855,11 +869,19 @@ export default function HacamatPage() {
               )}
             </div>
 
-            {/* Word Oluştur */}
-            <div className="flex justify-end">
+            {/* Dışa Aktar */}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => void handlePdfReport()}
+                disabled={isGeneratingPdf || isGenerating}
+                className="flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
+              >
+                <FileText className="h-4 w-4" />
+                {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
+              </button>
               <button
                 onClick={() => void handleWordReport()}
-                disabled={isGenerating}
+                disabled={isGenerating || isGeneratingPdf}
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
               >
                 <FileText className="h-4 w-4" />
