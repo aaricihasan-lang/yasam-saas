@@ -13,6 +13,7 @@ import {
   RETRO_PERIODS,
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
+import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
 
@@ -22,13 +23,6 @@ const MONTH_NAMES_TR: ReadonlyArray<string> = [
 ];
 
 const DAY_HEADERS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"] as const;
-
-const UPCOMING_EVENTS = [
-  { days: 3,  text: "Beyaz Gün",                icon: "📅" },
-  { days: 5,  text: "Hacamat için uygun gün",    icon: "🩸" },
-  { days: 8,  text: "Dolunay",                   icon: "🌕" },
-  { days: 12, text: "Merkür retrosu başlangıcı", icon: "🪐" },
-] as const;
 
 const LEGEND_ITEMS = [
   { icon: "🌑", label: "Yeni Ay"    },
@@ -346,6 +340,72 @@ export default function CosmicCalendarPage() {
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const ph          = useMemo(() => getPlanetaryHour(realNow),           [realNow]);
 
+  // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
+
+  // Yaklaşan Güçlü Günler — numeroloji 11/22/33 veya ana faz geçiş günleri (sonraki 60 gün)
+  const upcomingPowerDays = useMemo(() => {
+    const result: { date: Date; label: string; numDay: number }[] = [];
+    const base = new Date(todayYear, todayMonth, todayDay);
+    const POWER_NUMS = new Set([1, 8, 9, 11, 22, 33]);
+    const mainPhases = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
+    for (let i = 1; i <= 60 && result.length < 6; i++) {
+      const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
+      const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12);
+      const num  = numerologicalDay(d);
+      const tp   = getMoonPhase(d), pp = getMoonPhase(prev);
+      const isPhaseDay = mainPhases.has(tp.name) && tp.name !== pp.name;
+      if (POWER_NUMS.has(num) || isPhaseDay) {
+        result.push({
+          date: d,
+          label: isPhaseDay ? `${tp.emoji} ${tp.name}` : `🔢 Numeroloji ${num} · ${NUM_NAMES[num] ?? ""}`,
+          numDay: num,
+        });
+      }
+    }
+    return result.slice(0, 5);
+  }, [todayYear, todayMonth, todayDay]);
+
+  // Yaklaşan Retro Dönemleri — sonraki 180 gün
+  const upcomingRetrosList = useMemo(() => getUpcomingRetros(realNow, 180).slice(0, 4), [realNow]);
+
+  // Yaklaşan Ay Fazları — sonraki 4 ana faz
+  const upcomingMoonPhases = useMemo(() => {
+    const phases = ["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"];
+    const result: { name: string; emoji: string; date: Date; daysFromNow: number }[] = [];
+    const base = new Date(todayYear, todayMonth, todayDay);
+    const found = new Set<string>();
+    for (let i = 1; i <= 120 && result.length < 4; i++) {
+      const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
+      const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12);
+      const tp = getMoonPhase(d), pp = getMoonPhase(prev);
+      if (phases.includes(tp.name) && tp.name !== pp.name && !found.has(tp.name)) {
+        found.add(tp.name);
+        result.push({ name: tp.name, emoji: tp.emoji, date: d, daysFromNow: i });
+      }
+    }
+    return result;
+  }, [todayYear, todayMonth, todayDay]);
+
+  // Yaklaşan Hacamat Günleri — bu ve sonraki ay içinden altin+sunnet (bugünden sonra, maks 6)
+  const upcomingHacamatDays = useMemo(() => {
+    const today = new Date(todayYear, todayMonth, todayDay);
+    const result: CalendarDay[] = [];
+    const monthsToCheck = [
+      { year: todayYear, month: todayMonth },
+      { year: todayMonth === 11 ? todayYear + 1 : todayYear, month: (todayMonth + 1) % 12 },
+    ];
+    for (const { year, month } of monthsToCheck) {
+      const data = getHacamatMonthData(year, month);
+      for (const day of data.days) {
+        if ((day.status === "altin" || day.status === "sunnet" || day.status === "uygun") && day.miladi >= today) {
+          result.push(day);
+        }
+      }
+      if (result.length >= 6) break;
+    }
+    return result.slice(0, 6);
+  }, [todayYear, todayMonth, todayDay]);
+
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
     if (!searchResult || searchResult.kind !== "day") return null;
@@ -425,7 +485,7 @@ export default function CosmicCalendarPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-violet-300/[0.12] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pt-4 pb-8 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative z-10 w-full px-4 pt-4 pb-4 sm:px-6 lg:px-8 xl:px-10">
 
         {/* ── Hero ── */}
         <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-indigo-200 via-violet-100 to-cyan-100 px-5 py-3.5 shadow-[0_12px_40px_rgba(99,102,241,0.18)] backdrop-blur-xl sm:px-6">
@@ -501,7 +561,7 @@ export default function CosmicCalendarPage() {
               <Link
                 key={title}
                 href={href}
-                className={`group flex h-28 flex-none w-[190px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-3 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
+                className={`group flex h-20 flex-none w-[170px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
                 aria-disabled={!live}
                 tabIndex={live ? 0 : -1}
               >
@@ -569,9 +629,12 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Kozmik Arama — premium ── */}
-        <div className="mb-4 rounded-[18px] border border-slate-200/80 bg-white/85 p-3 shadow-md backdrop-blur-md">
-          <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🔍 Kozmik Arama</p>
+        {/* ── Kozmik Arama — kompakt ── */}
+        <div className="mb-4 rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-2 shadow-md backdrop-blur-md">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <Search className="h-3 w-3 text-indigo-500" />
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">Kozmik Arama</p>
+          </div>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -695,7 +758,7 @@ export default function CosmicCalendarPage() {
         </div>
 
         {/* ── Ana Grid ── */}
-        <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_300px]">
+        <div className="grid grid-cols-1 gap-4 lg:items-start lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
 
           {/* ── Sol Kolon ── */}
           <div className="flex flex-col gap-4">
@@ -810,18 +873,109 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
-            {/* Yaklaşan Olaylar */}
-            <div className="rounded-3xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">Yaklaşan Olaylar</p>
-              <div className="divide-y divide-slate-100/80">
-                {UPCOMING_EVENTS.map(({ days, text, icon }) => (
-                  <div key={text} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
-                    <span className="text-sm leading-none">{icon}</span>
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">{text}</span>
-                    <span className="shrink-0 rounded-full bg-indigo-100/80 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-indigo-700">{days}g</span>
-                  </div>
-                ))}
-              </div>
+            {/* ── Yaklaşan Güçlü Günler ── */}
+            <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-yellow-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">⭐ Yaklaşan Güçlü Günler</p>
+              {upcomingPowerDays.length === 0 ? (
+                <p className="text-[10px] text-slate-400">60 gün içinde yok.</p>
+              ) : (
+                <div className="divide-y divide-amber-100/60">
+                  {upcomingPowerDays.map(({ date, label, numDay }, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => navigateToDate(date)}
+                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-amber-800">{label}</span>
+                      <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-amber-700">
+                        {date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Yaklaşan Retro Dönemleri ── */}
+            <div className="rounded-2xl border border-rose-200/70 bg-gradient-to-br from-rose-50/80 to-pink-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">☿ Yaklaşan Retro Dönemleri</p>
+              {upcomingRetrosList.length === 0 ? (
+                <p className="text-[10px] text-slate-400">180 gün içinde retro yok.</p>
+              ) : (
+                <div className="divide-y divide-rose-100/60">
+                  {upcomingRetrosList.map(r => {
+                    const startDate = parseRetroDate(r.start);
+                    const daysLeft = Math.ceil((startDate.getTime() - realNow.getTime()) / 86_400_000);
+                    return (
+                      <button
+                        key={`${r.planet}-${r.start}`}
+                        type="button"
+                        onClick={() => navigateToDate(startDate)}
+                        className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
+                      >
+                        <span className="text-sm leading-none">{r.symbol}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-rose-800">{r.planet} Retrosu</span>
+                        <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-rose-700">
+                          {daysLeft > 0 ? `${daysLeft}g` : "Aktif"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Yaklaşan Ay Fazları ── */}
+            <div className="rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/80 to-indigo-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">🌕 Yaklaşan Ay Fazları</p>
+              {upcomingMoonPhases.length === 0 ? (
+                <p className="text-[10px] text-slate-400">Veri bulunamadı.</p>
+              ) : (
+                <div className="divide-y divide-violet-100/60">
+                  {upcomingMoonPhases.map(({ name, emoji, date, daysFromNow }) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => navigateToDate(date)}
+                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
+                    >
+                      <span className="text-sm leading-none">{emoji}</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-violet-800">{name}</span>
+                      <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-violet-700">
+                        {daysFromNow === 1 ? "Yarın" : `${daysFromNow}g`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Yaklaşan Hacamat Günleri ── */}
+            <div className="rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-50/80 to-cyan-50/50 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">🩸 Yaklaşan Hacamat Günleri</p>
+              {upcomingHacamatDays.length === 0 ? (
+                <p className="text-[10px] text-slate-400">Bu ay uygun gün yok.</p>
+              ) : (
+                <div className="divide-y divide-teal-100/60">
+                  {upcomingHacamatDays.map((day, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => navigateToDate(day.miladi)}
+                      className="flex w-full items-center gap-2 py-1.5 text-left transition hover:opacity-80 first:pt-0 last:pb-0"
+                    >
+                      <span className="min-w-0 flex-1 text-[11px] font-semibold text-teal-800">
+                        {day.miladiFull}
+                        <span className={`ml-1.5 text-[9px] font-black ${day.status === "altin" ? "text-amber-600" : day.status === "sunnet" ? "text-teal-700" : "text-slate-500"}`}>
+                          {day.status === "altin" ? "⭐ Altın" : day.status === "sunnet" ? "Sünnet" : "Uygun"}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[9px] text-teal-600">{day.hijriDay} {day.hijriMonthName.slice(0, 4)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
