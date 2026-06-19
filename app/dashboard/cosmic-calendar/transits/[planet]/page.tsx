@@ -85,30 +85,21 @@ export default function TransitDetailPage() {
       <div className="relative z-10 w-full px-3 pt-3 pb-4 sm:px-5 lg:px-6 xl:px-8">
 
         {/* ── Hero Kartı ── */}
-        <section className={`relative mb-3 overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-3 shadow-sm backdrop-blur-md`}>
-          {/* Üst satır: breadcrumb + tarih */}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <Link
-              href="/dashboard/cosmic-calendar"
-              className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-slate-500 no-underline transition hover:text-indigo-600"
-            >
-              <ArrowLeft className="h-2.5 w-2.5" /> Kozmik Ajanda
-            </Link>
-            <p className="shrink-0 text-[10px] text-slate-400">{miladiDate}</p>
-          </div>
-
-          {/* İçerik */}
+        <section className={`relative mb-2 overflow-hidden rounded-[16px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-3 shadow-sm backdrop-blur-md`}>
           <div className="flex items-center gap-3">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${meta.iconBg} text-xl text-white shadow-md`}>
               {meta.symbol}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Transit Detayı</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Transit Detayı</p>
+                <p className="shrink-0 text-[9px] text-slate-400">{miladiDate}</p>
+              </div>
               <h1 className={`text-[17px] font-black leading-tight ${meta.titleClr}`}>
                 {meta.symbol} {meta.key} · {currentSign}
               </h1>
               {transitPeriod && (
-                <p className="mt-1 text-[10px] leading-relaxed break-words text-slate-400">
+                <p className="mt-0.5 text-[10px] leading-relaxed break-words text-slate-400">
                   Aralık:{" "}
                   <span className="font-semibold text-slate-600">{transitPeriod.from} → {transitPeriod.to}</span>
                 </p>
