@@ -93,6 +93,24 @@ export function getSunSignLegacy(date: Date): string {
   return _legacySunSign(date);
 }
 
+// ─── Ortak AE ekliptik burç hesabı (FAZ 5C) ──────────────────────────────────
+
+/**
+ * Herhangi bir gezegen için AE ekliptik boylam → burç adı.
+ * GeoVector(body, date, aberration=true) → Ecliptic() → elon/30 → tropikal burç.
+ * AE başarısız olursa fallback string döner (tablo sonucu veya sabit).
+ */
+function getEclipticSignAE(body: AE.Body, date: Date, fallback: string): string {
+  try {
+    const vec = AE.GeoVector(body, date, true);
+    const ecl = AE.Ecliptic(vec);
+    const idx = Math.floor(ecl.elon / 30) % 12;
+    return SUN_ZODIAC_NAMES[idx] ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // ─── Tarih tablosu yardımcısı ────────────────────────────────────────────────
 
 type SignPeriod = { from: string; to: string; sign: string };
@@ -508,7 +526,8 @@ function getSunSignBoundaries(date: Date): { from: string; to: string } {
 /**
  * Verilen tarih için Güneş + 8 gezegen burç konumlarını döner.
  * Ay bu listede yer almaz; çağıran kod moon.ts → getMoonSign() kullanmalıdır.
- * 2025-2030 tam kapsam; sonrası için fallback değeri döner (crash olmaz).
+ * Güneş/Merkür/Venüs/Mars: AE GeoVector+Ecliptic (FAZ 5B-5C) — tarih sınırı yok.
+ * Jüpiter–Plüton: tarih aralığı tablosu, 2025-2030 kapsam.
  */
 export function getPlanetSigns(date: Date): PlanetInfo[] {
   const planets: Array<{
@@ -518,10 +537,14 @@ export function getPlanetSigns(date: Date): PlanetInfo[] {
     fallback: string;
     algo?: (d: Date) => string;
   }> = [
-    { key: "Güneş",   symbol: "☉", periods: [],               fallback: "",         algo: getSunSign },
-    { key: "Merkür",  symbol: "☿", periods: MERCURY_PERIODS,  fallback: "Oğlak"    },
-    { key: "Venüs",   symbol: "♀", periods: VENUS_PERIODS,    fallback: "Kova"     },
-    { key: "Mars",    symbol: "♂", periods: MARS_PERIODS,     fallback: "Koç"      },
+    { key: "Güneş",   symbol: "☉", periods: [],               fallback: "",
+      algo: getSunSign },
+    { key: "Merkür",  symbol: "☿", periods: MERCURY_PERIODS,  fallback: "Oğlak",
+      algo: (d) => getEclipticSignAE(AE.Body.Mercury, d, lookupSign(MERCURY_PERIODS, d, "Oğlak")) },
+    { key: "Venüs",   symbol: "♀", periods: VENUS_PERIODS,    fallback: "Kova",
+      algo: (d) => getEclipticSignAE(AE.Body.Venus,   d, lookupSign(VENUS_PERIODS,   d, "Kova")) },
+    { key: "Mars",    symbol: "♂", periods: MARS_PERIODS,     fallback: "Koç",
+      algo: (d) => getEclipticSignAE(AE.Body.Mars,    d, lookupSign(MARS_PERIODS,    d, "Koç")) },
     { key: "Jüpiter", symbol: "♃", periods: JUPITER_PERIODS,  fallback: "Yay"      },
     { key: "Satürn",  symbol: "♄", periods: SATURN_PERIODS,   fallback: "Boğa"     },
     { key: "Uranüs",  symbol: "♅", periods: URANUS_PERIODS,   fallback: "İkizler"  },
@@ -569,4 +592,21 @@ export function getPlanetSignPeriod(
     if (iso >= p.from && iso <= p.to) return { from: p.from, to: p.to };
   }
   return null;
+}
+
+// ─── Legacy tablo lookup — audit/karşılaştırma için (FAZ 5C) ─────────────────
+
+/** Merkür burcu — tablo araması. Kapsam dışı → "outOfRange". Audit için. */
+export function getMercurySignLegacy(date: Date): string {
+  return lookupSign(MERCURY_PERIODS, date, "outOfRange");
+}
+
+/** Venüs burcu — tablo araması. Kapsam dışı → "outOfRange". Audit için. */
+export function getVenusSignLegacy(date: Date): string {
+  return lookupSign(VENUS_PERIODS, date, "outOfRange");
+}
+
+/** Mars burcu — tablo araması. Kapsam dışı → "outOfRange". Audit için. */
+export function getMarsSignLegacy(date: Date): string {
+  return lookupSign(MARS_PERIODS, date, "outOfRange");
 }

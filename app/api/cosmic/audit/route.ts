@@ -25,7 +25,14 @@ import {
 
 import { getMoonDataAE } from "@/lib/cosmic/astronomy-engine-helper";
 import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
-import { getSunSignInfo, getSunSignLegacy } from "@/lib/cosmic/planets";
+import {
+  getSunSignInfo,
+  getSunSignLegacy,
+  getPlanetSigns,
+  getMercurySignLegacy,
+  getVenusSignLegacy,
+  getMarsSignLegacy,
+} from "@/lib/cosmic/planets";
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
@@ -241,6 +248,34 @@ export async function GET() {
       : "⚠️ Legacy gün taraması kullanıldı (fallback)",
   }));
 
+  // ── FAZ 5C: Merkür / Venüs / Mars AE vs tablo ───────────────────────────────
+
+  const FAZ5C_TEST_DATES = [
+    { label: "Bugün",                   date: now },
+    { label: "2026-07-10 (Merkür retro dibe)", date: new Date("2026-07-10T12:00:00Z") },
+    { label: "2026-07-24 (Merkür direct)", date: new Date("2026-07-24T12:00:00Z") },
+    { label: "2031-01-01 (tablo kapsamı dışı)", date: new Date("2031-01-01T12:00:00Z") },
+  ] as const;
+
+  const faz5c_gezegenKarsilastirma = FAZ5C_TEST_DATES.map(({ label, date }) => {
+    const signs = getPlanetSigns(date);
+    const mercAE  = signs.find(p => p.key === "Merkür")?.sign ?? "?";
+    const venAE   = signs.find(p => p.key === "Venüs")?.sign  ?? "?";
+    const marsAE  = signs.find(p => p.key === "Mars")?.sign   ?? "?";
+    const mercLeg = getMercurySignLegacy(date);
+    const venLeg  = getVenusSignLegacy(date);
+    const marsLeg = getMarsSignLegacy(date);
+    const outRng  = signs.find(p => p.key === "Merkür")?.outOfRange ?? false;
+    return {
+      tarih:   label,
+      utc:     date.toISOString().slice(0, 10),
+      merkur:  { ae: mercAE, tablo: mercLeg, eslesme: mercAE === mercLeg ? "AYNI ✓" : "FARK ⚠️" },
+      venus:   { ae: venAE,  tablo: venLeg,  eslesme: venAE  === venLeg  ? "AYNI ✓" : "FARK ⚠️" },
+      mars:    { ae: marsAE, tablo: marsLeg, eslesme: marsAE === marsLeg ? "AYNI ✓" : "FARK ⚠️" },
+      outOfRange_merkur: outRng,
+    };
+  });
+
   // ── FAZ 5B: Güneş burcu cusp tarihleri ──────────────────────────────────────
   const CUSP_DATES = [
     { label: "Koç girişi öncesi  — 20 Mart 2026 14:00 UTC", date: new Date("2026-03-20T14:00:00Z") },
@@ -266,10 +301,11 @@ export async function GET() {
 
   return Response.json({
     ok:        true,
-    modul:     "FAZ 5B — Güneş Burcu AE + cusp doğrulama",
-    aciklama:  "production=getMoonPhase/Sign/Illumination/MoonAge/SunSign (tümü AE), legacy=eski formüller, aeRaw=doğrudan getMoonDataAE()",
+    modul:     "FAZ 5C — Merkür/Venüs/Mars AE tabanlı anlık burç",
+    aciklama:  "production=Güneş/Merkür/Venüs/Mars AE + Ay AE + Faz AE; Jüpiter-Plüton tablo; legacy=eski formüller",
     ozet,
     kritikTarihler,
+    faz5c_gezegenKarsilastirma,
     faz5b_sunSignCuspKarsilastirma: sunSignCuspKarsilastirma,
     faz4_eventKarsilastirma: eventKarsilastirma,
     fazGecisleri,
