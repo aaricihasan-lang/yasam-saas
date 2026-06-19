@@ -16,6 +16,7 @@ import {
 import { getPlanetSigns } from "@/lib/cosmic/planets";
 import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
 import { getPlanetSlug } from "@/lib/cosmic/planet-meta";
+import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/events";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
@@ -43,6 +44,22 @@ const NUM_NAMES: Record<number, string> = {
   1: "Liderlik", 2: "Uyum", 3: "Yaratıcılık", 4: "Düzen",
   5: "Değişim",  6: "Sevgi", 7: "Derinlik",   8: "Güç",
   9: "Tamamlanma", 11: "Sezgi", 22: "Vizyon", 33: "Şefkat",
+};
+
+const COSMIC_EVENT_STYLE: Record<CosmicEventType, { bg: string; border: string; text: string; badge: string }> = {
+  new_moon:    { bg: "bg-violet-50/70",  border: "border-violet-100/70",  text: "text-violet-800",  badge: "bg-violet-100 text-violet-700"  },
+  full_moon:   { bg: "bg-amber-50/70",   border: "border-amber-100/70",   text: "text-amber-800",   badge: "bg-amber-100 text-amber-700"   },
+  retro_start: { bg: "bg-rose-50/70",    border: "border-rose-100/70",    text: "text-rose-800",    badge: "bg-rose-100 text-rose-700"    },
+  retro_end:   { bg: "bg-emerald-50/70", border: "border-emerald-100/70", text: "text-emerald-800", badge: "bg-emerald-100 text-emerald-700" },
+  sign_change: { bg: "bg-sky-50/70",     border: "border-sky-100/70",     text: "text-sky-800",     badge: "bg-sky-100 text-sky-700"     },
+};
+
+const COSMIC_EVENT_TYPE_LABEL: Record<CosmicEventType, string> = {
+  new_moon:    "Yeni Ay",
+  full_moon:   "Dolunay",
+  retro_start: "Retro Başlıyor",
+  retro_end:   "Retro Bitiyor",
+  sign_change: "Burç Değişimi",
 };
 
 const PHASE_TOOLTIP: Record<string, string> = {
@@ -357,7 +374,8 @@ export default function CosmicCalendarPage() {
     ];
   }, [todayPlanets, todayMoonSign]);
 
-  const topTransits = useMemo(() => getTopTransits(gokyuzuRows, 4), [gokyuzuRows]);
+  const topTransits    = useMemo(() => getTopTransits(gokyuzuRows, 4), [gokyuzuRows]);
+  const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
@@ -1057,6 +1075,42 @@ export default function CosmicCalendarPage() {
 
           </div>
         </div>
+
+        {/* ── Yaklaşan Kozmik Olaylar ── */}
+        {cosmicEvents.length > 0 && (
+          <section className="mt-4 rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+            <p className="mb-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🗓 Yaklaşan Kozmik Olaylar</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-2">
+              {cosmicEvents.map((evt, i) => {
+                const [evtY, evtM, evtD] = evt.date.split("-");
+                const monthShort = (MONTH_NAMES_TR[parseInt(evtM ?? "1") - 1] ?? "").slice(0, 3);
+                const dateLabel  = `${parseInt(evtD ?? "1")} ${monthShort} ${evtY}`;
+                const st = COSMIC_EVENT_STYLE[evt.type];
+                const typeLabel = COSMIC_EVENT_TYPE_LABEL[evt.type];
+                return (
+                  <div
+                    key={`${evt.date}-${i}`}
+                    className={`flex items-start gap-2.5 rounded-xl border ${st.border} ${st.bg} px-3 py-2.5`}
+                  >
+                    {/* Sembol */}
+                    <span className="mt-0.5 shrink-0 text-[18px] leading-none">{evt.symbol}</span>
+                    {/* İçerik */}
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+                        <p className={`text-[11px] font-black leading-tight ${st.text}`}>{evt.title}</p>
+                        <span className={`rounded-full px-1.5 py-px text-[8px] font-semibold ${st.badge}`}>
+                          {typeLabel}
+                        </span>
+                      </div>
+                      <p className="mb-0.5 text-[9px] font-semibold text-slate-400">{dateLabel}</p>
+                      <p className="line-clamp-2 text-[10px] leading-snug text-slate-500">{evt.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ── Bugünün Enerjisi — kompakt, tam genişlik ── */}
         <section className="relative mt-4 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)]">
