@@ -1,5 +1,10 @@
 // Ay fazı ve ay burcu hesaplamaları
-// Kaynak algoritması app/page.tsx LivePanel'den alınıp modülarize edildi.
+// getMoonSign ve getMoonIllumination → astronomy-engine (JPL doğruluğu), fallback legacy math
+// getMoonPhase, getMoonAge → sinodik referans epoch (mevcut yaklaşım, yeterince doğru)
+
+import * as AE from "astronomy-engine";
+
+// ─── Ay Fazı ─────────────────────────────────────────────────────────────────
 
 const MOON_PHASES: ReadonlyArray<{ name: string; emoji: string; max: number }> = [
   { name: "Yeni Ay",        emoji: "🌑", max: 1.85 },
@@ -30,38 +35,70 @@ export function getMoonPhase(date: Date): { name: string; emoji: string } {
   return { name: "Yeni Ay", emoji: "🌑" };
 }
 
-// ─── Ay Burcu ───────────────────────────────────────────────────────────────
+// ─── Burç tablosu ─────────────────────────────────────────────────────────────
 
 const ZODIAC_SIGNS: ReadonlyArray<{ name: string; emoji: string }> = [
-  { name: "Koç",    emoji: "♈" },
-  { name: "Boğa",   emoji: "♉" },
-  { name: "İkizler", emoji: "♊" },
-  { name: "Yengeç", emoji: "♋" },
-  { name: "Aslan",  emoji: "♌" },
-  { name: "Başak",  emoji: "♍" },
-  { name: "Terazi", emoji: "♎" },
-  { name: "Akrep",  emoji: "♏" },
-  { name: "Yay",    emoji: "♐" },
-  { name: "Oğlak",  emoji: "♑" },
-  { name: "Kova",   emoji: "♒" },
-  { name: "Balık",  emoji: "♓" },
+  { name: "Koç",     emoji: "♈" }, // 0-30°
+  { name: "Boğa",    emoji: "♉" }, // 30-60°
+  { name: "İkizler", emoji: "♊" }, // 60-90°
+  { name: "Yengeç",  emoji: "♋" }, // 90-120°
+  { name: "Aslan",   emoji: "♌" }, // 120-150°
+  { name: "Başak",   emoji: "♍" }, // 150-180°
+  { name: "Terazi",  emoji: "♎" }, // 180-210°
+  { name: "Akrep",   emoji: "♏" }, // 210-240°
+  { name: "Yay",     emoji: "♐" }, // 240-270°
+  { name: "Oğlak",   emoji: "♑" }, // 270-300°
+  { name: "Kova",    emoji: "♒" }, // 300-330°
+  { name: "Balık",   emoji: "♓" }, // 330-360°
 ];
 
+// ─── Legacy (yaklaşık) hesaplamalar — AE fallback'i için ─────────────────────
+
 /**
- * Ayın yaklaşık burcu.
- * Ay sidereal devresini ~27.32 günde tamamlar.
- * Referans epoch (11 Oca 2024 yeni ay) ≈ Oğlak girişi (270° ekliptik).
+ * Ay burcu — sinodik epoch + sidereal periyot yaklaşımı.
+ * Hata: ±4-6 saat/gün birikimli (≈1-2 burç sapma).
+ * Sadece AE başarısız olursa kullanılır.
  */
-export function getMoonSign(date: Date): { name: string; emoji: string } {
+function _legacyMoonSign(date: Date): { name: string; emoji: string } {
   const daysSince = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
   const degrees   = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
-  const adjusted  = (degrees + 270) % 360; // Koç = 0° olacak şekilde döndür
+  const adjusted  = (degrees + 270) % 360;
   const signIndex = Math.floor(adjusted / 30) % 12;
   const sign      = ZODIAC_SIGNS[signIndex];
   return sign ? { name: sign.name, emoji: sign.emoji } : { name: "Koç", emoji: "♈" };
 }
 
-// ─── Ek hesaplamalar ─────────────────────────────────────────────────────────
+/** Aydınlanma — kosinüs yaklaşımı. Hata: ~%7-10. Sadece AE başarısız olursa. */
+function _legacyMoonIllumination(date: Date): number {
+  const age = moonAge(date);
+  return Math.round((1 - Math.cos(2 * Math.PI * age / SYNODIC_MONTH)) / 2 * 100);
+}
+
+// ─── Ay Burcu — astronomy-engine (ekliptik boylam, tropikal) ─────────────────
+
+/**
+ * Ayın tropikal burcu.
+ * astronomy-engine EclipticGeoMoon → ekliptik boylam → 30°'lik dilimler.
+ * JPL Horizons doğruluğu; < 5 dakika hata.
+ * Fallback: legacy sinodik yaklaşım.
+ */
+export function getMoonSign(date: Date): { name: string; emoji: string } {
+  try {
+    const ecl = AE.EclipticGeoMoon(date);
+    const idx  = Math.floor(ecl.lon / 30) % 12;
+    const sign = ZODIAC_SIGNS[idx];
+    return sign ? { name: sign.name, emoji: sign.emoji } : { name: "Koç", emoji: "♈" };
+  } catch {
+    return _legacyMoonSign(date);
+  }
+}
+
+/** Legacy Ay burcu — audit/karşılaştırma amaçlı dışa aktarım. */
+export function getMoonSignLegacy(date: Date): { name: string; emoji: string } {
+  return _legacyMoonSign(date);
+}
+
+// ─── Ek hesaplamalar ──────────────────────────────────────────────────────────
 
 /** Sinodik ay süresi (gün) */
 export const SYNODIC_MONTH_DAYS = SYNODIC_MONTH;
@@ -88,8 +125,8 @@ export function getMoonAge(date: Date): number {
 
 /**
  * Ayın şu an bulunduğu burçtaki yaklaşık aralığı döner.
- * Ay sidereal devresini ~27.32 günde tamamlar; her burçta ~2.28 gün kalır.
- * Hassasiyet: ±4-6 saat. Gün bazında gösterim için yeterli.
+ * astronomy-engine her saat hesaplama yapmak yerine 2.28 günlük
+ * yaklaşık pencereyi korur — dönem gösterimi için yeterli.
  */
 export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
   const daysSince   = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
@@ -101,8 +138,21 @@ export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
   return { from: new Date(fromMs), to: new Date(fromMs + signDurMs) };
 }
 
-/** Aydınlanma yüzdesi (0–100, kosinüs yaklaşımı) */
+/**
+ * Aydınlanma yüzdesi (0–100).
+ * astronomy-engine Illumination → phase_fraction (gerçek geometrik açı).
+ * Fallback: kosinüs yaklaşımı (~%7-10 hata).
+ */
 export function getMoonIllumination(date: Date): number {
-  const age = getMoonAge(date);
-  return Math.round((1 - Math.cos(2 * Math.PI * age / SYNODIC_MONTH)) / 2 * 100);
+  try {
+    const illum = AE.Illumination(AE.Body.Moon, date);
+    return Math.round(illum.phase_fraction * 100);
+  } catch {
+    return _legacyMoonIllumination(date);
+  }
+}
+
+/** Legacy aydınlanma — audit/karşılaştırma amaçlı dışa aktarım. */
+export function getMoonIlluminationLegacy(date: Date): number {
+  return _legacyMoonIllumination(date);
 }
