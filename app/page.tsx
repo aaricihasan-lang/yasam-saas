@@ -343,7 +343,7 @@ const dashboardModules: ModuleCard[] = [
     desc: "Hicri takvim, hacamat günleri ve günlük kozmik akış",
     count: "Aktif",
     badge: "Merkez",
-    href: "/dashboard/cosmic-calendar",
+    href: "/cosmic-calendar",
     permissionKey: "cosmic_calendar",
     emoji: "🌙",
     Icon: CalendarDays,
