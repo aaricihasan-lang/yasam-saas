@@ -1,7 +1,7 @@
 /**
  * lib/cosmic/planet-meta.ts
  * Gezegen meta verisi: slug, sembol, renk aksanı, kısa anlamı.
- * Route: /dashboard/cosmic-calendar/transits/[slug]
+ * Route: /cosmic-calendar/transits/[slug]
  */
 
 export type PlanetMeta = {
