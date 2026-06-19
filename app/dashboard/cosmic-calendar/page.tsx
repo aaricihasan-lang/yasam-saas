@@ -14,6 +14,7 @@ import {
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
 import { getPlanetSigns } from "@/lib/cosmic/planets";
+import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
@@ -355,6 +356,8 @@ export default function CosmicCalendarPage() {
     ];
   }, [todayPlanets, todayMoonSign]);
 
+  const topTransits = useMemo(() => getTopTransits(gokyuzuRows, 4), [gokyuzuRows]);
+
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
   // Yaklaşan Güçlü Günler — numeroloji 11/22/33 veya ana faz geçiş günleri (sonraki 60 gün)
@@ -592,10 +595,14 @@ export default function CosmicCalendarPage() {
 
         {/* ── Güncel Gökyüzü ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-3 shadow-sm backdrop-blur-md">
+
+          {/* Başlık */}
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Güncel Gökyüzü</p>
             <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2 py-0.5 text-[9px] font-semibold text-indigo-500">{miladiDate}</span>
           </div>
+
+          {/* Gezegen grid — korunuyor */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-2 md:grid-cols-5">
             {gokyuzuRows.map(({ key, symbol, sign, signSymbol }) => (
               <div key={key} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 transition hover:bg-white/50">
@@ -605,6 +612,51 @@ export default function CosmicCalendarPage() {
               </div>
             ))}
           </div>
+
+          {/* Ayırıcı + Transit temaları */}
+          <div className="mt-3 border-t border-indigo-100/70 pt-3">
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">🌌 Bugünün Transit Temaları</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {topTransits.map(({ planet, sign, symbol, title, summary, tags, caution }) => (
+                <div
+                  key={planet}
+                  className="overflow-hidden rounded-xl border border-indigo-100/70 bg-white/65 px-2.5 py-2 backdrop-blur-sm"
+                >
+                  {/* Planet + title */}
+                  <div className="mb-1 flex items-start gap-1.5">
+                    <span className="mt-px shrink-0 text-[13px] leading-none text-indigo-400">{symbol}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black leading-tight text-indigo-700">{title}</p>
+                      <p className="text-[8px] font-semibold text-slate-400">{planet} · {sign}</p>
+                    </div>
+                  </div>
+                  {/* Summary */}
+                  <p className="mb-1.5 line-clamp-2 text-[10px] leading-snug text-slate-600">{summary}</p>
+                  {/* Tags */}
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[8px] font-semibold text-indigo-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Caution */}
+                  {caution && (
+                    <p className="mt-1.5 flex items-start gap-1 text-[9px] leading-snug text-amber-600">
+                      <span className="mt-px shrink-0">⚠</span>
+                      <span>{caution}</span>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}
