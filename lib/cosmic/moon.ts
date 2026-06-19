@@ -1,20 +1,36 @@
 // Ay fazı ve ay burcu hesaplamaları
-// getMoonSign ve getMoonIllumination → astronomy-engine (JPL doğruluğu), fallback legacy math
-// getMoonPhase, getMoonAge → sinodik referans epoch (mevcut yaklaşım, yeterince doğru)
+// getMoonPhase    → astronomy-engine MoonPhase() derece → 8 faz (FAZ 3)
+// getMoonSign     → astronomy-engine EclipticGeoMoon (FAZ 2)
+// getMoonIllumination → astronomy-engine Illumination (FAZ 2)
+// getMoonAge      → sinodik referans epoch (legacy, fallback ve MOON_PHASE_BOUNDS uyumu)
 
 import * as AE from "astronomy-engine";
 
-// ─── Ay Fazı ─────────────────────────────────────────────────────────────────
+// ─── Legacy faz tablosu — day-age tabanlı, MOON_PHASE_BOUNDS ve fallback için ─
 
 const MOON_PHASES: ReadonlyArray<{ name: string; emoji: string; max: number }> = [
-  { name: "Yeni Ay",        emoji: "🌑", max: 1.85 },
-  { name: "Büyüyen Hilal",  emoji: "🌒", max: 7.38 },
-  { name: "İlk Dördün",     emoji: "🌓", max: 14.77 },
-  { name: "Şişen Ay",       emoji: "🌔", max: 22.15 },
-  { name: "Dolunay",        emoji: "🌕", max: 24.0 },
-  { name: "Azalan Ay",      emoji: "🌖", max: 26.38 },
-  { name: "Son Dördün",     emoji: "🌗", max: 27.69 },
-  { name: "Balsamik",       emoji: "🌘", max: 29.53 },
+  { name: "Yeni Ay",       emoji: "🌑", max: 1.85  },
+  { name: "Büyüyen Hilal", emoji: "🌒", max: 7.38  },
+  { name: "İlk Dördün",   emoji: "🌓", max: 14.77 },
+  { name: "Şişen Ay",     emoji: "🌔", max: 22.15 },
+  { name: "Dolunay",      emoji: "🌕", max: 24.0  },
+  { name: "Azalan Ay",    emoji: "🌖", max: 26.38 },
+  { name: "Son Dördün",   emoji: "🌗", max: 27.69 },
+  { name: "Balsamik",     emoji: "🌘", max: 29.53 },
+];
+
+// ─── AE faz tablosu — MoonPhase() derece tabanlı (0°=Yeni Ay, 180°=Dolunay) ──
+// Her bin 45° = ~3.7 gün. Geçişler astronomik anlarda keskin.
+
+const AE_MOON_PHASES: ReadonlyArray<{ name: string; emoji: string; min: number; max: number }> = [
+  { name: "Yeni Ay",       emoji: "🌑", min: 0,   max: 45  },
+  { name: "Büyüyen Hilal", emoji: "🌒", min: 45,  max: 90  },
+  { name: "İlk Dördün",   emoji: "🌓", min: 90,  max: 135 },
+  { name: "Şişen Ay",     emoji: "🌔", min: 135, max: 180 },
+  { name: "Dolunay",      emoji: "🌕", min: 180, max: 225 },
+  { name: "Azalan Ay",    emoji: "🌖", min: 225, max: 270 },
+  { name: "Son Dördün",   emoji: "🌗", min: 270, max: 315 },
+  { name: "Balsamik",     emoji: "🌘", min: 315, max: 360 },
 ];
 
 /** Referans: 11 Ocak 2024 yeni ay — 11:57 UTC */
@@ -26,13 +42,37 @@ function moonAge(date: Date): number {
   return ((daysSince % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH;
 }
 
-/** Bugünün ay fazı: { name, emoji } */
-export function getMoonPhase(date: Date): { name: string; emoji: string } {
+// ─── Legacy faz hesabı — AE başarısız olursa devreye girer ───────────────────
+
+function _legacyMoonPhase(date: Date): { name: string; emoji: string } {
   const age = moonAge(date);
   for (const p of MOON_PHASES) {
     if (age <= p.max) return { name: p.name, emoji: p.emoji };
   }
   return { name: "Yeni Ay", emoji: "🌑" };
+}
+
+// ─── Ay Fazı — astronomy-engine MoonPhase() (FAZ 3) ──────────────────────────
+
+/**
+ * Ayın fazı — astronomy-engine MoonPhase() derecesinden hesaplanır.
+ * 0°=Yeni Ay, 90°=İlk Dördün, 180°=Dolunay, 270°=Son Dördün.
+ * Geçişler JPL doğruluğuyla keskin; legacy 1 günlük gecikme ortadan kalkar.
+ * Fallback: sinodik epoch tabanlı eski hesap.
+ */
+export function getMoonPhase(date: Date): { name: string; emoji: string } {
+  try {
+    const deg = AE.MoonPhase(date);
+    const p   = AE_MOON_PHASES.find((x) => deg >= x.min && deg < x.max);
+    return p ? { name: p.name, emoji: p.emoji } : { name: "Yeni Ay", emoji: "🌑" };
+  } catch {
+    return _legacyMoonPhase(date);
+  }
+}
+
+/** Legacy faz — audit/karşılaştırma amaçlı dışa aktarım. */
+export function getMoonPhaseLegacy(date: Date): { name: string; emoji: string } {
+  return _legacyMoonPhase(date);
 }
 
 // ─── Burç tablosu ─────────────────────────────────────────────────────────────
