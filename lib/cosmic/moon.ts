@@ -143,24 +143,48 @@ export function getMoonSignLegacy(date: Date): { name: string; emoji: string } {
 /** Sinodik ay süresi (gün) */
 export const SYNODIC_MONTH_DAYS = SYNODIC_MONTH;
 
-/** Faz geçiş sınırları (ageMin dahil, ageMax hariç) */
+/**
+ * Faz geçiş sınırları — AE MoonPhase() derece sistemine uyumlu (FAZ 5A).
+ * Her bant 45° = 29.53059/8 ≈ 3.691 gün genişliğinde.
+ * 0°=Yeni Ay (0g), 90°=İlk Dördün (7.4g), 180°=Dolunay (14.8g), 270°=Son Dördün (22.1g).
+ * Dolunay ageMin=14.765 → progress bar %50 konumunda (eski legacy: ~%75).
+ */
 export const MOON_PHASE_BOUNDS: ReadonlyArray<{
   name: string; emoji: string; ageMin: number; ageMax: number;
 }> = [
-  { name: "Yeni Ay",       emoji: "🌑", ageMin: 0,     ageMax: 1.85  },
-  { name: "Büyüyen Hilal", emoji: "🌒", ageMin: 1.85,  ageMax: 7.38  },
-  { name: "İlk Dördün",   emoji: "🌓", ageMin: 7.38,  ageMax: 14.77 },
-  { name: "Şişen Ay",     emoji: "🌔", ageMin: 14.77, ageMax: 22.15 },
-  { name: "Dolunay",      emoji: "🌕", ageMin: 22.15, ageMax: 24.0  },
-  { name: "Azalan Ay",    emoji: "🌖", ageMin: 24.0,  ageMax: 26.38 },
-  { name: "Son Dördün",   emoji: "🌗", ageMin: 26.38, ageMax: 27.69 },
-  { name: "Balsamik",     emoji: "🌘", ageMin: 27.69, ageMax: 29.53 },
+  { name: "Yeni Ay",       emoji: "🌑", ageMin: 0,      ageMax: 3.691  },
+  { name: "Büyüyen Hilal", emoji: "🌒", ageMin: 3.691,  ageMax: 7.383  },
+  { name: "İlk Dördün",   emoji: "🌓", ageMin: 7.383,  ageMax: 11.074 },
+  { name: "Şişen Ay",     emoji: "🌔", ageMin: 11.074, ageMax: 14.765 },
+  { name: "Dolunay",      emoji: "🌕", ageMin: 14.765, ageMax: 18.457 },
+  { name: "Azalan Ay",    emoji: "🌖", ageMin: 18.457, ageMax: 22.148 },
+  { name: "Son Dördün",   emoji: "🌗", ageMin: 22.148, ageMax: 25.839 },
+  { name: "Balsamik",     emoji: "🌘", ageMin: 25.839, ageMax: 29.531 },
 ];
 
-/** Ayın yaşı — yeni aydan itibaren gün (0–29.53) */
+/**
+ * Ayın yaşı — astronomy-engine SearchMoonPhase 2-adımlı doğru hesaplama (FAZ 5A).
+ * Önce sonraki yeni ay bulunur, oradan önceki dönemin başlangıç yeni ayı tespit edilir.
+ * Hata: ~dakika mertebesinde (legacy: ~7 saat).
+ * Fallback: sinodik epoch yaklaşımı.
+ */
 export function getMoonAge(date: Date): number {
-  const daysSince = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
-  return ((daysSince % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH;
+  try {
+    const nextNew = AE.SearchMoonPhase(0, date, SYNODIC_MONTH + 2);
+    if (!nextNew) return moonAge(date);
+    const prevStart = new Date(nextNew.date.getTime() - (SYNODIC_MONTH + 1) * 86_400_000);
+    const prevNew   = AE.SearchMoonPhase(0, prevStart, SYNODIC_MONTH + 1);
+    if (!prevNew) return moonAge(date);
+    const age = (date.getTime() - prevNew.date.getTime()) / 86_400_000;
+    return Math.max(0, Math.min(age, SYNODIC_MONTH));
+  } catch {
+    return moonAge(date);
+  }
+}
+
+/** Legacy ay yaşı — sinodik epoch yaklaşımı. Audit/karşılaştırma için. */
+export function getMoonAgeLegacy(date: Date): number {
+  return moonAge(date);
 }
 
 /**

@@ -18,6 +18,7 @@ import {
   getMoonIllumination,
   getMoonIlluminationLegacy,
   getMoonAge,
+  getMoonAgeLegacy,
 } from "@/lib/cosmic/moon";
 
 import { getMoonDataAE } from "@/lib/cosmic/astronomy-engine-helper";
@@ -116,13 +117,16 @@ export async function GET() {
     const prodPhase = getMoonPhase(date);
     const prodSign  = getMoonSign(date);
     const prodIllum = getMoonIllumination(date);
-    const prodAge   = getMoonAge(date);
+    const prodAge   = getMoonAge(date);      // AE-based (FAZ 5A)
+    const legAge    = getMoonAgeLegacy(date); // sinodik epoch
 
     const legPhase  = getMoonPhaseLegacy(date);
     const legSign   = getMoonSignLegacy(date);
     const legIllum  = getMoonIlluminationLegacy(date);
 
     const ae = getMoonDataAE(date);
+
+    const moonAgeDelta = +(prodAge - legAge).toFixed(3);
 
     return {
       tarih:   date.toISOString().slice(0, 10),
@@ -132,13 +136,14 @@ export async function GET() {
         faz:        `${prodPhase.emoji} ${prodPhase.name}`,
         burç:       `${prodSign.emoji} ${prodSign.name}`,
         aydinlanma: `%${prodIllum}`,
-        moonAge:    +prodAge.toFixed(2),
+        moonAgeAE:  +prodAge.toFixed(3),
       },
 
       legacy: {
         faz:        `${legPhase.emoji} ${legPhase.name}`,
         burç:       `${legSign.emoji} ${legSign.name}`,
         aydinlanma: `%${legIllum}`,
+        moonAgeLeg: +legAge.toFixed(3),
       },
 
       aeRaw: {
@@ -147,7 +152,7 @@ export async function GET() {
         burç:        `${ae.sign.emoji} ${ae.sign.name}`,
         ekliptikLon: +ae.sign.lon.toFixed(2),
         aydinlanma:  `%${ae.illumination}`,
-        moonAge:     +ae.moonAgeDays.toFixed(2),
+        moonAgeDays: +ae.moonAgeDays.toFixed(3),
       },
 
       dogrulama: {
@@ -158,7 +163,9 @@ export async function GET() {
         legacy_burc_vs_AE: cmpStr(legSign.name,   ae.sign.name),
         fazIyilestirmesi:  legPhase.name !== ae.phase.name && prodPhase.name === ae.phase.name
           ? `✓ ${legPhase.name} → ${prodPhase.name}` : "",
-        illumDelta: `Δ${Math.abs(prodIllum - legIllum)}%`,
+        illumDelta:         `Δ${Math.abs(prodIllum - legIllum)}%`,
+        moonAgeDelta_saat:  `Δ${(Math.abs(moonAgeDelta) * 24).toFixed(1)}sa (prod-leg: ${moonAgeDelta > 0 ? "+" : ""}${moonAgeDelta} gün)`,
+        moonAge_prod_vs_ae: Math.abs(prodAge - ae.moonAgeDays) < 0.05 ? "AYNI ✓" : `FARK ⚠️ Δ${Math.abs(prodAge - ae.moonAgeDays).toFixed(3)}g`,
       },
     };
   });
@@ -179,6 +186,9 @@ export async function GET() {
   // ── Özet ─────────────────────────────────────────────────────────────────────
   const t0  = comparison[0]!;
   const ae0 = getMoonDataAE(now);
+  const legAge0 = getMoonAgeLegacy(now);
+  const prodAge0 = getMoonAge(now);
+  const ageDeltaSaat = (Math.abs(prodAge0 - legAge0) * 24).toFixed(1);
   const ozet = {
     tarih:          now.toISOString().slice(0, 10),
     saat:           fmtTR(now),
@@ -191,6 +201,15 @@ export async function GET() {
     productionIllum: t0.production.aydinlanma,
     legacyIllum:     t0.legacy.aydinlanma,
     aeIllum:         `%${ae0.illumination}`,
+    moonAge: {
+      production_AE:  `${prodAge0.toFixed(3)} gün`,
+      legacy_sinodik: `${legAge0.toFixed(3)} gün`,
+      aeRaw:          `${ae0.moonAgeDays.toFixed(3)} gün`,
+      delta_saat:     `Δ${ageDeltaSaat} saat (prod − legacy)`,
+      durum:          Math.abs(prodAge0 - ae0.moonAgeDays) < 0.1
+        ? "✓ production AE ile eşleşiyor"
+        : `⚠️ production=${prodAge0.toFixed(2)} AE=${ae0.moonAgeDays.toFixed(2)}`,
+    },
     fazDurumu: t0.dogrulama.prod_faz_vs_AE === "AYNI ✓"
       ? "✓ production faz AE ile eşleşiyor"
       : `⚠️ production=${t0.production.faz} AE=${t0.aeRaw.faz}`,
@@ -214,8 +233,8 @@ export async function GET() {
 
   return Response.json({
     ok:        true,
-    modul:     "FAZ 4 — Yeni Ay / Dolunay kesin saatleri",
-    aciklama:  "production=getMoonPhase/Sign/Illumination/Events (tümü AE), legacy=eski formüller, aeRaw=doğrudan AE",
+    modul:     "FAZ 5A — Moon Age AE + MOON_PHASE_BOUNDS düzeltmesi",
+    aciklama:  "production=getMoonPhase/Sign/Illumination/MoonAge (tümü AE), legacy=eski sinodik formüller, aeRaw=doğrudan getMoonDataAE()",
     ozet,
     kritikTarihler,
     faz4_eventKarsilastirma: eventKarsilastirma,
