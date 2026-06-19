@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useId, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
 import {
   getHacamatMonthData,
   getAllAltinDays,
@@ -878,8 +878,8 @@ export default function HacamatPage() {
               )}
             </div>
 
-            {/* ── Mobil: gerçek <a> anchor'lar — sm altında görünür ── */}
-            <div className="flex flex-col gap-2 sm:hidden">
+            {/* ── Mobil: sadece rapor linki — md altında görünür ── */}
+            <div className="flex flex-col gap-2 md:hidden">
               {/* Raporu Aç — PWA içinde kalır, rapor sayfasına gider */}
               <Link
                 href={`/dashboard/cosmic-calendar/hacamat/report?month=${wordMonth}&year=${wordYear}`}
@@ -888,31 +888,10 @@ export default function HacamatPage() {
                 <ExternalLink className="h-4 w-4" />
                 {MONTH_NAMES_TR[wordMonth]} {wordYear} — Raporu Aç
               </Link>
-
-              {/* PDF aç — yeni sekmede (sistem PDF görüntüleyicisi) */}
-              <a
-                href={`/api/hacamat/pdf-report?month=${wordMonth}&year=${wordYear}&disposition=inline`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-3 text-[12px] font-black text-teal-700 shadow-sm transition active:scale-[0.98]"
-              >
-                <FileText className="h-4 w-4" />
-                PDF Aç
-              </a>
-
-              {/* Word indir */}
-              <a
-                href={`/api/hacamat/word-report?month=${wordMonth}&year=${wordYear}`}
-                download={`hacamat-takvimi-${wordYear}-${String(wordMonth + 1).padStart(2, "0")}.docx`}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition active:scale-[0.98]"
-              >
-                <Download className="h-4 w-4" />
-                Word İndir
-              </a>
             </div>
 
-            {/* ── Desktop: blob POST download — sm ve üzerinde görünür ── */}
-            <div className="hidden gap-2 sm:flex sm:justify-end">
+            {/* ── Tablet+: blob POST download — md ve üzerinde görünür ── */}
+            <div className="hidden gap-2 md:flex md:justify-end">
               <button
                 onClick={() => void handlePdfReport()}
                 disabled={isGeneratingPdf || isGenerating}

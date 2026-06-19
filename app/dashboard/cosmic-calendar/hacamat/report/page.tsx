@@ -38,8 +38,8 @@ function ReportView() {
           <h1 className="truncate text-sm font-black text-slate-800">{monthLabel} Hacamat Raporu</h1>
         </div>
 
-        {/* İndirme / Açma linkleri — tüm cihazlarda görünür */}
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        {/* İndirme / Açma linkleri — md ve üzerinde görünür */}
+        <div className="mb-4 hidden gap-2 md:flex md:justify-end">
           {/* PDF aç (sistem PDF görüntüleyicisi) */}
           <a
             href={pdfViewUrl}
