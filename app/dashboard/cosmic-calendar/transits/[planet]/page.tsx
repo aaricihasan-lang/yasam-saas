@@ -4,10 +4,22 @@ import { useParams }  from "next/navigation";
 import { useState }   from "react";
 import Link            from "next/link";
 import { ArrowLeft }  from "lucide-react";
-import { getMoonSign }            from "@/lib/cosmic/moon";
-import { getPlanetSigns }         from "@/lib/cosmic/planets";
+import { getMoonSign, getMoonSignPeriod } from "@/lib/cosmic/moon";
+import { getPlanetSigns, getPlanetSignPeriod, type PlanetKey } from "@/lib/cosmic/planets";
 import { getTransitInterpretation } from "@/lib/cosmic/transit-interpretations";
 import { getPlanetBySlug, getPlanetSlug } from "@/lib/cosmic/planet-meta";
+
+// ─── Tarih formatlama ─────────────────────────────────────────────────────────
+
+function fmtDate(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("tr-TR", {
+    day: "numeric", month: "long",
+  });
+}
+
+function fmtDateObj(date: Date): string {
+  return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+}
 
 // ─── Sayfa ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +64,17 @@ export default function TransitDetailPage() {
 
   const transit = getTransitInterpretation(meta.key, currentSign);
 
+  // Transit süresi
+  const transitPeriod = (() => {
+    if (meta.key === "Ay") {
+      const { from, to } = getMoonSignPeriod(today);
+      return { from: fmtDateObj(from), to: fmtDateObj(to) };
+    }
+    const result = getPlanetSignPeriod(meta.key as PlanetKey, today);
+    if (!result) return null;
+    return { from: fmtDate(result.from), to: fmtDate(result.to) };
+  })();
+
   // Tarih formatlama
   const miladiDate = today.toLocaleDateString("tr-TR", {
     day: "numeric", month: "long", year: "numeric",
@@ -93,20 +116,24 @@ export default function TransitDetailPage() {
               <p className="mt-0.5 text-[11px] text-slate-500">
                 Bugün gökyüzünde {meta.key}, {currentSign} burcunda ilerliyor.
               </p>
+              {transitPeriod && (
+                <p className="mt-1.5 text-[10px] text-slate-400">
+                  Bu konumdaki yaklaşık aralık:&nbsp;
+                  <span className="font-semibold text-slate-600">{transitPeriod.from} → {transitPeriod.to}</span>
+                </p>
+              )}
             </div>
           </div>
         </section>
 
-        {/* ── İki Kolon: Ana Yorum + Gezegen Bilgisi ── */}
+        {/* ── İki Kolon: Ana İçerik + Gezegen Bilgisi ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px] lg:items-start">
 
-          {/* ── Sol: Transit Yorumu ── */}
+          {/* ── Sol: Transit İçeriği ── */}
           <div className="flex flex-col gap-3">
 
-            {/* Ana yorum kartı */}
+            {/* 1. Transit Yorumu */}
             <div className="overflow-hidden rounded-[18px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
-
-              {/* Başlık */}
               <div className="mb-3 flex items-start gap-2">
                 <span className="mt-0.5 shrink-0 text-xl leading-none">{meta.symbol}</span>
                 <div>
@@ -117,12 +144,10 @@ export default function TransitDetailPage() {
                 </div>
               </div>
 
-              {/* Özet */}
               <p className="mb-3 text-[13px] leading-relaxed text-slate-700">{transit.summary}</p>
 
-              {/* Etiketler */}
               {transit.tags.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   {transit.tags.map(tag => (
                     <span
                       key={tag}
@@ -133,17 +158,55 @@ export default function TransitDetailPage() {
                   ))}
                 </div>
               )}
+            </div>
 
-              {/* Dikkat */}
-              {transit.caution && (
-                <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2.5">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.15em] text-amber-700">⚠ Dikkat</p>
-                  <p className="text-[11px] leading-snug text-amber-800">{transit.caution}</p>
-                </div>
+            {/* 2. Bu Transit Ne Destekler? */}
+            <div className="overflow-hidden rounded-[18px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-base leading-none">✨</span>
+                <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
+                  Bu Transit Ne Destekler?
+                </h3>
+              </div>
+              {transit.supportiveActions && transit.supportiveActions.length > 0 ? (
+                <ul className="space-y-2">
+                  {transit.supportiveActions.map((action, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className={`mt-0.5 shrink-0 text-[11px] font-black ${meta.badgeClr}`}>✓</span>
+                      <span className="text-[12px] leading-snug text-slate-700">{action}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-slate-500">Bu transit için destekleyici alanlar hazırlanıyor.</p>
               )}
             </div>
 
-            {/* Kozmik bağlam — genel not */}
+            {/* 3. Dikkat Edilecek Konular */}
+            <div className="overflow-hidden rounded-[18px] border border-amber-200/60 bg-amber-50/60 p-4 shadow-sm backdrop-blur-md">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-base leading-none">⚠️</span>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">
+                  Dikkat Edilecek Konular
+                </h3>
+              </div>
+              {transit.challengePoints && transit.challengePoints.length > 0 ? (
+                <ul className="space-y-2">
+                  {transit.challengePoints.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0 text-[11px] text-amber-500">•</span>
+                      <span className="text-[12px] leading-snug text-amber-900">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : transit.caution ? (
+                <p className="text-[12px] leading-snug text-amber-800">{transit.caution}</p>
+              ) : (
+                <p className="text-[11px] text-amber-700">Bu transit için dikkat alanları hazırlanıyor.</p>
+              )}
+            </div>
+
+            {/* 4. Kozmik Bağlam */}
             <div className="rounded-[18px] border border-white/80 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-md">
               <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🌌 Kozmik Bağlam</p>
               <p className="text-[11px] leading-relaxed text-slate-600">
@@ -188,7 +251,6 @@ export default function TransitDetailPage() {
             <div className="overflow-hidden rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
               <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Diğer Gezegenler</p>
               <div className="space-y-1">
-                {/* Tüm gezegenler: Ay başta, ardından getPlanetSigns sırası */}
                 {[
                   { key: "Ay",   symbol: "☽", sign: moonSign.name,     signSymbol: moonSign.emoji },
                   ...allSigns.map(p => ({ key: p.key, symbol: p.symbol, sign: p.sign, signSymbol: p.signSymbol })),

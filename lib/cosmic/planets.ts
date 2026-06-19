@@ -406,6 +406,49 @@ const PLUTO_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2024-11-19", to: "2044-01-18", sign: "Kova"     }, // ← bugün ✓
 ];
 
+// ─── Güneş burç sınırları (yıl bağımsız) ────────────────────────────────────
+
+type SunBoundary = { sign: string; sm: number; sd: number; em: number; ed: number };
+
+const SUN_BOUNDARIES: ReadonlyArray<SunBoundary> = [
+  { sign: "Oğlak",   sm: 12, sd: 22, em: 1,  ed: 19 },
+  { sign: "Kova",    sm: 1,  sd: 20, em: 2,  ed: 18 },
+  { sign: "Balık",   sm: 2,  sd: 19, em: 3,  ed: 19 },
+  { sign: "Koç",     sm: 3,  sd: 20, em: 4,  ed: 19 },
+  { sign: "Boğa",    sm: 4,  sd: 20, em: 5,  ed: 20 },
+  { sign: "İkizler", sm: 5,  sd: 21, em: 6,  ed: 20 },
+  { sign: "Yengeç",  sm: 6,  sd: 21, em: 7,  ed: 22 },
+  { sign: "Aslan",   sm: 7,  sd: 23, em: 8,  ed: 22 },
+  { sign: "Başak",   sm: 8,  sd: 23, em: 9,  ed: 22 },
+  { sign: "Terazi",  sm: 9,  sd: 23, em: 10, ed: 22 },
+  { sign: "Akrep",   sm: 10, sd: 23, em: 11, ed: 21 },
+  { sign: "Yay",     sm: 11, sd: 22, em: 12, ed: 21 },
+];
+
+function getSunSignBoundaries(date: Date): { from: string; to: string } {
+  const y   = date.getFullYear();
+  const m   = date.getMonth() + 1;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const currentSign = getSunSign(date);
+  const b = SUN_BOUNDARIES.find(x => x.sign === currentSign);
+  if (!b) return { from: `${y}-01-01`, to: `${y}-12-31` };
+
+  let fromYear = y;
+  let toYear   = y;
+
+  if (b.sign === "Oğlak") {
+    if (m === 1) { fromYear = y - 1; toYear = y; }
+    else         { fromYear = y;     toYear = y + 1; }
+  } else {
+    if (m < b.sm) fromYear = y - 1;
+  }
+
+  return {
+    from: `${fromYear}-${pad(b.sm)}-${pad(b.sd)}`,
+    to:   `${toYear}-${pad(b.em)}-${pad(b.ed)}`,
+  };
+}
+
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
 /**
@@ -436,4 +479,36 @@ export function getPlanetSigns(date: Date): PlanetInfo[] {
     const sign = algo ? algo(date) : lookupSign(periods, date, fallback);
     return { key, symbol, sign, signSymbol: ZODIAC_SYMBOL[sign] ?? "" };
   });
+}
+
+/**
+ * Verilen gezegen ve tarih için mevcut burç geçiş aralığını döner.
+ * Güneş için algoritmik hesaplama, diğerleri için tarih tablosu kullanılır.
+ * Tablo kapsamı dışındaysa null döner.
+ */
+export function getPlanetSignPeriod(
+  key: PlanetKey,
+  date: Date,
+): { from: string; to: string } | null {
+  if (key === "Güneş") return getSunSignBoundaries(date);
+
+  const periodsMap: Partial<Record<PlanetKey, ReadonlyArray<SignPeriod>>> = {
+    "Merkür":  MERCURY_PERIODS,
+    "Venüs":   VENUS_PERIODS,
+    "Mars":    MARS_PERIODS,
+    "Jüpiter": JUPITER_PERIODS,
+    "Satürn":  SATURN_PERIODS,
+    "Uranüs":  URANUS_PERIODS,
+    "Neptün":  NEPTUNE_PERIODS,
+    "Plüton":  PLUTO_PERIODS,
+  };
+
+  const periods = periodsMap[key];
+  if (!periods) return null;
+
+  const iso = date.toISOString().slice(0, 10);
+  for (const p of periods) {
+    if (iso >= p.from && iso <= p.to) return { from: p.from, to: p.to };
+  }
+  return null;
 }

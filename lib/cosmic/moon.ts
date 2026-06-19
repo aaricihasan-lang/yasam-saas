@@ -86,6 +86,21 @@ export function getMoonAge(date: Date): number {
   return ((daysSince % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH;
 }
 
+/**
+ * Ayın şu an bulunduğu burçtaki yaklaşık aralığı döner.
+ * Ay sidereal devresini ~27.32 günde tamamlar; her burçta ~2.28 gün kalır.
+ * Hassasiyet: ±4-6 saat. Gün bazında gösterim için yeterli.
+ */
+export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
+  const daysSince   = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
+  const degrees     = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
+  const adjusted    = (degrees + 270) % 360;
+  const fraction    = (adjusted % 30) / 30;
+  const signDurMs   = (27.32 / 12) * 86_400_000;
+  const fromMs      = date.getTime() - fraction * signDurMs;
+  return { from: new Date(fromMs), to: new Date(fromMs + signDurMs) };
+}
+
 /** Aydınlanma yüzdesi (0–100, kosinüs yaklaşımı) */
 export function getMoonIllumination(date: Date): number {
   const age = getMoonAge(date);
