@@ -15,6 +15,7 @@ import {
 } from "@/lib/cosmic/retro";
 import { getPlanetSigns } from "@/lib/cosmic/planets";
 import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
+import { getPlanetSlug } from "@/lib/cosmic/planet-meta";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
@@ -617,43 +618,56 @@ export default function CosmicCalendarPage() {
           <div className="mt-3 border-t border-indigo-100/70 pt-3">
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">🌌 Bugünün Transit Temaları</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {topTransits.map(({ planet, sign, symbol, title, summary, tags, caution }) => (
-                <div
-                  key={planet}
-                  className="overflow-hidden rounded-xl border border-indigo-100/70 bg-white/65 px-2.5 py-2 backdrop-blur-sm"
-                >
-                  {/* Planet + title */}
-                  <div className="mb-1 flex items-start gap-1.5">
-                    <span className="mt-px shrink-0 text-[13px] leading-none text-indigo-400">{symbol}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black leading-tight text-indigo-700">{title}</p>
-                      <p className="text-[8px] font-semibold text-slate-400">{planet} · {sign}</p>
+              {topTransits.map(({ planet, sign, symbol, title, summary, tags, caution }) => {
+                const slug = getPlanetSlug(planet);
+                const Inner = (
+                  <>
+                    {/* Planet + title */}
+                    <div className="mb-1 flex items-start gap-1.5">
+                      <span className="mt-px shrink-0 text-[13px] leading-none text-indigo-400">{symbol}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black leading-tight text-indigo-700">{title}</p>
+                        <p className="text-[8px] font-semibold text-slate-400">{planet} · {sign}</p>
+                      </div>
+                      {slug && <span className="mt-0.5 shrink-0 text-[9px] font-bold text-indigo-400">→</span>}
                     </div>
-                  </div>
-                  {/* Summary */}
-                  <p className="mb-1.5 line-clamp-2 text-[10px] leading-snug text-slate-600">{summary}</p>
-                  {/* Tags */}
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {tags.map(tag => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[8px] font-semibold text-indigo-600"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {/* Caution */}
-                  {caution && (
-                    <p className="mt-1.5 flex items-start gap-1 text-[9px] leading-snug text-amber-600">
-                      <span className="mt-px shrink-0">⚠</span>
-                      <span>{caution}</span>
-                    </p>
-                  )}
-                </div>
-              ))}
+                    {/* Summary */}
+                    <p className="mb-1.5 line-clamp-2 text-[10px] leading-snug text-slate-600">{summary}</p>
+                    {/* Tags */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[8px] font-semibold text-indigo-600"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Caution */}
+                    {caution && (
+                      <p className="mt-1.5 flex items-start gap-1 text-[9px] leading-snug text-amber-600">
+                        <span className="mt-px shrink-0">⚠</span>
+                        <span>{caution}</span>
+                      </p>
+                    )}
+                  </>
+                );
+                const baseClass = "overflow-hidden rounded-xl border border-indigo-100/70 bg-white/65 px-2.5 py-2 backdrop-blur-sm transition";
+                return slug ? (
+                  <Link
+                    key={planet}
+                    href={`/dashboard/cosmic-calendar/transits/${slug}`}
+                    className={`${baseClass} no-underline hover:border-indigo-200 hover:bg-white/80 hover:shadow-sm`}
+                  >
+                    {Inner}
+                  </Link>
+                ) : (
+                  <div key={planet} className={baseClass}>{Inner}</div>
+                );
+              })}
             </div>
           </div>
 
