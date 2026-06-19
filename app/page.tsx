@@ -28,6 +28,7 @@ import {
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
+import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -493,15 +494,6 @@ const ZODIAC_SIGNS = [
   { tr: "Yay", emoji: "♐", md: 21, mm: 12 },
 ] as const;
 
-function getSunSign(date: Date): typeof ZODIAC_SIGNS[number] {
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  for (const z of ZODIAC_SIGNS) {
-    if (m < z.mm || (m === z.mm && d <= z.md)) return z;
-  }
-  return ZODIAC_SIGNS[0];
-}
-
 // Approximate moon sign: moon moves ~13.2° per day (27.32-day sidereal cycle)
 // Reference: Jan 11, 2024 new moon ≈ Capricorn ingress
 const ARIES_ORDER = [
@@ -599,7 +591,7 @@ function StarField() {
 function LivePanel({ date }: { date: Date | null }) {
   date = date ?? new Date();
   const phase = getMoonPhase(date);
-  const sun = getSunSign(date);
+  const sun = getSunSignInfo(date);
   const moon = getMoonSign(date);
   const planetary = getPlanetaryHour(date);
   const numDay = numerologicalDay(date);
@@ -610,7 +602,7 @@ function LivePanel({ date }: { date: Date | null }) {
   }
 
   const rows = [
-    { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.tr}` },
+    { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.name}` },
     { label: "Ay Burcu",       value: `${moon.emoji} ${moon.tr}` },
     { label: "Ay Fazı",        value: `${phase.emoji} ${phase.name}` },
     { label: "Numeroloji",     value: `🔢 ${numDay} · ${numDesc}` },

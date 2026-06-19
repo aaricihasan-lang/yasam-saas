@@ -2,7 +2,7 @@
  * lib/cosmic/planets.ts
  * Güncel gezegen burç pozisyonları.
  *
- * Güneş   : algoritmik (ay/gün sınırları — Batı astrolojisi standardı, ±1 gün)
+ * Güneş   : astronomy-engine GeoVector+Ecliptic (FAZ 5B) — dakika hassasiyeti
  * Ay       : moon.ts → getMoonSign() kullanılır (sidereal hesaplama)
  * Diğerleri: tarih aralığı tablosu, 2025-2030 kapsam.
  *
@@ -10,6 +10,8 @@
  * Retrograde tarihleri retro.ts ile çakıştırıldı (2026-2030).
  * Hassasiyet: günlük; dakikalık kesinlik hedeflenmez.
  */
+
+import * as AE from "astronomy-engine";
 
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
@@ -32,9 +34,20 @@ const ZODIAC_SYMBOL: Record<string, string> = {
   "Oğlak":   "♑", "Kova":    "♒", "Balık":   "♓",
 };
 
-// ─── Güneş (algoritmik) ───────────────────────────────────────────────────────
+// ─── Güneş burcu ─────────────────────────────────────────────────────────────
 
-function getSunSign(date: Date): string {
+// Tropikal zodyak: 0°=Koç, 30°=Boğa, … 330°=Balık (AE MoonPhase ile aynı referans sistemi)
+const SUN_ZODIAC_NAMES = [
+  "Koç","Boğa","İkizler","Yengeç","Aslan","Başak",
+  "Terazi","Akrep","Yay","Oğlak","Kova","Balık",
+] as const;
+
+/**
+ * Güneş burcu — legacy ay/gün sınır tablosu.
+ * Hata: cusp günlerde ±1 gün (saat dikkate alınmaz).
+ * Sadece AE başarısız olursa kullanılır.
+ */
+function _legacySunSign(date: Date): string {
   const m = date.getMonth() + 1;
   const d = date.getDate();
   if (m === 1)  return d >= 20 ? "Kova"     : "Oğlak";
@@ -50,6 +63,34 @@ function getSunSign(date: Date): string {
   if (m === 11) return d >= 22 ? "Yay"      : "Akrep";
   if (m === 12) return d >= 22 ? "Oğlak"    : "Yay";
   return "Oğlak";
+}
+
+/**
+ * Güneş burcu — astronomy-engine ekliptik boylam (FAZ 5B).
+ * GeoVector(Sun) → Ecliptic() → elon (0-360°) → 30°'lik dilimler.
+ * Cusp hatası ortadan kalkar; dakika hassasiyeti.
+ * Fallback: legacy ay/gün tablosu.
+ */
+function getSunSign(date: Date): string {
+  try {
+    const vec = AE.GeoVector(AE.Body.Sun, date, true);
+    const ecl = AE.Ecliptic(vec);
+    const idx  = Math.floor(ecl.elon / 30) % 12;
+    return SUN_ZODIAC_NAMES[idx] ?? _legacySunSign(date);
+  } catch {
+    return _legacySunSign(date);
+  }
+}
+
+/** Güneş burcu + emoji — dış bileşenler için (app/page.tsx, audit). */
+export function getSunSignInfo(date: Date): { name: string; emoji: string } {
+  const name = getSunSign(date);
+  return { name, emoji: ZODIAC_SYMBOL[name] ?? "☉" };
+}
+
+/** Legacy Güneş burcu — audit/karşılaştırma için. */
+export function getSunSignLegacy(date: Date): string {
+  return _legacySunSign(date);
 }
 
 // ─── Tarih tablosu yardımcısı ────────────────────────────────────────────────

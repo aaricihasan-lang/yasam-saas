@@ -1,9 +1,11 @@
 /**
  * GET /api/cosmic/audit
  *
- * FAZ 4 karşılaştırma endpoint'i:
+ * FAZ 5B karşılaştırma endpoint'i:
  *   - FAZ 2-3: production vs legacy vs aeRaw (faz, burç, aydınlanma)
  *   - FAZ 4:   Yeni Ay / Dolunay events.ts çıktısı + AE doğrudan karşılaştırma
+ *   - FAZ 5A:  Moon age AE vs legacy
+ *   - FAZ 5B:  Güneş burcu AE vs legacy — cusp tarihleri dahil
  *
  * Production'da kullanılmaz — sadece doğruluk testi içindir.
  */
@@ -23,6 +25,7 @@ import {
 
 import { getMoonDataAE } from "@/lib/cosmic/astronomy-engine-helper";
 import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
+import { getSunSignInfo, getSunSignLegacy } from "@/lib/cosmic/planets";
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
@@ -101,6 +104,13 @@ function detectPhaseTransitions(from: Date, days: number): PhaseTx[] {
   }
   return out;
 }
+
+// ─── Yardımcı — Güneş burcu emoji (audit formatlaması için) ──────────────────
+
+const ZODIAC_SYMBOL_LOCAL: Record<string, string> = {
+  "Koç":"♈","Boğa":"♉","İkizler":"♊","Yengeç":"♋","Aslan":"♌","Başak":"♍",
+  "Terazi":"♎","Akrep":"♏","Yay":"♐","Oğlak":"♑","Kova":"♒","Balık":"♓",
+};
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
@@ -231,15 +241,40 @@ export async function GET() {
       : "⚠️ Legacy gün taraması kullanıldı (fallback)",
   }));
 
+  // ── FAZ 5B: Güneş burcu cusp tarihleri ──────────────────────────────────────
+  const CUSP_DATES = [
+    { label: "Koç girişi öncesi  — 20 Mart 2026 14:00 UTC", date: new Date("2026-03-20T14:00:00Z") },
+    { label: "Koç girişi sonrası — 20 Mart 2026 15:00 UTC", date: new Date("2026-03-20T15:00:00Z") },
+    { label: "Yengeç girişi öncesi — 21 Haz 2026 08:00 UTC", date: new Date("2026-06-21T08:00:00Z") },
+    { label: "Yengeç girişi sonrası — 21 Haz 2026 09:00 UTC", date: new Date("2026-06-21T09:00:00Z") },
+    { label: "Terazi girişi — 23 Eyl 2026 00:00 UTC", date: new Date("2026-09-23T00:00:00Z") },
+    { label: "Oğlak girişi — 21 Ara 2026 00:00 UTC", date: new Date("2026-12-21T00:00:00Z") },
+  ] as const;
+
+  const sunSignCuspKarsilastirma = CUSP_DATES.map(({ label, date }) => {
+    const ae     = getSunSignInfo(date);
+    const legacy = getSunSignLegacy(date);
+    return {
+      tarih:       label,
+      utc:         date.toISOString().slice(0, 16) + " UTC",
+      local_TR:    fmtTR(date),
+      ae_burc:     `${ae.emoji} ${ae.name}`,
+      legacy_burc: `${ZODIAC_SYMBOL_LOCAL[legacy] ?? "?"} ${legacy}`,
+      eslesme:     ae.name === legacy ? "AYNI ✓" : `FARK ⚠️ (AE=${ae.name}, legacy=${legacy})`,
+    };
+  });
+
   return Response.json({
     ok:        true,
-    modul:     "FAZ 5A — Moon Age AE + MOON_PHASE_BOUNDS düzeltmesi",
-    aciklama:  "production=getMoonPhase/Sign/Illumination/MoonAge (tümü AE), legacy=eski sinodik formüller, aeRaw=doğrudan getMoonDataAE()",
+    modul:     "FAZ 5B — Güneş Burcu AE + cusp doğrulama",
+    aciklama:  "production=getMoonPhase/Sign/Illumination/MoonAge/SunSign (tümü AE), legacy=eski formüller, aeRaw=doğrudan getMoonDataAE()",
     ozet,
     kritikTarihler,
+    faz5b_sunSignCuspKarsilastirma: sunSignCuspKarsilastirma,
     faz4_eventKarsilastirma: eventKarsilastirma,
     fazGecisleri,
     burcGecisleri,
     gunlukKarsilastirma: comparison,
   });
 }
+
