@@ -3,13 +3,17 @@
  * Yaklaşan kozmik olaylar: Yeni Ay, Dolunay, retro başlangıç/bitiş, dış gezegen burç değişimi.
  *
  * Veri kaynakları:
- *   - Ay fazları  → moon.ts getMoonPhase() ile tarama (180 gün ileri)
- *   - Retrogradlar → retro.ts RETRO_PERIODS (start/end string tarihler)
- *   - Burç değişimi → planets.ts dönemi tablolarıyla uyumlu hardcoded liste (2025-2030)
+ *   - Yeni Ay / Dolunay → astronomy-engine SearchMoonPhase (kesin saat, UTC+3), fallback: getMoonPhase taraması
+ *   - Retrogradlar      → retro.ts RETRO_PERIODS (start/end string tarihler)
+ *   - Burç değişimi     → hardcoded liste (2025-2030)
  */
 
-import { getMoonPhase }      from "./moon";
-import { RETRO_PERIODS }     from "./retro";
+import * as AE from "astronomy-engine";
+import { getMoonPhase } from "./moon";
+import { RETRO_PERIODS } from "./retro";
+
+// Türkiye UTC+3 sabit offset (yaz saati 2016'dan beri yok)
+const TR_OFFSET_MS = 3 * 3_600_000;
 
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
@@ -21,12 +25,14 @@ export type CosmicEventType =
   | "sign_change";
 
 export type CosmicEvent = {
-  date:        string;            // YYYY-MM-DD
+  date:        string;            // YYYY-MM-DD — Türkiye takvim günü
   title:       string;
   description: string;
   type:        CosmicEventType;
   symbol:      string;
   planet?:     string;            // Türkçe gezegen adı
+  time?:       string;            // "HH:MM" — Türkiye saati (UTC+3), sadece Yeni Ay / Dolunay
+  timeUTC?:    string;            // ISO UTC timestamp, sadece Yeni Ay / Dolunay
 };
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
@@ -39,9 +45,66 @@ function localIso(d: Date): string {
 }
 
 // ─── 1. Ay Fazı Olayları ──────────────────────────────────────────────────────
-// Sadece Yeni Ay ve Dolunay geçiş günleri.
 
+/**
+ * Yeni Ay ve Dolunay olaylarını astronomy-engine SearchMoonPhase ile üretir.
+ * date: Türkiye takvim günü (UTC+3), time: "HH:MM" TR saati.
+ * Hata durumunda _getMoonEventsLegacy'ye düşer.
+ */
 function getMoonEvents(from: Date, daysAhead = 180): CosmicEvent[] {
+  try {
+    return _getMoonEventsAE(from, daysAhead);
+  } catch {
+    return _getMoonEventsLegacy(from, daysAhead);
+  }
+}
+
+function _getMoonEventsAE(from: Date, daysAhead: number): CosmicEvent[] {
+  const events: CosmicEvent[] = [];
+  const endMs   = from.getTime() + daysAhead * 86_400_000;
+  const SYNODIC = 29.53059;
+
+  // Yeni Ay olayları
+  let cursor = new Date(from);
+  while (cursor.getTime() < endMs) {
+    const nm = AE.SearchMoonPhase(0, cursor, SYNODIC + 2);
+    if (!nm || nm.date.getTime() >= endMs) break;
+    const trDate = new Date(nm.date.getTime() + TR_OFFSET_MS);
+    events.push({
+      date:        trDate.toISOString().slice(0, 10),
+      title:       "Yeni Ay",
+      description: "Ay döngüsünün başlangıcı; niyet, tohumlama ve yeni başlangıçlar için güçlü enerji.",
+      type:        "new_moon",
+      symbol:      "🌑",
+      time:        trDate.toISOString().slice(11, 16),
+      timeUTC:     nm.date.toISOString(),
+    });
+    cursor = new Date(nm.date.getTime() + 86_400_000);
+  }
+
+  // Dolunay olayları
+  cursor = new Date(from);
+  while (cursor.getTime() < endMs) {
+    const fm = AE.SearchMoonPhase(180, cursor, SYNODIC + 2);
+    if (!fm || fm.date.getTime() >= endMs) break;
+    const trDate = new Date(fm.date.getTime() + TR_OFFSET_MS);
+    events.push({
+      date:        trDate.toISOString().slice(0, 10),
+      title:       "Dolunay",
+      description: "Tamamlanma, berraklık ve serbest bırakma enerjisinin doruk noktası.",
+      type:        "full_moon",
+      symbol:      "🌕",
+      time:        trDate.toISOString().slice(11, 16),
+      timeUTC:     fm.date.toISOString(),
+    });
+    cursor = new Date(fm.date.getTime() + 86_400_000);
+  }
+
+  return events;
+}
+
+/** Fallback: gün bazlı getMoonPhase taraması — AE başarısız olursa */
+function _getMoonEventsLegacy(from: Date, daysAhead: number): CosmicEvent[] {
   const events: CosmicEvent[] = [];
   const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
 
@@ -74,7 +137,6 @@ function getMoonEvents(from: Date, daysAhead = 180): CosmicEvent[] {
 }
 
 // ─── 2. Retro Başlangıç / Bitiş Olayları ──────────────────────────────────────
-// retro.ts RETRO_PERIODS string tarihlerini doğrudan kullanır.
 
 function getRetroEvents(): CosmicEvent[] {
   const events: CosmicEvent[] = [];
@@ -100,8 +162,6 @@ function getRetroEvents(): CosmicEvent[] {
 }
 
 // ─── 3. Dış Gezegen Burç Değişim Olayları ─────────────────────────────────────
-// Sadece Jüpiter, Satürn, Uranüs, Neptün, Plüton.
-// planets.ts dönemi tablosuyla uyumlu, 2024-2030.
 
 const SIGN_CHANGE_EVENTS: ReadonlyArray<CosmicEvent> = [
 

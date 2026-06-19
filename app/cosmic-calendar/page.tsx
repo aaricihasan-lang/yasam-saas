@@ -486,6 +486,14 @@ export default function CosmicCalendarPage() {
     type EventItem = { date: Date; daysFromNow: number; icon: string; label: string; detail: string; badgeClass: string };
     const today = new Date(todayYear, todayMonth, todayDay);
     const events: EventItem[] = [];
+
+    // Yeni Ay / Dolunay saat bilgisi — cosmicEvents'ten gün→saat haritası
+    const moonTimeMap = new Map(
+      cosmicEvents
+        .filter(e => e.time && (e.type === "new_moon" || e.type === "full_moon"))
+        .map(e => [e.date, e.time!]),
+    );
+
     for (const { date, label } of upcomingPowerDays) {
       const d = Math.round((date.getTime() - today.getTime()) / 86_400_000);
       events.push({ date, daysFromNow: d, icon: "⭐", label, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-amber-100 text-amber-700" });
@@ -496,7 +504,10 @@ export default function CosmicCalendarPage() {
       events.push({ date: sd, daysFromNow: d, icon: r.symbol, label: `${r.planet} Retrosu`, detail: sd.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-rose-100 text-rose-700" });
     }
     for (const { name, emoji, date, daysFromNow } of upcomingMoonPhases) {
-      events.push({ date, daysFromNow, icon: emoji, label: name, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-violet-100 text-violet-700" });
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+      const time    = moonTimeMap.get(dateStr);
+      const dateLbl = date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+      events.push({ date, daysFromNow, icon: emoji, label: name, detail: time ? `${dateLbl} ${time}` : dateLbl, badgeClass: "bg-violet-100 text-violet-700" });
     }
     for (const day of upcomingHacamatDays) {
       const d = Math.round((day.miladi.getTime() - today.getTime()) / 86_400_000);
@@ -504,7 +515,7 @@ export default function CosmicCalendarPage() {
       events.push({ date: day.miladi, daysFromNow: d, icon: "🩸", label: `Hacamat · ${statusLabel}`, detail: day.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-teal-100 text-teal-700" });
     }
     return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
-  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, todayYear, todayMonth, todayDay]);
+  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, cosmicEvents, todayYear, todayMonth, todayDay]);
 
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
@@ -1105,7 +1116,9 @@ export default function CosmicCalendarPage() {
                           {typeLabel}
                         </span>
                       </div>
-                      <p className="mb-0.5 text-[9px] font-semibold text-slate-400">{dateLabel}</p>
+                      <p className="mb-0.5 text-[9px] font-semibold text-slate-400">
+                        {dateLabel}{evt.time ? ` · ${evt.time}` : ""}
+                      </p>
                       <p className="line-clamp-2 text-[10px] leading-snug text-slate-500">{evt.description}</p>
                     </div>
                   </div>

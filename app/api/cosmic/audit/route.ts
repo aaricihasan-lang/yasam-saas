@@ -1,10 +1,9 @@
 /**
  * GET /api/cosmic/audit
  *
- * FAZ 3 karşılaştırma endpoint'i — tüm ay verileri üç sütunlu:
- *   legacy     → eski yaklaşık formüller (epoch+sinodik, sidereal, kosinüs)
- *   production → getMoonPhase/Sign/Illumination (artık tamamı AE tabanlı)
- *   aeRaw      → astronomy-engine doğrudan (referans)
+ * FAZ 4 karşılaştırma endpoint'i:
+ *   - FAZ 2-3: production vs legacy vs aeRaw (faz, burç, aydınlanma)
+ *   - FAZ 4:   Yeni Ay / Dolunay events.ts çıktısı + AE doğrudan karşılaştırma
  *
  * Production'da kullanılmaz — sadece doğruluk testi içindir.
  */
@@ -22,6 +21,7 @@ import {
 } from "@/lib/cosmic/moon";
 
 import { getMoonDataAE } from "@/lib/cosmic/astronomy-engine-helper";
+import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
@@ -196,12 +196,29 @@ export async function GET() {
       : `⚠️ production=${t0.production.faz} AE=${t0.aeRaw.faz}`,
   };
 
+  // ── FAZ 4: Yeni Ay / Dolunay event karşılaştırması ───────────────────────────
+  const productionEvents = getUpcomingCosmicEvents(now, 20)
+    .filter(e => e.type === "new_moon" || e.type === "full_moon")
+    .slice(0, 6);
+
+  const eventKarsilastirma = productionEvents.map(evt => ({
+    type:           evt.type === "new_moon" ? "Yeni Ay 🌑" : "Dolunay 🌕",
+    dateTR:         evt.date,
+    timeTR:         evt.time   ?? "— (fallback, saat yok)",
+    timeUTC:        evt.timeUTC ?? "— (fallback)",
+    kaynakAE:       !!evt.timeUTC,
+    dogrulama:      evt.timeUTC
+      ? `✓ AE SearchMoonPhase — UTC: ${evt.timeUTC?.slice(11,16)} → TR: ${evt.time}`
+      : "⚠️ Legacy gün taraması kullanıldı (fallback)",
+  }));
+
   return Response.json({
     ok:        true,
-    modul:     "FAZ 3 — faz adı AE tabanlı",
-    aciklama:  "production=getMoonPhase/Sign/Illumination (tümü AE), legacy=eski formüller, aeRaw=doğrudan AE",
+    modul:     "FAZ 4 — Yeni Ay / Dolunay kesin saatleri",
+    aciklama:  "production=getMoonPhase/Sign/Illumination/Events (tümü AE), legacy=eski formüller, aeRaw=doğrudan AE",
     ozet,
     kritikTarihler,
+    faz4_eventKarsilastirma: eventKarsilastirma,
     fazGecisleri,
     burcGecisleri,
     gunlukKarsilastirma: comparison,
