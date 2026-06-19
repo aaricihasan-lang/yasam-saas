@@ -13,6 +13,7 @@ import {
   RETRO_PERIODS,
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
+import { getPlanetSigns } from "@/lib/cosmic/planets";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
@@ -341,6 +342,19 @@ export default function CosmicCalendarPage() {
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const ph          = useMemo(() => getPlanetaryHour(realNow),           [realNow]);
 
+  // ── Güncel Gökyüzü — bugünkü (realNow) gezegen konumları ─────────────────
+  const todayMoonSign  = useMemo(() => getMoonSign(realNow),        [realNow]);
+  const todayPlanets   = useMemo(() => getPlanetSigns(realNow),     [realNow]);
+  const gokyuzuRows = useMemo(() => {
+    const sun = todayPlanets[0];
+    const rest = todayPlanets.slice(1);
+    return [
+      ...(sun ? [sun] : []),
+      { key: "Ay" as const, symbol: "☽", sign: todayMoonSign.name, signSymbol: todayMoonSign.emoji },
+      ...rest,
+    ];
+  }, [todayPlanets, todayMoonSign]);
+
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
   // Yaklaşan Güçlü Günler — numeroloji 11/22/33 veya ana faz geçiş günleri (sonraki 60 gün)
@@ -573,6 +587,23 @@ export default function CosmicCalendarPage() {
             <Link href="/" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm no-underline transition hover:bg-white hover:text-indigo-700">
               <ArrowLeft className="h-3 w-3" /> Geri
             </Link>
+          </div>
+        </section>
+
+        {/* ── Güncel Gökyüzü ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-3 shadow-sm backdrop-blur-md">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Güncel Gökyüzü</p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2 py-0.5 text-[9px] font-semibold text-indigo-500">{miladiDate}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-2 md:grid-cols-5">
+            {gokyuzuRows.map(({ key, symbol, sign, signSymbol }) => (
+              <div key={key} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 transition hover:bg-white/50">
+                <span className="w-[18px] shrink-0 text-center text-[14px] leading-none text-indigo-500">{symbol}</span>
+                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-slate-500">{key}</span>
+                <span className="shrink-0 text-[10px] font-black text-slate-800">{signSymbol} {sign}</span>
+              </div>
+            ))}
           </div>
         </section>
 
