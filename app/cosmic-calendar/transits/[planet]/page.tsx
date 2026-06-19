@@ -54,9 +54,13 @@ export default function TransitDetailPage() {
   const allSigns  = getPlanetSigns(today);
   const moonSign  = getMoonSign(today);
 
+  const planetInfo    = allSigns.find(p => p.key === meta.key);
+  const isOutOfRange  = meta.key !== "Ay" && (planetInfo?.outOfRange ?? false);
+
   const currentSign = (() => {
     if (meta.key === "Ay") return moonSign.name;
-    return allSigns.find(p => p.key === meta.key)?.sign ?? "";
+    if (isOutOfRange) return "";
+    return planetInfo?.sign ?? "";
   })();
 
   const transit = getTransitInterpretation(meta.key, currentSign);
@@ -96,9 +100,13 @@ export default function TransitDetailPage() {
                 <p className="shrink-0 text-[10px] text-slate-400">{miladiDate}</p>
               </div>
               <h1 className={`text-xl font-black leading-tight ${meta.titleClr}`}>
-                {meta.symbol} {meta.key} · {currentSign}
+                {meta.symbol} {meta.key}{!isOutOfRange && currentSign ? ` · ${currentSign}` : ""}
               </h1>
-              {transitPeriod && (
+              {isOutOfRange ? (
+                <p className="mt-0.5 text-xs text-amber-600 font-semibold">
+                  ⚠ Veri kapsamı dışı
+                </p>
+              ) : transitPeriod && (
                 <p className="mt-0.5 text-xs leading-relaxed break-words text-slate-400">
                   Aralık:{" "}
                   <span className="font-semibold text-slate-600">{transitPeriod.from} → {transitPeriod.to}</span>
@@ -114,88 +122,117 @@ export default function TransitDetailPage() {
           {/* ── Sol ── */}
           <div className="flex flex-col gap-3">
 
-            {/* 1. Transit Yorumu */}
-            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
-              <div className="mb-2.5 flex items-start gap-2">
-                <span className="mt-0.5 shrink-0 text-xl leading-none">{meta.symbol}</span>
-                <div>
-                  <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
-                    {meta.key} {currentSign} Transit
+            {isOutOfRange ? (
+              /* ── Kapsam Dışı Uyarı ── */
+              <div className="overflow-hidden rounded-[16px] border border-amber-300/60 bg-amber-50/80 p-5 shadow-sm backdrop-blur-md">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-2xl leading-none">⚠️</span>
+                  <h2 className="text-base font-black text-amber-800">Veri Kapsamı Dışı</h2>
+                </div>
+                <p className="mb-2 text-sm leading-relaxed text-amber-900">
+                  <span className="font-semibold">{meta.key}</span> için gezegen konumu verisi{" "}
+                  <span className="font-semibold">2030-12-31</span> tarihine kadar doğrulanmıştır.
+                  Bu tarih için güvenilir burç konumu bilgisi sistemde bulunmamaktadır.
+                </p>
+                <p className="text-sm leading-relaxed text-amber-800">
+                  2030 sonrası için profesyonel bir efemeris kaynağı (Swiss Ephemeris, Astro.com,
+                  NASA JPL Horizons) kullanmanız önerilir.
+                </p>
+                <div className="mt-4 rounded-xl border border-amber-200 bg-white/60 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-600">
+                    Bu sayfada yanlış veri gösterilmemektedir
                   </p>
-                  <h2 className="text-base font-black leading-tight text-slate-900">{transit.title}</h2>
+                  <p className="mt-0.5 text-xs text-amber-700">
+                    Sistem, doğrulanamayan burç değeri göstermek yerine bu uyarıyı tercih eder.
+                  </p>
                 </div>
               </div>
+            ) : (
+              <>
+                {/* 1. Transit Yorumu */}
+                <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+                  <div className="mb-2.5 flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 text-xl leading-none">{meta.symbol}</span>
+                    <div>
+                      <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
+                        {meta.key} {currentSign} Transit
+                      </p>
+                      <h2 className="text-base font-black leading-tight text-slate-900">{transit.title}</h2>
+                    </div>
+                  </div>
 
-              <p className="mb-2.5 text-sm leading-relaxed text-slate-700">{transit.summary}</p>
+                  <p className="mb-2.5 text-sm leading-relaxed text-slate-700">{transit.summary}</p>
 
-              {transit.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {transit.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black ${meta.badgeBg} border-white/60 ${meta.badgeClr}`}
-                    >
-                      {tag}
-                    </span>
-                  ))}
+                  {transit.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {transit.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black ${meta.badgeBg} border-white/60 ${meta.badgeClr}`}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* 2. Bu Transit Ne Destekler? */}
-            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
-              <div className="mb-2.5 flex items-center gap-2">
-                <span className="text-base leading-none">✨</span>
-                <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
-                  Bu Transit Ne Destekler?
-                </h3>
-              </div>
-              {transit.supportiveActions && transit.supportiveActions.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                  {transit.supportiveActions.map((action, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className={`mt-0.5 shrink-0 text-[11px] font-black ${meta.badgeClr}`}>✓</span>
-                      <span className="text-sm leading-snug text-slate-700">{action}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-500">Bu transit için destekleyici alanlar hazırlanıyor.</p>
-              )}
-            </div>
+                {/* 2. Bu Transit Ne Destekler? */}
+                <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <span className="text-base leading-none">✨</span>
+                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
+                      Bu Transit Ne Destekler?
+                    </h3>
+                  </div>
+                  {transit.supportiveActions && transit.supportiveActions.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                      {transit.supportiveActions.map((action, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className={`mt-0.5 shrink-0 text-[11px] font-black ${meta.badgeClr}`}>✓</span>
+                          <span className="text-sm leading-snug text-slate-700">{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-500">Bu transit için destekleyici alanlar hazırlanıyor.</p>
+                  )}
+                </div>
 
-            {/* 3. Dikkat Edilecek Konular */}
-            <div className="overflow-hidden rounded-[16px] border border-amber-200/60 bg-amber-50/60 p-4 shadow-sm backdrop-blur-md">
-              <div className="mb-2.5 flex items-center gap-2">
-                <span className="text-base leading-none">⚠️</span>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">
-                  Dikkat Edilecek Konular
-                </h3>
-              </div>
-              {transit.challengePoints && transit.challengePoints.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                  {transit.challengePoints.map((point, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0 text-[11px] text-amber-500">•</span>
-                      <span className="text-sm leading-snug text-amber-900">{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : transit.caution ? (
-                <p className="text-sm leading-relaxed text-amber-800">{transit.caution}</p>
-              ) : (
-                <p className="text-sm text-amber-700">Bu transit için dikkat alanları hazırlanıyor.</p>
-              )}
-            </div>
+                {/* 3. Dikkat Edilecek Konular */}
+                <div className="overflow-hidden rounded-[16px] border border-amber-200/60 bg-amber-50/60 p-4 shadow-sm backdrop-blur-md">
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <span className="text-base leading-none">⚠️</span>
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">
+                      Dikkat Edilecek Konular
+                    </h3>
+                  </div>
+                  {transit.challengePoints && transit.challengePoints.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                      {transit.challengePoints.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-0.5 shrink-0 text-[11px] text-amber-500">•</span>
+                          <span className="text-sm leading-snug text-amber-900">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : transit.caution ? (
+                    <p className="text-sm leading-relaxed text-amber-800">{transit.caution}</p>
+                  ) : (
+                    <p className="text-sm text-amber-700">Bu transit için dikkat alanları hazırlanıyor.</p>
+                  )}
+                </div>
 
-            {/* 4. Kozmik Bağlam */}
-            <div className="rounded-[16px] border border-white/80 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-md">
-              <p className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🌌 Kozmik Bağlam</p>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Transit yorumları kişiye özel değildir. Gökyüzünün genel enerjisini ve kolektif temaları
-                yansıtır. Natal haritanızdaki gezegenler bu enerjiyle birlikte değerlendirilmelidir.
-              </p>
-            </div>
+                {/* 4. Kozmik Bağlam */}
+                <div className="rounded-[16px] border border-white/80 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-md">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🌌 Kozmik Bağlam</p>
+                  <p className="text-xs leading-relaxed text-slate-600">
+                    Transit yorumları kişiye özel değildir. Gökyüzünün genel enerjisini ve kolektif temaları
+                    yansıtır. Natal haritanızdaki gezegenler bu enerjiyle birlikte değerlendirilmelidir.
+                  </p>
+                </div>
+              </>
+            )}
 
           </div>
 
@@ -234,8 +271,8 @@ export default function TransitDetailPage() {
               <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Diğer Gezegenler</p>
               <div className="space-y-0.5">
                 {[
-                  { key: "Ay",   symbol: "☽", sign: moonSign.name,     signSymbol: moonSign.emoji },
-                  ...allSigns.map(p => ({ key: p.key, symbol: p.symbol, sign: p.sign, signSymbol: p.signSymbol })),
+                  { key: "Ay",   symbol: "☽", sign: moonSign.name,  signSymbol: moonSign.emoji, outOfRange: false },
+                  ...allSigns.map(p => ({ key: p.key, symbol: p.symbol, sign: p.sign, signSymbol: p.signSymbol, outOfRange: p.outOfRange })),
                 ].map(p => {
                   const isCurrent = p.key === meta.key;
                   const planetSlug = getPlanetSlug(p.key);
@@ -252,7 +289,10 @@ export default function TransitDetailPage() {
                     >
                       <span className="w-4 shrink-0 text-center text-[13px] leading-none text-indigo-400">{p.symbol}</span>
                       <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">{p.key}</span>
-                      <span className="shrink-0 text-xs font-black text-slate-800">{p.signSymbol} {p.sign}</span>
+                      {p.outOfRange
+                        ? <span className="shrink-0 text-[10px] font-semibold text-amber-500">⚠ ?</span>
+                        : <span className="shrink-0 text-xs font-black text-slate-800">{p.signSymbol} {p.sign}</span>
+                      }
                     </Link>
                   );
                 })}

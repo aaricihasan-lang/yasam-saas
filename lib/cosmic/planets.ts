@@ -20,8 +20,9 @@ export type PlanetKey =
 export type PlanetInfo = {
   key:        PlanetKey;
   symbol:     string;
-  sign:       string;
+  sign:       string;      // boş string → outOfRange true
   signSymbol: string;
+  outOfRange: boolean;     // tablo kapsamı dışı; sign güvenilmez
 };
 
 const ZODIAC_SYMBOL: Record<string, string> = {
@@ -61,6 +62,18 @@ function lookupSign(periods: ReadonlyArray<SignPeriod>, date: Date, fallback: st
     if (iso >= p.from && iso <= p.to) return p.sign;
   }
   return fallback;
+}
+
+/** Tablo araması; kapsam dışıysa outOfRange: true döner, sign boş kalır. */
+function lookupSignSafe(
+  periods: ReadonlyArray<SignPeriod>,
+  date: Date,
+): { sign: string; outOfRange: boolean } {
+  const iso = date.toISOString().slice(0, 10);
+  for (const p of periods) {
+    if (iso >= p.from && iso <= p.to) return { sign: p.sign, outOfRange: false };
+  }
+  return { sign: "", outOfRange: true };
 }
 
 // ─── Merkür ☿ ─────────────────────────────────────────────────────────────────
@@ -476,8 +489,12 @@ export function getPlanetSigns(date: Date): PlanetInfo[] {
   ];
 
   return planets.map(({ key, symbol, periods, fallback, algo }) => {
-    const sign = algo ? algo(date) : lookupSign(periods, date, fallback);
-    return { key, symbol, sign, signSymbol: ZODIAC_SYMBOL[sign] ?? "" };
+    if (algo) {
+      const sign = algo(date);
+      return { key, symbol, sign, signSymbol: ZODIAC_SYMBOL[sign] ?? "", outOfRange: false };
+    }
+    const { sign, outOfRange } = lookupSignSafe(periods, date);
+    return { key, symbol, sign, signSymbol: ZODIAC_SYMBOL[sign] ?? "", outOfRange };
   });
 }
 

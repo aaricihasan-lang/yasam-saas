@@ -369,12 +369,12 @@ export default function CosmicCalendarPage() {
     const rest = todayPlanets.slice(1);
     return [
       ...(sun ? [sun] : []),
-      { key: "Ay" as const, symbol: "☽", sign: todayMoonSign.name, signSymbol: todayMoonSign.emoji },
+      { key: "Ay" as const, symbol: "☽", sign: todayMoonSign.name, signSymbol: todayMoonSign.emoji, outOfRange: false },
       ...rest,
     ];
   }, [todayPlanets, todayMoonSign]);
 
-  const topTransits    = useMemo(() => getTopTransits(gokyuzuRows, 4), [gokyuzuRows]);
+  const topTransits    = useMemo(() => getTopTransits(gokyuzuRows.filter(r => !r.outOfRange), 4), [gokyuzuRows]);
   const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
@@ -623,11 +623,14 @@ export default function CosmicCalendarPage() {
 
           {/* Gezegen grid — korunuyor */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-2 md:grid-cols-5">
-            {gokyuzuRows.map(({ key, symbol, sign, signSymbol }) => (
+            {gokyuzuRows.map(({ key, symbol, sign, signSymbol, outOfRange }) => (
               <div key={key} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 transition hover:bg-white/50">
                 <span className="w-[18px] shrink-0 text-center text-[14px] leading-none text-indigo-500">{symbol}</span>
                 <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-slate-500">{key}</span>
-                <span className="shrink-0 text-[10px] font-black text-slate-800">{signSymbol} {sign}</span>
+                {outOfRange
+                  ? <span className="shrink-0 text-[9px] font-semibold text-amber-500">⚠ ?</span>
+                  : <span className="shrink-0 text-[10px] font-black text-slate-800">{signSymbol} {sign}</span>
+                }
               </div>
             ))}
           </div>
