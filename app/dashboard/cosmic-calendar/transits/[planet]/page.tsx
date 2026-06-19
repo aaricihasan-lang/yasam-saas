@@ -117,8 +117,8 @@ export default function TransitDetailPage() {
                 Bugün gökyüzünde {meta.key}, {currentSign} burcunda ilerliyor.
               </p>
               {transitPeriod && (
-                <p className="mt-1.5 text-[10px] text-slate-400">
-                  Bu konumdaki yaklaşık aralık:&nbsp;
+                <p className="mt-1.5 text-[10px] leading-relaxed break-words text-slate-400">
+                  Bu konumdaki yaklaşık aralık:{" "}
                   <span className="font-semibold text-slate-600">{transitPeriod.from} → {transitPeriod.to}</span>
                 </p>
               )}
