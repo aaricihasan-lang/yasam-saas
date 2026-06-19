@@ -82,24 +82,24 @@ export default function TransitDetailPage() {
       <div className="pointer-events-none fixed -left-32 -top-16 h-96 w-96 rounded-full bg-indigo-400/10 blur-[100px]" aria-hidden />
       <div className="pointer-events-none fixed -right-32 top-[20%] h-80 w-80 rounded-full bg-violet-300/[0.10] blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-3 pt-3 pb-4 sm:px-5 lg:px-6 xl:px-8">
+      <div className="relative z-10 w-full px-4 pt-3 pb-6 sm:px-5 lg:px-6 xl:px-8">
 
         {/* ── Hero Kartı ── */}
-        <section className={`relative mb-2 overflow-hidden rounded-[16px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-3 shadow-sm backdrop-blur-md`}>
+        <section className={`relative mb-3 overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-4 shadow-sm backdrop-blur-md`}>
           <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${meta.iconBg} text-xl text-white shadow-md`}>
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${meta.iconBg} text-2xl text-white shadow-md`}>
               {meta.symbol}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Transit Detayı</p>
-                <p className="shrink-0 text-[9px] text-slate-400">{miladiDate}</p>
+                <p className="shrink-0 text-[10px] text-slate-400">{miladiDate}</p>
               </div>
-              <h1 className={`text-[17px] font-black leading-tight ${meta.titleClr}`}>
+              <h1 className={`text-xl font-black leading-tight ${meta.titleClr}`}>
                 {meta.symbol} {meta.key} · {currentSign}
               </h1>
               {transitPeriod && (
-                <p className="mt-0.5 text-[10px] leading-relaxed break-words text-slate-400">
+                <p className="mt-0.5 text-xs leading-relaxed break-words text-slate-400">
                   Aralık:{" "}
                   <span className="font-semibold text-slate-600">{transitPeriod.from} → {transitPeriod.to}</span>
                 </p>
@@ -109,31 +109,31 @@ export default function TransitDetailPage() {
         </section>
 
         {/* ── İki Kolon ── */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_300px] lg:items-start">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_290px] xl:grid-cols-[1fr_310px] lg:items-start">
 
           {/* ── Sol ── */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
 
             {/* 1. Transit Yorumu */}
-            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-2 flex items-start gap-2">
-                <span className="mt-0.5 shrink-0 text-lg leading-none">{meta.symbol}</span>
+            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+              <div className="mb-2.5 flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-xl leading-none">{meta.symbol}</span>
                 <div>
                   <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
                     {meta.key} {currentSign} Transit
                   </p>
-                  <h2 className="text-[13px] font-black leading-tight text-slate-900">{transit.title}</h2>
+                  <h2 className="text-base font-black leading-tight text-slate-900">{transit.title}</h2>
                 </div>
               </div>
 
-              <p className="mb-2 text-[12px] leading-snug text-slate-700">{transit.summary}</p>
+              <p className="mb-2.5 text-sm leading-relaxed text-slate-700">{transit.summary}</p>
 
               {transit.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {transit.tags.map(tag => (
                     <span
                       key={tag}
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${meta.badgeBg} border-white/60 ${meta.badgeClr}`}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black ${meta.badgeBg} border-white/60 ${meta.badgeClr}`}
                     >
                       {tag}
                     </span>
@@ -143,55 +143,55 @@ export default function TransitDetailPage() {
             </div>
 
             {/* 2. Bu Transit Ne Destekler? */}
-            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-2 flex items-center gap-1.5">
-                <span className="text-sm leading-none">✨</span>
-                <h3 className={`text-[9px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
+            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="text-base leading-none">✨</span>
+                <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
                   Bu Transit Ne Destekler?
                 </h3>
               </div>
               {transit.supportiveActions && transit.supportiveActions.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
                   {transit.supportiveActions.map((action, i) => (
-                    <li key={i} className="flex items-start gap-1.5">
-                      <span className={`mt-0.5 shrink-0 text-[10px] font-black ${meta.badgeClr}`}>✓</span>
-                      <span className="text-[11px] leading-snug text-slate-700">{action}</span>
+                    <li key={i} className="flex items-start gap-2">
+                      <span className={`mt-0.5 shrink-0 text-[11px] font-black ${meta.badgeClr}`}>✓</span>
+                      <span className="text-sm leading-snug text-slate-700">{action}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[11px] text-slate-500">Bu transit için destekleyici alanlar hazırlanıyor.</p>
+                <p className="text-sm text-slate-500">Bu transit için destekleyici alanlar hazırlanıyor.</p>
               )}
             </div>
 
             {/* 3. Dikkat Edilecek Konular */}
-            <div className="overflow-hidden rounded-[16px] border border-amber-200/60 bg-amber-50/60 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-2 flex items-center gap-1.5">
-                <span className="text-sm leading-none">⚠️</span>
-                <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-700">
+            <div className="overflow-hidden rounded-[16px] border border-amber-200/60 bg-amber-50/60 p-4 shadow-sm backdrop-blur-md">
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="text-base leading-none">⚠️</span>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">
                   Dikkat Edilecek Konular
                 </h3>
               </div>
               {transit.challengePoints && transit.challengePoints.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
                   {transit.challengePoints.map((point, i) => (
-                    <li key={i} className="flex items-start gap-1.5">
-                      <span className="mt-0.5 shrink-0 text-[10px] text-amber-500">•</span>
-                      <span className="text-[11px] leading-snug text-amber-900">{point}</span>
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-[11px] text-amber-500">•</span>
+                      <span className="text-sm leading-snug text-amber-900">{point}</span>
                     </li>
                   ))}
                 </ul>
               ) : transit.caution ? (
-                <p className="text-[11px] leading-snug text-amber-800">{transit.caution}</p>
+                <p className="text-sm leading-relaxed text-amber-800">{transit.caution}</p>
               ) : (
-                <p className="text-[11px] text-amber-700">Bu transit için dikkat alanları hazırlanıyor.</p>
+                <p className="text-sm text-amber-700">Bu transit için dikkat alanları hazırlanıyor.</p>
               )}
             </div>
 
             {/* 4. Kozmik Bağlam */}
-            <div className="rounded-[16px] border border-white/80 bg-white/50 px-3 py-2 shadow-sm backdrop-blur-md">
+            <div className="rounded-[16px] border border-white/80 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-md">
               <p className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🌌 Kozmik Bağlam</p>
-              <p className="text-[10px] leading-relaxed text-slate-600">
+              <p className="text-xs leading-relaxed text-slate-600">
                 Transit yorumları kişiye özel değildir. Gökyüzünün genel enerjisini ve kolektif temaları
                 yansıtır. Natal haritanızdaki gezegenler bu enerjiyle birlikte değerlendirilmelidir.
               </p>
@@ -200,28 +200,28 @@ export default function TransitDetailPage() {
           </div>
 
           {/* ── Sağ: Gezegen Bilgisi ── */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
 
             {/* Bu gezegen neyi temsil eder? */}
-            <div className={`overflow-hidden rounded-[16px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-3 shadow-sm backdrop-blur-md`}>
+            <div className={`overflow-hidden rounded-[16px] border border-white/80 bg-gradient-to-br ${meta.cardBg} p-4 shadow-sm backdrop-blur-md`}>
               <p className={`mb-2 text-[9px] font-black uppercase tracking-[0.2em] ${meta.titleClr}`}>
                 🪐 Bu Gezegen Neyi Temsil Eder?
               </p>
-              <div className="flex items-start gap-2">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${meta.iconBg} text-sm text-white shadow-sm`}>
+              <div className="flex items-start gap-2.5">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${meta.iconBg} text-base text-white shadow-sm`}>
                   {meta.symbol}
                 </div>
                 <div className="min-w-0">
-                  <p className={`text-[12px] font-black leading-snug ${meta.titleClr}`}>{meta.key}</p>
-                  <p className="mt-0.5 text-[10px] leading-snug text-slate-600">{meta.meaning}</p>
-                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{meta.detail}</p>
+                  <p className={`text-sm font-black leading-snug ${meta.titleClr}`}>{meta.key}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-slate-600">{meta.meaning}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-slate-500">{meta.detail}</p>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {meta.keywords.map(kw => (
                   <span
                     key={kw}
-                    className={`rounded-full border border-white/60 px-1.5 py-0.5 text-[9px] font-semibold ${meta.badgeBg} ${meta.badgeClr}`}
+                    className={`rounded-full border border-white/60 px-2 py-0.5 text-[10px] font-semibold ${meta.badgeBg} ${meta.badgeClr}`}
                   >
                     {kw}
                   </span>
@@ -230,8 +230,8 @@ export default function TransitDetailPage() {
             </div>
 
             {/* Diğer gezegenler kısa listesi */}
-            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-2.5 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Diğer Gezegenler</p>
+            <div className="overflow-hidden rounded-[16px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+              <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Diğer Gezegenler</p>
               <div className="space-y-0.5">
                 {[
                   { key: "Ay",   symbol: "☽", sign: moonSign.name,     signSymbol: moonSign.emoji },
@@ -244,15 +244,15 @@ export default function TransitDetailPage() {
                     <Link
                       key={p.key}
                       href={`/dashboard/cosmic-calendar/transits/${planetSlug}`}
-                      className={`flex items-center gap-1.5 rounded-md px-1.5 py-1 no-underline transition ${
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1 no-underline transition ${
                         isCurrent
                           ? "bg-indigo-100 ring-1 ring-inset ring-indigo-300"
                           : "hover:bg-white/60"
                       }`}
                     >
-                      <span className="w-3.5 shrink-0 text-center text-[12px] leading-none text-indigo-400">{p.symbol}</span>
-                      <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-slate-600">{p.key}</span>
-                      <span className="shrink-0 text-[10px] font-black text-slate-800">{p.signSymbol} {p.sign}</span>
+                      <span className="w-4 shrink-0 text-center text-[13px] leading-none text-indigo-400">{p.symbol}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">{p.key}</span>
+                      <span className="shrink-0 text-xs font-black text-slate-800">{p.signSymbol} {p.sign}</span>
                     </Link>
                   );
                 })}
