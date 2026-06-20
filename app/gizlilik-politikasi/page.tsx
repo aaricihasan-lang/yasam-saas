@@ -28,7 +28,7 @@ export default function GizlilikPolitikasiPage() {
 
         <h2 className="mt-8 text-lg font-black text-slate-900">Hangi Verileri Topluyoruz?</h2>
         <p>
-          Kayıt sırasında ad, e-posta adresi ve şifreniz alınır. Platform kullanımı
+          Kayıt sırasında ad, e-posta adresis alınır. Platform kullanımı
           sırasında danışan kayıtları, analizler, notlar ve yüklenen dosyalar yalnızca
           size ait kiracı alanında saklanır.
         </p>
