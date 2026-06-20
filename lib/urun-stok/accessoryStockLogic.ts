@@ -180,9 +180,14 @@ export function loadAccessoryInventory(): AccessoryItem[] {
   }
 }
 
-export function saveAccessoryInventory(items: AccessoryItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+export function saveAccessoryInventory(items: AccessoryItem[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function loadAccessorySales(): AccessorySaleRecord[] {

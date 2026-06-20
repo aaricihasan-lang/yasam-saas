@@ -80,18 +80,21 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Service role key kullanılır; RLS'i bypass ederek kullanıcı doğrulaması güvenilir çalışır.
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !supabaseKey)
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
 
-  // GÜVENLIK: userId + tenantId çapraz doğrulama (IDOR koruması)
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? supabaseKey;
-  const anonDb = createClient(supabaseUrl, anonKey);
-  const { data: userRow } = await anonDb
+  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu veritabanında doğrula.
+  // NOT: Bu proje sunucu taraflı oturum (cookie/JWT) kullanmaz; auth localStorage tabanlıdır.
+  // Bu nedenle API katmanında çağrının sahibini doğrulamak, users tablosundan
+  // userId+tenantId eşleşmesi kontrol etmekle sınırlıdır. Gerçek bir server-session
+  // mimarisine geçiş yapılana kadar bu, mevcut en güvenli yaklaşımdır.
+  const { data: userRow } = await db
     .from("users")
-    .select("id")
+    .select("id, tenant_id")
     .eq("id", userId)
     .eq("tenant_id", tenantId)
     .maybeSingle();

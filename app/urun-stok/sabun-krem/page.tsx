@@ -283,8 +283,14 @@ export default function SabunKremUrunStokPage() {
       setMsg(result.error);
       return;
     }
-    saveSoapCreamInventory(result.items);
+    const saved = saveSoapCreamInventory(result.items);
     setInventory(result.items);
+    if (!saved) {
+      setMsg(
+        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+      );
+      return;
+    }
     resetForm();
     setMsg(editId ? "Kayit guncellendi." : "Kayit eklendi.");
   }

@@ -246,9 +246,14 @@ export function loadSoapCreamInventory(): SoapCreamItem[] {
   }
 }
 
-export function saveSoapCreamInventory(items: SoapCreamItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+export function saveSoapCreamInventory(items: SoapCreamItem[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function loadSoapCreamSales(): SoapCreamSaleRecord[] {

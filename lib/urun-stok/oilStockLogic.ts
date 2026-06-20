@@ -255,9 +255,14 @@ export function loadOilInventory(): OilItem[] {
   }
 }
 
-export function saveOilInventory(items: OilItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+export function saveOilInventory(items: OilItem[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function loadOilSales(): OilSaleRecord[] {

@@ -81,7 +81,7 @@ export function fmtTrim(x: number, maxDec = 4): string {
   return s || "0";
 }
 
-function applyItemCostTotals(item: InvItem): InvItem {
+export function applyItemCostTotals(item: InvItem): InvItem {
   const usdRate = item.usd_rate || 0;
   const eurRate = item.eur_rate || 0;
   const { totalCostTry, unitCostTry } = calculateInventoryItemTotals({
@@ -131,9 +131,14 @@ export function loadInventory(): InvItem[] {
   }
 }
 
-export function saveInventory(items: InvItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+export function saveInventory(items: InvItem[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** inventory.json satırı — masaüstü export formatı */

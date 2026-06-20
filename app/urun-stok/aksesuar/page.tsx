@@ -266,8 +266,14 @@ export default function AksesuarUrunStokPage() {
       setMsg(result.error);
       return;
     }
-    saveAccessoryInventory(result.items);
+    const saved = saveAccessoryInventory(result.items);
     setInventory(result.items);
+    if (!saved) {
+      setMsg(
+        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+      );
+      return;
+    }
     resetForm();
     setMsg(editId ? "Kayit guncellendi." : "Kayit eklendi.");
   }

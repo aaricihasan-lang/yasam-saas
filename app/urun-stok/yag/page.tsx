@@ -280,8 +280,14 @@ export default function YagUrunStokPage() {
       setMsg(result.error);
       return;
     }
-    saveOilInventory(result.items);
+    const saved = saveOilInventory(result.items);
     setInventory(result.items);
+    if (!saved) {
+      setMsg(
+        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+      );
+      return;
+    }
     resetForm();
     setMsg(editId ? "Kayıt güncellendi." : "Kayıt eklendi.");
   }

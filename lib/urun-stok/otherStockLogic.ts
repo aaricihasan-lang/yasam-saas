@@ -264,9 +264,14 @@ export function loadOtherInventory(): OtherItem[] {
   }
 }
 
-export function saveOtherInventory(items: OtherItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+export function saveOtherInventory(items: OtherItem[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function loadOtherSales(): OtherSaleRecord[] {

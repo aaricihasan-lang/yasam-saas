@@ -3,6 +3,7 @@
  * localStorage dogaltas_inventory_v1 yalnızca yedek (aynı tenant önbelleği)
  */
 
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import {
   INVENTORY_STORAGE_KEY,
@@ -343,4 +344,46 @@ export async function upsertDogaltasInventoryFromJson(
     tenantId: tid,
     supabaseVerifiedCount: verify.count,
   };
+}
+
+/**
+ * Satış / stok iadesi sonrası Supabase'deki adet ve maliyet alanlarını günceller.
+ * Drift önleme: sayfa yenilenince stok eski haline dönmez.
+ * Sadece mevcut Supabase kayıtlarını günceller; yeni (localStorage-only) kayıtlar atlanır.
+ */
+export async function syncDogaltasInventoryToDb(
+  tenantId: string,
+  items: InvItem[],
+): Promise<{ ok: boolean; error: string | null }> {
+  const tid = tenantId.trim();
+  if (!tid || !items.length) return { ok: true, error: null };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return { ok: false, error: "Supabase yapılandırması eksik." };
+
+  const db = createClient(supabaseUrl, supabaseKey);
+
+  let firstError: string | null = null;
+
+  for (const item of items) {
+    const { error } = await db
+      .from(DOGALTAS_INVENTORY_TABLE)
+      .update({
+        adet: item.adet ?? 0,
+        dizi_price: item.dizi_price ?? 0,
+        adet_price: item.adet_price ?? 0,
+        total_cost_try: item.total_cost_try ?? 0,
+        unit_cost_try: item.unit_cost_try ?? 0,
+      })
+      .eq("tenant_id", tid)
+      .eq("name", item.name)
+      .eq("type", item.type);
+
+    if (error && !firstError) firstError = error.message;
+  }
+
+  return { ok: !firstError, error: firstError };
 }

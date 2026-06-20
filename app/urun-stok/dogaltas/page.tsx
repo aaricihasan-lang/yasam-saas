@@ -10,6 +10,7 @@ import {
   STONE_TYPES,
   addOrUpdateInventoryItem,
   appendSales,
+  applyItemCostTotals,
   calcInventoryTotals,
   deductInventoryForSales,
   filesToDataUrls,
@@ -27,7 +28,10 @@ import {
   turkishUpper,
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
-import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
+import {
+  loadDogaltasInventoryForTenant,
+  syncDogaltasInventoryToDb,
+} from "@/lib/urun-stok/dogaltasInventoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
@@ -189,9 +193,12 @@ export default function DogaltasUrunStokPage() {
   const [inventory, setInventory] = useState<InvItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  // Z-2: Supabase sync için tenantId state'de tutulur
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
   const reloadInventory = useCallback(async () => {
     const tenantId = await getSyncedTenantId();
+    setActiveTenantId(tenantId);
     const { items: loaded } = await loadDogaltasInventoryForTenant(tenantId);
     let items = loaded;
     const { items: normalized, dirty } = normalizeDiziInventory(items);
@@ -272,8 +279,14 @@ export default function DogaltasUrunStokPage() {
     let items = result.items;
     const norm = normalizeDiziInventory(items);
     items = norm.items;
-    saveInventory(items);
+    const saved = saveInventory(items);
     setInventory(items);
+    if (!saved) {
+      setStockMsg(
+        "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+      );
+      return;
+    }
     setName("");
     setStokIn("");
     setDiziTl("");
@@ -435,6 +448,12 @@ export default function DogaltasUrunStokPage() {
       reloadSales();
       setBasket([]);
       setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
+      // Z-2: Supabase'i güncelle; sayfa yenilenince stok eski haline dönmez
+      if (activeTenantId) {
+        void syncDogaltasInventoryToDb(activeTenantId, updated).then(({ error }) => {
+          if (error) console.warn("[dogaltas] Supabase sync hatası (satış):", error);
+        });
+      }
     } finally {
       committingRef.current = false;
       setIsCommitting(false);
@@ -475,7 +494,8 @@ export default function DogaltasUrunStokPage() {
         if (isDizi(it.type) && (it.adet_price || 0) > 0) {
           it.dizi_price = Math.round(it.adet_price * it.adet * 100) / 100;
         }
-        inv[idx] = it;
+        // Z-4: total_cost_try / unit_cost_try'yı güncel adet ile yeniden hesapla
+        inv[idx] = applyItemCostTotals(it);
         restoredCount++;
       }
     }
@@ -485,6 +505,12 @@ export default function DogaltasUrunStokPage() {
     saveSales(next);
     setSales(next);
     setHistorySelected(new Set());
+    // Z-2: Stok iadesi sonrası Supabase'i güncelle
+    if (activeTenantId) {
+      void syncDogaltasInventoryToDb(activeTenantId, inv).then(({ error }) => {
+        if (error) console.warn("[dogaltas] Supabase sync hatası (stok iadesi):", error);
+      });
+    }
     if (missing.length > 0) {
       setStockMsg(`${toDelete.length} satış silindi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı, iade yapılamadı.`);
     } else {
