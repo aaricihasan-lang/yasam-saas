@@ -3,7 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import {
@@ -528,7 +528,7 @@ function PhotoGallery({
 
 export default function StonesTab({ clientId }: StonesTabProps) {
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [stones, setStones] = useState<ClientStone[]>([]);
   const [photos, setPhotos] = useState<StonePhoto[]>([]);
@@ -901,13 +901,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   async function deleteStone(id: string) {
-    const ok = await confirm({
-      title: "Kaydı sil",
-      message:
-        "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar.",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+    const ok = await deleteConfirm({
+      title: "Taşı sil",
+      message: "Bu taş kaydı silinsin mi? Bu taşa bağlı fotoğraflar da listeden kalkar.",
     });
     if (!ok) return;
 
@@ -976,12 +972,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   }
 
   async function deletePhoto(photo: StonePhoto) {
-    const ok = await confirm({
-      title: "Kaydı sil",
+    const ok = await deleteConfirm({
+      title: "Fotoğrafı sil",
       message: "Bu fotoğraf silinsin mi?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
     });
     if (!ok) return;
 

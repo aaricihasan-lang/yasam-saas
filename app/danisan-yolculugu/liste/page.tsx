@@ -260,10 +260,11 @@ export default function DanisanListePage() {
         if (!clientIds.length) { showToast({ title: "Uyarı", message: "Filtrelenmiş sonuç yok.", type: "warning" }); return; }
       }
 
+      const userId = readYasamUser()?.id;
       const res = await fetch("/api/clients/word-report-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: mode, clientIds }),
+        body: JSON.stringify({ tenantId, userId, exportMode: mode, clientIds }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

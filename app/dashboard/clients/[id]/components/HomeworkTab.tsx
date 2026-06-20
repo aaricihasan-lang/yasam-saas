@@ -3,7 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { odevDurumLabel, odevDurumClass } from "@/lib/odevStatus";
@@ -387,7 +387,7 @@ function DetailBlock({
 
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
   const [form, setForm] = useState<HomeworkFormState>({
@@ -680,12 +680,9 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   }
 
   async function deleteHomework(id: string) {
-    const ok = await confirm({
-      title: "Kaydı sil",
+    const ok = await deleteConfirm({
+      title: "Ödevi sil",
       message: "Bu ödev kaydı silinsin mi?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
     });
     if (!ok) return;
 

@@ -851,14 +851,15 @@ export async function POST(
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "full", tabName, dateRange } = body as {
+  const { tenantId, userId, exportMode = "full", tabName, dateRange } = body as {
     tenantId?: string;
+    userId?: string;
     exportMode?: string;
     tabName?: string;
     dateRange?: { start: string; end: string };
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -867,6 +868,18 @@ export async function POST(
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması)
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? supabaseKey;
+  const anonDb = createClient(supabaseUrl, anonKey);
+  const { data: userRow } = await anonDb
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   // ─── Tab mode early-return ────────────────────────────────────────────────
   const TAB_VALID = ["genel","notlar","randevular","taslar","seanslar","odevler","analizler"] as const;

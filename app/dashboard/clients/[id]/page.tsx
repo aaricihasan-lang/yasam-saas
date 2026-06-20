@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import NotesTab from "./components/NotesTab";
 import StonesTab from "./components/StonesTab";
@@ -111,6 +113,7 @@ const wordBtnCls =
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
   const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const params = useParams();
   const router = useRouter();
@@ -121,7 +124,6 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState("genel");
   const [loading, setLoading] = useState(true);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingClient, setDeletingClient] = useState(false);
 
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -272,9 +274,10 @@ export default function ClientDetailPage() {
     if (!tenantId || !client) return;
     setGeneratingReport(true);
     try {
+      const userId = readYasamUser()?.id;
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId }),
+        body: JSON.stringify({ tenantId, userId }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -302,9 +305,10 @@ export default function ClientDetailPage() {
     if (drStart > drEnd) { showToast({ title: "Uyarı", message: "Başlangıç tarihi bitiş tarihinden sonra olamaz.", type: "warning" }); return; }
     setDrBusy(true);
     try {
+      const userId = readYasamUser()?.id;
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -330,9 +334,10 @@ export default function ClientDetailPage() {
     if (!tenantId || !client) return;
     setTabWordBusy(true);
     try {
+      const userId = readYasamUser()?.id;
       const res = await fetch(`/api/clients/${clientId}/word-report`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "tab", tabName: tab }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "tab", tabName: tab }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı"); }
       const blob = await res.blob();
@@ -354,11 +359,60 @@ export default function ClientDetailPage() {
     } finally { setTabWordBusy(false); }
   }
 
-  async function deleteClient() {
-    if (!tenantId) return;
+  async function handleDeleteClient() {
+    if (!tenantId || deletingClient) return;
+    const clientName = client ? `${client.ad ?? ""} ${client.soyad ?? ""}`.trim() : "";
+
+    const ok = await deleteConfirm({
+      title: "Danışanı sil",
+      message: `"${clientName || "Bu danışan"}" adlı danışan silinsin mi? Danışan ve bağlı tüm kayıtlar (seanslar, ödevler, randevular, taşlar, analizler) kalıcı olarak silinebilir.`,
+      secondMessage: "Bu işlem geri alınamaz. Danışana ait tüm veriler kalıcı olarak silinecektir. Emin misiniz?",
+    });
+    if (!ok) return;
+
     setDeletingClient(true);
 
-    const { error } = await supabase.from("clients").delete().eq("id", clientId).eq("tenant_id", tenantId);
+    // Alt kayıtları önce sil — DB'de CASCADE yoksa orphan oluşmasın
+    const childTables = [
+      "client_notes",
+      "client_sessions",
+      "client_homeworks",
+      "appointments",
+      "client_analyses",
+    ] as const;
+
+    for (const table of childTables) {
+      const { error: childErr } = await supabase
+        .from(table)
+        .delete()
+        .eq("client_id", clientId)
+        .eq("tenant_id", tenantId);
+      if (childErr) console.error(`${table} silinirken hata (cascade varsa göz ardı edilebilir):`, childErr);
+    }
+
+    // Taş fotoğraflarını da temizle
+    const { data: stoneIds } = await supabase
+      .from("client_stones")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("tenant_id", tenantId);
+
+    if (stoneIds?.length) {
+      await supabase
+        .from("client_stone_photos")
+        .delete()
+        .in("stone_id", stoneIds.map((s) => s.id))
+        .eq("tenant_id", tenantId);
+    }
+
+    await supabase.from("client_stones").delete().eq("client_id", clientId).eq("tenant_id", tenantId);
+
+    // Ana danışan kaydını sil
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", clientId)
+      .eq("tenant_id", tenantId);
 
     if (error) {
       console.error("Danışan silme hatası:", error);
@@ -367,7 +421,6 @@ export default function ClientDetailPage() {
       return;
     }
 
-    setShowDeleteModal(false);
     setDeletingClient(false);
     router.push("/danisan-yolculugu/liste");
   }
@@ -413,10 +466,11 @@ export default function ClientDetailPage() {
           ← Danışan Listesine Dön
         </button>
         <button
-          onClick={() => setShowDeleteModal(true)}
-          className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-extrabold text-red-600 shadow-sm transition-all hover:bg-red-100"
+          onClick={handleDeleteClient}
+          disabled={deletingClient}
+          className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-extrabold text-red-600 shadow-sm transition-all hover:bg-red-100 disabled:opacity-60"
         >
-          Danışanı Sil
+          {deletingClient ? "Siliniyor..." : "Danışanı Sil"}
         </button>
       </div>
 
@@ -453,23 +507,35 @@ export default function ClientDetailPage() {
       {/* Tabs section */}
       <section className="rounded-[20px] border border-white/78 bg-white/92 px-3.5 pb-[18px] pt-3.5 shadow-lg">
 
-        {/* Tab bar — scroll on mobile, wrap on desktop */}
-        <div className="mb-4 flex items-center gap-1.5 overflow-x-auto py-1 pb-1.5 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1">
-          <Tab label="Genel Bilgiler"      id="genel"     activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
-          <Tab label="Notlar"              id="notlar"    activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
-          <Tab label="Randevular"          id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
-          <Tab label="Taşlar"              id="taslar"    activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
-          <Tab label="Seanslar"            id="seanslar"  activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
-          <Tab label="Ödevler"             id="odevler"   activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
-          <Tab label="Analizler"           id="analizler" activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
-          <Tab label="✦ Danışan Yolculuğu" id="yolculuk"  activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
-          <button
-            onClick={generateWordReport}
-            disabled={generatingReport}
-            className="min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
+        {/* Tab bar — mobilde yatay scroll, masaüstünde wrap */}
+        <div className="relative mb-4">
+          {/* Mobil scroll göstergesi — sağ fade */}
+          <div
+            className="pointer-events-none absolute right-0 top-0 z-10 h-full w-14 bg-gradient-to-l from-white/95 to-transparent sm:hidden"
+            aria-hidden
+          />
+          <div
+            role="tablist"
+            aria-label="Danışan sekmeleri"
+            className="flex items-center gap-1.5 overflow-x-auto py-1 pb-1.5 pr-16 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1 sm:pr-0"
           >
-            {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
-          </button>
+            <Tab label="Genel Bilgiler"      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
+            <Tab label="Notlar"              id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
+            <Tab label="Randevular"          id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
+            <Tab label="Taşlar"              id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
+            <Tab label="Seanslar"            id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
+            <Tab label="Ödevler"             id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
+            <Tab label="Analizler"           id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
+            <Tab label="✦ Danışan Yolculuğu" id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
+            <button
+              onClick={generateWordReport}
+              disabled={generatingReport}
+              aria-label="Tam Word raporu oluştur"
+              className="min-h-[42px] whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
+            >
+              {generatingReport ? "⏳ Oluşturuluyor..." : "📄 Word Raporu"}
+            </button>
+          </div>
         </div>
 
         {/* Date-range report — collapsible */}
@@ -504,7 +570,12 @@ export default function ClientDetailPage() {
         </div>
 
         {/* Tab content area */}
-        <div className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
+        <div
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+          className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5"
+        >
 
           {activeTab === "genel" && (() => {
               // Salt okunur mod sınıfları
@@ -700,47 +771,6 @@ export default function ClientDetailPage() {
         </div>
       </section>
 
-      {/* Delete confirmation modal */}
-      {showDeleteModal && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/46 p-4 backdrop-blur-[6px]"
-          onClick={() => !deletingClient && setShowDeleteModal(false)}
-        >
-          <div
-            className="w-[min(360px,100%)] rounded-[18px] border border-red-200 bg-gradient-to-br from-white to-red-50 p-[18px] text-center shadow-[0_18px_45px_rgba(15,23,42,0.22)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-2.5 flex h-[42px] w-[42px] items-center justify-center rounded-[14px] bg-gradient-to-br from-red-500 to-red-600 text-[22px] font-black text-white shadow-lg">
-              !
-            </div>
-            <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1.5 text-[10px] font-black text-red-600">
-              Danışan Silme Onayı
-            </span>
-            <h2 className="mt-1.5 text-[19px] font-black text-slate-950">Bu danışan silinsin mi?</h2>
-            <p className="mx-auto mt-2 max-w-[300px] text-[12px] leading-relaxed text-slate-500">
-              Bu işlem danışan kaydını sistemden kaldırır. Emin değilsen işlemi iptal edebilirsin.
-            </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deletingClient}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-extrabold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                onClick={deleteClient}
-                disabled={deletingClient}
-                className="rounded-xl bg-gradient-to-br from-red-500 to-red-600 px-3.5 py-2 text-[12px] font-black text-white shadow-md transition-all hover:from-red-600 hover:to-red-700 disabled:opacity-70"
-              >
-                {deletingClient ? "Siliniyor..." : "Evet, Sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
@@ -755,6 +785,7 @@ function AppointmentsTab({
   confirm: ReturnType<typeof useConfirm>["confirm"];
   showToast: ReturnType<typeof useToast>["showToast"];
 }) {
+  const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -830,11 +861,27 @@ function AppointmentsTab({
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
     if (error) { showToast({ title: "İşlem başarısız", message: "Randevu durumu güncellenemedi: " + error.message, type: "error" }); return; }
     setSelectedAppointment((old) => old && old.id === id ? { ...old, status } : old);
+
+    // Z-3: Randevu tamamlandığında clients.gorusme güncelle
+    if (status === "tamamlandi" && tenantId) {
+      const apt = appointments.find((a) => a.id === id);
+      if (apt) {
+        const aptDate = apt.appointment_date.split("T")[0];
+        const { data: cli } = await supabase.from("clients").select("gorusme").eq("id", clientId).maybeSingle();
+        if (!cli?.gorusme || aptDate > cli.gorusme) {
+          await supabase.from("clients").update({ gorusme: aptDate }).eq("id", clientId).eq("tenant_id", tenantId);
+        }
+      }
+    }
+
     await loadAppointments();
   }
 
   async function deleteAppointment(id: string) {
-    const ok = await confirm({ message: "Bu randevu silinsin mi?", tone: "danger", title: "Randevuyu sil", confirmText: "Sil", cancelText: "Vazgeç" });
+    const ok = await deleteConfirm({
+      title: "Randevuyu sil",
+      message: "Bu randevu silinsin mi?",
+    });
     if (!ok) return;
     const { error } = await supabase.from("appointments").delete().eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
     if (error) { showToast({ title: "İşlem başarısız", message: "Randevu silinemedi: " + error.message, type: "error" }); return; }
@@ -1079,8 +1126,12 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
   const active = activeTab === id;
   return (
     <button
+      role="tab"
+      aria-selected={active}
+      aria-controls={`tabpanel-${id}`}
+      id={`tab-${id}`}
       onClick={() => setActiveTab(id)}
-      className="min-h-[42px] whitespace-nowrap rounded-xl px-[18px] py-2.5 text-[13px] font-extrabold leading-[1.2] transition-all"
+      className="min-h-[42px] whitespace-nowrap rounded-xl px-[18px] py-2.5 text-[13px] font-extrabold leading-[1.2] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
       style={{
         background: active ? color : "transparent",
         color: active ? "white" : color,

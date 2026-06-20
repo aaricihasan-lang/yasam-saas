@@ -3,7 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 
@@ -394,7 +394,7 @@ function DetailBlock({
 
 export default function SessionsTab({ clientId }: SessionsTabProps) {
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [form, setForm] = useState<SessionFormState>({
@@ -541,6 +541,23 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
       return;
     }
 
+    // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için)
+    if (form.sessionDate && tenantId) {
+      const { data: cli } = await supabase
+        .from("clients")
+        .select("gorusme")
+        .eq("id", clientId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!cli?.gorusme || form.sessionDate > cli.gorusme) {
+        await supabase
+          .from("clients")
+          .update({ gorusme: form.sessionDate })
+          .eq("id", clientId)
+          .eq("tenant_id", tenantId);
+      }
+    }
+
     setForm({ ...emptyForm, sessionDate: todayISO() });
     setShowForm(false);
     await loadSessions();
@@ -606,12 +623,9 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
   }
 
   async function deleteSession(id: string) {
-    const ok = await confirm({
-      title: "Kaydı sil",
+    const ok = await deleteConfirm({
+      title: "Seansı sil",
       message: "Bu seans kaydı silinsin mi?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
     });
     if (!ok) return;
 

@@ -247,6 +247,9 @@ export default function DanisanKayitPage() {
   const tenantId = sessionUser?.tenant_id?.trim() || null;
   const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
 
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const forceSaveRef = useRef(false);
+
   const [ad, setAd] = useState("");
   const [soyad, setSoyad] = useState("");
   const [telefon, setTelefon] = useState("");
@@ -282,6 +285,26 @@ export default function DanisanKayitPage() {
       return;
     }
 
+    // Duplicate kontrolü (forceSaveRef ile override edilebilir)
+    if (!forceSaveRef.current) {
+      const { data: existing } = await supabase
+        .from("clients")
+        .select("id, ad, soyad")
+        .eq("tenant_id", activeTenantId)
+        .ilike("ad", ad.trim())
+        .ilike("soyad", soyad.trim())
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        setDuplicateWarning(
+          `"${ad.trim()} ${soyad.trim()}" adında bir danışan zaten kayıtlı. Aynı kişiyi tekrar kaydetmek istiyor musunuz?`
+        );
+        return;
+      }
+    }
+
+    setDuplicateWarning(null);
+    forceSaveRef.current = false;
     setSaving(true);
 
     const { error } = await supabase.from("clients").insert({
@@ -374,6 +397,28 @@ export default function DanisanKayitPage() {
               </select>
             </Field>
           </div>
+
+          {duplicateWarning && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+              <p className="text-sm font-bold text-amber-900">{duplicateWarning}</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDuplicateWarning(null)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  İptal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { forceSaveRef.current = true; void saveClient(); }}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white hover:bg-amber-700"
+                >
+                  Yine de Kaydet
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
             <button

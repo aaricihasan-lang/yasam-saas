@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
@@ -135,6 +136,7 @@ const toolbarBtnBase =
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
+  const deleteConfirm                = useDeleteConfirm();
   const { showToast }                = useToast();
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisType | null>(null);
   const [chakraValues, setChakraValues]     = useState<Record<string, ChakraRowValue>>(() => makeChakraInitialValues());
@@ -195,7 +197,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function deleteSavedAnalysis(id: string) {
-    const ok = await confirm({ message: "Bu analiz kaydı silinsin mi?", tone: "danger", title: "Analizi sil", confirmText: "Sil", cancelText: "Vazgeç" });
+    const ok = await deleteConfirm({
+      title: "Analizi sil",
+      message: "Bu analiz kaydı silinsin mi?",
+    });
     if (!ok) return;
     const { error } = await supabase.from("client_analyses").delete().eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
     if (error) { showToast({ title: "İşlem başarısız", message: "Analiz silinemedi: " + error.message, type: "error" }); return; }
