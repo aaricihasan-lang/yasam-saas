@@ -28,6 +28,7 @@ import {
 } from "@/lib/auth/modulePermissions";
 import { supabase } from "@/lib/supabase";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
+import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useRouter } from "next/navigation";
@@ -453,63 +454,6 @@ function numerologicalDay(date: Date): number {
   return n;
 }
 
-function moonAge(date: Date): number {
-  const ref = new Date("2024-01-11T11:57:00Z");
-  const daysSince = (date.getTime() - ref.getTime()) / 86_400_000;
-  return ((daysSince % 29.53059) + 29.53059) % 29.53059;
-}
-
-const MOON_PHASES = [
-  { name: "Yeni Ay", emoji: "🌑", max: 1.85 },
-  { name: "Büyüyen Hilal", emoji: "🌒", max: 7.38 },
-  { name: "İlk Dördün", emoji: "🌓", max: 14.77 },
-  { name: "Şişen Ay", emoji: "🌔", max: 22.15 },
-  { name: "Dolunay", emoji: "🌕", max: 24.0 },
-  { name: "Azalan Ay", emoji: "🌖", max: 26.38 },
-  { name: "Son Dördün", emoji: "🌗", max: 27.69 },
-  { name: "Solan Hilal", emoji: "🌘", max: 29.53 },
-] as const;
-
-function getMoonPhase(date: Date): { name: string; emoji: string; pct: number } {
-  const age = moonAge(date);
-  const pct = Math.round((age / 29.53059) * 100);
-  for (const p of MOON_PHASES) {
-    if (age <= p.max) return { name: p.name, emoji: p.emoji, pct };
-  }
-  return { name: "Yeni Ay", emoji: "🌑", pct: 0 };
-}
-
-const ZODIAC_SIGNS = [
-  { tr: "Oğlak", emoji: "♑", md: 20, mm: 1 },
-  { tr: "Kova", emoji: "♒", md: 19, mm: 2 },
-  { tr: "Balık", emoji: "♓", md: 20, mm: 3 },
-  { tr: "Koç", emoji: "♈", md: 19, mm: 4 },
-  { tr: "Boğa", emoji: "♉", md: 20, mm: 5 },
-  { tr: "İkizler", emoji: "♊", md: 20, mm: 6 },
-  { tr: "Yengeç", emoji: "♋", md: 22, mm: 7 },
-  { tr: "Aslan", emoji: "♌", md: 22, mm: 8 },
-  { tr: "Başak", emoji: "♍", md: 22, mm: 9 },
-  { tr: "Terazi", emoji: "♎", md: 22, mm: 10 },
-  { tr: "Akrep", emoji: "♏", md: 21, mm: 11 },
-  { tr: "Yay", emoji: "♐", md: 21, mm: 12 },
-] as const;
-
-// Approximate moon sign: moon moves ~13.2° per day (27.32-day sidereal cycle)
-// Reference: Jan 11, 2024 new moon ≈ Capricorn ingress
-const ARIES_ORDER = [
-  "Koç","Boğa","İkizler","Yengeç","Aslan","Başak",
-  "Terazi","Akrep","Yay","Oğlak","Kova","Balık",
-] as const;
-function getMoonSign(date: Date): typeof ZODIAC_SIGNS[number] {
-  const ref = new Date("2024-01-11T11:57:00Z");
-  const daysSince = (date.getTime() - ref.getTime()) / 86_400_000;
-  const degrees = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
-  // Reference: Capricorn ≈ 270° in zodiac wheel; shift by -270
-  const adjusted = (degrees + 270) % 360;
-  const signIndex = Math.floor(adjusted / 30) % 12;
-  const signName = ARIES_ORDER[signIndex]!;
-  return ZODIAC_SIGNS.find((z) => z.tr === signName) ?? ZODIAC_SIGNS[0];
-}
 
 const WEEKDAY_STONES = ["Kehribar","Aytaşı","Karneol","Amazont","Lapis Lazuli","Gül Kuvars","Obsidyen"] as const;
 const WEEKDAY_CHAKRAS = [
@@ -603,7 +547,7 @@ function LivePanel({ date }: { date: Date | null }) {
 
   const rows = [
     { label: "Güneş Burcu",    value: `${sun.emoji} ${sun.name}` },
-    { label: "Ay Burcu",       value: `${moon.emoji} ${moon.tr}` },
+    { label: "Ay Burcu",       value: `${moon.emoji} ${moon.name}` },
     { label: "Ay Fazı",        value: `${phase.emoji} ${phase.name}` },
     { label: "Numeroloji",     value: `🔢 ${numDay} · ${numDesc}` },
     {
