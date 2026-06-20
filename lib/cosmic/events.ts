@@ -223,7 +223,7 @@ const SIGN_CHANGE_EVENTS: ReadonlyArray<CosmicEvent> = [
   { date: "2025-10-22", symbol: "♆", planet: "Neptün", type: "sign_change",
     title: "Neptün Balık'a Dönüyor",
     description: "Neptün retro ile Balık'a geri dönüyor; manevi derinlik ve empati dönemine son bakış." },
-  { date: "2026-02-22", symbol: "♆", planet: "Neptün", type: "sign_change",
+  { date: "2026-01-26", symbol: "♆", planet: "Neptün", type: "sign_change",
     title: "Neptün Koç'ta Kalıcılaşıyor",
     description: "Neptün Koç burcuna kalıcı olarak yerleşiyor; ruhsal güç ve kolektif cesaret dönemi." },
 

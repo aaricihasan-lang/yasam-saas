@@ -424,30 +424,33 @@ const MARS_PERIODS: ReadonlyArray<SignPeriod> = [
 
 // ─── Jüpiter ♃ ────────────────────────────────────────────────────────────────
 // retro.ts: 2026-12-12–2027-04-12, 2028-01-12–05-13, 2029-02-10–06-13, 2030-03-13–07-14
+// AE doğrulaması (2026-06-20 audit): tüm geçiş tarihleri AE GeoVector+Ecliptic 12sa adımla teyit edildi.
 
 const JUPITER_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2024-05-25", to: "2025-06-08", sign: "Boğa"     },
-  { from: "2025-06-09", to: "2026-06-30", sign: "Yengeç"   }, // ← bugün ✓
-  { from: "2026-07-01", to: "2027-07-25", sign: "Aslan"    }, // retro Dec 12–Apr 12 Aslan içinde
-  { from: "2027-07-26", to: "2028-09-27", sign: "Başak"    }, // retro Jan 12–May 13 Başak içinde
-  { from: "2028-09-28", to: "2029-11-10", sign: "Terazi"   }, // retro Feb 10–Jun 13 Terazi içinde
-  { from: "2029-11-11", to: "2030-12-24", sign: "Akrep"    }, // retro Mar 13–Jul 14 Akrep içinde
-  { from: "2030-12-25", to: "2032-01-15", sign: "Yay"      },
+  { from: "2025-06-09", to: "2026-06-29", sign: "Yengeç"   }, // AE: Yengeç son gün 2026-06-29 (119.84°)
+  { from: "2026-06-30", to: "2027-07-25", sign: "Aslan"    }, // AE: 2026-06-30 12:00 UTC = 120.05° | retro Dec 12–Apr 12 Aslan içinde
+  { from: "2027-07-26", to: "2028-08-23", sign: "Başak"    }, // AE: 2028-08-23 son Başak (179.86°) | retro Jan 12–May 13 Başak içinde
+  { from: "2028-08-24", to: "2029-09-23", sign: "Terazi"   }, // AE: 2028-08-24 = 180.06° | retro Feb 10–Jun 13 Terazi içinde
+  { from: "2029-09-24", to: "2030-10-22", sign: "Akrep"    }, // AE: 2029-09-24 = 210.05° | retro Mar 13–Jul 14 Akrep içinde
+  { from: "2030-10-23", to: "2032-01-15", sign: "Yay"      }, // AE: 2030-10-23 = 240.11°
 ];
 
 // ─── Satürn ♄ ─────────────────────────────────────────────────────────────────
 // retro.ts: 2026-07-26–12-10, 2027-08-09–12-23, 2028-08-22–2029-01-05,
 //           2029-09-06–2030-01-18, 2030-09-20–2031-02-01
-// Dikkat: 2028 retrosu Satürn'ü Boğa→Koç'a geri çekiyor.
+// AE doğrulaması: 2028 retrosu Satürn'ü Koç'a GERİ ÇEKMİYOR.
+// Satürn 2028-08-22 retroda Boğa'da (~41°) başlıyor, minimum 34.41° (Oca 2029),
+// hiç 30°'nin altına inmiyor — Koç dönüşü yok. Boğa Haziran 2030'a kadar sürer.
+// AE: 2030-06-01 = 60.05° → Boğa→İkizler. 2030 retrosu minimum ~62° → Boğa'ya dönmüyor.
 
 const SATURN_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2023-03-07", to: "2025-05-23", sign: "Balık"    },
   { from: "2025-05-24", to: "2025-08-10", sign: "Koç"      },
-  { from: "2025-08-11", to: "2026-01-05", sign: "Balık"    }, // retro (geri döndü)
-  { from: "2026-01-06", to: "2028-04-12", sign: "Koç"      }, // ← bugün ✓
-  { from: "2028-04-13", to: "2028-09-10", sign: "Boğa"     }, // ilk giriş Boğa
-  { from: "2028-09-11", to: "2029-01-07", sign: "Koç"      }, // retro Aug 22–Jan 5: Boğa→Koç
-  { from: "2029-01-08", to: "2031-04-15", sign: "Boğa"     }, // kalıcı giriş Boğa
+  { from: "2025-08-11", to: "2026-02-13", sign: "Balık"    }, // retro + dönüş; AE kalıcı Koç öncesi son Balık = 2026-02-13 (359.94°)
+  { from: "2026-02-14", to: "2028-04-12", sign: "Koç"      }, // AE: 2026-02-14 = 0.05° (kalıcı giriş)
+  { from: "2028-04-13", to: "2030-05-31", sign: "Boğa"     }, // AE: 2028-04-13 = 30.04° | phantom Koç kaldırıldı
+  { from: "2030-06-01", to: "2034-01-01", sign: "İkizler"  }, // AE: 2030-06-01 = 60.05° | ~2033 Yengeç'e geçer
 ];
 
 // ─── Uranüs ♅ ─────────────────────────────────────────────────────────────────
@@ -461,13 +464,14 @@ const URANUS_PERIODS: ReadonlyArray<SignPeriod> = [
 ];
 
 // ─── Neptün ♆ ─────────────────────────────────────────────────────────────────
-// 2025 Mar ilk giriş Koç, Oct retro Balık, Feb 2026 kalıcı giriş Koç
+// 2025 Mar ilk giriş Koç, Oct retro Balık, Oca 2026 kalıcı giriş Koç
+// AE doğrulaması: kalıcı Koç girişi 2026-01-26 14:30 UTC (TR: 17:30)
 
 const NEPTUNE_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2011-02-03", to: "2025-03-29", sign: "Balık"    },
   { from: "2025-03-30", to: "2025-10-21", sign: "Koç"      },
-  { from: "2025-10-22", to: "2026-02-21", sign: "Balık"    }, // retro
-  { from: "2026-02-22", to: "2039-03-01", sign: "Koç"      }, // ← bugün ✓
+  { from: "2025-10-22", to: "2026-01-25", sign: "Balık"    }, // retro
+  { from: "2026-01-26", to: "2039-03-01", sign: "Koç"      }, // AE: 2026-01-26 14:30 UTC
 ];
 
 // ─── Plüton ♇ ─────────────────────────────────────────────────────────────────
