@@ -11,6 +11,7 @@ import {
   SYNODIC_MONTH_DAYS,
   MOON_PHASE_BOUNDS,
 } from "@/lib/cosmic/moon";
+import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -189,6 +190,25 @@ function getUpcomingTransitions(from: Date, days: number): PhaseTransition[] {
   return result;
 }
 
+// ─── Saat yardımcıları ────────────────────────────────────────────────────────
+
+/** PhaseTransition.date (yerel gece yarısı/öğle) → "YYYY-MM-DD" yerel tarih */
+function toLocalIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Yeni Ay veya Dolunay için astronomy-engine saatini döner (TR, "HH:MM").
+ * Diğer fazlar veya events map'te kayıt yoksa undefined.
+ */
+function getPhaseTime(
+  t: PhaseTransition,
+  map: Map<string, string>,
+): string | undefined {
+  if (t.phase.name !== "Yeni Ay" && t.phase.name !== "Dolunay") return undefined;
+  return map.get(toLocalIso(t.date));
+}
+
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function MoonPhasesPage() {
@@ -229,6 +249,18 @@ export default function MoonPhasesPage() {
     () => upcomingFilter === "main" ? upcoming45.filter(t => t.isMain) : upcoming45,
     [upcoming45, upcomingFilter],
   );
+
+  // Yeni Ay / Dolunay kesin saatleri — events.ts → astronomy-engine (FAZ 4)
+  const cosmicEvents = useMemo(() => getUpcomingCosmicEvents(today, 60), [today]);
+  const moonTimeMap  = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const evt of cosmicEvents) {
+      if (evt.time && (evt.type === "new_moon" || evt.type === "full_moon")) {
+        map.set(evt.date, evt.time);
+      }
+    }
+    return map;
+  }, [cosmicEvents]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
@@ -369,7 +401,10 @@ export default function MoonPhasesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-indigo-300/60">Sonraki Faz</p>
                     <p className="text-[12px] font-black text-white">{nextTransition.phase.name}</p>
-                    <p className="text-[9px] text-indigo-300/60">{formatDate(nextTransition.date)}</p>
+                    <p className="text-[9px] text-indigo-300/60">
+                      {formatDate(nextTransition.date)}
+                      {getPhaseTime(nextTransition, moonTimeMap) && ` · ${getPhaseTime(nextTransition, moonTimeMap)}`}
+                    </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-violet-500/30 px-2.5 py-1 text-[10px] font-black text-violet-200">
                     {nextTransition.daysFromNow === 1 ? "yarın" : `${nextTransition.daysFromNow}g`}
@@ -396,9 +431,10 @@ export default function MoonPhasesPage() {
               return (
                 <div className="space-y-2">
                   {mainThisMonth.map(t => {
-                    const guide = PHASE_GUIDE[t.phase.name];
+                    const guide     = PHASE_GUIDE[t.phase.name];
                     const isPast    = t.daysFromNow < 0;
                     const isToday   = t.daysFromNow === 0;
+                    const phaseTime = getPhaseTime(t, moonTimeMap);
                     return (
                       <div
                         key={`${t.phase.name}-${t.day}`}
@@ -412,6 +448,9 @@ export default function MoonPhasesPage() {
                                 {t.phase.name}
                               </p>
                               <p className="text-[9px] text-slate-500">{formatDate(t.date)}</p>
+                              {phaseTime && (
+                                <p className="text-[9px] font-semibold tabular-nums text-slate-600">{phaseTime}</p>
+                              )}
                             </div>
                           </div>
                           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black ${
@@ -572,25 +611,33 @@ export default function MoonPhasesPage() {
           ) : (
             <>
               {/* Masaüstü başlık */}
-              <div className="mb-1.5 hidden grid-cols-[2rem_1fr_1fr_1fr_1fr] gap-2 border-b border-slate-100 pb-1.5 sm:grid">
-                {["", "Faz", "Tarih", "Tür", "Kaç Gün"].map((h, i) => (
-                  <span key={i} className={`text-[8px] font-bold uppercase tracking-wider text-slate-400 ${i === 4 ? "text-right" : ""}`}>{h}</span>
+              <div className="mb-1.5 hidden grid-cols-[2rem_1fr_1fr_auto_1fr_1fr] gap-2 border-b border-slate-100 pb-1.5 sm:grid">
+                {["", "Faz", "Tarih", "Saat", "Tür", "Kaç Gün"].map((h, i) => (
+                  <span key={i} className={`text-[8px] font-bold uppercase tracking-wider text-slate-400 ${i === 5 ? "text-right" : ""}`}>{h}</span>
                 ))}
               </div>
               <div className="divide-y divide-slate-100/60">
                 {upcomingFiltered.map((t, idx) => {
-                  const guide = PHASE_GUIDE[t.phase.name];
+                  const guide     = PHASE_GUIDE[t.phase.name];
+                  const phaseTime = getPhaseTime(t, moonTimeMap);
                   return (
                     <div
                       key={`${t.phase.name}-${t.date.toISOString()}-${idx}`}
-                      className="grid grid-cols-[2rem_1fr_auto] items-center gap-2 py-2 sm:grid-cols-[2rem_1fr_1fr_1fr_1fr]"
+                      className="grid grid-cols-[2rem_1fr_auto] items-center gap-2 py-2 sm:grid-cols-[2rem_1fr_1fr_auto_1fr_1fr]"
                     >
                       <span className="text-xl leading-none">{t.phase.emoji}</span>
                       <div>
                         <p className="text-[12px] font-black text-slate-800">{t.phase.name}</p>
-                        <p className="text-[9px] text-slate-400 sm:hidden">{formatDate(t.date)}</p>
+                        <p className="text-[9px] text-slate-400 sm:hidden">
+                          {formatDate(t.date)}{phaseTime && ` · ${phaseTime}`}
+                        </p>
                       </div>
                       <span className="hidden text-[10px] text-slate-600 sm:block">{formatDate(t.date)}</span>
+                      <span className="hidden sm:block">
+                        {phaseTime
+                          ? <span className="tabular-nums text-[10px] font-semibold text-slate-700">{phaseTime}</span>
+                          : <span className="text-[10px] text-slate-300">—</span>}
+                      </span>
                       <div className="hidden sm:block">
                         <span className={`rounded-full px-2 py-0.5 text-[8px] font-bold ${
                           guide?.badge ?? "bg-slate-100"} ${guide?.badgeText ?? "text-slate-600"
