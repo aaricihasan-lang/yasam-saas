@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import DashboardNotifications from "@/shared/DashboardNotifications";
@@ -23,6 +23,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Yaşam Sistemi",
   description: "Yaşam Sistemi Yönetim Paneli",
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

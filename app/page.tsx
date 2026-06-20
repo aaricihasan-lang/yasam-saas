@@ -493,26 +493,6 @@ function getDayGreeting(date: Date): string {
 
 // ─── Dashboard components ──────────────────────────────────────────────────────
 
-function StarField() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {Array.from({ length: 60 }, (_, i) => {
-        const left = ((i * 137.508) % 100).toFixed(2);
-        const top = ((i * 89.213 + i * i * 0.17) % 100).toFixed(2);
-        const opacity = (0.1 + (i % 5) * 0.06).toFixed(2);
-        const size = i % 7 === 0 ? 2.5 : i % 3 === 0 ? 1.5 : 1;
-        return (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white"
-            style={{ left: `${left}%`, top: `${top}%`, width: size, height: size, opacity: Number(opacity) }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 function LivePanel({ date }: { date: Date | null }) {
   date = date ?? new Date();
   const phase = getMoonPhase(date);
@@ -556,7 +536,7 @@ function LivePanel({ date }: { date: Date | null }) {
             <div className="min-w-0 text-right">
               <span className="text-[11px] font-black text-slate-800">{value}</span>
               {sub ? (
-                <p className="text-[10px] tabular-nums text-slate-500">{sub}</p>
+                <p className="text-xs tabular-nums text-slate-500">{sub}</p>
               ) : null}
             </div>
           </div>
@@ -618,6 +598,7 @@ export default function Home() {
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const loginBackdropPressed = useRef(false);
+  const loginModalRef = useRef<HTMLDivElement>(null);
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
@@ -686,9 +667,32 @@ export default function Home() {
   useEffect(() => {
     if (!loginModalOpen) return;
 
+    const FOCUSABLE =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeLoginModal();
+        return;
+      }
+      if (event.key === "Tab" && loginModalRef.current) {
+        const els = Array.from(
+          loginModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
+        );
+        if (!els.length) return;
+        const first = els[0];
+        const last = els[els.length - 1];
+        if (event.shiftKey) {
+          if (document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
 
@@ -1005,7 +1009,7 @@ export default function Home() {
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
 
-        <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
+        <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
 
           {/* ═══════════════════════════════════════════
                HERO
@@ -1051,24 +1055,34 @@ export default function Home() {
                     </button>
                   </div>
 
-                  {/* Hızlı İşlemler */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {([
-                      { label: "Danışan Ekle",   href: "/danisan-yolculugu/kayit",  icon: "👥" },
-                      { label: "Taş Ekle",        href: "/dogaltas/dogaltas-kayit", icon: "💎" },
-                      { label: "Analiz Oluştur",  href: "/numeroloji/analiz",       icon: "🧠" },
-                      { label: "İçerik Ekle",     href: "/digital-content",         icon: "📚" },
-                    ] as const).map(({ label, href, icon }) => (
-                      <Link
-                        key={label}
-                        href={href}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-[0_8px_20px_rgba(124,58,237,0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:text-violet-700"
-                      >
-                        <span aria-hidden>{icon}</span>
-                        {label}
-                      </Link>
-                    ))}
-                  </div>
+                  {/* Hızlı İşlemler — yalnızca izinli modüller */}
+                  {(() => {
+                    const quickActions = [
+                      { label: "Danışan Ekle",  href: "/danisan-yolculugu/kayit",  icon: "👥", permKey: "clients" as ModulePermissionKey },
+                      { label: "Taş Ekle",       href: "/dogaltas/dogaltas-kayit", icon: "💎", permKey: "stones" as ModulePermissionKey },
+                      { label: "Analiz Oluştur", href: "/numeroloji/analiz",       icon: "🧠", permKey: "numerology" as ModulePermissionKey },
+                      { label: "İçerik Ekle",    href: "/digital-content",         icon: "📚", permKey: "digital_content" as ModulePermissionKey },
+                    ].filter(({ permKey }) => {
+                      if (isAdminUser(user)) return true;
+                      const mod = dashboardModules.find((m) => m.permissionKey === permKey);
+                      return mod ? isExpertDashboardModuleVisible(user, mod) : false;
+                    });
+                    if (!quickActions.length) return null;
+                    return (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {quickActions.map(({ label, href, icon }) => (
+                          <Link
+                            key={label}
+                            href={href}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-[0_8px_20px_rgba(124,58,237,0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:text-violet-700"
+                          >
+                            <span aria-hidden>{icon}</span>
+                            {label}
+                          </Link>
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* Admin linki */}
                   {isAdminUser(user) ? (
@@ -1102,7 +1116,7 @@ export default function Home() {
 
             {/* ── Left: Module Grid ── */}
             <div>
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
                 Ana Merkezler
               </p>
 
@@ -1159,17 +1173,19 @@ export default function Home() {
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
                           {item.desc}
                         </p>
-                        <p className="mt-1.5 text-xs text-slate-400 transition-colors group-hover:text-slate-600">
+                        <p className="mt-1.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
                           {item.statFormat
                             ? moduleStats[item.permissionKey] === undefined
                               ? "Yükleniyor"
                               : moduleStats[item.permissionKey] === null
-                                ? "İçerik hazır"
-                                : item.statFormat(moduleStats[item.permissionKey] as number)
+                                ? "—"
+                                : moduleStats[item.permissionKey] === 0
+                                  ? "Henüz kayıt yok"
+                                  : item.statFormat(moduleStats[item.permissionKey] as number)
                             : "İçerik hazır"}
                         </p>
                         {lastDateByKey[item.permissionKey] ? (
-                          <p className="mt-0.5 text-[10px] text-slate-400 transition-colors group-hover:text-slate-500">
+                          <p className="mt-0.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
                             📅 Son: {lastDateByKey[item.permissionKey]}
                           </p>
                         ) : null}
@@ -1220,7 +1236,7 @@ export default function Home() {
               {/* Son Aktiviteler — sadece veri varsa göster */}
               {recentActivity !== null && recentActivity.length > 0 ? (
                 <div>
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
                     Son Aktiviteler
                   </p>
                   <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
@@ -1233,7 +1249,7 @@ export default function Home() {
                           <span className="text-sm leading-none">{act.icon}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[12px] font-semibold text-slate-800">{act.label}</p>
-                            <p className="text-[10px] text-slate-400">{act.relDate}</p>
+                            <p className="text-xs text-slate-500">{act.relDate}</p>
                           </div>
                         </div>
                       ))}
@@ -1244,7 +1260,7 @@ export default function Home() {
 
               {/* Canlı Yaşam Paneli */}
               <div>
-                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
                   Canlı Yaşam Paneli
                 </p>
                 <LivePanel date={effectiveNow} />
@@ -1832,7 +1848,7 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-orange-200/60 bg-orange-100/50 py-2 text-center text-xs font-bold text-orange-400">
-                  Yakında Kullanıma Açılacak
+                  Geliştirme Aşamasında
                 </div>
 
                 <button
@@ -2011,6 +2027,10 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-fuchsia-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.12)]"
               >
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-fuchsia-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                  Aktif Modül
+                </span>
+
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-xl text-white shadow-md shadow-fuchsia-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
                   {item.icon}
                 </div>
@@ -2023,10 +2043,13 @@ export default function Home() {
                   {item.desc}
                 </p>
 
-                <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-fuchsia-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-fuchsia-800">
-                  Keşfet
-                  <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                </span>
+                <Link
+                  href="/aromaterapi"
+                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-fuchsia-500 hover:to-purple-500 hover:shadow-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Modüle Git
+                </Link>
               </div>
             ) : item.title === "Human Design" ? (
               <div
@@ -2066,7 +2089,7 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-purple-200/60 bg-purple-100/50 py-2 text-center text-xs font-bold text-purple-500">
-                  Yakında Kullanıma Açılacak
+                  Yakında
                 </div>
               </div>
             ) : (
@@ -2322,7 +2345,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-6 border-t border-slate-200/60 py-6">
+        <footer className="mt-6 border-t border-slate-200/60 py-6" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
             <p className="text-sm font-semibold text-slate-500">
               © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
@@ -2623,7 +2646,7 @@ export default function Home() {
             <div className="mb-4 text-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Yakında — Geliştirme Aşamasında
+                Geliştirme Aşamasında
               </span>
               <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
                 Video Çeviri — Modül Ön İzlemesi
@@ -3134,6 +3157,7 @@ export default function Home() {
             onMouseLeave={handleLoginBackdropMouseLeave}
           />
           <div
+            ref={loginModalRef}
             className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[26px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_72px_rgba(15,23,42,0.26)] backdrop-blur-2xl sm:p-7 md:max-w-[520px] md:p-8"
             role="dialog"
             aria-modal="true"
