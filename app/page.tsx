@@ -552,11 +552,11 @@ function LivePanel({ date }: { date: Date | null }) {
               i % 2 === 0 ? "bg-slate-50/70" : "bg-transparent"
             }`}
           >
-            <span className="shrink-0 text-[11px] font-medium text-slate-400">{label}</span>
+            <span className="shrink-0 text-[11px] font-medium text-slate-500">{label}</span>
             <div className="min-w-0 text-right">
               <span className="text-[11px] font-black text-slate-800">{value}</span>
               {sub ? (
-                <p className="text-[10px] tabular-nums text-slate-400">{sub}</p>
+                <p className="text-[10px] tabular-nums text-slate-500">{sub}</p>
               ) : null}
             </div>
           </div>
@@ -1314,7 +1314,7 @@ export default function Home() {
                   <span className="text-lg">{c.icon}</span>
                   <div>
                     <p className="text-xs font-black text-slate-800">{c.label}</p>
-                    <p className="text-[10px] text-slate-400">{c.sub}</p>
+                    <p className="text-[10px] text-slate-500">{c.sub}</p>
                   </div>
                 </div>
               ))}
@@ -1360,7 +1360,7 @@ export default function Home() {
                   <span className="text-lg">{c.icon}</span>
                   <div>
                     <p className="text-xs font-black text-slate-800">{c.label}</p>
-                    <p className="text-[10px] text-slate-400">{c.sub}</p>
+                    <p className="text-[10px] text-slate-500">{c.sub}</p>
                   </div>
                 </div>
               ))}
@@ -1388,7 +1388,7 @@ export default function Home() {
                 <div className="h-2.5 w-2.5 rounded-full bg-amber-400/75" />
                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/75" />
               </div>
-              <p className="ml-2 text-xs text-slate-400">Danışan Yolculuğu — Ahmet Yılmaz</p>
+              <p className="ml-2 text-xs text-slate-500">Danışan Yolculuğu — Ahmet Yılmaz</p>
             </div>
 
             {/* App layout */}
@@ -1418,7 +1418,7 @@ export default function Home() {
                       { label: "Yaklaşan randevu", value: "2 randevu" },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-2">
-                        <dt className="text-[11px] text-slate-400">{row.label}</dt>
+                        <dt className="text-xs text-slate-500">{row.label}</dt>
                         <dd className="text-[11px] font-semibold text-slate-600">{row.value}</dd>
                       </div>
                     ))}
@@ -1463,14 +1463,14 @@ export default function Home() {
                   ].map((stat) => (
                     <div key={stat.label} className="flex flex-col items-center gap-0.5 py-3">
                       <span className="text-base font-black tabular-nums text-slate-900">{stat.value}</span>
-                      <span className="text-[10px] font-medium text-slate-400">{stat.label}</span>
+                      <span className="text-xs text-slate-500">{stat.label}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* Son Çalışmalar */}
                 <div className="p-4">
-                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     Son Çalışmalar
                   </p>
                   <div className="flex flex-col gap-1.5">
@@ -1489,10 +1489,10 @@ export default function Home() {
                           <div className={`h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
                           <div className="min-w-0">
                             <p className="truncate text-[13px] font-semibold text-slate-800">{item.text}</p>
-                            <p className="truncate text-[11px] text-slate-400">{item.detail}</p>
+                            <p className="truncate text-xs text-slate-500">{item.detail}</p>
                           </div>
                         </div>
-                        <span className="shrink-0 text-[11px] text-slate-400">{item.date}</span>
+                        <span className="shrink-0 text-xs text-slate-500">{item.date}</span>
                       </div>
                     ))}
                   </div>
@@ -1587,7 +1587,7 @@ export default function Home() {
 
                 <Link
                   href="/numeroloji"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-violet-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-violet-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1599,7 +1599,7 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-teal-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(20,184,166,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-teal-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-teal-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
@@ -1618,14 +1618,14 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setDogaltasPreviewOpen(true); }}
-                  className="mt-3 w-full rounded-xl bg-teal-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-teal-700"
+                  className="mt-3 w-full rounded-xl bg-teal-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-teal-800"
                 >
                   Örnek Ekranları Gör
                 </button>
 
                 <Link
                   href="/dogaltas"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-teal-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-teal-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1637,7 +1637,7 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-cyan-200/70 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-cyan-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(6,182,212,0.16)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
@@ -1679,7 +1679,7 @@ export default function Home() {
 
                 <Link
                   href="/enerji-beden"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-cyan-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-cyan-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1691,7 +1691,7 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-yellow-200/70 bg-gradient-to-br from-yellow-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-yellow-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(234,179,8,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-yellow-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-yellow-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
@@ -1733,7 +1733,7 @@ export default function Home() {
 
                 <Link
                   href="/dashboard/kisisel-arsiv"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-amber-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-amber-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1787,7 +1787,7 @@ export default function Home() {
 
                 <Link
                   href="/belge-ceviri"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-sky-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-sky-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1799,7 +1799,7 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-orange-200/70 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-orange-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(249,115,22,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Önizleme
                 </span>
 
@@ -1891,7 +1891,7 @@ export default function Home() {
 
                 <Link
                   href="/danisan-yolculugu"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-indigo-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-indigo-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1903,7 +1903,7 @@ export default function Home() {
                 key={item.title}
                 className="group relative flex flex-col rounded-[22px] border border-green-200/70 bg-gradient-to-br from-green-50/90 via-white to-mint-50/60 p-4 shadow-md ring-1 ring-green-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(34,197,94,0.14)]"
               >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-green-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-green-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
                   Örnek Ekranlar Var
                 </span>
 
@@ -1945,7 +1945,7 @@ export default function Home() {
 
                 <Link
                   href="/sifa-rehberi"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-green-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-green-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -1999,7 +1999,7 @@ export default function Home() {
 
                 <Link
                   href="/refleksoloji"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-400 no-underline transition hover:text-pink-700"
+                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-pink-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Modüle Git
@@ -2172,8 +2172,8 @@ export default function Home() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-[11px] font-black text-slate-900">Yaşam Sistemi</p>
-                            <p className="text-[9px] font-semibold text-emerald-600">Yaşam Sistemi</p>
-                            <p className="mt-0.5 text-[10px] font-bold leading-none text-amber-400">★★★★★</p>
+                            <p className="text-[9px] font-semibold text-emerald-700">Yaşam Sistemi</p>
+                            <p className="mt-0.5 text-[10px] font-bold leading-none text-amber-700">★★★★★</p>
                           </div>
                         </div>
 
@@ -2182,7 +2182,7 @@ export default function Home() {
                           <div className="flex-1 rounded-full border border-slate-200 bg-white py-1.5 text-center text-[10px] font-bold text-slate-600">
                             Kaldır
                           </div>
-                          <div className="flex-1 rounded-full bg-emerald-600 py-1.5 text-center text-[10px] font-bold text-white">
+                          <div className="flex-1 rounded-full bg-emerald-700 py-1.5 text-center text-[10px] font-bold text-white">
                             Aç
                           </div>
                         </div>
@@ -2197,7 +2197,7 @@ export default function Home() {
                         <div className="mt-2.5 px-0.5">
                           <div className="flex items-center justify-between">
                             <p className="text-[9px] font-black text-slate-800">Yenilikler</p>
-                            <span className="text-[8px] text-slate-400">Haz 2026</span>
+                            <span className="text-[8px] text-slate-600">Haz 2026</span>
                           </div>
                           <p className="mt-0.5 text-[8px] leading-4 text-slate-500">Güvenlik güncellemeleri yapıldı</p>
                         </div>
@@ -2330,19 +2330,19 @@ export default function Home() {
             <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label="Footer navigasyon">
               <Link
                 href="/gizlilik-politikasi"
-                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
                 Gizlilik Politikası
               </Link>
               <Link
                 href="/kullanim-sartlari"
-                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
                 Kullanım Şartları
               </Link>
               <Link
                 href="/iletisim"
-                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
               >
                 İletişim
               </Link>
