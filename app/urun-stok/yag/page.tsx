@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BOTTLE_VOLUMES,
   INPUT_UNITS,
@@ -41,6 +41,7 @@ import {
   toFloat,
   turkishUpper,
 } from "@/lib/urun-stok/oilStockLogic";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -159,6 +160,9 @@ function SalesDetailModal({ record, onClose }: { record: OilSaleRecord; onClose:
 }
 
 export default function YagUrunStokPage() {
+  const deleteConfirm = useDeleteConfirm();
+  const committingRef = useRef(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<OilItem[]>([]);
   const [sales, setSales] = useState<OilSaleRecord[]>([]);
@@ -282,11 +286,16 @@ export default function YagUrunStokPage() {
     setMsg(editId ? "Kayıt güncellendi." : "Kayıt eklendi.");
   }
 
-  function deleteSelected() {
+  async function deleteSelected() {
     if (!selectedIds.size) {
       setMsg("Silmek için seçim yapın.");
       return;
     }
+    const ok = await deleteConfirm({
+      title: "Stok kaydı silinecek",
+      message: `Seçili ${selectedIds.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+    });
+    if (!ok) return;
     const next = inventory.filter((i) => !selectedIds.has(i.id));
     saveOilInventory(next);
     setInventory(next);
@@ -365,20 +374,58 @@ export default function YagUrunStokPage() {
   }
 
   function commitSale() {
+    if (committingRef.current) return;
     if (!basket.length) {
       setMsg("Sepet boş.");
       return;
     }
-    const deductLines = basket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-    );
-    const updated = deductOilInventory(inventory, deductLines);
-    saveOilInventory(updated);
-    setInventory(updated);
-    appendOilSales(basket);
-    reloadSales();
-    setBasket([]);
-    setMsg("Satış kaydedildi, stok düşüldü.");
+    committingRef.current = true;
+    setIsCommitting(true);
+    try {
+      const deductLines = basket.flatMap((r) =>
+        r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
+      );
+      const updated = deductOilInventory(inventory, deductLines);
+      saveOilInventory(updated);
+      setInventory(updated);
+      appendOilSales(basket);
+      reloadSales();
+      setBasket([]);
+      setMsg("Satış kaydedildi, stok düşüldü.");
+    } finally {
+      committingRef.current = false;
+      setIsCommitting(false);
+    }
+  }
+
+  async function deleteSelectedSales() {
+    if (!histSel.size) { setMsg("Silmek için seçin."); return; }
+    const ok = await deleteConfirm({
+      title: "Satış kaydı silinecek",
+      message: `Seçili ${histSel.size} satış kaydı silinecek. Satılan miktarlar stoğa geri eklenecektir.`,
+    });
+    if (!ok) return;
+    const toDelete = sales.filter((_, i) => histSel.has(i));
+    const inv = [...inventory];
+    const missing: string[] = [];
+    for (const rec of toDelete) {
+      for (const line of rec.lines) {
+        const baseQty = line.saleBaseQty || 0;
+        if (baseQty <= 0) continue;
+        const idx = inv.findIndex((it) => it.id === line.productId);
+        if (idx < 0) { missing.push(line.productName); continue; }
+        inv[idx] = { ...inv[idx], stockBase: (inv[idx].stockBase || 0) + baseQty };
+      }
+    }
+    saveOilInventory(inv);
+    setInventory(inv);
+    const next = sales.filter((_, i) => !histSel.has(i));
+    saveOilSales(next);
+    setSales(next);
+    setHistSel(new Set());
+    setMsg(missing.length > 0
+      ? `Silindi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı, iade yapılamadı.`
+      : "Satış silindi, stok güncellendi.");
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());
@@ -648,7 +695,7 @@ export default function YagUrunStokPage() {
                   </tbody>
                 </table>
               </div>
-              <button type="button" className={`${btnSecondary} mt-4`} onClick={deleteSelected}>
+              <button type="button" className={`${btnSecondary} mt-4`} onClick={() => void deleteSelected()}>
                 Seçilenleri Sil
               </button>
             </section>
@@ -779,8 +826,8 @@ export default function YagUrunStokPage() {
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
-                <button type="button" className={btnPrimary} onClick={commitSale}>
-                  Satışı Kaydet
+                <button type="button" className={btnPrimary} onClick={commitSale} disabled={isCommitting}>
+                  {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
                 </button>
               </div>
             </section>
@@ -797,16 +844,7 @@ export default function YagUrunStokPage() {
             <button
               type="button"
               className={`${btnSecondary} mb-4`}
-              onClick={() => {
-                if (!histSel.size) {
-                  setMsg("Silmek için seçin.");
-                  return;
-                }
-                const next = sales.filter((_, i) => !histSel.has(i));
-                saveOilSales(next);
-                setSales(next);
-                setHistSel(new Set());
-              }}
+              onClick={() => void deleteSelectedSales()}
             >
               Seçilenleri Sil
             </button>

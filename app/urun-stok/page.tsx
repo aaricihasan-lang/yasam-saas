@@ -52,10 +52,9 @@ const hubModules = [
   },
   {
     title: "Stok Hareketleri",
-    desc: "Tüm ürün girişleri, satışlar, çıkışlar ve stok değişim geçmişi",
+    desc: "Tüm ürün girişleri, satışlar, çıkışlar ve stok değişim geçmişi — yakında aktif.",
     icon: "📊",
     accent: "from-slate-100 to-zinc-50 border-slate-200/80 ring-slate-100",
-    href: "/urun-stok/stok-hareketleri",
   },
   {
     title: "Diğer Ürünler",
@@ -168,7 +167,7 @@ export default function UrunStokHubPage() {
           <div>
             <h2 className="text-lg font-black text-slate-900">Modüller</h2>
             <p className="mt-0.5 text-sm font-medium text-slate-500">
-              Alt modüller yakında aktif edilecek.
+              Ürün, stok, satış ve fiyatlandırma süreçlerinizi alt modüllerden yönetin.
             </p>
           </div>
           <span className="rounded-full border border-amber-200/90 bg-amber-50/90 px-3 py-1 text-xs font-black text-amber-900 shadow-sm">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MEASURE_TYPES,
   PRODUCT_GROUPS,
@@ -39,6 +39,7 @@ import {
   toFloat,
   turkishUpper,
 } from "@/lib/urun-stok/soapCreamStockLogic";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -157,6 +158,9 @@ function SalesDetailModal({ record, onClose }: { record: SoapCreamSaleRecord; on
 }
 
 export default function SabunKremUrunStokPage() {
+  const deleteConfirm = useDeleteConfirm();
+  const committingRef = useRef(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<SoapCreamItem[]>([]);
   const [sales, setSales] = useState<SoapCreamSaleRecord[]>([]);
@@ -285,11 +289,16 @@ export default function SabunKremUrunStokPage() {
     setMsg(editId ? "Kayit guncellendi." : "Kayit eklendi.");
   }
 
-  function deleteSelected() {
+  async function deleteSelected() {
     if (!selectedIds.size) {
       setMsg("Silmek icin secim yapin.");
       return;
     }
+    const ok = await deleteConfirm({
+      title: "Stok kaydı silinecek",
+      message: `Seçili ${selectedIds.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+    });
+    if (!ok) return;
     const next = inventory.filter((i) => !selectedIds.has(i.id));
     saveSoapCreamInventory(next);
     setInventory(next);
@@ -367,20 +376,58 @@ export default function SabunKremUrunStokPage() {
   }
 
   function commitSale() {
+    if (committingRef.current) return;
     if (!basket.length) {
       setMsg("Sepet bos.");
       return;
     }
-    const deductLines = basket.flatMap((r) =>
-      r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
-    );
-    const updated = deductSoapCreamInventory(inventory, deductLines);
-    saveSoapCreamInventory(updated);
-    setInventory(updated);
-    appendSoapCreamSales(basket);
-    reloadSales();
-    setBasket([]);
-    setMsg("Satis kaydedildi, stok dusuldu.");
+    committingRef.current = true;
+    setIsCommitting(true);
+    try {
+      const deductLines = basket.flatMap((r) =>
+        r.lines.map((l) => ({ productId: l.productId, saleBaseQty: l.saleBaseQty })),
+      );
+      const updated = deductSoapCreamInventory(inventory, deductLines);
+      saveSoapCreamInventory(updated);
+      setInventory(updated);
+      appendSoapCreamSales(basket);
+      reloadSales();
+      setBasket([]);
+      setMsg("Satis kaydedildi, stok dusuldu.");
+    } finally {
+      committingRef.current = false;
+      setIsCommitting(false);
+    }
+  }
+
+  async function deleteSelectedSales() {
+    if (!histSel.size) { setMsg("Silmek icin secin."); return; }
+    const ok = await deleteConfirm({
+      title: "Satış kaydı silinecek",
+      message: `Seçili ${histSel.size} satış kaydı silinecek. Satılan miktarlar stoğa geri eklenecektir.`,
+    });
+    if (!ok) return;
+    const toDelete = sales.filter((_, i) => histSel.has(i));
+    const inv = [...inventory];
+    const missing: string[] = [];
+    for (const rec of toDelete) {
+      for (const line of rec.lines) {
+        const baseQty = line.saleBaseQty || 0;
+        if (baseQty <= 0) continue;
+        const idx = inv.findIndex((it) => it.id === line.productId);
+        if (idx < 0) { missing.push(line.productName); continue; }
+        inv[idx] = { ...inv[idx], stockBase: (inv[idx].stockBase || 0) + baseQty };
+      }
+    }
+    saveSoapCreamInventory(inv);
+    setInventory(inv);
+    const next = sales.filter((_, i) => !histSel.has(i));
+    saveSoapCreamSales(next);
+    setSales(next);
+    setHistSel(new Set());
+    setMsg(missing.length > 0
+      ? `Silindi. Uyari: ${[...new Set(missing)].join(", ")} stoku bulunamadi, iade yapilamadi.`
+      : "Satis silindi, stok guncellendi.");
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());
@@ -657,7 +704,7 @@ export default function SabunKremUrunStokPage() {
                   </tbody>
                 </table>
               </div>
-              <button type="button" className={`${btnSecondary} mt-3`} onClick={deleteSelected}>
+              <button type="button" className={`${btnSecondary} mt-3`} onClick={() => void deleteSelected()}>
                 Secilenleri Sil
               </button>
             </section>
@@ -788,8 +835,8 @@ export default function SabunKremUrunStokPage() {
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
-                <button type="button" className={btnPrimary} onClick={commitSale}>
-                  Satisi Kaydet
+                <button type="button" className={btnPrimary} onClick={commitSale} disabled={isCommitting}>
+                  {isCommitting ? "Kaydediliyor..." : "Satisi Kaydet"}
                 </button>
               </div>
             </section>
@@ -806,16 +853,7 @@ export default function SabunKremUrunStokPage() {
             <button
               type="button"
               className={`${btnSecondary} mb-3`}
-              onClick={() => {
-                if (!histSel.size) {
-                  setMsg("Silmek icin secin.");
-                  return;
-                }
-                const next = sales.filter((_, i) => !histSel.has(i));
-                saveSoapCreamSales(next);
-                setSales(next);
-                setHistSel(new Set());
-              }}
+              onClick={() => void deleteSelectedSales()}
             >
               Secilenleri Sil
             </button>

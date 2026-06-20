@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
@@ -29,6 +29,7 @@ import {
 } from "@/lib/urun-stok/dogaltasStockLogic";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -181,6 +182,9 @@ type RecipeRow = {
 
 export default function DogaltasUrunStokPage() {
   useBfcacheRefresh();
+  const deleteConfirm = useDeleteConfirm();
+  const committingRef = useRef(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<InvItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -279,11 +283,16 @@ export default function DogaltasUrunStokPage() {
     setPendingPhotos([]);
   }
 
-  function deleteSelectedStock() {
+  async function deleteSelectedStock() {
     if (selectedKeys.size === 0) {
       setStockMsg("Silmek için en az bir satır seçin.");
       return;
     }
+    const ok = await deleteConfirm({
+      title: "Stok kaydı silinecek",
+      message: `Seçili ${selectedKeys.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+    });
+    if (!ok) return;
     const next = inventory.filter((it) => !selectedKeys.has(`${itemKeyFrom(it)}`));
     saveInventory(next);
     setInventory(next);
@@ -411,17 +420,25 @@ export default function DogaltasUrunStokPage() {
   }
 
   function commitSale() {
+    if (committingRef.current) return;
     if (!basket.length) {
       setPricingMsg("Kaydedilecek satış yok.");
       return;
     }
-    const updated = deductInventoryForSales(inventory, basket);
-    saveInventory(updated);
-    setInventory(updated);
-    appendSales(basket);
-    reloadSales();
-    setBasket([]);
-    setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
+    committingRef.current = true;
+    setIsCommitting(true);
+    try {
+      const updated = deductInventoryForSales(inventory, basket);
+      saveInventory(updated);
+      setInventory(updated);
+      appendSales(basket);
+      reloadSales();
+      setBasket([]);
+      setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
+    } finally {
+      committingRef.current = false;
+      setIsCommitting(false);
+    }
   }
 
   const [historySelected, setHistorySelected] = useState<Set<number>>(new Set());
@@ -432,15 +449,47 @@ export default function DogaltasUrunStokPage() {
     return { totalSale, totalCost, profit: totalSale - totalCost, count: sales.length };
   }, [sales]);
 
-  function deleteSelectedSales() {
+  async function deleteSelectedSales() {
     if (!historySelected.size) {
       setStockMsg("Silmek için en az bir satır seçin.");
       return;
     }
+    const ok = await deleteConfirm({
+      title: "Satış kaydı silinecek",
+      message: `Seçili ${historySelected.size} satış kaydı silinecek. Satılan miktarlar stoğa geri eklenecektir.`,
+    });
+    if (!ok) return;
+    const toDelete = sales.filter((_, i) => historySelected.has(i));
+    let inv = [...inventory];
+    const missing: string[] = [];
+    let restoredCount = 0;
+    for (const rec of toDelete) {
+      for (const line of (rec.lines || [])) {
+        const qty = line.qty || 0;
+        if (qty <= 0) continue;
+        const lineKey = `${(line.stone || "").trim().toLowerCase()}|${(line.type || "").trim().toLowerCase()}`;
+        const idx = inv.findIndex((it) => itemKeyFrom(it) === lineKey);
+        if (idx < 0) { missing.push(line.stone || "?"); continue; }
+        const it = { ...inv[idx], photos: [...(inv[idx].photos || [])] };
+        it.adet = (it.adet || 0) + qty;
+        if (isDizi(it.type) && (it.adet_price || 0) > 0) {
+          it.dizi_price = Math.round(it.adet_price * it.adet * 100) / 100;
+        }
+        inv[idx] = it;
+        restoredCount++;
+      }
+    }
+    saveInventory(inv);
+    setInventory(inv);
     const next = sales.filter((_, i) => !historySelected.has(i));
     saveSales(next);
     setSales(next);
     setHistorySelected(new Set());
+    if (missing.length > 0) {
+      setStockMsg(`${toDelete.length} satış silindi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı, iade yapılamadı.`);
+    } else {
+      setStockMsg(`${toDelete.length} satış silindi, ${restoredCount} stok kalemi güncellendi.`);
+    }
   }
 
   if (!hydrated) {
@@ -771,7 +820,7 @@ export default function DogaltasUrunStokPage() {
                 </table>
               </div>
               <div className="mt-3 flex flex-wrap gap-3">
-                <button type="button" className={btnSecondary} onClick={deleteSelectedStock}>
+                <button type="button" className={btnSecondary} onClick={() => void deleteSelectedStock()}>
                   Seçilenleri Sil
                 </button>
               </div>
@@ -992,8 +1041,8 @@ export default function DogaltasUrunStokPage() {
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
                   Sepeti Temizle
                 </button>
-                <button type="button" className={btnPrimary} onClick={commitSale}>
-                  Satışı Kaydet
+                <button type="button" className={btnPrimary} onClick={commitSale} disabled={isCommitting}>
+                  {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
                 </button>
               </div>
             </section>
@@ -1007,7 +1056,7 @@ export default function DogaltasUrunStokPage() {
               <span>Toplam Kâr: {fmtMoney(salesSummary.profit)}</span>
               <span>Satılan Ürün: {salesSummary.count}</span>
             </div>
-            <button type="button" className={`${btnSecondary} mb-4`} onClick={deleteSelectedSales}>
+            <button type="button" className={`${btnSecondary} mb-4`} onClick={() => void deleteSelectedSales()}>
               Seçilenleri Sil
             </button>
             <div className="overflow-x-auto">

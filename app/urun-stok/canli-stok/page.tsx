@@ -3,7 +3,7 @@
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
 import type { DogaltasInventoryLoadDebug } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
@@ -156,14 +156,16 @@ export default function CanliStokMerkeziPage() {
   const [wordBusy, setWordBusy] = useState(false);
 
   async function exportStockWord(mode: "all" | "critical") {
-    const tid = tenantId ?? await getSyncedTenantId();
-    if (!tid) return;
+    const user = await getSyncedYasamUser();
+    const tid = user?.tenant_id?.trim() || tenantId;
+    const uid = user?.id;
+    if (!tid || !uid) return;
     setWordBusy(true);
     try {
       const res = await fetch("/api/urun-stok/stock-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, exportMode: mode }),
+        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: mode }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };

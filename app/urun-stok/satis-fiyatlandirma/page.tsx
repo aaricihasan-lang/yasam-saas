@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   CATEGORY_LABELS,
@@ -40,6 +40,8 @@ function productOptionLabel(p: UnifiedProduct): string {
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
+  const committingRef = useRef(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [products, setProducts] = useState<UnifiedProduct[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -179,20 +181,28 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   }
 
   function commitSale() {
-    const result = commitCentralSales(basket, toFloat(usdRate, 0));
-    if (!result.ok) {
-      setMsgOk(false);
-      setMsg(result.error);
-      return;
+    if (committingRef.current) return;
+    committingRef.current = true;
+    setIsCommitting(true);
+    try {
+      const result = commitCentralSales(basket, toFloat(usdRate, 0));
+      if (!result.ok) {
+        setMsgOk(false);
+        setMsg(result.error);
+        return;
+      }
+      setBasket([]);
+      reloadProducts();
+      setPickKey("");
+      setSaleQty("1");
+      setProfitPct("100");
+      setSaleLabel("");
+      setMsgOk(true);
+      setMsg("Satis basariyla kaydedildi. Stoklar ve gecmisler guncellendi.");
+    } finally {
+      committingRef.current = false;
+      setIsCommitting(false);
     }
-    setBasket([]);
-    reloadProducts();
-    setPickKey("");
-    setSaleQty("1");
-    setProfitPct("100");
-    setSaleLabel("");
-    setMsgOk(true);
-    setMsg("Satis basariyla kaydedildi. Stoklar ve gecmisler guncellendi.");
   }
 
   if (!hydrated) {
@@ -520,8 +530,8 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               <button type="button" className={btnSecondary} onClick={() => setBasket([])} disabled={!basket.length}>
                 Sepeti Temizle
               </button>
-              <button type="button" className={btnPrimary} onClick={commitSale} disabled={!basket.length}>
-                Satisi Kaydet
+              <button type="button" className={btnPrimary} onClick={commitSale} disabled={!basket.length || isCommitting}>
+                {isCommitting ? "Kaydediliyor..." : "Satisi Kaydet"}
               </button>
             </div>
           </section>
