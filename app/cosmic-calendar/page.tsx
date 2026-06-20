@@ -4,7 +4,11 @@ import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
-import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
+import {
+  getMoonPhase, getMoonSign,
+  getMonthPhaseEvents, getUpcomingPhaseEvents,
+  type UpcomingPhaseEvent,
+} from "@/lib/cosmic/moon";
 import { getDailyEnergySummary } from "@/lib/cosmic/energy";
 import { getPlanetaryHour, getDayRuler, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
 import { getDailyGuidance } from "@/lib/cosmic/guidance";
@@ -142,15 +146,14 @@ function isSameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// AE tabanlı: gerçek TR tarihiyle marker — gece gerçekleşen fazlar doğru güne düşer
 function getMonthMoonMarkers(year: number, month: number): Map<number, string> {
   const markers    = new Map<number, string>();
   const mainPhases = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const today = new Date(year, month, d, 12, 0, 0);
-    const prev  = new Date(year, month, d - 1, 12, 0, 0);
-    const tp    = getMoonPhase(today), pp = getMoonPhase(prev);
-    if (mainPhases.has(tp.name) && tp.name !== pp.name) markers.set(d, tp.emoji);
+  for (const evt of getMonthPhaseEvents(year, month)) {
+    if (mainPhases.has(evt.name) && !markers.has(evt.day)) {
+      markers.set(evt.day, evt.emoji);
+    }
   }
   return markers;
 }
@@ -191,31 +194,20 @@ function getMonthNumeroDays(year: number, month: number): Map<number, number> {
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
 
+// AE tabanlı arama — gerçek TR tarihiyle sonuç döner
 function findNextPhase(from: Date, phaseName: string, maxDays = 120): SearchResultPhase | null {
-  const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  for (let i = 1; i <= maxDays; i++) {
-    const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12, 0, 0);
-    const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12, 0, 0);
-    const dp = getMoonPhase(d), pp = getMoonPhase(prev);
-    if (dp.name === phaseName && pp.name !== phaseName) {
-      return { kind: "phase", name: dp.name, emoji: dp.emoji, date: d, daysFromNow: i };
-    }
-  }
-  return null;
+  const found = getUpcomingPhaseEvents(from, maxDays).find(e => e.name === phaseName);
+  if (!found) return null;
+  return { kind: "phase", name: found.name, emoji: found.emoji, date: found.date, daysFromNow: found.daysFromNow };
 }
 
 function findPhaseInMonth(year: number, month: number, phaseName: string, from: Date): SearchResultPhase | null {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const today = new Date(year, month, d, 12, 0, 0);
-    const prev  = new Date(year, month, d - 1, 12, 0, 0);
-    const tp = getMoonPhase(today), pp = getMoonPhase(prev);
-    if (tp.name === phaseName && tp.name !== pp.name) {
-      const daysFromNow = Math.round((today.getTime() - from.getTime()) / 86_400_000);
-      return { kind: "phase", name: tp.name, emoji: tp.emoji, date: today, daysFromNow };
-    }
-  }
-  return null;
+  const found = getMonthPhaseEvents(year, month).find(e => e.name === phaseName);
+  if (!found) return null;
+  const date        = new Date(year, month, found.day, 12, 0, 0);
+  const todayMs     = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const daysFromNow = Math.round((new Date(year, month, found.day).getTime() - todayMs) / 86_400_000);
+  return { kind: "phase", name: found.name, emoji: found.emoji, date, daysFromNow };
 }
 
 function parseSearchQuery(query: string, from: Date): SearchResult {
@@ -379,22 +371,19 @@ export default function CosmicCalendarPage() {
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
-  // Yaklaşan Güçlü Günler — numeroloji 11/22/33 veya ana faz geçiş günleri (sonraki 60 gün)
+  // Yaklaşan Güçlü Günler — numeroloji 1/8/9/11/22/33 (sonraki 60 gün)
+  // Ay fazları ayrıca upcomingMoonPhases üzerinden gösterilir; burada noon-scan kullanılmaz.
   const upcomingPowerDays = useMemo(() => {
     const result: { date: Date; label: string; numDay: number }[] = [];
     const base = new Date(todayYear, todayMonth, todayDay);
     const POWER_NUMS = new Set([1, 8, 9, 11, 22, 33]);
-    const mainPhases = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
     for (let i = 1; i <= 60 && result.length < 6; i++) {
-      const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
-      const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12);
-      const num  = numerologicalDay(d);
-      const tp   = getMoonPhase(d), pp = getMoonPhase(prev);
-      const isPhaseDay = mainPhases.has(tp.name) && tp.name !== pp.name;
-      if (POWER_NUMS.has(num) || isPhaseDay) {
+      const d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
+      const num = numerologicalDay(d);
+      if (POWER_NUMS.has(num)) {
         result.push({
           date: d,
-          label: isPhaseDay ? `${tp.emoji} ${tp.name}` : `🔢 Numeroloji ${num} · ${NUM_NAMES[num] ?? ""}`,
+          label: `🔢 Numeroloji ${num} · ${NUM_NAMES[num] ?? ""}`,
           numDay: num,
         });
       }
@@ -405,20 +394,16 @@ export default function CosmicCalendarPage() {
   // Yaklaşan Retro Dönemleri — sonraki 180 gün
   const upcomingRetrosList = useMemo(() => getUpcomingRetros(realNow, 180).slice(0, 4), [realNow]);
 
-  // Yaklaşan Ay Fazları — sonraki 4 ana faz
-  const upcomingMoonPhases = useMemo(() => {
-    const phases = ["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"];
-    const result: { name: string; emoji: string; date: Date; daysFromNow: number }[] = [];
-    const base = new Date(todayYear, todayMonth, todayDay);
-    const found = new Set<string>();
-    for (let i = 1; i <= 120 && result.length < 4; i++) {
-      const d    = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
-      const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12);
-      const tp = getMoonPhase(d), pp = getMoonPhase(prev);
-      if (phases.includes(tp.name) && tp.name !== pp.name && !found.has(tp.name)) {
-        found.add(tp.name);
-        result.push({ name: tp.name, emoji: tp.emoji, date: d, daysFromNow: i });
-      }
+  // Yaklaşan Ay Fazları — sonraki 4 ana faz (AE tabanlı, doğru TR tarihi)
+  const upcomingMoonPhases = useMemo((): UpcomingPhaseEvent[] => {
+    const result: UpcomingPhaseEvent[] = [];
+    const found  = new Set<string>();
+    const today  = new Date(todayYear, todayMonth, todayDay);
+    for (const evt of getUpcomingPhaseEvents(today, 120)) {
+      if (!evt.isMain || found.has(evt.name)) continue;
+      found.add(evt.name);
+      result.push(evt);
+      if (result.length >= 4) break;
     }
     return result;
   }, [todayYear, todayMonth, todayDay]);
@@ -487,13 +472,6 @@ export default function CosmicCalendarPage() {
     const today = new Date(todayYear, todayMonth, todayDay);
     const events: EventItem[] = [];
 
-    // Yeni Ay / Dolunay saat bilgisi — cosmicEvents'ten gün→saat haritası
-    const moonTimeMap = new Map(
-      cosmicEvents
-        .filter(e => e.time && (e.type === "new_moon" || e.type === "full_moon"))
-        .map(e => [e.date, e.time!]),
-    );
-
     for (const { date, label } of upcomingPowerDays) {
       const d = Math.round((date.getTime() - today.getTime()) / 86_400_000);
       events.push({ date, daysFromNow: d, icon: "⭐", label, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-amber-100 text-amber-700" });
@@ -503,11 +481,10 @@ export default function CosmicCalendarPage() {
       const d = Math.ceil((sd.getTime() - today.getTime()) / 86_400_000);
       events.push({ date: sd, daysFromNow: d, icon: r.symbol, label: `${r.planet} Retrosu`, detail: sd.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-rose-100 text-rose-700" });
     }
-    for (const { name, emoji, date, daysFromNow } of upcomingMoonPhases) {
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-      const time    = moonTimeMap.get(dateStr);
+    // upcomingMoonPhases artık UpcomingPhaseEvent — timeTR dahil
+    for (const { name, emoji, date, daysFromNow, timeTR } of upcomingMoonPhases) {
       const dateLbl = date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
-      events.push({ date, daysFromNow, icon: emoji, label: name, detail: time ? `${dateLbl} ${time}` : dateLbl, badgeClass: "bg-violet-100 text-violet-700" });
+      events.push({ date, daysFromNow, icon: emoji, label: name, detail: timeTR ? `${dateLbl} ${timeTR}` : dateLbl, badgeClass: "bg-violet-100 text-violet-700" });
     }
     for (const day of upcomingHacamatDays) {
       const d = Math.round((day.miladi.getTime() - today.getTime()) / 86_400_000);
@@ -515,7 +492,7 @@ export default function CosmicCalendarPage() {
       events.push({ date: day.miladi, daysFromNow: d, icon: "🩸", label: `Hacamat · ${statusLabel}`, detail: day.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-teal-100 text-teal-700" });
     }
     return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
-  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, cosmicEvents, todayYear, todayMonth, todayDay]);
+  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, todayYear, todayMonth, todayDay]);
 
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {

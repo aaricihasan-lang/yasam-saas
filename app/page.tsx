@@ -158,7 +158,6 @@ const landingModules: LandingModule[] = [
 ];
 
 const trustPrinciples: string[] = [
-  "Özel notlarınız yalnızca size aittir",
   "Özel notlarınız, analizleriniz ve tüm çalışma içerikleriniz yalnızca size aittir",
   "Sistem sahibi dahil hiçbir yönetici özel çalışma verilerinize erişemez veya içeriklerinizi inceleyemez",
   "Admin paneli yalnızca üyelik, ödeme, modül ve sistem yönetimi içindir",
@@ -455,25 +454,7 @@ function numerologicalDay(date: Date): number {
 }
 
 
-const WEEKDAY_STONES = ["Kehribar","Aytaşı","Karneol","Amazont","Lapis Lazuli","Gül Kuvars","Obsidyen"] as const;
-const WEEKDAY_CHAKRAS = [
-  { name: "Güneş Sinir Ağı", emoji: "🟡" },
-  { name: "Taç Çakra", emoji: "🔮" },
-  { name: "Kök Çakra", emoji: "🔴" },
-  { name: "Kalp Çakrası", emoji: "💚" },
-  { name: "Üçüncü Göz", emoji: "🔵" },
-  { name: "Sakral Çakra", emoji: "🟠" },
-  { name: "Kök Çakra", emoji: "🔴" },
-] as const;
-const WEEKDAY_COLORS = [
-  { name: "Altın", hex: "#F59E0B" },
-  { name: "Gümüş", hex: "#94A3B8" },
-  { name: "Kırmızı", hex: "#EF4444" },
-  { name: "Yeşil", hex: "#22C55E" },
-  { name: "Mavi", hex: "#3B82F6" },
-  { name: "Pembe", hex: "#EC4899" },
-  { name: "Koyu Mor", hex: "#6D28D9" },
-] as const;
+
 const NUMEROLOGY_DESC: Record<number, string> = {
   1: "Yeni başlangıçlar · Liderlik",
   2: "Denge · İşbirliği",
@@ -1304,13 +1285,13 @@ export default function Home() {
                 setMessage("");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900"
+              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-900"
             >
               Giriş Yap
             </button>
             <Link
               href="/register"
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)]"
+              className="inline-flex h-10 min-w-[80px] items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.35)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.42)]"
             >
               Kayıt Ol
             </Link>
@@ -1341,13 +1322,13 @@ export default function Home() {
 
             {/* Center text */}
             <div className="flex max-w-2xl flex-col items-center">
-              <h2 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
+              <h1 className="text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
                 Danışan, analiz ve seans süreçlerinizi{" "}
                 <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
                   tek merkezden
                 </span>{" "}
                 yönetin
-              </h2>
+              </h1>
 
               <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500">
                 Numeroloji, doğaltaş, biyoenerji, refleksoloji, şifa rehberi, belge çeviri ve danışan yönetimi modülleriyle profesyonel çalışma akışınızı düzenleyin.
@@ -1390,9 +1371,9 @@ export default function Home() {
         {/* — Product Mockup — */}
         <div data-fade className="mt-8 w-full">
           <div className="mb-4">
-            <h3 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+            <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
               Yaşam Sistemi İçinde Bir Danışan
-            </h3>
+            </h2>
             <p className="mt-1.5 text-sm text-slate-500">
               Bir danışanın tüm çalışma geçmişi tek ekranda görüntülenebilir.
             </p>
@@ -1525,9 +1506,9 @@ export default function Home() {
         {/* — Problem Section — */}
         <div data-fade className="mt-10 w-full">
           <div className="mb-5">
-            <h3 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+            <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
               Bilgileriniz farklı dosyalarda mı dağınık duruyor?
-            </h3>
+            </h2>
             <p className="mt-2.5 max-w-2xl text-sm leading-[1.7] text-slate-500">
               Birçok uzman yıllar boyunca oluşturduğu Word dosyalarını, PDF arşivlerini, danışan
               notlarını ve çalışma kayıtlarını farklı klasörlerde saklıyor. Zamanla bilgiye ulaşmak
@@ -1565,9 +1546,9 @@ export default function Home() {
         <section id="calisma-alanlari" data-fade className="mt-3 w-full max-w-none xl:mt-4">
           <div className="mb-3.5 flex items-baseline justify-between">
             <div>
-              <h3 className="text-lg font-black text-slate-950 sm:text-xl">
+              <h2 className="text-lg font-black text-slate-950 sm:text-xl">
                 Çalışma Alanları
-              </h3>
+              </h2>
               <p className="mt-0.5 text-xs text-slate-500">
                 Platform içindeki ana modüller
               </p>
@@ -1819,7 +1800,7 @@ export default function Home() {
                 className="group relative flex flex-col rounded-[22px] border border-orange-200/70 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-orange-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(249,115,22,0.14)]"
               >
                 <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  Yakında
+                  Önizleme
                 </span>
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-xl text-white shadow-md shadow-orange-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
@@ -2127,9 +2108,9 @@ export default function Home() {
                   Android Uygulaması Yayında
                 </div>
 
-                <h3 className="mt-4 text-2xl font-black leading-snug tracking-tight text-slate-950 sm:text-3xl">
+                <h2 className="mt-4 text-2xl font-black leading-snug tracking-tight text-slate-950 sm:text-3xl">
                   Mobil Uygulama ile<br className="hidden sm:block" /> Her Yerden Erişim
-                </h3>
+                </h2>
 
                 <p className="mt-3 max-w-md text-sm leading-[1.75] text-slate-600">
                   Yaşam Sistemi Android uygulamasıyla danışan kayıtlarınıza, modüllerinize ve çalışma alanlarınıza mobil cihazınızdan kolayca ulaşabilirsiniz.
@@ -2263,7 +2244,7 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="text-sm font-black text-white">{item.title}</h4>
+                <h3 className="text-sm font-black text-white">{item.title}</h3>
                 <p className="mt-1.5 text-xs leading-5 text-indigo-100/90">
                   {item.desc}
                 </p>
@@ -2284,14 +2265,14 @@ export default function Home() {
               <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-800/90">
                 🔒 Güven İlkemiz
               </p>
-              <h3
+              <h2
                 id="trust-principles-heading"
                 className="mt-2 text-xl font-black leading-snug text-slate-950 sm:text-2xl xl:text-[1.75rem]"
               >
                 Yaşam Sistemi yalnızca bir yazılım değil, uzmanların yıllarca
                 oluşturduğu emek ve bilgi birikimini koruyan güvenli bir çalışma
                 alanıdır.
-              </h3>
+              </h2>
 
               <ul className="mt-4 space-y-2">
                 {trustPrinciples.map((item) => (
@@ -2341,8 +2322,32 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-6 border-t border-slate-200/60 py-5 text-center text-sm font-semibold text-slate-500">
-          © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
+        <footer className="mt-6 border-t border-slate-200/60 py-6">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+            <p className="text-sm font-semibold text-slate-500">
+              © 2026 Yaşam Sistemi. Tüm hakları saklıdır.
+            </p>
+            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label="Footer navigasyon">
+              <Link
+                href="/gizlilik-politikasi"
+                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+              >
+                Gizlilik Politikası
+              </Link>
+              <Link
+                href="/kullanim-sartlari"
+                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+              >
+                Kullanım Şartları
+              </Link>
+              <Link
+                href="/iletisim"
+                className="text-xs font-semibold text-slate-400 no-underline transition hover:text-slate-700"
+              >
+                İletişim
+              </Link>
+            </nav>
+          </div>
         </footer>
       </div>
 
@@ -3212,7 +3217,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() =>
-                      setMessage("Şifre sıfırlama özelliği yakında eklenecek.")
+                      setMessage("Şifrenizi sıfırlamak için yöneticinizle iletişime geçin.")
                     }
                     className="bg-transparent p-0 text-[12px] font-semibold tracking-wide text-violet-600/85 underline-offset-2 transition hover:text-violet-900 hover:underline"
                   >

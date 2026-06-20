@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getMoonPhase } from "@/lib/cosmic/moon";
+import { getMonthPhaseEvents, getUpcomingPhaseEvents } from "@/lib/cosmic/moon";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -43,17 +43,21 @@ function numerologicalDay(date: Date): number {
   return n;
 }
 
-function scoreDayRaw(date: Date): PowerDay | null {
-  const phase = getMoonPhase(date);
-  const num   = numerologicalDay(date);
-  let score   = 0;
+// AE tabanlı faz olayından skor — noon-scan yok
+function scoreDay(
+  date: Date,
+  phaseEvt?: { name: string; emoji: string },
+): PowerDay | null {
+  const num = numerologicalDay(date);
+  let score = 0;
   const reasons: StrongDayReason[] = [];
-  let moonLabel = "", moonEmoji = "", moonPts = 0;
-  let numPts    = 0;
+  let moonLabel = "", moonEmoji = "", moonPts = 0, numPts = 0;
 
-  if      (phase.name === "Dolunay")    { moonPts = 3; moonLabel = "Dolunay";    moonEmoji = phase.emoji; }
-  else if (phase.name === "Yeni Ay")    { moonPts = 2; moonLabel = "Yeni Ay";    moonEmoji = phase.emoji; }
-  else if (phase.name === "İlk Dördün") { moonPts = 1; moonLabel = "İlk Dördün"; moonEmoji = phase.emoji; }
+  if (phaseEvt) {
+    if      (phaseEvt.name === "Dolunay")    { moonPts = 3; moonLabel = "Dolunay";    moonEmoji = phaseEvt.emoji; }
+    else if (phaseEvt.name === "Yeni Ay")    { moonPts = 2; moonLabel = "Yeni Ay";    moonEmoji = phaseEvt.emoji; }
+    else if (phaseEvt.name === "İlk Dördün") { moonPts = 1; moonLabel = "İlk Dördün"; moonEmoji = phaseEvt.emoji; }
+  }
 
   if      (num === 11 || num === 22 || num === 33) numPts = 3;
   else if (num === 1  || num === 8)                numPts = 1;
@@ -68,14 +72,20 @@ function scoreDayRaw(date: Date): PowerDay | null {
 }
 
 function getMonthPowerDays(year: number, month: number): PowerDay[] {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth   = new Date(year, month + 1, 0).getDate();
   const result: PowerDay[] = [];
-  const today = new Date();
+  const today         = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // AE tabanlı faz olayları — gerçek TR takvim günleri (noon-scan değil)
+  const phaseMap = new Map<number, { name: string; emoji: string }>();
+  for (const evt of getMonthPhaseEvents(year, month)) {
+    if (!phaseMap.has(evt.day)) phaseMap.set(evt.day, { name: evt.name, emoji: evt.emoji });
+  }
 
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d, 12, 0, 0);
-    const raw  = scoreDayRaw(date);
+    const raw  = scoreDay(date, phaseMap.get(d));
     if (!raw) continue;
     const df = Math.ceil((date.getTime() - todayMidnight.getTime()) / 86_400_000);
     result.push({ ...raw, daysFromNow: df });
@@ -87,9 +97,17 @@ function getUpcomingPowerDays(from: Date, days: number): PowerDay[] {
   const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   const result: PowerDay[] = [];
 
+  // AE tabanlı faz olayları — gerçek TR takvim günleri
+  const phaseDateMap = new Map<string, { name: string; emoji: string }>();
+  for (const evt of getUpcomingPhaseEvents(from, days)) {
+    const key = `${evt.date.getFullYear()}-${evt.date.getMonth()}-${evt.date.getDate()}`;
+    if (!phaseDateMap.has(key)) phaseDateMap.set(key, { name: evt.name, emoji: evt.emoji });
+  }
+
   for (let i = 1; i <= days; i++) {
     const date = new Date(fromMidnight.getFullYear(), fromMidnight.getMonth(), fromMidnight.getDate() + i, 12, 0, 0);
-    const raw  = scoreDayRaw(date);
+    const key  = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    const raw  = scoreDay(date, phaseDateMap.get(key));
     if (!raw) continue;
     result.push({ ...raw, daysFromNow: i });
   }

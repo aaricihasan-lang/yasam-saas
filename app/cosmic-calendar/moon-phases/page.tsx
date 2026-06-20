@@ -10,8 +10,10 @@ import {
   getMoonIllumination,
   SYNODIC_MONTH_DAYS,
   MOON_PHASE_BOUNDS,
+  getMonthPhaseEvents,
+  getUpcomingPhaseEvents,
+  type MonthPhaseEvent,
 } from "@/lib/cosmic/moon";
-import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -114,6 +116,7 @@ type PhaseTransition = {
   phase:       { name: string; emoji: string };
   isMain:      boolean;
   daysFromNow: number;
+  timeTR?:     string;  // AE tabanlı saat "HH:MM" (tüm fazlar için)
 };
 
 // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
@@ -139,74 +142,64 @@ type CalDayData = {
   isMain:       boolean;
 };
 
+// AE tabanlı: gerçek TR günü kullanılır — noon-scan +1 gün kayması ortadan kalkar
 function getMonthCalData(year: number, month: number): Map<number, CalDayData> {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const map = new Map<number, CalDayData>();
+  const map         = new Map<number, CalDayData>();
+
+  // AE faz olayları: hangi günde hangi faz başlıyor?
+  const eventsByDay = new Map<number, MonthPhaseEvent>();
+  for (const evt of getMonthPhaseEvents(year, month)) {
+    eventsByDay.set(evt.day, evt); // aynı günde birden fazla olay imkânsız (~3.7 gün min aralık)
+  }
+
   for (let d = 1; d <= daysInMonth; d++) {
-    const cur  = new Date(year, month, d, 12, 0, 0);
-    const prev = new Date(year, month, d - 1, 12, 0, 0);
-    const tp = getMoonPhase(cur);
-    const pp = getMoonPhase(prev);
-    const isTransition = tp.name !== pp.name;
-    map.set(d, {
-      phaseName:    tp.name,
-      phaseEmoji:   tp.emoji,
-      isTransition,
-      isMain:       isTransition && MAIN_PHASE_NAMES.has(tp.name),
-    });
+    const event = eventsByDay.get(d);
+    if (event) {
+      map.set(d, {
+        phaseName:    event.name,
+        phaseEmoji:   event.emoji,
+        isTransition: true,
+        isMain:       MAIN_PHASE_NAMES.has(event.name),
+      });
+    } else {
+      // Geçişsiz gün: öğle-noon fazı sadece arka plan rengi için (tooltip yok)
+      const tp = getMoonPhase(new Date(year, month, d, 12, 0, 0));
+      map.set(d, { phaseName: tp.name, phaseEmoji: tp.emoji, isTransition: false, isMain: false });
+    }
   }
   return map;
 }
 
+// AE tabanlı — gerçek TR tarihi, saat bilgisi dahil
 function getMonthTransitions(year: number, month: number, today: Date): PhaseTransition[] {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayMs     = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const result: PhaseTransition[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const cur  = new Date(year, month, d, 12, 0, 0);
-    const prev = new Date(year, month, d - 1, 12, 0, 0);
-    const tp = getMoonPhase(cur);
-    const pp = getMoonPhase(prev);
-    if (tp.name !== pp.name) {
-      const daysFromNow = Math.round((new Date(year, month, d).getTime() - todayMs) / 86_400_000);
-      result.push({ day: d, date: cur, phase: tp, isMain: MAIN_PHASE_NAMES.has(tp.name), daysFromNow });
-    }
-  }
-  return result;
+  const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return getMonthPhaseEvents(year, month).map(evt => ({
+    day:         evt.day,
+    date:        new Date(year, month, evt.day, 12, 0, 0),
+    phase:       { name: evt.name, emoji: evt.emoji },
+    isMain:      MAIN_PHASE_NAMES.has(evt.name),
+    daysFromNow: Math.round((new Date(year, month, evt.day).getTime() - todayMs) / 86_400_000),
+    timeTR:      evt.timeTR,
+  }));
 }
 
 function getUpcomingTransitions(from: Date, days: number): PhaseTransition[] {
-  const base   = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const result: PhaseTransition[] = [];
-  for (let i = 1; i <= days; i++) {
-    const cur  = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12, 0, 0);
-    const prev = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i - 1, 12, 0, 0);
-    const tp = getMoonPhase(cur);
-    const pp = getMoonPhase(prev);
-    if (tp.name !== pp.name) {
-      result.push({ day: cur.getDate(), date: cur, phase: tp, isMain: MAIN_PHASE_NAMES.has(tp.name), daysFromNow: i });
-    }
-  }
-  return result;
+  return getUpcomingPhaseEvents(from, days).map(evt => ({
+    day:         evt.day,
+    date:        evt.date,
+    phase:       { name: evt.name, emoji: evt.emoji },
+    isMain:      evt.isMain,
+    daysFromNow: evt.daysFromNow,
+    timeTR:      evt.timeTR,
+  }));
 }
 
-// ─── Saat yardımcıları ────────────────────────────────────────────────────────
+// ─── Saat yardımcısı ─────────────────────────────────────────────────────────
 
-/** PhaseTransition.date (yerel gece yarısı/öğle) → "YYYY-MM-DD" yerel tarih */
-function toLocalIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/**
- * Yeni Ay veya Dolunay için astronomy-engine saatini döner (TR, "HH:MM").
- * Diğer fazlar veya events map'te kayıt yoksa undefined.
- */
-function getPhaseTime(
-  t: PhaseTransition,
-  map: Map<string, string>,
-): string | undefined {
-  if (t.phase.name !== "Yeni Ay" && t.phase.name !== "Dolunay") return undefined;
-  return map.get(toLocalIso(t.date));
+/** PhaseTransition.timeTR'yi döner — AE tabanlı, tüm fazlar için mevcut. */
+function getPhaseTime(t: PhaseTransition): string | undefined {
+  return t.timeTR;
 }
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
@@ -250,17 +243,7 @@ export default function MoonPhasesPage() {
     [upcoming45, upcomingFilter],
   );
 
-  // Yeni Ay / Dolunay kesin saatleri — events.ts → astronomy-engine (FAZ 4)
-  const cosmicEvents = useMemo(() => getUpcomingCosmicEvents(today, 60), [today]);
-  const moonTimeMap  = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const evt of cosmicEvents) {
-      if (evt.time && (evt.type === "new_moon" || evt.type === "full_moon")) {
-        map.set(evt.date, evt.time);
-      }
-    }
-    return map;
-  }, [cosmicEvents]);
+  // Saat bilgisi artık upcoming45'teki timeTR'den geliyor — ayrı events lookup gerekmez
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
@@ -403,7 +386,7 @@ export default function MoonPhasesPage() {
                     <p className="text-[12px] font-black text-white">{nextTransition.phase.name}</p>
                     <p className="text-[9px] text-indigo-300/60">
                       {formatDate(nextTransition.date)}
-                      {getPhaseTime(nextTransition, moonTimeMap) && ` · ${getPhaseTime(nextTransition, moonTimeMap)}`}
+                      {getPhaseTime(nextTransition) && ` · ${getPhaseTime(nextTransition)}`}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-violet-500/30 px-2.5 py-1 text-[10px] font-black text-violet-200">
@@ -434,7 +417,7 @@ export default function MoonPhasesPage() {
                     const guide     = PHASE_GUIDE[t.phase.name];
                     const isPast    = t.daysFromNow < 0;
                     const isToday   = t.daysFromNow === 0;
-                    const phaseTime = getPhaseTime(t, moonTimeMap);
+                    const phaseTime = getPhaseTime(t);
                     return (
                       <div
                         key={`${t.phase.name}-${t.day}`}
@@ -619,7 +602,7 @@ export default function MoonPhasesPage() {
               <div className="divide-y divide-slate-100/60">
                 {upcomingFiltered.map((t, idx) => {
                   const guide     = PHASE_GUIDE[t.phase.name];
-                  const phaseTime = getPhaseTime(t, moonTimeMap);
+                  const phaseTime = getPhaseTime(t);
                   return (
                     <div
                       key={`${t.phase.name}-${t.date.toISOString()}-${idx}`}

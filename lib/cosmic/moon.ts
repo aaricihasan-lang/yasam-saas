@@ -188,18 +188,60 @@ export function getMoonAgeLegacy(date: Date): number {
 }
 
 /**
- * Ayın şu an bulunduğu burçtaki yaklaşık aralığı döner.
- * astronomy-engine her saat hesaplama yapmak yerine 2.28 günlük
- * yaklaşık pencereyi korur — dönem gösterimi için yeterli.
+ * Ayın şu an bulunduğu burçtaki gerçek AE giriş/çıkış zamanını döner.
+ * EclipticGeoMoon ikili arama ile burç geçiş anlarını ~1 dakika hassasiyetinde bulur.
+ * Fallback: sinodik epoch yaklaşımı (legacy).
  */
 export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
-  const daysSince   = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
-  const degrees     = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
-  const adjusted    = (degrees + 270) % 360;
-  const fraction    = (adjusted % 30) / 30;
-  const signDurMs   = (27.32 / 12) * 86_400_000;
-  const fromMs      = date.getTime() - fraction * signDurMs;
-  return { from: new Date(fromMs), to: new Date(fromMs + signDurMs) };
+  try {
+    const ecl0    = AE.EclipticGeoMoon(date);
+    const signIdx = Math.floor(ecl0.lon / 30) % 12;
+
+    // ── Giriş zamanı: ≤3 gün geriye ikili arama ──────────────────────────────
+    let loMs = date.getTime() - 3 * 86_400_000;
+    let hiMs = date.getTime();
+    // lo'nun farklı burçta olduğunu garantile
+    while (Math.floor(AE.EclipticGeoMoon(new Date(loMs)).lon / 30) % 12 === signIdx) {
+      loMs -= 86_400_000;
+    }
+    while (hiMs - loMs > 60_000) {
+      const midMs = Math.floor((loMs + hiMs) / 2);
+      if (Math.floor(AE.EclipticGeoMoon(new Date(midMs)).lon / 30) % 12 === signIdx) {
+        hiMs = midMs;
+      } else {
+        loMs = midMs;
+      }
+    }
+    const fromMs = hiMs;
+
+    // ── Çıkış zamanı: ≤3 gün ileriye ikili arama ─────────────────────────────
+    loMs = date.getTime();
+    hiMs = date.getTime() + 3 * 86_400_000;
+    // hi'nin farklı burçta olduğunu garantile
+    while (Math.floor(AE.EclipticGeoMoon(new Date(hiMs)).lon / 30) % 12 === signIdx) {
+      hiMs += 86_400_000;
+    }
+    while (hiMs - loMs > 60_000) {
+      const midMs = Math.floor((loMs + hiMs) / 2);
+      if (Math.floor(AE.EclipticGeoMoon(new Date(midMs)).lon / 30) % 12 === signIdx) {
+        loMs = midMs;
+      } else {
+        hiMs = midMs;
+      }
+    }
+    const toMs = loMs;
+
+    return { from: new Date(fromMs), to: new Date(toMs) };
+  } catch {
+    // Fallback: sinodik epoch yaklaşımı
+    const daysSince  = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
+    const degrees    = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
+    const adjusted   = (degrees + 270) % 360;
+    const fraction   = (adjusted % 30) / 30;
+    const signDurMs  = (27.32 / 12) * 86_400_000;
+    const fromMs     = date.getTime() - fraction * signDurMs;
+    return { from: new Date(fromMs), to: new Date(fromMs + signDurMs) };
+  }
 }
 
 /**
@@ -219,4 +261,131 @@ export function getMoonIllumination(date: Date): number {
 /** Legacy aydınlanma — audit/karşılaştırma amaçlı dışa aktarım. */
 export function getMoonIlluminationLegacy(date: Date): number {
   return _legacyMoonIllumination(date);
+}
+
+// ─── AE tabanlı takvim faz olayları ──────────────────────────────────────────
+// Türkiye UTC+3 sabit offset (2016'dan beri DST yok).
+// Noon-scan yerine gerçek AE anı kullanılır → takvim marker'ı ile events.ts
+// tarih/saati her zaman aynı TR gününü gösterir.
+
+const TR_OFFSET_AY = 3 * 3_600_000;
+
+/** Aylık AE faz olayı — takvim marker'ı ve liste gösterimi için */
+export type MonthPhaseEvent = {
+  day:     number;   // 1–31, Türkiye takvim günü
+  name:    string;
+  emoji:   string;
+  timeTR:  string;   // "HH:MM" Türkiye saati
+  timeUTC: string;   // ISO UTC
+};
+
+/** Yaklaşan AE faz olayı — yaklaşan fazlar listesi için */
+export type UpcomingPhaseEvent = {
+  day:         number;
+  date:        Date;    // new Date(trYıl, trAy, trGün, 12) — yalnızca gösterim
+  name:        string;
+  emoji:       string;
+  isMain:      boolean;
+  daysFromNow: number;
+  timeTR:      string;  // "HH:MM" Türkiye saati
+  timeUTC:     string;  // ISO UTC
+};
+
+/**
+ * Verilen TR takvim ayındaki tüm 8 faz geçişini AE.SearchMoonPhase ile bulur.
+ * Türkiye UTC+3 saatine göre gün/saat döner.
+ * Gece gerçekleşen fazlar doğru güne atanır (noon-scan +1 gün kayması ortadan kalkar).
+ */
+export function getMonthPhaseEvents(year: number, month: number): MonthPhaseEvent[] {
+  try {
+    const events: MonthPhaseEvent[] = [];
+    // TR ay penceresi UTC ms: TR gece yarısı = UTC 21:00 (önceki gün)
+    const winStart = Date.UTC(year, month,     1, 0, 0, 0) - TR_OFFSET_AY;
+    const winEnd   = Date.UTC(year, month + 1, 1, 0, 0, 0) - TR_OFFSET_AY;
+
+    for (let i = 0; i < AE_MOON_PHASES.length; i++) {
+      const phase = AE_MOON_PHASES[i]!;
+      const angle = i * 45; // 0°=Yeni Ay, 45°=Büyüyen Hilal, … 315°=Balsamik
+      // Bir sinodik döngü (~32 gün) öncesinden arama — ay başındaki olayları kaçırmamak için
+      let cursor = new Date(winStart - 32 * 86_400_000);
+
+      while (true) {
+        const r = AE.SearchMoonPhase(angle, cursor, 32);
+        if (!r) break;
+        const ms = r.date.getTime();
+        if (ms >= winEnd) break;
+        if (ms >= winStart) {
+          const trMs = ms + TR_OFFSET_AY;
+          const td   = new Date(trMs);
+          events.push({
+            day:     td.getUTCDate(),
+            name:    phase.name,
+            emoji:   phase.emoji,
+            timeTR:  `${String(td.getUTCHours()).padStart(2, "0")}:${String(td.getUTCMinutes()).padStart(2, "0")}`,
+            timeUTC: r.date.toISOString(),
+          });
+        }
+        cursor = new Date(ms + 28 * 86_400_000); // sonraki aynı fazı bulmak için ~28 gün ileri
+      }
+    }
+
+    return events.sort((a, b) =>
+      a.day !== b.day ? a.day - b.day : a.timeTR.localeCompare(b.timeTR),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * from gününden sonraki days gün içindeki tüm faz geçişlerini AE ile bulur.
+ * from günü dahil değil (from+1 ve sonrası).
+ * Yaklaşan fazlar listesi ve arama için ortak kaynak.
+ */
+export function getUpcomingPhaseEvents(from: Date, days: number): UpcomingPhaseEvent[] {
+  const MAIN = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
+  try {
+    const results: UpcomingPhaseEvent[] = [];
+    const todayMs = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+    const endMs   = todayMs + days * 86_400_000;
+
+    for (let i = 0; i < AE_MOON_PHASES.length; i++) {
+      const phase = AE_MOON_PHASES[i]!;
+      const angle = i * 45;
+      let cursor  = new Date(from.getTime() - 86_400_000); // 1 gün öncesinden başla
+
+      while (true) {
+        const r = AE.SearchMoonPhase(angle, cursor, 32);
+        if (!r) break;
+        const ms = r.date.getTime();
+
+        const trMs = ms + TR_OFFSET_AY;
+        const td   = new Date(trMs);
+        // TR takvim günü → yerel Date (daysFromNow hesabı için)
+        const calDay = new Date(td.getUTCFullYear(), td.getUTCMonth(), td.getUTCDate());
+        const calMs  = calDay.getTime();
+
+        if (calMs > endMs) break;
+
+        if (calMs > todayMs) {
+          results.push({
+            day:         td.getUTCDate(),
+            date:        new Date(td.getUTCFullYear(), td.getUTCMonth(), td.getUTCDate(), 12, 0, 0),
+            name:        phase.name,
+            emoji:       phase.emoji,
+            isMain:      MAIN.has(phase.name),
+            daysFromNow: Math.round((calMs - todayMs) / 86_400_000),
+            timeTR:      `${String(td.getUTCHours()).padStart(2, "0")}:${String(td.getUTCMinutes()).padStart(2, "0")}`,
+            timeUTC:     r.date.toISOString(),
+          });
+        }
+
+        cursor = new Date(ms + 28 * 86_400_000);
+      }
+    }
+
+    return results.sort((a, b) => a.daysFromNow - b.daysFromNow);
+  } catch {
+    return [];
+  }
 }

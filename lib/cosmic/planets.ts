@@ -115,8 +115,19 @@ function getEclipticSignAE(body: AE.Body, date: Date, fallback: string): string 
 
 type SignPeriod = { from: string; to: string; sign: string };
 
+/**
+ * Türkiye UTC+3 sabit offsetiyle YYYY-MM-DD tarih anahtarı üretir.
+ * toISOString() UTC günü verir; 21:00–00:00 TR saatleri arasında
+ * tablo aramaları yanlış güne düşer. Bu fonksiyon bunu önler.
+ */
+function toTRDateKey(date: Date): string {
+  const ms  = date.getTime() + 3 * 3_600_000;
+  const d   = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
 function lookupSign(periods: ReadonlyArray<SignPeriod>, date: Date, fallback: string): string {
-  const iso = date.toISOString().slice(0, 10);
+  const iso = toTRDateKey(date);
   for (const p of periods) {
     if (iso >= p.from && iso <= p.to) return p.sign;
   }
@@ -128,7 +139,7 @@ function lookupSignSafe(
   periods: ReadonlyArray<SignPeriod>,
   date: Date,
 ): { sign: string; outOfRange: boolean } {
-  const iso = date.toISOString().slice(0, 10);
+  const iso = toTRDateKey(date);
   for (const p of periods) {
     if (iso >= p.from && iso <= p.to) return { sign: p.sign, outOfRange: false };
   }
@@ -591,7 +602,7 @@ export function getPlanetSignPeriod(
   const periods = periodsMap[key];
   if (!periods) return null;
 
-  const iso = date.toISOString().slice(0, 10);
+  const iso = toTRDateKey(date);
   for (const p of periods) {
     if (iso >= p.from && iso <= p.to) return { from: p.from, to: p.to };
   }
