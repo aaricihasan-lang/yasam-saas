@@ -283,20 +283,20 @@ const VENUS_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2025-10-13", to: "2025-11-09", sign: "Başak"    },
   { from: "2025-11-10", to: "2025-12-07", sign: "Terazi"   },
   { from: "2025-12-08", to: "2025-12-31", sign: "Akrep"    },
-  // ── 2026 — retro: Oct 3–Nov 13 (Akrep→Terazi) ──
-  { from: "2026-01-01", to: "2026-01-09", sign: "Akrep"    },
-  { from: "2026-01-10", to: "2026-02-07", sign: "Yay"      },
-  { from: "2026-02-08", to: "2026-03-08", sign: "Oğlak"    },
-  { from: "2026-03-09", to: "2026-04-05", sign: "Kova"     },
-  { from: "2026-04-06", to: "2026-05-02", sign: "Balık"    },
-  { from: "2026-05-03", to: "2026-05-31", sign: "Koç"      },
-  { from: "2026-06-01", to: "2026-06-27", sign: "Boğa"     }, // ← bugün ✓
-  { from: "2026-06-28", to: "2026-07-25", sign: "İkizler"  },
-  { from: "2026-07-26", to: "2026-09-01", sign: "Yengeç"   },
-  { from: "2026-09-02", to: "2026-10-02", sign: "Aslan"    },
-  { from: "2026-10-03", to: "2026-11-13", sign: "Akrep"    }, // retro (Akrep→Terazi)
-  { from: "2026-11-14", to: "2026-12-01", sign: "Terazi"   }, // direct
-  { from: "2026-12-02", to: "2026-12-31", sign: "Akrep"    },
+  // ── 2026 — retro: Oct 3–Nov 13 (Akrep→Terazi) — AE GeoVector tabanlı (FAZ 5D) ──
+  { from: "2026-01-01", to: "2026-01-17", sign: "Oğlak"   }, // AE: 280–300°
+  { from: "2026-01-18", to: "2026-02-09", sign: "Kova"    }, // AE: 300–330°
+  { from: "2026-02-10", to: "2026-03-05", sign: "Balık"   }, // AE: 330–360°
+  { from: "2026-03-06", to: "2026-03-30", sign: "Koç"     }, // AE: 0–30°
+  { from: "2026-03-31", to: "2026-04-23", sign: "Boğa"    }, // AE: 30–60°
+  { from: "2026-04-24", to: "2026-05-18", sign: "İkizler" }, // AE: 60–90°
+  { from: "2026-05-19", to: "2026-06-12", sign: "Yengeç"  }, // AE: 90–120°
+  { from: "2026-06-13", to: "2026-07-09", sign: "Aslan"   }, // AE: 120–150°
+  { from: "2026-07-10", to: "2026-08-06", sign: "Başak"   }, // AE: 150–180°
+  { from: "2026-08-07", to: "2026-09-09", sign: "Terazi"  }, // AE: 180–210°
+  { from: "2026-09-10", to: "2026-10-24", sign: "Akrep"   }, // AE: 210°+ / retro Oct 3
+  { from: "2026-10-25", to: "2026-12-03", sign: "Terazi"  }, // retro ← Akrep→Terazi
+  { from: "2026-12-04", to: "2026-12-31", sign: "Akrep"   }, // direct ileri
   // ── 2027 — retro yok ──
   { from: "2027-01-01", to: "2027-01-10", sign: "Akrep"    },
   { from: "2027-01-11", to: "2027-02-08", sign: "Yay"      },
@@ -364,8 +364,8 @@ const VENUS_PERIODS: ReadonlyArray<SignPeriod> = [
 ];
 
 // ─── Mars ♂ ───────────────────────────────────────────────────────────────────
-// retro.ts: 2025-12-06–2026-02-23 (Aslan→Yengeç), 2027-01-10–04-01 (Kova→Oğlak),
-//           2029-02-14–05-05 (Yay→Akrep)
+// retro.ts: 2027-01-10–04-01 (Kova→Oğlak), 2029-02-14–05-05 (Yay→Akrep)
+// 2025-2026: Mars retrosu yoktu (superior konjunksiyondaydı); AE GeoVector tabanlı (FAZ 5D)
 
 const MARS_PERIODS: ReadonlyArray<SignPeriod> = [
   // ── 2025 ──
@@ -374,17 +374,17 @@ const MARS_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2025-06-17", to: "2025-08-05", sign: "Başak"    },
   { from: "2025-08-06", to: "2025-09-21", sign: "Terazi"   },
   { from: "2025-09-22", to: "2025-12-05", sign: "Aslan"    },
-  // ── 2025-2026 retro: Dec 6–Feb 23 (Aslan→Yengeç) ──
-  { from: "2025-12-06", to: "2026-01-14", sign: "Aslan"    }, // retro Aslan'da
-  { from: "2026-01-15", to: "2026-02-22", sign: "Yengeç"   }, // retro dibe Yengeç
-  { from: "2026-02-23", to: "2026-03-20", sign: "Yengeç"   }, // direct ileri
-  { from: "2026-03-21", to: "2026-05-09", sign: "Aslan"    },
-  { from: "2026-05-10", to: "2026-06-25", sign: "Başak"    }, // ← bugün ✓
-  { from: "2026-06-26", to: "2026-08-09", sign: "Terazi"   },
-  { from: "2026-08-10", to: "2026-09-22", sign: "Akrep"    },
-  { from: "2026-09-23", to: "2026-11-03", sign: "Yay"      },
-  { from: "2026-11-04", to: "2026-12-15", sign: "Oğlak"    },
-  { from: "2026-12-16", to: "2026-12-31", sign: "Kova"     },
+  // ── 2025-12-06 sonrası: Mars retrosu yoktu, AE GeoVector tabanlı (FAZ 5D) ──
+  { from: "2025-12-06", to: "2025-12-14", sign: "Yay"      }, // AE: 263°, ileri hareket
+  { from: "2025-12-15", to: "2026-01-22", sign: "Oğlak"    }, // AE: 270–300°
+  { from: "2026-01-23", to: "2026-03-02", sign: "Kova"     }, // AE: 300–330°
+  { from: "2026-03-03", to: "2026-04-09", sign: "Balık"    }, // AE: 330–360°
+  { from: "2026-04-10", to: "2026-05-18", sign: "Koç"      }, // AE: 0–30°
+  { from: "2026-05-19", to: "2026-06-28", sign: "Boğa"     }, // AE: 30–60°
+  { from: "2026-06-29", to: "2026-08-10", sign: "İkizler"  }, // AE: 60–90°
+  { from: "2026-08-11", to: "2026-09-27", sign: "Yengeç"   }, // AE: 90–120°
+  { from: "2026-09-28", to: "2026-11-25", sign: "Aslan"    }, // AE: 120–150°
+  { from: "2026-11-26", to: "2026-12-31", sign: "Başak"    }, // AE: 150°+
   // ── 2027 — retro: Jan 10–Apr 1 (Kova→Oğlak) ──
   { from: "2027-01-01", to: "2027-01-09", sign: "Kova"     },
   { from: "2027-01-10", to: "2027-03-10", sign: "Kova"     }, // retro Kova'da
