@@ -17,6 +17,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { ensureMineralStringArray } from "@/lib/dogaltas/mineralsListFetch";
 import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
@@ -493,12 +494,14 @@ function MineralDetailPageContent() {
     if (!mineral) return;
     const tenantId = await getSyncedTenantId();
     if (!tenantId) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) return;
     setWordBusy(true);
     try {
       const res = await fetch(`/api/dogaltas/minerals/${mineral.id}/word-report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId }),
+        body: JSON.stringify({ tenantId, userId }),
       });
       if (!res.ok) return;
       const blob = await res.blob();

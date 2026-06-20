@@ -13,11 +13,13 @@ import {
   type ReactNode,
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   ADMIN_LIBRARY_TENANT_ID,
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -573,6 +575,7 @@ function StoneDetailPage() {
     return s ? `/dogaltas/dogaltas-listesi?${s}` : "/dogaltas/dogaltas-listesi";
   })();
   const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [stone, setStone] = useState<StoneRecord | null>(null);
@@ -586,7 +589,6 @@ function StoneDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editEnabled, setEditEnabled] = useState(false);
-  const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [activeEditor, setActiveEditor] = useState<ActiveEditor | null>(null);
   const [activeReader, setActiveReader] = useState<ActiveReader | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -823,12 +825,14 @@ function StoneDetailPage() {
     if (!safeStone) return;
     const tenantId = await getSyncedTenantId();
     if (!tenantId) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) return;
     setWordBusy(true);
     try {
       const res = await fetch(`/api/dogaltas/stones/${safeStone.id}/word-report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId }),
+        body: JSON.stringify({ tenantId, userId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -848,6 +852,17 @@ function StoneDetailPage() {
     } finally {
       setWordBusy(false);
     }
+  }
+
+  async function handleDeleteStoneTrigger() {
+    if (!stone) return;
+    const confirmed = await deleteConfirm({
+      title: "Taşı Sil",
+      message: `"${stone.stone_name || "Bu taş"}" kaydını silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem geri alınamaz. Kalıcı olarak silinsin mi?",
+    });
+    if (!confirmed) return;
+    await deleteStone();
   }
 
   async function deleteStone() {
@@ -1221,7 +1236,7 @@ function StoneDetailPage() {
             {!isLibraryStone && (
               <button
                 type="button"
-                onClick={() => setShowDeletePopup(true)}
+                onClick={() => void handleDeleteStoneTrigger()}
                 className="rounded-xl bg-red-500 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-red-600"
               >
                 Sil
@@ -1814,48 +1829,6 @@ function StoneDetailPage() {
                   autoFocus
                 />
               ))}
-          </div>
-        </div>
-      )}
-
-      {showDeletePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[430px] rounded-[28px] bg-white p-6 text-center shadow-[0_28px_90px_rgba(15,23,42,0.28)] ring-1 ring-white">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[28px] ring-1 ring-rose-100">
-              ⚠️
-            </div>
-
-            <h2 className="mt-4 text-[22px] font-black text-slate-950">
-              Taşı Sil
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-[330px] text-[14px] leading-6 text-slate-600">
-              <b>{safeStone.stone_name}</b> kaydını silmek istediğinizden emin misiniz?
-            </p>
-
-            <p className="mt-2 text-[12px] font-bold text-rose-600">
-              Bu işlem geri alınamaz.
-            </p>
-
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowDeletePopup(false)}
-                disabled={deleteLoading}
-                className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
-              >
-                Vazgeç
-              </button>
-
-              <button
-                type="button"
-                onClick={deleteStone}
-                disabled={deleteLoading}
-                className="rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
-              >
-                {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
-              </button>
-            </div>
           </div>
         </div>
       )}

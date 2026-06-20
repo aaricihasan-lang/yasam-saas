@@ -16,6 +16,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
@@ -603,6 +604,8 @@ function DogaltasPageContent() {
     }
     const tid = await getSyncedTenantId();
     if (!tid) { setReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    const uid = readYasamUser()?.id;
+    if (!uid) { setReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
     setReportLoading(true);
     setReportError("");
     setReportSuccess("");
@@ -610,7 +613,7 @@ function DogaltasPageContent() {
       const res = await fetch("/api/dogaltas/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, sections: reportSections }),
+        body: JSON.stringify({ tenantId: tid, userId: uid, sections: reportSections }),
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };
@@ -632,9 +635,9 @@ function DogaltasPageContent() {
   }
 
   return (
-    <main className="h-screen w-full overflow-hidden overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950">
-      <div className="grid h-full w-full grid-cols-[300px_1fr] overflow-x-hidden">
-        <aside className="flex h-screen w-[300px] min-w-[300px] max-w-[300px] shrink-0 flex-col overflow-hidden border-r border-white/80 bg-white/88 px-4 py-4 shadow-[14px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+    <main className="w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950 lg:h-screen lg:overflow-hidden">
+      <div className="flex flex-col lg:grid lg:h-full lg:grid-cols-[300px_1fr] lg:overflow-x-hidden">
+        <aside className="flex flex-col border-b border-white/80 bg-white/88 px-4 py-4 shadow-[0_4px_18px_rgba(15,23,42,0.06)] backdrop-blur-xl lg:h-screen lg:w-[300px] lg:min-w-[300px] lg:max-w-[300px] lg:shrink-0 lg:overflow-hidden lg:border-b-0 lg:border-r lg:shadow-[14px_0_35px_rgba(15,23,42,0.04)]">
           <div className="mb-3 flex h-11 items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-md ring-1 ring-slate-100">
               💎
@@ -651,7 +654,7 @@ function DogaltasPageContent() {
             MODÜLLER
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
             {modules.map((item, index) => {
               const isFeatured = index === 0;
 
@@ -659,14 +662,14 @@ function DogaltasPageContent() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex h-[64px] w-full shrink-0 cursor-pointer items-center gap-3 rounded-[18px] border px-4 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-cyan-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(79,70,229,0.14)] ${
+                  className={`group flex w-full cursor-pointer items-center gap-3 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-cyan-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(79,70,229,0.14)] lg:h-[64px] lg:shrink-0 lg:px-4 ${
                     isFeatured
                       ? "border-cyan-300 bg-gradient-to-r from-cyan-50 via-white to-blue-50 shadow-[0_10px_28px_rgba(14,165,233,0.14)]"
                       : "border-white/80 bg-white/70"
                   }`}
                 >
                   <span
-                    className={`flex h-9 w-9 min-w-[36px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 ring-white/80 ${item.iconBg}`}
+                    className={`flex h-8 w-8 min-w-[32px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 ring-white/80 lg:h-9 lg:w-9 lg:min-w-[36px] ${item.iconBg}`}
                   >
                     <span className="flex h-5 w-5 items-center justify-center text-base leading-none">
                       {item.icon}
@@ -674,10 +677,10 @@ function DogaltasPageContent() {
                   </span>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-black leading-tight text-slate-950">
+                    <span className="block truncate text-[12px] font-black leading-tight text-slate-950 lg:text-[13px]">
                       {item.title}
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] font-semibold leading-snug text-slate-500">
+                    <span className="mt-0.5 hidden truncate text-[11px] font-semibold leading-snug text-slate-500 sm:block">
                       {item.subtitle}
                     </span>
                   </span>
@@ -691,14 +694,14 @@ function DogaltasPageContent() {
           </nav>
         </aside>
 
-        <section className="relative h-screen min-w-0 overflow-hidden px-5 py-4">
+        <section className="relative min-w-0 px-4 py-4 sm:px-5 lg:h-screen lg:overflow-hidden">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
             <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl" />
             <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl" />
           </div>
 
-          <div className="relative mx-auto flex h-full w-full max-w-5xl flex-col gap-2.5 overflow-y-auto">
+          <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-2.5 lg:h-full lg:overflow-y-auto">
             <header className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/80 bg-white/65 px-5 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center text-xl leading-none">
                 💎

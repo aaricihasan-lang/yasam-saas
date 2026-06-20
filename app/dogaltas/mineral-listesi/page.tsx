@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -382,12 +382,14 @@ function MineralListesiPageContent() {
     if (!ids.length) return;
     const tid = await getSyncedTenantId();
     if (!tid) return;
+    const uid = readYasamUser()?.id;
+    if (!uid) return;
     setMineralWordBusy(true);
     try {
       const res = await fetch("/api/dogaltas/mineral-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, exportMode: "selected", mineralIds: ids }),
+        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: "selected", mineralIds: ids }),
       });
       if (!res.ok) return;
       const blob = await res.blob();
@@ -433,6 +435,8 @@ function MineralListesiPageContent() {
   async function downloadMineralReport() {
     const tid = await getSyncedTenantId();
     if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    const uid = readYasamUser()?.id;
+    if (!uid) { setWordReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
 
     let mineralIds: string[] | undefined;
     if (wordExportMode === "filtered") {
@@ -458,7 +462,7 @@ function MineralListesiPageContent() {
       const res = await fetch("/api/dogaltas/mineral-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, exportMode: wordExportMode, mineralIds }),
+        body: JSON.stringify({ tenantId: tid, userId: uid, exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };

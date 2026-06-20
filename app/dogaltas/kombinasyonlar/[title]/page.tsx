@@ -17,6 +17,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const COMBINATIONS_SELECT =
@@ -1112,12 +1113,14 @@ function KombinasyonDetayPageContent() {
     if (!decodedIssue) return;
     const tenantId = await getSyncedTenantId();
     if (!tenantId) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) return;
     setWordBusy(true);
     try {
       const res = await fetch("/api/dogaltas/combinations/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "single", combinationTitle: decodedIssue }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", combinationTitle: decodedIssue }),
       });
       if (!res.ok) return;
       const blob = await res.blob();

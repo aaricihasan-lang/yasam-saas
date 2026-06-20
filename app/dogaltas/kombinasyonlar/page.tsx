@@ -10,6 +10,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
@@ -502,6 +503,8 @@ export default function KombinasyonlarPage() {
   const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = await getSyncedTenantId();
     if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+    const userId = readYasamUser()?.id;
+    if (!userId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
     setWordBusy(true);
     try {
       let issues: string[] | undefined;
@@ -512,7 +515,7 @@ export default function KombinasyonlarPage() {
         issues = groups.map((g) => g.issue);
         if (!issues.length) return;
       }
-      const body: Record<string, unknown> = { tenantId, exportMode: mode };
+      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode };
       if (issues) body.issues = issues;
       const res = await fetch("/api/dogaltas/combinations/word-report", {
         method: "POST",

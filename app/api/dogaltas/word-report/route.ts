@@ -330,14 +330,15 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, sections, selectedStoneIds, includeImages = true } = body as {
+  const { tenantId, userId, sections, selectedStoneIds, includeImages = true } = body as {
     tenantId?: string;
+    userId?: string;
     sections?: Sections;
     selectedStoneIds?: string[];
     includeImages?: boolean;
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
   if (!sections || !Object.values(sections).some(Boolean))
     return Response.json({ ok: false, error: "En az bir bölüm seçilmeli." }, { status: 400 });
@@ -348,6 +349,18 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // IDOR koruması: userId bu tenant'a gerçekten ait mi?
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? supabaseKey;
+  const anonDb = createClient(supabaseUrl, anonKey);
+  const { data: userRow } = await anonDb
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
   const knowledgeTenants = [ADMIN_LIBRARY_TENANT_ID];
   if (tenantId !== ADMIN_LIBRARY_TENANT_ID) knowledgeTenants.push(tenantId);
 

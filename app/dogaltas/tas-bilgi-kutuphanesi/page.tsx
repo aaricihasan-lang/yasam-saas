@@ -10,6 +10,7 @@ import {
 } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { ADMIN_LIBRARY_TENANT_ID, getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 
@@ -470,6 +471,8 @@ export default function TasBilgiKutuphanesiPage() {
     }
     const tid = await getSyncedTenantId();
     if (!tid) { setWordReportError("Oturum bulunamadı. Lütfen sayfayı yenileyin."); return; }
+    const uid = readYasamUser()?.id;
+    if (!uid) { setWordReportError("Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
 
     let articleIds: string[] | undefined;
     if (wordExportMode === "filtered") {
@@ -490,6 +493,7 @@ export default function TasBilgiKutuphanesiPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenantId: tid,
+          userId: uid,
           exportMode: wordExportMode,
           categoryName: wordExportMode === "category" ? wordExportCategory : undefined,
           articleIds,

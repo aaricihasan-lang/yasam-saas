@@ -11,9 +11,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -282,7 +282,7 @@ const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
 function DogaltasListesiPageContent() {
-  const { confirm } = useConfirm();
+  const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   // Liste verisi
   const [stones, setStones] = useState<StoneListItem[]>([]);
@@ -657,12 +657,10 @@ function DogaltasListesiPageContent() {
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
-    const confirmed = await confirm({
+    const confirmed = await deleteConfirm({
       title: "Seçili kayıtları sil",
-      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
-      tone: "danger",
-      confirmText: "Evet, sil",
-      cancelText: "Vazgeç",
+      message: `${selectedIds.size} taş kaydını silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
     });
 
     if (!confirmed) return;
@@ -696,7 +694,7 @@ function DogaltasListesiPageContent() {
     });
     setSelectedIds(new Set());
     await fetchList({ reset: true });
-  }, [confirm, fetchList, queryTenantId, selectedIds, showToast]);
+  }, [deleteConfirm, fetchList, queryTenantId, selectedIds, showToast]);
 
   const loadedImages = filteredStones.reduce(
     (total, stone) => total + stoneListImageCount(stone.images),
@@ -706,6 +704,8 @@ function DogaltasListesiPageContent() {
   const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
+    const userId = readYasamUser()?.id;
+    if (!userId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
 
     setWordBusy(true);
     try {
@@ -720,6 +720,7 @@ function DogaltasListesiPageContent() {
 
       const body: Record<string, unknown> = {
         tenantId,
+        userId,
         sections: { stones: true },
         includeImages: false,
       };
