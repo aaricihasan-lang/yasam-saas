@@ -268,6 +268,11 @@ export default function VeriPaylasimiPage() {
   const [transferring, setTransferring] = useState(false);
   const [sourceAdminTenantId, setSourceAdminTenantId] = useState<string | null>(null);
   const [sourceTenantError, setSourceTenantError] = useState<string | null>(null);
+  const [transferResult, setTransferResult] = useState<{
+    type: "success" | "error";
+    message: string;
+    lines?: string[];
+  } | null>(null);
 
   const [selectionMode, setSelectionMode] = useState<Record<GranularKey, SelectionMode>>({
     stones: "all", minerals: "all", combinations: "all",
@@ -520,6 +525,12 @@ export default function VeriPaylasimiPage() {
   }
 
   async function handleTransfer() {
+    console.log("[veri-paylasimi/ui] Aktar butonuna tıklandı", {
+      hedefTenant: selectedExpert?.tenantId ?? null,
+      gruplar: activeTransferGroups,
+      filterMap,
+    });
+
     if (!selectedExpert?.tenantId) {
       showToast({
         title: "İşlem başarısız",
@@ -547,14 +558,20 @@ export default function VeriPaylasimiPage() {
       tone: "info",
     });
 
-    if (!ok) return;
+    if (!ok) {
+      console.log("[veri-paylasimi/ui] Aktarım iptal edildi");
+      return;
+    }
 
     setTransferring(true);
+    setTransferResult(null);
     console.log("[veri-paylasimi/ui] Aktarım başlıyor", {
       hedefTenant: selectedExpert.tenantId,
       hedefEmail: selectedExpert.email,
       gruplar: activeTransferGroups,
+      filterMap,
     });
+
     const { counts, error, successMessage } = await runLibraryTransfer(
       activeTransferGroups,
       selectedExpert.tenantId,
@@ -565,6 +582,8 @@ export default function VeriPaylasimiPage() {
     console.log("[veri-paylasimi/ui] Aktarım sonucu", { counts, error, successMessage });
 
     if (error) {
+      console.error("[veri-paylasimi/ui] Aktarım hatası:", error);
+      setTransferResult({ type: "error", message: error });
       showToast({
         title: "Aktarım tamamlanamadı",
         message: error,
@@ -577,6 +596,16 @@ export default function VeriPaylasimiPage() {
       counts,
       selectedExpert.email,
     );
+
+    setTransferResult({
+      type: "success",
+      message:
+        successMessage ??
+        (summaryLines.length > 0
+          ? summaryLines.join("\n")
+          : `Kayıtlar ${expertName} hesabına eklendi`),
+      lines: summaryLines.length > 0 ? summaryLines : undefined,
+    });
 
     showToast({
       title: "Veriler başarıyla aktarıldı",
@@ -944,11 +973,16 @@ export default function VeriPaylasimiPage() {
             className="mt-6 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-violet-400/80 bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 px-8 text-base font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {transferring ? (
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                Aktarılıyor…
+              </>
             ) : (
-              <RefreshCw className="h-5 w-5" aria-hidden />
+              <>
+                <RefreshCw className="h-5 w-5" aria-hidden />
+                Seçili Verileri Üyeye Aktar
+              </>
             )}
-            Seçili Verileri Üyeye Aktar
           </button>
 
           {selectedExpert && !selectedExpert.tenantId ? (
@@ -960,6 +994,50 @@ export default function VeriPaylasimiPage() {
             <p className="mt-3 text-center text-sm font-bold text-amber-700">
               Seçili aktarım modundaki gruplardan en az 1 kayıt seçmelisiniz.
             </p>
+          ) : null}
+
+          {transferResult ? (
+            <div
+              className={`mt-5 rounded-2xl border-2 p-4 ${
+                transferResult.type === "success"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-rose-200 bg-rose-50"
+              }`}
+            >
+              <p
+                className={`text-sm font-black ${
+                  transferResult.type === "success"
+                    ? "text-emerald-900"
+                    : "text-rose-900"
+                }`}
+              >
+                {transferResult.type === "success"
+                  ? "✓ Aktarım tamamlandı"
+                  : "✗ Aktarım başarısız"}
+              </p>
+              {transferResult.lines && transferResult.lines.length > 0 ? (
+                <ul className="mt-2 space-y-1">
+                  {transferResult.lines.map((line, i) => (
+                    <li
+                      key={i}
+                      className="text-xs font-semibold text-emerald-800"
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p
+                  className={`mt-1 text-xs font-semibold ${
+                    transferResult.type === "success"
+                      ? "text-emerald-800"
+                      : "text-rose-800"
+                  }`}
+                >
+                  {transferResult.message}
+                </p>
+              )}
+            </div>
           ) : null}
         </section>
 
