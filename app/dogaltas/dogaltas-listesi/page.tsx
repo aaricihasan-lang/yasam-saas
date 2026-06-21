@@ -21,7 +21,9 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import {
+  excludeStonesForTenant,
   fetchAllStonesExtended,
+  fetchStoneExclusions,
   fetchStonesListCount,
   fetchStonesListPage,
   getFirstStoneImageUrl,
@@ -311,6 +313,7 @@ function DogaltasListesiPageContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileDeleteStep, setMobileDeleteStep] = useState<1 | 2>(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [excludedStoneIds, setExcludedStoneIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
 
@@ -370,10 +373,14 @@ function DogaltasListesiPageContent() {
     if (cached) {
       setQueryTenantId(cached);
       backgroundSyncYasamUserFromDb();
+      void fetchStoneExclusions(cached).then(setExcludedStoneIds);
       return cached;
     }
     const synced = await getSyncedTenantId();
-    if (synced) setQueryTenantId(synced);
+    if (synced) {
+      setQueryTenantId(synced);
+      void fetchStoneExclusions(synced).then(setExcludedStoneIds);
+    }
     return synced;
   }, []);
 
@@ -385,35 +392,51 @@ function DogaltasListesiPageContent() {
 
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
+      setDeleteLoading(false);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
-    const { data: deletedRows, error } = await supabase
-      .from("stones")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("id", stoneToDelete.id)
-      .select("id");
+    const stoneId = stoneToDelete.id;
+    const isLibrary = stoneToDelete.tenant_id === ADMIN_LIBRARY_TENANT_ID;
 
-    setDeleteLoading(false);
+    if (isLibrary) {
+      // Kütüphane taşı → kullanıcı bazında gizle (soft-delete)
+      const { error } = await excludeStonesForTenant(tenantId, [stoneId]);
+      setDeleteLoading(false);
+      if (error) {
+        setErrorMessage(`Kayıt kaldırılamadı: ${error}`);
+        return;
+      }
+      setExcludedStoneIds((prev) => new Set([...prev, stoneId]));
+    } else {
+      // Kendi taşı → gerçek DELETE
+      const { data: deletedRows, error } = await supabase
+        .from("stones")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("id", stoneId)
+        .select("id");
 
-    if (error) {
-      setErrorMessage(`Kayıt silinemedi: ${error.message}`);
-      return;
+      setDeleteLoading(false);
+
+      if (error) {
+        setErrorMessage(`Kayıt silinemedi: ${error.message}`);
+        return;
+      }
+
+      if (!deletedRows?.length) {
+        setErrorMessage("Kayıt silinemedi. Lütfen tekrar deneyin.");
+        return;
+      }
+
+      setStones((current) => current.filter((stone) => stone.id !== stoneId));
+      setDetailData((prev) => (prev ? prev.filter((s) => s.id !== stoneId) : null));
     }
 
-    if (!deletedRows?.length) {
-      setErrorMessage("Kayıt silinemedi. Lütfen tekrar deneyin.");
-      return;
-    }
-
-    const deletedId = stoneToDelete.id;
-    setStones((current) => current.filter((stone) => stone.id !== deletedId));
-    setDetailData((prev) => (prev ? prev.filter((s) => s.id !== deletedId) : null));
     setSelectedIds((current) => {
       const next = new Set(current);
-      next.delete(deletedId);
+      next.delete(stoneId);
       return next;
     });
     setStoneToDelete(null);
@@ -586,57 +609,57 @@ function DogaltasListesiPageContent() {
 
   // Client-side tam içerik araması ve detay filtreleme
   const filteredStones: StoneListItem[] = useMemo(() => {
-    if (!needsFullLoad || !detailData) return stones;
+    const candidateList: StoneListItem[] =
+      needsFullLoad && detailData
+        ? (detailData.filter((stone) => {
+            // ── Metin araması — moda göre ayrılmış ────────────────────────────
+            if (debouncedSearch) {
+              if (searchMode === "name") {
+                if (!containsTr(stone.stone_name, debouncedSearch)) return false;
+              } else {
+                const haystack = [
+                  stone.stone_name,
+                  stone.short_description,
+                  stone.general_info,
+                  stone.source_note,
+                  stone.physical_effects,
+                  stone.spiritual_effects,
+                  stone.other_effects,
+                  stone.feng_shui,
+                  stone.meditation,
+                  stone.care,
+                  stone.application,
+                  stone.warning_text,
+                  safeTextExtract(stone.warning_tags),
+                  safeTextExtract(stone.chakras),
+                  safeTextExtract(stone.assignments),
+                ].join(" ");
+                if (!containsTr(haystack, debouncedSearch)) return false;
+              }
+            }
+            // ── Detay filtreler ────────────────────────────────────────────────
+            if (detailFilters.zodiac) {
+              if (!stoneMatchesZodiac(stone.assignments, detailFilters.zodiac)) return false;
+            }
+            if (detailFilters.warningOnly) {
+              if (!stoneHasWarning(stone.warning_text, stone.warning_tags)) return false;
+            }
+            if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
+              if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral)) return false;
+            }
+            if (detailFilters.chakra && detailFilters.chakra.trim().length >= SEARCH_MIN_LENGTH) {
+              const chakraMatch = (stone.chakras || []).some((c) =>
+                containsTr(c, detailFilters.chakra.trim()),
+              );
+              if (!chakraMatch) return false;
+            }
+            return true;
+          }) as StoneListItem[])
+        : stones;
 
-    return detailData.filter((stone) => {
-      // ── Metin araması — moda göre ayrılmış ──────────────────────────────────
-      if (debouncedSearch) {
-        if (searchMode === "name") {
-          // Taş İsmi modu: yalnızca stone_name alanında substring arama
-          if (!containsTr(stone.stone_name, debouncedSearch)) return false;
-        } else {
-          // İçerik modu: tüm metin alanlarında arama
-          const haystack = [
-            stone.stone_name,
-            stone.short_description,
-            stone.general_info,
-            stone.source_note,
-            stone.physical_effects,
-            stone.spiritual_effects,
-            stone.other_effects,
-            stone.feng_shui,
-            stone.meditation,
-            stone.care,
-            stone.application,
-            stone.warning_text,
-            safeTextExtract(stone.warning_tags),
-            safeTextExtract(stone.chakras),
-            safeTextExtract(stone.assignments),
-          ].join(" ");
-          if (!containsTr(haystack, debouncedSearch)) return false;
-        }
-      }
-      // ── Detay filtreler ───────────────────────────────────────────────────────
-      if (detailFilters.zodiac) {
-        if (!stoneMatchesZodiac(stone.assignments, detailFilters.zodiac))
-          return false;
-      }
-      if (detailFilters.warningOnly) {
-        if (!stoneHasWarning(stone.warning_text, stone.warning_tags))
-          return false;
-      }
-      if (detailFilters.mineral && detailFilters.mineral.length >= SEARCH_MIN_LENGTH) {
-        if (!stoneMatchesMineral(stone.assignments, detailFilters.mineral))
-          return false;
-      }
-      if (detailFilters.chakra && detailFilters.chakra.trim().length >= SEARCH_MIN_LENGTH) {
-        const chakraMatch = (stone.chakras || []).some((c) =>
-          containsTr(c, detailFilters.chakra.trim()),
-        );
-        if (!chakraMatch) return false;
-      }
-      return true;
-    }) as StoneListItem[];
+    // Kullanıcının kaldırdığı taşları filtrele
+    if (excludedStoneIds.size === 0) return candidateList;
+    return candidateList.filter((s) => !excludedStoneIds.has(s.id));
   }, [
     stones,
     detailData,
@@ -644,6 +667,7 @@ function DogaltasListesiPageContent() {
     debouncedSearch,
     searchMode,
     detailFilters,
+    excludedStoneIds,
   ]);
 
   const hasMore = !needsFullLoad && stones.length < totalCount;
@@ -664,7 +688,21 @@ function DogaltasListesiPageContent() {
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
-    // Kütüphane taşlarını (ADMIN_LIBRARY_TENANT_ID) seçimden çıkar
+    const confirmed = await deleteConfirm({
+      title: "Seçili kayıtları kaldır",
+      message: `${selectedIds.size} taş kaydını listenden kaldırmak istediğinden emin misin?`,
+      secondMessage: "Kendi eklediğin kayıtlar kalıcı silinir. Kütüphane taşları yalnızca senin görünümünden kaldırılır.",
+    });
+
+    if (!confirmed) return;
+
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
+    if (!tenantId) {
+      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+      return;
+    }
+
+    // Kendi taşı vs kütüphane taşı ayrımı
     const allStones = [...(detailData ?? []), ...stones];
     const stoneById = new Map(allStones.map((s) => [s.id, s]));
 
@@ -679,71 +717,52 @@ function DogaltasListesiPageContent() {
       }
     }
 
-    if (ownIds.length === 0) {
-      setErrorMessage(
-        `Seçili ${libraryIds.length} kayıt kütüphane taşıdır ve silinemez. ` +
-        "Yalnızca kendinizin eklediği kayıtları silebilirsiniz."
-      );
-      return;
-    }
-
-    const confirmMsg =
-      libraryIds.length > 0
-        ? `${ownIds.length} kaydınız silinecek. ` +
-          `${libraryIds.length} kütüphane taşı bu işlemin dışında tutulacak.`
-        : `${ownIds.length} taş kaydını silmek istediğinizden emin misiniz?`;
-
-    const confirmed = await deleteConfirm({
-      title: "Seçili kayıtları sil",
-      message: confirmMsg,
-      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
-    });
-
-    if (!confirmed) return;
-
-    const tenantId = queryTenantId ?? (await getSyncedTenantId());
-    if (!tenantId) {
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const { data: deletedRows, error } = await supabase
-      .from("stones")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ownIds)
-      .select("id");
+    let deletedCount = 0;
+    let ownError: string | null = null;
+    let libError: string | null = null;
+
+    // Kendi taşları → gerçek DELETE
+    if (ownIds.length > 0) {
+      const { data: deletedRows, error } = await supabase
+        .from("stones")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .in("id", ownIds)
+        .select("id");
+
+      if (error) {
+        ownError = error.message;
+      } else {
+        deletedCount = deletedRows?.length ?? 0;
+        const deletedIdSet = new Set((deletedRows ?? []).map((r) => r.id as string));
+        setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
+      }
+    }
+
+    // Kütüphane taşları → exclusion (soft-delete)
+    if (libraryIds.length > 0) {
+      const { error } = await excludeStonesForTenant(tenantId, libraryIds);
+      if (error) {
+        libError = error;
+      } else {
+        setExcludedStoneIds((prev) => new Set([...prev, ...libraryIds]));
+        deletedCount += libraryIds.length;
+      }
+    }
 
     setDeleteLoading(false);
 
-    if (error) {
-      setErrorMessage(`Seçili kayıtlar silinemedi: ${error.message}`);
+    if (ownError || libError) {
+      setErrorMessage(`Bazı kayıtlar kaldırılamadı: ${ownError ?? libError}`);
       return;
     }
 
-    const deletedCount = deletedRows?.length ?? 0;
-    if (deletedCount === 0) {
-      setErrorMessage(
-        "Silme işlemi gerçekleşmedi. Kayıtlar size ait olmayabilir. " +
-        "Sayfayı yenileyip tekrar deneyin."
-      );
-      return;
-    }
-
-    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
-    setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
-
-    const msg =
-      libraryIds.length > 0
-        ? `${deletedCount} kayıt silindi. ${libraryIds.length} kütüphane taşı korundu.`
-        : `${deletedCount} kayıt başarıyla silindi.`;
-
-    showToast({ type: "success", message: msg });
+    showToast({ type: "success", message: `${deletedCount} kayıt listenizden kaldırıldı.` });
     setSelectedIds(new Set());
-    await fetchList({ reset: true });
+    if (ownIds.length > 0) await fetchList({ reset: true });
   }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones]);
 
   const loadedImages = filteredStones.reduce(

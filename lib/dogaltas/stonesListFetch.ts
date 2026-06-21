@@ -290,3 +290,32 @@ export async function fetchAllStonesExtended(
   );
   return { rows, error: null };
 }
+
+// ─── Kullanıcı bazlı exclusion yardımcısı ────────────────────────────────────
+
+/**
+ * Bu tenant için gizlenmiş (kaldırılmış) taş ID'lerini döner.
+ * Kütüphane taşı "soft-delete" mantığı için kullanılır.
+ */
+export async function fetchStoneExclusions(tenantId: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("stone_exclusions")
+    .select("stone_id")
+    .eq("tenant_id", tenantId);
+  return new Set((data ?? []).map((r) => String(r.stone_id)));
+}
+
+/**
+ * Kütüphane taşlarını bu tenant için gizler (upsert — tekrar ekleme hata vermesin).
+ */
+export async function excludeStonesForTenant(
+  tenantId: string,
+  stoneIds: string[],
+): Promise<{ error: string | null }> {
+  if (stoneIds.length === 0) return { error: null };
+  const rows = stoneIds.map((id) => ({ tenant_id: tenantId, stone_id: id }));
+  const { error } = await supabase
+    .from("stone_exclusions")
+    .upsert(rows, { onConflict: "tenant_id,stone_id", ignoreDuplicates: true });
+  return { error: error?.message ?? null };
+}
