@@ -604,24 +604,25 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Güncel Gökyüzü ── */}
-        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-3 shadow-sm backdrop-blur-md">
+        {/* ── Gezegenlerin Güncel Burç Konumları ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
 
           {/* Başlık */}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">✨ Güncel Gökyüzü</p>
-            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2 py-0.5 text-[9px] font-semibold text-indigo-500">{miladiDate}</span>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Gezegenlerin Güncel Burç Konumları</p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
           </div>
 
-          {/* Gezegen grid — korunuyor */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-2 md:grid-cols-5">
+          {/* Gezegen grid */}
+          <div className="grid grid-cols-1 gap-y-0.5 sm:grid-cols-2">
             {gokyuzuRows.map(({ key, symbol, sign, signSymbol, outOfRange }) => (
-              <div key={key} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 transition hover:bg-white/50">
-                <span className="w-[18px] shrink-0 text-center text-[14px] leading-none text-indigo-500">{symbol}</span>
-                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-slate-500">{key}</span>
+              <div key={key} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/50">
+                <span className="w-5 shrink-0 text-center text-[18px] leading-none text-indigo-500">{symbol}</span>
+                <span className="w-[4.5rem] shrink-0 text-xs font-semibold text-slate-700">{key}</span>
+                <span className="shrink-0 select-none text-slate-300">—</span>
                 {outOfRange
-                  ? <span className="shrink-0 text-[9px] font-semibold text-amber-500">⚠ ?</span>
-                  : <span className="shrink-0 text-[10px] font-black text-slate-800">{signSymbol} {sign}</span>
+                  ? <span className="text-xs font-semibold text-amber-500">⚠ Veri yok</span>
+                  : <span className="text-sm font-black text-slate-900">{signSymbol} {sign} Burcunda</span>
                 }
               </div>
             ))}
@@ -629,7 +630,7 @@ export default function CosmicCalendarPage() {
 
           {/* Ayırıcı + Transit temaları */}
           <div className="mt-3 border-t border-indigo-100/70 pt-3">
-            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">🌌 Bugünün Transit Temaları</p>
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-500">🌌 Bugünün Transit Temaları</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {topTransits.map(({ planet, sign, symbol, title, summary, tags, caution }) => {
                 const slug = getPlanetSlug(planet);
@@ -637,22 +638,22 @@ export default function CosmicCalendarPage() {
                   <>
                     {/* Planet + title */}
                     <div className="mb-1 flex items-start gap-1.5">
-                      <span className="mt-px shrink-0 text-[13px] leading-none text-indigo-400">{symbol}</span>
+                      <span className="mt-px shrink-0 text-[15px] leading-none text-indigo-400">{symbol}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black leading-tight text-indigo-700">{title}</p>
-                        <p className="text-[8px] font-semibold text-slate-400">{planet} · {sign}</p>
+                        <p className="text-xs font-black leading-tight text-indigo-700">{title}</p>
+                        <p className="text-[10px] font-semibold text-slate-400">{planet} · {sign}</p>
                       </div>
-                      {slug && <span className="mt-0.5 shrink-0 text-[9px] font-bold text-indigo-400">→</span>}
+                      {slug && <span className="mt-0.5 shrink-0 text-[10px] font-bold text-indigo-400">→</span>}
                     </div>
                     {/* Summary */}
-                    <p className="mb-1.5 line-clamp-2 text-[10px] leading-snug text-slate-600">{summary}</p>
+                    <p className="mb-1.5 line-clamp-2 text-xs leading-snug text-slate-600">{summary}</p>
                     {/* Tags */}
                     {tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {tags.map(tag => (
                           <span
                             key={tag}
-                            className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[8px] font-semibold text-indigo-600"
+                            className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[10px] font-semibold text-indigo-600"
                           >
                             {tag}
                           </span>
@@ -661,7 +662,7 @@ export default function CosmicCalendarPage() {
                     )}
                     {/* Caution */}
                     {caution && (
-                      <p className="mt-1.5 flex items-start gap-1 text-[9px] leading-snug text-amber-600">
+                      <p className="mt-1.5 flex items-start gap-1 text-xs leading-snug text-amber-600">
                         <span className="mt-px shrink-0">⚠</span>
                         <span>{caution}</span>
                       </p>
@@ -694,7 +695,7 @@ export default function CosmicCalendarPage() {
 
             {/* Kozmik Merkezler */}
             <section>
-              <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🪐 Kozmik Merkezler</p>
+              <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
               <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
                 {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
                   <Link
@@ -704,12 +705,12 @@ export default function CosmicCalendarPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xl leading-none">{emoji}</span>
-                      <span className={`text-[9px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
+                      <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
                     </div>
                     <div>
-                      <p className={`text-[12px] font-black leading-tight ${titleColor}`}>{title}</p>
-                      <p className={`mt-0.5 truncate text-[10px] font-semibold leading-tight ${summaryColor}`}>{s1}</p>
-                      <p className={`truncate text-[9px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
+                      <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
+                      <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
+                      <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
                     </div>
                   </Link>
                 ))}
@@ -718,15 +719,15 @@ export default function CosmicCalendarPage() {
 
             {/* Kozmik Özet */}
             <div className="overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-2.5 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">
                 🌙 Kozmik Özet
-                {!isSelectedToday && <span className="normal-case text-[9px] font-semibold text-slate-400">— {miladiDate}</span>}
+                {!isSelectedToday && <span className="normal-case text-[10px] font-semibold text-slate-400">— {miladiDate}</span>}
               </p>
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-6">
                 {cosmicSummary.map(({ icon, label, value }) => (
                   <div key={label} className="rounded-xl border border-white/80 bg-white/60 px-2 py-1.5 backdrop-blur-sm">
-                    <p className="text-[8px] font-semibold text-slate-400">{icon} {label}</p>
-                    <p className="mt-0.5 truncate text-[11px] font-black leading-tight text-slate-900">{value}</p>
+                    <p className="text-[10px] font-semibold text-slate-400">{icon} {label}</p>
+                    <p className="mt-0.5 truncate text-xs font-black leading-tight text-slate-900">{value}</p>
                   </div>
                 ))}
               </div>
@@ -747,7 +748,7 @@ export default function CosmicCalendarPage() {
               <div className="flex items-center gap-2">
                 <div className="flex shrink-0 items-center gap-1">
                   <Search className="h-3 w-3 text-indigo-500" />
-                  <p className="whitespace-nowrap text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">Kozmik Arama</p>
+                  <p className="whitespace-nowrap text-xs font-black uppercase tracking-[0.15em] text-indigo-600">Kozmik Arama</p>
                 </div>
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -952,8 +953,8 @@ export default function CosmicCalendarPage() {
               <div className="mb-2 flex items-center gap-2">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs text-white shadow-sm">📅</div>
                 <div className="flex items-center gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700">Seçili Gün</p>
-                  {isSelectedToday && <span className="text-[9px] font-semibold text-emerald-600">● Bugün</span>}
+                  <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-700">Seçili Gün</p>
+                  {isSelectedToday && <span className="text-[10px] font-semibold text-emerald-600">● Bugün</span>}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
@@ -966,17 +967,17 @@ export default function CosmicCalendarPage() {
                   { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
                 ].map(({ icon, label, value, color }) => (
                   <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
-                    <p className="text-[8px] text-slate-400">{icon} {label}</p>
-                    <p className={`truncate text-[10px] font-black leading-snug ${color}`}>{value}</p>
+                    <p className="text-[10px] text-slate-400">{icon} {label}</p>
+                    <p className={`truncate text-xs font-black leading-snug ${color}`}>{value}</p>
                   </div>
                 ))}
               </div>
-              <p className="mt-1 text-[8px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
+              <p className="mt-1 text-[10px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
 
               <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
-                <p className="text-[8px] text-slate-400">🪐 Retro Durumu</p>
+                <p className="text-[10px] text-slate-400">🪐 Retro Durumu</p>
                 {activeRetros.length === 0 ? (
-                  <p className="text-[11px] font-black text-emerald-600">Aktif Retro Yok</p>
+                  <p className="text-xs font-black text-emerald-600">Aktif Retro Yok</p>
                 ) : (
                   <div className="mt-0.5 space-y-0.5">
                     {activeRetros.map(r => {
@@ -984,8 +985,8 @@ export default function CosmicCalendarPage() {
                       const kalan   = Math.max(0, Math.ceil((endDate.getTime() - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime()) / 86_400_000));
                       return (
                         <div key={r.planet} className="flex items-center justify-between gap-2">
-                          <p className="text-[11px] font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
-                          <span className="shrink-0 text-[9px] text-slate-500">{kalan}g kaldı</span>
+                          <p className="text-xs font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
+                          <span className="shrink-0 text-[10px] text-slate-500">{kalan}g kaldı</span>
                         </div>
                       );
                     })}
@@ -1001,35 +1002,35 @@ export default function CosmicCalendarPage() {
 
             {/* Günlük Rehber */}
             <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">🔮 Günlük Rehber</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🔮 Günlük Rehber</p>
               <div className="space-y-1.5">
                 <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-2.5 py-2">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-violet-600">✨ Potansiyel</p>
-                  <p className="line-clamp-3 text-[11px] leading-snug text-slate-700">{guidance.potential}</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-violet-600">✨ Potansiyel</p>
+                  <p className="line-clamp-3 text-xs leading-snug text-slate-700">{guidance.potential}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun</p>
                   <ul className="space-y-0.5">
                     {guidance.activities.slice(0, 3).map((a, i) => (
-                      <li key={i} className="flex items-start gap-1 text-[11px] leading-snug text-slate-700">
+                      <li key={i} className="flex items-start gap-1 text-xs leading-snug text-slate-700">
                         <span className="mt-0.5 shrink-0 font-black text-emerald-500">✓</span>{a}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
                   <ul className="space-y-0.5">
                     {guidance.cautions.slice(0, 3).map((c, i) => (
-                      <li key={i} className="flex items-start gap-1 text-[11px] leading-snug text-slate-700">
+                      <li key={i} className="flex items-start gap-1 text-xs leading-snug text-slate-700">
                         <span className="mt-0.5 shrink-0 font-black text-amber-500">⚠</span>{c}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal</p>
-                  <p className="line-clamp-2 text-[11px] leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal</p>
+                  <p className="line-clamp-2 text-xs leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
                 </div>
               </div>
             </div>
@@ -1037,9 +1038,9 @@ export default function CosmicCalendarPage() {
             {/* Yaklaşan Olaylar — max 8 */}
             <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">📆 Yaklaşan Olaylar</p>
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
                 {mergedUpcomingEvents.length > 8 && (
-                  <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[9px] font-bold text-indigo-500 hover:text-indigo-700">
+                  <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
                     {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
                   </button>
                 )}
@@ -1051,9 +1052,9 @@ export default function CosmicCalendarPage() {
                   {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 8)).map((ev, i) => (
                     <button key={i} type="button" onClick={() => navigateToDate(ev.date)} className="flex w-full items-center gap-1.5 py-1.5 text-left transition hover:opacity-75 first:pt-0 last:pb-0">
                       <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">{ev.label}</span>
-                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
-                      <span className="shrink-0 w-8 text-right text-[9px] text-slate-400 tabular-nums">
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{ev.label}</span>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
+                      <span className="shrink-0 w-8 text-right text-[10px] text-slate-400 tabular-nums">
                         {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
                       </span>
                     </button>
@@ -1065,19 +1066,19 @@ export default function CosmicCalendarPage() {
             {/* Gezegen Saati mini */}
             {isSelectedToday && (
               <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
-                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-700">⏰ Gezegen Saati</p>
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{ph.aktifGezegen.symbol}</div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
-                    <p className="text-[10px] text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
+                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
+                    <p className="text-xs text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[8px] text-slate-400">Sonraki</p>
-                    <p className="text-[11px] font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
+                    <p className="text-[10px] text-slate-400">Sonraki</p>
+                    <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-[8px] text-indigo-400/70">📍 İstanbul koordinatlarına göre hesaplanmaktadır</p>
+                <p className="mt-2 text-[10px] text-indigo-400/70">📍 İstanbul koordinatlarına göre hesaplanmaktadır</p>
               </div>
             )}
 
@@ -1087,7 +1088,7 @@ export default function CosmicCalendarPage() {
         {/* ── Yaklaşan Kozmik Olaylar ── */}
         {cosmicEvents.length > 0 && (
           <section className="mt-4 rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-            <p className="mb-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">🗓 Yaklaşan Kozmik Olaylar</p>
+            <p className="mb-2.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🗓 Yaklaşan Kozmik Olaylar</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-2">
               {cosmicEvents.map((evt, i) => {
                 const [evtY, evtM, evtD] = evt.date.split("-");
@@ -1105,15 +1106,15 @@ export default function CosmicCalendarPage() {
                     {/* İçerik */}
                     <div className="min-w-0 flex-1">
                       <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
-                        <p className={`text-[11px] font-black leading-tight ${st.text}`}>{evt.title}</p>
-                        <span className={`rounded-full px-1.5 py-px text-[8px] font-semibold ${st.badge}`}>
+                        <p className={`text-xs font-black leading-tight ${st.text}`}>{evt.title}</p>
+                        <span className={`rounded-full px-1.5 py-px text-[10px] font-semibold ${st.badge}`}>
                           {typeLabel}
                         </span>
                       </div>
-                      <p className="mb-0.5 text-[9px] font-semibold text-slate-400">
+                      <p className="mb-0.5 text-[10px] font-semibold text-slate-400">
                         {dateLabel}{evt.time ? ` · ${evt.time}` : ""}
                       </p>
-                      <p className="line-clamp-2 text-[10px] leading-snug text-slate-500">{evt.description}</p>
+                      <p className="line-clamp-2 text-xs leading-snug text-slate-500">{evt.description}</p>
                     </div>
                   </div>
                 );
@@ -1127,11 +1128,11 @@ export default function CosmicCalendarPage() {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
           <div className="relative">
-            <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.25em] text-indigo-300/70">
+            <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300/70">
               🌙 {isSelectedToday ? "Bugünün Enerjisi" : `${miladiDate} Enerjisi`}
             </p>
             <h2 className="text-lg font-black tracking-tight text-white">{energy.title}</h2>
-            <p className="mt-0.5 line-clamp-2 text-[12px] font-medium leading-relaxed text-indigo-100/75">{energy.mainTheme}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs font-medium leading-relaxed text-indigo-100/75">{energy.mainTheme}</p>
             <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               {[
                 { lbl: "🎯 Odak", val: energy.focus },
@@ -1139,8 +1140,8 @@ export default function CosmicCalendarPage() {
                 { lbl: "💡 Öneri", val: energy.recommendation },
               ].map(({ lbl, val }) => (
                 <div key={lbl} className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
-                  <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-300/60">{lbl}</p>
-                  <p className="text-[11px] font-bold text-white">{val}</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-indigo-300/60">{lbl}</p>
+                  <p className="text-xs font-bold text-white">{val}</p>
                 </div>
               ))}
             </div>
