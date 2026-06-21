@@ -9,7 +9,7 @@ import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 export const ADMIN_DEMO_VALUE = "Veri bağlantısı hazırlanıyor";
 
 const navBtn =
-  "inline-flex h-16 w-full items-center justify-center gap-3 rounded-3xl border-2 px-8 text-lg font-bold shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl sm:flex-1";
+  "inline-flex h-10 sm:h-11 w-full items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-1";
 
 const demoCardThemes = [
   {
@@ -88,13 +88,13 @@ function DemoMetricCard({
 
   return (
     <article
-      className={`flex min-h-[180px] flex-col rounded-3xl border-2 bg-gradient-to-br p-6 shadow-xl backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl sm:min-h-[200px] sm:p-8 ${theme.cardBg} ${theme.border}`}
+      className={`flex min-h-[120px] flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${theme.cardBg} ${theme.border}`}
     >
-      <span className="w-fit rounded-full border border-white/90 bg-white/80 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
+      <span className="w-fit rounded-full border border-white/90 bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-slate-500 shadow-sm">
         Demo
       </span>
-      <h3 className="mt-4 text-xl font-black text-slate-900">{title}</h3>
-      <p className={`mt-3 flex-1 text-base font-bold leading-relaxed ${theme.valueText}`}>
+      <h3 className="mt-3 text-base font-bold text-slate-900">{title}</h3>
+      <p className={`mt-2 flex-1 text-sm font-semibold leading-relaxed ${theme.valueText}`}>
         {value}
       </p>
     </article>
@@ -124,7 +124,7 @@ export function AdminModuleLayout({
 
   if (!checked) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 text-slate-600">
+      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-600">
         <p className="text-lg font-semibold">Yükleniyor…</p>
       </main>
     );
@@ -132,8 +132,8 @@ export function AdminModuleLayout({
 
   if (!allowed) {
     return (
-      <main className="relative min-h-screen w-full bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 px-8 py-12">
-        <div className="mx-auto max-w-lg rounded-[32px] border border-rose-200 bg-white/90 p-10 text-center shadow-xl backdrop-blur-xl">
+      <main className="relative min-h-screen w-full bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] px-6 py-10">
+        <div className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white/90 p-10 text-center shadow-xl backdrop-blur-xl">
           <Shield className="mx-auto h-10 w-10 text-rose-600" />
           <h1 className="mt-4 text-2xl font-black text-slate-900">Erişim reddedildi</h1>
           <p className="mt-2 text-base text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
@@ -150,65 +150,61 @@ export function AdminModuleLayout({
   }
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 text-slate-900 antialiased">
-      <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/20 blur-[140px]" />
-      <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-cyan-200/15 blur-[120px]" />
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
+      <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/25 blur-[140px]" />
+      <div className="pointer-events-none absolute -right-24 top-24 h-[420px] w-[420px] rounded-full bg-rose-200/20 blur-[120px]" />
 
-      <div className="relative z-10 w-full min-h-screen px-8 py-8 xl:px-10 2xl:px-14">
-        <nav className="mb-10 grid gap-4 sm:grid-cols-2" aria-label="Üst navigasyon">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <nav className="mb-6 grid gap-2 sm:grid-cols-2 sm:gap-3" aria-label="Üst navigasyon">
           <Link
             href="/admin"
             className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 hover:border-violet-400 no-underline`}
           >
-            <ArrowLeft className="h-7 w-7 shrink-0" strokeWidth={2.25} />
+            <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} />
             Admin Paneline Dön
           </Link>
           <Link
             href="/"
             className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 no-underline`}
           >
-            <Home className="h-7 w-7 shrink-0" strokeWidth={2.25} />
+            <Home className="h-4 w-4 shrink-0" strokeWidth={2.25} />
             Ana Panele Dön
           </Link>
         </nav>
 
         <header
-          className={`relative mb-10 overflow-hidden rounded-[32px] border-2 border-white/80 bg-gradient-to-r px-8 py-10 text-white shadow-[0_28px_80px_rgba(79,70,229,0.18)] sm:px-10 ${theme.headerGradient}`}
+          className={`relative mb-6 overflow-hidden rounded-2xl border border-white/50 bg-gradient-to-r px-6 py-6 text-white shadow-[0_16px_48px_rgba(88,28,135,0.18)] sm:px-8 sm:py-7 ${theme.headerGradient}`}
         >
-          <div className="relative flex flex-wrap items-start gap-5">
+          <div className="relative flex flex-wrap items-center gap-4">
             <div
-              className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ring-1 ring-white/25 ${theme.iconWrap}`}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ring-1 ring-white/25 ${theme.iconWrap}`}
             >
-              <Icon className="h-8 w-8 text-white" strokeWidth={2} />
+              <Icon className="h-6 w-6 text-white" strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-black uppercase tracking-[0.4em] ${theme.headerLabelClass}`}>
+              <p className={`text-xs font-bold uppercase tracking-widest ${theme.headerLabelClass}`}>
                 {headerLabel}
               </p>
-              <h1 className="mt-3 text-5xl font-black tracking-tight">{title}</h1>
-              <p className="mt-3 max-w-3xl text-lg font-medium text-white/90">{description}</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{title}</h1>
+              <p className="mt-1 text-sm font-medium text-white/70">{description}</p>
             </div>
           </div>
         </header>
 
-        <section
-          className="mb-8 rounded-3xl border-2 border-violet-200/80 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/90 p-8 shadow-xl backdrop-blur-sm"
-          role="status"
-        >
-          <p className="text-2xl font-black text-violet-950">Bu modül hazırlanıyor</p>
-          <p className="mt-3 text-base font-medium leading-relaxed text-violet-900/90">
-            {preparingNote}
-          </p>
-        </section>
-
         {children}
 
-        <section aria-label={demoSectionTitle} className="mt-8">
-          <h2 className="text-xl font-black text-slate-900">{demoSectionTitle}</h2>
-          <p className="mt-2 text-base text-slate-600">{demoSectionDesc}</p>
+        <section aria-label={demoSectionTitle} className="mt-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900">{demoSectionTitle}</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden />
+              Hazırlanıyor
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">{demoSectionDesc}</p>
           <div
-            className={`mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 ${
-              demoCards.length > 6 ? "xl:grid-cols-4 2xl:grid-cols-5" : ""
+            className={`mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              demoCards.length > 8 ? "2xl:grid-cols-5" : ""
             }`}
           >
             {demoCards.map((card, index) => (
@@ -223,8 +219,8 @@ export function AdminModuleLayout({
         </section>
 
         {footerNote ? (
-          <footer className="mt-12 border-t border-slate-200/80 pt-8">
-            <p className="text-sm font-semibold text-slate-500">{footerNote}</p>
+          <footer className="mt-8 border-t border-slate-200/60 pt-6">
+            <p className="text-xs font-medium text-slate-400">{footerNote}</p>
           </footer>
         ) : null}
       </div>

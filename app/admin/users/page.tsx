@@ -85,7 +85,7 @@ function matchesUserListFilter(user: ManagedUser, filter: UserListFilter): boole
 }
 
 const panelClass =
-  "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
+  "rounded-2xl border border-white/80 bg-white/90 p-5 shadow-md backdrop-blur-sm sm:p-6";
 
 const inputClass =
   "mt-2 h-14 w-full rounded-2xl border-2 border-indigo-100 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100";
@@ -93,7 +93,7 @@ const inputClass =
 const labelClass = "block text-sm font-black text-slate-700";
 
 const navBtn =
-  "inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[60px]";
+  "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
 
 const saveBtnClass =
   "inline-flex h-14 w-full items-center justify-center rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-100 via-fuchsia-100 to-rose-100 px-8 text-base font-black text-violet-950 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50";
@@ -110,10 +110,10 @@ function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
 function UsersTopNav({ onLogout }: { onLogout: () => void }) {
   return (
     <nav
-      className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
+      className="sticky top-0 z-50 mb-6 rounded-2xl border border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-2 shadow-md backdrop-blur-xl sm:p-3"
       aria-label="Üst navigasyon"
     >
-      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-stretch lg:gap-4">
+      <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3">
         <Link
           href="/"
           className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 no-underline lg:justify-self-start`}
@@ -155,9 +155,9 @@ function SummaryStatCard({
     slate: "border-slate-200/90 bg-gradient-to-br from-slate-50/95 via-white to-slate-100/80",
   };
   return (
-    <div className={`rounded-[24px] border-2 p-5 shadow-sm sm:p-6 ${tones[tone]}`}>
-      <p className="text-sm font-black uppercase tracking-wide text-slate-600">{label}</p>
-      <p className="mt-2 text-4xl font-black tabular-nums text-slate-950">{value}</p>
+    <div className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${tones[tone]}`}>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-black tabular-nums text-slate-950">{value}</p>
     </div>
   );
 }
@@ -253,11 +253,13 @@ function CompactUserRow({ user }: { user: ManagedUser }) {
           <RoleBadge role={user.role} />
           <ApprovalBadge status={user.approvalStatus} />
           <StatusBadge active={user.active} />
-          <PackageBadge label={user.membershipDisplay.packageLabel} />
-          <PaymentBadge
-            status={user.payment.status}
-            label={user.payment.statusLabel}
-          />
+          <span className="hidden sm:contents">
+            <PackageBadge label={user.membershipDisplay.packageLabel} />
+            <PaymentBadge
+              status={user.payment.status}
+              label={user.payment.statusLabel}
+            />
+          </span>
         </div>
         <p className="mt-2 text-xs font-semibold text-slate-500">
           Kayıt: {formatCreatedAt(user.createdAt)}
@@ -426,7 +428,7 @@ export default function AdminUsersPage() {
   if (!allowed) {
     return (
       <main className="relative min-h-screen bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#fff1f2_100%)] px-6 py-12">
-        <div className="mx-auto max-w-lg rounded-[28px] border border-rose-200 bg-white/90 p-10 text-center shadow-xl">
+        <div className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white/90 p-10 text-center shadow-xl">
           <Shield className="mx-auto h-10 w-10 text-rose-600" />
           <h1 className="mt-4 text-2xl font-black">Erişim reddedildi</h1>
           <p className="mt-2 text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
@@ -440,22 +442,29 @@ export default function AdminUsersPage() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-6 py-6 md:px-10 md:py-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <UsersTopNav onLogout={handleLogout} />
 
-        <header className={`${panelClass} mb-6 border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/70`}>
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-violet-700">
-            Admin · Üye Yönetimi
-          </p>
-          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
-            Kullanıcı / Üye Yönetimi
-          </h1>
-          <p className="mt-2 text-base font-medium text-slate-600">
-            Kısa liste görünümü. Paket, modül ve işlemler için kullanıcı detayına gidin.
-          </p>
+        <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-slate-800 px-6 py-6 text-white shadow-[0_16px_48px_rgba(88,28,135,0.18)] sm:px-8 sm:py-7">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+              <Users className="h-6 w-6 text-white/90" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/60">
+                Admin · Üye Yönetimi
+              </p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
+                Kullanıcı / Üye Yönetimi
+              </h1>
+              <p className="mt-1 text-sm font-medium text-white/70">
+                Kısa liste görünümü. Paket, modül ve işlemler için kullanıcı detayına gidin.
+              </p>
+            </div>
+          </div>
         </header>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryStatCard label="Toplam Üye" value={stats.total} tone="violet" />
           <SummaryStatCard label="Onay Bekleyen" value={stats.pending} tone="amber" />
           <SummaryStatCard label="Aktif Üye" value={stats.active} tone="emerald" />
@@ -572,8 +581,8 @@ export default function AdminUsersPage() {
           </div>
         </section>
 
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-black text-slate-900">
-          <Users className="h-5 w-5 text-violet-600" aria-hidden />
+        <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
+          <Users className="h-4 w-4 text-violet-600" aria-hidden />
           Kullanıcı Listesi
           {!listLoading ? (
             <span className="text-sm font-bold text-slate-500">

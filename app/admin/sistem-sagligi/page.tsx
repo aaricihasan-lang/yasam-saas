@@ -8,7 +8,7 @@ import { ADMIN_DEMO_VALUE } from "@/components/admin/AdminModuleLayout";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 
 const navLinkClass =
-  "inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-bold shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg md:h-16 md:w-auto md:px-8 md:text-lg";
+  "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
 
 const demoCardThemes = [
   {
@@ -59,21 +59,21 @@ const demoCards = [
 function AdminNavButtons({ className = "" }: { className?: string }) {
   return (
     <nav
-      className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center ${className}`}
+      className={`flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center ${className}`}
       aria-label="Sayfa navigasyonu"
     >
       <Link
         href="/admin"
         className={`${navLinkClass} border-violet-300/80 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-950 hover:border-violet-400 no-underline`}
       >
-        <ArrowLeft className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
+        <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
         Admin Paneline Dön
       </Link>
       <Link
         href="/"
         className={`${navLinkClass} border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-950 hover:border-emerald-400 no-underline`}
       >
-        <Home className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
+        <Home className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
         Ana Panele Dön
       </Link>
     </nav>
@@ -92,7 +92,7 @@ export default function SistemSagligiPage() {
 
   if (!checked) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 text-slate-600">
+      <main className="flex min-h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-600">
         <p className="text-lg font-semibold">Yükleniyor…</p>
       </main>
     );
@@ -100,8 +100,8 @@ export default function SistemSagligiPage() {
 
   if (!allowed) {
     return (
-      <main className="relative min-h-screen w-full bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 px-8 py-12">
-        <div className="mx-auto max-w-lg rounded-[32px] border border-rose-200 bg-white/90 p-10 text-center shadow-xl backdrop-blur-xl">
+      <main className="relative min-h-screen w-full bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] px-6 py-10">
+        <div className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white/90 p-10 text-center shadow-xl backdrop-blur-xl">
           <Shield className="mx-auto h-10 w-10 text-rose-600" />
           <h1 className="mt-4 text-2xl font-black text-slate-900">Erişim reddedildi</h1>
           <p className="mt-2 text-base text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
@@ -118,50 +118,48 @@ export default function SistemSagligiPage() {
   }
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 text-slate-900 antialiased">
-      <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/20 blur-[140px]" />
-      <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-cyan-200/15 blur-[120px]" />
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
+      <div className="pointer-events-none absolute -left-32 top-0 h-[480px] w-[480px] rounded-full bg-violet-300/25 blur-[140px]" />
+      <div className="pointer-events-none absolute -right-24 top-24 h-[420px] w-[420px] rounded-full bg-rose-200/20 blur-[120px]" />
 
-      <div className="relative z-10 w-full min-h-screen px-4 py-6 sm:px-6 sm:py-8 xl:px-10 2xl:px-14">
-        <header className="relative mb-6 overflow-hidden rounded-[32px] border-2 border-white/80 bg-gradient-to-r from-slate-900 via-emerald-900 to-teal-800 px-6 py-8 text-white shadow-[0_28px_80px_rgba(16,185,129,0.18)] sm:px-10 sm:py-10">
-          <div className="relative flex flex-wrap items-start gap-5">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/50 bg-gradient-to-r from-slate-900 via-emerald-900 to-teal-800 px-6 py-6 text-white shadow-[0_16px_48px_rgba(16,185,129,0.18)] sm:px-8 sm:py-7">
+          <div className="relative flex flex-wrap items-center gap-4">
             <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg ring-1 ring-white/25"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg ring-1 ring-white/25"
             >
-              <Activity className="h-8 w-8 text-white" strokeWidth={2} />
+              <Activity className="h-6 w-6 text-white" strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black uppercase tracking-[0.4em] text-emerald-200/90">
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-200/90">
                 Admin · İzleme
               </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
                 Sistem Sağlığı
               </h1>
-              <p className="mt-3 max-w-3xl text-base font-medium text-white/90 sm:text-lg">
+              <p className="mt-1 text-sm font-medium text-white/70">
                 Bağlantı, kullanım, performans ve güvenlik özeti
               </p>
             </div>
           </div>
         </header>
 
-        <div className="sticky top-0 z-50 -mx-1 mb-6 border-b border-white/60 bg-gradient-to-r from-slate-50/95 via-indigo-50/95 to-cyan-50/95 px-1 py-4 backdrop-blur-xl sm:-mx-2 sm:px-2 sm:py-5">
+        <div className="sticky top-0 z-50 -mx-1 mb-4 border-b border-white/60 bg-white/80 px-1 py-3 backdrop-blur-xl sm:-mx-2 sm:px-2">
           <AdminNavButtons />
         </div>
 
-        <section className="mb-8 rounded-3xl border-2 border-violet-200/80 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/90 p-6 shadow-xl backdrop-blur-sm sm:p-8">
-          <p className="text-xl font-black text-violet-950 sm:text-2xl">Bu modül hazırlanıyor</p>
-          <p className="mt-3 text-base font-medium leading-relaxed text-violet-900/90">
-            Yakında gerçek Supabase verileri bu modüle bağlanacak. Aşağıdaki kartlar şimdilik demo
-            değer gösterir.
-          </p>
-        </section>
-
         <section aria-label="Sistem metrikleri">
-          <h2 className="text-xl font-black text-slate-900">Sistem metrikleri</h2>
-          <p className="mt-2 text-base text-slate-600">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900">Sistem metrikleri</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden />
+              Hazırlanıyor
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
             Platform genelinde kullanım ve durum göstergeleri
           </p>
-          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {demoCards.map((card, index) => {
               const theme = demoCardThemes[index % demoCardThemes.length];
               return (
@@ -171,16 +169,16 @@ export default function SistemSagligiPage() {
                   className="block h-full no-underline"
                 >
                   <article
-                    className={`flex h-full min-h-[168px] cursor-pointer flex-col rounded-3xl border-2 bg-gradient-to-br p-6 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl sm:min-h-[180px] sm:p-7 ${theme.cardBg} ${theme.border}`}
+                    className={`flex h-full min-h-[120px] cursor-pointer flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-md transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg ${theme.cardBg} ${theme.border}`}
                   >
-                    <span className="w-fit rounded-full border border-white/90 bg-white/80 px-3 py-1 text-sm font-bold text-slate-600 shadow-sm">
+                    <span className="w-fit rounded-full border border-white/90 bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-slate-500 shadow-sm">
                       Demo
                     </span>
-                    <h3 className="mt-4 text-lg font-black text-slate-900 sm:text-xl">{card.title}</h3>
-                    <p className={`mt-3 flex-1 text-base font-bold leading-relaxed ${theme.valueText}`}>
+                    <h3 className="mt-3 text-base font-bold text-slate-900">{card.title}</h3>
+                    <p className={`mt-2 flex-1 text-sm font-semibold leading-relaxed ${theme.valueText}`}>
                       {ADMIN_DEMO_VALUE}
                     </p>
-                    <p className="mt-4 text-sm font-bold text-slate-600">Detayları gör →</p>
+                    <p className="mt-3 text-xs font-semibold text-slate-500">Detayları gör →</p>
                   </article>
                 </Link>
               );
@@ -188,8 +186,8 @@ export default function SistemSagligiPage() {
           </div>
         </section>
 
-        <footer className="mt-12 border-t border-slate-200/80 pt-8">
-          <p className="text-sm font-semibold text-slate-500">
+        <footer className="mt-8 border-t border-slate-200/60 pt-6">
+          <p className="text-xs font-medium text-slate-400">
             Sistem Sağlığı · admin modül önizlemesi
           </p>
         </footer>
