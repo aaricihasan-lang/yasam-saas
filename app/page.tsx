@@ -600,6 +600,7 @@ export default function Home() {
   const [adminNavLoading, setAdminNavLoading] = useState(false);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
+  const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
@@ -641,6 +642,15 @@ export default function Home() {
     if (stored) {
       setUser(stored);
       setAuthLoading(false);
+      // Cookie refresh DB sync'ten önce (paralel) başlatılıyor; tıklama anında
+      // Promise zaten resolved olacak → sıfır bekleme.
+      if (isAdminUser(stored)) {
+        adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: stored.id }),
+        }).then(() => {}).catch(() => {});
+      }
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (!fresh) {
           clearYasamUser();
@@ -648,14 +658,13 @@ export default function Home() {
           return;
         }
         setUser(fresh);
-        // Admin cookie'yi sessizce yenile — localStorage'dan gelen oturumlarda cookie
-        // olmayabilir, bu yüzden /admin layout'u anında redirect atardı.
-        if (isAdminUser(fresh)) {
-          void fetch("/api/auth/admin-session", {
+        // Admin olup localStorage'da admin değilse (nadir durum) cookie set et.
+        if (isAdminUser(fresh) && !adminCookiePromiseRef.current) {
+          adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: fresh.id }),
-          }).catch(() => {});
+          }).then(() => {}).catch(() => {});
         }
       });
       return;
@@ -1017,15 +1026,19 @@ export default function Home() {
     async function handleAdminNav() {
       if (adminNavLoading) return;
       setAdminNavLoading(true);
-      const userId = user!.id;
-      try {
-        await fetch("/api/auth/admin-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        });
-      } catch {
-        // Cookie refresh başarısız olsa da devam et; layout auth'u yönetir.
+      if (adminCookiePromiseRef.current) {
+        // Sayfa yüklenirken başlatılan refresh'i bekle.
+        // Promise zaten resolved ise await = bir microtask tick (~0 ms).
+        await adminCookiePromiseRef.current;
+      } else {
+        // Nadir fallback: sayfa yüklenirken başlatılmamışsa şimdi yap.
+        try {
+          await fetch("/api/auth/admin-session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user!.id }),
+          });
+        } catch {}
       }
       router.push("/admin");
     }
