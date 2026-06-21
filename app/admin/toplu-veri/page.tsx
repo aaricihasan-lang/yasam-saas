@@ -85,8 +85,6 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
   "tiff",
 ]);
 
-const STONE_PHOTOS_BUCKET = "stone-photos";
-
 const WARNING_RATIO_THRESHOLD = 0.2;
 const BATCH_SIZE = 25;
 const EFFECT_WARNING_PREVIEW_LIMIT = 10;
@@ -392,11 +390,6 @@ type StoneInsertPayload = {
   image_upload_failed?: boolean;
 };
 
-type LocalImageUploadResult = {
-  image?: { id: string; name: string; url: string };
-  failed: boolean;
-};
-
 function mapJsonChakras(record: StoneJsonRecord): string[] | null {
   const assignments = getAssignments(record);
   if (!assignments) return null;
@@ -432,61 +425,11 @@ function mapJsonImages(
   });
 }
 
-async function uploadLocalImagePath(
-  localPath: string,
-  tenantId: string,
-  imageId: string,
-  imageBasePath: string,
-): Promise<LocalImageUploadResult> {
-  if (isRealUrl(localPath)) {
-    const name = localPath.split(/[/\\]/).pop() ?? "gorsel";
-    return {
-      image: { id: imageId, name, url: localPath.trim() },
-      failed: false,
-    };
-  }
-
-  try {
-    const response = await fetch("/api/admin/toplu-veri/upload-local-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        localPath,
-        tenantId,
-        basePath: imageBasePath || undefined,
-      }),
-    });
-
-    const result = (await response.json()) as {
-      ok?: boolean;
-      url?: string;
-      name?: string;
-      error?: string;
-    };
-
-    if (result.ok && result.url) {
-      return {
-        image: {
-          id: imageId,
-          name: result.name ?? localPath.split(/[/\\]/).pop() ?? "gorsel",
-          url: result.url,
-        },
-        failed: false,
-      };
-    }
-
-    return { failed: true };
-  } catch {
-    return { failed: true };
-  }
-}
-
-async function buildStonePayloadWithImages(
+function buildStonePayloadWithImages(
   record: StoneJsonRecord,
   tenantId: string,
   recordIndex: number,
-  imageBasePath: string,
-): Promise<StoneInsertPayload | null> {
+): StoneInsertPayload | null {
   const base = mapJsonRecordToStonePayload(record, tenantId, recordIndex);
   if (!base) return null;
 
@@ -496,29 +439,22 @@ async function buildStonePayloadWithImages(
   }
 
   const images: StoneInsertPayload["images"] = [];
-  let imageUploadFailed = false;
+  let hasLocalPaths = false;
 
   for (let imageIndex = 0; imageIndex < paths.length; imageIndex += 1) {
-    const localPath = paths[imageIndex];
-    const imageId = `json-import-${recordIndex}-${imageIndex}`;
-    const uploadResult = await uploadLocalImagePath(
-      localPath,
-      tenantId,
-      imageId,
-      imageBasePath,
-    );
-
-    if (uploadResult.image) {
-      images.push(uploadResult.image);
-    } else if (!isRealUrl(localPath)) {
-      imageUploadFailed = true;
+    const path = paths[imageIndex];
+    if (isRealUrl(path)) {
+      const name = path.split(/[/\\]/).pop() ?? `gorsel-${imageIndex + 1}`;
+      images.push({ id: `json-import-${recordIndex}-${imageIndex}`, name, url: path.trim() });
+    } else {
+      hasLocalPaths = true;
     }
   }
 
   return {
     ...base,
     images,
-    ...(imageUploadFailed ? { image_upload_failed: true } : {}),
+    ...(hasLocalPaths ? { image_upload_failed: true } : {}),
   };
 }
 
@@ -4221,7 +4157,6 @@ function DogaltasJsonTab() {
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importFailedRows, setImportFailedRows] = useState<ImportFailedRow[]>([]);
-  const [imageBasePath, setImageBasePath] = useState("");
 
   const previewRecords = useMemo(() => records.slice(0, 3), [records]);
 
@@ -4327,12 +4262,7 @@ function DogaltasJsonTab() {
     const importRows: ImportRow[] = [];
     for (let index = 0; index < recordsToImport.length; index += 1) {
       const record = recordsToImport[index];
-      const payload = await buildStonePayloadWithImages(
-        record,
-        tenantId,
-        index,
-        imageBasePath.trim(),
-      );
+      const payload = buildStonePayloadWithImages(record, tenantId, index);
       if (payload) {
         importRows.push({ payload, stoneName: payload.stone_name });
       }
@@ -4392,7 +4322,7 @@ function DogaltasJsonTab() {
     } else {
       setImportError("Hiçbir kayıt aktarılamadı. Başarısız kayıtları listeden inceleyin.");
     }
-  }, [records, showToast, imageBasePath, tenantId, tenantError]);
+  }, [records, showToast, tenantId, tenantError]);
 
   return (
     <section
@@ -4408,19 +4338,10 @@ function DogaltasJsonTab() {
           <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600 sm:text-base">
             JSON yükleyin; alan eşleştirmesi, göç riski ve Supabase aktarımı bu ekrandan yapılır.
           </p>
-          <label className="mt-3 block max-w-2xl text-sm font-semibold text-slate-700">
-            Yerel görsel kök klasörü (opsiyonel — göreli yollar için)
-            <input
-              type="text"
-              value={imageBasePath}
-              onChange={(event) => setImageBasePath(event.target.value)}
-              placeholder="Örn: C:\clean_app veya D:\taslar"
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-inner outline-none focus:border-cyan-400"
-            />
-          </label>
-          <p className="mt-1 max-w-2xl text-xs font-medium text-slate-500">
-            Yerel dosya bulunursa {STONE_PHOTOS_BUCKET} deposuna yüklenir; aksi halde taş aktarılır ve{" "}
-            <code className="rounded bg-slate-100 px-1">image_upload_failed</code> işaretlenir.
+          <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
+            Yerel görsel yolları (C:\... veya göreli yol) production&apos;da desteklenmez; bu kayıtlar görselsiz aktarılır ve{" "}
+            <code className="rounded bg-amber-100 px-1">image_upload_failed</code> işaretlenir.
+            Yalnızca http(s) URL&apos;leri işlenir.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
