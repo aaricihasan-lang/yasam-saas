@@ -281,6 +281,9 @@ export default function VeriPaylasimiPage() {
   const [selectedIds, setSelectedIds] = useState<Record<GranularKey, Set<string>>>({
     stones: new Set(), minerals: new Set(), combinations: new Set(),
   });
+  const [groupRecordErrors, setGroupRecordErrors] = useState<Record<GranularKey, string | null>>({
+    stones: null, minerals: null, combinations: null,
+  });
 
   const selectedExpert = useMemo(
     () => experts.find((e) => e.id === selectedExpertId) ?? null,
@@ -397,49 +400,76 @@ export default function VeriPaylasimiPage() {
 
   const loadGroupRecords = useCallback(
     async (key: GranularKey) => {
-      if (!sourceAdminTenantId) return;
+      if (!sourceAdminTenantId) {
+        setGroupRecordErrors((p) => ({
+          ...p,
+          [key]: "Admin kaynak tenant bulunamadı. Veri listesi yüklenemiyor.",
+        }));
+        return;
+      }
+
       setGroupRecordsLoading((p) => ({ ...p, [key]: true }));
+      setGroupRecordErrors((p) => ({ ...p, [key]: null }));
 
       let items: RecordItem[] = [];
+      let fetchError: string | null = null;
 
       if (key === "stones") {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("stones")
           .select("id, stone_name")
           .eq("tenant_id", sourceAdminTenantId)
           .order("stone_name", { ascending: true });
-        items = (data ?? []).map((r) => {
-          const row = r as Record<string, unknown>;
-          return { id: String(row.id), label: String(row.stone_name ?? row.id) };
-        });
+        if (error) {
+          console.error("[veri-paylasimi] stones kayıt yükleme hatası:", error.message);
+          fetchError = error.message;
+        } else {
+          items = (data ?? []).map((r) => {
+            const row = r as Record<string, unknown>;
+            return { id: String(row.id), label: String(row.stone_name ?? row.id) };
+          });
+        }
       } else if (key === "minerals") {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("minerals")
           .select("id, name")
           .eq("tenant_id", sourceAdminTenantId)
           .order("name", { ascending: true });
-        items = (data ?? []).map((r) => {
-          const row = r as Record<string, unknown>;
-          return { id: String(row.id), label: String(row.name ?? row.id) };
-        });
+        if (error) {
+          console.error("[veri-paylasimi] minerals kayıt yükleme hatası:", error.message);
+          fetchError = error.message;
+        } else {
+          items = (data ?? []).map((r) => {
+            const row = r as Record<string, unknown>;
+            return { id: String(row.id), label: String(row.name ?? row.id) };
+          });
+        }
       } else {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("combinations")
           .select("id, issue, variant_index")
           .eq("tenant_id", sourceAdminTenantId)
           .order("issue", { ascending: true })
           .order("variant_index", { ascending: true });
-        items = (data ?? []).map((r) => {
-          const row = r as Record<string, unknown>;
-          const issue = String(row.issue ?? "");
-          const vi = Number(row.variant_index ?? 0);
-          return {
-            id: String(row.id),
-            label: vi > 0 ? `${issue} (Varyant ${vi + 1})` : issue,
-          };
-        });
+        if (error) {
+          console.error("[veri-paylasimi] combinations kayıt yükleme hatası:", error.message);
+          fetchError = error.message;
+        } else {
+          items = (data ?? []).map((r) => {
+            const row = r as Record<string, unknown>;
+            const issue = String(row.issue ?? "");
+            const vi = Number(row.variant_index ?? 0);
+            return {
+              id: String(row.id),
+              label: vi > 0 ? `${issue} (Varyant ${vi + 1})` : issue,
+            };
+          });
+        }
       }
 
+      if (fetchError) {
+        setGroupRecordErrors((p) => ({ ...p, [key]: fetchError }));
+      }
       setGroupRecords((p) => ({ ...p, [key]: items }));
       setGroupRecordsLoading((p) => ({ ...p, [key]: false }));
     },
@@ -637,7 +667,11 @@ export default function VeriPaylasimiPage() {
                 Üye verisi silinmez veya güncellenmez.
               </p>
               <p className="mt-3 rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 font-mono text-xs text-amber-100">
-                Admin kaynak tenant_id: {sourceAdminTenantId ?? "—"}
+                <span className="not-italic font-bold">Admin kaynak tenant:</span>{" "}
+                {sourceAdminTenantId ?? "—"}
+                {!sourceAdminTenantId
+                  ? " · Tenant bulunamadı — seçili kayıt listeleri yüklenmeyecek"
+                  : ""}
                 {sourceTenantError ? ` · ${sourceTenantError}` : ""}
               </p>
             </div>
@@ -799,9 +833,13 @@ export default function VeriPaylasimiPage() {
                                       aria-hidden
                                     />
                                   </div>
+                                ) : groupRecordErrors[gKey] ? (
+                                  <p className="text-xs font-semibold text-rose-600">
+                                    Yükleme hatası: {groupRecordErrors[gKey]}
+                                  </p>
                                 ) : groupRecords[gKey].length === 0 ? (
                                   <p className="text-xs font-semibold text-slate-500">
-                                    Admin kütüphanesinde kayıt bulunamadı.
+                                    Bu grup için admin kütüphanesinde kayıt bulunamadı.
                                   </p>
                                 ) : (
                                   <>
@@ -916,6 +954,11 @@ export default function VeriPaylasimiPage() {
           {selectedExpert && !selectedExpert.tenantId ? (
             <p className="mt-3 text-center text-sm font-bold text-amber-700">
               Seçili üyede tenant_id tanımlı değil; aktarım başlatılamaz.
+            </p>
+          ) : null}
+          {!granularGroupsValid ? (
+            <p className="mt-3 text-center text-sm font-bold text-amber-700">
+              Seçili aktarım modundaki gruplardan en az 1 kayıt seçmelisiniz.
             </p>
           ) : null}
         </section>
