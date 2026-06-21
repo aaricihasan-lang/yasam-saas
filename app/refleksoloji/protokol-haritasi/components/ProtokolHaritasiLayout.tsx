@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { EMPTY_PROTOCOL_DRAFT } from "../lib/protocolStorage";
 import {
   missingAtlasOrgans,
@@ -19,7 +20,13 @@ const panelClass =
 
 export function ProtokolHaritasiLayout() {
   const { showToast } = useToast();
-  const { hydrated, saveProtocol } = useProtocolRegistry();
+  const { hydrated, saveProtocol, syncErrorMessage, clearSyncError } = useProtocolRegistry();
+
+  useEffect(() => {
+    if (!syncErrorMessage) return;
+    showToast({ type: "warning", title: "Bulut eşitleme", message: syncErrorMessage });
+    clearSyncError();
+  }, [syncErrorMessage, clearSyncError, showToast]);
   const [draft, setDraft] = useState<ProtocolFormDraft>(EMPTY_PROTOCOL_DRAFT);
   const [footView, setFootView] = useState<ProtocolFootView>("taban");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
@@ -46,16 +53,20 @@ export function ProtokolHaritasiLayout() {
       return;
     }
 
-    const saved = saveProtocol(draft, null);
-    if (!saved) {
+    const result = saveProtocol(draft, null);
+    if (!result.saved) {
       setValidationMessage("Kayıt yapılamadı. Alanları kontrol edin.");
+      return;
+    }
+    if (!result.storageOk) {
+      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
       return;
     }
 
     showToast({
       type: "success",
       title: "Protokol kaydedildi",
-      message: `«${saved.title}» başarıyla kaydedildi.`,
+      message: `«${result.saved.title}» başarıyla kaydedildi.`,
     });
     resetForm();
   };

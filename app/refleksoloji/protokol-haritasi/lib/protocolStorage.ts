@@ -1,4 +1,5 @@
 import type { ProtocolFormDraft, SavedProtocol } from "../types";
+import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 
 export const PROTOCOL_STORAGE_KEY = "yasam-refleksoloji-protokoller-v1";
 
@@ -92,9 +93,9 @@ export function loadProtocolsFromStorage(): SavedProtocol[] {
   }
 }
 
-export function saveProtocolsToStorage(protocols: SavedProtocol[]): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(PROTOCOL_STORAGE_KEY, JSON.stringify(protocols));
+export function saveProtocolsToStorage(protocols: SavedProtocol[]): boolean {
+  if (typeof window === "undefined") return false;
+  return safeLocalStorageSetItem(PROTOCOL_STORAGE_KEY, JSON.stringify(protocols));
 }
 
 export function draftToSavedProtocol(

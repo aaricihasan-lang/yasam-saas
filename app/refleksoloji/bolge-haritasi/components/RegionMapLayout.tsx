@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
 import type { RegionDrawShape, RegionToolMode } from "../types";
 import { AtlasSaveToast } from "./AtlasSaveToast";
@@ -15,6 +17,7 @@ type RegionMapLayoutProps = {
 };
 
 export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
+  const { showToast } = useToast();
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
   const [saveToastVisible, setSaveToastVisible] = useState(false);
@@ -25,10 +28,13 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
 
   const handleSave = useCallback(() => {
     const saved = saveAtlas();
-    if (!saved) return;
+    if (!saved) {
+      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      return;
+    }
     setToolMode("select");
     setSaveToastVisible(true);
-  }, [saveAtlas]);
+  }, [saveAtlas, showToast]);
 
   const dismissSaveToast = useCallback(() => {
     setSaveToastVisible(false);

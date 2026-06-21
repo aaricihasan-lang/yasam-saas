@@ -8,6 +8,10 @@ import {
   saveNotesToStorage,
 } from "../lib/noteStorage";
 
+export type SaveNoteResult =
+  | { saved: SavedClinicalNote; storageOk: boolean }
+  | { saved: null; storageOk: true };
+
 export function useClinicalNotes() {
   const [notes, setNotes] = useState<SavedClinicalNote[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -26,15 +30,16 @@ export function useClinicalNotes() {
   }, [refresh]);
 
   const persist = useCallback(
-    (next: SavedClinicalNote[]) => {
-      saveNotesToStorage(next);
+    (next: SavedClinicalNote[]): boolean => {
+      const ok = saveNotesToStorage(next);
       setNotes(next);
+      return ok;
     },
     [],
   );
 
   const saveNote = useCallback(
-    (draft: ClinicalNoteFormDraft, editingId: string | null): SavedClinicalNote | null => {
+    (draft: ClinicalNoteFormDraft, editingId: string | null): SaveNoteResult => {
       const list = loadNotesFromStorage();
       const existingIds = new Set(list.map((n) => n.id));
       const previous = editingId ? list.find((n) => n.id === editingId) : undefined;
@@ -44,12 +49,12 @@ export function useClinicalNotes() {
         previous,
         existingIds,
       });
-      if (!saved) return null;
+      if (!saved) return { saved: null, storageOk: true };
 
       const without = list.filter((n) => n.id !== saved.id);
       const next = [saved, ...without].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      persist(next);
-      return saved;
+      const storageOk = persist(next);
+      return { saved, storageOk };
     },
     [persist],
   );

@@ -1,4 +1,5 @@
 import type { ClinicalNoteFormDraft, NoteAttachment, SavedClinicalNote } from "../types";
+import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 
 export const CLINICAL_NOTES_STORAGE_KEY = "yasam-refleksoloji-notlar-v1";
 
@@ -108,9 +109,9 @@ export function loadNotesFromStorage(): SavedClinicalNote[] {
   }
 }
 
-export function saveNotesToStorage(notes: SavedClinicalNote[]): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(notes));
+export function saveNotesToStorage(notes: SavedClinicalNote[]): boolean {
+  if (typeof window === "undefined") return false;
+  return safeLocalStorageSetItem(CLINICAL_NOTES_STORAGE_KEY, JSON.stringify(notes));
 }
 
 export function draftToSavedNote(

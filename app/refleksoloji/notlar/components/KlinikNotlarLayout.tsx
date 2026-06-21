@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useClinicalNotes } from "../hooks/useClinicalNotes";
 import { importTextFromWordFile } from "../lib/wordImport";
 import {
@@ -77,9 +78,13 @@ export function KlinikNotlarLayout() {
     }
     if (!validateTitle()) return;
 
-    const saved = saveNote(draft, null);
-    if (!saved) {
+    const result = saveNote(draft, null);
+    if (!result.saved) {
       setValidationMessage("Kayıt yapılamadı.");
+      return;
+    }
+    if (!result.storageOk) {
+      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
       return;
     }
 
@@ -94,9 +99,13 @@ export function KlinikNotlarLayout() {
     }
     if (!validateTitle()) return;
 
-    const saved = saveNote(draft, editingId);
-    if (!saved) {
+    const result = saveNote(draft, editingId);
+    if (!result.saved) {
       setValidationMessage("Güncelleme yapılamadı.");
+      return;
+    }
+    if (!result.storageOk) {
+      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
       return;
     }
 
@@ -105,7 +114,7 @@ export function KlinikNotlarLayout() {
       message: "Not güncellendi.",
       duration: 2500,
     });
-    setEditingId(saved.id);
+    setEditingId(result.saved.id);
   };
 
   const handleDeleteCurrent = async () => {

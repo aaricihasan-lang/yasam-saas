@@ -124,7 +124,8 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
 
   const handleSave = useCallback((): boolean => {
     const next = mergeDraftIntoAtlas(atlas, draftRegions, deletedRegionIds);
-    saveAtlas(next);
+    const ok = saveAtlas(next);
+    if (!ok) return false;
     setAtlas(next);
     setDraftRegions([]);
     setDeletedRegionIds([]);

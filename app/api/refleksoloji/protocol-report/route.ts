@@ -63,18 +63,24 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", protocolIds, protocolId } = body as {
+  const { tenantId, userId, exportMode = "all", protocolIds, protocolId } = body as {
     tenantId?: string;
+    userId?: string;
     exportMode?: ExportMode;
     protocolIds?: string[];
     protocolId?: string;
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  // NOT: Bu proje sunucu taraflı oturum (cookie/JWT) kullanmaz; auth localStorage tabanlıdır.
+  // API katmanında sahiplik doğrulaması users tablosundan userId+tenantId eşleşmesiyle yapılır.
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   if (exportMode === "single" && !protocolId)
     return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
+
+  if (exportMode === "selected" && (!Array.isArray(protocolIds) || protocolIds.length === 0))
+    return Response.json({ ok: false, error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -82,6 +88,16 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
+  const { data: userRow } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   let query = db.from("reflexology_protocols").select("*").eq("tenant_id", tenantId);
 

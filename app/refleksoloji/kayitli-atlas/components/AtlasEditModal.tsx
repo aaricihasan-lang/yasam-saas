@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import {
@@ -27,11 +28,15 @@ export function AtlasEditModal({
   onRename,
   onDeleteRegion,
 }: AtlasEditModalProps) {
+  const { confirm } = useConfirm();
   const [mounted, setMounted] = useState(false);
   const [nameDraft, setNameDraft] = useState(organName);
   const [regions, setRegions] = useState<Region[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [noRegionsWarning, setNoRegionsWarning] = useState(false);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -49,13 +54,54 @@ export function AtlasEditModal({
     }
   }, [open, organName]);
 
+  // Focus restore: kayıt açılmadan önce odaklanan elementi yakala
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const previousFocus = document.activeElement as HTMLElement | null;
+    return () => {
+      previousFocus?.focus();
     };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  // İlk odak: name input
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  // Escape + Tab trap
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable.length) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
   useEffect(() => {
@@ -79,9 +125,17 @@ export function AtlasEditModal({
     onClose();
   };
 
-  const handleDeleteRegion = (regionId: string) => {
-    const ok = onDeleteRegion(organName, regionId);
+  const handleDeleteRegion = async (regionId: string) => {
+    const ok = await confirm({
+      message: "Bu bölge silinsin mi? Bu işlem geri alınamaz.",
+      confirmText: "Bölgeyi Sil",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
     if (!ok) return;
+
+    const deleted = onDeleteRegion(organName, regionId);
+    if (!deleted) return;
     const next = regions.filter((r) => r.id !== regionId);
     setRegions(next);
     if (next.length === 0) {
@@ -99,6 +153,7 @@ export function AtlasEditModal({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
         className="flex max-h-[calc(100vh-64px)] w-[min(920px,calc(100vw-32px))] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white p-6 shadow-2xl md:p-8"
         onClick={(event) => event.stopPropagation()}
       >
@@ -126,10 +181,15 @@ export function AtlasEditModal({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
           <div>
-            <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-violet-900">
+            <label
+              htmlFor="atlas-organ-name"
+              className="mb-2 block text-sm font-bold uppercase tracking-wide text-violet-900"
+            >
               Organ Adı
             </label>
             <input
+              id="atlas-organ-name"
+              ref={nameInputRef}
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
               className="w-full rounded-xl border border-violet-200/90 bg-white px-4 py-3 text-base font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
@@ -171,7 +231,7 @@ export function AtlasEditModal({
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleDeleteRegion(region.id)}
+                        onClick={() => void handleDeleteRegion(region.id)}
                         className="shrink-0 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-100"
                       >
                         Bölge Sil

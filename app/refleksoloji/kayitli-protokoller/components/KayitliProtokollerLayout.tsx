@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { getSyncedYasamUser } from "@/lib/auth/sessionTenant";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -37,11 +37,11 @@ export function KayitliProtokollerLayout() {
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   async function exportProtocolsWord(mode: "selected" | "all") {
-    const tid = await getSyncedTenantId();
-    if (!tid) return;
+    const user = await getSyncedYasamUser();
+    if (!user?.tenant_id || !user.id) return;
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId: tid, exportMode: mode };
+      const body: Record<string, unknown> = { tenantId: user.tenant_id, userId: user.id, exportMode: mode };
       if (mode === "selected") {
         const ids = [...selectedIds];
         if (!ids.length) return;
