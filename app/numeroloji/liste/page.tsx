@@ -6,9 +6,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUserAndTenant } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { supabase } from "@/lib/supabase";
+import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 
 const listeNavSecondaryClass =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
@@ -19,9 +22,11 @@ const listeNavPrimaryClass =
 export default function NumerolojiListePage() {
   const pathname = usePathname();
   const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
   const [rows, setRows] = useState<NumerolojiListeSatir[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
 
   // Toplu seçim
@@ -78,6 +83,51 @@ export default function NumerolojiListePage() {
   }, [filteredRows]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const tenantId = await resolveNumerolojiTenantId();
+    if (!tenantId) {
+      showToast({ title: "Hata", message: MISSING_SESSION_TENANT_MESSAGE, type: "error" });
+      return;
+    }
+
+    const confirmed = await deleteConfirm({
+      title: "Seçili analizleri sil",
+      message: `${ids.length} numeroloji analizini silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+    });
+    if (!confirmed) return;
+
+    setDeleteLoading(true);
+
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("numerology_records")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids)
+      .select("id");
+
+    setDeleteLoading(false);
+
+    if (deleteError) {
+      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${deleteError.message}`, type: "error" });
+      return;
+    }
+
+    const deletedCount = deletedRows?.length ?? 0;
+    if (deletedCount === 0) {
+      showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
+      return;
+    }
+
+    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
+    setSelectedIds(new Set());
+    showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
+  }
 
   async function exportWord(mode: "selected" | "all" | "filtered") {
     const session = await resolveNumerolojiUserAndTenant();
@@ -171,6 +221,8 @@ export default function NumerolojiListePage() {
               onExportAll={() => void exportWord("all")}
               onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
               isExporting={wordBusy}
+              onDeleteSelected={() => void handleBulkDelete()}
+              isDeleting={deleteLoading}
             />
           </div>
         ) : null}

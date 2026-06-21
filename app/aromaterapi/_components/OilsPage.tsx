@@ -27,6 +27,8 @@ import {
 } from "@/lib/aromaterapi/aromatherapyData";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 
 // -------------------------------------------------------
 // Sayfa yapılandırması
@@ -609,12 +611,16 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
   const [rows, setRows] = useState<OilListRow[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>(fixedOilType ?? "all");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -652,6 +658,59 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     for (const r of rows) map[r.oil_type] = (map[r.oil_type] ?? 0) + 1;
     return map;
   }, [rows]);
+
+  const toggleOilSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(filteredRows.map((r) => r.id)));
+  }, [filteredRows]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0 || !tenantId) return;
+
+    const confirmed = await deleteConfirm({
+      title: "Seçili yağları sil",
+      message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+    });
+    if (!confirmed) return;
+
+    setDeleteLoading(true);
+
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("aromatherapy_oils")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids)
+      .select("id");
+
+    setDeleteLoading(false);
+
+    if (deleteError) {
+      setErrorMessage(`Seçili kayıtlar silinemedi: ${deleteError.message}`);
+      return;
+    }
+
+    const deletedCount = deletedRows?.length ?? 0;
+    if (deletedCount === 0) {
+      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      return;
+    }
+
+    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
+    setSelectedIds(new Set());
+    showToast({ title: "Başarılı", message: `${deletedCount} yağ kaydı başarıyla silindi.`, type: "success" });
+  }
 
   function goToList() { router.replace(`${basePath}?view=list`); }
   function goToNew()  { router.push(`${basePath}?view=new`); }
@@ -765,6 +824,20 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           </div>
         </section>
 
+        {!loading && filteredRows.length > 0 ? (
+          <BulkExportBar
+            compact
+            selectedCount={selectedIds.size}
+            totalCount={rows.length}
+            filteredCount={filteredRows.length}
+            hasActiveFilter={Boolean(search.trim() || (!fixedOilType && typeFilter !== "all"))}
+            onSelectAll={selectAllFiltered}
+            onClearSelection={clearSelection}
+            onDeleteSelected={() => void handleBulkDelete()}
+            isDeleting={deleteLoading}
+          />
+        ) : null}
+
         {/* İçerik */}
         <section className={contentCard}>
           {loading ? (
@@ -792,8 +865,19 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             </div>
           ) : viewMode === "card" ? (
             <div className={oilCardGrid}>
-              {filteredRows.map((row) => (
-                <article key={row.id} className={oilCard}>
+              {filteredRows.map((row) => {
+                const isSelected = selectedIds.has(row.id);
+                return (
+                <article key={row.id} className={`${oilCard} ${isSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""}`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleOilSelection(row.id)}
+                      aria-label={`${row.name} seç`}
+                      className="h-4 w-4 rounded accent-amber-600"
+                    />
+                  </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black tracking-wide ${oilTypeBadgeClass(row.oil_type)}`}>
                       {oilTypeLabel(row.oil_type)}
@@ -834,13 +918,15 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     </Link>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           ) : (
             /* Liste görünümü */
             <div className="overflow-hidden overflow-x-auto rounded-[20px] bg-white/86 ring-1 ring-slate-100">
               <div className="min-w-[720px]">
-                <div className="grid grid-cols-[1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                <div className="grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <div />
                   <div>Yağ Adı</div>
                   <div>Tip</div>
                   <div>Kategori</div>
@@ -848,8 +934,19 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                   <div className="text-right">İşlem</div>
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {filteredRows.map((row) => (
-                    <div key={row.id} className="grid grid-cols-[1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-amber-50/30">
+                  {filteredRows.map((row) => {
+                    const isSelected = selectedIds.has(row.id);
+                    return (
+                    <div key={row.id} className={`grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-amber-50/30 ${isSelected ? "bg-amber-50/60" : ""}`}>
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleOilSelection(row.id)}
+                          aria-label={`${row.name} seç`}
+                          className="h-4 w-4 rounded accent-amber-600"
+                        />
+                      </div>
                       <div className="min-w-0">
                         <p className="truncate font-black text-slate-950">{row.name}</p>
                         {row.latin_name.trim() ? (
@@ -882,7 +979,8 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         </Link>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

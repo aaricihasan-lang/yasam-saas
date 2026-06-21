@@ -388,11 +388,12 @@ function DogaltasListesiPageContent() {
       return;
     }
 
-    const { error } = await supabase
+    const { data: deletedRows, error } = await supabase
       .from("stones")
       .delete()
       .eq("tenant_id", tenantId)
-      .eq("id", stoneToDelete.id);
+      .eq("id", stoneToDelete.id)
+      .select("id");
 
     setDeleteLoading(false);
 
@@ -401,12 +402,17 @@ function DogaltasListesiPageContent() {
       return;
     }
 
-    setStones((current) =>
-      current.filter((stone) => stone.id !== stoneToDelete.id)
-    );
+    if (!deletedRows?.length) {
+      setErrorMessage("Kayıt silinemedi. Lütfen tekrar deneyin.");
+      return;
+    }
+
+    const deletedId = stoneToDelete.id;
+    setStones((current) => current.filter((stone) => stone.id !== deletedId));
+    setDetailData((prev) => (prev ? prev.filter((s) => s.id !== deletedId) : null));
     setSelectedIds((current) => {
       const next = new Set(current);
-      next.delete(stoneToDelete.id);
+      next.delete(deletedId);
       return next;
     });
     setStoneToDelete(null);
@@ -675,11 +681,12 @@ function DogaltasListesiPageContent() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const { error } = await supabase
+    const { data: deletedRows, error } = await supabase
       .from("stones")
       .delete()
       .eq("tenant_id", tenantId)
-      .in("id", ids);
+      .in("id", ids)
+      .select("id");
 
     setDeleteLoading(false);
 
@@ -688,9 +695,18 @@ function DogaltasListesiPageContent() {
       return;
     }
 
+    const deletedCount = deletedRows?.length ?? 0;
+    if (deletedCount === 0) {
+      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      return;
+    }
+
+    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
+
     showToast({
       type: "success",
-      message: `${ids.length} kayıt başarıyla silindi.`,
+      message: `${deletedCount} kayıt başarıyla silindi.`,
     });
     setSelectedIds(new Set());
     await fetchList({ reset: true });

@@ -7,11 +7,13 @@ export type BulkExportBarProps = {
   hasActiveFilter?: boolean;
   onSelectAll: () => void;
   onClearSelection: () => void;
-  onExportSelected: () => void;
-  onExportAll: () => void;
+  onExportSelected?: () => void;
+  onExportAll?: () => void;
   onExportFiltered?: () => void;
   isExporting?: boolean;
   compact?: boolean;
+  onDeleteSelected?: () => void;
+  isDeleting?: boolean;
 };
 
 export function BulkExportBar({
@@ -26,8 +28,11 @@ export function BulkExportBar({
   onExportFiltered,
   isExporting,
   compact,
+  onDeleteSelected,
+  isDeleting,
 }: BulkExportBarProps) {
-  const busy = Boolean(isExporting);
+  const busy = Boolean(isExporting) || Boolean(isDeleting);
+  const hasExport = Boolean(onExportSelected || onExportAll);
 
   if (compact) {
     return (
@@ -56,36 +61,58 @@ export function BulkExportBar({
           </button>
         )}
 
-        <div className="hidden h-3 w-px bg-blue-200 sm:block" aria-hidden />
+        {hasExport && (
+          <>
+            <div className="hidden h-3 w-px bg-blue-200 sm:block" aria-hidden />
 
-        <button
-          type="button"
-          onClick={onExportSelected}
-          disabled={selectedCount === 0 || busy}
-          className="rounded-lg border border-blue-400 bg-blue-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri (${selectedCount})`}
-        </button>
+            {onExportSelected && (
+              <button
+                type="button"
+                onClick={onExportSelected}
+                disabled={selectedCount === 0 || busy}
+                className="rounded-lg border border-blue-400 bg-blue-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri (${selectedCount})`}
+              </button>
+            )}
 
-        {hasActiveFilter && onExportFiltered && filteredCount !== undefined && (
-          <button
-            type="button"
-            onClick={onExportFiltered}
-            disabled={busy || filteredCount === 0}
-            className="rounded-lg border border-violet-400 bg-violet-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? "⏳..." : `📄 Filtreli (${filteredCount})`}
-          </button>
+            {hasActiveFilter && onExportFiltered && filteredCount !== undefined && (
+              <button
+                type="button"
+                onClick={onExportFiltered}
+                disabled={busy || filteredCount === 0}
+                className="rounded-lg border border-violet-400 bg-violet-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? "⏳..." : `📄 Filtreli (${filteredCount})`}
+              </button>
+            )}
+
+            {onExportAll && (
+              <button
+                type="button"
+                onClick={onExportAll}
+                disabled={busy}
+                className="rounded-lg border border-slate-400 bg-slate-700 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
+              >
+                {busy ? "⏳..." : `📄 Tümü (${totalCount})`}
+              </button>
+            )}
+          </>
         )}
 
-        <button
-          type="button"
-          onClick={onExportAll}
-          disabled={busy}
-          className="rounded-lg border border-slate-400 bg-slate-700 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
-        >
-          {busy ? "⏳..." : `📄 Tümü (${totalCount})`}
-        </button>
+        {onDeleteSelected && (
+          <>
+            <div className="hidden h-3 w-px bg-red-200 sm:block" aria-hidden />
+            <button
+              type="button"
+              onClick={onDeleteSelected}
+              disabled={selectedCount === 0 || busy}
+              className="rounded-lg border border-red-300 bg-red-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -118,37 +145,58 @@ export function BulkExportBar({
         </button>
       )}
 
-      <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
+      {hasExport && (
+        <>
+          <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
 
-      {/* Export butonları */}
-      <button
-        type="button"
-        onClick={onExportSelected}
-        disabled={selectedCount === 0 || busy}
-        className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri Word (${selectedCount})`}
-      </button>
+          {onExportSelected && (
+            <button
+              type="button"
+              onClick={onExportSelected}
+              disabled={selectedCount === 0 || busy}
+              className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {busy ? "⏳ Hazırlanıyor..." : `📄 Seçilenleri Word (${selectedCount})`}
+            </button>
+          )}
 
-      {hasActiveFilter && onExportFiltered && filteredCount !== undefined && (
-        <button
-          type="button"
-          onClick={onExportFiltered}
-          disabled={busy || filteredCount === 0}
-          className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredCount})`}
-        </button>
+          {hasActiveFilter && onExportFiltered && filteredCount !== undefined && (
+            <button
+              type="button"
+              onClick={onExportFiltered}
+              disabled={busy || filteredCount === 0}
+              className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {busy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredCount})`}
+            </button>
+          )}
+
+          {onExportAll && (
+            <button
+              type="button"
+              onClick={onExportAll}
+              disabled={busy}
+              className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
+            >
+              {busy ? "⏳..." : `📄 Tümünü Word (${totalCount})`}
+            </button>
+          )}
+        </>
       )}
 
-      <button
-        type="button"
-        onClick={onExportAll}
-        disabled={busy}
-        className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-40"
-      >
-        {busy ? "⏳..." : `📄 Tümünü Word (${totalCount})`}
-      </button>
+      {onDeleteSelected && (
+        <>
+          <div className="hidden h-4 w-px bg-red-200 sm:block" aria-hidden />
+          <button
+            type="button"
+            onClick={onDeleteSelected}
+            disabled={selectedCount === 0 || busy}
+            className="rounded-lg border border-red-300 bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowUpDown,
   CalendarCheck,
   ListFilter,
@@ -14,6 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -106,12 +106,14 @@ export default function DanisanListePage() {
   const router = useRouter();
   useBfcacheRefresh();
   const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [homeworkAlerts, setHomeworkAlerts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   const [filterBurc, setFilterBurc] = useState("");
@@ -247,6 +249,49 @@ export default function DanisanListePage() {
     setLoading(false);
   }
 
+  async function handleBulkDeleteClients() {
+    const ids = Array.from(selectedClientIds);
+    if (ids.length === 0) return;
+    if (!tenantId) {
+      showToast({ title: "Hata", message: "Oturum bilgisi bulunamadı.", type: "error" });
+      return;
+    }
+
+    const confirmed = await deleteConfirm({
+      title: "Seçili danışanları sil",
+      message: `${ids.length} danışanı ve tüm ilişkili verilerini silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem GERİ ALINAMAZ. Danışana ait görüşmeler, ödevler ve analizler de silinecek.",
+    });
+    if (!confirmed) return;
+
+    setDeleteLoading(true);
+
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("clients")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids)
+      .select("id");
+
+    setDeleteLoading(false);
+
+    if (deleteError) {
+      showToast({ title: "Hata", message: `Danışanlar silinemedi: ${deleteError.message}`, type: "error" });
+      return;
+    }
+
+    const deletedCount = deletedRows?.length ?? 0;
+    if (deletedCount === 0) {
+      showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
+      return;
+    }
+
+    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    setClients((prev) => prev.filter((c) => !deletedIdSet.has(c.id)));
+    setSelectedClientIds(new Set());
+    showToast({ title: "Başarılı", message: `${deletedCount} danışan başarıyla silindi.`, type: "success" });
+  }
+
   async function exportClientsWord(mode: "selected" | "all" | "filtered") {
     if (!tenantId) return;
     setWordBusy(true);
@@ -298,19 +343,6 @@ export default function DanisanListePage() {
       </div>
 
       <div className="relative z-10 w-full">
-        {/* Back nav */}
-        <nav className="mb-5 flex items-center gap-2">
-          <Link
-            href="/danisan-yolculugu"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Danışan Yolculuğu
-          </Link>
-          <span className="text-xs text-slate-400">/</span>
-          <span className="text-xs font-bold text-slate-600">Danışan Listesi</span>
-        </nav>
-
         {/* Header */}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
@@ -451,6 +483,8 @@ export default function DanisanListePage() {
                 onExportAll={() => void exportClientsWord("all")}
                 onExportFiltered={hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
                 isExporting={wordBusy}
+                onDeleteSelected={() => void handleBulkDeleteClients()}
+                isDeleting={deleteLoading}
               />
             </div>
           )}

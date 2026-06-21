@@ -25,6 +25,7 @@ import {
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { supabase } from "@/lib/supabase";
 
 type GuideImage = {
@@ -507,10 +508,12 @@ function SifaRehberiContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
+  const deleteConfirm = useDeleteConfirm();
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -639,6 +642,48 @@ function SifaRehberiContent() {
     } finally {
       setWordBusy(false);
     }
+  }
+
+  async function handleBulkDeleteGuides() {
+    const ids = Array.from(selectedForExport);
+    if (ids.length === 0) return;
+    const tenantId = queryTenantId;
+    if (!tenantId) { setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
+
+    const confirmed = await deleteConfirm({
+      title: "Seçili kayıtları sil",
+      message: `${ids.length} şifa rehberi kaydını silmek istediğinizden emin misiniz?`,
+      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+    });
+    if (!confirmed) return;
+
+    setDeleteLoading(true);
+    setErrorMessage("");
+
+    const { data: deletedRows, error } = await supabase
+      .from("healing_guides")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids)
+      .select("id");
+
+    setDeleteLoading(false);
+
+    if (error) {
+      setErrorMessage(`Seçili kayıtlar silinemedi: ${error.message}`);
+      return;
+    }
+
+    const deletedCount = deletedRows?.length ?? 0;
+    if (deletedCount === 0) {
+      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      return;
+    }
+
+    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
+    setSelectedForExport(new Set());
+    showToast({ title: "Başarılı", message: `${deletedCount} kayıt başarıyla silindi.`, type: "success" });
   }
 
   const hasActiveFilter = Boolean(search.trim());
@@ -1452,6 +1497,8 @@ function SifaRehberiContent() {
               onExportAll={() => void exportWord("all")}
               onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
               isExporting={wordBusy}
+              onDeleteSelected={() => void handleBulkDeleteGuides()}
+              isDeleting={deleteLoading}
             />
           </div>
         ) : null}
