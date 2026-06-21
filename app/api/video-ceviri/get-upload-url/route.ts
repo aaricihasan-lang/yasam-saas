@@ -27,13 +27,11 @@ export async function POST(request: Request) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
-        { ok: false, error: "Supabase yapılandırması eksik." },
+        { ok: false, error: "Sunucu yapılandırması eksik." },
         { status: 500 },
       );
     }

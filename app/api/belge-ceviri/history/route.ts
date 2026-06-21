@@ -12,33 +12,18 @@ function getDb() {
   return createClient(url, key);
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request) {
   try {
-    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get("tenantId")?.trim() ?? "";
     const userId   = searchParams.get("userId")?.trim()   ?? "";
 
-    if (!id) {
-      return NextResponse.json({ error: "Job ID gerekli." }, { status: 400 });
-    }
-
-    // Oturum eksikse 401
-    if (!userId) {
-      return NextResponse.json({ error: "Oturum bilgisi eksik." }, { status: 401 });
-    }
-
-    if (!tenantId) {
+    if (!userId || !tenantId) {
       return NextResponse.json({ error: "Oturum bilgisi eksik." }, { status: 401 });
     }
 
     const db = getDb();
 
-    // userId + tenantId çiftini users tablosunda doğrula
-    // Eşleşme yoksa veya kullanıcı pasifse 403
     const { data: userRow, error: userErr } = await db
       .from("users")
       .select("id")
@@ -51,32 +36,33 @@ export async function GET(
       return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 403 });
     }
 
-    const { data: job, error } = await db
+    const { data: jobs, error } = await db
       .from("belge_ceviri_jobs")
-      .select("status, done_chunks, total_chunks, result_path, error_message")
-      .eq("id", id)
+      .select(
+        "id, file_name, status, job_type, total_pages, done_chunks, total_chunks, result_path, error_message, created_at",
+      )
       .eq("tenant_id", tenantId)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(20);
 
-    if (error || !job) {
-      return NextResponse.json({ error: "Job bulunamadı." }, { status: 404 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    let downloadUrl: string | null = null;
-    if (job.status === "completed" && job.result_path) {
-      const { data: signed } = await db.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(job.result_path, 3600);
-      downloadUrl = signed?.signedUrl ?? null;
-    }
+    const jobsWithUrls = await Promise.all(
+      (jobs ?? []).map(async (job) => {
+        let downloadUrl: string | null = null;
+        if (job.status === "completed" && job.result_path) {
+          const { data: signed } = await db.storage
+            .from(STORAGE_BUCKET)
+            .createSignedUrl(job.result_path as string, 3600);
+          downloadUrl = signed?.signedUrl ?? null;
+        }
+        return { ...job, downloadUrl };
+      }),
+    );
 
-    return NextResponse.json({
-      status: job.status,
-      doneChunks: job.done_chunks,
-      totalChunks: job.total_chunks,
-      downloadUrl,
-      errorMessage: job.error_message,
-    });
+    return NextResponse.json({ jobs: jobsWithUrls });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

@@ -40,32 +40,52 @@ function sectionHeading(text: string, spaceBefore = 0): Paragraph {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const jobId = searchParams.get("jobId")?.trim() ?? "";
+  const jobId    = searchParams.get("jobId")?.trim()    ?? "";
   const tenantId = searchParams.get("tenantId")?.trim() ?? "";
-  const rawMode = searchParams.get("mode")?.trim() ?? "original";
+  const userId   = searchParams.get("userId")?.trim()   ?? "";
+  const rawMode  = searchParams.get("mode")?.trim()     ?? "original";
   const mode: ExportMode =
     rawMode === "turkish" || rawMode === "comparison" ? rawMode : "original";
 
-  if (!jobId || !tenantId) {
+  if (!userId || !tenantId) {
     return NextResponse.json(
-      { ok: false, error: "jobId ve tenantId gerekli." },
+      { ok: false, error: "Oturum bilgisi eksik." },
+      { status: 401 },
+    );
+  }
+  if (!jobId) {
+    return NextResponse.json(
+      { ok: false, error: "jobId gerekli." },
       { status: 400 },
     );
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
-      { ok: false, error: "Supabase yapılandırması eksik." },
+      { ok: false, error: "Sunucu yapılandırması eksik." },
       { status: 500 },
     );
   }
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  const { data: userRow, error: userErr } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (userErr || !userRow) {
+    return NextResponse.json(
+      { ok: false, error: "Oturum doğrulanamadı." },
+      { status: 403 },
+    );
+  }
 
   const { data: jobData, error: jobErr } = await db
     .from("video_transcription_jobs")

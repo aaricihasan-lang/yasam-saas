@@ -26,10 +26,8 @@ function getExt(name: string): string {
 
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) throw new Error("Supabase env değişkenleri eksik.");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase service role yapılandırması eksik.");
   return createClient(url, key);
 }
 
@@ -42,6 +40,8 @@ export async function POST(request: Request) {
     const file = formData.get("file");
     const rawMode = formData.get("mode");
     const mode: TranslationMode = rawMode === "academic" ? "academic" : "standard";
+    const rawTenantId = formData.get("tenantId");
+    const tenantId = typeof rawTenantId === "string" ? rawTenantId.trim() : "";
 
     // ── Validasyon ─────────────────────────────────────────────────────────────
     if (!file || !(file instanceof File)) {
@@ -62,6 +62,13 @@ export async function POST(request: Request) {
     if (!mimeOk) {
       return NextResponse.json(
         { success: false, message: `Geçersiz dosya tipi (${file.type}).` },
+        { status: 400 },
+      );
+    }
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { success: false, message: "Oturum bilgisi eksik. Sayfayı yenileyip tekrar deneyin." },
         { status: 400 },
       );
     }
@@ -101,7 +108,7 @@ export async function POST(request: Request) {
     // ── Supabase Storage'a yükle ───────────────────────────────────────────────
     const db = getDb();
     const jobId = crypto.randomUUID();
-    const sourcePath = `input/${jobId}.pdf`;
+    const sourcePath = `${tenantId}/input/${jobId}.pdf`;
 
     const { error: uploadError } = await db.storage
       .from(STORAGE_BUCKET)
@@ -123,6 +130,7 @@ export async function POST(request: Request) {
     // ── Job kaydı oluştur ──────────────────────────────────────────────────────
     const { error: dbError } = await db.from("belge_ceviri_jobs").insert({
       id: jobId,
+      tenant_id: tenantId,
       status: "pending",
       job_type: "pdf-to-turkce-word",
       file_name: file.name,

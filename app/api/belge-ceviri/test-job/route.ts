@@ -7,13 +7,11 @@ export const runtime = "nodejs";
 export async function POST() {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!url || !key) {
       return NextResponse.json(
-        { success: false, message: "Supabase env değişkenleri eksik." },
+        { success: false, message: "Supabase service role yapılandırması eksik." },
         { status: 500 },
       );
     }

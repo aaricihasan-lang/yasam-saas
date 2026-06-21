@@ -24,6 +24,7 @@ import {
   type ExportMode,
 } from "@/lib/video-ceviri/exportHelpers";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import VideoUploadZone from "./components/VideoUploadZone";
 import {
@@ -74,6 +75,7 @@ export default function VideoCeviriPage() {
 
   // veri
   const [tenantId, setTenantId]       = useState<string | null>(null);
+  const [userId, setUserId]           = useState<string | null>(null);
   const [jobs, setJobs]               = useState<VideoJobRow[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
 
@@ -104,6 +106,7 @@ export default function VideoCeviriPage() {
       setTenantId(tid);
       void loadJobs(tid);
     });
+    setUserId(readYasamUser()?.id ?? null);
   }, [loadJobs]);
 
   function handleUploadSuccess() {
@@ -113,12 +116,13 @@ export default function VideoCeviriPage() {
   // ── API handler'ları — DEĞIŞMEDI ────────────────────────────────────────────
 
   function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
-    if (!tenantId || !job.transcript_original) return;
+    if (!tenantId || !userId || !job.transcript_original) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
     const url =
       `/api/video-ceviri/export-word` +
       `?jobId=${encodeURIComponent(job.id)}` +
       `&tenantId=${encodeURIComponent(tenantId)}` +
+      `&userId=${encodeURIComponent(userId)}` +
       `&mode=${mode}`;
     window.open(url, "_blank");
   }
@@ -148,13 +152,13 @@ export default function VideoCeviriPage() {
   }
 
   async function handleTranslate(job: VideoJobRow) {
-    if (!tenantId || !job.transcript_original || translatingId) return;
+    if (!tenantId || !userId || !job.transcript_original || translatingId) return;
     setTranslatingId(job.id);
     try {
       const res = await fetch("/api/video-ceviri/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId }),
+        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string; alreadyTurkish?: boolean };
       if (!data.ok) {
@@ -171,13 +175,13 @@ export default function VideoCeviriPage() {
   }
 
   async function handleSummarize(job: VideoJobRow) {
-    if (!tenantId || !job.transcript_tr || summarizingId) return;
+    if (!tenantId || !userId || !job.transcript_tr || summarizingId) return;
     setSummarizingId(job.id);
     try {
       const res = await fetch("/api/video-ceviri/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId }),
+        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
@@ -192,13 +196,13 @@ export default function VideoCeviriPage() {
   }
 
   async function handleHeadings(job: VideoJobRow) {
-    if (!tenantId || !job.transcript_tr || headliningId) return;
+    if (!tenantId || !userId || !job.transcript_tr || headliningId) return;
     setHeadliningId(job.id);
     try {
       const res = await fetch("/api/video-ceviri/headings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId }),
+        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
@@ -213,13 +217,13 @@ export default function VideoCeviriPage() {
   }
 
   async function handleTranscribe(job: VideoJobRow) {
-    if (!tenantId || transcribingId) return;
+    if (!tenantId || !userId || transcribingId) return;
     setTranscribingId(job.id);
     try {
       const res = await fetch("/api/video-ceviri/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, tenantId }),
+        body: JSON.stringify({ jobId: job.id, tenantId, userId }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
@@ -517,7 +521,7 @@ export default function VideoCeviriPage() {
                   <div key={f} className="rounded-lg border border-indigo-100 bg-white/80 px-1.5 py-1 text-center text-[10px] font-black text-indigo-600">{f}</div>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] font-medium text-slate-400">Maks. 5 GB · 25 MB Whisper</p>
+              <p className="mt-2 text-[11px] font-medium text-slate-400">Transkripsiyon limiti: 25 MB</p>
             </div>
           </div>
         </div>

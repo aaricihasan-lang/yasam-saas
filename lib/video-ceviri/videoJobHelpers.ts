@@ -37,7 +37,8 @@ const ALLOWED_EXTENSIONS = new Set([
   "mp3", "m4a", "wav", "aac", "amr", "3gp", "3gpp",
 ]);
 
-export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB — storage limiti
+export const MAX_WHISPER_SIZE_BYTES = 25 * 1024 * 1024;    // 25 MB — Whisper API limiti
 
 export type VideoJobRow = {
   id: string;
@@ -88,6 +89,10 @@ export function validateVideoFile(file: File): string | null {
   }
   if (file.size === 0) {
     return "Dosya boş görünüyor.";
+  }
+  if (file.size > MAX_WHISPER_SIZE_BYTES) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    return `Dosya ${mb} MB — transkripsiyon için maksimum 25 MB desteklenmektedir. Lütfen daha kısa bir ses veya video dosyası yükleyin.`;
   }
   if (file.size > MAX_VIDEO_SIZE_BYTES) {
     const mb = (file.size / 1024 / 1024).toFixed(1);
@@ -162,11 +167,13 @@ export async function insertVideoJob(
 export async function updateVideoJobTempPath(
   jobId: string,
   videoTempPath: string,
+  tenantId: string,
 ): Promise<void> {
   const { error } = await supabase
     .from("video_transcription_jobs")
     .update({ video_temp_path: videoTempPath })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("tenant_id", tenantId);
   if (error) {
     console.error("[videoJobHelpers] updateVideoJobTempPath:", error);
   }
@@ -176,14 +183,17 @@ export async function updateVideoJobStatus(
   jobId: string,
   status: string,
   errorMessage?: string,
+  tenantId?: string,
 ): Promise<void> {
-  const { error } = await supabase
+  let query = supabase
     .from("video_transcription_jobs")
     .update({
       status,
       ...(errorMessage !== undefined ? { error_message: errorMessage } : {}),
     })
     .eq("id", jobId);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { error } = await query;
   if (error) {
     console.error("[videoJobHelpers] updateVideoJobStatus:", error);
   }

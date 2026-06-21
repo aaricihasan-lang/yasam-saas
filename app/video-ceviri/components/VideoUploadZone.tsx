@@ -239,7 +239,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         tusToken = tokenData.token;
       } catch (tokenErr) {
         const msg = tokenErr instanceof Error ? tokenErr.message : "Upload token hatası.";
-        await updateVideoJobStatus(jobId, "failed", msg);
+        await updateVideoJobStatus(jobId, "failed", msg, tenantId);
         setErrorMsg(`Yükleme başlatılamadı: ${msg}`);
         setPhase("error");
         return;
@@ -259,7 +259,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         const raw = tusErr instanceof Error ? tusErr.message : String(tusErr);
         console.error("[TUS] catch — raw error:", raw);
         console.error("[TUS] catch — full object:", tusErr);
-        await updateVideoJobStatus(jobId, "failed", raw);
+        await updateVideoJobStatus(jobId, "failed", raw, tenantId);
         setErrorMsg(`Yükleme hatası: ${raw}`);
         setPhase("error");
         return;
@@ -275,7 +275,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         });
 
       if (upErr) {
-        await updateVideoJobStatus(jobId, "failed", upErr.message);
+        await updateVideoJobStatus(jobId, "failed", upErr.message, tenantId);
         setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
         setPhase("error");
         return;
@@ -283,7 +283,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     }
 
     // 5. Update job record with storage path
-    await updateVideoJobTempPath(jobId, storagePath);
+    await updateVideoJobTempPath(jobId, storagePath, tenantId);
 
     setPhase("done");
     setSelectedFile(null);
@@ -392,7 +392,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
                   Sürükleyin veya seçin
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                  MP4 · MOV · MP3 · WAV · M4A · maks. 5 GB
+                  MP4 · MOV · MP3 · WAV · M4A · maks. 25 MB
                 </p>
               </>
             )}

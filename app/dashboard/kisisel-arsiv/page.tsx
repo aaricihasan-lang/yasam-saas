@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -163,11 +164,6 @@ function categoryBadgeClass(category: string) {
   const tone =
     CATEGORY_BADGE[category] ?? "border-slate-200 bg-slate-50 text-slate-800";
   return `shrink-0 rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide shadow-sm ${tone}`;
-}
-
-function getPublicFileUrl(filePath: string) {
-  return supabase.storage.from("personal-archive").getPublicUrl(filePath).data
-    .publicUrl;
 }
 
 /** Başlıkta vurgulama: arama metnindeki en uzun kelimeyi katlamalı eşleştirir (çok kelimede yalnızca bir parça). */
@@ -333,13 +329,38 @@ function DetailArchiveFileCard({
   file,
   onImageClick,
   onDownload,
+  tenantId,
+  userId,
 }: {
   file: ArchiveFileRow;
   onImageClick: (url: string) => void;
   onDownload: (file: ArchiveFileRow) => void | Promise<void>;
+  tenantId: string | null;
+  userId: string | null;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
-  const url = getPublicFileUrl(file.file_path);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [signedUrlError, setSignedUrlError] = useState(false);
+
+  useEffect(() => {
+    if (!tenantId || !userId) return;
+    let cancelled = false;
+    fetch(
+      `/api/kisisel-arsiv/signed-url` +
+      `?filePath=${encodeURIComponent(file.file_path)}` +
+      `&tenantId=${encodeURIComponent(tenantId)}` +
+      `&userId=${encodeURIComponent(userId)}`,
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data: { signedUrl?: string }) => {
+        if (cancelled) return;
+        if (data.signedUrl) setSignedUrl(data.signedUrl);
+        else setSignedUrlError(true);
+      })
+      .catch(() => { if (!cancelled) setSignedUrlError(true); });
+    return () => { cancelled = true; };
+  }, [file.file_path, tenantId, userId]);
+
   const kind = detectDetailFileKind(file);
   const fileName = file.file_name?.trim() || "Dosya";
   const typeLabel = fileDisplayType(file);
@@ -355,17 +376,17 @@ function DetailArchiveFileCard({
     </button>
   );
 
-  const previewNewTabLink = (
-    <a href={url} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
+  const previewNewTabLink = signedUrl ? (
+    <a href={signedUrl} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
       Önizle / Yeni Sekme
     </a>
-  );
+  ) : null;
 
-  const browserOpenLink = (
-    <a href={url} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
+  const browserOpenLink = signedUrl ? (
+    <a href={signedUrl} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
       Tarayıcıda Aç
     </a>
-  );
+  ) : null;
 
   let previewLabel = "Önizle";
   if (kind === "audio") previewLabel = "Dinle";
@@ -400,11 +421,19 @@ function DetailArchiveFileCard({
           </p>
           {kind === "image" ? (
             <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
-              {!imgBroken ? (
+              {signedUrlError ? (
+                <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-500">
+                  Önizleme URL'i oluşturulamadı.
+                </p>
+              ) : !signedUrl ? (
+                <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-400">
+                  Yükleniyor…
+                </p>
+              ) : !imgBroken ? (
                 <div className="block w-full max-w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={url}
+                    src={signedUrl}
                     alt={fileName}
                     className="mx-auto w-full max-h-[520px] rounded-2xl object-contain"
                     onError={() => setImgBroken(true)}
@@ -424,7 +453,7 @@ function DetailArchiveFileCard({
                 <audio
                   controls
                   className="w-full max-w-full rounded-xl"
-                  src={url}
+                  src={signedUrl ?? undefined}
                   preload="metadata"
                 />
               ) : (
@@ -450,7 +479,7 @@ function DetailArchiveFileCard({
               <video
                 controls
                 className="max-h-[520px] w-full rounded-2xl object-contain"
-                src={url}
+                src={signedUrl ?? undefined}
                 preload="metadata"
               />
             </div>
@@ -458,7 +487,7 @@ function DetailArchiveFileCard({
 
           {kind === "pdf" ? (
             <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-100 shadow-inner">
-              <iframe title={fileName} src={url} className="h-[420px] w-full bg-white" />
+              <iframe title={fileName} src={signedUrl ?? undefined} className="h-[420px] w-full bg-white" />
             </div>
           ) : null}
         </div>
@@ -469,7 +498,8 @@ function DetailArchiveFileCard({
           <>
             <button
               type="button"
-              onClick={() => onImageClick(url)}
+              disabled={!signedUrl}
+              onClick={() => { if (signedUrl) onImageClick(signedUrl); }}
               className={detailGrowButtonClass}
             >
               Büyüt
@@ -508,6 +538,7 @@ function DetailArchiveFileCard({
 
 export default function KisiselArsivPage() {
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -569,34 +600,38 @@ export default function KisiselArsivPage() {
   const handleDownload = useCallback(
     async (file: ArchiveFileRow) => {
       const name = file.file_name?.trim() || "dosya";
+      if (!tenantId || !userId) {
+        showToast("Dosya indirilemedi.", "error", 2000);
+        return;
+      }
       try {
-        const { data: blob, error } = await supabase.storage
-          .from("personal-archive")
-          .download(file.file_path);
-        if (error || !blob) {
-          console.error("Archive file download failed:", error);
-          showToast("Dosya indirilemedi.", "error", 2000);
-          return;
-        }
-        const objectUrl = URL.createObjectURL(blob);
+        const res = await fetch(
+          `/api/kisisel-arsiv/signed-url` +
+          `?filePath=${encodeURIComponent(file.file_path)}` +
+          `&tenantId=${encodeURIComponent(tenantId)}` +
+          `&userId=${encodeURIComponent(userId)}`,
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { signedUrl?: string };
+        if (!data.signedUrl) throw new Error("URL boş");
         const a = document.createElement("a");
-        a.href = objectUrl;
+        a.href = data.signedUrl;
         a.download = name;
         a.rel = "noreferrer";
         document.body.appendChild(a);
         a.click();
         a.remove();
-        URL.revokeObjectURL(objectUrl);
       } catch (e) {
         console.error("Archive file download failed:", e);
         showToast("Dosya indirilemedi.", "error", 2000);
       }
     },
-    [showToast],
+    [showToast, tenantId, userId],
   );
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
+    setUserId(readYasamUser()?.id ?? null);
   }, []);
 
   useEffect(() => {
@@ -1594,6 +1629,8 @@ export default function KisiselArsivPage() {
                           file={f}
                           onImageClick={(u) => setLightboxUrl(u)}
                           onDownload={handleDownload}
+                          tenantId={tenantId}
+                          userId={userId}
                         />
                       </li>
                     ))

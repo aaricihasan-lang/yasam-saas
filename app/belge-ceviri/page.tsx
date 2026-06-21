@@ -3,6 +3,8 @@
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useEffect, useRef, useState } from "react";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ArrowLeft,
@@ -28,8 +30,26 @@ type CardId = "pdf-to-word" | "pdf-to-turkce-word" | "pdf-to-turkce-pdf" | "ocr"
 
 type JobStatus = "pending" | "processing" | "completed" | "failed";
 
+type HistoryJob = {
+  id: string;
+  file_name: string;
+  status: string;
+  job_type: string;
+  total_pages: number;
+  done_chunks: number;
+  total_chunks: number;
+  result_path: string | null;
+  error_message: string | null;
+  created_at: string;
+  downloadUrl: string | null;
+};
+
+const SESSION_JOB_KEY = "belge_ceviri_active_job";
+
 type ActiveJob = {
   jobId: string;
+  tenantId: string;
+  userId: string;
   cardId: CardId;
   status: JobStatus;
   doneChunks: number;
@@ -102,14 +122,41 @@ const ENDPOINT: Partial<Record<CardId, string>> = {
   "ocr": "/api/belge-ceviri/ocr",
 };
 
-const MAX_FILE_BYTES = 50 * 1024 * 1024;        // 50 MB — sunucu limiti
-const LARGE_FILE_BYTES = 3 * 1024 * 1024;       // ~50+ sayfa heuristic (çeviri uyarısı)
-const RECOMMENDED_MAX_BYTES = 80 * 1024 * 1024; // 80 MB — önerilen üst sınır (bilgilendirme)
+const MAX_FILE_BYTES = 50 * 1024 * 1024;   // 50 MB — sunucu limiti (client ile eşleşmeli)
+const LARGE_FILE_BYTES = 3 * 1024 * 1024;  // ~50+ sayfa heuristic — çeviri süre uyarısı
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
+
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getSyncedTenantId().then(setTenantId);
+    setUserId(readYasamUser()?.id ?? null);
+
+    // Sayfa yenilemesinde devam eden job'ı geri yükle
+    try {
+      const raw = sessionStorage.getItem(SESSION_JOB_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ActiveJob;
+        if (
+          parsed.jobId &&
+          parsed.tenantId &&
+          parsed.userId &&
+          (parsed.status === "pending" || parsed.status === "processing")
+        ) {
+          setActiveJob(parsed);
+        } else {
+          sessionStorage.removeItem(SESSION_JOB_KEY);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(SESSION_JOB_KEY);
+    }
+  }, []);
 
   const [selectedFiles, setSelectedFiles] = useState<Record<CardId, File | null>>({
     "pdf-to-word": null,
@@ -124,6 +171,41 @@ export default function BelgeCeviriPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [ocrResult, setOcrResult] = useState<{ text: string; isTurkish: boolean; translation?: string } | null>(null);
   const [downloadingWord, setDownloadingWord] = useState<"original" | "translation" | null>(null);
+  const [historyJobs, setHistoryJobs] = useState<HistoryJob[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  async function openHistory() {
+    setHistoryOpen(true);
+    if (!tenantId || !userId) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(
+        `/api/belge-ceviri/history` +
+        `?tenantId=${encodeURIComponent(tenantId)}` +
+        `&userId=${encodeURIComponent(userId)}`,
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { jobs?: HistoryJob[] };
+      setHistoryJobs(data.jobs ?? []);
+    } catch {
+      // sessizce geç
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  // activeJob sessionStorage'a yaz — sayfa yenilemesinde devam etmek için
+  useEffect(() => {
+    if (!activeJob || activeJob.status === "completed" || activeJob.status === "failed") {
+      sessionStorage.removeItem(SESSION_JOB_KEY);
+      return;
+    }
+    try {
+      sessionStorage.setItem(SESSION_JOB_KEY, JSON.stringify(activeJob));
+    } catch {
+      // sessionStorage dolu veya kullanılamaz
+    }
+  }, [activeJob]);
 
   // Job polling — 3 saniyede bir durum kontrolü
   useEffect(() => {
@@ -132,7 +214,11 @@ export default function BelgeCeviriPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/belge-ceviri/job-status/${activeJob.jobId}`);
+        const res = await fetch(
+          `/api/belge-ceviri/job-status/${activeJob.jobId}` +
+          `?tenantId=${encodeURIComponent(activeJob.tenantId)}` +
+          `&userId=${encodeURIComponent(activeJob.userId)}`,
+        );
         if (!res.ok) return;
         const data = (await res.json()) as {
           status: JobStatus;
@@ -214,12 +300,19 @@ export default function BelgeCeviriPage() {
     const endpoint = ENDPOINT[cardId];
     if (!file || !endpoint || submitting) return;
 
+    // pdf-to-turkce-word için oturum gerekli
+    if (cardId === "pdf-to-turkce-word" && (!tenantId || !userId)) {
+      showToast({ title: "Hata", message: "Oturum bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin.", type: "error" });
+      return;
+    }
+
     setSubmitting(cardId);
     try {
       const form = new FormData();
       form.append("file", file);
       if (cardId === "pdf-to-turkce-word") {
         form.append("mode", translationMode);
+        form.append("tenantId", tenantId!);
       }
 
       const res = await fetch(endpoint, { method: "POST", body: form });
@@ -250,6 +343,8 @@ export default function BelgeCeviriPage() {
         }
         setActiveJob({
           jobId: data.jobId,
+          tenantId: tenantId!,
+          userId: userId!,
           cardId,
           status: "pending",
           doneChunks: 0,
@@ -349,7 +444,7 @@ export default function BelgeCeviriPage() {
             </div>
             <button
               type="button"
-              onClick={() => setHistoryOpen(true)}
+              onClick={() => void openHistory()}
               className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 text-[11px] font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:w-auto"
             >
               <Clock className="h-3 w-3" strokeWidth={2.25} />
@@ -471,12 +566,12 @@ export default function BelgeCeviriPage() {
                 )}
 
                 {/* boyut uyarıları */}
-                {file && !disabled && file.size > RECOMMENDED_MAX_BYTES && (
-                  <p className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-yellow-800">
-                    Bu PDF 80 MB üzerindedir. Yükleme devam edebilir ancak büyük dosyalarda yükleme süresi uzayabilir. Sorun yaşarsanız PDF'i sıkıştırmanız önerilir.
+                {file && !disabled && file.size > MAX_FILE_BYTES && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-red-800">
+                    Bu dosya 50 MB sunucu limitini aşıyor ve yüklenemez. Lütfen daha küçük bir PDF kullanın veya büyük dosyaları bölün.
                   </p>
                 )}
-                {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= RECOMMENDED_MAX_BYTES && (
+                {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= MAX_FILE_BYTES && (
                   <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-sky-800">
                     Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.
                   </p>
@@ -485,7 +580,7 @@ export default function BelgeCeviriPage() {
                 {/* işlem başlat butonu */}
                 <button
                   type="button"
-                  disabled={!file || !!submitting || disabled || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
+                  disabled={!file || !!submitting || disabled || (file?.size ?? 0) > MAX_FILE_BYTES || (card.id === "pdf-to-turkce-word" && !!activeJob && activeJob.status !== "completed" && activeJob.status !== "failed")}
                   onClick={() => void handleSubmit(card.id)}
                   className="mt-1.5 flex h-7 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-900 via-slate-700 to-slate-800 text-[11px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
@@ -728,7 +823,7 @@ export default function BelgeCeviriPage() {
                   çözünürlüklü taramalar ve büyük görseller nedeniyle çok yüksek dosya boyutlarına ulaşabilir.
                 </p>
                 <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
-                  Önerilen PDF boyutu: 80 MB ve altı
+                  Maksimum PDF boyutu: 50 MB
                 </div>
 
                 <div className="mt-5 space-y-4">
@@ -753,7 +848,7 @@ export default function BelgeCeviriPage() {
                         ))}
                       </ol>
                       <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-700">
-                        Çoğu durumda 100–200 MB boyutundaki PDF dosyaları kalite kaybı yaşamadan çok daha düşük boyutlara indirilebilir.
+                        Çoğu durumda büyük PDF dosyaları kalite kaybı yaşamadan 50 MB altına indirilebilir.
                       </p>
                     </div>
                   </div>
@@ -865,21 +960,110 @@ export default function BelgeCeviriPage() {
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center px-7 py-10 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400">
-                <BookOpen className="h-8 w-8" strokeWidth={1.75} />
-              </div>
-              <p className="mt-5 text-lg font-black text-slate-700">Henüz çevrilmiş belge yok.</p>
-              <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-slate-400">
-                PDF dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.
-              </p>
-              <button
-                type="button"
-                onClick={() => setHistoryOpen(false)}
-                className="mt-7 inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 px-7 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5"
-              >
-                Belge Yükle
-              </button>
+            <div className="px-7 py-5">
+              {historyLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
+                  <p className="mt-4 text-sm font-medium text-slate-400">Kayıtlar yükleniyor…</p>
+                </div>
+              ) : historyJobs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400">
+                    <BookOpen className="h-8 w-8" strokeWidth={1.75} />
+                  </div>
+                  <p className="mt-5 text-lg font-black text-slate-700">Henüz çevrilmiş belge yok.</p>
+                  <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-slate-400">
+                    PDF dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(false)}
+                    className="mt-7 inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 px-7 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5"
+                  >
+                    Belge Yükle
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {historyJobs.map((job) => {
+                    const isCompleted = job.status === "completed";
+                    const isFailed    = job.status === "failed";
+                    const isPending   = job.status === "pending" || job.status === "processing";
+                    const jobLabel =
+                      job.job_type === "pdf-to-turkce-word" ? "PDF → Türkçe Word" : "PDF → Word";
+                    const statusStyle = isCompleted
+                      ? "bg-emerald-100 text-emerald-800"
+                      : isFailed
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-100 text-slate-600";
+                    const statusLabel = isCompleted
+                      ? "Tamamlandı"
+                      : isFailed
+                        ? "Başarısız"
+                        : "İşleniyor…";
+                    const dateStr = new Intl.DateTimeFormat("tr-TR", {
+                      day: "2-digit", month: "short", year: "numeric",
+                      hour: "2-digit", minute: "2-digit",
+                    }).format(new Date(job.created_at));
+
+                    return (
+                      <div key={job.id} className="flex flex-col gap-2 py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-slate-800" title={job.file_name}>
+                              {job.file_name}
+                            </p>
+                            <p className="mt-0.5 text-xs font-medium text-slate-400">
+                              {jobLabel} · {dateStr}
+                              {job.total_pages > 0 && ` · ${job.total_pages} sayfa`}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusStyle}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        {isPending && job.total_chunks > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-slate-500">
+                              {job.done_chunks} / {job.total_chunks} bölüm tamamlandı
+                            </p>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-sky-500 transition-all"
+                                style={{ width: `${Math.round((job.done_chunks / job.total_chunks) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {isFailed && job.error_message && (
+                          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                            {job.error_message}
+                          </p>
+                        )}
+
+                        {isCompleted && job.downloadUrl && (
+                          <a
+                            href={job.downloadUrl}
+                            download
+                            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
+                          >
+                            <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
+                            DOCX İndir
+                          </a>
+                        )}
+
+                        {isCompleted && !job.downloadUrl && (
+                          <p className="text-xs font-medium text-slate-400">
+                            İndirme bağlantısı süresi dolmuş. Sayfayı yenileyip tekrar deneyin.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

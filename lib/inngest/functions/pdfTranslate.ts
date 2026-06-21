@@ -15,10 +15,8 @@ type TranslationMode = "standard" | "academic";
 // ── Supabase client ────────────────────────────────────────────────────────────
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) throw new Error("Supabase env değişkenleri eksik.");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase service role yapılandırması eksik.");
   return createClient(url, key);
 }
 
@@ -130,12 +128,12 @@ export const pdfTranslateFunction = inngest.createFunction(
 
     try {
       // ── 1. PDF indir, metin çıkar, chunk'lara böl ────────────────────────────
-      const { chunks, totalChunks } = await step.run("hazırla", async () => {
+      const { chunks, totalChunks, tenantId } = await step.run("hazırla", async () => {
         const db = getDb();
 
         const { data: job, error: jobError } = await db
           .from(TABLE)
-          .select("source_path")
+          .select("source_path, tenant_id")
           .eq("id", jobId)
           .single();
         if (jobError || !job) throw new Error(`Job bulunamadı: ${jobId}`);
@@ -171,7 +169,11 @@ export const pdfTranslateFunction = inngest.createFunction(
           done_chunks: 0,
         }).eq("id", jobId);
 
-        return { chunks, totalChunks: chunks.length };
+        return {
+          chunks,
+          totalChunks: chunks.length,
+          tenantId: (job.tenant_id as string | null) ?? "",
+        };
       });
 
       // ── 2. Chunk'ları batch batch çevir ─────────────────────────────────────
@@ -228,7 +230,10 @@ export const pdfTranslateFunction = inngest.createFunction(
         });
 
         const docxBuffer = await Packer.toBuffer(doc);
-        const resultPath = `output/${jobId}.docx`;
+        // Tenant prefix ile path — eski kayıtlar (tenant_id boş) için fallback
+        const resultPath = tenantId
+          ? `${tenantId}/output/${jobId}.docx`
+          : `output/${jobId}.docx`;
 
         const db = getDb();
         const { error: uploadError } = await db.storage

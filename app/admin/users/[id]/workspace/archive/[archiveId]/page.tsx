@@ -73,11 +73,6 @@ function parseTagsList(tags: string | null): string[] {
     .filter(Boolean);
 }
 
-function getPublicFileUrl(filePath: string) {
-  return supabase.storage.from("personal-archive").getPublicUrl(filePath).data
-    .publicUrl;
-}
-
 function getFileExtensionLower(file: ArchiveFileRow): string {
   const n = file.file_name ?? "";
   const i = n.lastIndexOf(".");
@@ -157,27 +152,49 @@ function formatFileSize(bytes: number | null | undefined): string {
 function ReadonlyArchiveFileCard({
   file,
   onImageClick,
+  adminUserId,
 }: {
   file: ArchiveFileRow;
   onImageClick: (url: string, name: string) => void;
+  adminUserId: string | null;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
-  const url = getPublicFileUrl(file.file_path);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [signedUrlError, setSignedUrlError] = useState(false);
+
+  useEffect(() => {
+    if (!adminUserId) return;
+    let cancelled = false;
+    fetch(
+      `/api/admin/kisisel-arsiv/signed-url` +
+      `?filePath=${encodeURIComponent(file.file_path)}` +
+      `&adminUserId=${encodeURIComponent(adminUserId)}`,
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data: { signedUrl?: string }) => {
+        if (cancelled) return;
+        if (data.signedUrl) setSignedUrl(data.signedUrl);
+        else setSignedUrlError(true);
+      })
+      .catch(() => { if (!cancelled) setSignedUrlError(true); });
+    return () => { cancelled = true; };
+  }, [file.file_path, adminUserId]);
+
   const fileName = file.file_name?.trim() || "Dosya";
   const openLabel = isDocumentFile(file) ? "Dosyayı Aç" : "Önizle / Aç";
 
   return (
     <article className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {isImageFile(file) && !imgBroken ? (
+        {isImageFile(file) && !imgBroken && signedUrl ? (
           <button
             type="button"
-            onClick={() => onImageClick(url, fileName)}
+            onClick={() => { if (signedUrl) onImageClick(signedUrl, fileName); }}
             className="shrink-0 overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
             title="Büyüt"
           >
             <img
-              src={url}
+              src={signedUrl}
               alt={fileName}
               className="h-24 w-24 object-cover sm:h-28 sm:w-28"
               loading="lazy"
@@ -195,14 +212,24 @@ function ReadonlyArchiveFileCard({
           <p className="text-xs font-semibold text-slate-500">
             Boyut: {formatFileSize(file.file_size)}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <a href={url} target="_blank" rel="noreferrer" className={openLinkClass}>
-              {openLabel}
-            </a>
-            <a href={url} download={fileName} className={downloadLinkClass}>
-              İndir
-            </a>
-          </div>
+          {signedUrlError ? (
+            <p className="mt-2 text-xs font-medium text-rose-600">Dosya URL'i oluşturulamadı.</p>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {signedUrl ? (
+                <>
+                  <a href={signedUrl} target="_blank" rel="noreferrer" className={openLinkClass}>
+                    {openLabel}
+                  </a>
+                  <a href={signedUrl} download={fileName} className={downloadLinkClass}>
+                    İndir
+                  </a>
+                </>
+              ) : (
+                <span className="text-xs font-medium text-slate-400">Yükleniyor…</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -213,7 +240,7 @@ function ReadonlyArchiveFileCard({
       {isAudioFile(file) ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
           {isBrowserPreviewAudio(file) ? (
-            <audio controls className="w-full" src={url} preload="metadata" />
+            <audio controls className="w-full" src={signedUrl ?? undefined} preload="metadata" />
           ) : (
             <p className="text-sm font-medium text-slate-600">
               Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirin.
@@ -227,7 +254,7 @@ function ReadonlyArchiveFileCard({
           <video
             controls
             className="max-h-[360px] w-full object-contain"
-            src={url}
+            src={signedUrl ?? undefined}
             preload="metadata"
           />
         </div>
@@ -235,7 +262,7 @@ function ReadonlyArchiveFileCard({
 
       {isPdfFile(file) ? (
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-          <iframe title={fileName} src={url} className="h-[360px] w-full bg-white" />
+          <iframe title={fileName} src={signedUrl ?? undefined} className="h-[360px] w-full bg-white" />
         </div>
       ) : null}
 
@@ -257,6 +284,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
 
   const [sessionChecked, setSessionChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
+  const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [moduleDisabled, setModuleDisabled] = useState(false);
@@ -354,6 +382,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
   useEffect(() => {
     const session = readYasamUser();
     setAllowed(isAdminUser(session));
+    setAdminUserId(session?.id ?? null);
     setSessionChecked(true);
   }, []);
 
@@ -554,6 +583,7 @@ export default function AdminWorkspaceArchiveDetailPage() {
                       <ReadonlyArchiveFileCard
                         file={file}
                         onImageClick={(url, name) => setLightbox({ url, name })}
+                        adminUserId={adminUserId}
                       />
                     </li>
                   ))}
