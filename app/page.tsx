@@ -597,6 +597,7 @@ export default function Home() {
   const [kisiselArsivPreviewOpen, setKisiselArsivPreviewOpen] = useState(false);
   const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
   const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
+  const [adminNavLoading, setAdminNavLoading] = useState(false);
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
 
@@ -647,6 +648,15 @@ export default function Home() {
           return;
         }
         setUser(fresh);
+        // Admin cookie'yi sessizce yenile — localStorage'dan gelen oturumlarda cookie
+        // olmayabilir, bu yüzden /admin layout'u anında redirect atardı.
+        if (isAdminUser(fresh)) {
+          void fetch("/api/auth/admin-session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: fresh.id }),
+          }).catch(() => {});
+        }
       });
       return;
     }
@@ -1004,6 +1014,22 @@ export default function Home() {
       !membershipExpired &&
       !expertHasAnyGrantedModule(user);
 
+    async function handleAdminNav() {
+      if (adminNavLoading) return;
+      setAdminNavLoading(true);
+      const userId = user!.id;
+      try {
+        await fetch("/api/auth/admin-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        });
+      } catch {
+        // Cookie refresh başarısız olsa da devam et; layout auth'u yönetir.
+      }
+      router.push("/admin");
+    }
+
     function handleLockedModuleClick(reason: ModuleLockReason) {
       if (reason === "coming_soon") return;
       showToast({
@@ -1097,9 +1123,11 @@ export default function Home() {
 
                   {/* Admin linki */}
                   {isAdminUser(user) ? (
-                    <Link
-                      href="/admin"
-                      className="mt-3 flex items-center gap-3 rounded-xl border border-white/60 bg-white/55 px-3 py-2 no-underline backdrop-blur-sm transition hover:bg-white/75"
+                    <button
+                      type="button"
+                      onClick={() => { void handleAdminNav(); }}
+                      disabled={adminNavLoading}
+                      className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/60 bg-white/55 px-3 py-2 text-left backdrop-blur-sm transition hover:bg-white/75 active:scale-[0.98] disabled:opacity-70"
                     >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
                         <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
@@ -1108,8 +1136,12 @@ export default function Home() {
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">Sistem Sahibi</p>
                         <p className="text-xs font-black text-slate-800">Admin Paneli</p>
                       </div>
-                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
-                    </Link>
+                      {adminNavLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-violet-500" strokeWidth={2.5} />
+                      ) : (
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
+                      )}
+                    </button>
                   ) : null}
                 </div>
               </section>
