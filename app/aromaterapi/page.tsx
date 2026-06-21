@@ -75,7 +75,7 @@ export default function AromaTerapiHubPage() {
         setLoading(true);
         setErrorMsg("");
         const tenantId = await getSyncedTenantId();
-        if (!tenantId) { setLoading(false); return; }
+        if (!tenantId) { setLoading(false); setErrorMsg("Oturum açmanız gerekiyor. Lütfen sayfayı yenileyin."); return; }
 
         const { data, error } = await supabase
           .from("aromatherapy_oils")
@@ -115,7 +115,7 @@ export default function AromaTerapiHubPage() {
             <div className="min-w-0 flex-1">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-amber-50/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-amber-800 shadow-sm">
                 <span>✦</span>
-                <span>Aromaterapi Merkezi</span>
+                <span>Terapötik Yağ Kütüphanesi</span>
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Aromaterapi Merkezi
@@ -126,15 +126,15 @@ export default function AromaTerapiHubPage() {
             </div>
 
             {/* İstatistikler */}
-            <div className="grid grid-cols-5 gap-2 sm:gap-3 lg:w-auto lg:shrink-0">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 lg:w-auto lg:shrink-0">
               {[
-                { label: "Toplam", value: stats.total, cls: "text-slate-950" },
-                { label: "Uçucu",  value: stats.essential,  cls: "text-amber-700" },
-                { label: "Sabit",  value: stats.carrier,    cls: "text-emerald-700" },
-                { label: "Maseras.", value: stats.maceration, cls: "text-rose-700" },
-                { label: "Diğer",  value: stats.other,      cls: "text-violet-700" },
+                { label: "Toplam",   value: stats.total,      cls: "text-slate-950",   span: true },
+                { label: "Uçucu",    value: stats.essential,  cls: "text-amber-700",   span: false },
+                { label: "Sabit",    value: stats.carrier,    cls: "text-emerald-700", span: false },
+                { label: "Maserasyon", value: stats.maceration, cls: "text-rose-700",  span: false },
+                { label: "Diğer",    value: stats.other,      cls: "text-violet-700",  span: false },
               ].map((s) => (
-                <div key={s.label} className={statCard}>
+                <div key={s.label} className={`${statCard} ${s.span ? "col-span-2 sm:col-span-1" : ""}`}>
                   <div className={`text-xl font-black sm:text-2xl ${s.cls}`}>
                     {loading ? "—" : s.value}
                   </div>
@@ -257,7 +257,7 @@ export default function AromaTerapiHubPage() {
           </Link>
 
           {/* Karışım Oluşturucu — Yakında */}
-          <div className={`${menuCard} ${menuCardDisabled} sm:col-span-2 lg:col-span-2`}>
+          <div className={`${menuCard} ${menuCardDisabled} sm:col-span-2 lg:col-span-1`}>
             <div className="relative flex h-full flex-col justify-between">
               <div className="shrink-0"><AromaBadge label="Yakında" tone="slate" /></div>
               <div className="flex flex-1 flex-col items-center justify-center px-2 py-4 text-center">

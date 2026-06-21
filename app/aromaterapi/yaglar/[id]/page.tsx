@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   fetchOilDetail,
   oilTypeBadgeClass,
@@ -217,6 +218,11 @@ function BlendCardGrid({ tags, blendMap }: { tags: string[]; blendMap: Map<strin
   );
 }
 
+// URL protokol güvenlik kontrolü — javascript: gibi tehlikeli protokolleri engeller
+function isSafeUrl(url: string): boolean {
+  return url.startsWith("https://") || url.startsWith("http://");
+}
+
 // Kimyasal bileşenler — virgüllü ise premium chip grid
 function ChemicalChips({ raw }: { raw: string }) {
   const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
@@ -245,8 +251,9 @@ function ChemicalChips({ raw }: { raw: string }) {
 export default function OilDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const rawId = params?.id;
-  const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+  const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? (rawId[0] ?? "") : "";
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -262,7 +269,6 @@ export default function OilDetailPage() {
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
@@ -318,14 +324,14 @@ export default function OilDetailPage() {
   function setDraftField(key: keyof OilFormData, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
-  function startEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(true); setErrorMessage(""); setSuccessMessage(""); }
+  function startEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(true); setErrorMessage(""); }
   function cancelEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(false); setErrorMessage(""); }
 
   async function handleSave() {
     if (!draft || !id || !tenantId) return;
     const nameTrim = draft.name.trim();
     if (!nameTrim) { setErrorMessage("Yağ adı zorunludur."); return; }
-    setSaving(true); setErrorMessage(""); setSuccessMessage("");
+    setSaving(true); setErrorMessage("");
     const t = (v: string) => v.trim() || "";
     const { data: updatedRows, error } = await supabase.from("aromatherapy_oils").update({
       name: nameTrim, latin_name: t(draft.latin_name), english_name: t(draft.english_name),
@@ -347,7 +353,9 @@ export default function OilDetailPage() {
     setSaving(false);
     if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error.message}`); return; }
     if (!updatedRows || updatedRows.length === 0) { setErrorMessage("Güncelleme başarısız — erişim izniniz yok."); return; }
-    setEditEnabled(false); setSuccessMessage("Kayıt güncellendi."); await loadOil();
+    setEditEnabled(false);
+    showToast({ title: "Başarılı", message: "Kayıt güncellendi.", type: "success" });
+    await loadOil();
   }
 
   async function handleDelete() {
@@ -556,9 +564,6 @@ export default function OilDetailPage() {
           {errorMessage ? (
             <div className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-[12px] font-black text-rose-700">{errorMessage}</div>
           ) : null}
-          {successMessage ? (
-            <div className="border-t border-emerald-100 bg-emerald-50 px-4 py-2 text-[12px] font-black text-emerald-700">{successMessage}</div>
-          ) : null}
         </header>
 
         {/* ─── ANA İÇERİK ──────────────────────────────────── */}
@@ -567,8 +572,10 @@ export default function OilDetailPage() {
           {/* Sidebar */}
           <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:overflow-x-hidden lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5">
             {DETAIL_TABS.map((t) => {
-              const active  = tab === t.id;
-              const hasDot  = !active && tabHasData(t, draft);
+              const active   = tab === t.id;
+              const hasData  = tabHasData(t, draft);
+              const hasDot   = !active && hasData;
+              const isEmpty  = !active && !editEnabled && !hasData;
               return (
                 <button
                   key={t.id}
@@ -578,11 +585,11 @@ export default function OilDetailPage() {
                     active
                       ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_16px_rgba(245,158,11,0.35)]"
                       : "text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm"
-                  }`}
+                  } ${isEmpty ? "opacity-40" : ""}`}
                 >
                   <span className="shrink-0 text-sm leading-none">{t.icon}</span>
                   <span className="flex-1 whitespace-nowrap text-left lg:whitespace-normal">{t.label}</span>
-                  {hasDot ? <span className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80 lg:block" /> : null}
+                  {hasDot ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" /> : null}
                 </button>
               );
             })}
@@ -725,13 +732,24 @@ export default function OilDetailPage() {
                       <div key={fieldKey} className={itemCls}>
                         <dt className={labelCls}>{meta.label}</dt>
                         <dd className="space-y-2">
-                          {urls.map((url, i) => (
+                          {urls.map((url, i) => {
+                            const safe = isSafeUrl(url);
+                            return (
                             <div key={i} className="flex items-center gap-3 rounded-xl border border-amber-100/60 bg-amber-50/20 p-2.5 shadow-sm">
-                              {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL */}
-                              <img src={url} alt={`Görsel ${i + 1}`} className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                              <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900">{url}</a>
+                              {safe ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- arbitrary user URL, protocol validated above
+                                <img src={url} alt={`Görsel ${i + 1}`} className="h-14 w-14 shrink-0 rounded-lg border border-amber-100 object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                              ) : (
+                                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-xs font-bold text-rose-400">!</div>
+                              )}
+                              {safe ? (
+                                <a href={url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-[12px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900">{url}</a>
+                              ) : (
+                                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-rose-500" title="Geçersiz URL protokolü">{url}</span>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </dd>
                       </div>
                     );
