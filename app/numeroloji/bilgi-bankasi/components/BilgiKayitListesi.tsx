@@ -190,13 +190,17 @@ export function BilgiKayitListesi() {
   }
 
   async function exportKnowledgeWord(mode: "all" | "filtered") {
-    const { resolveNumerolojiTenantId } = await import("../../helpers/numerolojiKayit");
-    const tid = await resolveNumerolojiTenantId();
-    if (!tid) return;
+    const { resolveNumerolojiUserAndTenant } = await import("../../helpers/numerolojiKayit");
+    const session = await resolveNumerolojiUserAndTenant();
+    if (!session) {
+      showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
+      return;
+    }
+    const { userId, tenantId: tid } = session;
 
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId: tid, exportMode: mode };
+      const body: Record<string, unknown> = { tenantId: tid, userId, exportMode: mode };
       if (mode === "filtered") {
         body.knowledgeIds = filtrelenmis.filter((r) => r.kayitTuru === "aciklama").map((r) => r.recordId);
         body.stoneIds = filtrelenmis.filter((r) => r.kayitTuru === "dogaltas").map((r) => r.recordId);

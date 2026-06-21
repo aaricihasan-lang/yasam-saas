@@ -21,20 +21,20 @@ const cardCta =
 
 export default function NumerolojiHubPage() {
   return (
-    <div className="relative h-screen overflow-hidden bg-[#040210] text-white antialiased">
+    <div className="relative min-h-screen overflow-y-auto bg-[#040210] text-white antialiased">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(124,58,237,0.42),transparent_50%),linear-gradient(185deg,#0a0524_0%,#0c0828_35%,#060314_100%)]"
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(124,58,237,0.42),transparent_50%),linear-gradient(185deg,#0a0524_0%,#0c0828_35%,#060314_100%)]"
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
+      <div className="pointer-events-none fixed inset-0" aria-hidden>
         <div className="absolute -left-[15%] top-0 h-[22rem] w-[22rem] rounded-full bg-violet-600/28 blur-[90px]" />
         <div className="absolute right-[-8%] top-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-700/20 blur-[100px]" />
         <div className="absolute bottom-[-12%] left-[20%] h-[20rem] w-[20rem] rounded-full bg-fuchsia-700/16 blur-[80px]" />
         <div className="absolute right-[12%] top-[45%] h-[14rem] w-[14rem] rounded-full bg-amber-500/10 blur-[60px]" />
       </div>
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
 
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1400px] flex-col px-4 pb-3 pt-2 sm:px-6 sm:pb-4 sm:pt-3 lg:px-8 lg:pb-3 lg:pt-2">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-3 lg:px-8 lg:pb-6 lg:pt-2">
         <header className="shrink-0 text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-200/85">Yaşam Sistemi</p>
           <h1
@@ -57,7 +57,7 @@ export default function NumerolojiHubPage() {
           </p>
         </header>
 
-        <div className="mt-4 flex flex-1 flex-col justify-center lg:mt-4">
+        <div className="mt-4 flex flex-1 flex-col lg:justify-center lg:mt-4">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-4">
             <Link href="/numeroloji/analiz" className={`${cardGlass} ${cardHover} no-underline`}>
               <div
@@ -78,7 +78,7 @@ export default function NumerolojiHubPage() {
                 </p>
               </div>
               <span className={cardCta}>
-                Modülü aç
+                Analizi aç
                 <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
                   →
                 </span>
@@ -130,7 +130,7 @@ export default function NumerolojiHubPage() {
                 </p>
               </div>
               <span className={cardCta}>
-                BİLGİ BANKASINI AÇ
+                Bilgi Bankasını aç
                 <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
                   →
                 </span>

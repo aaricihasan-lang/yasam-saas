@@ -1,4 +1,4 @@
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
@@ -41,6 +41,18 @@ export function getTenantIdFromStorage(): string | null {
 /** Veri sorgusu öncesi DB ile senkron tenant */
 export async function resolveNumerolojiTenantId(): Promise<string | null> {
   return getSyncedTenantId();
+}
+
+/** API export route'ları için hem userId hem tenantId döner. */
+export async function resolveNumerolojiUserAndTenant(): Promise<{
+  userId: string;
+  tenantId: string;
+} | null> {
+  const user = await getSyncedYasamUser();
+  const tenantId = user?.tenant_id?.trim();
+  const userId = user?.id?.trim();
+  if (!userId || !tenantId) return null;
+  return { userId, tenantId };
 }
 
 export function sortRecordsByNameTurkish(rows: NumerologyRecordListItem[]): NumerologyRecordListItem[] {
@@ -101,11 +113,15 @@ export async function getNumerologyAnalysisById(
   id: string,
   tenantId: string,
 ): Promise<{ data: NumerologyRecordRow | null; error: string | null }> {
-  const { data, error } = await supabase.from(TABLE).select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
 
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: "Kayıt bulunamadı." };
-  if (data.tenant_id !== tenantId) return { data: null, error: "Bu kayda erişim yok." };
 
   return { data: data as NumerologyRecordRow, error: null };
 }

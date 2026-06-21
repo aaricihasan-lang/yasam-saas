@@ -5,9 +5,8 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
-import { listNumerologyAnalyses, resolveNumerolojiTenantId } from "../helpers/numerolojiKayit";
+import { listNumerologyAnalyses, resolveNumerolojiTenantId, resolveNumerolojiUserAndTenant } from "../helpers/numerolojiKayit";
 import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/NumerolojiListeKarti";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 
@@ -81,8 +80,12 @@ export default function NumerolojiListePage() {
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   async function exportWord(mode: "selected" | "all" | "filtered") {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) return;
+    const session = await resolveNumerolojiUserAndTenant();
+    if (!session) {
+      showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
+      return;
+    }
+    const { userId, tenantId } = session;
     setWordBusy(true);
     try {
       let ids: string[] | undefined;
@@ -96,7 +99,7 @@ export default function NumerolojiListePage() {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: mode === "all" ? "all" : "selected", ids }),
+        body: JSON.stringify({ tenantId, userId, exportMode: mode === "all" ? "all" : "selected", ids }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };

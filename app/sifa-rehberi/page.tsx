@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   countListFilledSections,
   fetchHealingGuideList,
@@ -591,9 +592,14 @@ function SifaRehberiContent() {
   async function exportWord(mode: "all" | "selected" | "filtered") {
     const tenantId = queryTenantId;
     if (!tenantId) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) {
+      showToast({ title: "Hata", message: "Kullanıcı oturumu bulunamadı.", type: "error" });
+      return;
+    }
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId, exportMode: mode === "all" ? "all" : "selected" };
+      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode === "all" ? "all" : "selected" };
       if (mode === "selected") {
         const arr = [...selectedForExport];
         if (!arr.length) {
@@ -899,7 +905,7 @@ function SifaRehberiContent() {
   if (isNewView) {
     return (
       <>
-        <div className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-4 text-slate-950">
+        <div className="flex min-h-dvh flex-col bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 lg:h-dvh lg:overflow-hidden">
           <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
             <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
             <div className="min-w-0 pl-4 text-right">
@@ -923,7 +929,7 @@ function SifaRehberiContent() {
             </div>
           ) : null}
 
-          <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] gap-5">
+          <div className="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[260px_1fr] lg:gap-5">
             <input
               ref={imageFileInputRef}
               type="file"
@@ -932,11 +938,9 @@ function SifaRehberiContent() {
               onChange={handleGuideImageFileChange}
             />
 
-            <aside
-              className={`h-full min-h-0 rounded-[28px] border border-emerald-100/80 bg-white/85 p-4 shadow-xl ${newViewScrollArea}`}
-            >
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Bölümler</p>
-              <div className="space-y-2">
+            <aside className="shrink-0 overflow-x-auto rounded-2xl border border-emerald-100/80 bg-white/85 p-3 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:h-full lg:min-h-0 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[28px] lg:p-4 lg:shadow-xl">
+              <p className="mb-2 hidden text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 lg:mb-3 lg:block">Bölümler</p>
+              <div className="flex gap-2 lg:flex-col lg:gap-0 lg:space-y-2">
                 {FORM_TABS.map((tab) => {
                   const active = formTab === tab.id;
                   return (
@@ -944,22 +948,22 @@ function SifaRehberiContent() {
                       key={tab.id}
                       type="button"
                       onClick={() => setFormTab(tab.id)}
-                      className={`flex h-12 w-full items-center gap-2 rounded-xl px-3 text-left text-[13px] font-bold transition ${
+                      className={`flex shrink-0 h-9 items-center gap-2 rounded-xl px-3 text-left text-[12px] font-bold whitespace-nowrap transition lg:h-12 lg:w-full lg:whitespace-normal lg:text-[13px] ${
                         active
                           ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_6px_18px_rgba(16,185,129,0.35)]"
                           : "border border-emerald-100/80 bg-white/70 text-slate-600 hover:bg-emerald-50/80"
                       }`}
                     >
                       <span className="text-base leading-none">{tab.icon}</span>
-                      <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                      <span className="min-w-0 truncate">{tab.label}</span>
                     </button>
                   );
                 })}
               </div>
             </aside>
 
-            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white/85 shadow-xl">
-              <div className={`${newViewScrollArea} p-6`}>
+            <section className="flex flex-col overflow-hidden rounded-2xl border border-emerald-100/80 bg-white/85 shadow-sm lg:h-full lg:min-h-0 lg:rounded-[28px] lg:shadow-xl">
+              <div className="p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
                 <div className="space-y-4 pb-4">
                   {formTab === "rahatsizlik" ? (
                     <>
@@ -969,7 +973,7 @@ function SifaRehberiContent() {
                           Temel tanım, kategori ve özet alanlarını doldurun.
                         </p>
                       </header>
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                         <section className={newViewMiniCard}>
                           <header className="mb-2.5">
                             <h4 className="text-[13px] font-black text-slate-900">Rahatsızlık adı</h4>
@@ -1022,7 +1026,7 @@ function SifaRehberiContent() {
                           Bu bölümdeki alanları düzenleyin; uzun metinler için alana tıklayın.
                         </p>
                       </header>
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                         {activeFormTab.keys.map((fieldKey) => {
                           const meta = FORM_SECTIONS.find((s) => s.key === fieldKey);
                           if (!meta) return null;
@@ -1030,7 +1034,7 @@ function SifaRehberiContent() {
                           return (
                             <section
                               key={key}
-                              className={`${newViewMiniCard} ${multiline ? "col-span-2" : ""}`}
+                              className={`${newViewMiniCard} ${multiline ? "col-span-full" : ""}`}
                             >
                               <header className="mb-2.5">
                                 <h4 className="text-[13px] font-black text-slate-900">{label}</h4>
@@ -1536,7 +1540,6 @@ function SifaRehberiContent() {
                     {/* Checkbox */}
                     <label
                       className="absolute right-4 top-4 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
-                      onClick={(e) => e.preventDefault()}
                     >
                       <input
                         type="checkbox"

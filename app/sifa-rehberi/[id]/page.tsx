@@ -7,6 +7,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   fetchHealingGuideDetail,
   firstSectionTabWithContent,
@@ -648,12 +649,17 @@ export default function SifaRehberiDetailPage() {
   const downloadWord = useCallback(async () => {
     const tenantId = queryTenantId ?? await getSyncedTenantId();
     if (!tenantId || !record) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) {
+      setErrorMessage("Kullanıcı oturumu bulunamadı.");
+      return;
+    }
     setWordBusy(true);
     try {
       const res = await fetch("/api/sifa-rehberi/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", id: record.id }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };

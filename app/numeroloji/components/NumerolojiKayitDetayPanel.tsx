@@ -1,6 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  GorselRaporInfografik,
+  type GorselTemaId,
+} from "./NumerolojiGorselRaporInfografik";
+import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
+import { NumerolojiIliskiAnaliziTab } from "./NumerolojiIliskiAnaliziTab";
+import { NumerolojiEvIsYeriSayisiTab } from "./NumerolojiEvIsYeriSayisiTab";
+import {
+  ContentFontSizeProvider,
+  NumerolojiFontSizeControl,
+  useContentTypography,
+  type ContentFontSize,
+} from "./numerolojiContentTypography";
+import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
+import {
+  resolveNumerolojiTenantId,
+  updateNumerologyAnalysisGorsel,
+} from "../helpers/numerolojiKayit";
+import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import {
+  extractGorselFromAnalysisData,
+  extractTasFromAnalysisData,
+  formatVirgulluTasGirdi,
+  kayitBolumYokMesaji,
+  type AnalysisGorselData,
+  type AnalysisTasData,
+} from "../utils/analysisJson";
 
 const GORSEL_BASE_W = 1400;
 
@@ -98,33 +125,6 @@ function GorselScalePreview({
     </div>
   );
 }
-import {
-  GorselRaporInfografik,
-  type GorselTemaId,
-} from "./NumerolojiGorselRaporInfografik";
-import { TabSonucOzeti, TabAnalizOzetli, TabPlainAnaliz, TabTasAtamalari } from "./NumerolojiAnalizSonucTabs";
-import { NumerolojiIliskiAnaliziTab } from "./NumerolojiIliskiAnaliziTab";
-import { NumerolojiEvIsYeriSayisiTab } from "./NumerolojiEvIsYeriSayisiTab";
-import {
-  ContentFontSizeProvider,
-  NumerolojiFontSizeControl,
-  useContentTypography,
-  type ContentFontSize,
-} from "./numerolojiContentTypography";
-import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
-import {
-  resolveNumerolojiTenantId,
-  updateNumerologyAnalysisGorsel,
-} from "../helpers/numerolojiKayit";
-import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
-import {
-  extractGorselFromAnalysisData,
-  extractTasFromAnalysisData,
-  formatVirgulluTasGirdi,
-  kayitBolumYokMesaji,
-  type AnalysisGorselData,
-  type AnalysisTasData,
-} from "../utils/analysisJson";
 
 const DETAY_TABS = [
   { id: "summary" as const, label: "Sonuç Özeti" },

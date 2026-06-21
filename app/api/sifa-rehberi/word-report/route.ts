@@ -327,15 +327,25 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", ids, id } = body as {
+  const { tenantId, exportMode = "all", ids, id, userId } = body as {
     tenantId?: string;
     exportMode?: ExportMode;
     ids?: string[];
     id?: string;
+    userId?: string;
   };
 
   if (!tenantId || typeof tenantId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
+
+  if (!userId || typeof userId !== "string")
+    return Response.json({ ok: false, error: "Kullanıcı kimliği eksik." }, { status: 401 });
+
+  // UUID format zorunluluğu — malformed ID'lerin DB'ye ulaşmasını engeller
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(userId.trim()) || !UUID_RE.test(tenantId.trim())) {
+    return Response.json({ ok: false, error: "Geçersiz kimlik formatı." }, { status: 400 });
+  }
 
   if (exportMode === "single" && !id)
     return Response.json({ ok: false, error: "Tek kayıt için id zorunludur." }, { status: 400 });
@@ -350,6 +360,26 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = createClient(supabaseUrl, supabaseKey);
 
+  // userId ile DB'den gerçek tenant_id'yi çek — body tenantId'sini doğrudan
+  // güvenilir kaynak olarak kullanma. Bu mimari (custom RPC + localStorage auth)
+  // server-side session okumasına izin vermediğinden ulaşılabilecek en sıkı
+  // doğrulama budur.
+  const { data: userRow, error: userVerifyError } = await db
+    .from("users")
+    .select("id, tenant_id")
+    .eq("id", userId.trim())
+    .maybeSingle();
+
+  if (userVerifyError || !userRow) {
+    return Response.json({ ok: false, error: "Kullanıcı bulunamadı." }, { status: 403 });
+  }
+
+  // DB'den gelen tenant_id ile body'deki karşılaştır
+  const verifiedTenantId = String(userRow.tenant_id ?? "").trim();
+  if (!verifiedTenantId || verifiedTenantId !== tenantId.trim()) {
+    return Response.json({ ok: false, error: "Erişim reddedildi." }, { status: 403 });
+  }
+
   // Hem legacy kolonlar hem sections join — hangi veri yapısı olursa olsun çalışır
   const SELECT = `
     id, tenant_id, name, category, symptoms, created_at, updated_at,
@@ -363,9 +393,10 @@ export async function POST(request: Request): Promise<Response> {
     )
   `;
 
+  // Export sorgularında body tenantId değil, DB'den doğrulanmış verifiedTenantId kullanılır
   let query = db.from("healing_guides")
     .select(SELECT)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", verifiedTenantId);
 
   if (exportMode === "single" && id) {
     query = query.eq("id", id);

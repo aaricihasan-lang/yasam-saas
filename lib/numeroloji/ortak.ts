@@ -4,6 +4,7 @@ export type NumerolojiResult = {
   steps: string[];
 };
 
+// 19, bu sistemde karma borç sayısı olarak master sayı setine dahil edilmiştir.
 export const SPECIAL_NUMBERS = new Set([11, 19, 22, 33]);
 
 export const CHAKRA_LETTER_MAP: Record<string, number> = {

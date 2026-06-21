@@ -278,7 +278,7 @@ export function NumerolojiIliskiAnaliziTab({
   const filteredDanisan = danisanSearch.trim()
     ? danisanList.filter(
         (d) =>
-          `${d.name} ${d.surname}`.toLowerCase().includes(danisanSearch.toLowerCase()) ||
+          `${d.name} ${d.surname}`.toLocaleLowerCase("tr-TR").includes(danisanSearch.toLocaleLowerCase("tr-TR")) ||
           d.birth_date.includes(danisanSearch),
       )
     : danisanList;

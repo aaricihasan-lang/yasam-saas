@@ -192,6 +192,7 @@ export default function NumerolojiAnalizPage() {
       if (el) await gorselRaporuPngYakalaVeIndir(el);
     } catch (err) {
       console.error(err);
+      setError(err instanceof Error ? err.message : "PNG görsel indirilemedi. Lütfen tekrar deneyin.");
     } finally {
       if (scrollHost) {
         scrollHost.style.maxHeight = prevMaxH;

@@ -41,7 +41,15 @@ function removePngExportStyles(): void {
   document.getElementById(PNG_EXPORT_STYLE_ID)?.remove();
 }
 
-/** Yüksek çözünürlüklü tam rapor PNG'si. */
+/** Mobil/büyük canvas için güvenli piksel oranı hesaplar (max ~12MP). */
+function safePixelRatio(width: number, height: number): number {
+  const MAX_PIXELS = 12_000_000;
+  if (width * height * 9 <= MAX_PIXELS) return 3;
+  if (width * height * 4 <= MAX_PIXELS) return 2;
+  return 1;
+}
+
+/** Yüksek çözünürlüklü tam rapor PNG'si. Başarısızlıkta Error fırlatır. */
 export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
   if (!hedef || typeof window === "undefined") return;
 
@@ -58,13 +66,15 @@ export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): P
     const exportHeight = Math.max(hedef.offsetHeight, hedef.scrollHeight, Math.ceil(rect.height));
 
     if (!exportWidth || !exportHeight || exportWidth < 50 || exportHeight < 50) {
-      throw new Error("Rapor alanı henüz oluşmadı.");
+      throw new Error("Rapor alanı henüz oluşmadı. Lütfen görsel raporu tam yüklenince tekrar deneyin.");
     }
+
+    const pixelRatio = safePixelRatio(exportWidth, exportHeight);
 
     const dataUrl = await toPng(hedef, {
       cacheBust: true,
       skipFonts: false,
-      pixelRatio: 3,
+      pixelRatio,
       backgroundColor: "#12051f",
       width: exportWidth,
       height: exportHeight,
@@ -81,6 +91,10 @@ export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): P
         return true;
       },
     });
+
+    if (!dataUrl || dataUrl === "data:,") {
+      throw new Error("PNG oluşturulamadı. Tarayıcınız canvas boyutunu desteklemeyebilir.");
+    }
 
     const a = document.createElement("a");
     a.href = dataUrl;

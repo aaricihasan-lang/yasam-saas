@@ -9,6 +9,7 @@ import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
   resolveNumerolojiTenantId,
+  resolveNumerolojiUserAndTenant,
   type NumerologyRecordRow,
 } from "../../helpers/numerolojiKayit";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
@@ -30,16 +31,24 @@ export default function NumerolojiKayitDetayPage() {
 
   const downloadWord = useCallback(async () => {
     if (!row) return;
-    const tid = await resolveNumerolojiTenantId();
-    if (!tid) return;
+    const session = await resolveNumerolojiUserAndTenant();
+    if (!session) {
+      alert("Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.");
+      return;
+    }
+    const { userId, tenantId } = session;
     setWordBusy(true);
     try {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: tid, exportMode: "single", recordId: row.id }),
+        body: JSON.stringify({ tenantId, userId, exportMode: "single", recordId: row.id }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        alert(err.error || "Word raporu oluşturulamadı.");
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -51,7 +60,9 @@ export default function NumerolojiKayitDetayPage() {
       a.download = `numeroloji-${safe}-${new Date().toISOString().slice(0,10)}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* sessiz */ } finally {
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Word raporu indirilemedi. Lütfen tekrar deneyin.");
+    } finally {
       setWordBusy(false);
     }
   }, [row]);
