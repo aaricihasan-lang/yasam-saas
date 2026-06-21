@@ -26,8 +26,6 @@ import {
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
   adminPermissionsToPayload,
-  buildPaymentHistoryInsertPayload,
-  buildPaymentUpdatePayload,
   formatCreatedAt,
   isUserPremiumPackage,
   mapDbUser,
@@ -47,21 +45,15 @@ import {
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
-  buildMembershipUpdatePayload,
-  filterMembershipPayloadForRow,
   inferPackagePlanFromSnapshot,
-  parseMembershipFromRow,
   type PackagePlanUi,
 } from "@/lib/auth/membership";
-import { buildPremiumModulePermissionsPayload } from "@/lib/auth/modulePermissions";
 import {
   clearYasamUser,
   isAdminUser,
-  parseLoginUserRecord,
   readYasamUser,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -417,6 +409,7 @@ export default function AdminUserDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [user, setUser] = useState<ManagedUser | null>(null);
   const [currentAdminUser, setCurrentAdminUser] = useState<YasamUser | null>(null);
+  const [currentAdminId, setCurrentAdminId] = useState<string>("");
   const [deleteModalStep, setDeleteModalStep] = useState<null | "confirm" | "verify">(
     null,
   );
@@ -457,30 +450,18 @@ export default function AdminUserDetailPage() {
     });
   }
 
-  const loadPaymentHistory = useCallback(async (uid: string) => {
+  const loadPaymentHistory = useCallback(async (uid: string, adminId: string) => {
     setHistoryLoading(true);
-    const { data, error } = await supabase
-      .from("user_payment_history")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false });
-
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/payment-history`, {
+      headers: { "x-admin-id": adminId },
+    });
     setHistoryLoading(false);
-
-    if (error) {
-      console.error("Ödeme geçmişi yükleme hatası:", error);
-      setPaymentHistory([]);
-      return;
-    }
-
-    setPaymentHistory(
-      (data ?? []).map((row) =>
-        mapPaymentHistoryRow(row as Record<string, unknown>),
-      ),
-    );
+    if (!res.ok) { setPaymentHistory([]); return; }
+    const json = (await res.json()) as { history: Record<string, unknown>[] };
+    setPaymentHistory((json.history ?? []).map((row) => mapPaymentHistoryRow(row)));
   }, []);
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (adminId: string) => {
     if (!userId) {
       setNotFound(true);
       setLoading(false);
@@ -488,21 +469,23 @@ export default function AdminUserDetailPage() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      headers: { "x-admin-id": adminId },
+    });
 
-    if (error || !data) {
-      console.error("Kullanıcı detay hatası:", error);
+    if (!res.ok) {
       setUser(null);
       setNotFound(true);
       setLoading(false);
       return;
     }
 
-    const row = data as Record<string, unknown>;
+    const json = (await res.json()) as {
+      user: Record<string, unknown>;
+      paymentHistory: Record<string, unknown>[];
+    };
+
+    const row = json.user;
     setMembershipSampleRow(row);
     setCanPersistModulePermissions("module_permissions" in row);
     setCanPersistMembership(rowHasMembershipColumns(row));
@@ -512,34 +495,36 @@ export default function AdminUserDetailPage() {
     setUser(mapped);
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setPackagePlan(inferPackagePlanFromSnapshot(mapped.membership));
+    setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
     setNotFound(false);
     setLoading(false);
-    await loadPaymentHistory(mapped.id);
-  }, [userId, loadPaymentHistory]);
+  }, [userId]);
 
   useEffect(() => {
     const session = readYasamUser();
     setAllowed(isAdminUser(session));
     setCurrentAdminUser(session);
+    setCurrentAdminId(session?.id ?? "");
     setSessionChecked(true);
   }, []);
 
   useEffect(() => {
-    if (!sessionChecked || !allowed) return;
-    loadUser();
-  }, [sessionChecked, allowed, loadUser]);
+    if (!sessionChecked || !allowed || !currentAdminId) return;
+    void loadUser(currentAdminId);
+  }, [sessionChecked, allowed, currentAdminId, loadUser]);
 
   function handleLogout() {
     clearYasamUser();
     router.push("/");
   }
 
-  const currentAdminId = currentAdminUser?.id ?? null;
   const canDeleteAsOwner = isOwnerAdmin(currentAdminUser);
 
   function isSelf(): boolean {
     return Boolean(user && currentAdminId && user.id === currentAdminId);
   }
+
+
 
   function closeDeleteModals() {
     setDeleteModalStep(null);
@@ -557,14 +542,9 @@ export default function AdminUserDetailPage() {
     if (!user || isSelf() || !canDeleteAsOwner) return;
 
     if (!deleteAdminPassword.trim()) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Admin şifresi giriniz.",
-        type: "error",
-      });
+      showToast({ title: "İşlem başarısız", message: "Admin şifresi giriniz.", type: "error" });
       return;
     }
-
     if (deleteConfirmPhrase.trim() !== DELETE_CONFIRM_PHRASE) {
       showToast({
         title: "İşlem başarısız",
@@ -574,47 +554,24 @@ export default function AdminUserDetailPage() {
       return;
     }
 
-    const adminEmail = String(currentAdminUser?.email ?? "").trim().toLowerCase();
-    if (!adminEmail) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Oturum e-postası bulunamadı.",
-        type: "error",
-      });
-      return;
-    }
-
     setDeleteSubmitting(true);
 
-    const { data, error: loginError } = await supabase.rpc("login_user", {
-      p_email: adminEmail,
-      p_password: deleteAdminPassword.trim(),
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ adminPassword: deleteAdminPassword.trim() }),
     });
 
-    if (loginError || !data?.length || !parseLoginUserRecord(data[0])) {
-      setDeleteSubmitting(false);
-      showToast({
-        title: "İşlem başarısız",
-        message: "Admin şifresi doğrulanamadı.",
-        type: "error",
-      });
-      return;
-    }
-
-    const { error } = await supabase
-      .from("users")
-      .update({ active: false })
-      .eq("id", user.id);
-
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setDeleteSubmitting(false);
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Silme başarısız.", type: "error" });
       return;
     }
 
     closeDeleteModals();
-    showToast({ title: "Başarılı", message: "Kullanıcı silindi.", type: "success" });
+    showToast({ title: "Başarılı", message: "Kullanıcı pasife alındı.", type: "success" });
     router.push("/admin/users");
   }
 
@@ -636,64 +593,52 @@ export default function AdminUserDetailPage() {
     const fullName = editForm.fullName.trim();
     const email = editForm.email.trim().toLowerCase();
     if (!fullName || !email) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Ad ve e-posta zorunludur.",
-        type: "error",
-      });
+      showToast({ title: "İşlem başarısız", message: "Ad ve e-posta zorunludur.", type: "error" });
       return;
     }
 
     setSavingEdit(true);
-    const updatePayload: Record<string, unknown> = {
-      full_name: fullName,
-      email,
-      role: editForm.role,
-      active: editForm.active,
-    };
-    if (canPersistModulePermissions && !isUserPremiumPackage(user)) {
-      updatePayload.module_permissions = adminPermissionsToPayload(
-        editForm.modulePermissions,
-      );
-    }
-
-    const { error } = await supabase
-      .from("users")
-      .update(updatePayload)
-      .eq("id", user.id);
-
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({
+        action: "edit",
+        fullName,
+        email,
+        role: editForm.role,
+        active: editForm.active,
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setSavingEdit(false);
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Güncelleme başarısız.", type: "error" });
       return;
     }
 
     setEditOpen(false);
     showToast({ title: "Başarılı", message: "Kullanıcı güncellendi.", type: "success" });
-    await loadUser();
+    await loadUser(currentAdminId);
   }
 
   async function savePassword() {
     if (!user || !newPassword.trim()) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Yeni şifre giriniz.",
-        type: "error",
-      });
+      showToast({ title: "İşlem başarısız", message: "Yeni şifre giriniz.", type: "error" });
       return;
     }
 
     setSavingPassword(true);
-    const { error } = await supabase
-      .from("users")
-      .update({ password: newPassword.trim() })
-      .eq("id", user.id);
-
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ newPassword: newPassword.trim() }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setSavingPassword(false);
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Şifre güncellenemedi.", type: "error" });
       return;
     }
 
@@ -702,154 +647,92 @@ export default function AdminUserDetailPage() {
     showToast({ title: "Başarılı", message: "Şifre güncellendi.", type: "success" });
   }
 
-  async function approveUser() {
+  async function postStatus(action: string, extra?: Record<string, unknown>) {
     if (!user) return;
     setActionUserId(user.id);
-    const { error } = await supabase
-      .from("users")
-      .update({
-        approval_status: "approved",
-        active: true,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setActionUserId(null);
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
       return;
     }
+    await loadUser(currentAdminId);
+  }
+
+  async function approveUser() {
     showToast({ title: "Başarılı", message: "Kullanıcı onaylandı.", type: "success" });
-    await loadUser();
+    await postStatus("approve");
   }
 
   async function rejectUser() {
-    if (!user) return;
-    setActionUserId(user.id);
-    const { error } = await supabase
-      .from("users")
-      .update({ approval_status: "rejected", active: false })
-      .eq("id", user.id);
-    setActionUserId(null);
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
-      return;
-    }
     showToast({ title: "Başarılı", message: "Kullanıcı reddedildi.", type: "success" });
-    await loadUser();
+    await postStatus("reject");
   }
 
   async function toggleActive() {
     if (!user || isSelf()) return;
-    const nextActive = !user.active;
-    setActionUserId(user.id);
-    const { error } = await supabase
-      .from("users")
-      .update({ active: nextActive })
-      .eq("id", user.id);
-    setActionUserId(null);
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
-      return;
-    }
-    showToast({
-      title: "Başarılı",
-      message: nextActive ? "Kullanıcı aktif yapıldı." : "Kullanıcı pasif yapıldı.",
-      type: "success",
-    });
-    await loadUser();
+    const label = user.active ? "Kullanıcı pasif yapıldı." : "Kullanıcı aktif yapıldı.";
+    showToast({ title: "Başarılı", message: label, type: "success" });
+    await postStatus("toggle_active", { currentActive: user.active });
   }
 
   async function savePackageMembership() {
     if (!user || !packagePlan) return;
     if (!canPersistMembership) {
-      showToast({
-        title: "Kayıt yapılamadı",
-        message: "Veritabanında paket kolonları bulunamadı.",
-        type: "error",
-      });
+      showToast({ title: "Kayıt yapılamadı", message: "Veritabanında paket kolonları bulunamadı.", type: "error" });
       return;
     }
 
-    const rawPayload = buildMembershipUpdatePayload(packagePlan);
-    const payload = filterMembershipPayloadForRow(rawPayload, membershipSampleRow);
-    const updatePayload: Record<string, unknown> = { ...payload };
-
-    if (packagePlan === "premium" && canPersistModulePermissions) {
-      updatePayload.module_permissions = buildPremiumModulePermissionsPayload();
-    }
-
     setSavingPackage(true);
-    const { error } = await supabase
-      .from("users")
-      .update(updatePayload)
-      .eq("id", user.id);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/package`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ packagePlan }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setSavingPackage(false);
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Paket güncellenemedi.", type: "error" });
       return;
     }
 
     showToast({ title: "Başarılı", message: "Paket güncellendi.", type: "success" });
-    await loadUser();
+    await loadUser(currentAdminId);
   }
 
   async function savePayment() {
     if (!user || !paymentDraft) return;
     if (!canPersistPayment) {
-      showToast({
-        title: "Kayıt yapılamadı",
-        message: "Veritabanında ödeme kolonları bulunamadı.",
-        type: "error",
-      });
+      showToast({ title: "Kayıt yapılamadı", message: "Veritabanında ödeme kolonları bulunamadı.", type: "error" });
       return;
     }
 
     setSavingPayment(true);
-    const payload = buildPaymentUpdatePayload(paymentDraft);
-
-    const { error: userUpdateError } = await supabase
-      .from("users")
-      .update(payload)
-      .eq("id", user.id);
-
-    if (userUpdateError) {
-      setSavingPayment(false);
-      console.error("Ödeme kaydı hatası:", userUpdateError);
-      showToast({
-        title: "İşlem başarısız",
-        message: userUpdateError.message,
-        type: "error",
-      });
-      return;
-    }
-
-    const historyPayload = buildPaymentHistoryInsertPayload(user.id, payload);
-    const { error: historyError } = await supabase
-      .from("user_payment_history")
-      .insert(historyPayload);
-
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ draft: paymentDraft }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; warning?: string; error?: string };
     setSavingPayment(false);
 
-    if (historyError) {
-      console.error("Ödeme geçmişi ekleme hatası:", historyError);
-      showToast({
-        title: "Kısmi kayıt",
-        message:
-          "Kullanıcı ödeme alanları güncellendi; geçmiş kaydı eklenemedi: " +
-          historyError.message,
-        type: "warning",
-      });
-      await loadUser();
+    if (!res.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Ödeme güncellenemedi.", type: "error" });
       return;
     }
 
-    showToast({
-      title: "Başarılı",
-      message: "Ödeme bilgileri güncellendi.",
-      type: "success",
-    });
-    await loadUser();
+    if (json.warning) {
+      showToast({ title: "Kısmi kayıt", message: json.warning, type: "warning" });
+    } else {
+      showToast({ title: "Başarılı", message: "Ödeme bilgileri güncellendi.", type: "success" });
+    }
+    await loadUser(currentAdminId);
   }
 
   async function saveModulePermissions(next: AdminModulePermissions) {
@@ -859,23 +742,21 @@ export default function AdminUserDetailPage() {
     if (!canPersistModulePermissions) return;
 
     setSavingModules(true);
-    const { error } = await supabase
-      .from("users")
-      .update({ module_permissions: adminPermissionsToPayload(next) })
-      .eq("id", user.id);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({ action: "modules", modulePermissions: adminPermissionsToPayload(next) }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setSavingModules(false);
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: error.message, type: "error" });
-      await loadUser();
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Modül izinleri güncellenemedi.", type: "error" });
+      await loadUser(currentAdminId);
       return;
     }
 
-    showToast({
-      title: "Başarılı",
-      message: "Modül izinleri güncellendi.",
-      type: "success",
-    });
+    showToast({ title: "Başarılı", message: "Modül izinleri güncellendi.", type: "success" });
   }
 
   if (!sessionChecked) {

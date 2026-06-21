@@ -24,16 +24,10 @@ import {
   type PaymentStatusUi,
 } from "@/lib/admin/userManagement";
 import {
-  createTenantForNewUser,
-  deleteTenantById,
-} from "@/lib/auth/createExpertTenant";
-import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
-import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
 } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 type UserListFilter =
   | "all"
@@ -302,6 +296,7 @@ export default function AdminUsersPage() {
   const { showToast } = useToast();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -331,18 +326,17 @@ export default function AdminUsersPage() {
     return { total: users.length, pending, active, passive };
   }, [users]);
 
-  const loadUsers = useCallback(async () => {
+  const loadUsers = useCallback(async (adminId: string) => {
     setListLoading(true);
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const res = await fetch("/api/admin/users", {
+      headers: { "x-admin-id": adminId },
+    });
 
-    if (error) {
-      console.error("Kullanıcı listesi hatası:", error);
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
       showToast({
         title: "İşlem başarısız",
-        message: error.message,
+        message: json.error ?? "Liste yüklenemedi.",
         type: "error",
       });
       setUsers([]);
@@ -350,22 +344,23 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const mapped = (data ?? []).map((row) =>
-      mapDbUser(row as Record<string, unknown>),
-    );
+    const json = (await res.json()) as { users: Record<string, unknown>[] };
+    const mapped = (json.users ?? []).map((row) => mapDbUser(row));
     setUsers(sortUsersForAdmin(mapped));
     setListLoading(false);
   }, [showToast]);
 
   useEffect(() => {
-    setAllowed(isAdminUser(readYasamUser()));
+    const u = readYasamUser();
+    setAllowed(isAdminUser(u));
+    setCurrentUserId(u?.id ?? "");
     setSessionChecked(true);
   }, []);
 
   useEffect(() => {
-    if (!sessionChecked || !allowed) return;
-    loadUsers();
-  }, [sessionChecked, allowed, loadUsers]);
+    if (!sessionChecked || !allowed || !currentUserId) return;
+    void loadUsers(currentUserId);
+  }, [sessionChecked, allowed, currentUserId, loadUsers]);
 
   function handleLogout() {
     clearYasamUser();
@@ -384,68 +379,31 @@ export default function AdminUsersPage() {
       });
       return;
     }
-    if (users.some((u) => u.email.toLowerCase() === email)) {
-      showToast({
-        title: "İşlem başarısız",
-        message: "Bu e-posta adresi zaten kayıtlı.",
-        type: "error",
-      });
-      return;
-    }
 
     setCreating(true);
 
-    const tenantResult = await createTenantForNewUser({
-      fullName,
-      email,
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-id": currentUserId,
+      },
+      body: JSON.stringify({
+        fullName,
+        email,
+        password: form.password.trim(),
+        role: form.role,
+        active: form.active,
+      }),
     });
 
-    if (!tenantResult.ok) {
-      setCreating(false);
-      showToast({
-        title: "İşlem başarısız",
-        message: "Çalışma alanı oluşturulamadı: " + tenantResult.error,
-        type: "error",
-      });
-      return;
-    }
-
-    const tenantId = tenantResult.tenantId;
-    const isExpert = form.role === "expert";
-    const now = new Date();
-    const trialEnds = new Date(now);
-    trialEnds.setDate(trialEnds.getDate() + 7);
-
-    const userPayload: Record<string, unknown> = {
-      full_name: fullName,
-      email,
-      password: form.password.trim(),
-      role: form.role,
-      active: form.active,
-      approval_status: form.active ? "approved" : "pending",
-      tenant_id: tenantId,
-    };
-
-    if (isExpert) {
-      userPayload.module_permissions = DEFAULT_MODULE_PERMISSIONS;
-      if (form.active) {
-        userPayload.plan = "trial";
-        userPayload.subscription_status = "trial";
-        userPayload.trial_started_at = now.toISOString();
-        userPayload.trial_ends_at = trialEnds.toISOString();
-      }
-    }
-
-    const { error } = await supabase.from("users").insert(userPayload);
-
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setCreating(false);
 
-    if (error) {
-      console.error("Kullanıcı ekleme hatası:", error);
-      await deleteTenantById(tenantId);
+    if (!res.ok || !json.ok) {
       showToast({
         title: "İşlem başarısız",
-        message: "Kayıt hatası: " + error.message,
+        message: json.error ?? "Kayıt tamamlanamadı.",
         type: "error",
       });
       return;
@@ -454,7 +412,7 @@ export default function AdminUsersPage() {
     setForm(emptyCreateForm);
     setFormOpen(false);
     showToast({ title: "Başarılı", message: "Kullanıcı eklendi.", type: "success" });
-    await loadUsers();
+    await loadUsers(currentUserId);
   }
 
   if (!sessionChecked) {

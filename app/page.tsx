@@ -956,6 +956,17 @@ export default function Home() {
     setLoading(false);
 
     if (isAdminUser(loggedUser)) {
+      // Admin httpOnly session cookie set et (server-side doğrulama ile)
+      const cookieRes = await fetch("/api/auth/admin-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: loggedUser.id }),
+      });
+      if (!cookieRes.ok) {
+        setMessage("Admin oturumu başlatılamadı. Lütfen tekrar deneyin.");
+        setLoading(false);
+        return;
+      }
       router.push("/admin");
     }
   };

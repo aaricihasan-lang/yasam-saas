@@ -220,6 +220,18 @@ export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
   invalidateYasamUserSyncCache();
+  // Admin httpOnly cookie'yi temizle (fire-and-forget, tüm logout noktalarını kapsar)
+  void fetch("/api/auth/admin-session", { method: "DELETE" }).catch(() => {});
+}
+
+/** Admin session cookie'yi sunucu üzerinden temizler. clearYasamUser içinde otomatik çağrılır. */
+export async function clearAdminSessionCookie(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    await fetch("/api/auth/admin-session", { method: "DELETE" });
+  } catch {
+    // best effort
+  }
 }
 
 export function isAdminUser(user: YasamUser | null | undefined): boolean {
@@ -244,6 +256,7 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
 
 const USER_REFRESH_SELECT =
   "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status";
+  // password ve password_hash kasıtlı olarak hariç tutulmuştur
 
 /** users tablosundan güncel kayıt (localStorage yerine kaynak doğruluk) */
 export async function refreshYasamUserFromDb(

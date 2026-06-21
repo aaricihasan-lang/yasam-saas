@@ -5,12 +5,6 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  createTenantForNewUser,
-  deleteTenantById,
-} from "@/lib/auth/createExpertTenant";
-import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
-import { supabase } from "@/lib/supabase";
 
 const inputClass =
   "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
@@ -53,53 +47,18 @@ export default function RegisterPage() {
 
     setSaving(true);
 
-    const now = new Date();
-    const trialStartedAt = now.toISOString();
-    const trialEnds = new Date(now);
-    trialEnds.setDate(trialEnds.getDate() + 7);
-    const trialEndsAt = trialEnds.toISOString();
-
-    const tenantResult = await createTenantForNewUser({
-      fullName: name,
-      email: mail,
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName: name, email: mail, password: pass }),
     });
 
-    if (!tenantResult.ok) {
-      console.error("Tenant oluşturma hatası:", tenantResult.error);
+    const json = (await res.json()) as { ok?: boolean; error?: string };
+
+    if (!res.ok || !json.ok) {
       showToast({
         title: "İşlem başarısız",
-        message: tenantResult.error,
-        type: "error",
-      });
-      setSaving(false);
-      return;
-    }
-
-    const tenantId = tenantResult.tenantId;
-
-    const { error: userError } = await supabase.from("users").insert([
-      {
-        full_name: fullName.trim(),
-        email: mail,
-        password: pass,
-        role: "expert",
-        active: false,
-        approval_status: "pending",
-        module_permissions: DEFAULT_MODULE_PERMISSIONS,
-        tenant_id: tenantId,
-        plan: "trial",
-        subscription_status: "trial",
-        trial_started_at: trialStartedAt,
-        trial_ends_at: trialEndsAt,
-      },
-    ]);
-
-    if (userError) {
-      console.error("Kullanıcı kayıt hatası:", userError);
-      await deleteTenantById(tenantId);
-      showToast({
-        title: "İşlem başarısız",
-        message: userError.message,
+        message: json.error ?? "Kayıt tamamlanamadı.",
         type: "error",
       });
       setSaving(false);

@@ -2,8 +2,9 @@ import { supabase } from "@/lib/supabase";
 import { clearYasamUser, normalizeRole } from "@/lib/auth/yasamUser";
 
 /** login_user RPC + gerekirse yalnızca admin için users tablosu yedek doğrulaması */
+// password kasıtlı olarak hariç tutulmuştur — şifre browser'a asla gelmemeli
 const LOGIN_LOOKUP_SELECT =
-  "id, email, full_name, name, role, tenant_id, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, status, password";
+  "id, email, full_name, name, role, tenant_id, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, status";
 
 export type LoginAttemptResult = {
   rows: Record<string, unknown>[];
@@ -33,29 +34,21 @@ export function rpcLoginRowsToArray(data: unknown): Record<string, unknown>[] {
 function stripPasswordField(
   row: Record<string, unknown>,
 ): Record<string, unknown> {
-  const { password: _removed, ...rest } = row;
+  // password ve password_hash alanları hiçbir zaman client state'ine girmemeli
+  const { password: _p, password_hash: _ph, ...rest } = row as Record<string, unknown>;
   return rest;
 }
 
+/**
+ * Plaintext şifre karşılaştırmalı admin fallback kaldırıldı.
+ * RLS + column revoke sonrasında users tablosundan password okunamaz.
+ * login_user RPC (SECURITY DEFINER) tek geçerli doğrulama yoludur.
+ */
 async function tryAdminTableLogin(
-  normalizedEmail: string,
-  trimmedPassword: string,
+  _normalizedEmail: string,
+  _trimmedPassword: string,
 ): Promise<Record<string, unknown> | null> {
-  const { data, error } = await supabase
-    .from("users")
-    .select(LOGIN_LOOKUP_SELECT)
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (error || !data) return null;
-
-  const row = data as Record<string, unknown>;
-  if (normalizeRole(row.role) !== "admin") return null;
-
-  const storedPassword = String(row.password ?? "").trim();
-  if (!storedPassword || storedPassword !== trimmedPassword) return null;
-
-  return stripPasswordField(row);
+  return null;
 }
 
 /**
