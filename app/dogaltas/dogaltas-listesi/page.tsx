@@ -653,11 +653,7 @@ function DogaltasListesiPageContent() {
     (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
   const selectAllFiltered = useCallback(() => {
-    setSelectedIds(new Set(
-      filteredStones
-        .filter((stone) => stone.tenant_id !== ADMIN_LIBRARY_TENANT_ID)
-        .map((stone) => stone.id)
-    ));
+    setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
   }, [filteredStones]);
 
   const handleLoadMore = useCallback(() => {
@@ -1222,12 +1218,10 @@ function DogaltasListesiPageContent() {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          disabled={isLibraryStone}
-                          onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
+                          onChange={() => toggleStoneSelection(stone.id)}
                           onClick={(event) => event.stopPropagation()}
-                          aria-label={isLibraryStone ? `${displayName} — kütüphane kaydı, silinemez` : `${displayName} seç`}
-                          title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
-                          className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
+                          aria-label={`${displayName} seç`}
+                          className={uiRowCheckbox}
                         />
                         <Link
                           href={detailHref}
@@ -1301,12 +1295,10 @@ function DogaltasListesiPageContent() {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            disabled={isLibraryStone}
-                            onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
+                            onChange={() => toggleStoneSelection(stone.id)}
                             onClick={(event) => event.stopPropagation()}
-                            aria-label={isLibraryStone ? `${stone.stone_name || "İsimsiz taş"} — kütüphane kaydı` : `${stone.stone_name || "İsimsiz taş"} seç`}
-                            title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
-                            className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
+                            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                            className={uiRowCheckbox}
                           />
                         </div>
                         <Link
@@ -1478,14 +1470,12 @@ function DogaltasListesiPageContent() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        disabled={isLibraryStone}
-                        onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
+                        onChange={() => toggleStoneSelection(stone.id)}
                         onClick={(event) => event.stopPropagation()}
-                        aria-label={isLibraryStone ? `${stone.stone_name || "İsimsiz taş"} — kütüphane kaydı` : `${stone.stone_name || "İsimsiz taş"} seç`}
-                        title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
-                        className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
+                        aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                        className={uiRowCheckbox}
                       />
-                      <span className={`text-[10px] font-bold uppercase tracking-wide ${isLibraryStone ? "text-slate-300" : "text-slate-400"}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                         {isLibraryStone ? "Kütüphane" : "Seç"}
                       </span>
                     </div>
