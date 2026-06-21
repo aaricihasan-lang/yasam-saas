@@ -17,6 +17,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { resolveSourceAdminTenantId } from "@/lib/admin/adminSourceTenant";
 import {
+  type FilterMap,
   formatTransferResultLines,
   runLibraryTransfer,
   type TransferGroupKey,
@@ -51,6 +52,11 @@ type ModuleDef = {
   label: string;
   subGroups: SubGroupDef[];
 };
+
+const GRANULAR_KEYS = ["stones", "minerals", "combinations"] as const;
+type GranularKey = (typeof GRANULAR_KEYS)[number];
+type SelectionMode = "all" | "selected";
+type RecordItem = { id: string; label: string };
 
 const MODULES: ModuleDef[] = [
   {
@@ -263,6 +269,19 @@ export default function VeriPaylasimiPage() {
   const [sourceAdminTenantId, setSourceAdminTenantId] = useState<string | null>(null);
   const [sourceTenantError, setSourceTenantError] = useState<string | null>(null);
 
+  const [selectionMode, setSelectionMode] = useState<Record<GranularKey, SelectionMode>>({
+    stones: "all", minerals: "all", combinations: "all",
+  });
+  const [groupRecords, setGroupRecords] = useState<Record<GranularKey, RecordItem[]>>({
+    stones: [], minerals: [], combinations: [],
+  });
+  const [groupRecordsLoading, setGroupRecordsLoading] = useState<Record<GranularKey, boolean>>({
+    stones: false, minerals: false, combinations: false,
+  });
+  const [selectedIds, setSelectedIds] = useState<Record<GranularKey, Set<string>>>({
+    stones: new Set(), minerals: new Set(), combinations: new Set(),
+  });
+
   const selectedExpert = useMemo(
     () => experts.find((e) => e.id === selectedExpertId) ?? null,
     [experts, selectedExpertId],
@@ -273,9 +292,27 @@ export default function VeriPaylasimiPage() {
     [subChecked],
   );
 
+  const filterMap = useMemo<FilterMap>(() => {
+    const map: FilterMap = {};
+    for (const key of GRANULAR_KEYS) {
+      if (!subChecked[key]) continue;
+      if (selectionMode[key] === "selected") {
+        map[key] = [...selectedIds[key]];
+      }
+    }
+    return map;
+  }, [subChecked, selectionMode, selectedIds]);
+
+  const granularGroupsValid = GRANULAR_KEYS.every((key) => {
+    if (!subChecked[key]) return true;
+    if (selectionMode[key] === "all") return true;
+    return selectedIds[key].size > 0;
+  });
+
   const canTransfer =
     !!selectedExpert?.tenantId &&
     activeTransferGroups.length > 0 &&
+    granularGroupsValid &&
     !transferring;
 
   useEffect(() => {
@@ -358,9 +395,93 @@ export default function VeriPaylasimiPage() {
     void loadExperts();
   }, [sessionChecked, allowed, loadExperts]);
 
+  const loadGroupRecords = useCallback(
+    async (key: GranularKey) => {
+      if (!sourceAdminTenantId) return;
+      setGroupRecordsLoading((p) => ({ ...p, [key]: true }));
+
+      let items: RecordItem[] = [];
+
+      if (key === "stones") {
+        const { data } = await supabase
+          .from("stones")
+          .select("id, stone_name")
+          .eq("tenant_id", sourceAdminTenantId)
+          .order("stone_name", { ascending: true });
+        items = (data ?? []).map((r) => {
+          const row = r as Record<string, unknown>;
+          return { id: String(row.id), label: String(row.stone_name ?? row.id) };
+        });
+      } else if (key === "minerals") {
+        const { data } = await supabase
+          .from("minerals")
+          .select("id, name")
+          .eq("tenant_id", sourceAdminTenantId)
+          .order("name", { ascending: true });
+        items = (data ?? []).map((r) => {
+          const row = r as Record<string, unknown>;
+          return { id: String(row.id), label: String(row.name ?? row.id) };
+        });
+      } else {
+        const { data } = await supabase
+          .from("combinations")
+          .select("id, issue, variant_index")
+          .eq("tenant_id", sourceAdminTenantId)
+          .order("issue", { ascending: true })
+          .order("variant_index", { ascending: true });
+        items = (data ?? []).map((r) => {
+          const row = r as Record<string, unknown>;
+          const issue = String(row.issue ?? "");
+          const vi = Number(row.variant_index ?? 0);
+          return {
+            id: String(row.id),
+            label: vi > 0 ? `${issue} (Varyant ${vi + 1})` : issue,
+          };
+        });
+      }
+
+      setGroupRecords((p) => ({ ...p, [key]: items }));
+      setGroupRecordsLoading((p) => ({ ...p, [key]: false }));
+    },
+    [sourceAdminTenantId],
+  );
+
   function toggleSubGroup(sub: SubGroupDef) {
     if (!sub.active) return;
+    const willBeUnchecked = !!subChecked[sub.key];
     setSubChecked((prev) => ({ ...prev, [sub.key]: !prev[sub.key] }));
+    if (willBeUnchecked && (GRANULAR_KEYS as readonly string[]).includes(sub.key)) {
+      const gKey = sub.key as GranularKey;
+      setSelectionMode((p) => ({ ...p, [gKey]: "all" }));
+      setSelectedIds((p) => ({ ...p, [gKey]: new Set() }));
+    }
+  }
+
+  function handleModeChange(key: GranularKey, mode: SelectionMode) {
+    setSelectionMode((p) => ({ ...p, [key]: mode }));
+    if (mode === "selected" && groupRecords[key].length === 0) {
+      void loadGroupRecords(key);
+    }
+  }
+
+  function toggleId(key: GranularKey, id: string) {
+    setSelectedIds((p) => {
+      const next = new Set(p[key]);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { ...p, [key]: next };
+    });
+  }
+
+  function selectAll(key: GranularKey) {
+    setSelectedIds((p) => ({
+      ...p,
+      [key]: new Set(groupRecords[key].map((r) => r.id)),
+    }));
+  }
+
+  function clearSelection(key: GranularKey) {
+    setSelectedIds((p) => ({ ...p, [key]: new Set() }));
   }
 
   function handleLogout() {
@@ -408,6 +529,7 @@ export default function VeriPaylasimiPage() {
       activeTransferGroups,
       selectedExpert.tenantId,
       selectedExpert.email ?? undefined,
+      filterMap,
     );
     setTransferring(false);
     console.log("[veri-paylasimi/ui] Aktarım sonucu", { counts, error, successMessage });
@@ -601,39 +723,149 @@ export default function VeriPaylasimiPage() {
                 <div className="mt-3 space-y-2">
                   {mod.subGroups.map((sub) => {
                     const disabled = !sub.active;
+                    const isGranular =
+                      !disabled &&
+                      (GRANULAR_KEYS as readonly string[]).includes(sub.key);
+                    const gKey = sub.key as GranularKey;
+                    const isChecked = !!subChecked[sub.key];
+                    const mode = isGranular ? selectionMode[gKey] : "all";
                     return (
-                      <label
-                        key={sub.key}
-                        className={`flex flex-wrap items-center gap-3 rounded-xl px-2 py-2 ${
-                          disabled
-                            ? "cursor-not-allowed opacity-65"
-                            : "cursor-pointer hover:bg-white/80"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={!!subChecked[sub.key]}
-                          disabled={disabled}
-                          onChange={() => toggleSubGroup(sub)}
-                          className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
-                        />
-                        <span className="text-sm font-semibold text-slate-800">
-                          {sub.label}
-                        </span>
-                        {disabled ? (
-                          <span
-                            className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500"
-                            title={sub.pendingNote}
-                          >
-                            Yakında
+                      <div key={sub.key}>
+                        <label
+                          className={`flex flex-wrap items-center gap-3 rounded-xl px-2 py-2 ${
+                            disabled
+                              ? "cursor-not-allowed opacity-65"
+                              : "cursor-pointer hover:bg-white/80"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={disabled}
+                            onChange={() => toggleSubGroup(sub)}
+                            className="h-5 w-5 rounded border-violet-300 text-violet-600 focus:ring-violet-400 disabled:opacity-40"
+                          />
+                          <span className="text-sm font-semibold text-slate-800">
+                            {sub.label}
                           </span>
+                          {disabled ? (
+                            <span
+                              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                              title={sub.pendingNote}
+                            >
+                              Yakında
+                            </span>
+                          ) : null}
+                          {sub.pendingNote && disabled ? (
+                            <span className="w-full pl-8 text-xs font-medium text-slate-500">
+                              {sub.pendingNote}
+                            </span>
+                          ) : null}
+                        </label>
+
+                        {isGranular && isChecked ? (
+                          <div className="ml-8 mt-1.5 rounded-xl border border-violet-100 bg-violet-50/50 p-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleModeChange(gKey, "all")}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                                  mode === "all"
+                                    ? "bg-violet-600 text-white shadow-sm"
+                                    : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                }`}
+                              >
+                                Tümünü aktar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleModeChange(gKey, "selected")}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                                  mode === "selected"
+                                    ? "bg-violet-600 text-white shadow-sm"
+                                    : "border border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                }`}
+                              >
+                                Seçili kayıtları aktar
+                              </button>
+                            </div>
+
+                            {mode === "selected" ? (
+                              <div className="mt-3">
+                                {groupRecordsLoading[gKey] ? (
+                                  <div className="flex justify-center py-4">
+                                    <Loader2
+                                      className="h-5 w-5 animate-spin text-violet-600"
+                                      aria-hidden
+                                    />
+                                  </div>
+                                ) : groupRecords[gKey].length === 0 ? (
+                                  <p className="text-xs font-semibold text-slate-500">
+                                    Admin kütüphanesinde kayıt bulunamadı.
+                                  </p>
+                                ) : (
+                                  <>
+                                    <div className="mb-2 flex flex-wrap items-center gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => selectAll(gKey)}
+                                        className="text-xs font-bold text-violet-700 hover:underline"
+                                      >
+                                        Tümünü seç ({groupRecords[gKey].length})
+                                      </button>
+                                      <span
+                                        className="text-slate-300"
+                                        aria-hidden
+                                      >
+                                        ·
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => clearSelection(gKey)}
+                                        className="text-xs font-bold text-slate-500 hover:underline"
+                                      >
+                                        Seçimi temizle
+                                      </button>
+                                      {selectedIds[gKey].size > 0 ? (
+                                        <span className="ml-auto text-xs font-black text-violet-900">
+                                          {selectedIds[gKey].size} kayıt seçili
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+                                      {groupRecords[gKey].map((record) => (
+                                        <label
+                                          key={record.id}
+                                          className="flex cursor-pointer items-center gap-2.5 border-b border-slate-50 px-3 py-2 last:border-b-0 hover:bg-violet-50/60"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedIds[gKey].has(
+                                              record.id,
+                                            )}
+                                            onChange={() =>
+                                              toggleId(gKey, record.id)
+                                            }
+                                            className="h-4 w-4 shrink-0 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
+                                          />
+                                          <span className="text-sm text-slate-700">
+                                            {record.label}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                    {selectedIds[gKey].size === 0 ? (
+                                      <p className="mt-2 text-xs font-bold text-amber-700">
+                                        En az 1 kayıt seçin
+                                      </p>
+                                    ) : null}
+                                  </>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
                         ) : null}
-                        {sub.pendingNote && disabled ? (
-                          <span className="w-full pl-8 text-xs font-medium text-slate-500">
-                            {sub.pendingNote}
-                          </span>
-                        ) : null}
-                      </label>
+                      </div>
                     );
                   })}
                 </div>

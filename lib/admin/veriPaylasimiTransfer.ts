@@ -33,6 +33,9 @@ export type LibraryTransferResult = {
   successMessage?: string;
 };
 
+/** Her TransferGroupKey için opsiyonel id filtresi. Tanımsız bırakılırsa tüm kayıtlar kopyalanır. */
+export type FilterMap = Partial<Record<TransferGroupKey, string[]>>;
+
 export function emptyTransferCounts(): TransferResultCounts {
   return {
     stones: 0,
@@ -211,11 +214,15 @@ async function insertRowsBatched(
 async function copyStonesTableToTenant(
   sourceAdminTenantId: string,
   targetUserTenantId: string,
+  filterIds?: string[],
 ): Promise<{ count: number; readCount: number; error?: string }> {
-  const { data: sourceRows, error: readError } = await supabase
+  const stonesQuery = supabase
     .from("stones")
     .select("*")
     .eq("tenant_id", sourceAdminTenantId);
+  const { data: sourceRows, error: readError } = await (
+    filterIds?.length ? stonesQuery.in("id", filterIds) : stonesQuery
+  );
 
   if (readError) {
     console.error("[veri-paylasimi] tablo=stones okuma hata:", readError.message);
@@ -289,15 +296,17 @@ export async function copyLibraryTableToTenant(
   table: TransferTableName,
   sourceAdminTenantId: string,
   targetUserTenantId: string,
+  filterIds?: string[],
 ): Promise<{ count: number; error?: string }> {
   console.log(
-    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} işlem=SELECT+INSERT`,
+    `[veri-paylasimi] tablo=${table} kaynak=${sourceAdminTenantId} hedef=${targetUserTenantId} işlem=SELECT+INSERT${filterIds?.length ? ` filtre=${filterIds.length}id` : ""}`,
   );
 
   if (table === "stones") {
     const stonesResult = await copyStonesTableToTenant(
       sourceAdminTenantId,
       targetUserTenantId,
+      filterIds,
     );
     return {
       count: stonesResult.count,
@@ -305,10 +314,13 @@ export async function copyLibraryTableToTenant(
     };
   }
 
-  const { data, error } = await supabase
+  const tableQuery = supabase
     .from(table)
     .select("*")
     .eq("tenant_id", sourceAdminTenantId);
+  const { data, error } = await (
+    filterIds?.length ? tableQuery.in("id", filterIds) : tableQuery
+  );
 
   if (error) {
     console.error(
@@ -348,6 +360,7 @@ export async function runLibraryTransfer(
   groups: TransferGroupKey[],
   targetTenantId: string,
   targetExpertEmail?: string,
+  filterMap?: FilterMap,
 ): Promise<LibraryTransferResult> {
   const target = targetTenantId.trim();
   const uniqueGroups = [...new Set(groups)];
@@ -394,6 +407,7 @@ export async function runLibraryTransfer(
       group,
       sourceAdminTenantId,
       targetUserTenantId,
+      filterMap?.[group],
     );
     counts[group] = count;
     if (error) {
