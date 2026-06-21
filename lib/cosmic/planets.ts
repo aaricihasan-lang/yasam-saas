@@ -461,7 +461,7 @@ const SATURN_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2025-08-11", to: "2026-02-13", sign: "Balık"    }, // retro + dönüş; AE kalıcı Koç öncesi son Balık = 2026-02-13 (359.94°)
   { from: "2026-02-14", to: "2028-04-12", sign: "Koç"      }, // AE: 2026-02-14 = 0.05° (kalıcı giriş)
   { from: "2028-04-13", to: "2030-05-31", sign: "Boğa"     }, // AE: 2028-04-13 = 30.04° | phantom Koç kaldırıldı
-  { from: "2030-06-01", to: "2034-01-01", sign: "İkizler"  }, // AE: 2030-06-01 = 60.05° | ~2033 Yengeç'e geçer
+  { from: "2030-06-01", to: "2030-12-31", sign: "İkizler"  }, // AE: 2030-06-01 = 60.05° | sistem destek aralığı sonu (31.12.2030)
 ];
 
 // ─── Uranüs ♅ ─────────────────────────────────────────────────────────────────

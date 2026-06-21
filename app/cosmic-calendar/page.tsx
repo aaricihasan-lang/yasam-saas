@@ -307,6 +307,9 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   };
 }
 
+// Doğrulanmış veri destek aralığı (20.06.2026 – 31.12.2030)
+const SUPPORT_END_YEAR = 2030;
+
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function CosmicCalendarPage() {
@@ -352,6 +355,10 @@ export default function CosmicCalendarPage() {
   const activeRetros = useMemo(() => getActiveRetros(selectedDate),      [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const ph          = useMemo(() => getPlanetaryHour(realNow),           [realNow]);
+  const isAfterSupportEnd = useMemo(
+    () => selectedDate.getFullYear() > SUPPORT_END_YEAR,
+    [selectedDate],
+  );
 
   // ── Güncel Gökyüzü — bugünkü (realNow) gezegen konumları ─────────────────
   const todayMoonSign  = useMemo(() => getMoonSign(realNow),        [realNow]);
@@ -728,6 +735,16 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
 
+            {/* Veri aralığı dışı uyarısı */}
+            {isAfterSupportEnd && (
+              <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
+                <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
+                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2030). Gezegen konumları ve diğer veriler yaklaşık olabilir.
+                </p>
+              </div>
+            )}
+
             {/* Kozmik Arama */}
             <div className="rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-2 shadow-md backdrop-blur-md">
               <div className="flex items-center gap-2">
@@ -957,6 +974,8 @@ export default function CosmicCalendarPage() {
                   </div>
                 ))}
               </div>
+              <p className="mt-1 text-[8px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
+
               <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
                 <p className="text-[8px] text-slate-400">🪐 Retro Durumu</p>
                 {activeRetros.length === 0 ? (
@@ -1061,6 +1080,7 @@ export default function CosmicCalendarPage() {
                     <p className="text-[11px] font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
                   </div>
                 </div>
+                <p className="mt-2 text-[8px] text-indigo-400/70">📍 İstanbul koordinatlarına göre hesaplanmaktadır</p>
               </div>
             )}
 
