@@ -653,7 +653,11 @@ function DogaltasListesiPageContent() {
     (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
   const selectAllFiltered = useCallback(() => {
-    setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
+    setSelectedIds(new Set(
+      filteredStones
+        .filter((stone) => stone.tenant_id !== ADMIN_LIBRARY_TENANT_ID)
+        .map((stone) => stone.id)
+    ));
   }, [filteredStones]);
 
   const handleLoadMore = useCallback(() => {
@@ -664,9 +668,38 @@ function DogaltasListesiPageContent() {
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
+    // Kütüphane taşlarını (ADMIN_LIBRARY_TENANT_ID) seçimden çıkar
+    const allStones = [...(detailData ?? []), ...stones];
+    const stoneById = new Map(allStones.map((s) => [s.id, s]));
+
+    const ownIds: string[] = [];
+    const libraryIds: string[] = [];
+    for (const id of selectedIds) {
+      const stone = stoneById.get(id);
+      if (stone?.tenant_id === ADMIN_LIBRARY_TENANT_ID) {
+        libraryIds.push(id);
+      } else {
+        ownIds.push(id);
+      }
+    }
+
+    if (ownIds.length === 0) {
+      setErrorMessage(
+        `Seçili ${libraryIds.length} kayıt kütüphane taşıdır ve silinemez. ` +
+        "Yalnızca kendinizin eklediği kayıtları silebilirsiniz."
+      );
+      return;
+    }
+
+    const confirmMsg =
+      libraryIds.length > 0
+        ? `${ownIds.length} kaydınız silinecek. ` +
+          `${libraryIds.length} kütüphane taşı bu işlemin dışında tutulacak.`
+        : `${ownIds.length} taş kaydını silmek istediğinizden emin misiniz?`;
+
     const confirmed = await deleteConfirm({
       title: "Seçili kayıtları sil",
-      message: `${selectedIds.size} taş kaydını silmek istediğinizden emin misiniz?`,
+      message: confirmMsg,
       secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
     });
 
@@ -678,7 +711,6 @@ function DogaltasListesiPageContent() {
       return;
     }
 
-    const ids = Array.from(selectedIds);
     setDeleteLoading(true);
     setErrorMessage("");
 
@@ -686,7 +718,7 @@ function DogaltasListesiPageContent() {
       .from("stones")
       .delete()
       .eq("tenant_id", tenantId)
-      .in("id", ids)
+      .in("id", ownIds)
       .select("id");
 
     setDeleteLoading(false);
@@ -698,20 +730,25 @@ function DogaltasListesiPageContent() {
 
     const deletedCount = deletedRows?.length ?? 0;
     if (deletedCount === 0) {
-      setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      setErrorMessage(
+        "Silme işlemi gerçekleşmedi. Kayıtlar size ait olmayabilir. " +
+        "Sayfayı yenileyip tekrar deneyin."
+      );
       return;
     }
 
     const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
     setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
 
-    showToast({
-      type: "success",
-      message: `${deletedCount} kayıt başarıyla silindi.`,
-    });
+    const msg =
+      libraryIds.length > 0
+        ? `${deletedCount} kayıt silindi. ${libraryIds.length} kütüphane taşı korundu.`
+        : `${deletedCount} kayıt başarıyla silindi.`;
+
+    showToast({ type: "success", message: msg });
     setSelectedIds(new Set());
     await fetchList({ reset: true });
-  }, [deleteConfirm, fetchList, queryTenantId, selectedIds, showToast]);
+  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones]);
 
   const loadedImages = filteredStones.reduce(
     (total, stone) => total + stoneListImageCount(stone.images),
@@ -1157,6 +1194,7 @@ function DogaltasListesiPageContent() {
                   const imageCount = stoneListImageCount(stone.images);
                   const coverImageUrl = getFirstStoneImageUrl(stone.images);
                   const isSelected = selectedIds.has(stone.id);
+                  const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
                   const isViewedInSearch =
                     isSearchActive && viewedStoneIds.has(stone.id);
                   const isLastViewed = stone.id === lastViewedStoneId;
@@ -1184,10 +1222,12 @@ function DogaltasListesiPageContent() {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleStoneSelection(stone.id)}
+                          disabled={isLibraryStone}
+                          onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
                           onClick={(event) => event.stopPropagation()}
-                          aria-label={`${displayName} seç`}
-                          className={uiRowCheckbox}
+                          aria-label={isLibraryStone ? `${displayName} — kütüphane kaydı, silinemez` : `${displayName} seç`}
+                          title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
+                          className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
                         />
                         <Link
                           href={detailHref}
@@ -1261,10 +1301,12 @@ function DogaltasListesiPageContent() {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleStoneSelection(stone.id)}
+                            disabled={isLibraryStone}
+                            onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
                             onClick={(event) => event.stopPropagation()}
-                            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                            className={uiRowCheckbox}
+                            aria-label={isLibraryStone ? `${stone.stone_name || "İsimsiz taş"} — kütüphane kaydı` : `${stone.stone_name || "İsimsiz taş"} seç`}
+                            title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
+                            className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
                           />
                         </div>
                         <Link
@@ -1401,6 +1443,7 @@ function DogaltasListesiPageContent() {
                 const imageCount = stoneListImageCount(stone.images);
                 const coverImageUrl = getFirstStoneImageUrl(stone.images);
                 const isSelected = selectedIds.has(stone.id);
+                const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
                 const isViewedInSearch =
                   isSearchActive && viewedStoneIds.has(stone.id);
                 const isLastViewed = stone.id === lastViewedStoneId;
@@ -1435,13 +1478,15 @@ function DogaltasListesiPageContent() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => toggleStoneSelection(stone.id)}
+                        disabled={isLibraryStone}
+                        onChange={() => !isLibraryStone && toggleStoneSelection(stone.id)}
                         onClick={(event) => event.stopPropagation()}
-                        aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                        className={uiRowCheckbox}
+                        aria-label={isLibraryStone ? `${stone.stone_name || "İsimsiz taş"} — kütüphane kaydı` : `${stone.stone_name || "İsimsiz taş"} seç`}
+                        title={isLibraryStone ? "Kütüphane taşı — silinemez" : undefined}
+                        className={`${uiRowCheckbox} ${isLibraryStone ? "cursor-not-allowed opacity-30" : ""}`}
                       />
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        Seç
+                      <span className={`text-[10px] font-bold uppercase tracking-wide ${isLibraryStone ? "text-slate-300" : "text-slate-400"}`}>
+                        {isLibraryStone ? "Kütüphane" : "Seç"}
                       </span>
                     </div>
                     <Link
