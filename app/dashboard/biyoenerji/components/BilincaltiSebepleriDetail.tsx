@@ -260,7 +260,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("bioenergy_subconscious_causes")
       .update({
         source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
@@ -270,12 +270,18 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         note_text: trimOrEmpty(form.note_text),
       })
       .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select("id");
 
     setSaving(false);
 
     if (error) {
       showSoft("err", `Güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
       return;
     }
 
@@ -506,8 +512,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-semibold text-slate-900">Bu kaydi silmek istediginizden emin misiniz?</h3>
-            <p className="mt-1 text-[13px] text-slate-500">Bu islem geri alinamaz.</p>
+            <h3 className="text-base font-semibold text-slate-900">Bu kaydı silmek istediğinizden emin misiniz?</h3>
+            <p className="mt-1 text-[13px] text-slate-500">Bu işlem geri alınamaz.</p>
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
@@ -515,7 +521,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
                 onClick={() => setDeleteConfirmOpen(false)}
                 className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
               >
-                Vazgec
+                Vazgeç
               </button>
               <button
                 type="button"

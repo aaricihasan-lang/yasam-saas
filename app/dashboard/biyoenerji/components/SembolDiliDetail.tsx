@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   SYMBOL_LANGUAGE_FONT_DEFAULT,
   SYMBOL_LANGUAGE_FONT_MOBILE_MIN,
@@ -127,7 +128,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       const res = await fetch("/api/biyoenerji/symbol-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
+        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) return;
       const blob = await res.blob();
@@ -257,7 +258,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("bioenergy_symbols")
       .update({
         symbol: nameTrim,
@@ -267,12 +268,18 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         source: trimOrNull(form.source),
       })
       .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select("id");
 
     setSaving(false);
 
     if (error) {
       showSoft("err", `Güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
       return;
     }
 
@@ -489,12 +496,12 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           role="presentation" onClick={() => !saving && setDeleteConfirmOpen(false)}>
           <div className="w-full max-w-sm rounded-xl border border-slate-200/80 bg-white p-5 shadow-xl"
             role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-slate-900">Bu sembol kaydini silmek istediginizden emin misiniz?</h3>
-            <p className="mt-1 text-[13px] text-slate-500">Bu islem geri alinamaz.</p>
+            <h3 className="text-base font-semibold text-slate-900">Bu sembol kaydını silmek istediğinizden emin misiniz?</h3>
+            <p className="mt-1 text-[13px] text-slate-500">Bu işlem geri alınamaz.</p>
             <div className="mt-4 flex gap-2">
               <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(false)}
                 className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
-                Vazgec
+                Vazgeç
               </button>
               <button type="button" disabled={saving} onClick={() => void executeDelete()}
                 className="h-8 flex-1 rounded-md bg-rose-600 text-[12px] font-medium text-white transition hover:bg-rose-700 disabled:opacity-60">

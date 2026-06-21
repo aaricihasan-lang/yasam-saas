@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -57,13 +57,14 @@ function trimOrEmpty(v: string) {
 
 async function exportChakrasWord(
   tenantId: string,
+  userId: string,
   mode: "selected" | "all",
   selectedIds: Set<string>,
   setWordBusy: (v: boolean) => void,
 ) {
   setWordBusy(true);
   try {
-    const body: Record<string, unknown> = { tenantId, exportMode: mode };
+    const body: Record<string, unknown> = { tenantId, userId, exportMode: mode };
     if (mode === "selected") {
       const ids = [...selectedIds];
       if (!ids.length) return;
@@ -413,8 +414,8 @@ export default function Cakralar() {
               totalCount={totalInDb}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", "selected", selectedForExport, setWordBusy)}
-              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", "all", selectedForExport, setWordBusy)}
+              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
+              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
               isExporting={wordBusy}
             />
           </div>

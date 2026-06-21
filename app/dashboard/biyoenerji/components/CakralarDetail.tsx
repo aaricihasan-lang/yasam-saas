@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { chakraColorDot } from "@/lib/bioenergy/chakraColorUtils";
 import {
   CHAKRAS_FONT_DEFAULT,
@@ -144,7 +145,7 @@ export default function CakralarDetail({ id }: { id: string }) {
       const res = await fetch("/api/biyoenerji/chakra-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, exportMode: "single", chakraId: record.id }),
+        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
       });
       if (!res.ok) return;
       const blob = await res.blob();
@@ -269,7 +270,7 @@ export default function CakralarDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("bioenergy_chakras")
       .update({
         name: nameTrim,
@@ -283,12 +284,18 @@ export default function CakralarDetail({ id }: { id: string }) {
         notes: trimOrEmpty(form.notes),
       })
       .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select("id");
 
     setSaving(false);
 
     if (error) {
       showSoft("err", `Güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
       return;
     }
 
@@ -572,7 +579,7 @@ export default function CakralarDetail({ id }: { id: string }) {
             <div className="mt-4 flex gap-2">
               <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(false)}
                 className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
-                Vazgec
+                Vazgeç
               </button>
               <button type="button" disabled={saving} onClick={() => void executeDelete()}
                 className="h-8 flex-1 rounded-md bg-rose-600 text-[12px] font-medium text-white transition hover:bg-rose-700 disabled:opacity-60">

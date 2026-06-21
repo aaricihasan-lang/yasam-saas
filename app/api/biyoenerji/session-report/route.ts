@@ -56,22 +56,35 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", sessionIds, sessionId } = body as {
+  const { tenantId, userId, exportMode = "all", sessionIds, sessionId } = body as {
     tenantId?: string;
+    userId?: string;
     exportMode?: ExportMode;
     sessionIds?: string[];
     sessionId?: string;
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // NOT: Bu proje sunucu taraflı oturum (cookie/JWT) kullanmaz; auth localStorage tabanlıdır.
+  // API katmanında sahiplik doğrulaması users tablosundan userId+tenantId eşleşmesiyle yapılır.
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !supabaseKey)
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
+  const { data: userRow } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   let query = db.from("bioenergy_sessions").select("*").eq("tenant_id", tenantId);
 

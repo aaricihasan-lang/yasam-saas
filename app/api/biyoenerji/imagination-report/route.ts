@@ -56,14 +56,15 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", ids, id } = body as {
+  const { tenantId, userId, exportMode = "all", ids, id } = body as {
     tenantId?: string;
+    userId?: string;
     exportMode?: ExportMode;
     ids?: string[];
     id?: string;
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -72,6 +73,16 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
+  const { data: userRow } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   let query = db.from("bioenergy_imaginations")
     .select("id,tenant_id,source_id,title,category,text,notes,source,created_at")

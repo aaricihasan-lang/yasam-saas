@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -24,13 +24,14 @@ import { LongTextareaField } from "./LargeTextModal";
 
 async function exportImaginationsWord(
   tenantId: string,
+  userId: string,
   exportMode: "all" | "selected",
   selectedIds: Set<string>,
   setWordBusy: (v: boolean) => void,
 ) {
   setWordBusy(true);
   try {
-    const body: Record<string, unknown> = { tenantId, exportMode };
+    const body: Record<string, unknown> = { tenantId, userId, exportMode };
     if (exportMode === "selected") {
       const arr = [...selectedIds];
       if (!arr.length) return;
@@ -384,8 +385,8 @@ export default function Imajinasyonlar() {
               totalCount={totalInDb}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportImaginationsWord(queryTenantId ?? "", "selected", selectedForExport, setWordBusy)}
-              onExportAll={() => void exportImaginationsWord(queryTenantId ?? "", "all", selectedForExport, setWordBusy)}
+              onExportSelected={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
+              onExportAll={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
               isExporting={wordBusy}
             />
           </div>

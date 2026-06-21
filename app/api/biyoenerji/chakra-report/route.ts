@@ -60,14 +60,15 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { tenantId, exportMode = "all", chakraIds, chakraId } = body as {
+  const { tenantId, userId, exportMode = "all", chakraIds, chakraId } = body as {
     tenantId?: string;
+    userId?: string;
     exportMode?: ExportMode;
     chakraIds?: string[];
     chakraId?: string;
   };
 
-  if (!tenantId || typeof tenantId !== "string")
+  if (!tenantId || typeof tenantId !== "string" || !userId || typeof userId !== "string")
     return Response.json({ ok: false, error: "Kimlik doğrulama gerekli." }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -76,6 +77,16 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // GÜVENLİK: userId'nin gerçekten bu tenantId'e ait olduğunu doğrula.
+  const { data: userRow } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!userRow)
+    return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   // All bioenergy_chakras columns
   const SELECT = "id,tenant_id,source_uid,name,organs,glands,color,stones,causes,physical,mental,notes,created_at";

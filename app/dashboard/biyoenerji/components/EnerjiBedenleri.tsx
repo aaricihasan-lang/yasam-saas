@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
@@ -18,13 +19,14 @@ import { LongTextareaField } from "./LargeTextModal";
 
 async function exportEnergyBodiesWord(
   tenantId: string,
+  userId: string,
   exportMode: "all" | "selected" | "single",
   ids: Set<string> | string,
   setWordBusy: (v: boolean) => void,
 ) {
   setWordBusy(true);
   try {
-    const body: Record<string, unknown> = { tenantId, exportMode };
+    const body: Record<string, unknown> = { tenantId, userId, exportMode };
     if (exportMode === "single" && typeof ids === "string") {
       body.id = ids;
     } else if (exportMode === "selected" && ids instanceof Set) {
@@ -379,7 +381,7 @@ export default function EnerjiBedenleri() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("bioenergy_energy_bodies")
       .update({
         source_uid: uidTrim,
@@ -390,12 +392,18 @@ export default function EnerjiBedenleri() {
         not_text: trimOrEmpty(form.not_text),
       })
       .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select("id");
 
     setSaving(false);
 
     if (error) {
       showSoft("err", `Güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
       return;
     }
 
@@ -505,8 +513,8 @@ export default function EnerjiBedenleri() {
                 totalCount={rows.length}
                 onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
-                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", "selected", selectedForExport, setWordBusy)}
-                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", "all", selectedForExport, setWordBusy)}
+                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
+                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
                 isExporting={wordBusy}
               />
             </div>
@@ -633,7 +641,7 @@ export default function EnerjiBedenleri() {
                 <button
                   type="button"
                   disabled={wordBusy}
-                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", "single", selectedRow.id, setWordBusy)}
+                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy)}
                   className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
                 >
                   {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}

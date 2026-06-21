@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -24,13 +24,14 @@ import { LongTextareaField } from "./LargeTextModal";
 
 async function exportSubconsciousWord(
   tenantId: string,
+  userId: string,
   exportMode: "all" | "selected",
   selectedIds: Set<string>,
   setWordBusy: (v: boolean) => void,
 ) {
   setWordBusy(true);
   try {
-    const body: Record<string, unknown> = { tenantId, exportMode };
+    const body: Record<string, unknown> = { tenantId, userId, exportMode };
     if (exportMode === "selected") {
       const arr = [...selectedIds];
       if (!arr.length) return;
@@ -382,8 +383,8 @@ export default function BilincaltiSebepleri() {
               totalCount={totalInDb}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportSubconsciousWord(queryTenantId ?? "", "selected", selectedForExport, setWordBusy)}
-              onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", "all", selectedForExport, setWordBusy)}
+              onExportSelected={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
+              onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
               isExporting={wordBusy}
             />
           </div>

@@ -3,6 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
@@ -173,9 +174,11 @@ export default function BiyoenerjiSeanslari() {
 
   async function exportSessionsWord(mode: "selected" | "all" | "single", singleId?: string) {
     if (!tenantId) return;
+    const userId = readYasamUser()?.id;
+    if (!userId) { showSoft("err", "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
     setWordBusy(true);
     try {
-      const body: Record<string, unknown> = { tenantId, exportMode: mode === "single" ? "single" : mode };
+      const body: Record<string, unknown> = { tenantId, userId, exportMode: mode === "single" ? "single" : mode };
       if (mode === "single" && singleId) body.sessionId = singleId;
       else if (mode === "selected") {
         const ids = [...selectedForExport];
@@ -303,7 +306,7 @@ export default function BiyoenerjiSeanslari() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("bioenergy_sessions")
       .update({
         title: titleTrim,
@@ -313,12 +316,18 @@ export default function BiyoenerjiSeanslari() {
         note: trimOrNull(form.note),
       })
       .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select("id");
 
     setSaving(false);
 
     if (error) {
       showSoft("err", `Güncellenemedi: ${error.message}`);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
       return;
     }
 
