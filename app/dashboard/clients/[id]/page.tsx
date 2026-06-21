@@ -439,12 +439,6 @@ export default function ClientDetailPage() {
   if (!client) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-        <button
-          onClick={() => router.back()}
-          className="mb-4 rounded-xl bg-sky-100 px-3.5 py-2.5 text-[13px] font-extrabold text-sky-700 transition-colors hover:bg-sky-200"
-        >
-          ← Danışan Listesine Dön
-        </button>
         <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
           Danışan bulunamadı
         </div>
@@ -458,13 +452,7 @@ export default function ClientDetailPage() {
     <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
 
       {/* Top bar */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
-        <button
-          onClick={() => router.back()}
-          className="rounded-xl bg-sky-100 px-3.5 py-2.5 text-[13px] font-extrabold text-sky-700 transition-colors hover:bg-sky-200"
-        >
-          ← Danışan Listesine Dön
-        </button>
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2.5">
         <button
           onClick={handleDeleteClient}
           disabled={deletingClient}

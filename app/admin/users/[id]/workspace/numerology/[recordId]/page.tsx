@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import {
   isExpertModuleEnabled,
   mapDbUser,
@@ -17,9 +16,6 @@ import { AdminNumerologyReadonlyDetay } from "../AdminNumerologyReadonlyDetay";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
-
-const navLinkClass =
-  "inline-flex items-center gap-2 rounded-xl border-2 border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-black text-fuchsia-950 transition hover:border-fuchsia-300 hover:bg-fuchsia-100 no-underline";
 
 const pageContainerClass =
   "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
@@ -142,24 +138,6 @@ export default function AdminWorkspaceNumerologyDetailPage() {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className={pageContainerClass}>
-        <nav className="mb-6 flex flex-wrap gap-3" aria-label="Üst navigasyon">
-          <Link
-            href={`/admin/users/${expertUserId}/workspace/numerology`}
-            className={navLinkClass}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Numeroloji Listesine Dön
-          </Link>
-          <Link href={`/admin/users/${expertUserId}/workspace`} className={navLinkClass}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Workspace
-          </Link>
-          <Link href={`/admin/users/${expertUserId}`} className={navLinkClass}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Kullanıcı Detayı
-          </Link>
-        </nav>
-
         {loading ? (
           <div className={`${panelClass} flex flex-col items-center py-16`}>
             <Loader2 className="h-10 w-10 animate-spin text-violet-600" aria-hidden />
@@ -176,12 +154,6 @@ export default function AdminWorkspaceNumerologyDetailPage() {
         ) : notFound || !motor ? (
           <section className={`${panelClass} text-center`}>
             <p className="text-xl font-black">Kayıt bulunamadı</p>
-            <Link
-              href={`/admin/users/${expertUserId}/workspace/numerology`}
-              className={`${navLinkClass} mt-6 inline-flex`}
-            >
-              Numeroloji listesine dön
-            </Link>
           </section>
         ) : (
           <div className="space-y-6">

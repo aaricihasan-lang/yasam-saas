@@ -7,7 +7,6 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle,
   ChevronDown,

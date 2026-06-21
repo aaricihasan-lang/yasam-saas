@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, Home, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 
 export const ADMIN_DEMO_VALUE = "Veri bağlantısı hazırlanıyor";
@@ -137,13 +137,6 @@ export function AdminModuleLayout({
           <Shield className="mx-auto h-10 w-10 text-rose-600" />
           <h1 className="mt-4 text-2xl font-black text-slate-900">Erişim reddedildi</h1>
           <p className="mt-2 text-base text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-6 text-base font-bold text-slate-800 no-underline"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Ana panele dön
-          </Link>
         </div>
       </main>
     );
@@ -155,23 +148,6 @@ export function AdminModuleLayout({
       <div className="pointer-events-none absolute -right-24 top-24 h-[420px] w-[420px] rounded-full bg-rose-200/20 blur-[120px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <nav className="mb-6 grid gap-2 sm:grid-cols-2 sm:gap-3" aria-label="Üst navigasyon">
-          <Link
-            href="/admin"
-            className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 hover:border-violet-400 no-underline`}
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-            Admin Paneline Dön
-          </Link>
-          <Link
-            href="/"
-            className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 no-underline`}
-          >
-            <Home className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-            Ana Panele Dön
-          </Link>
-        </nav>
-
         <header
           className={`relative mb-6 overflow-hidden rounded-2xl border border-white/50 bg-gradient-to-r px-6 py-6 text-white shadow-[0_16px_48px_rgba(88,28,135,0.18)] sm:px-8 sm:py-7 ${theme.headerGradient}`}
         >

@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   ClipboardList,

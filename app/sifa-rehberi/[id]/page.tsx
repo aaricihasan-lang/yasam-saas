@@ -733,13 +733,6 @@ export default function SifaRehberiDetailPage() {
             <p className="mt-2 max-w-md text-[14px] font-medium leading-relaxed text-slate-500">
               Bu şifa rehberi kaydı bulunamadı veya erişim izniniz yok.
             </p>
-            <Link
-              href={SIFA_REHBERI_LIST_HREF}
-              className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
-            >
-              <span aria-hidden>←</span>
-              Listeye Dön
-            </Link>
           </div>
         </div>
       </main>
@@ -795,15 +788,6 @@ export default function SifaRehberiDetailPage() {
             </div>
 
             <div className={detailToolbarWrap}>
-              <Link
-                href={SIFA_REHBERI_LIST_HREF}
-                className={`${detailToolbarBtn} border border-slate-200/90 bg-white/90 text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-white/90 hover:bg-white`}
-              >
-                <span aria-hidden className="text-base leading-none">
-                  ←
-                </span>
-                Listeye Dön
-              </Link>
               <button
                 type="button"
                 onClick={() => void downloadWord()}

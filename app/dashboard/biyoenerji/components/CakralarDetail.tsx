@@ -340,12 +340,6 @@ export default function CakralarDetail({ id }: { id: string }) {
     return (
       <div className="rounded-3xl border-2 border-rose-200 bg-rose-50 p-6 text-center sm:p-8">
         <p className="text-lg font-bold text-rose-800">{errorMessage}</p>
-        <Link
-          href={CHAKRAS_LIST_PATH}
-          className="mt-6 inline-flex rounded-2xl bg-slate-900 px-6 py-3.5 text-base font-black text-white"
-        >
-          Listeye Dön
-        </Link>
       </div>
     );
   }
@@ -368,17 +362,6 @@ export default function CakralarDetail({ id }: { id: string }) {
 
   return (
     <div className="w-full min-w-0 max-w-none">
-
-      {/* Breadcrumb */}
-      <nav className="mb-5 flex items-center gap-1.5 text-[11px]" aria-label="Navigasyon">
-        <Link href={CHAKRAS_LIST_PATH} className="font-medium text-slate-500 transition hover:text-slate-800">
-          ← Listeye Dön
-        </Link>
-        <span className="text-slate-300" aria-hidden>/</span>
-        <Link href={BIOENERJI_FOLDER_BASE} className="font-medium text-slate-400 transition hover:text-slate-700">
-          Biyoenerji
-        </Link>
-      </nav>
 
       {/* Feedback */}
       {(infoSuccess || infoError || showRecordWithWarning) && (

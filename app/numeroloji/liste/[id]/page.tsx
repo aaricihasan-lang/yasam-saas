@@ -120,9 +120,6 @@ export default function NumerolojiKayitDetayPage() {
       <div className="relative z-10 w-full px-3 py-3 sm:px-5 xl:px-6">
         <div className="mx-auto max-w-[1400px]">
         <div className="mb-2 flex flex-wrap gap-1.5">
-          <Link href="/numeroloji/liste" className={detayNavSecondaryClass}>
-            ← Listeye dön
-          </Link>
           <Link href="/numeroloji/analiz" className={detayNavPrimaryClass}>
             <span aria-hidden>✨</span> Yeni analiz
           </Link>

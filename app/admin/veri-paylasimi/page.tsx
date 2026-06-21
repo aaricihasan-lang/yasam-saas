@@ -5,9 +5,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Check,
-  Home,
   Loader2,
   Package,
   RefreshCw,
@@ -657,13 +655,6 @@ export default function VeriPaylasimiPage() {
           aria-label="Üst navigasyon"
         >
           <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-            <Link
-              href="/admin"
-              className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline lg:justify-self-start`}
-            >
-              <ArrowLeft className="h-5 w-5 shrink-0" />
-              Admin Paneline Dön
-            </Link>
             <p className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-indigo-200/60 bg-white/60 px-4 py-2 text-center text-base font-black text-indigo-950">
               <Package className="h-5 w-5 text-violet-600" aria-hidden />
               Veri Paylaşımı
@@ -1041,15 +1032,6 @@ export default function VeriPaylasimiPage() {
           ) : null}
         </section>
 
-        <footer className="mt-8 flex justify-center">
-          <Link
-            href="/"
-            className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 no-underline`}
-          >
-            <Home className="h-5 w-5 shrink-0" />
-            Ana Panele Dön
-          </Link>
-        </footer>
       </div>
     </main>
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Archive, ArrowLeft, Home, Loader2 } from "lucide-react";
+import { Archive, Loader2 } from "lucide-react";
 import {
   formatCreatedAt,
   isExpertModuleEnabled,
@@ -420,30 +420,6 @@ export default function AdminWorkspaceArchiveDetailPage() {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
       <div className={pageContainerClass}>
-        <nav
-          className="sticky top-0 z-50 mb-6 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-violet-100/90 via-indigo-100/85 to-slate-100/90 p-3 shadow-lg backdrop-blur-xl sm:p-4"
-          aria-label="Üst navigasyon"
-        >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Link href={`/admin/users/${expertUserId}/workspace/archive`} className={navBtn}>
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-              Arşiv Listesine Dön
-            </Link>
-            <Link href={`/admin/users/${expertUserId}/workspace`} className={navBtn}>
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-              Uzman Workspace
-            </Link>
-            <Link href={`/admin/users/${expertUserId}`} className={navBtn}>
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-              Kullanıcı Detayı
-            </Link>
-            <Link href="/" className={navBtn}>
-              <Home className="h-4 w-4 shrink-0" aria-hidden />
-              Ana Panele Dön
-            </Link>
-          </div>
-        </nav>
-
         {loading ? (
           <div className={`${panelClass} flex flex-col items-center py-16`}>
             <Loader2 className="h-10 w-10 animate-spin text-violet-600" aria-hidden />

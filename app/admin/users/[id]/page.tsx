@@ -821,9 +821,6 @@ export default function AdminUserDetailPage() {
         ) : notFound || !user ? (
           <div className={`${panelClass} text-center`}>
             <p className="text-xl font-black">Üye bulunamadı</p>
-            <Link href="/admin/users" className={`${navBtn} mt-6 inline-flex max-w-md no-underline`}>
-              Listeye dön
-            </Link>
           </div>
         ) : (
           <div className="space-y-6">

@@ -7,10 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
-  ArrowLeft,
   Database,
   FileJson,
-  Home,
   LogOut,
   Package,
   Settings,
@@ -43,14 +41,6 @@ function AdminTopNav({ onLogout }: { onLogout: () => void }) {
       aria-label="Admin üst navigasyon"
     >
       <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3">
-        <Link
-          href="/"
-          className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline lg:justify-self-start`}
-        >
-          <Home className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
-          Ana Panele Dön
-        </Link>
-
         <p className="flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-violet-200/60 bg-white/60 px-4 py-2 text-center text-sm font-bold text-violet-950 lg:min-w-[240px]">
           <Shield className="h-4 w-4 shrink-0 text-violet-500" strokeWidth={2} aria-hidden />
           Admin Yönetim Merkezi
@@ -410,13 +400,6 @@ export default function AdminPage() {
           <p className="mt-3 text-base font-medium text-slate-600">
             Bu sayfaya erişim yetkiniz yok.
           </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-6 text-sm font-black text-slate-800 no-underline transition hover:bg-slate-100"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Ana panele dön
-          </Link>
         </div>
       </main>
     );

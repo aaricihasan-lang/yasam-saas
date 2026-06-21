@@ -3,12 +3,9 @@
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, Home, Shield } from "lucide-react";
+import { Activity, Shield } from "lucide-react";
 import { ADMIN_DEMO_VALUE } from "@/components/admin/AdminModuleLayout";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-
-const navLinkClass =
-  "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
 
 const demoCardThemes = [
   {
@@ -56,29 +53,6 @@ const demoCards = [
   { title: "Sistem Durumu", href: "/admin/sistem-sagligi/durum" },
 ] as const;
 
-function AdminNavButtons({ className = "" }: { className?: string }) {
-  return (
-    <nav
-      className={`flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center ${className}`}
-      aria-label="Sayfa navigasyonu"
-    >
-      <Link
-        href="/admin"
-        className={`${navLinkClass} border-violet-300/80 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-950 hover:border-violet-400 no-underline`}
-      >
-        <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-        Admin Paneline Dön
-      </Link>
-      <Link
-        href="/"
-        className={`${navLinkClass} border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-950 hover:border-emerald-400 no-underline`}
-      >
-        <Home className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-        Ana Panele Dön
-      </Link>
-    </nav>
-  );
-}
 
 export default function SistemSagligiPage() {
   useBfcacheRefresh();
@@ -105,13 +79,6 @@ export default function SistemSagligiPage() {
           <Shield className="mx-auto h-10 w-10 text-rose-600" />
           <h1 className="mt-4 text-2xl font-black text-slate-900">Erişim reddedildi</h1>
           <p className="mt-2 text-base text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-slate-200 bg-slate-50 px-6 text-base font-bold text-slate-800 no-underline"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Ana panele dön
-          </Link>
         </div>
       </main>
     );
@@ -143,10 +110,6 @@ export default function SistemSagligiPage() {
             </div>
           </div>
         </header>
-
-        <div className="sticky top-0 z-50 -mx-1 mb-4 border-b border-white/60 bg-white/80 px-1 py-3 backdrop-blur-xl sm:-mx-2 sm:px-2">
-          <AdminNavButtons />
-        </div>
 
         <section aria-label="Sistem metrikleri">
           <div className="flex flex-wrap items-center gap-2">

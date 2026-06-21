@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { MONTH_NAMES_TR } from "@/lib/cosmic/hacamat";
 
 // ─── İçerik ───────────────────────────────────────────────────────────────────
@@ -29,12 +29,6 @@ function ReportView() {
 
         {/* Başlık satırı */}
         <div className="mb-4 flex items-center justify-between gap-3">
-          <Link
-            href="/cosmic-calendar/hacamat"
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm no-underline transition hover:bg-white hover:text-teal-700"
-          >
-            <ArrowLeft className="h-3 w-3" /> Geri
-          </Link>
           <h1 className="truncate text-sm font-black text-slate-800">{monthLabel} Hacamat Raporu</h1>
         </div>
 

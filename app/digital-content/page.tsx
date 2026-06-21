@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   ClipboardList,
@@ -65,15 +64,6 @@ export default function DigitalContentPage() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
-        {/* Geri */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-bold text-slate-700 shadow-sm backdrop-blur-sm transition hover:bg-slate-50"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          Ana Panel
-        </Link>
-
         {/* Başlık */}
         <div className="mt-5 mb-7">
           <div className="flex items-center gap-3">

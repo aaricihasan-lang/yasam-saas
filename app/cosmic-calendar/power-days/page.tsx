@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { getMonthPhaseEvents, getUpcomingPhaseEvents } from "@/lib/cosmic/moon";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
@@ -161,12 +160,6 @@ export default function PowerDaysPage() {
 
         {/* ── Başlık ── */}
         <div className="mb-4 flex items-center gap-3">
-          <Link
-            href="/cosmic-calendar"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-500 shadow-sm transition hover:bg-indigo-50 hover:text-indigo-600"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
           <div>
             <h1 className="text-lg font-black text-slate-800">⭐ Güçlü Günler</h1>
             <p className="text-[11px] text-slate-400">Numeroloji + Ay fazı etkisinin en yüksek olduğu günler</p>

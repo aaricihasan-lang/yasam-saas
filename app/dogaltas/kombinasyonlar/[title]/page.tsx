@@ -1300,12 +1300,6 @@ function KombinasyonDetayPageContent() {
       <main className={`${pageBg} flex min-h-screen items-center justify-center`}>
         <div className={`${uiHeaderCard} w-full text-center`}>
           <p className="text-sm font-bold text-slate-600">Geçersiz başlık.</p>
-          <Link
-            href={listBackHref}
-            className="mt-3 inline-flex rounded-xl border border-violet-200 bg-white px-4 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-violet-50"
-          >
-            Listeye Dön
-          </Link>
         </div>
       </main>
     );
@@ -1360,12 +1354,6 @@ function KombinasyonDetayPageContent() {
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Link
-              href={listBackHref}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50"
-            >
-              {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
-            </Link>
             {!loading && rows.length > 0 && (
               <button
                 type="button"

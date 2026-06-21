@@ -3,7 +3,6 @@
 import { useParams }  from "next/navigation";
 import { useState }   from "react";
 import Link            from "next/link";
-import { ArrowLeft }  from "lucide-react";
 import { getMoonSign, getMoonSignPeriod } from "@/lib/cosmic/moon";
 import { getPlanetSigns, getPlanetSignPeriod, type PlanetKey } from "@/lib/cosmic/planets";
 import { getTransitInterpretation } from "@/lib/cosmic/transit-interpretations";
@@ -40,12 +39,6 @@ export default function TransitDetailPage() {
           <p className="mb-4 text-[12px] text-slate-500">
             <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px]">{slug || "(boş)"}</code> geçerli bir gezegen değil.
           </p>
-          <Link
-            href="/cosmic-calendar"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white/80 px-4 py-2 text-[12px] font-semibold text-indigo-700 no-underline transition hover:bg-indigo-50"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Kozmik Ajanda&apos;ya Dön
-          </Link>
         </div>
       </main>
     );

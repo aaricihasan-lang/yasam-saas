@@ -539,12 +539,6 @@ function MineralDetailPageContent() {
           <p className="mt-3 text-sm font-semibold leading-6 text-rose-700" role="alert">
             {errorMessage}
           </p>
-          <Link
-            href={listBackHref}
-            className="mt-6 inline-flex rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 font-black text-slate-800 shadow-md hover:bg-slate-50"
-          >
-            {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
-          </Link>
         </div>
       </main>
     );
@@ -619,12 +613,6 @@ function MineralDetailPageContent() {
             >
               {wordBusy ? "⏳..." : "📄 Word"}
             </button>
-            <Link
-              href={listBackHref}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50"
-            >
-              {highlightQuery ? "Aramaya Dön" : "Listeye Dön"}
-            </Link>
             <button
               type="button"
               onClick={() => void loadMineral()}

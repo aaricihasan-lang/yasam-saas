@@ -414,9 +414,6 @@ export default function OilDetailPage() {
           <div className="text-[52px]">🌸</div>
           <h1 className="mt-3 text-[22px] font-black text-slate-900">Kayıt bulunamadı</h1>
           <p className="mt-2 text-[14px] font-medium text-slate-500">Bu yağ kaydı bulunamadı veya erişim izniniz yok.</p>
-          <Link href="/aromaterapi/yaglar?view=list" className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-6 py-3 text-[13px] font-black text-white shadow transition hover:brightness-105">
-            <span aria-hidden>←</span> Listeye Dön
-          </Link>
         </div>
       </main>
     );
@@ -513,12 +510,6 @@ export default function OilDetailPage() {
 
               {/* Sağ: aksiyon butonları */}
               <div className="flex shrink-0 flex-wrap items-center gap-1">
-                <button type="button" onClick={() => handleNavigation("/aromaterapi/yaglar?view=list")}
-                  className={`${btnBase} border border-slate-200/90 bg-white text-slate-700 shadow-sm hover:bg-slate-50`}>
-                  <span aria-hidden className="text-sm leading-none">←</span>
-                  <span className="hidden sm:inline">Listeye Dön</span>
-                </button>
-
                 {isSharedContent ? (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
                     className={`${btnBase} bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow ring-1 ring-slate-700/30 hover:brightness-110`}>

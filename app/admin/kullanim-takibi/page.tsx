@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, Database, Home, Loader2, Shield } from "lucide-react";
+import { Database, Loader2, Shield } from "lucide-react";
 import { normalizeApprovalStatus, normalizeRole } from "@/lib/auth/yasamUser";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
@@ -11,9 +10,6 @@ import { supabase } from "@/lib/supabase";
 const LEGACY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
 const INSIGHT_PLACEHOLDER = "Veri hazırlanıyor";
-
-const navLinkClass =
-  "inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-bold shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg md:h-16 md:w-auto md:px-8 md:text-lg";
 
 type StatTone = "indigo" | "violet" | "emerald" | "amber" | "slate" | "rose" | "cyan" | "fuchsia";
 
@@ -523,26 +519,6 @@ export default function KullanimTakibiPage() {
       <div className="pointer-events-none absolute right-0 top-24 h-[420px] w-[420px] rounded-full bg-pink-200/20 blur-[120px]" />
 
       <div className="relative z-10 w-full min-h-screen px-6 py-6 xl:px-8">
-        <nav
-          className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
-          aria-label="Üst navigasyon"
-        >
-          <Link
-            href="/admin"
-            className={`${navLinkClass} border-violet-300/80 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-950 hover:border-violet-400 no-underline`}
-          >
-            <ArrowLeft className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
-            Admin Paneline Dön
-          </Link>
-          <Link
-            href="/"
-            className={`${navLinkClass} border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-950 hover:border-emerald-400 no-underline`}
-          >
-            <Home className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
-            Ana Panele Dön
-          </Link>
-        </nav>
-
         <header className="relative mb-6 max-h-[220px] overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-r from-slate-900 via-fuchsia-900 to-pink-800 px-6 py-8 text-white shadow-lg">
           <div className="relative flex items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">

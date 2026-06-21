@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   getMoonPhase,
   getMoonSign,
@@ -293,12 +293,6 @@ export default function MoonPhasesPage() {
                 </div>
               </div>
             </div>
-            <Link
-              href="/cosmic-calendar"
-              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm no-underline transition hover:bg-white hover:text-violet-600"
-            >
-              <ArrowLeft className="h-3 w-3" /> Geri
-            </Link>
           </div>
         </section>
 

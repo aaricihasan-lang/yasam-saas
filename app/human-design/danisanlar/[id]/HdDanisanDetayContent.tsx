@@ -121,12 +121,6 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     <HumanDesignShell>
       {/* Sayfa başlığı */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Link
-          href="/human-design/danisanlar"
-          className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 no-underline shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-        >
-          ← Geri
-        </Link>
         <div>
           <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
             Danışan Detayı

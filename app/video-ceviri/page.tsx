@@ -5,7 +5,6 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useState } from "react";
 import {
   AlignLeft,
-  ArrowLeft,
   ChevronDown,
   Clock,
   Download,

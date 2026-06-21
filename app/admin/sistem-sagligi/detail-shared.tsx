@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { Activity, ArrowLeft, Loader2, Shield } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 import {
   formatCreatedAt,
   mapDbUser,
@@ -271,27 +270,7 @@ export function PremiumPlaceholderPanel({
 }
 
 export function DetailNav() {
-  return (
-    <nav
-      className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
-      aria-label="Detay navigasyonu"
-    >
-      <Link
-        href="/admin"
-        className={`${navLinkClass} border-violet-300/80 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-950 hover:border-violet-400 no-underline`}
-      >
-        <ArrowLeft className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
-        Admin Paneline Dön
-      </Link>
-      <Link
-        href="/admin/sistem-sagligi"
-        className={`${navLinkClass} border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-950 hover:border-emerald-400 no-underline`}
-      >
-        <Activity className="h-5 w-5 shrink-0 md:h-6 md:w-6" strokeWidth={2.25} aria-hidden />
-        Sistem Sağlığına Dön
-      </Link>
-    </nav>
-  );
+  return null;
 }
 
 export function DetailHeader({

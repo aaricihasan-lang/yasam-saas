@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useId, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
+import { ExternalLink, FileText, Plus, Trash2, Pencil, Check, X, Loader2 } from "lucide-react";
 import {
   getHacamatMonthData,
   getAllAltinDays,
@@ -452,12 +452,6 @@ export default function HacamatPage() {
                 <SummaryChips data={buAyData} />
               </div>
             </div>
-            <Link
-              href="/cosmic-calendar"
-              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm no-underline transition hover:bg-white hover:text-teal-700"
-            >
-              <ArrowLeft className="h-3 w-3" /> Geri
-            </Link>
           </div>
         </section>
 
