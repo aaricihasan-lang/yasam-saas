@@ -635,15 +635,23 @@ export default function CosmicCalendarPage() {
           {/* Güneş + Ay — büyük kartlar */}
           <div className="mb-2.5 grid grid-cols-2 gap-2.5">
             <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5 backdrop-blur-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">☀️ Güneş</p>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">☀️ Güneş</p>
               {gokyuzuRows[0] && !gokyuzuRows[0].outOfRange
-                ? <p className="text-sm font-black text-slate-900">{gokyuzuRows[0].signSymbol} {gokyuzuRows[0].sign} Burcunda</p>
+                ? (
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-lg leading-none text-indigo-500">{gokyuzuRows[0].signSymbol}</span>
+                    <span className="text-sm font-black text-slate-900">{gokyuzuRows[0].sign} Burcunda</span>
+                  </div>
+                )
                 : <p className="text-sm font-black text-amber-600">⚠ Veri yok</p>
               }
             </div>
             <div className="rounded-xl border border-slate-200/60 bg-white/70 px-3 py-2.5 backdrop-blur-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400/80">🌙 Ay</p>
-              <p className="text-sm font-black text-slate-900">{todayMoonSign.emoji} {todayMoonSign.name} Burcunda</p>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400/80">🌙 Ay</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg leading-none text-indigo-500">{todayMoonSign.emoji}</span>
+                <span className="text-sm font-black text-slate-900">{todayMoonSign.name} Burcunda</span>
+              </div>
             </div>
           </div>
           {/* 3 yaklaşan olay */}
@@ -781,7 +789,7 @@ export default function CosmicCalendarPage() {
                   <Link
                     key={title}
                     href={href}
-                    className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:shadow-md snap-start sm:w-auto ${color}`}
+                    className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xl leading-none">{emoji}</span>
@@ -798,15 +806,15 @@ export default function CosmicCalendarPage() {
             </section>
 
             {/* Kozmik Özet */}
-            <div className="overflow-hidden rounded-[18px] border border-white/80 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-2.5 shadow-sm backdrop-blur-md">
+            <div className="overflow-hidden rounded-[18px] border border-indigo-100/60 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-3 shadow-sm backdrop-blur-md">
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">
                 🌙 Kozmik Özet
                 {!isSelectedToday && <span className="normal-case text-[10px] font-semibold text-slate-400">— {miladiDate}</span>}
               </p>
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-6">
                 {cosmicSummary.map(({ icon, label, value }) => (
-                  <div key={label} className="rounded-xl border border-white/80 bg-white/60 px-2 py-1.5 backdrop-blur-sm">
-                    <p className="text-[10px] font-semibold text-slate-400">{icon} {label}</p>
+                  <div key={label} className="rounded-xl border border-indigo-100/60 bg-white/75 px-2 py-1.5 backdrop-blur-sm">
+                    <p className="text-[10px] font-semibold text-slate-500">{icon} {label}</p>
                     <p className="mt-0.5 truncate text-xs font-black leading-tight text-slate-900">{value}</p>
                   </div>
                 ))}
