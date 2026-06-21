@@ -10,6 +10,8 @@ import {
   ArrowLeft,
   Database,
   FileJson,
+  Home,
+  LogOut,
   Package,
   Settings,
   Shield,
@@ -39,21 +41,17 @@ function AdminTopNav({ onLogout }: { onLogout: () => void }) {
       className="sticky top-0 z-50 mb-8 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-3 shadow-[0_16px_48px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-4"
       aria-label="Admin üst navigasyon"
     >
-      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4">
         <Link
           href="/"
           className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 no-underline lg:justify-self-start`}
         >
-          <span className="text-xl" aria-hidden>
-            🏠
-          </span>
+          <Home className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
           Ana Panele Dön
         </Link>
 
         <p className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-violet-200/60 bg-white/60 px-4 py-2 text-center text-base font-black text-violet-950 sm:text-lg lg:min-w-[280px]">
-          <span className="text-xl" aria-hidden>
-            👑
-          </span>
+          <Shield className="h-5 w-5 shrink-0 text-violet-500" strokeWidth={2} aria-hidden />
           Admin Yönetim Merkezi
         </p>
 
@@ -62,9 +60,7 @@ function AdminTopNav({ onLogout }: { onLogout: () => void }) {
           onClick={onLogout}
           className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 hover:border-rose-400 hover:from-rose-100 hover:to-orange-100 lg:justify-self-end`}
         >
-          <span className="text-xl" aria-hidden>
-            🚪
-          </span>
+          <LogOut className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
           Çıkış Yap
         </button>
       </div>
@@ -92,8 +88,8 @@ const adminCards: AdminCard[] = [
     href: "/admin/users",
     Icon: Users,
     theme: {
-      iconWrap: "from-indigo-500 to-blue-600",
-      cardBg: "from-blue-100/90 via-sky-50/95 to-white",
+      iconWrap: "from-blue-600 to-blue-700",
+      cardBg: "from-blue-50/90 via-white to-slate-50/80",
       border: "border-blue-200/70",
     },
   },
@@ -103,9 +99,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/tenant-kontrol",
     Icon: ShieldCheck,
     theme: {
-      iconWrap: "from-teal-500 to-emerald-600",
-      cardBg: "from-teal-100/90 via-emerald-50/95 to-white",
-      border: "border-teal-200/70",
+      iconWrap: "from-emerald-600 to-emerald-700",
+      cardBg: "from-emerald-50/90 via-white to-slate-50/80",
+      border: "border-emerald-200/70",
     },
   },
   {
@@ -114,8 +110,8 @@ const adminCards: AdminCard[] = [
     href: "/admin/toplu-veri",
     Icon: Upload,
     theme: {
-      iconWrap: "from-violet-500 to-purple-600",
-      cardBg: "from-violet-100/90 via-purple-50/95 to-white",
+      iconWrap: "from-violet-600 to-violet-700",
+      cardBg: "from-violet-50/90 via-white to-slate-50/80",
       border: "border-violet-200/70",
     },
   },
@@ -125,9 +121,9 @@ const adminCards: AdminCard[] = [
     href: VERI_PAYLASIMI_HREF,
     Icon: RefreshCw,
     theme: {
-      iconWrap: "from-indigo-500 to-violet-600",
-      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
-      border: "border-indigo-200/70",
+      iconWrap: "from-violet-500 to-blue-600",
+      cardBg: "from-violet-50/90 via-white to-blue-50/70",
+      border: "border-violet-200/70",
     },
   },
   {
@@ -136,9 +132,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/dogaltas-import",
     Icon: FileJson,
     theme: {
-      iconWrap: "from-cyan-500 to-teal-500",
-      cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
-      border: "border-teal-200/70",
+      iconWrap: "from-blue-500 to-blue-700",
+      cardBg: "from-blue-50/90 via-white to-slate-50/80",
+      border: "border-blue-200/70",
     },
   },
   {
@@ -147,9 +143,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/stok-merkezi",
     Icon: Package,
     theme: {
-      iconWrap: "from-amber-500 to-orange-500",
-      cardBg: "from-amber-100/90 via-orange-50/95 to-white",
-      border: "border-amber-200/70",
+      iconWrap: "from-slate-600 to-slate-700",
+      cardBg: "from-slate-50/90 via-white to-slate-100/70",
+      border: "border-slate-200/70",
     },
   },
   {
@@ -158,8 +154,8 @@ const adminCards: AdminCard[] = [
     href: "/admin/sistem-sagligi",
     Icon: Activity,
     theme: {
-      iconWrap: "from-emerald-500 to-green-600",
-      cardBg: "from-emerald-100/90 via-green-50/95 to-white",
+      iconWrap: "from-emerald-500 to-emerald-700",
+      cardBg: "from-emerald-50/90 via-white to-slate-50/80",
       border: "border-emerald-200/70",
     },
   },
@@ -169,9 +165,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/kullanim-takibi",
     Icon: Database,
     theme: {
-      iconWrap: "from-fuchsia-500 to-pink-600",
-      cardBg: "from-fuchsia-100/90 via-pink-50/95 to-white",
-      border: "border-fuchsia-200/70",
+      iconWrap: "from-violet-600 to-violet-800",
+      cardBg: "from-violet-50/90 via-white to-slate-50/80",
+      border: "border-violet-200/70",
     },
   },
   {
@@ -180,9 +176,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/yedekleme",
     Icon: CloudUpload,
     theme: {
-      iconWrap: "from-sky-500 to-cyan-600",
-      cardBg: "from-sky-100/90 via-cyan-50/95 to-white",
-      border: "border-sky-200/70",
+      iconWrap: "from-blue-500 to-blue-600",
+      cardBg: "from-blue-50/90 via-white to-slate-50/80",
+      border: "border-blue-200/70",
     },
   },
   {
@@ -191,9 +187,9 @@ const adminCards: AdminCard[] = [
     href: "/admin/hata-kayitlari",
     Icon: AlertTriangle,
     theme: {
-      iconWrap: "from-rose-500 to-red-600",
-      cardBg: "from-rose-100/90 via-red-50/95 to-white",
-      border: "border-rose-200/70",
+      iconWrap: "from-slate-500 to-slate-700",
+      cardBg: "from-slate-50/90 via-white to-slate-100/70",
+      border: "border-slate-200/70",
     },
   },
   {
@@ -203,7 +199,7 @@ const adminCards: AdminCard[] = [
     Icon: Settings,
     theme: {
       iconWrap: "from-slate-600 to-slate-800",
-      cardBg: "from-slate-100/90 via-slate-50/95 to-white",
+      cardBg: "from-slate-50/90 via-white to-slate-100/70",
       border: "border-slate-200/70",
     },
   },
@@ -250,27 +246,6 @@ function AdminToolCard({
   );
 }
 
-/** Toplu Veri Aktarımı ile karışmaması için ayrı, tam tıklanabilir kart */
-function VeriPaylasimiAdminCard() {
-  return (
-    <Link
-      href={VERI_PAYLASIMI_HREF}
-      data-admin-card="veri-paylasimi"
-      aria-label="Veri Paylaşımı — Kütüphane verilerini seçili üyeye aktar."
-      className="relative z-40 flex h-full min-h-[168px] w-full cursor-pointer flex-col rounded-[28px] border border-indigo-200/70 bg-gradient-to-br from-indigo-100/90 via-violet-50/95 to-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] no-underline transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl shadow-lg">
-          <span aria-hidden>🔄</span>
-        </div>
-      </div>
-      <h3 className="mt-4 text-xl font-black text-slate-900">Veri Paylaşımı</h3>
-      <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-700">
-        Kütüphane verilerini seçili üyeye aktar.
-      </p>
-    </Link>
-  );
-}
 
 function AdminToolCardInactive({ item }: { item: AdminCard }) {
   const { Icon, theme } = item;
@@ -355,29 +330,27 @@ export default function AdminPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14">
         <AdminTopNav onLogout={handleLogout} />
 
-        <header className="relative z-10 mb-10 overflow-hidden rounded-[32px] border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-rose-800 px-8 py-10 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)] sm:px-10">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(251,207,232,0.15),transparent_50%)]" />
-          <div className="relative flex flex-wrap items-start gap-6">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-              <Shield className="h-8 w-8 text-rose-100" />
+        <header className="relative z-10 mb-8 overflow-hidden rounded-[28px] border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-slate-800 px-6 py-6 text-white shadow-[0_16px_48px_rgba(88,28,135,0.20)] sm:px-8 sm:py-7">
+          <div className="relative flex flex-wrap items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+              <Shield className="h-6 w-6 text-white/90" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-rose-200/90">
-                Sistem Sahibi
-              </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl lg:text-[2.6rem]">
-                Admin Yönetim Merkezi
-              </h1>
-              <p className="mt-3 max-w-2xl text-base font-medium text-white/85 sm:text-lg">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-xl font-black tracking-tight sm:text-2xl">
+                  Admin Yönetim Merkezi
+                </h1>
+                {user?.name || user?.email ? (
+                  <span className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold text-white/80">
+                    {user.name || user.email}
+                    <span className="mx-1.5 text-white/40">·</span>
+                    <span className="text-violet-300">admin</span>
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm font-medium text-white/70">
                 Sistem sahibi araçları, toplu veri aktarımı, kullanıcı ve sistem yönetimi
               </p>
-              {user?.name || user?.email ? (
-                <p className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-bold text-white/90">
-                  {user.name || user.email}
-                  <span className="mx-2 text-white/40">·</span>
-                  <span className="text-rose-200">admin</span>
-                </p>
-              ) : null}
             </div>
           </div>
         </header>
@@ -391,14 +364,6 @@ export default function AdminPage() {
           <div className="relative z-30 mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {adminCards.map((item) => {
               const href = item.href?.trim();
-
-              if (href === VERI_PAYLASIMI_HREF) {
-                return (
-                  <div key="admin-veri-paylasimi" className="h-full">
-                    <VeriPaylasimiAdminCard />
-                  </div>
-                );
-              }
 
               if (href) {
                 return (
