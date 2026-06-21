@@ -473,6 +473,28 @@ export default function CosmicCalendarPage() {
     ];
   }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, realNow]);
 
+  // ── Bugün Gökyüzünde — özet hesapları ────────────────────────────────────────
+  const todaySummary = useMemo(() => {
+    const rt = upcomingRetrosList[0];
+    const mp = upcomingMoonPhases[0];
+    const sc = cosmicEvents.find(e => e.type === "sign_change");
+    const rtDays = rt
+      ? Math.max(0, Math.ceil((parseRetroDate(rt.start).getTime() - realNow.getTime()) / 86_400_000))
+      : 0;
+    let scDays = 0;
+    if (sc) {
+      const [y, m, d] = sc.date.split("-");
+      scDays = Math.max(0, Math.ceil(
+        (new Date(parseInt(y ?? "2026"), parseInt(m ?? "1") - 1, parseInt(d ?? "1")).getTime() - realNow.getTime()) / 86_400_000
+      ));
+    }
+    return {
+      retro:   rt ? { symbol: rt.symbol, planet: rt.planet, daysLeft: rtDays } : null,
+      moon:    mp ? { emoji: mp.emoji, name: mp.name, daysFromNow: mp.daysFromNow } : null,
+      transit: sc ? { symbol: sc.symbol, title: sc.title, daysLeft: scDays } : null,
+    };
+  }, [upcomingRetrosList, upcomingMoonPhases, cosmicEvents, realNow]);
+
   // ── Birleşik Yaklaşan Olaylar ─────────────────────────────────────────────────
   const mergedUpcomingEvents = useMemo(() => {
     type EventItem = { date: Date; daysFromNow: number; icon: string; label: string; detail: string; badgeClass: string };
@@ -604,6 +626,64 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
+        {/* ── Bugün Gökyüzünde ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-200/70 bg-gradient-to-br from-indigo-600/[0.09] via-violet-500/[0.07] to-indigo-400/[0.05] p-4 shadow-[0_6px_28px_rgba(99,102,241,0.14)] backdrop-blur-md">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-700">🌙 Bugün Gökyüzünde</p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+          </div>
+          {/* Güneş + Ay — büyük kartlar */}
+          <div className="mb-2.5 grid grid-cols-2 gap-2.5">
+            <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5 backdrop-blur-sm">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">☀️ Güneş</p>
+              {gokyuzuRows[0] && !gokyuzuRows[0].outOfRange
+                ? <p className="text-sm font-black text-slate-900">{gokyuzuRows[0].signSymbol} {gokyuzuRows[0].sign} Burcunda</p>
+                : <p className="text-sm font-black text-amber-600">⚠ Veri yok</p>
+              }
+            </div>
+            <div className="rounded-xl border border-slate-200/60 bg-white/70 px-3 py-2.5 backdrop-blur-sm">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400/80">🌙 Ay</p>
+              <p className="text-sm font-black text-slate-900">{todayMoonSign.emoji} {todayMoonSign.name} Burcunda</p>
+            </div>
+          </div>
+          {/* 3 yaklaşan olay */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-rose-100/80 bg-rose-50/60 px-2.5 py-2 backdrop-blur-sm">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-rose-500/80">☿ Sonraki Retro</p>
+              {todaySummary.retro ? (
+                <>
+                  <p className="text-xs font-black text-slate-900 leading-tight">{todaySummary.retro.symbol} {todaySummary.retro.planet}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-rose-600">
+                    {todaySummary.retro.daysLeft > 0 ? `${todaySummary.retro.daysLeft} gün kaldı` : "Şu an aktif"}
+                  </p>
+                </>
+              ) : <p className="text-xs text-slate-400">—</p>}
+            </div>
+            <div className="rounded-xl border border-violet-100/80 bg-violet-50/60 px-2.5 py-2 backdrop-blur-sm">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-violet-500/80">🌙 Sonraki Ay Fazı</p>
+              {todaySummary.moon ? (
+                <>
+                  <p className="text-xs font-black text-slate-900 leading-tight">{todaySummary.moon.emoji} {todaySummary.moon.name}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-violet-600">
+                    {todaySummary.moon.daysFromNow === 0 ? "Bugün" : todaySummary.moon.daysFromNow === 1 ? "Yarın" : `${todaySummary.moon.daysFromNow} gün kaldı`}
+                  </p>
+                </>
+              ) : <p className="text-xs text-slate-400">—</p>}
+            </div>
+            <div className="rounded-xl border border-sky-100/80 bg-sky-50/60 px-2.5 py-2 backdrop-blur-sm">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-sky-500/80">🪐 Burç Geçişi</p>
+              {todaySummary.transit ? (
+                <>
+                  <p className="text-xs font-black text-slate-900 leading-tight line-clamp-2">{todaySummary.transit.symbol} {todaySummary.transit.title}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-sky-600">
+                    {todaySummary.transit.daysLeft === 0 ? "Bugün" : `${todaySummary.transit.daysLeft} gün kaldı`}
+                  </p>
+                </>
+              ) : <p className="text-xs text-slate-400">—</p>}
+            </div>
+          </div>
+        </section>
+
         {/* ── Gezegenlerin Güncel Burç Konumları ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
 
@@ -619,7 +699,7 @@ export default function CosmicCalendarPage() {
               <div key={key} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/50">
                 <span className="w-5 shrink-0 text-center text-[18px] leading-none text-indigo-500">{symbol}</span>
                 <span className="w-[4.5rem] shrink-0 text-xs font-semibold text-slate-700">{key}</span>
-                <span className="shrink-0 select-none text-slate-300">—</span>
+                <span className="shrink-0 select-none text-indigo-400/60">→</span>
                 {outOfRange
                   ? <span className="text-xs font-semibold text-amber-500">⚠ Veri yok</span>
                   : <span className="text-sm font-black text-slate-900">{signSymbol} {sign} Burcunda</span>
@@ -854,7 +934,7 @@ export default function CosmicCalendarPage() {
             </div>
 
             {/* Kompakt Takvim */}
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+            <div className="rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
               <div className="mb-1.5 flex items-center gap-2">
                 <button onClick={prevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Önceki ay">
                   <ChevronLeft className="h-3.5 w-3.5" />
@@ -910,7 +990,8 @@ export default function CosmicCalendarPage() {
                       className={`group/day relative flex ${cellHeight} flex-col items-center justify-start gap-0 rounded-lg p-0.5 transition-colors ${
                         isToday    ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40" :
                         isSelected ? "ring-2 ring-inset ring-indigo-400 bg-indigo-50" :
-                        hasMoonBg  ? "border border-violet-100 bg-violet-50/60 hover:bg-violet-100/60" :
+                        hasMoonBg  ? "border border-violet-200/80 bg-violet-100/70 hover:bg-violet-200/70" :
+                        (retroList && retroList.length > 0) ? "border border-rose-100/80 bg-rose-50/60 hover:bg-rose-100/60" :
                                      "bg-white/30 hover:bg-white/60"
                       }`}
                     >
