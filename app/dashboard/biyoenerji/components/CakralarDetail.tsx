@@ -360,7 +360,7 @@ export default function CakralarDetail({ id }: { id: string }) {
   if (record.organs?.trim()) sections.push({ title: "Organlar", text: record.organs.trim() });
   if (record.glands?.trim()) sections.push({ title: "Bezler", text: record.glands.trim() });
   if (record.color?.trim()) sections.push({ title: "Renk", text: record.color.trim() });
-  if (record.stones?.trim()) sections.push({ title: "Taslar", text: record.stones.trim() });
+  if (record.stones?.trim()) sections.push({ title: "Taşlar", text: record.stones.trim() });
   if (record.causes?.trim()) sections.push({ title: "Nedenler", text: record.causes.trim() });
   if (record.physical?.trim()) sections.push({ title: "Fiziksel", text: record.physical.trim() });
   if (record.mental?.trim()) sections.push({ title: "Zihinsel", text: record.mental.trim() });
@@ -420,7 +420,7 @@ export default function CakralarDetail({ id }: { id: string }) {
             compact
           />
           <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
+          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
           <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
           {record && (
             <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
@@ -437,8 +437,8 @@ export default function CakralarDetail({ id }: { id: string }) {
         ))
       ) : (
         <DetailContentCard
-          title="Icerik"
-          text="Bu kayit icin henuz organ, renk veya not girilmemis."
+          title="İçerik"
+          text="Bu kayıt için henüz organ, renk veya not girilmemiş."
           typography={contentTypography}
         />
       )}
@@ -574,8 +574,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-semibold text-slate-900">Bu cakra kaydini silmek istediginizden emin misiniz?</h3>
-            <p className="mt-1 text-[13px] text-slate-500">Bu islem geri alinamaz.</p>
+            <h3 className="text-base font-semibold text-slate-900">Bu çakra kaydını silmek istediğinizden emin misiniz?</h3>
+            <p className="mt-1 text-[13px] text-slate-500">Bu işlem geri alınamaz.</p>
             <div className="mt-4 flex gap-2">
               <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(false)}
                 className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">

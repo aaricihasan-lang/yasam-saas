@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // NOT: Bu proje sunucu taraflı oturum (cookie/JWT) kullanmaz; auth localStorage tabanlıdır.
   // API katmanında sahiplik doğrulaması users tablosundan userId+tenantId eşleşmesiyle yapılır.
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey)
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 

@@ -23,6 +23,8 @@ async function exportEnergyBodiesWord(
   exportMode: "all" | "selected" | "single",
   ids: Set<string> | string,
   setWordBusy: (v: boolean) => void,
+  onSuccess?: () => void,
+  onError?: () => void,
 ) {
   setWordBusy(true);
   try {
@@ -39,7 +41,7 @@ async function exportEnergyBodiesWord(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return;
+    if (!res.ok) { onError?.(); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -47,7 +49,8 @@ async function exportEnergyBodiesWord(
     a.download = `biyoenerji-enerji-bedenleri-${exportMode === "selected" ? "secili" : exportMode === "single" ? "tek" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch { /* sessiz */ } finally {
+    onSuccess?.();
+  } catch { onError?.(); } finally {
     setWordBusy(false);
   }
 }
@@ -338,6 +341,8 @@ export default function EnerjiBedenleri() {
   }
 
   async function handleKaydet() {
+    if (!tenantId) return;
+
     const uidTrim = form.source_uid.trim();
     if (!uidTrim) {
       showSoft("err", "Kaynak uid zorunludur (ör. eterik).");
@@ -422,7 +427,7 @@ export default function EnerjiBedenleri() {
   }
 
   async function executeDelete() {
-    if (!selectedId) return;
+    if (!selectedId || !tenantId) return;
 
     setSaving(true);
     setInfoError("");
@@ -513,8 +518,8 @@ export default function EnerjiBedenleri() {
                 totalCount={rows.length}
                 onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
-                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
-                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
+                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 isExporting={wordBusy}
               />
             </div>
@@ -641,7 +646,7 @@ export default function EnerjiBedenleri() {
                 <button
                   type="button"
                   disabled={wordBusy}
-                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy)}
+                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                   className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
                 >
                   {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}

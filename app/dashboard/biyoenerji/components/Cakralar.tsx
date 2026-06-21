@@ -61,6 +61,8 @@ async function exportChakrasWord(
   mode: "selected" | "all",
   selectedIds: Set<string>,
   setWordBusy: (v: boolean) => void,
+  onSuccess?: () => void,
+  onError?: () => void,
 ) {
   setWordBusy(true);
   try {
@@ -75,7 +77,7 @@ async function exportChakrasWord(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return;
+    if (!res.ok) { onError?.(); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -83,7 +85,8 @@ async function exportChakrasWord(
     a.download = `biyoenerji-cakra-${mode === "selected" ? "secili" : "tumu"}-${new Date().toISOString().slice(0, 10)}.docx`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch { /* sessiz */ } finally {
+    onSuccess?.();
+  } catch { onError?.(); } finally {
     setWordBusy(false);
   }
 }
@@ -414,8 +417,8 @@ export default function Cakralar() {
               totalCount={totalInDb}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy)}
-              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy)}
+              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
             />
           </div>

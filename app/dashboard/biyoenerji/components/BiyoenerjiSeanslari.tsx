@@ -277,9 +277,7 @@ export default function BiyoenerjiSeanslari() {
         category: trimOrNull(form.category),
         source: trimOrNull(form.source),
         note: trimOrNull(form.note),
-      })
-      .select()
-      .single();
+      });
 
     setSaving(false);
 
