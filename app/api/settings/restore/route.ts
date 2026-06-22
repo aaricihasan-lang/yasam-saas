@@ -3,11 +3,54 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
-const ALLOWED_TABLES = new Set([
+/**
+ * Geri yüklenebilir tablolar — backup whitelist ile birebir aynı olmalı.
+ * Güvenlik:
+ *  - Bu listede olmayan tablo adı gönderilirse istek 400 ile reddedilir.
+ *  - tenant_id değeri her satırda server tarafından override edilir.
+ *  - user_id: sadece satırda bu anahtar varsa override edilir (yoksa yazılmaz).
+ *  - id çakışmaları (ignoreDuplicates) sessizce atlanır → mevcut veri korunur.
+ *  - Hiçbir tablo silinmez; yalnızca eksik kayıtlar eklenir.
+ */
+const ALLOWED_TABLES = new Set<string>([
+  // Danışan Yolculuğu
   "clients",
+  "client_notes",
+  "appointments",
+  "client_sessions",
+  "client_homeworks",
+  "client_analyses",
+  "client_stones",
+  // Numeroloji
+  "numerology_records",
+  "numerology_knowledge_records",
+  "numerology_stone_assignments",
+  // Human Design
+  "human_design_clients",
+  "human_design_charts",
+  "human_design_knowledge_records",
+  "human_design_reports",
+  // Doğaltaş
   "stones",
-  "numerology_analyses",
+  "minerals",
+  "combinations",
+  "dogaltas_inventory",
+  // Dijital İçerik
   "personal_archives",
+  "personal_archive_files",
+  // Biyoenerji
+  "bioenergy_sessions",
+  "bioenergy_symbols",
+  "bioenergy_imaginations",
+  "bioenergy_chakras",
+  "bioenergy_energy_bodies",
+  "bioenergy_subconscious_causes",
+  // Refleksoloji
+  "reflexology_protocols",
+  // Aromaterapi
+  "aromatherapy_oils",
+  // Şifa Rehberi
+  "healing_guides",
 ]);
 
 type BackupPayload = {
@@ -18,14 +61,17 @@ type BackupPayload = {
 
 /**
  * POST /api/settings/restore
- * JSON yedeğini güvenli modda içe aktar (mevcut verileri silme).
+ * JSON yedeğini güvenli modda içe aktar.
+ * - Mevcut veriler silinmez.
+ * - id çakışması → skipped.
+ * - Yeni kayıt → inserted.
  * Body: { backup: BackupPayload }
  * Header: x-user-id
  */
 export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
-  const { tenantId, db } = guard;
+  const { userId, tenantId, db } = guard;
 
   let body: { backup?: unknown };
   try {
@@ -47,6 +93,12 @@ export async function POST(req: NextRequest) {
   }
 
   const tableNames = Object.keys(backup.tables);
+
+  if (tableNames.length === 0) {
+    return NextResponse.json({ ok: true, summary: {} });
+  }
+
+  // İzin verilmeyen tablo adı kontrolü — whitelist dışı her şey reddedilir
   const unknownTables = tableNames.filter((t) => !ALLOWED_TABLES.has(t));
   if (unknownTables.length > 0) {
     return NextResponse.json(
@@ -55,12 +107,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const summary: Record<string, { skipped: number; inserted: number; error: string | null }> = {};
+  const summary: Record<string, { inserted: number; skipped: number; error: string | null }> = {};
 
   for (const table of tableNames) {
     const rows = backup.tables[table];
     if (!Array.isArray(rows)) {
-      summary[table] = { skipped: 0, inserted: 0, error: "Geçersiz veri formatı." };
+      summary[table] = { inserted: 0, skipped: 0, error: "Geçersiz veri formatı." };
+      continue;
+    }
+
+    if (rows.length === 0) {
+      summary[table] = { inserted: 0, skipped: 0, error: null };
       continue;
     }
 
@@ -68,17 +125,28 @@ export async function POST(req: NextRequest) {
     let skipped = 0;
 
     for (const rawRow of rows) {
-      if (!rawRow || typeof rawRow !== "object") { skipped++; continue; }
-      const row = rawRow as Record<string, unknown>;
+      if (!rawRow || typeof rawRow !== "object" || Array.isArray(rawRow)) {
+        skipped++;
+        continue;
+      }
 
-      // Güvenlik: tenant_id'yi DB'den gelen değerle zorla — client JSON'ındaki değer yok sayılır.
-      // user_id ayarlanmaz: clients/stones/personal_archives tablolarında bu kolon yok.
+      const row = { ...(rawRow as Record<string, unknown>) };
+
+      // Güvenlik katmanı 1: tenant_id her zaman server değeriyle override edilir.
+      // JSON'dan gelen tenant_id'ye güvenilmez.
       row.tenant_id = tenantId;
 
-      // ON CONFLICT DO NOTHING: çakışan id atlanır; yeni satır döner → data.length > 0
+      // Güvenlik katmanı 2: user_id, yalnızca tabloda bu kolon varsa override edilir.
+      // Tabloda user_id kolonu olmadığında yazmaya çalışmak DB hatası verir → skipped.
+      // Çözüm: satırda user_id anahtarı varsa (backup'ta kaydedilmişse) override et;
+      // satırda yoksa ekleme (kolonun var olup olmadığını bilemeyiz ama satırda yoksa zaten sorun olmaz).
+      if ("user_id" in row) {
+        row.user_id = userId;
+      }
+
       const { data: upsertData, error } = await db
         .from(table)
-        .upsert(row as Record<string, unknown>, { ignoreDuplicates: true })
+        .upsert(row, { ignoreDuplicates: true })
         .select("id");
 
       if (error) {
@@ -86,7 +154,7 @@ export async function POST(req: NextRequest) {
       } else if (upsertData && upsertData.length > 0) {
         inserted++;
       } else {
-        // ignoreDuplicates: ON CONFLICT DO NOTHING — satır zaten vardı
+        // ON CONFLICT DO NOTHING → satır zaten var, atlandı
         skipped++;
       }
     }

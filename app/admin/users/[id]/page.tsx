@@ -465,16 +465,26 @@ export default function AdminUserDetailPage() {
   const [activeSessionsLoaded, setActiveSessionsLoaded] = useState(false);
   const [activeSessionsSummary, setActiveSessionsSummary] = useState<Record<string, unknown> | null>(null);
   const [showActiveSessions, setShowActiveSessions] = useState(false);
-  const [showAllSessions, setShowAllSessions] = useState(false);
   const [devicesDateFrom, setDevicesDateFrom] = useState("");
   const [devicesDateTo, setDevicesDateTo] = useState("");
   const [terminatingSessionId, setTerminatingSessionId] = useState<string | null>(null);
-  const [showAllSecurityEvents, setShowAllSecurityEvents] = useState(false);
-  const [showAllSecuritySessions, setShowAllSecuritySessions] = useState(false);
   const [securityEventFilter, setSecurityEventFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [securityDatePreset, setSecurityDatePreset] = useState<"all" | "today" | "7d" | "30d" | "custom">("all");
   const [securityDateFrom, setSecurityDateFrom] = useState("");
   const [securityDateTo, setSecurityDateTo] = useState("");
+  // Güvenlik özet badge'i (sayfa yüklendiğinde hızlı çekilir, panel kapalıyken gösterilir)
+  const [securitySummary, setSecuritySummary] = useState<{ high30d: number; suspicious30d: number } | null>(null);
+  // Güvenlik paneli sayfalama
+  const [secEventsLimit, setSecEventsLimit] = useState<5 | 10 | 25>(5);
+  const [secEventsOffset, setSecEventsOffset] = useState(0);
+  const [secEventsTotal, setSecEventsTotal] = useState(0);
+  const [secSessLimit, setSecSessLimit] = useState<5 | 10 | 25>(5);
+  const [secSessOffset, setSecSessOffset] = useState(0);
+  const [secSessTotal, setSecSessTotal] = useState(0);
+  // Aktif cihazlar sayfalama
+  const [actSessLimit, setActSessLimit] = useState<5 | 10 | 25>(5);
+  const [actSessOffset, setActSessOffset] = useState(0);
+  const [actSessTotal, setActSessTotal] = useState(0);
 
   function togglePaymentPanel() {
     setShowPaymentPanel((open) => {
@@ -494,21 +504,79 @@ export default function AdminUserDetailPage() {
     setPaymentHistory((json.history ?? []).map((row) => mapPaymentHistoryRow(row)));
   }, []);
 
-  const loadSecurityData = useCallback(async (uid: string, adminId: string) => {
+  async function fetchSecurityPaged(opts: {
+    eventsLimit:   number;
+    eventsOffset:  number;
+    sessLimit:     number;
+    sessOffset:    number;
+    severity:      string;
+    dateFrom:      string;
+    dateTo:        string;
+    appendEvents?: boolean;
+    appendSessions?: boolean;
+  }) {
+    if (!user) return;
     setSecurityLoading(true);
-    const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/security-events`, {
-      headers: { "x-admin-id": adminId },
+    const p = new URLSearchParams({
+      limit:           String(opts.eventsLimit),
+      offset:          String(opts.eventsOffset),
+      sessions_limit:  String(opts.sessLimit),
+      sessions_offset: String(opts.sessOffset),
     });
+    if (opts.severity !== "all") p.set("severity", opts.severity);
+    if (opts.dateFrom) p.set("from", opts.dateFrom);
+    if (opts.dateTo)   p.set("to",   opts.dateTo);
+
+    const res = await fetch(
+      `/api/admin/users/${encodeURIComponent(user.id)}/security-events?${p.toString()}`,
+      { headers: { "x-admin-id": currentAdminId } },
+    );
     setSecurityLoading(false);
     if (!res.ok) return;
+
     const json = (await res.json()) as {
-      events:   Record<string, unknown>[];
-      sessions: Record<string, unknown>[];
+      events:       Record<string, unknown>[];
+      eventsTotal:  number;
+      sessions:     Record<string, unknown>[];
+      sessionsTotal: number;
+      summary:      { high30d: number; suspicious30d: number };
     };
-    setSecurityEvents(json.events ?? []);
-    setUserSessions(json.sessions ?? []);
+
+    if (opts.appendEvents && opts.eventsOffset > 0) {
+      setSecurityEvents((prev) => [...prev, ...(json.events ?? [])]);
+    } else {
+      setSecurityEvents(json.events ?? []);
+    }
+    setSecEventsTotal(json.eventsTotal ?? 0);
+    setSecEventsOffset(opts.eventsOffset);
+    setSecEventsLimit(opts.eventsLimit as 5 | 10 | 25);
+
+    if (opts.appendSessions && opts.sessOffset > 0) {
+      setUserSessions((prev) => [...prev, ...(json.sessions ?? [])]);
+    } else {
+      setUserSessions(json.sessions ?? []);
+    }
+    setSecSessTotal(json.sessionsTotal ?? 0);
+    setSecSessOffset(opts.sessOffset);
+    setSecSessLimit(opts.sessLimit as 5 | 10 | 25);
+
+    if (json.summary) setSecuritySummary(json.summary);
     setSecurityLoaded(true);
-  }, []);
+  }
+
+  // Güvenlik paneli açıldığında veya limit/filtre değiştiğinde çağrılır
+  async function loadSecurityData(uid: string, adminId: string) {
+    // İlk yüklemede mevcut state değerlerini kullan
+    await fetchSecurityPaged({
+      eventsLimit:  secEventsLimit,
+      eventsOffset: 0,
+      sessLimit:    secSessLimit,
+      sessOffset:   0,
+      severity:     securityEventFilter,
+      dateFrom:     securityDateFrom,
+      dateTo:       securityDateTo,
+    });
+  }
 
   const loadUser = useCallback(async (adminId: string) => {
     if (!userId) {
@@ -548,12 +616,36 @@ export default function AdminUserDetailPage() {
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
     setNotFound(false);
     setLoading(false);
+    // Panel state'i sıfırla
     setActiveSessionsLoaded(false);
     setShowActiveSessions(false);
-    setShowAllSessions(false);
-    setShowAllSecurityEvents(false);
-    setShowAllSecuritySessions(false);
+    setSecurityLoaded(false);
+    setShowSecurityPanel(false);
+    setSecEventsOffset(0);
+    setSecSessOffset(0);
+    setActSessOffset(0);
+    // Hafif özet: panel kapalıyken badge göstermek için
+    void loadPanelSummaries(mapped.id, adminId);
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadPanelSummaries(uid: string, adminId: string) {
+    const [secRes, actRes] = await Promise.allSettled([
+      fetch(`/api/admin/users/${encodeURIComponent(uid)}/security-events?limit=0&sessions_limit=0`, {
+        headers: { "x-admin-id": adminId },
+      }),
+      fetch(`/api/admin/users/${encodeURIComponent(uid)}/active-sessions?limit=0`, {
+        headers: { "x-admin-id": adminId },
+      }),
+    ]);
+    if (secRes.status === "fulfilled" && secRes.value.ok) {
+      const j = (await secRes.value.json()) as { summary?: { high30d: number; suspicious30d: number } };
+      if (j.summary) setSecuritySummary(j.summary);
+    }
+    if (actRes.status === "fulfilled" && actRes.value.ok) {
+      const j = (await actRes.value.json()) as { summary?: Record<string, unknown> };
+      if (j.summary) setActiveSessionsSummary(j.summary);
+    }
+  }
 
   useEffect(() => {
     const session = readYasamUser();
@@ -845,21 +937,49 @@ export default function AdminUserDetailPage() {
     await loadActiveSessions(user.id, currentAdminId);
   }
 
-  async function loadActiveSessions(uid: string, adminId: string) {
+  async function fetchActiveSessionsPaged(opts: {
+    limit:    number;
+    offset:   number;
+    dateFrom: string;
+    dateTo:   string;
+    append?:  boolean;
+  }) {
+    if (!user) return;
     setActiveSessionsLoading(true);
-    const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/active-sessions`, {
-      headers: { "x-admin-id": adminId },
-    });
+    const p = new URLSearchParams({ limit: String(opts.limit), offset: String(opts.offset) });
+    if (opts.dateFrom) p.set("from", opts.dateFrom);
+    if (opts.dateTo)   p.set("to",   opts.dateTo);
+
+    const res = await fetch(
+      `/api/admin/users/${encodeURIComponent(user.id)}/active-sessions?${p.toString()}`,
+      { headers: { "x-admin-id": currentAdminId } },
+    );
     setActiveSessionsLoading(false);
     if (!res.ok) return;
+
     const json = (await res.json()) as {
-      sessions: Record<string, unknown>[];
-      summary: Record<string, unknown>;
+      sessions:      Record<string, unknown>[];
+      sessionsTotal: number;
+      summary:       Record<string, unknown>;
     };
-    setActiveSessions(json.sessions ?? []);
+
+    if (opts.append && opts.offset > 0) {
+      setActiveSessions((prev) => [...prev, ...(json.sessions ?? [])]);
+    } else {
+      setActiveSessions(json.sessions ?? []);
+    }
+    setActSessTotal(json.sessionsTotal ?? 0);
+    setActSessOffset(opts.offset);
+    setActSessLimit(opts.limit as 5 | 10 | 25);
     setActiveSessionsSummary(json.summary ?? null);
     setActiveSessionsLoaded(true);
-    setShowAllSessions(false);
+  }
+
+  async function loadActiveSessions(uid: string, adminId: string) {
+    await fetchActiveSessionsPaged({
+      limit: actSessLimit, offset: 0,
+      dateFrom: devicesDateFrom, dateTo: devicesDateTo,
+    });
   }
 
   async function terminateSession(sessionId: string) {
@@ -904,24 +1024,31 @@ export default function AdminUserDetailPage() {
   }
 
   function applySecurityDatePreset(preset: "today" | "7d" | "30d") {
-    const now  = new Date();
-    const pad  = (n: number) => String(n).padStart(2, "0");
-    const fmt  = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const now   = new Date();
+    const pad   = (n: number) => String(n).padStart(2, "0");
+    const fmt   = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const today = fmt(now);
-    if (preset === "today") {
-      setSecurityDateFrom(today); setSecurityDateTo(today);
-    } else if (preset === "7d") {
-      setSecurityDateFrom(fmt(new Date(now.getTime() - 7 * 86400000))); setSecurityDateTo(today);
-    } else {
-      setSecurityDateFrom(fmt(new Date(now.getTime() - 30 * 86400000))); setSecurityDateTo(today);
-    }
+    const from  = preset === "today" ? today : fmt(new Date(now.getTime() - (preset === "7d" ? 7 : 30) * 86400000));
+    setSecurityDateFrom(from);
+    setSecurityDateTo(today);
     setSecurityDatePreset(preset);
-    setShowAllSecurityEvents(false);
-    setShowAllSecuritySessions(false);
+    // Tarih filtresi etkin → 25 kayıt, offset sıfırla, yeniden yükle
+    if (securityLoaded) {
+      void fetchSecurityPaged({
+        eventsLimit: 25, eventsOffset: 0, sessLimit: 25, sessOffset: 0,
+        severity: securityEventFilter, dateFrom: from, dateTo: today,
+      });
+    }
   }
 
   function clearSecurityDateFilter() {
     setSecurityDateFrom(""); setSecurityDateTo(""); setSecurityDatePreset("all");
+    if (securityLoaded) {
+      void fetchSecurityPaged({
+        eventsLimit: secEventsLimit, eventsOffset: 0, sessLimit: secSessLimit, sessOffset: 0,
+        severity: securityEventFilter, dateFrom: "", dateTo: "",
+      });
+    }
   }
 
   if (!sessionChecked) {
@@ -1585,15 +1712,18 @@ export default function AdminUserDetailPage() {
                     Şüpheli girişler, konum değişimleri ve oturum kayıtları
                   </p>
                 </div>
-                {securityLoaded ? (
+                {securitySummary ? (
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ring-1 ${
-                    computeSecurityScore(securityEvents) === "red"
+                    (securitySummary.high30d ?? 0) >= 1
                       ? "bg-rose-100 text-rose-900 ring-rose-300"
-                      : computeSecurityScore(securityEvents) === "yellow"
+                      : (securitySummary.suspicious30d ?? 0) >= 1
                         ? "bg-amber-100 text-amber-900 ring-amber-300"
                         : "bg-emerald-100 text-emerald-900 ring-emerald-300"
                   }`}>
-                    {computeSecurityScore(securityEvents) === "red" ? "Riskli" : computeSecurityScore(securityEvents) === "yellow" ? "Dikkat" : "Normal"}
+                    {(securitySummary.high30d ?? 0) >= 1
+                      ? "Yüksek Risk"
+                      : (securitySummary.suspicious30d ?? 0) >= 1
+                        ? "Dikkat" : "Normal"}
                   </span>
                 ) : null}
                 <ChevronDown
@@ -1601,6 +1731,19 @@ export default function AdminUserDetailPage() {
                   aria-hidden
                 />
               </button>
+
+              {/* Panel kapalıyken uyarı metni */}
+              {!showSecurityPanel && securitySummary && ((securitySummary.high30d ?? 0) > 0 || (securitySummary.suspicious30d ?? 0) > 0) ? (
+                <div className={`mt-3 rounded-xl border px-4 py-2.5 text-sm font-bold ${
+                  (securitySummary.high30d ?? 0) > 0
+                    ? "border-rose-200 bg-rose-50/80 text-rose-800"
+                    : "border-amber-200 bg-amber-50/80 text-amber-800"
+                }`}>
+                  {(securitySummary.high30d ?? 0) > 0
+                    ? `Yüksek Risk: Son 30 günde ${securitySummary.high30d} yüksek riskli giriş var`
+                    : `Dikkat: Son 30 günde ${securitySummary.suspicious30d} şüpheli giriş var`}
+                </div>
+              ) : null}
 
               {showSecurityPanel ? (
                 <div className="mt-5 border-t border-rose-200/70 pt-5">
@@ -1611,49 +1754,42 @@ export default function AdminUserDetailPage() {
                     </div>
                   ) : (
                     <>
-                      {/* ── Güvenlik Puan Kartı ────────────────────────────── */}
-                      {(() => {
-                        const score = computeSecurityScore(securityEvents);
-                        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-                        const recent = securityEvents.filter((e) => new Date(String(e.created_at ?? "")).getTime() > cutoff);
-                        const high = recent.filter((e) => e.severity === "high").length;
-                        const med  = recent.filter((e) => e.severity === "medium").length;
-                        const scoreConfig = {
-                          green:  { label: "Normal",  bg: "from-emerald-50 to-teal-50",  border: "border-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
-                          yellow: { label: "Dikkat",  bg: "from-amber-50 to-orange-50",  border: "border-amber-200",  text: "text-amber-900",  dot: "bg-amber-500"  },
-                          red:    { label: "Riskli",  bg: "from-rose-50 to-red-50",      border: "border-rose-300",   text: "text-rose-900",   dot: "bg-rose-500"   },
+                      {/* ── Güvenlik Puan Kartı (summary'den) ─────────────── */}
+                      {securitySummary ? (() => {
+                        const h = securitySummary.high30d ?? 0;
+                        const m = securitySummary.suspicious30d ?? 0;
+                        const score = h >= 1 ? "red" : m >= 1 ? "yellow" : "green";
+                        const cfg = {
+                          green:  { label: "Normal",      bg: "from-emerald-50 to-teal-50",  border: "border-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
+                          yellow: { label: "Dikkat",      bg: "from-amber-50 to-orange-50",  border: "border-amber-200",  text: "text-amber-900",  dot: "bg-amber-500"  },
+                          red:    { label: "Yüksek Risk", bg: "from-rose-50 to-red-50",      border: "border-rose-300",   text: "text-rose-900",   dot: "bg-rose-500"   },
                         }[score];
                         return (
-                          <div className={`mb-5 flex flex-wrap items-center gap-4 rounded-2xl border-2 bg-gradient-to-br p-4 ${scoreConfig.bg} ${scoreConfig.border}`}>
-                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${scoreConfig.dot} text-white shadow-md`}>
+                          <div className={`mb-5 flex flex-wrap items-center gap-4 rounded-2xl border-2 bg-gradient-to-br p-4 ${cfg.bg} ${cfg.border}`}>
+                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${cfg.dot} text-white shadow-md`}>
                               <Shield className="h-6 w-6" aria-hidden />
                             </div>
                             <div className="flex-1">
-                              <p className={`text-lg font-black ${scoreConfig.text}`}>Güvenlik Durumu: {scoreConfig.label}</p>
-                              <p className="text-sm font-medium text-slate-600">
-                                Son 30 günde: {high} yüksek risk · {med} şüpheli olay
-                              </p>
+                              <p className={`text-lg font-black ${cfg.text}`}>Güvenlik Durumu: {cfg.label}</p>
+                              <p className="text-sm font-medium text-slate-600">Son 30 günde: {h} yüksek risk · {m} şüpheli olay</p>
                             </div>
-                            {(high >= 3 || med >= 6) ? (
-                              <p className="text-sm font-black text-rose-800">Hesap paylaşımı riski olabilir.</p>
-                            ) : null}
+                            {(h >= 3 || m >= 6) ? <p className="text-sm font-black text-rose-800">Hesap paylaşımı riski olabilir.</p> : null}
                           </div>
                         );
-                      })()}
+                      })() : null}
 
                       {/* ── Filtre Araç Çubuğu ────────────────────────────── */}
                       <div className="mb-4 space-y-3">
-                        {/* Önem seviyesi filtresi */}
-                        <div className="flex flex-wrap gap-2">
+                        {/* Önem seviyesi + kayıt sayısı */}
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="flex items-center gap-1 text-xs font-black text-slate-500"><Filter className="h-3 w-3" /> Filtre:</span>
                           {(["all", "high", "medium", "low"] as const).map((f) => (
-                            <button
-                              key={f}
-                              type="button"
-                              onClick={() => { setSecurityEventFilter(f); setShowAllSecurityEvents(false); }}
-                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityEventFilter === f
-                                ? "bg-rose-600 text-white ring-rose-600"
-                                : "bg-white text-slate-700 ring-slate-200 hover:ring-rose-300"}`}
+                            <button key={f} type="button"
+                              onClick={() => {
+                                setSecurityEventFilter(f);
+                                void fetchSecurityPaged({ eventsLimit: secEventsLimit, eventsOffset: 0, sessLimit: secSessLimit, sessOffset: 0, severity: f, dateFrom: securityDateFrom, dateTo: securityDateTo });
+                              }}
+                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityEventFilter === f ? "bg-rose-600 text-white ring-rose-600" : "bg-white text-slate-700 ring-slate-200 hover:ring-rose-300"}`}
                             >
                               {f === "all" ? "Tümü" : f === "high" ? "Yüksek Risk" : f === "medium" ? "Şüpheli" : "Bilgilendirme"}
                             </button>
@@ -1662,28 +1798,27 @@ export default function AdminUserDetailPage() {
                         {/* Tarih filtresi */}
                         <div className="flex flex-wrap items-center gap-2">
                           {(["today", "7d", "30d"] as const).map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => applySecurityDatePreset(p)}
-                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityDatePreset === p
-                                ? "bg-indigo-600 text-white ring-indigo-600"
-                                : "bg-white text-slate-700 ring-slate-200 hover:ring-indigo-300"}`}
+                            <button key={p} type="button" onClick={() => applySecurityDatePreset(p)}
+                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityDatePreset === p ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-200 hover:ring-indigo-300"}`}
                             >
                               {p === "today" ? "Bugün" : p === "7d" ? "Son 7 Gün" : "Son 30 Gün"}
                             </button>
                           ))}
-                          <input
-                            type="date"
-                            value={securityDateFrom}
-                            onChange={(e) => { setSecurityDateFrom(e.target.value); setSecurityDatePreset("custom"); setShowAllSecurityEvents(false); }}
+                          <input type="date" value={securityDateFrom}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSecurityDateFrom(v); setSecurityDatePreset("custom");
+                              void fetchSecurityPaged({ eventsLimit: 25, eventsOffset: 0, sessLimit: 25, sessOffset: 0, severity: securityEventFilter, dateFrom: v, dateTo: securityDateTo });
+                            }}
                             className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
                           />
                           <span className="text-xs text-slate-400">—</span>
-                          <input
-                            type="date"
-                            value={securityDateTo}
-                            onChange={(e) => { setSecurityDateTo(e.target.value); setSecurityDatePreset("custom"); setShowAllSecurityEvents(false); }}
+                          <input type="date" value={securityDateTo}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSecurityDateTo(v); setSecurityDatePreset("custom");
+                              void fetchSecurityPaged({ eventsLimit: 25, eventsOffset: 0, sessLimit: 25, sessOffset: 0, severity: securityEventFilter, dateFrom: securityDateFrom, dateTo: v });
+                            }}
                             className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
                           />
                           {(securityDateFrom || securityDateTo) ? (
@@ -1701,27 +1836,38 @@ export default function AdminUserDetailPage() {
                           stale: "Pasife düştü", new_login: "Yeni giriş",
                           session_limit: "Oturum limiti", admin_terminated: "Admin sonlandırdı",
                         };
-                        const filteredSessions = filterByDateRange(userSessions, securityDateFrom, securityDateTo);
-                        const visibleSessions  = showAllSecuritySessions ? filteredSessions : filteredSessions.slice(0, 10);
+                        const hasDateFilter = !!(securityDateFrom || securityDateTo);
                         return (
                           <>
-                            <h3 className="text-base font-black text-slate-900">Son Oturumlar <span className="text-sm font-medium text-slate-400">({filteredSessions.length})</span></h3>
-                            {visibleSessions.length === 0 ? (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-base font-black text-slate-900">
+                                Son Oturumlar <span className="text-sm font-medium text-slate-400">({userSessions.length}/{secSessTotal})</span>
+                              </h3>
+                              {!hasDateFilter ? (
+                                <div className="flex gap-1">
+                                  {([5, 10, 25] as const).map((n) => (
+                                    <button key={n} type="button"
+                                      onClick={() => { setSecSessLimit(n); void fetchSecurityPaged({ eventsLimit: secEventsLimit, eventsOffset: secEventsOffset, sessLimit: n, sessOffset: 0, severity: securityEventFilter, dateFrom: securityDateFrom, dateTo: securityDateTo }); }}
+                                      className={`rounded-lg px-2.5 py-1 text-[11px] font-black ring-1 transition ${secSessLimit === n && secSessOffset === 0 ? "bg-rose-600 text-white ring-rose-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-rose-300"}`}
+                                    >Son {n}</button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                            {userSessions.length === 0 ? (
                               <p className="mt-2 text-sm font-medium text-slate-500">Oturum kaydı yok.</p>
                             ) : (
                               <div className="mt-3 grid gap-2">
-                                {visibleSessions.map((s) => {
-                                  const isActive = s.is_active === true;
+                                {userSessions.map((s) => {
+                                  const isActive  = s.is_active === true;
                                   const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
                                   const statusLabel = isActive ? "Aktif" : endReason === "Admin sonlandırdı" ? "Sonlandırıldı" : "Pasif";
-                                  const statusCls = isActive ? "bg-emerald-100 text-emerald-900 ring-emerald-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
+                                  const statusCls   = isActive ? "bg-emerald-100 text-emerald-900 ring-emerald-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
                                   return (
                                     <div key={String(s.id)} className={`rounded-xl border px-4 py-3 text-sm ${isActive ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white/70"}`}>
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${statusCls}`}>{statusLabel}</span>
-                                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-100">
-                                          {String(s.platform ?? "desktop")}
-                                        </span>
+                                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-100">{String(s.platform ?? "desktop")}</span>
                                         <span className="font-bold text-slate-900">{String(s.city ?? "—")}{s.country ? `, ${String(s.country)}` : ""}</span>
                                         <span className="font-mono text-xs text-slate-500">{String(s.ip_address ?? "")}</span>
                                       </div>
@@ -1735,10 +1881,11 @@ export default function AdminUserDetailPage() {
                                 })}
                               </div>
                             )}
-                            {filteredSessions.length > 10 && !showAllSecuritySessions ? (
-                              <button type="button" onClick={() => setShowAllSecuritySessions(true)}
-                                className="mt-3 text-sm font-black text-rose-700 hover:underline">
-                                Tümünü Göster ({filteredSessions.length - 10} daha)
+                            {hasDateFilter && userSessions.length < secSessTotal ? (
+                              <button type="button"
+                                onClick={() => { const next = secSessOffset + 25; setSecSessOffset(next); void fetchSecurityPaged({ eventsLimit: secEventsLimit, eventsOffset: secEventsOffset, sessLimit: 25, sessOffset: next, severity: securityEventFilter, dateFrom: securityDateFrom, dateTo: securityDateTo, appendSessions: true }); }}
+                                className="mt-3 rounded-xl border-2 border-rose-200 bg-white px-4 py-1.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
+                                Daha Fazla Yükle ({secSessTotal - userSessions.length} kaldı)
                               </button>
                             ) : null}
                           </>
@@ -1747,19 +1894,29 @@ export default function AdminUserDetailPage() {
 
                       {/* ── Güvenlik Olayları ─────────────────────────────── */}
                       {(() => {
-                        const filteredEvents = filterByDateRange(
-                          securityEvents.filter((e) => securityEventFilter === "all" || e.severity === securityEventFilter),
-                          securityDateFrom, securityDateTo,
-                        );
-                        const visibleEvents = showAllSecurityEvents ? filteredEvents : filteredEvents.slice(0, 10);
+                        const hasDateFilter = !!(securityDateFrom || securityDateTo);
                         return (
                           <div className="mt-6">
-                            <h3 className="text-base font-black text-slate-900">Güvenlik Olayları <span className="text-sm font-medium text-slate-400">({filteredEvents.length})</span></h3>
-                            {visibleEvents.length === 0 ? (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-base font-black text-slate-900">
+                                Güvenlik Olayları <span className="text-sm font-medium text-slate-400">({securityEvents.length}/{secEventsTotal})</span>
+                              </h3>
+                              {!hasDateFilter ? (
+                                <div className="flex gap-1">
+                                  {([5, 10, 25] as const).map((n) => (
+                                    <button key={n} type="button"
+                                      onClick={() => { setSecEventsLimit(n); void fetchSecurityPaged({ eventsLimit: n, eventsOffset: 0, sessLimit: secSessLimit, sessOffset: secSessOffset, severity: securityEventFilter, dateFrom: securityDateFrom, dateTo: securityDateTo }); }}
+                                      className={`rounded-lg px-2.5 py-1 text-[11px] font-black ring-1 transition ${secEventsLimit === n && secEventsOffset === 0 ? "bg-rose-600 text-white ring-rose-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-rose-300"}`}
+                                    >Son {n}</button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                            {securityEvents.length === 0 ? (
                               <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı güvenlik olayı yok.</p>
                             ) : (
                               <div className="mt-3 grid gap-2">
-                                {visibleEvents.map((ev) => (
+                                {securityEvents.map((ev) => (
                                   <div key={String(ev.id)} className={`rounded-xl border px-4 py-3 text-sm ${ev.severity === "high" ? "border-rose-300 bg-rose-50/80" : ev.severity === "medium" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-white/70"}`}>
                                     <div className="flex flex-wrap items-center gap-2">
                                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${ev.severity === "high" ? "bg-rose-100 text-rose-900 ring-rose-300" : ev.severity === "medium" ? "bg-amber-100 text-amber-900 ring-amber-300" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
@@ -1767,18 +1924,17 @@ export default function AdminUserDetailPage() {
                                       </span>
                                       <span className="font-bold text-slate-900">{String(ev.message ?? "")}</span>
                                     </div>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                      {String(ev.city ?? "—")}{ev.country ? `, ${String(ev.country)}` : ""} · IP: {String(ev.ip_address ?? "—")}
-                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">{String(ev.city ?? "—")}{ev.country ? `, ${String(ev.country)}` : ""} · IP: {String(ev.ip_address ?? "—")}</p>
                                     <p className="mt-0.5 text-xs text-slate-400">{new Date(String(ev.created_at)).toLocaleString("tr-TR")}</p>
                                   </div>
                                 ))}
                               </div>
                             )}
-                            {filteredEvents.length > 10 && !showAllSecurityEvents ? (
-                              <button type="button" onClick={() => setShowAllSecurityEvents(true)}
-                                className="mt-3 text-sm font-black text-rose-700 hover:underline">
-                                Tümünü Göster ({filteredEvents.length - 10} daha)
+                            {hasDateFilter && securityEvents.length < secEventsTotal ? (
+                              <button type="button"
+                                onClick={() => { const next = secEventsOffset + 25; setSecEventsOffset(next); void fetchSecurityPaged({ eventsLimit: 25, eventsOffset: next, sessLimit: secSessLimit, sessOffset: secSessOffset, severity: securityEventFilter, dateFrom: securityDateFrom, dateTo: securityDateTo, appendEvents: true }); }}
+                                className="mt-3 rounded-xl border-2 border-rose-200 bg-white px-4 py-1.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
+                                Daha Fazla Yükle ({secEventsTotal - securityEvents.length} kaldı)
                               </button>
                             ) : null}
                           </div>
@@ -1809,7 +1965,7 @@ export default function AdminUserDetailPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-black text-sky-950 sm:text-xl">
                     Aktif Cihazlar & Güvenlik Özeti
-                    {activeSessionsLoaded && activeSessionsSummary ? (
+                    {activeSessionsSummary ? (
                       <span className="ml-2 text-sm font-medium text-sky-600">
                         ({Number(activeSessionsSummary.totalActive ?? 0)} aktif cihaz)
                       </span>
@@ -1829,6 +1985,19 @@ export default function AdminUserDetailPage() {
                     {activeSessionsLoading ? <Loader2 className="inline h-3 w-3 animate-spin" aria-hidden /> : "Yenile"}
                   </button>
                 ) : null}
+                {/* Limit/lokasyon uyarı badge'leri (her zaman görünür) */}
+                {activeSessionsSummary ? (() => {
+                  const s   = activeSessionsSummary;
+                  const lim = (s.limits ?? {}) as Record<string, number>;
+                  const limitOver = Number(s.totalFresh ?? 0) > (lim.allowedActiveSessions ?? 2);
+                  const locOver   = Number(s.distinctLocations ?? 0) > (lim.allowedLocations ?? 1);
+                  return (
+                    <>
+                      {limitOver ? <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800 ring-1 ring-rose-300">Limit Aşıldı</span> : null}
+                      {locOver   ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-300">Şüpheli Konum</span> : null}
+                    </>
+                  );
+                })() : null}
                 <ChevronDown className={`h-6 w-6 shrink-0 text-sky-700 transition-transform ${showActiveSessions ? "rotate-180" : ""}`} aria-hidden />
               </button>
 
@@ -1883,19 +2052,19 @@ export default function AdminUserDetailPage() {
                         <input
                           type="date"
                           value={devicesDateFrom}
-                          onChange={(e) => { setDevicesDateFrom(e.target.value); setShowAllSessions(false); }}
+                          onChange={(e) => { setDevicesDateFrom(e.target.value); setShowActiveSessions(false); }}
                           className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
                         />
                         <span className="text-xs text-slate-400">—</span>
                         <input
                           type="date"
                           value={devicesDateTo}
-                          onChange={(e) => { setDevicesDateTo(e.target.value); setShowAllSessions(false); }}
+                          onChange={(e) => { setDevicesDateTo(e.target.value); setShowActiveSessions(false); }}
                           className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
                         />
                         {(devicesDateFrom || devicesDateTo) ? (
                           <button type="button"
-                            onClick={() => { setDevicesDateFrom(""); setDevicesDateTo(""); setShowAllSessions(false); }}
+                            onClick={() => { setDevicesDateFrom(""); setDevicesDateTo(""); setShowActiveSessions(false); }}
                             className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200">
                             Temizle
                           </button>
@@ -1918,16 +2087,27 @@ export default function AdminUserDetailPage() {
                           if (lower.includes("opera") || lower.includes("opr/")) return "Opera";
                           return "Tarayıcı";
                         }
-                        const filtered = filterByDateRange(activeSessions, devicesDateFrom, devicesDateTo, "last_seen_at");
-                        const visible  = showAllSessions ? filtered : filtered.slice(0, 10);
+                        const hasDateFilter = !!(devicesDateFrom || devicesDateTo);
                         return (
                           <div className="mt-4">
-                            <h3 className="text-base font-black text-slate-900">Oturumlar <span className="text-sm font-medium text-slate-400">({filtered.length})</span></h3>
-                            {visible.length === 0 ? (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-base font-black text-slate-900">Oturumlar <span className="text-sm font-medium text-slate-400">({activeSessions.length}/{actSessTotal})</span></h3>
+                              {!hasDateFilter ? (
+                                <div className="flex gap-1">
+                                  {([5, 10, 25] as const).map((n) => (
+                                    <button key={n} type="button"
+                                      onClick={() => { void fetchActiveSessionsPaged({ limit: n, offset: 0, dateFrom: devicesDateFrom, dateTo: devicesDateTo }); }}
+                                      className={`rounded-lg px-2.5 py-1 text-[11px] font-black ring-1 transition ${actSessLimit === n && actSessOffset === 0 ? "bg-sky-600 text-white ring-sky-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-sky-300"}`}
+                                    >Son {n}</button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                            {activeSessions.length === 0 ? (
                               <p className="mt-2 text-sm font-medium text-slate-500">Oturum yok.</p>
                             ) : (
                               <div className="mt-3 grid gap-2">
-                                {visible.map((s) => {
+                                {activeSessions.map((s: Record<string, unknown>) => {
                                   const isActive  = s.is_active === true;
                                   const platform  = String(s.platform  ?? "desktop");
                                   const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
@@ -1979,10 +2159,11 @@ export default function AdminUserDetailPage() {
                                 })}
                               </div>
                             )}
-                            {filtered.length > 10 && !showAllSessions ? (
-                              <button type="button" onClick={() => setShowAllSessions(true)}
-                                className="mt-3 text-sm font-black text-sky-700 hover:underline">
-                                Tümünü Göster ({filtered.length - 10} daha)
+                            {hasDateFilter && activeSessions.length < actSessTotal ? (
+                              <button type="button"
+                                onClick={() => { void fetchActiveSessionsPaged({ limit: 25, offset: actSessOffset + 25, dateFrom: devicesDateFrom, dateTo: devicesDateTo, append: true }); }}
+                                className="mt-3 rounded-xl border-2 border-sky-200 bg-white px-4 py-1.5 text-sm font-black text-sky-700 transition hover:bg-sky-50">
+                                Daha Fazla Yükle ({actSessTotal - activeSessions.length} kaldı)
                               </button>
                             ) : null}
                           </div>

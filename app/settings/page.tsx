@@ -443,9 +443,12 @@ function ExportTab({ user }: { user: YasamUser }) {
 
   return (
     <div className="space-y-4 max-w-lg">
-      <p className="text-sm text-slate-600">
-        Her modülün verilerini Word (.docx) formatında indirebilirsiniz.
-      </p>
+      <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3">
+        <p className="text-xs font-semibold text-sky-800">
+          📄 Word dışa aktarım <strong>okunabilir özet rapordur</strong> — sınırlı kolonları içerir.
+          Eksiksiz ve geri yüklenebilir sistem yedeği için <strong>Sistem Yedeği</strong> sekmesini kullanın.
+        </p>
+      </div>
 
       {mobile && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -522,18 +525,30 @@ function BackupTab({ user }: { user: YasamUser }) {
     <div className="space-y-5 max-w-sm">
       <div className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
         <FileJson className="h-10 w-10 text-slate-400 mb-3" />
-        <h3 className="text-base font-bold text-slate-900">Sistem Yedeği</h3>
+        <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — Eksiksiz JSON</h3>
         <p className="mt-1.5 text-sm text-slate-600">
-          Tüm verilerinizi tek bir JSON dosyası olarak indirin. Bu dosya geri yükleme için kullanılır.
+          Tüm modüllerdeki verilerinizi <strong>eksiksiz ve geri yüklenebilir</strong> JSON formatında indirin.
+          Word raporlarının aksine bu dosya tüm alanları içerir ve Geri Yükleme ile sisteme aktarılabilir.
         </p>
         <ul className="mt-3 space-y-1">
-          {["Danışan kayıtları", "Doğaltaş verileri", "Analiz geçmişi", "Dijital içerikler"].map((item) => (
+          {[
+            "Danışan yolculuğu (7 tablo)",
+            "Numeroloji kayıtları (3 tablo)",
+            "Human Design (4 tablo)",
+            "Doğaltaş & Stok (4 tablo)",
+            "Biyoenerji (6 tablo)",
+            "Refleksoloji, Aromaterapi, Şifa Rehberi",
+            "Dijital içerik metadata (2 tablo)",
+          ].map((item) => (
             <li key={item} className="flex items-center gap-2 text-xs text-slate-500">
               <Check className="h-3 w-3 shrink-0 text-emerald-500" />
               {item}
             </li>
           ))}
         </ul>
+        <p className="mt-2 text-[11px] text-slate-400 italic">
+          Storage dosyaları (resim, ses, belge) dahil değildir — yalnızca veritabanı kayıtları.
+        </p>
         <button
           type="button"
           onClick={handleBackup}

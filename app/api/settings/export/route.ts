@@ -23,49 +23,61 @@ type ModuleDef = {
   columns: { key: string; label: string }[];
 };
 
+/**
+ * Word export — okunabilir özet rapor.
+ * Eksiksiz geri yüklenebilir yedek için /api/settings/backup kullanılmalıdır.
+ *
+ * Numeroloji: gerçek tablo adı "numerology_records" (eski "numerology_analyses" yanlıştı).
+ */
 const MODULE_DEFS: Record<ModuleKey, ModuleDef> = {
   clients: {
     label: "Danışan Yolculuğu",
     table: "clients",
     columns: [
       { key: "full_name", label: "Ad Soyad" },
-      { key: "phone", label: "Telefon" },
-      { key: "email", label: "E-posta" },
-      { key: "birth_date", label: "Doğum Tarihi" },
-      { key: "notes", label: "Notlar" },
-      { key: "created_at", label: "Kayıt Tarihi" },
+      { key: "ad",        label: "Ad"        },
+      { key: "soyad",     label: "Soyad"     },
+      { key: "telefon",   label: "Telefon"   },
+      { key: "phone",     label: "Telefon"   },
+      { key: "email",     label: "E-posta"   },
+      { key: "dogum",     label: "Doğum"     },
+      { key: "birth_date",label: "Doğum Tarihi" },
+      { key: "notes",     label: "Notlar"    },
+      { key: "created_at",label: "Kayıt Tarihi" },
     ],
   },
   stones: {
     label: "Doğaltaş",
     table: "stones",
     columns: [
-      { key: "name", label: "Taş Adı" },
-      { key: "category", label: "Kategori" },
-      { key: "color", label: "Renk" },
-      { key: "properties", label: "Özellikler" },
-      { key: "notes", label: "Notlar" },
+      { key: "name",       label: "Taş Adı"   },
+      { key: "category",   label: "Kategori"  },
+      { key: "color",      label: "Renk"      },
+      { key: "properties", label: "Özellikler"},
+      { key: "notes",      label: "Notlar"    },
       { key: "created_at", label: "Kayıt Tarihi" },
     ],
   },
   numerology: {
-    label: "Yaşam Analiz Merkezi",
-    table: "numerology_analyses",
+    label: "Yaşam Analiz Merkezi (Numeroloji)",
+    table: "numerology_records",   // ← düzeltildi: eskisi "numerology_analyses" idi
     columns: [
-      { key: "name", label: "İsim" },
-      { key: "surname", label: "Soyisim" },
-      { key: "birth_date", label: "Doğum Tarihi" },
-      { key: "created_at", label: "Analiz Tarihi" },
+      { key: "name",       label: "İsim"        },
+      { key: "surname",    label: "Soyisim"     },
+      { key: "birth_date", label: "Doğum Tarihi"},
+      { key: "created_at", label: "Analiz Tarihi"},
     ],
   },
   digital_content: {
     label: "Dijital İçerik Merkezi",
     table: "personal_archives",
     columns: [
-      { key: "title", label: "Başlık" },
-      { key: "content_type", label: "Tür" },
-      { key: "description", label: "Açıklama" },
-      { key: "created_at", label: "Eklenme Tarihi" },
+      { key: "title",        label: "Başlık"       },
+      { key: "content_type", label: "Tür"          },
+      { key: "category",     label: "Kategori"     },
+      { key: "description",  label: "Açıklama"     },
+      { key: "note",         label: "Not"          },
+      { key: "created_at",   label: "Eklenme Tarihi"},
     ],
   },
 };
@@ -75,6 +87,18 @@ function fmtCell(val: unknown): string {
   if (typeof val === "string") return val.trim() || "—";
   if (typeof val === "number" || typeof val === "boolean") return String(val);
   return JSON.stringify(val);
+}
+
+// Kolonun değeri boş olan satırlardaki tüm kolonlarda "—" göstermemek için
+// gerçek değeri olan kolonları filtrele
+function getEffectiveColumns(
+  rows: Record<string, unknown>[],
+  columns: { key: string; label: string }[],
+): { key: string; label: string }[] {
+  // Tabloda gerçekte var olan kolon anahtarlarını belirle (ilk 5 satıra bak)
+  const sample = rows.slice(0, 5);
+  const presentKeys = new Set(sample.flatMap((r) => Object.keys(r)));
+  return columns.filter((c) => presentKeys.has(c.key));
 }
 
 function makeHeaderRow(columns: { key: string; label: string }[]): TableRow {
@@ -118,6 +142,8 @@ function makeDataRow(
 
 /**
  * POST /api/settings/export
+ * Modül bazlı okunabilir Word özet raporu üretir.
+ * Eksiksiz yedek için JSON backup kullanılmalıdır.
  * Body: { module: ModuleKey }
  * Header: x-user-id
  * Returns: DOCX binary
@@ -147,6 +173,11 @@ export async function POST(req: NextRequest) {
   const rows = (data ?? []) as Record<string, unknown>[];
   const dateStr = new Date().toLocaleDateString("tr-TR");
 
+  // Tabloda gerçekte hangi kolonlar var, sadece onları göster
+  const effectiveCols = rows.length > 0
+    ? getEffectiveColumns(rows, def.columns)
+    : def.columns;
+
   const doc = new Document({
     sections: [
       {
@@ -156,7 +187,7 @@ export async function POST(req: NextRequest) {
             alignment: AlignmentType.CENTER,
             children: [
               new TextRun({
-                text: `${def.label} — Dışa Aktarım`,
+                text: `${def.label} — Özet Rapor`,
                 bold: true,
                 size: 36,
                 font: "Calibri",
@@ -165,13 +196,25 @@ export async function POST(req: NextRequest) {
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
             children: [
               new TextRun({
                 text: `Oluşturma tarihi: ${dateStr}  ·  Toplam kayıt: ${rows.length}`,
                 size: 20,
                 font: "Calibri",
                 color: "64748b",
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 },
+            children: [
+              new TextRun({
+                text: "Bu rapor okunabilir özet içerir. Eksiksiz sistem yedeği için Ayarlar > Sistem Yedeği sekmesini kullanın.",
+                size: 18,
+                font: "Calibri",
+                color: "94a3b8",
+                italics: true,
               }),
             ],
           }),
@@ -188,12 +231,24 @@ export async function POST(req: NextRequest) {
                   ],
                 }),
               ]
-            : [
+            : effectiveCols.length > 0
+            ? [
                 new Table({
                   width: { size: 100, type: WidthType.PERCENTAGE },
                   rows: [
-                    makeHeaderRow(def.columns),
-                    ...rows.map((r) => makeDataRow(r, def.columns)),
+                    makeHeaderRow(effectiveCols),
+                    ...rows.map((r) => makeDataRow(r, effectiveCols)),
+                  ],
+                }),
+              ]
+            : [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${rows.length} kayıt mevcut. Detaylar için Sistem Yedeği (JSON) indirin.`,
+                      size: 22,
+                      font: "Calibri",
+                    }),
                   ],
                 }),
               ]),
@@ -210,7 +265,7 @@ export async function POST(req: NextRequest) {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="${slug}-rapor-${dateFn}.docx"`,
+      "Content-Disposition": `attachment; filename="${slug}-ozet-rapor-${dateFn}.docx"`,
     },
   });
 }
