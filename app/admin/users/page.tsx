@@ -237,7 +237,7 @@ function PaymentBadge({ status, label }: { status: PaymentStatusUi; label: strin
   );
 }
 
-function CompactUserRow({ user }: { user: ManagedUser }) {
+function CompactUserRow({ user, suspiciousCount }: { user: ManagedUser; suspiciousCount: number }) {
   return (
     <article
       className={`flex flex-col gap-4 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-violet-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5 ${
@@ -245,9 +245,23 @@ function CompactUserRow({ user }: { user: ManagedUser }) {
       }`}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-black text-slate-900 sm:text-lg">
-          {user.fullName}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-base font-black text-slate-900 sm:text-lg">
+            {user.fullName}
+          </p>
+          {suspiciousCount > 0 ? (
+            <span
+              title={`${suspiciousCount} şüpheli güvenlik olayı`}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
+                suspiciousCount >= 3
+                  ? "bg-rose-100 text-rose-900 ring-rose-300"
+                  : "bg-amber-100 text-amber-900 ring-amber-300"
+              }`}
+            >
+              ⚠ {suspiciousCount}
+            </span>
+          ) : null}
+        </div>
         <p className="truncate text-sm font-medium text-slate-600">{user.email}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <RoleBadge role={user.role} />
@@ -300,6 +314,7 @@ export default function AdminUsersPage() {
   const [allowed, setAllowed] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [suspiciousCounts, setSuspiciousCounts] = useState<Record<string, number>>({});
   const [listLoading, setListLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<CreateForm>(emptyCreateForm);
@@ -346,9 +361,13 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const json = (await res.json()) as { users: Record<string, unknown>[] };
+    const json = (await res.json()) as {
+      users: Record<string, unknown>[];
+      suspiciousCounts?: Record<string, number>;
+    };
     const mapped = (json.users ?? []).map((row) => mapDbUser(row));
     setUsers(sortUsersForAdmin(mapped));
+    setSuspiciousCounts(json.suspiciousCounts ?? {});
     setListLoading(false);
   }, [showToast]);
 
@@ -600,7 +619,7 @@ export default function AdminUsersPage() {
         ) : (
           <div className="grid gap-3">
             {filteredUsers.map((user) => (
-              <CompactUserRow key={user.id} user={user} />
+              <CompactUserRow key={user.id} user={user} suspiciousCount={suspiciousCounts[user.id] ?? 0} />
             ))}
           </div>
         )}

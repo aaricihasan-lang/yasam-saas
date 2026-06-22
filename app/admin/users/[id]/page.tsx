@@ -442,6 +442,11 @@ export default function AdminUserDetailPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [showSecurityPanel, setShowSecurityPanel] = useState(false);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityLoaded, setSecurityLoaded] = useState(false);
+  const [securityEvents, setSecurityEvents] = useState<Record<string, unknown>[]>([]);
+  const [userSessions, setUserSessions] = useState<Record<string, unknown>[]>([]);
 
   function togglePaymentPanel() {
     setShowPaymentPanel((open) => {
@@ -459,6 +464,22 @@ export default function AdminUserDetailPage() {
     if (!res.ok) { setPaymentHistory([]); return; }
     const json = (await res.json()) as { history: Record<string, unknown>[] };
     setPaymentHistory((json.history ?? []).map((row) => mapPaymentHistoryRow(row)));
+  }, []);
+
+  const loadSecurityData = useCallback(async (uid: string, adminId: string) => {
+    setSecurityLoading(true);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/security-events`, {
+      headers: { "x-admin-id": adminId },
+    });
+    setSecurityLoading(false);
+    if (!res.ok) return;
+    const json = (await res.json()) as {
+      events:   Record<string, unknown>[];
+      sessions: Record<string, unknown>[];
+    };
+    setSecurityEvents(json.events ?? []);
+    setUserSessions(json.sessions ?? []);
+    setSecurityLoaded(true);
   }, []);
 
   const loadUser = useCallback(async (adminId: string) => {
@@ -1394,6 +1415,144 @@ export default function AdminUserDetailPage() {
                   Admin hesapları için modül izni tanımı gerekmez.
                 </p>
               )}
+            </section>
+
+            {/* ── Güvenlik Paneli ────────────────────────────────────────── */}
+            <section className={`${panelClass} border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white to-orange-50/60`}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!showSecurityPanel && !securityLoaded) {
+                    void loadSecurityData(user.id, currentAdminId);
+                  }
+                  setShowSecurityPanel((o) => !o);
+                }}
+                className="flex w-full items-center gap-4 rounded-2xl border-2 border-rose-200/90 bg-white/80 px-4 py-4 text-left shadow-sm transition hover:border-rose-300 hover:bg-rose-50/60 sm:px-5"
+                aria-expanded={showSecurityPanel}
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-orange-600 text-white shadow-md">
+                  <Shield className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-black text-rose-950 sm:text-xl">
+                    Güvenlik & Oturum Geçmişi
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium text-rose-900/75">
+                    Şüpheli girişler, konum değişimleri ve aktif oturumlar
+                  </p>
+                </div>
+                <ChevronDown
+                  className={`h-6 w-6 shrink-0 text-rose-700 transition-transform ${showSecurityPanel ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </button>
+
+              {showSecurityPanel ? (
+                <div className="mt-5 border-t border-rose-200/70 pt-5">
+                  {securityLoading ? (
+                    <div className="flex items-center justify-center gap-3 py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-rose-500" aria-hidden />
+                      <span className="font-bold text-slate-600">Yükleniyor…</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Yüksek riskli olay uyarısı */}
+                      {securityEvents.filter((e) => e.severity === "high" || e.severity === "medium").length >= 3 ? (
+                        <div className="mb-5 rounded-2xl border-2 border-rose-300 bg-rose-50 px-5 py-4">
+                          <p className="text-base font-black text-rose-900">
+                            ⚠ Bu hesapta {securityEvents.filter((e) => e.severity === "high" || e.severity === "medium").length} adet şüpheli güvenlik olayı tespit edildi.
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-rose-800">
+                            Hesap paylaşımı veya yetkisiz erişim söz konusu olabilir.
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {/* Son oturumlar */}
+                      <h3 className="text-base font-black text-slate-900">Son Oturumlar</h3>
+                      {userSessions.length === 0 ? (
+                        <p className="mt-2 text-sm font-medium text-slate-500">Henüz oturum kaydı yok.</p>
+                      ) : (
+                        <div className="mt-3 grid gap-2">
+                          {userSessions.map((s) => (
+                            <div
+                              key={String(s.id)}
+                              className={`rounded-xl border px-4 py-3 text-sm ${
+                                s.is_active
+                                  ? "border-emerald-200 bg-emerald-50/70"
+                                  : "border-slate-200 bg-white/70"
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                {s.is_active ? (
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 ring-1 ring-emerald-200">
+                                    Aktif
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
+                                    Kapandı
+                                  </span>
+                                )}
+                                <span className="font-bold text-slate-900">
+                                  {String(s.city ?? "—")}{s.country ? `, ${String(s.country)}` : ""}
+                                </span>
+                                <span className="text-slate-500">{String(s.ip_address ?? "")}</span>
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Giriş: {new Date(String(s.created_at)).toLocaleString("tr-TR")}
+                                {s.ended_at ? ` · Kapandı: ${new Date(String(s.ended_at)).toLocaleString("tr-TR")}` : ""}
+                                {s.end_reason ? ` (${String(s.end_reason)})` : ""}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Güvenlik olayları */}
+                      <h3 className="mt-6 text-base font-black text-slate-900">Güvenlik Olayları</h3>
+                      {securityEvents.length === 0 ? (
+                        <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı güvenlik olayı yok.</p>
+                      ) : (
+                        <div className="mt-3 grid gap-2">
+                          {securityEvents.map((ev) => (
+                            <div
+                              key={String(ev.id)}
+                              className={`rounded-xl border px-4 py-3 text-sm ${
+                                ev.severity === "high"
+                                  ? "border-rose-300 bg-rose-50/80"
+                                  : ev.severity === "medium"
+                                    ? "border-amber-200 bg-amber-50/70"
+                                    : "border-slate-200 bg-white/70"
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
+                                    ev.severity === "high"
+                                      ? "bg-rose-100 text-rose-900 ring-rose-300"
+                                      : ev.severity === "medium"
+                                        ? "bg-amber-100 text-amber-900 ring-amber-300"
+                                        : "bg-slate-100 text-slate-700 ring-slate-200"
+                                  }`}
+                                >
+                                  {ev.severity === "high" ? "Yüksek Risk" : ev.severity === "medium" ? "Şüpheli" : "Düşük"}
+                                </span>
+                                <span className="font-bold text-slate-900">{String(ev.message ?? "")}</span>
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {String(ev.city ?? "—")}{ev.country ? `, ${String(ev.country)}` : ""} · IP: {String(ev.ip_address ?? "—")}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                {new Date(String(ev.created_at)).toLocaleString("tr-TR")}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : null}
             </section>
 
             <section className={`${panelClass} border-slate-200/80 bg-slate-50/50`}>

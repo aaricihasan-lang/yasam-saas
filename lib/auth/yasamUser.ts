@@ -42,6 +42,7 @@ export const PENDING_APPROVAL_MESSAGE =
   "Hesabınız yönetici onayı bekliyor.";
 
 const STORAGE_KEY = "yasam_user";
+const SESSION_TOKEN_KEY = "yasam_session_token";
 
 /** Aynı oturumda tekrarlayan users SELECT'lerini sınırla */
 const USER_SYNC_TTL_MS = 90_000;
@@ -216,9 +217,25 @@ export function saveYasamUser(user: YasamUser): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
 }
 
+export function saveSessionToken(token: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SESSION_TOKEN_KEY, token);
+}
+
+export function readSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+export function clearSessionToken(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
 export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
+  clearSessionToken();
   invalidateYasamUserSyncCache();
   // Admin httpOnly cookie'yi temizle (fire-and-forget, tüm logout noktalarını kapsar)
   void fetch("/api/auth/admin-session", { method: "DELETE" }).catch(() => {});

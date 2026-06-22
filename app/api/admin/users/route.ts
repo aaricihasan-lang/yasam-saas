@@ -12,16 +12,29 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { db } = guard;
 
-  const { data, error } = await db
-    .from("users")
-    .select(USERS_SAFE_SELECT)
-    .order("created_at", { ascending: false });
+  const [usersResult, eventsResult] = await Promise.all([
+    db
+      .from("users")
+      .select(USERS_SAFE_SELECT)
+      .order("created_at", { ascending: false }),
+    db
+      .from("security_events")
+      .select("user_id, severity")
+      .in("severity", ["medium", "high"]),
+  ]);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (usersResult.error) {
+    return NextResponse.json({ error: usersResult.error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ users: data ?? [] });
+  // user_id → şüpheli olay sayısı
+  const suspiciousCounts: Record<string, number> = {};
+  for (const ev of eventsResult.data ?? []) {
+    const uid = ev.user_id as string;
+    suspiciousCounts[uid] = (suspiciousCounts[uid] ?? 0) + 1;
+  }
+
+  return NextResponse.json({ users: usersResult.data ?? [], suspiciousCounts });
 }
 
 /** POST /api/admin/users — yeni kullanıcı oluştur */

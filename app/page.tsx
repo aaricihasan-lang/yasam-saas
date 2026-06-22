@@ -13,8 +13,10 @@ import {
   parseLoginUserRecord,
   readYasamUser,
   saveYasamUser,
+  saveSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
@@ -602,6 +604,18 @@ export default function Home() {
   const loginModalRef = useRef<HTMLDivElement>(null);
   const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
 
+  useSessionGuard({
+    user,
+    onSessionInvalid: () => {
+      clearYasamUser();
+      setUser(null);
+      setLoginModalOpen(true);
+      setMessage(
+        "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
+      );
+    },
+  });
+
   const closeLoginModal = () => {
     setLoginModalOpen(false);
   };
@@ -967,12 +981,44 @@ export default function Home() {
       return;
     }
 
+    // Oturum kaydı oluştur (güvenlik kontrolü + eski oturumları kapat)
+    let isSuspiciousLogin = false;
+    try {
+      const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: loggedUser.id }),
+      });
+      if (sessionRes.ok) {
+        const sessionJson = (await sessionRes.json()) as {
+          sessionToken?: string;
+          suspiciousLogin?: boolean;
+          highRisk?: boolean;
+        };
+        if (typeof sessionJson.sessionToken === "string") {
+          saveSessionToken(sessionJson.sessionToken);
+        }
+        isSuspiciousLogin = !!(sessionJson.suspiciousLogin || sessionJson.highRisk);
+      }
+    } catch {
+      // Oturum API hatası giriş akışını durdurmamalı
+    }
+
     setUser(loggedUser);
     setLoginModalOpen(false);
     setEmail("");
     setPassword("");
     setMessage("");
     setLoading(false);
+
+    if (isSuspiciousLogin) {
+      showToast({
+        title: "Güvenlik Uyarısı",
+        message:
+          "Hesabınız farklı bir konumdan kullanılıyor olabilir. Şifrenizi yenilemeniz önerilir.",
+        type: "warning",
+      });
+    }
 
     if (isAdminUser(loggedUser)) {
       // Admin httpOnly session cookie set et (server-side doğrulama ile)
