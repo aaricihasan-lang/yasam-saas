@@ -597,7 +597,7 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
             {blok.title}
           </p>
           {i < 4 ? (
-            <p className="text-xl font-black leading-none text-violet-700">{blok.body || "—"}</p>
+            <p className="whitespace-normal break-words text-xl font-black leading-tight text-violet-700">{blok.body || "—"}</p>
           ) : (
             <pre className="min-w-0 whitespace-pre-wrap rounded-md bg-slate-50/80 px-2 py-1 font-mono text-[11px] leading-[1.45] text-slate-700">
               {blok.body || "—"}

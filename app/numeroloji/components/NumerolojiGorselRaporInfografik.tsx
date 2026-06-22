@@ -1031,9 +1031,23 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" aria-hidden />
             <GorselKutuBaslik className="text-sm font-black tracking-[0.14em]">{label}</GorselKutuBaslik>
-            <p className="gorsel-kart-num mt-4 text-7xl font-black tabular-nums leading-none" style={{ color: "var(--gr-number)" }}>
-              {nrDisplay(r)}
-            </p>
+            {(() => {
+              const val = nrDisplay(r);
+              const numCls =
+                val.length <= 4
+                  ? "text-7xl leading-none"
+                  : val.length <= 8
+                    ? "text-5xl leading-tight"
+                    : "text-4xl leading-tight";
+              return (
+                <p
+                  className={`gorsel-kart-num mt-4 font-black tabular-nums whitespace-normal break-words ${numCls}`}
+                  style={{ color: "var(--gr-number)" }}
+                >
+                  {val}
+                </p>
+              );
+            })()}
             <div className="mx-auto mt-3 flex items-end justify-center opacity-75">
               <GorselNumeroSembol tip={tip} />
             </div>
