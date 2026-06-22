@@ -1115,16 +1115,36 @@ export default function Home() {
             >
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 shrink-0 text-base leading-none" aria-hidden>⚠️</span>
-                <div className="min-w-0 space-y-2">
-                  <p className="text-sm font-black leading-snug text-amber-900">
-                    Demo Hesabı — Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
-                  </p>
+                <div className="min-w-0 space-y-2.5">
+                  {/* Başlık */}
+                  <p className="text-sm font-black leading-none text-amber-900">Demo Hesabı</p>
+
+                  {/* Açıklama */}
                   <p className="text-xs font-medium leading-relaxed text-amber-800">
-                    Danışan ekleyebilir, not oluşturabilir, modülleri inceleyebilir ve kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz.
+                    Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
                   </p>
+
+                  {/* Madde listesi */}
+                  <ul className="space-y-0.5">
+                    {[
+                      "Danışan ekleyebilir",
+                      "Not oluşturabilir",
+                      "Modülleri inceleyebilir",
+                      "Kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-1.5 text-xs font-medium text-amber-800">
+                        <span className="mt-px shrink-0 text-amber-500" aria-hidden>•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Uyarı */}
                   <p className="text-xs font-medium leading-relaxed text-amber-700">
                     Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.
                   </p>
+
+                  {/* Çağrı */}
                   <p className="pt-0.5 text-xs font-black text-amber-900">
                     🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi&apos;nin uzmanlara sunduğu çalışma deneyimini keşfedin.
                   </p>
