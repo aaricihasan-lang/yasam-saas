@@ -1116,12 +1116,12 @@ export default function Home() {
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 shrink-0 text-base leading-none" aria-hidden>⚠️</span>
                 <div className="min-w-0 space-y-2.5">
-                  {/* Başlık */}
-                  <p className="text-sm font-black leading-none text-amber-900">Demo Hesabı</p>
-
-                  {/* Açıklama */}
-                  <p className="text-xs font-medium leading-relaxed text-amber-800">
-                    Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
+                  {/* Başlık + açıklama tek satır */}
+                  <p className="text-sm font-black leading-snug text-amber-900">
+                    Demo Hesabı{" "}
+                    <span className="font-medium text-amber-800">
+                      — Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
+                    </span>
                   </p>
 
                   {/* Madde listesi */}
