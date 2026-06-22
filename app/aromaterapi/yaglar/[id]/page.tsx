@@ -19,6 +19,8 @@ import {
   type OilFormData,
 } from "@/lib/aromaterapi/aromatherapyData";
 import { supabase } from "@/lib/supabase";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -98,6 +100,12 @@ const FIELD_META: Record<
   notes:      { label: "Ek Notlar", multiline: true },
   source:     { label: "Kaynak" },
 };
+
+// Demo hesapta içerikleri korunan sekmeler (kimlik sekmesi açık kalır)
+const DEMO_PROTECTED_TABS = new Set<DetailTabId>([
+  "botanik", "yag-ozellikleri", "kimyasal",
+  "ruhsal-duygusal", "kullanim", "uyumlu", "onlemler", "notlar",
+]);
 
 // Görünüm modunda tam genişlik (col-span-full) alacak alanlar.
 // Listede OLMAYAN kısa/tek satırlık alanlar 2-kolon grid'de yan yana yerleşir.
@@ -280,6 +288,8 @@ export default function OilDetailPage() {
 
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
   const isSharedContent = oil?.tenant_id === null;
+  const { isDemo } = useDemoGuard();
+  const isDemoTabProtected = isDemo && DEMO_PROTECTED_TABS.has(tab);
 
   const loadOil = useCallback(async () => {
     if (!id) { setNotFound(true); setLoading(false); return; }
@@ -508,7 +518,8 @@ export default function OilDetailPage() {
                 ) : null}
               </div>
 
-              {/* Sağ: aksiyon butonları */}
+              {/* Sağ: aksiyon butonları — demo hesapta gizli */}
+              {!isDemo && (
               <div className="flex shrink-0 flex-wrap items-center gap-1">
                 {isSharedContent ? (
                   <button type="button" onClick={() => void handleCopy()} disabled={copying}
@@ -539,6 +550,7 @@ export default function OilDetailPage() {
                   </>
                 )}
               </div>
+              )}
             </div>
           </div>
 
@@ -605,7 +617,7 @@ export default function OilDetailPage() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/50 text-2xl shadow-sm">📋</div>
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Bu bölümde kayıtlı bilgi yok</p>
-                {!isSharedContent ? (
+                {!isDemo && (!isSharedContent ? (
                   <button type="button" onClick={startEdit}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white transition hover:brightness-110">
                     ✏️ Düzenle
@@ -615,7 +627,7 @@ export default function OilDetailPage() {
                     className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12px] font-bold text-white shadow disabled:opacity-60 hover:brightness-110">
                     ✏️ Düzenle
                   </button>
-                )}
+                ))}
               </div>
 
             ) : editEnabled ? (
@@ -692,6 +704,7 @@ export default function OilDetailPage() {
 
             ) : (
               /* ── Görünüm modu — 2-kolon responsive grid ── */
+              <DemoGate isProtected={isDemoTabProtected}>
               <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
@@ -809,6 +822,7 @@ export default function OilDetailPage() {
                   );
                 })}
               </dl>
+              </DemoGate>
             )}
           </div>
         </section>
