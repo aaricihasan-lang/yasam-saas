@@ -1111,12 +1111,25 @@ export default function Home() {
           {user.is_demo_account ? (
             <div
               role="alert"
-              className="mb-4 flex items-start gap-3 rounded-[16px] border border-amber-300/80 bg-amber-50/90 px-4 py-3 shadow-sm"
+              className="mb-4 rounded-[16px] border border-amber-300/80 bg-amber-50/90 px-4 py-4 shadow-sm"
             >
-              <span className="mt-0.5 text-base leading-none" aria-hidden>⚠️</span>
-              <p className="text-xs font-semibold text-amber-800 leading-relaxed">
-                <span className="font-black">Demo Hesabı</span> — Bu hesap Yaşam Sistemi&apos;nin tanıtım ve test amaçlı sürümüdür. Yapılan işlemler kalıcı olmayabilir.
-              </p>
+              <div className="flex items-start gap-2.5">
+                <span className="mt-px shrink-0 text-sm leading-none" aria-hidden>⚠️</span>
+                <div className="min-w-0 space-y-1.5">
+                  <p className="text-xs font-black leading-snug text-amber-900 sm:text-[13px]">
+                    Demo Hesabı — Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
+                  </p>
+                  <p className="text-[11px] font-medium leading-relaxed text-amber-800 sm:text-xs">
+                    Danışan ekleyebilir, not oluşturabilir, modülleri inceleyebilir ve kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz.
+                  </p>
+                  <p className="text-[11px] font-medium leading-relaxed text-amber-700 sm:text-xs">
+                    Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda silinebilir.
+                  </p>
+                  <p className="text-[11px] font-semibold leading-snug text-amber-900 sm:text-xs">
+                    Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi&apos;nin uzmanlara sunduğu çalışma deneyimini keşfedin.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : null}
 
