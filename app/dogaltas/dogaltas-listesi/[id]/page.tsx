@@ -24,6 +24,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -599,6 +601,7 @@ function StoneDetailPage() {
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const { isDemo } = useDemoGuard();
 
   useEffect(() => {
     if (!id) return;
@@ -1200,7 +1203,7 @@ function StoneDetailPage() {
               {hasFilterContext ? "← Aramaya Dön" : "← Taş Listesi"}
             </Link>
 
-            {!isLibraryStone && (
+            {!isLibraryStone && !isDemo && (
               <button
                 type="button"
                 onClick={() => {
@@ -1224,16 +1227,18 @@ function StoneDetailPage() {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => void downloadWordReport()}
-              disabled={wordBusy}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
-            >
-              {wordBusy ? "⏳..." : "📄 Word"}
-            </button>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => void downloadWordReport()}
+                disabled={wordBusy}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+              >
+                {wordBusy ? "⏳..." : "📄 Word"}
+              </button>
+            )}
 
-            {!isLibraryStone && (
+            {!isLibraryStone && !isDemo && (
               <button
                 type="button"
                 onClick={() => void handleDeleteStoneTrigger()}
@@ -1429,6 +1434,8 @@ function StoneDetailPage() {
               )}
             </div>
 
+            <DemoGate isProtected={isDemo}>
+            <div className="space-y-3">
             <button
               type="button"
               onClick={() => openCheckboxEditor("chakras", "Çakralar", "ÇAKRA", CHAKRA_OPTIONS)}
@@ -1531,6 +1538,8 @@ function StoneDetailPage() {
                 )}
               </div>
             </button>
+            </div>
+            </DemoGate>
           </aside>
 
           <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1546,83 +1555,96 @@ function StoneDetailPage() {
               onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
             />
 
-            <TextBlock
-              title="Genel Taş Açıklaması"
-              badge="DETAYLI BİLGİ"
-              text={safeStone.general_info}
-              tone="cyan"
-              editEnabled={editEnabled}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.generalInfo}
-              onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
-              onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
-            />
-
-            <TextBlock
-              title="Kaynak Notu"
-              badge="KAYNAK"
-              text={safeStone.source_note}
-              tone="slate"
-              editEnabled={editEnabled}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.sourceNote}
-              onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
-              onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
-            />
-
-            <TextBlock
-              title="Fiziksel Etkiler"
-              badge="BEDENSEL ETKİ"
-              text={safeStone.physical_effects}
-              tone="emerald"
-              editEnabled={editEnabled}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.physicalEffects}
-              onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
-              onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
-            />
-
-            <TextBlock
-              title="Ruhsal Etkiler"
-              badge="RUHSAL ETKİ"
-              text={safeStone.spiritual_effects}
-              tone="violet"
-              editEnabled={editEnabled}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.spiritualEffects}
-              onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
-              onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
-            />
-
-            <TextBlock
-              title="Diğer Etkiler"
-              badge="TAMAMLAYICI NOT"
-              text={safeStone.other_effects}
-              tone="amber"
-              editEnabled={editEnabled}
-              highlightQuery={highlightQuery}
-              hasSearchMatch={sectionMatches?.otherEffects}
-              onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
-              onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
-            />
-
-            <div className="lg:col-span-2">
+            <DemoGate isProtected={isDemo}>
               <TextBlock
-                title="Uyarılar ve Hassasiyetler"
-                badge="KLİNİK NOT"
-                text={safeStone.warning_text}
-                tone="rose"
+                title="Genel Taş Açıklaması"
+                badge="DETAYLI BİLGİ"
+                text={safeStone.general_info}
+                tone="cyan"
                 editEnabled={editEnabled}
                 highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.warningText}
-                onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
-                onOpenRead={() =>
-                  openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
-                }
+                hasSearchMatch={sectionMatches?.generalInfo}
+                onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
+                onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
               />
+            </DemoGate>
+
+            <DemoGate isProtected={isDemo}>
+              <TextBlock
+                title="Kaynak Notu"
+                badge="KAYNAK"
+                text={safeStone.source_note}
+                tone="slate"
+                editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.sourceNote}
+                onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
+                onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
+              />
+            </DemoGate>
+
+            <DemoGate isProtected={isDemo}>
+              <TextBlock
+                title="Fiziksel Etkiler"
+                badge="BEDENSEL ETKİ"
+                text={safeStone.physical_effects}
+                tone="emerald"
+                editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.physicalEffects}
+                onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
+                onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
+              />
+            </DemoGate>
+
+            <DemoGate isProtected={isDemo}>
+              <TextBlock
+                title="Ruhsal Etkiler"
+                badge="RUHSAL ETKİ"
+                text={safeStone.spiritual_effects}
+                tone="violet"
+                editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.spiritualEffects}
+                onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
+                onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
+              />
+            </DemoGate>
+
+            <DemoGate isProtected={isDemo}>
+              <TextBlock
+                title="Diğer Etkiler"
+                badge="TAMAMLAYICI NOT"
+                text={safeStone.other_effects}
+                tone="amber"
+                editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.otherEffects}
+                onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
+                onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
+              />
+            </DemoGate>
+
+            <div className="lg:col-span-2">
+              <DemoGate isProtected={isDemo}>
+                <TextBlock
+                  title="Uyarılar ve Hassasiyetler"
+                  badge="KLİNİK NOT"
+                  text={safeStone.warning_text}
+                  tone="rose"
+                  editEnabled={editEnabled}
+                  highlightQuery={highlightQuery}
+                  hasSearchMatch={sectionMatches?.warningText}
+                  onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
+                  onOpenRead={() =>
+                    openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
+                  }
+                />
+              </DemoGate>
             </div>
 
-            <section className={`${uiInfoCard} lg:col-span-2`}>
+            <DemoGate isProtected={isDemo} className="lg:col-span-2">
+            <section className={uiInfoCard}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className={toneClass("cyan")}>KULLANIM ALANLARI</span>
                 <h2 className="text-sm font-black text-slate-950">Kullanım / Uygulama Notları</h2>
@@ -1691,6 +1713,7 @@ function StoneDetailPage() {
                 })}
               </div>
             </section>
+            </DemoGate>
           </section>
         </section>
       </div>
