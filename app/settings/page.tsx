@@ -771,6 +771,9 @@ export default function SettingsPage() {
   }
 
   const activeTabDef = TABS.find((t) => t.id === tab)!;
+  const isDemo = user.is_demo_account === true;
+  const DEMO_LOCKED_TABS: Tab[] = ["security", "export", "backup", "restore"];
+  const isDemoLockedTab = isDemo && DEMO_LOCKED_TABS.includes(tab);
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_50%,#fff8fb_100%)] text-slate-950 antialiased">
@@ -821,17 +824,38 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {isDemo && (
+          <div className="mb-4 flex items-start gap-3 rounded-[14px] border border-amber-300/80 bg-amber-50/90 px-4 py-3">
+            <span className="mt-0.5 text-base leading-none" aria-hidden>⚠️</span>
+            <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+              Demo hesabında yedekleme, geri yükleme, dışa aktarma ve şifre değiştirme işlemleri kapalıdır.
+            </p>
+          </div>
+        )}
+
         <div className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-6">
           <div className="mb-5 flex items-center gap-2.5">
             {(() => { const Icon = activeTabDef.icon; return <Icon className="h-5 w-5 text-violet-600" strokeWidth={2} />; })()}
             <h2 className="text-base font-black text-slate-900">{activeTabDef.label}</h2>
           </div>
 
-          {tab === "security"  && <SecurityTab user={user} />}
-          {tab === "contact"   && <ContactTab  user={user} />}
-          {tab === "export"    && <ExportTab   user={user} />}
-          {tab === "backup"    && <BackupTab   user={user} />}
-          {tab === "restore"   && <RestoreTab  user={user} />}
+          {isDemoLockedTab ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <Shield className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
+              <p className="text-sm font-bold text-slate-600">Bu işlem demo hesabında kapalıdır.</p>
+              <p className="text-xs text-slate-400 max-w-xs">
+                Yedekleme, geri yükleme, dışa aktarma ve şifre değiştirme yalnızca kayıtlı hesaplarda kullanılabilir.
+              </p>
+            </div>
+          ) : (
+            <>
+              {tab === "security"  && <SecurityTab user={user} />}
+              {tab === "contact"   && <ContactTab  user={user} />}
+              {tab === "export"    && <ExportTab   user={user} />}
+              {tab === "backup"    && <BackupTab   user={user} />}
+              {tab === "restore"   && <RestoreTab  user={user} />}
+            </>
+          )}
         </div>
       </div>
     </main>

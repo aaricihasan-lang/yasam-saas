@@ -1107,6 +1107,19 @@ export default function Home() {
 
         <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
 
+          {/* Demo Hesap Banneri */}
+          {user.is_demo_account ? (
+            <div
+              role="alert"
+              className="mb-4 flex items-start gap-3 rounded-[16px] border border-amber-300/80 bg-amber-50/90 px-4 py-3 shadow-sm"
+            >
+              <span className="mt-0.5 text-base leading-none" aria-hidden>⚠️</span>
+              <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+                <span className="font-black">Demo Hesabı</span> — Bu hesap Yaşam Sistemi&apos;nin tanıtım ve test amaçlı sürümüdür. Yapılan işlemler kalıcı olmayabilir.
+              </p>
+            </div>
+          ) : null}
+
           {/* ═══════════════════════════════════════════
                HERO
           ═══════════════════════════════════════════ */}

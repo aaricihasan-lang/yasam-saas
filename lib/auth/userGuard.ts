@@ -7,6 +7,7 @@ export type UserGuardOk = {
   userId: string;
   tenantId: string;
   email: string;
+  is_demo_account: boolean;
   db: SupabaseClient;
 };
 
@@ -43,7 +44,7 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
 
   const { data, error } = await db
     .from("users")
-    .select("id, tenant_id, email, active")
+    .select("id, tenant_id, email, active, is_demo_account")
     .eq("id", userId)
     .eq("active", true)
     .maybeSingle();
@@ -60,6 +61,7 @@ export async function verifyUserRequest(req: NextRequest): Promise<UserGuardResu
     userId,
     tenantId: String(data.tenant_id),
     email: String(data.email ?? ""),
+    is_demo_account: data.is_demo_account === true,
     db,
   };
 }

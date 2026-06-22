@@ -85,6 +85,12 @@ type BackupPayload = {
 export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { error: "Demo hesabında bu işlem kullanılamaz." },
+      { status: 403 },
+    );
+  }
   const { userId, tenantId, db } = guard;
 
   let body: { backup?: unknown };

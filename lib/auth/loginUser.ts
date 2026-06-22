@@ -3,7 +3,7 @@ import { clearYasamUser } from "@/lib/auth/yasamUser";
 
 // password kasıtlı olarak hariç tutulmuştur — şifre browser'a asla gelmemeli
 const LOGIN_LOOKUP_SELECT =
-  "id, email, full_name, name, role, tenant_id, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, status";
+  "id, email, full_name, name, role, tenant_id, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, status, is_demo_account";
 
 export type LoginAttemptResult = {
   rows: Record<string, unknown>[];

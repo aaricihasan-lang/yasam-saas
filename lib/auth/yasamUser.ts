@@ -33,6 +33,7 @@ export type YasamUser = {
   active?: boolean;
   module_permissions?: ModulePermissions;
   admin_level?: string;
+  is_demo_account?: boolean;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
@@ -114,6 +115,7 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
       r.membership_ends_at != null ? String(r.membership_ends_at).trim() : null,
     admin_level:
       r.admin_level != null ? String(r.admin_level).trim() : undefined,
+    is_demo_account: r.is_demo_account === true,
     approval_status: resolveApprovalStatus(r),
     active:
       parseActiveFlag(r.active) ??
@@ -272,7 +274,7 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
 }
 
 const USER_REFRESH_SELECT =
-  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status";
+  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account";
   // password ve password_hash kasıtlı olarak hariç tutulmuştur
 
 /** users tablosundan güncel kayıt (localStorage yerine kaynak doğruluk) */

@@ -12,6 +12,12 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { error: "Demo hesabında bu işlem kullanılamaz." },
+      { status: 403 },
+    );
+  }
   const { userId, email, db } = guard;
 
   const body = (await req.json()) as { oldPassword?: unknown; newPassword?: unknown };

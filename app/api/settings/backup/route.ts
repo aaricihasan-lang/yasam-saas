@@ -79,6 +79,12 @@ type BackupTable = (typeof BACKUP_TABLES)[number];
 export async function GET(req: NextRequest) {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { error: "Demo hesabında bu işlem kullanılamaz." },
+      { status: 403 },
+    );
+  }
   const { tenantId, db } = guard;
 
   const result: Partial<Record<BackupTable, unknown[]>> & {
