@@ -1111,22 +1111,22 @@ export default function Home() {
           {user.is_demo_account ? (
             <div
               role="alert"
-              className="mb-4 rounded-[16px] border border-amber-300/80 bg-amber-50/90 px-4 py-4 shadow-sm"
+              className="mb-5 rounded-2xl border border-amber-300/70 bg-gradient-to-br from-amber-50 to-yellow-50/80 px-5 py-4 shadow-sm"
             >
-              <div className="flex items-start gap-2.5">
-                <span className="mt-px shrink-0 text-sm leading-none" aria-hidden>⚠️</span>
-                <div className="min-w-0 space-y-1.5">
-                  <p className="text-xs font-black leading-snug text-amber-900 sm:text-[13px]">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 shrink-0 text-base leading-none" aria-hidden>⚠️</span>
+                <div className="min-w-0 space-y-2">
+                  <p className="text-sm font-black leading-snug text-amber-900">
                     Demo Hesabı — Yaşam Sistemi&apos;ni gerçek kullanım deneyimine en yakın şekilde test edebilirsiniz.
                   </p>
-                  <p className="text-[11px] font-medium leading-relaxed text-amber-800 sm:text-xs">
+                  <p className="text-xs font-medium leading-relaxed text-amber-800">
                     Danışan ekleyebilir, not oluşturabilir, modülleri inceleyebilir ve kayıt süreçlerinin nasıl çalıştığını deneyebilirsiniz.
                   </p>
-                  <p className="text-[11px] font-medium leading-relaxed text-amber-700 sm:text-xs">
-                    Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda silinebilir.
+                  <p className="text-xs font-medium leading-relaxed text-amber-700">
+                    Bu hesapta oluşturulan kayıtlar yalnızca deneme amaçlıdır ve kalıcı değildir. Oturum sonlandığında veya belirli süre sonunda otomatik olarak silinir.
                   </p>
-                  <p className="text-[11px] font-semibold leading-snug text-amber-900 sm:text-xs">
-                    Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi&apos;nin uzmanlara sunduğu çalışma deneyimini keşfedin.
+                  <p className="pt-0.5 text-xs font-black text-amber-900">
+                    🚀 Hadi ilk kaydınızı oluşturun ve Yaşam Sistemi&apos;nin uzmanlara sunduğu çalışma deneyimini keşfedin.
                   </p>
                 </div>
               </div>
