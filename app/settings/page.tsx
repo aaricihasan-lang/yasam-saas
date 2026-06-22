@@ -793,9 +793,10 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mb-5 overflow-x-auto">
-          <div className="flex min-w-max gap-1.5 rounded-2xl border border-white/70 bg-white/60 p-1.5 shadow-sm backdrop-blur-md">
-            {TABS.map((t) => {
+        {/* Mobile: 2-sütun grid (wrap); md+: yatay flex */}
+        <div className="mb-5">
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/70 bg-white/60 p-1.5 shadow-sm backdrop-blur-md md:flex">
+            {TABS.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
               return (
@@ -803,11 +804,14 @@ export default function SettingsPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-150 whitespace-nowrap ${
+                  className={[
+                    "flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all duration-150",
+                    "md:px-3 md:whitespace-nowrap",
+                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:w-auto" : "",
                     isActive
                       ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
-                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
-                  }`}
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900",
+                  ].filter(Boolean).join(" ")}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
                   {t.label}
