@@ -43,10 +43,14 @@ const EMPTY_NOTES: KnowledgeNotesForAnalysis = {
   element: [],
 };
 
-/** "19/2" → ["19/2", "19", "2"] sırasıyla, tekrarsız */
+/** "19/2" → ["19/2", "19", "2"] sırasıyla, tekrarsız.
+ *  Parantezli formattan ("33/6 (22/11/6)") çekirdek ("33/6") çıkarılarak işlenir. */
 export function valueCandidatesFromDisplay(display: string): string[] {
   const text = (display || "").trim();
   if (!text) return [];
+
+  // Parantezli ek gösterimi lookup öncesi çıkar: "33/6 (22/11/6)" → "33/6"
+  const core = text.replace(/\s*\(.*\)$/, "").trim();
 
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -58,10 +62,10 @@ export function valueCandidatesFromDisplay(display: string): string[] {
     ordered.push(v);
   };
 
-  add(text);
+  add(core);
 
-  if (text.includes("/")) {
-    for (const part of text.split("/")) {
+  if (core.includes("/")) {
+    for (const part of core.split("/")) {
       add(part);
     }
   }
