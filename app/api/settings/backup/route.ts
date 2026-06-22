@@ -4,20 +4,15 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 export const runtime = "nodejs";
 
 /**
- * Yedek kapsamındaki tablolar.
+ * Yedek kapsamındaki tablolar — tenant_id üzerinden doğrudan filtre uygulanabilenler.
  *
- * Hariç tutulanlar ve nedenleri:
- *  - aromatherapy_reference_rows → tenant_id yok; sheet_id FK ile erişim gerekiyor (V3)
- *  - stone_exclusions            → UI tercihi, iş verisi değil (text tenant_id, farklı PK)
- *  - hacamat_rules               → Global admin tablosu, tenant_id yok
- *  - human_design_knowledge      → Semi-global kütüphane (tenant_id IS NULL kayıtlar da var)
- *  - stone_knowledge_articles    → Admin kütüphanesi, paylaşımlı
- *  - stone_knowledge_categories  → Admin kütüphanesi, paylaşımlı
- *  - belge_ceviri_jobs           → Geçici iş kaydı, kalıcı veri değil
- *  - user_sessions               → Güvenlik logları / aktif oturum yönetimi
- *  - security_events             → Güvenlik logları
- *  - client_stone_photos         → Storage bucket dosyaları (V3)
- *  - personal_archive_files içerik → Storage bucket (V3)
+ * Hariç tutulanlar:
+ *  - aromatherapy_reference_rows  → tenant_id yok; sheet_id JOIN ile ayrı sorgu (aşağıda)
+ *  - stone_exclusions             → UI tercihi, iş verisi değil
+ *  - hacamat_rules                → Global admin tablosu, tenant_id yok
+ *  - belge_ceviri_jobs            → Geçici iş kaydı
+ *  - user_sessions / security_events → Güvenlik logları
+ *  - stone_knowledge_*            → Admin kütüphanesi, paylaşımlı
  */
 const BACKUP_TABLES = [
   // ── Danışan Yolculuğu ───────────────────────────────────────────────────────
@@ -46,7 +41,7 @@ const BACKUP_TABLES = [
   "combinations",
   "dogaltas_inventory",
 
-  // ── Dijital İçerik (metadata; dosya içerikleri storage'da) ──────────────────
+  // ── Dijital İçerik ───────────────────────────────────────────────────────────
   "personal_archives",
   "personal_archive_files",
 
@@ -65,11 +60,12 @@ const BACKUP_TABLES = [
   "aromatherapy_oils",
   "aromatherapy_knowledge_articles",
   "aromatherapy_reference_sheets",
+  // aromatherapy_reference_rows → ayrı JOIN sorgusu (aşağıda)
 
   // ── Şifa Rehberi ─────────────────────────────────────────────────────────────
   "healing_guides",
 
-  // ── Destek Mesajları (iletişim kaydı; restore'a dahil değil) ─────────────────
+  // ── Destek Mesajları (restore'a dahil değil) ─────────────────────────────────
   "support_messages",
 ] as const;
 
@@ -85,8 +81,11 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { tenantId, db } = guard;
 
-  const result: Partial<Record<BackupTable, unknown[]>> = {};
+  const result: Partial<Record<BackupTable, unknown[]>> & {
+    aromatherapy_reference_rows?: unknown[];
+  } = {};
 
+  // Faz 1 — tenant_id ile doğrudan filtre uygulanabilen tablolar
   await Promise.allSettled(
     BACKUP_TABLES.map(async (table) => {
       const { data } = await db
@@ -98,11 +97,30 @@ export async function GET(req: NextRequest) {
     }),
   );
 
+  // Faz 2 — aromatherapy_reference_rows: tenant_id yok, sheet_id üzerinden JOIN
+  const sheets = (result["aromatherapy_reference_sheets"] ?? []) as Record<
+    string,
+    unknown
+  >[];
+  const sheetIds = sheets.map((s) => s.id as string).filter(Boolean);
+
+  if (sheetIds.length > 0) {
+    const { data: rowsData } = await db
+      .from("aromatherapy_reference_rows")
+      .select("*")
+      .in("sheet_id", sheetIds)
+      .order("row_index", { ascending: true })
+      .limit(5000);
+    result["aromatherapy_reference_rows"] = rowsData ?? [];
+  } else {
+    result["aromatherapy_reference_rows"] = [];
+  }
+
   const payload = {
-    version: "2.0",
+    version: "2.1",
     exported_at: new Date().toISOString(),
     tenant_id: tenantId,
-    table_count: BACKUP_TABLES.length,
+    table_count: BACKUP_TABLES.length + 1, // +1 for aromatherapy_reference_rows
     tables: result,
   };
 
