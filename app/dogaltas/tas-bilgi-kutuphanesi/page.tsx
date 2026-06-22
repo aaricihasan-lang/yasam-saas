@@ -13,6 +13,8 @@ import { ADMIN_LIBRARY_TENANT_ID, getSyncedTenantId } from "@/lib/auth/sessionTe
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useToast } from "@/components/ui/ToastProvider";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -273,6 +275,16 @@ export default function TasBilgiKutuphanesiPage() {
   const [editForm, setEditForm] = useState({ title: "", category: "", sub_category: "", content: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  // Toplu işlem
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
+  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
+  const [bulkUpdateForm, setBulkUpdateForm] = useState({ category: "", sub_category: "" });
+  const [bulkUpdateBusy, setBulkUpdateBusy] = useState(false);
+  const [bulkUpdateError, setBulkUpdateError] = useState("");
+
+  const deleteConfirm = useDeleteConfirm();
+  const { showToast } = useToast();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
   const katMap = useMemo(() => {
@@ -596,6 +608,114 @@ export default function TasBilgiKutuphanesiPage() {
     setIsEditing(false);
   }
 
+  // ─── Toplu seçim ────────────────────────────────────────────────────────────
+
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(filtered.map((r) => r.id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    if (!ids.length || bulkDeleteBusy || !tenantId) return;
+
+    const ok = await deleteConfirm({
+      title: "Kayıtları Kalıcı Olarak Sil",
+      message: `${ids.length} kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+    });
+    if (!ok) return;
+
+    setBulkDeleteBusy(true);
+    try {
+      const { data: deleted, error } = await supabase
+        .from("stone_knowledge_articles")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .in("id", ids)
+        .select("id");
+
+      if (error) {
+        showToast({ type: "error", message: `Silme başarısız: ${error.message}` });
+        return;
+      }
+
+      const deletedSet = new Set((deleted ?? []).map((r: { id: string }) => r.id));
+      setArticles((prev) => prev.filter((a) => !deletedSet.has(a.id)));
+      clearSelection();
+
+      const count = deletedSet.size;
+      const skipped = ids.length - count;
+      showToast({
+        type: "success",
+        message: skipped > 0
+          ? `${count} kayıt silindi. ${skipped} kütüphane kaydı atlandı.`
+          : `${count} kayıt başarıyla silindi.`,
+      });
+    } finally {
+      setBulkDeleteBusy(false);
+    }
+  }
+
+  async function handleBulkUpdate() {
+    const ids = [...selectedIds];
+    if (!ids.length || bulkUpdateBusy || !tenantId) return;
+
+    const updates: Partial<{ category: string; sub_category: string }> = {};
+    if (bulkUpdateForm.category.trim()) updates.category = bulkUpdateForm.category.trim();
+    if (bulkUpdateForm.sub_category.trim()) updates.sub_category = bulkUpdateForm.sub_category.trim();
+
+    if (!Object.keys(updates).length) {
+      setBulkUpdateError("En az bir alan doldurulmalıdır.");
+      return;
+    }
+
+    setBulkUpdateBusy(true);
+    setBulkUpdateError("");
+    try {
+      const { data: updated, error } = await supabase
+        .from("stone_knowledge_articles")
+        .update(updates)
+        .eq("tenant_id", tenantId)
+        .in("id", ids)
+        .select("id, category, sub_category");
+
+      if (error) {
+        setBulkUpdateError("Güncelleme hatası: " + error.message);
+        return;
+      }
+
+      if (updated?.length) {
+        const uMap = new Map(
+          (updated as { id: string; category: string; sub_category: string }[]).map((r) => [r.id, r])
+        );
+        setArticles((prev) =>
+          [...prev.map((a) => {
+            const u = uMap.get(a.id);
+            return u ? { ...a, category: u.category ?? a.category, sub_category: u.sub_category ?? a.sub_category } : a;
+          })].sort((a, b) => trSort(a.title, b.title))
+        );
+      }
+
+      clearSelection();
+      setShowBulkUpdateModal(false);
+      setBulkUpdateForm({ category: "", sub_category: "" });
+      showToast({ type: "success", message: `${updated?.length ?? 0} kayıt güncellendi.` });
+    } finally {
+      setBulkUpdateBusy(false);
+    }
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -869,6 +989,67 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           </div>
 
+          {/* Toplu işlem çubuğu */}
+          {!loading && filtered.length > 0 && (
+            <div className="shrink-0 border-b border-slate-100 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {selectedIds.size === 0 ? (
+                  <>
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                      Seçim yok
+                    </span>
+                    <button
+                      type="button"
+                      onClick={selectAll}
+                      disabled={bulkDeleteBusy || bulkUpdateBusy}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Tümünü Seç ({filtered.length})
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="rounded-full border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-800">
+                      ✓ {selectedIds.size} seçili
+                    </span>
+                    <button
+                      type="button"
+                      onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
+                      disabled={bulkDeleteBusy || bulkUpdateBusy}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {selectedIds.size >= filtered.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      disabled={bulkDeleteBusy || bulkUpdateBusy}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Seçimi Kaldır
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleBulkDelete()}
+                      disabled={bulkDeleteBusy || bulkUpdateBusy}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      {bulkDeleteBusy ? "Siliniyor…" : `Seçili Sil (${selectedIds.size})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowBulkUpdateModal(true); setBulkUpdateError(""); setBulkUpdateForm({ category: "", sub_category: "" }); }}
+                      disabled={bulkDeleteBusy || bulkUpdateBusy}
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      Seçili Güncelle ({selectedIds.size})
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Liste */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
@@ -883,35 +1064,46 @@ export default function TasBilgiKutuphanesiPage() {
             ) : (
               <div className="py-1">
                 {filtered.map((rec) => {
-                  const isSelected = rec.id === selectedId;
+                  const isActive = rec.id === selectedId;
+                  const isBulkSelected = selectedIds.has(rec.id);
                   const cfg = katConfig(rec.category);
                   const matchCount = matchCounts.get(rec.id) ?? 0;
                   return (
-                    <button key={rec.id} type="button" onClick={() => selectArticle(rec.id)}
-                      className={`mx-2 mb-0.5 flex w-[calc(100%-16px)] items-start gap-3 rounded-xl px-3 py-3 text-left transition-all
-                        ${isSelected ? "shadow-md" : "hover:bg-slate-50"}`}
-                      style={isSelected ? { background: cfg.color } : undefined}>
-                      <span className="mt-0.5 shrink-0 text-base leading-none">{cfg.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className={`text-sm font-bold leading-snug ${isSelected ? "text-white" : "text-slate-900"}`}>
-                          {rec.title}
-                        </div>
-                        <div className={`mt-0.5 flex items-center gap-2 text-[11px] font-semibold ${isSelected ? "text-white/70" : "text-slate-400"}`}>
-                          <span>{rec.category}</span>
-                          {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
-                        </div>
-                        {isSearchActive && viewed.has(rec.id) && (
-                          <div className={`mt-0.5 text-[11px] font-semibold ${isSelected ? "text-white/55" : "text-rose-400/80"}`}>
-                            ✓ Bakıldı
+                    <div key={rec.id} className="mx-2 mb-0.5 flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={isBulkSelected}
+                        onChange={(e) => { e.stopPropagation(); toggleSelection(rec.id); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 shrink-0 rounded border-slate-300 accent-emerald-600"
+                      />
+                      <button type="button" onClick={() => selectArticle(rec.id)}
+                        className={`flex flex-1 items-start gap-3 rounded-xl px-3 py-3 text-left transition-all
+                          ${isActive ? "shadow-md" : "hover:bg-slate-50"}
+                          ${isBulkSelected && !isActive ? "ring-2 ring-blue-200 ring-offset-1" : ""}`}
+                        style={isActive ? { background: cfg.color } : undefined}>
+                        <span className="mt-0.5 shrink-0 text-base leading-none">{cfg.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-sm font-bold leading-snug ${isActive ? "text-white" : "text-slate-900"}`}>
+                            {rec.title}
                           </div>
+                          <div className={`mt-0.5 flex items-center gap-2 text-[11px] font-semibold ${isActive ? "text-white/70" : "text-slate-400"}`}>
+                            <span>{rec.category}</span>
+                            {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
+                          </div>
+                          {isSearchActive && viewed.has(rec.id) && (
+                            <div className={`mt-0.5 text-[11px] font-semibold ${isActive ? "text-white/55" : "text-rose-400/80"}`}>
+                              ✓ Bakıldı
+                            </div>
+                          )}
+                        </div>
+                        {isSearchActive && matchCount > 0 && (
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${isActive ? "bg-white/25 text-white" : "bg-yellow-100 text-yellow-800"}`}>
+                            {matchCount}
+                          </span>
                         )}
-                      </div>
-                      {isSearchActive && matchCount > 0 && (
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${isSelected ? "bg-white/25 text-white" : "bg-yellow-100 text-yellow-800"}`}>
-                          {matchCount}
-                        </span>
-                      )}
-                    </button>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1252,6 +1444,81 @@ export default function TasBilgiKutuphanesiPage() {
                 className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
               >
                 {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toplu güncelleme modal */}
+      {showBulkUpdateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-950">Toplu Güncelleme</h2>
+              <button
+                type="button"
+                onClick={() => { setShowBulkUpdateModal(false); setBulkUpdateError(""); }}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-500">
+              {selectedIds.size} kayıt için ortak alanları güncelleyin.
+              Boş bırakılan alan değişmez.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-black text-slate-700">Kategori</label>
+                <select
+                  value={bulkUpdateForm.category}
+                  onChange={(e) => setBulkUpdateForm((f) => ({ ...f, category: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">— Değiştirme —</option>
+                  {dropdownCategories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-black text-slate-700">Alt Kategori</label>
+                <input
+                  value={bulkUpdateForm.sub_category}
+                  onChange={(e) => setBulkUpdateForm((f) => ({ ...f, sub_category: e.target.value }))}
+                  placeholder="Boş bırakılırsa değişmez"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+            </div>
+
+            {bulkUpdateError && (
+              <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {bulkUpdateError}
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowBulkUpdateModal(false); setBulkUpdateError(""); }}
+                disabled={bulkUpdateBusy}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                İptal
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleBulkUpdate()}
+                disabled={bulkUpdateBusy}
+                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+              >
+                {bulkUpdateBusy ? "Güncelleniyor…" : "Güncelle"}
               </button>
             </div>
           </div>
