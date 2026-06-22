@@ -18,6 +18,8 @@ import {
   type HealingGuideSectionRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { supabase } from "@/lib/supabase";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 type GuideImage = {
   id: string;
@@ -385,6 +387,9 @@ export default function SifaRehberiDetailPage() {
   );
 
   const useSectionView = sections.length > 0 && !editEnabled;
+  const { isDemo } = useDemoGuard();
+  // Section view → tüm uzman içerik korumalı. Legacy tab → ilk sekme (rahatsizlik) açık, kalanlar korumalı.
+  const isDemoContentProtected = isDemo && (useSectionView || tab !== "rahatsizlik");
 
   const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
 
@@ -787,6 +792,8 @@ export default function SifaRehberiDetailPage() {
               ) : null}
             </div>
 
+            {/* Araç çubuğu — demo hesapta gizli */}
+            {!isDemo && (
             <div className={detailToolbarWrap}>
               <button
                 type="button"
@@ -819,6 +826,7 @@ export default function SifaRehberiDetailPage() {
                 Sil
               </button>
             </div>
+            )}
           </div>
         </header>
 
@@ -961,6 +969,7 @@ export default function SifaRehberiDetailPage() {
                 </div>
               ) : null}
 
+              <DemoGate isProtected={isDemoContentProtected}>
               <div className="mt-3 space-y-3">
                 {useSectionView ? (
                   sectionsInActiveTab.length === 0 ? (
@@ -1044,6 +1053,7 @@ export default function SifaRehberiDetailPage() {
                   })
                 )}
               </div>
+              </DemoGate>
             </div>
           </div>
         </section>
