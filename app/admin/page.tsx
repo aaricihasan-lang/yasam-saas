@@ -10,6 +10,7 @@ import {
   Database,
   FileJson,
   LogOut,
+  MessageSquare,
   Package,
   Settings,
   Shield,
@@ -181,6 +182,17 @@ const adminCards: AdminCard[] = [
       iconWrap: "from-slate-500 to-slate-700",
       cardBg: "from-slate-50/90 via-white to-slate-100/70",
       border: "border-slate-200/70",
+    },
+  },
+  {
+    title: "Destek Mesajları",
+    desc: "Uzmanlardan gelen mesaj ve destek talepleri.",
+    href: "/admin/support",
+    Icon: MessageSquare,
+    theme: {
+      iconWrap: "from-violet-500 to-violet-700",
+      cardBg: "from-violet-50/90 via-white to-slate-50/80",
+      border: "border-violet-200/70",
     },
   },
   {

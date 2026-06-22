@@ -8,12 +8,17 @@ import {
   Banknote,
   ChevronDown,
   Eye,
+  Filter,
+  HelpCircle,
   Home,
   KeyRound,
   Loader2,
+  Monitor,
   Package,
   Pencil,
   Shield,
+  Smartphone,
+  Tablet,
   Trash2,
   UserCheck,
   Users,
@@ -454,10 +459,22 @@ export default function AdminUserDetailPage() {
   const [userSessions, setUserSessions] = useState<Record<string, unknown>[]>([]);
   const [licenseDraft, setLicenseDraft] = useState<LicenseSettings>(DEFAULT_LICENSE_SETTINGS);
   const [savingLicense, setSavingLicense] = useState(false);
+  const [showLicenseHelp, setShowLicenseHelp] = useState(false);
   const [activeSessions, setActiveSessions] = useState<Record<string, unknown>[]>([]);
   const [activeSessionsLoading, setActiveSessionsLoading] = useState(false);
+  const [activeSessionsLoaded, setActiveSessionsLoaded] = useState(false);
   const [activeSessionsSummary, setActiveSessionsSummary] = useState<Record<string, unknown> | null>(null);
+  const [showActiveSessions, setShowActiveSessions] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [devicesDateFrom, setDevicesDateFrom] = useState("");
+  const [devicesDateTo, setDevicesDateTo] = useState("");
   const [terminatingSessionId, setTerminatingSessionId] = useState<string | null>(null);
+  const [showAllSecurityEvents, setShowAllSecurityEvents] = useState(false);
+  const [showAllSecuritySessions, setShowAllSecuritySessions] = useState(false);
+  const [securityEventFilter, setSecurityEventFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [securityDatePreset, setSecurityDatePreset] = useState<"all" | "today" | "7d" | "30d" | "custom">("all");
+  const [securityDateFrom, setSecurityDateFrom] = useState("");
+  const [securityDateTo, setSecurityDateTo] = useState("");
 
   function togglePaymentPanel() {
     setShowPaymentPanel((open) => {
@@ -531,7 +548,11 @@ export default function AdminUserDetailPage() {
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
     setNotFound(false);
     setLoading(false);
-    void loadActiveSessions(mapped.id, adminId);
+    setActiveSessionsLoaded(false);
+    setShowActiveSessions(false);
+    setShowAllSessions(false);
+    setShowAllSecurityEvents(false);
+    setShowAllSecuritySessions(false);
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -837,6 +858,8 @@ export default function AdminUserDetailPage() {
     };
     setActiveSessions(json.sessions ?? []);
     setActiveSessionsSummary(json.summary ?? null);
+    setActiveSessionsLoaded(true);
+    setShowAllSessions(false);
   }
 
   async function terminateSession(sessionId: string) {
@@ -854,6 +877,51 @@ export default function AdminUserDetailPage() {
     }
     showToast({ title: "Başarılı", message: "Oturum sonlandırıldı.", type: "success" });
     await loadActiveSessions(user.id, currentAdminId);
+  }
+
+  // ── Yardımcı hesaplama fonksiyonları ─────────────────────────────────────
+
+  function computeSecurityScore(events: Record<string, unknown>[]): "green" | "yellow" | "red" {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recent = events.filter((e) => new Date(String(e.created_at ?? "")).getTime() > cutoff);
+    const high   = recent.filter((e) => e.severity === "high").length;
+    const med    = recent.filter((e) => e.severity === "medium").length;
+    if (high >= 2 || med >= 6) return "red";
+    if (high >= 1 || med >= 2) return "yellow";
+    return "green";
+  }
+
+  function filterByDateRange<T extends Record<string, unknown>>(
+    items: T[], from: string, to: string, key = "created_at",
+  ): T[] {
+    if (!from && !to) return items;
+    const fromMs = from ? new Date(from + "T00:00:00").getTime() : 0;
+    const toMs   = to   ? new Date(to + "T23:59:59").getTime()   : Infinity;
+    return items.filter((item) => {
+      const d = new Date(String(item[key] ?? "")).getTime();
+      return d >= fromMs && d <= toMs;
+    });
+  }
+
+  function applySecurityDatePreset(preset: "today" | "7d" | "30d") {
+    const now  = new Date();
+    const pad  = (n: number) => String(n).padStart(2, "0");
+    const fmt  = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const today = fmt(now);
+    if (preset === "today") {
+      setSecurityDateFrom(today); setSecurityDateTo(today);
+    } else if (preset === "7d") {
+      setSecurityDateFrom(fmt(new Date(now.getTime() - 7 * 86400000))); setSecurityDateTo(today);
+    } else {
+      setSecurityDateFrom(fmt(new Date(now.getTime() - 30 * 86400000))); setSecurityDateTo(today);
+    }
+    setSecurityDatePreset(preset);
+    setShowAllSecurityEvents(false);
+    setShowAllSecuritySessions(false);
+  }
+
+  function clearSecurityDateFilter() {
+    setSecurityDateFrom(""); setSecurityDateTo(""); setSecurityDatePreset("all");
   }
 
   if (!sessionChecked) {
@@ -1493,7 +1561,7 @@ export default function AdminUserDetailPage() {
               )}
             </section>
 
-            {/* ── Güvenlik Paneli ────────────────────────────────────────── */}
+            {/* ── Güvenlik & Oturum Geçmişi ──────────────────────────────── */}
             <section className={`${panelClass} border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white to-orange-50/60`}>
               <button
                 type="button"
@@ -1514,9 +1582,20 @@ export default function AdminUserDetailPage() {
                     Güvenlik & Oturum Geçmişi
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-rose-900/75">
-                    Şüpheli girişler, konum değişimleri ve aktif oturumlar
+                    Şüpheli girişler, konum değişimleri ve oturum kayıtları
                   </p>
                 </div>
+                {securityLoaded ? (
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ring-1 ${
+                    computeSecurityScore(securityEvents) === "red"
+                      ? "bg-rose-100 text-rose-900 ring-rose-300"
+                      : computeSecurityScore(securityEvents) === "yellow"
+                        ? "bg-amber-100 text-amber-900 ring-amber-300"
+                        : "bg-emerald-100 text-emerald-900 ring-emerald-300"
+                  }`}>
+                    {computeSecurityScore(securityEvents) === "red" ? "Riskli" : computeSecurityScore(securityEvents) === "yellow" ? "Dikkat" : "Normal"}
+                  </span>
+                ) : null}
                 <ChevronDown
                   className={`h-6 w-6 shrink-0 text-rose-700 transition-transform ${showSecurityPanel ? "rotate-180" : ""}`}
                   aria-hidden
@@ -1532,99 +1611,179 @@ export default function AdminUserDetailPage() {
                     </div>
                   ) : (
                     <>
-                      {/* Yüksek riskli olay uyarısı */}
-                      {securityEvents.filter((e) => e.severity === "high" || e.severity === "medium").length >= 3 ? (
-                        <div className="mb-5 rounded-2xl border-2 border-rose-300 bg-rose-50 px-5 py-4">
-                          <p className="text-base font-black text-rose-900">
-                            ⚠ Bu hesapta {securityEvents.filter((e) => e.severity === "high" || e.severity === "medium").length} adet şüpheli güvenlik olayı tespit edildi.
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-rose-800">
-                            Hesap paylaşımı veya yetkisiz erişim söz konusu olabilir.
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {/* Son oturumlar */}
-                      <h3 className="text-base font-black text-slate-900">Son Oturumlar</h3>
-                      {userSessions.length === 0 ? (
-                        <p className="mt-2 text-sm font-medium text-slate-500">Henüz oturum kaydı yok.</p>
-                      ) : (
-                        <div className="mt-3 grid gap-2">
-                          {userSessions.map((s) => (
-                            <div
-                              key={String(s.id)}
-                              className={`rounded-xl border px-4 py-3 text-sm ${
-                                s.is_active
-                                  ? "border-emerald-200 bg-emerald-50/70"
-                                  : "border-slate-200 bg-white/70"
-                              }`}
-                            >
-                              <div className="flex flex-wrap items-center gap-2">
-                                {s.is_active ? (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 ring-1 ring-emerald-200">
-                                    Aktif
-                                  </span>
-                                ) : (
-                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600 ring-1 ring-slate-200">
-                                    Kapandı
-                                  </span>
-                                )}
-                                <span className="font-bold text-slate-900">
-                                  {String(s.city ?? "—")}{s.country ? `, ${String(s.country)}` : ""}
-                                </span>
-                                <span className="text-slate-500">{String(s.ip_address ?? "")}</span>
-                              </div>
-                              <p className="mt-1 text-xs text-slate-500">
-                                Giriş: {new Date(String(s.created_at)).toLocaleString("tr-TR")}
-                                {s.ended_at ? ` · Kapandı: ${new Date(String(s.ended_at)).toLocaleString("tr-TR")}` : ""}
-                                {s.end_reason ? ` (${String(s.end_reason)})` : ""}
+                      {/* ── Güvenlik Puan Kartı ────────────────────────────── */}
+                      {(() => {
+                        const score = computeSecurityScore(securityEvents);
+                        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+                        const recent = securityEvents.filter((e) => new Date(String(e.created_at ?? "")).getTime() > cutoff);
+                        const high = recent.filter((e) => e.severity === "high").length;
+                        const med  = recent.filter((e) => e.severity === "medium").length;
+                        const scoreConfig = {
+                          green:  { label: "Normal",  bg: "from-emerald-50 to-teal-50",  border: "border-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
+                          yellow: { label: "Dikkat",  bg: "from-amber-50 to-orange-50",  border: "border-amber-200",  text: "text-amber-900",  dot: "bg-amber-500"  },
+                          red:    { label: "Riskli",  bg: "from-rose-50 to-red-50",      border: "border-rose-300",   text: "text-rose-900",   dot: "bg-rose-500"   },
+                        }[score];
+                        return (
+                          <div className={`mb-5 flex flex-wrap items-center gap-4 rounded-2xl border-2 bg-gradient-to-br p-4 ${scoreConfig.bg} ${scoreConfig.border}`}>
+                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${scoreConfig.dot} text-white shadow-md`}>
+                              <Shield className="h-6 w-6" aria-hidden />
+                            </div>
+                            <div className="flex-1">
+                              <p className={`text-lg font-black ${scoreConfig.text}`}>Güvenlik Durumu: {scoreConfig.label}</p>
+                              <p className="text-sm font-medium text-slate-600">
+                                Son 30 günde: {high} yüksek risk · {med} şüpheli olay
                               </p>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                            {(high >= 3 || med >= 6) ? (
+                              <p className="text-sm font-black text-rose-800">Hesap paylaşımı riski olabilir.</p>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
 
-                      {/* Güvenlik olayları */}
-                      <h3 className="mt-6 text-base font-black text-slate-900">Güvenlik Olayları</h3>
-                      {securityEvents.length === 0 ? (
-                        <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı güvenlik olayı yok.</p>
-                      ) : (
-                        <div className="mt-3 grid gap-2">
-                          {securityEvents.map((ev) => (
-                            <div
-                              key={String(ev.id)}
-                              className={`rounded-xl border px-4 py-3 text-sm ${
-                                ev.severity === "high"
-                                  ? "border-rose-300 bg-rose-50/80"
-                                  : ev.severity === "medium"
-                                    ? "border-amber-200 bg-amber-50/70"
-                                    : "border-slate-200 bg-white/70"
-                              }`}
+                      {/* ── Filtre Araç Çubuğu ────────────────────────────── */}
+                      <div className="mb-4 space-y-3">
+                        {/* Önem seviyesi filtresi */}
+                        <div className="flex flex-wrap gap-2">
+                          <span className="flex items-center gap-1 text-xs font-black text-slate-500"><Filter className="h-3 w-3" /> Filtre:</span>
+                          {(["all", "high", "medium", "low"] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => { setSecurityEventFilter(f); setShowAllSecurityEvents(false); }}
+                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityEventFilter === f
+                                ? "bg-rose-600 text-white ring-rose-600"
+                                : "bg-white text-slate-700 ring-slate-200 hover:ring-rose-300"}`}
                             >
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
-                                    ev.severity === "high"
-                                      ? "bg-rose-100 text-rose-900 ring-rose-300"
-                                      : ev.severity === "medium"
-                                        ? "bg-amber-100 text-amber-900 ring-amber-300"
-                                        : "bg-slate-100 text-slate-700 ring-slate-200"
-                                  }`}
-                                >
-                                  {ev.severity === "high" ? "Yüksek Risk" : ev.severity === "medium" ? "Şüpheli" : "Düşük"}
-                                </span>
-                                <span className="font-bold text-slate-900">{String(ev.message ?? "")}</span>
-                              </div>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {String(ev.city ?? "—")}{ev.country ? `, ${String(ev.country)}` : ""} · IP: {String(ev.ip_address ?? "—")}
-                              </p>
-                              <p className="mt-0.5 text-xs text-slate-400">
-                                {new Date(String(ev.created_at)).toLocaleString("tr-TR")}
-                              </p>
-                            </div>
+                              {f === "all" ? "Tümü" : f === "high" ? "Yüksek Risk" : f === "medium" ? "Şüpheli" : "Bilgilendirme"}
+                            </button>
                           ))}
                         </div>
-                      )}
+                        {/* Tarih filtresi */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(["today", "7d", "30d"] as const).map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => applySecurityDatePreset(p)}
+                              className={`rounded-full px-3 py-1 text-[11px] font-black ring-1 transition ${securityDatePreset === p
+                                ? "bg-indigo-600 text-white ring-indigo-600"
+                                : "bg-white text-slate-700 ring-slate-200 hover:ring-indigo-300"}`}
+                            >
+                              {p === "today" ? "Bugün" : p === "7d" ? "Son 7 Gün" : "Son 30 Gün"}
+                            </button>
+                          ))}
+                          <input
+                            type="date"
+                            value={securityDateFrom}
+                            onChange={(e) => { setSecurityDateFrom(e.target.value); setSecurityDatePreset("custom"); setShowAllSecurityEvents(false); }}
+                            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                          />
+                          <span className="text-xs text-slate-400">—</span>
+                          <input
+                            type="date"
+                            value={securityDateTo}
+                            onChange={(e) => { setSecurityDateTo(e.target.value); setSecurityDatePreset("custom"); setShowAllSecurityEvents(false); }}
+                            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                          />
+                          {(securityDateFrom || securityDateTo) ? (
+                            <button type="button" onClick={clearSecurityDateFilter}
+                              className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200">
+                              Temizle
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* ── Son Oturumlar ─────────────────────────────────── */}
+                      {(() => {
+                        const END_REASON_LABELS: Record<string, string> = {
+                          stale: "Pasife düştü", new_login: "Yeni giriş",
+                          session_limit: "Oturum limiti", admin_terminated: "Admin sonlandırdı",
+                        };
+                        const filteredSessions = filterByDateRange(userSessions, securityDateFrom, securityDateTo);
+                        const visibleSessions  = showAllSecuritySessions ? filteredSessions : filteredSessions.slice(0, 10);
+                        return (
+                          <>
+                            <h3 className="text-base font-black text-slate-900">Son Oturumlar <span className="text-sm font-medium text-slate-400">({filteredSessions.length})</span></h3>
+                            {visibleSessions.length === 0 ? (
+                              <p className="mt-2 text-sm font-medium text-slate-500">Oturum kaydı yok.</p>
+                            ) : (
+                              <div className="mt-3 grid gap-2">
+                                {visibleSessions.map((s) => {
+                                  const isActive = s.is_active === true;
+                                  const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
+                                  const statusLabel = isActive ? "Aktif" : endReason === "Admin sonlandırdı" ? "Sonlandırıldı" : "Pasif";
+                                  const statusCls = isActive ? "bg-emerald-100 text-emerald-900 ring-emerald-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
+                                  return (
+                                    <div key={String(s.id)} className={`rounded-xl border px-4 py-3 text-sm ${isActive ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white/70"}`}>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${statusCls}`}>{statusLabel}</span>
+                                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-100">
+                                          {String(s.platform ?? "desktop")}
+                                        </span>
+                                        <span className="font-bold text-slate-900">{String(s.city ?? "—")}{s.country ? `, ${String(s.country)}` : ""}</span>
+                                        <span className="font-mono text-xs text-slate-500">{String(s.ip_address ?? "")}</span>
+                                      </div>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        Giriş: {new Date(String(s.created_at)).toLocaleString("tr-TR")}
+                                        {s.ended_at ? ` · Kapandı: ${new Date(String(s.ended_at)).toLocaleString("tr-TR")}` : ""}
+                                        {endReason ? ` (${endReason})` : ""}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {filteredSessions.length > 10 && !showAllSecuritySessions ? (
+                              <button type="button" onClick={() => setShowAllSecuritySessions(true)}
+                                className="mt-3 text-sm font-black text-rose-700 hover:underline">
+                                Tümünü Göster ({filteredSessions.length - 10} daha)
+                              </button>
+                            ) : null}
+                          </>
+                        );
+                      })()}
+
+                      {/* ── Güvenlik Olayları ─────────────────────────────── */}
+                      {(() => {
+                        const filteredEvents = filterByDateRange(
+                          securityEvents.filter((e) => securityEventFilter === "all" || e.severity === securityEventFilter),
+                          securityDateFrom, securityDateTo,
+                        );
+                        const visibleEvents = showAllSecurityEvents ? filteredEvents : filteredEvents.slice(0, 10);
+                        return (
+                          <div className="mt-6">
+                            <h3 className="text-base font-black text-slate-900">Güvenlik Olayları <span className="text-sm font-medium text-slate-400">({filteredEvents.length})</span></h3>
+                            {visibleEvents.length === 0 ? (
+                              <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı güvenlik olayı yok.</p>
+                            ) : (
+                              <div className="mt-3 grid gap-2">
+                                {visibleEvents.map((ev) => (
+                                  <div key={String(ev.id)} className={`rounded-xl border px-4 py-3 text-sm ${ev.severity === "high" ? "border-rose-300 bg-rose-50/80" : ev.severity === "medium" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-white/70"}`}>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${ev.severity === "high" ? "bg-rose-100 text-rose-900 ring-rose-300" : ev.severity === "medium" ? "bg-amber-100 text-amber-900 ring-amber-300" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
+                                        {ev.severity === "high" ? "Yüksek Risk" : ev.severity === "medium" ? "Şüpheli" : "Bilgilendirme"}
+                                      </span>
+                                      <span className="font-bold text-slate-900">{String(ev.message ?? "")}</span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      {String(ev.city ?? "—")}{ev.country ? `, ${String(ev.country)}` : ""} · IP: {String(ev.ip_address ?? "—")}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-slate-400">{new Date(String(ev.created_at)).toLocaleString("tr-TR")}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {filteredEvents.length > 10 && !showAllSecurityEvents ? (
+                              <button type="button" onClick={() => setShowAllSecurityEvents(true)}
+                                className="mt-3 text-sm font-black text-rose-700 hover:underline">
+                                Tümünü Göster ({filteredEvents.length - 10} daha)
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
@@ -1633,153 +1792,281 @@ export default function AdminUserDetailPage() {
 
             {/* ── Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
             <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
-              <div className="flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!showActiveSessions && !activeSessionsLoaded) {
+                    void loadActiveSessions(user.id, currentAdminId);
+                  }
+                  setShowActiveSessions((o) => !o);
+                }}
+                className="flex w-full items-center gap-4 rounded-2xl border-2 border-sky-200/90 bg-white/80 px-4 py-4 text-left shadow-sm transition hover:border-sky-300 hover:bg-sky-50/60 sm:px-5"
+                aria-expanded={showActiveSessions}
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md">
+                  <Eye className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-black text-sky-950 sm:text-xl">
+                    Aktif Cihazlar & Güvenlik Özeti
+                    {activeSessionsLoaded && activeSessionsSummary ? (
+                      <span className="ml-2 text-sm font-medium text-sky-600">
+                        ({Number(activeSessionsSummary.totalActive ?? 0)} aktif cihaz)
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium text-sky-900/70">
+                    Gerçek zamanlı oturum durumu ve platform kullanımı
+                  </p>
+                </div>
+                {activeSessionsLoaded ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void loadActiveSessions(user.id, currentAdminId); }}
+                    disabled={activeSessionsLoading}
+                    className="shrink-0 rounded-xl border-2 border-sky-200 bg-white px-3 py-1.5 text-xs font-black text-sky-800 transition hover:border-sky-400 hover:bg-sky-50 disabled:opacity-50"
+                  >
+                    {activeSessionsLoading ? <Loader2 className="inline h-3 w-3 animate-spin" aria-hidden /> : "Yenile"}
+                  </button>
+                ) : null}
+                <ChevronDown className={`h-6 w-6 shrink-0 text-sky-700 transition-transform ${showActiveSessions ? "rotate-180" : ""}`} aria-hidden />
+              </button>
+
+              {showActiveSessions ? (
+                <div className="mt-5 border-t border-sky-200/70 pt-5">
+                  {activeSessionsLoading && !activeSessionsLoaded ? (
+                    <div className="flex items-center justify-center gap-3 py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-sky-500" aria-hidden />
+                      <span className="font-bold text-slate-600">Yükleniyor…</span>
+                    </div>
+                  ) : activeSessionsSummary ? (
+                    <>
+                      {/* ── Özet sayaç kartları ────────────────────────── */}
+                      {(() => {
+                        const s   = activeSessionsSummary;
+                        const lim = (s.limits ?? {}) as Record<string, number>;
+                        const bp  = (s.byPlatform ?? {}) as Record<string, number>;
+                        const statItems = [
+                          { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: lim.allowedActiveSessions ?? 2 },
+                          { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: lim.allowedLocations ?? 1 },
+                          { label: "Bilgisayar",   current: bp.desktop ?? 0, limit: lim.allowedDesktopSessions ?? 1 },
+                          { label: "Mobil",        current: bp.mobile  ?? 0, limit: lim.allowedMobileSessions  ?? 1 },
+                          { label: "Tablet",       current: bp.tablet  ?? 0, limit: lim.allowedTabletSessions  ?? 0 },
+                          { label: "Tanınmayan",   current: bp.unknown ?? 0, limit: lim.allowedUnknownSessions ?? 0 },
+                        ];
+                        return (
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                            {statItems.map((item) => {
+                              const over = item.limit > 0 && item.current > item.limit;
+                              return (
+                                <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
+                                  <p className="text-xs font-bold text-slate-500">{item.label}</p>
+                                  <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
+                                    {item.current}<span className="text-base font-medium text-slate-400">/{item.limit}</span>
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+
+                      {activeSessionsSummary.securityExempt === true ? (
+                        <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 px-4 py-3">
+                          <p className="text-sm font-black text-rose-900">Güvenlik İstisnası Aktif — Oturum kapatma yapılmaz.</p>
+                        </div>
+                      ) : null}
+
+                      {/* ── Tarih Filtresi ──────────────────────────────── */}
+                      <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-100 bg-white/60 px-4 py-3">
+                        <Filter className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                        <input
+                          type="date"
+                          value={devicesDateFrom}
+                          onChange={(e) => { setDevicesDateFrom(e.target.value); setShowAllSessions(false); }}
+                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                        />
+                        <span className="text-xs text-slate-400">—</span>
+                        <input
+                          type="date"
+                          value={devicesDateTo}
+                          onChange={(e) => { setDevicesDateTo(e.target.value); setShowAllSessions(false); }}
+                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                        />
+                        {(devicesDateFrom || devicesDateTo) ? (
+                          <button type="button"
+                            onClick={() => { setDevicesDateFrom(""); setDevicesDateTo(""); setShowAllSessions(false); }}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200">
+                            Temizle
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* ── Cihaz Listesi ──────────────────────────────── */}
+                      {(() => {
+                        const PLATFORM_LABELS: Record<string, string> = { desktop: "Bilgisayar", mobile: "Telefon", tablet: "Tablet", unknown: "Tanınmayan" };
+                        const END_REASON_LABELS: Record<string, string> = {
+                          stale: "Pasife düştü", new_login: "Yeni giriş",
+                          session_limit: "Oturum limiti", admin_terminated: "Admin sonlandırdı",
+                        };
+                        function parseBrowser(ua: string): string {
+                          const lower = ua.toLowerCase();
+                          if (lower.includes("firefox")) return "Firefox";
+                          if (lower.includes("edg/") || lower.includes("edge")) return "Edge";
+                          if (lower.includes("chrome") && !lower.includes("chromium")) return "Chrome";
+                          if (lower.includes("safari") && !lower.includes("chrome")) return "Safari";
+                          if (lower.includes("opera") || lower.includes("opr/")) return "Opera";
+                          return "Tarayıcı";
+                        }
+                        const filtered = filterByDateRange(activeSessions, devicesDateFrom, devicesDateTo, "last_seen_at");
+                        const visible  = showAllSessions ? filtered : filtered.slice(0, 10);
+                        return (
+                          <div className="mt-4">
+                            <h3 className="text-base font-black text-slate-900">Oturumlar <span className="text-sm font-medium text-slate-400">({filtered.length})</span></h3>
+                            {visible.length === 0 ? (
+                              <p className="mt-2 text-sm font-medium text-slate-500">Oturum yok.</p>
+                            ) : (
+                              <div className="mt-3 grid gap-2">
+                                {visible.map((s) => {
+                                  const isActive  = s.is_active === true;
+                                  const platform  = String(s.platform  ?? "desktop");
+                                  const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
+                                  const statusLabel = isActive ? "Aktif" : endReason === "Admin sonlandırdı" ? "Sonlandırıldı" : "Pasif";
+                                  const statusCls   = isActive ? "bg-sky-100 text-sky-900 ring-sky-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
+                                  const platformIcon = platform === "mobile" ? <Smartphone className="h-3 w-3" /> : platform === "tablet" ? <Tablet className="h-3 w-3" /> : <Monitor className="h-3 w-3" />;
+                                  const browser   = parseBrowser(String(s.user_agent ?? ""));
+                                  const city      = String(s.city      ?? "—");
+                                  const country   = String(s.country   ?? "");
+                                  const ip        = String(s.ip_address ?? "—");
+                                  const lastSeen  = s.last_seen_at ? new Date(String(s.last_seen_at)).toLocaleString("tr-TR") : "—";
+                                  const createdAt = s.created_at   ? new Date(String(s.created_at)).toLocaleString("tr-TR")   : "—";
+                                  const sid       = String(s.id);
+                                  return (
+                                    <div key={sid} className={`rounded-xl border px-4 py-3 text-sm ${isActive ? "border-sky-200 bg-sky-50/60" : "border-slate-200 bg-white/70 opacity-75"}`}>
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0 flex-1 space-y-1.5">
+                                          {/* Durum + Platform + Lokasyon satırı */}
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${statusCls}`}>{statusLabel}</span>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-800 ring-1 ring-indigo-100">
+                                              {platformIcon} {PLATFORM_LABELS[platform] ?? platform}
+                                            </span>
+                                            <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
+                                          </div>
+                                          {/* IP + Tarayıcı satırı */}
+                                          <div className="flex flex-wrap items-center gap-3">
+                                            <span className="font-mono text-xs text-slate-500">{ip}</span>
+                                            <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600 ring-1 ring-slate-100">{browser}</span>
+                                          </div>
+                                          {/* Zaman bilgisi */}
+                                          <div className="text-xs text-slate-400">
+                                            <span>Giriş: {createdAt}</span>
+                                            <span className="mx-1.5">·</span>
+                                            <span>Son: {lastSeen}</span>
+                                            {endReason ? <><span className="mx-1.5">·</span><span className="text-rose-500">{endReason}</span></> : null}
+                                          </div>
+                                        </div>
+                                        {isActive ? (
+                                          <button type="button" onClick={() => void terminateSession(sid)} disabled={terminatingSessionId === sid}
+                                            className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50 sm:self-center">
+                                            {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                                            Sonlandır
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {filtered.length > 10 && !showAllSessions ? (
+                              <button type="button" onClick={() => setShowAllSessions(true)}
+                                className="mt-3 text-sm font-black text-sky-700 hover:underline">
+                                Tümünü Göster ({filtered.length - 10} daha)
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-500">Veri yüklenemedi.</p>
+                  )}
+                </div>
+              ) : null}
+            </section>
+
+            {/* ── Lisans & Oturum Limitleri ────────────────────────────── */}
+            <section className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/60`}>
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md">
-                    <Eye className="h-5 w-5" aria-hidden />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md">
+                    <KeyRound className="h-5 w-5" aria-hidden />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-sky-950">Aktif Cihazlar & Güvenlik Özeti</h2>
-                    <p className="mt-0.5 text-sm font-medium text-sky-900/70">
-                      Gerçek zamanlı oturum durumu ve platform kullanımı
+                    <h2 className="text-xl font-black text-indigo-950">Lisans & Oturum Limitleri</h2>
+                    <p className="mt-0.5 text-sm font-medium text-indigo-900/70">
+                      Cihaz, lokasyon ve güvenlik politikası istisnası
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => void loadActiveSessions(user.id, currentAdminId)}
-                  disabled={activeSessionsLoading}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-sky-200 bg-white px-4 text-sm font-black text-sky-900 transition hover:border-sky-400 hover:bg-sky-50 disabled:opacity-50"
+                  onClick={() => setShowLicenseHelp((o) => !o)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-800 transition hover:border-indigo-400 hover:bg-indigo-50"
                 >
-                  {activeSessionsLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                  Yenile
+                  <HelpCircle className="h-4 w-4" aria-hidden />
+                  Kullanım Kılavuzu
                 </button>
               </div>
 
-              {activeSessionsSummary ? (
-                <>
-                  {/* Özet kartlar */}
-                  {(() => {
-                    const s = activeSessionsSummary;
-                    const limits = (s.limits ?? {}) as Record<string, number>;
-                    const byPlatform = (s.byPlatform ?? {}) as Record<string, number>;
-                    const exempt = s.securityExempt === true;
-                    const statItems = [
-                      { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: limits.allowedActiveSessions ?? 2, color: "sky" },
-                      { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: limits.allowedLocations ?? 1, color: "violet" },
-                      { label: "Bilgisayar",   current: byPlatform.desktop ?? 0, limit: limits.allowedDesktopSessions ?? 1, color: "indigo" },
-                      { label: "Mobil",        current: byPlatform.mobile  ?? 0, limit: limits.allowedMobileSessions  ?? 1, color: "emerald" },
-                      { label: "Tablet",       current: byPlatform.tablet  ?? 0, limit: limits.allowedTabletSessions  ?? 0, color: "amber" },
-                      { label: "Tanınmayan",   current: byPlatform.unknown ?? 0, limit: limits.allowedUnknownSessions ?? 0, color: "rose" },
-                    ];
-                    return (
-                      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                        {statItems.map((item) => {
-                          const over = item.limit > 0 && item.current > item.limit;
-                          return (
-                            <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
-                              <p className="text-xs font-bold text-slate-500">{item.label}</p>
-                              <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
-                                {item.current}
-                                <span className="text-base font-medium text-slate-400">/{item.limit}</span>
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {/* İstisna durumu */}
-                  {activeSessionsSummary.securityExempt === true ? (
-                    <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 px-4 py-3">
-                      <p className="text-sm font-black text-rose-900">Güvenlik İstisnası Aktif — Bu kullanıcı için oturum kapatma yapılmaz.</p>
+              {/* ── Yardım Kutusu ──────────────────────────────────────── */}
+              {showLicenseHelp ? (
+                <div className="mt-4 rounded-2xl border-2 border-indigo-200/80 bg-indigo-50/60 p-5 text-sm">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div>
+                      <p className="font-black text-indigo-950">Lisans Türü</p>
+                      <ul className="mt-2 space-y-1 text-indigo-900/80">
+                        <li><span className="font-bold">Bireysel:</span> Standart tek kullanıcı</li>
+                        <li><span className="font-bold">Profesyonel:</span> Birden fazla cihaz kullanan uzman</li>
+                        <li><span className="font-bold">Aile:</span> Aynı aile içinde kullanım</li>
+                        <li><span className="font-bold">Ortak:</span> Farklı şehir/ülkelerde ortak kullanım</li>
+                        <li><span className="font-bold">Ekip:</span> Kurumsal çok kullanıcılı kullanım</li>
+                        <li><span className="font-bold">Özel:</span> Admin tarafından tanımlanan özel kurallar</li>
+                      </ul>
                     </div>
-                  ) : null}
-
-                  {/* Oturum listesi */}
-                  <div className="mt-5">
-                    <h3 className="text-base font-black text-slate-900">Oturumlar</h3>
-                    {activeSessions.length === 0 ? (
-                      <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı oturum yok.</p>
-                    ) : (
-                      <div className="mt-3 grid gap-2">
-                        {activeSessions.map((s) => {
-                          const isActive  = s.is_active === true;
-                          const platform  = String(s.platform  ?? "desktop");
-                          const city      = String(s.city      ?? "—");
-                          const country   = String(s.country   ?? "");
-                          const ip        = String(s.ip_address ?? "—");
-                          const ua        = String(s.user_agent ?? "").slice(0, 60);
-                          const lastSeen  = s.last_seen_at  ? new Date(String(s.last_seen_at)).toLocaleString("tr-TR")  : "—";
-                          const createdAt = s.created_at    ? new Date(String(s.created_at)).toLocaleString("tr-TR")    : "—";
-                          const endReason = s.end_reason    ? String(s.end_reason) : null;
-                          const sid       = String(s.id);
-                          return (
-                            <div
-                              key={sid}
-                              className={`flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
-                                isActive ? "border-sky-200 bg-sky-50/60" : "border-slate-200 bg-white/70 opacity-70"
-                              }`}
-                            >
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${isActive ? "bg-sky-100 text-sky-900 ring-sky-200" : "bg-slate-100 text-slate-600 ring-slate-200"}`}>
-                                    {isActive ? "Aktif" : "Kapandı"}
-                                  </span>
-                                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black text-indigo-900 ring-1 ring-indigo-200">
-                                    {platform}
-                                  </span>
-                                  <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
-                                  <span className="text-slate-500">{ip}</span>
-                                </div>
-                                <p className="mt-1 truncate text-xs text-slate-500" title={String(s.user_agent ?? "")}>{ua}</p>
-                                <p className="mt-0.5 text-xs text-slate-400">
-                                  Son: {lastSeen} · Giriş: {createdAt}
-                                  {endReason ? ` · (${endReason})` : ""}
-                                </p>
-                              </div>
-                              {isActive ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void terminateSession(sid)}
-                                  disabled={terminatingSessionId === sid}
-                                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
-                                >
-                                  {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
-                                  Sonlandır
-                                </button>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div>
+                      <p className="font-black text-indigo-950">İzinli Lokasyon</p>
+                      <p className="mt-2 text-indigo-900/80">Aynı anda kullanılabilecek farklı şehir/ülke sayısı.</p>
+                      <ul className="mt-1 space-y-0.5 text-indigo-900/80">
+                        <li><span className="font-bold">1:</span> Yalnızca 1 şehir (Ankara veya İstanbul)</li>
+                        <li><span className="font-bold">2:</span> Ankara + İstanbul aynı anda</li>
+                        <li><span className="font-bold">3:</span> Ankara + İstanbul + Berlin aynı anda</li>
+                      </ul>
+                      <p className="mt-2 font-black text-indigo-950">Toplam Oturum</p>
+                      <p className="mt-1 text-indigo-900/80">Aynı anda açık kalabilecek toplam cihaz sayısı.</p>
+                    </div>
+                    <div>
+                      <p className="font-black text-indigo-950">Cihaz Limitleri</p>
+                      <ul className="mt-2 space-y-1 text-indigo-900/80">
+                        <li><span className="font-bold">Bilgisayar/Web:</span> Masaüstü veya dizüstü</li>
+                        <li><span className="font-bold">Telefon/Mobil:</span> Telefon uygulaması veya mobil tarayıcı</li>
+                        <li><span className="font-bold">Tablet:</span> Tablet cihazlar</li>
+                        <li><span className="font-bold">Tanınmayan:</span> Platformu tespit edilemeyen cihazlar</li>
+                        <li className="text-xs text-indigo-700/70">0 = o platform için özel limit yok, toplam limitiyle yönetilir</li>
+                      </ul>
+                      <p className="mt-2 font-black text-indigo-950">Güvenlik Modu</p>
+                      <ul className="mt-1 space-y-0.5 text-indigo-900/80">
+                        <li><span className="font-bold">Sıkı:</span> Daha agresif koruma</li>
+                        <li><span className="font-bold">Normal:</span> Önerilen</li>
+                        <li><span className="font-bold">Esnek:</span> Seyahat eden veya çok cihaz kullananlar</li>
+                      </ul>
+                      <p className="mt-2 font-black text-indigo-950">Güvenlik İstisnası</p>
+                      <p className="mt-1 text-indigo-900/80">Açılırsa tüm güvenlik kısıtları devre dışı kalır.</p>
+                    </div>
                   </div>
-                </>
-              ) : activeSessionsLoading ? (
-                <div className="flex items-center justify-center gap-3 py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-sky-500" aria-hidden />
-                  <span className="font-bold text-slate-600">Yükleniyor…</span>
                 </div>
-              ) : (
-                <p className="mt-5 text-sm font-medium text-slate-500">Veri yüklenemedi.</p>
-              )}
-            </section>
-
-            {/* ── Lisans & Oturum Limitleri ────────────────────────────── */}
-            <section className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/60`}>
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md">
-                  <KeyRound className="h-5 w-5" aria-hidden />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-indigo-950">Lisans & Oturum Limitleri</h2>
-                  <p className="mt-0.5 text-sm font-medium text-indigo-900/70">
-                    Cihaz, lokasyon ve güvenlik politikası istisnası
-                  </p>
-                </div>
-              </div>
+              ) : null}
 
               {/* Hazır Presetler */}
               <div className="mt-5">
