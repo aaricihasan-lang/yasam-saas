@@ -189,7 +189,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full">
       <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-violet-700">
           <Shield className="h-3.5 w-3.5 shrink-0" />
@@ -276,7 +276,7 @@ function ContactTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 w-full">
       <form onSubmit={handleSend} className="space-y-4">
         <div>
           <label className="block text-sm font-bold text-slate-700">Konu</label>
@@ -543,7 +543,7 @@ function BackupTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-5 max-w-xl">
+    <div className="space-y-5 w-full">
       <div className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
         <FileJson className="h-10 w-10 text-slate-400 mb-3" />
         <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — Eksiksiz JSON</h3>
@@ -653,7 +653,7 @@ function RestoreTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-5 max-w-md">
+    <div className="space-y-5 w-full">
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
         <p className="text-xs font-semibold text-amber-700">
           Güvenli Mod: Mevcut veriler silinmez. Çakışan kayıtlar atlanır, yeni kayıtlar eklenir.
@@ -781,7 +781,7 @@ export default function SettingsPage() {
       <div className="pointer-events-none absolute -right-20 top-20 h-[420px] w-[420px] rounded-full bg-fuchsia-200/20 blur-[120px]" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-sky-200/15 blur-[110px]" aria-hidden />
 
-      <div className="relative mx-auto w-full max-w-5xl px-4 py-6 sm:px-8 lg:px-10">
+      <div className="relative mx-auto w-full lg:max-w-[1400px] 2xl:max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
 
         {/* Premium header — admin panel çizgisini takip eder */}
         <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/30 bg-gradient-to-r from-slate-900 via-violet-900 to-fuchsia-900 px-6 py-5 text-white shadow-[0_12px_40px_rgba(88,28,135,0.18)] sm:px-8">
