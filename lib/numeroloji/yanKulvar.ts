@@ -1,4 +1,4 @@
-import { CHAKRA_LETTER_MAP, NumerolojiResult, SPECIAL_NUMBERS, VOWELS, reduceNumber, splitNameParts, turkishUpper } from "./ortak";
+import { CHAKRA_LETTER_MAP, NumerolojiResult, SPECIAL_NUMBERS, VOWELS, buildSpecialPathDisplay, reduceNumber, splitNameParts, turkishUpper } from "./ortak";
 
 type PartResult = {
   finalValue: number;
@@ -113,17 +113,9 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
       mainDigit = usedValues.length >= 2 ? Math.min(...usedValues) : specialNum;
     }
 
-    // Parantez içi görünüm: kullanılan parçalar (büyükten küçüğe) + dışarıda kalanlar
-    // Örn: 33/6 (22/11/6) — yan_kulvar.py _build_parenthesis_values mantığı
-    const usedVals = best.usedIndices
-      .map((i) => values[i])
-      .filter((v) => v > 0)
-      .sort((a, b) => b - a);
-    const remainVals = baseValues.slice().sort((a, b) => b - a);
-    const parenVals = [...usedVals, ...remainVals];
-    const paren = parenVals.length >= 2 ? ` (${parenVals.join("/")})` : "";
-
-    const display = `${specialNum}/${mainDigit}${paren}`;
+    // Per-part değerlerinde özel sayı varsa yeni path formatı, yoksa eski slash formatı
+    const pathDisplay = buildSpecialPathDisplay(values);
+    const display = pathDisplay !== "" ? pathDisplay : `${specialNum}/${mainDigit}`;
     const uniqueSpecialNums = [...new Set(specialCandidates.map((c) => c.specialNum))].sort((a, b) => a - b);
     steps.push(`Özel sayılar (Yan Kulvar): ${uniqueSpecialNums.join(", ")}`);
     steps.push(`SONUÇ → Yan Kulvar: ${display}`);

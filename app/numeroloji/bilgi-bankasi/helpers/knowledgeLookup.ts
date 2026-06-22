@@ -43,14 +43,23 @@ const EMPTY_NOTES: KnowledgeNotesForAnalysis = {
   element: [],
 };
 
-/** "19/2" → ["19/2", "19", "2"] sırasıyla, tekrarsız.
- *  Parantezli formattan ("33/6 (22/11/6)") çekirdek ("33/6") çıkarılarak işlenir. */
+/**
+ * Display string'inden knowledge lookup için aday değerler üretir.
+ *
+ * Desteklenen formatlar:
+ *   "7"                  → ["7"]
+ *   "19/2"               → ["19/2", "19", "2"]          (eski slash formatı)
+ *   "22-19-4"            → ["22-19-4", "22", "19", "4"] (yeni path formatı)
+ *   "22-3 (11-11-3)"     → ["22-3", "22", "3", "11"]    (yeni path + parantez)
+ *   "33/6 (22/11/6)"     → ["33/6", "33", "6", "22", "11"] (eski format + parantez)
+ */
 export function valueCandidatesFromDisplay(display: string): string[] {
   const text = (display || "").trim();
   if (!text) return [];
 
-  // Parantezli ek gösterimi lookup öncesi çıkar: "33/6 (22/11/6)" → "33/6"
-  const core = text.replace(/\s*\(.*\)$/, "").trim();
+  // Parantez bloğunu ayır
+  const parenMatch = text.match(/\(([^)]+)\)/);
+  const core = text.replace(/\s*\([^)]+\)/, "").trim();
 
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -62,12 +71,21 @@ export function valueCandidatesFromDisplay(display: string): string[] {
     ordered.push(v);
   };
 
+  // Core'u tam string olarak ekle (eski "/" formatı için compat)
   add(core);
 
-  if (core.includes("/")) {
-    for (const part of core.split("/")) {
-      add(part);
-    }
+  if (core.includes("-")) {
+    for (const part of core.split("-")) add(part);
+  } else if (core.includes("/")) {
+    for (const part of core.split("/")) add(part);
+  }
+  // else: tek sayı, zaten eklendi
+
+  // Parantez içindeki sayıları ekle
+  if (parenMatch) {
+    const inner = parenMatch[1].trim();
+    const sep = inner.includes("-") ? "-" : "/";
+    for (const part of inner.split(sep)) add(part);
   }
 
   return ordered;

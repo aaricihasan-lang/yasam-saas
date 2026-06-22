@@ -95,3 +95,63 @@ export function parseBirthDate(birthDate: string): BirthDateParts | null {
 export function repeatX(count: number): string {
   return count > 0 ? "X".repeat(count) : "-----";
 }
+
+/**
+ * Özel sayı path display üretir (Ana/Yan Kulvar için).
+ *
+ * Kural:
+ * - Per-part değerlerinde ÖZEL SAYI yoksa: boş string döner (caller reduced total kullanır).
+ * - Özel sayılar varsa ama SPECIAL+SPECIAL kombinasyonu ÖZEL bir sayı vermiyorsa:
+ *     tüm nonZero değerleri "-" ile birleştirir.   Örn: 22-22-3
+ * - İki özel sayının toplamı yine özel sayıysa birleşim gösterilir:
+ *     ana display = birleşmiş değer + kalanlar, parantez = orijinal sıra.
+ *     Örn: 22-3 (11-11-3)
+ */
+export function buildSpecialPathDisplay(values: number[]): string {
+  const nonZero = values.filter((v) => v > 0);
+  if (nonZero.length === 0) return "";
+
+  const hasPerPartSpecial = nonZero.some((v) => SPECIAL_NUMBERS.has(v));
+  if (!hasPerPartSpecial) return ""; // caller "eski davranış" uygular
+
+  // SPECIAL+SPECIAL → SPECIAL kombinasyonu ara
+  const specialItems = nonZero
+    .map((v, idx) => ({ v, idx }))
+    .filter((x) => SPECIAL_NUMBERS.has(x.v));
+
+  let bestCombo: { combined: number; idxA: number; idxB: number } | null = null;
+  for (let a = 0; a < specialItems.length; a++) {
+    for (let b = a + 1; b < specialItems.length; b++) {
+      const sum = specialItems[a].v + specialItems[b].v;
+      if (SPECIAL_NUMBERS.has(sum)) {
+        if (!bestCombo || sum > bestCombo.combined) {
+          bestCombo = { combined: sum, idxA: specialItems[a].idx, idxB: specialItems[b].idx };
+        }
+      }
+    }
+  }
+
+  if (!bestCombo) {
+    // Kombinasyon yok → tüm değerleri sırayla göster
+    return nonZero.join("-");
+  }
+
+  // Kombinasyon bulundu → ana path üret
+  const { combined, idxA, idxB } = bestCombo;
+  const mainParts: number[] = [];
+  let inserted = false;
+  for (let i = 0; i < nonZero.length; i++) {
+    if (i === idxA || i === idxB) {
+      if (!inserted) {
+        mainParts.push(combined);
+        inserted = true;
+      }
+    } else {
+      mainParts.push(nonZero[i]);
+    }
+  }
+
+  const mainPath = mainParts.join("-");
+  const origPath = nonZero.join("-");
+  return mainPath === origPath ? mainPath : `${mainPath} (${origPath})`;
+}
