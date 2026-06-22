@@ -19,6 +19,7 @@ import {
   mapDbUser,
   sortUsersForAdmin,
   type ApprovalStatusUi,
+  type LicenseType,
   type ManagedUser,
   type ManagedUserRole,
   type PaymentStatusUi,
@@ -219,6 +220,41 @@ function PackageBadge({ label }: { label: string }) {
   );
 }
 
+const LICENSE_BADGE_STYLES: Partial<Record<LicenseType | "exempt", string>> = {
+  single:       "bg-slate-100 text-slate-700 ring-slate-200",
+  professional: "bg-sky-100 text-sky-900 ring-sky-200",
+  family:       "bg-teal-100 text-teal-900 ring-teal-200",
+  partner:      "bg-violet-100 text-violet-900 ring-violet-200",
+  team:         "bg-indigo-100 text-indigo-900 ring-indigo-200",
+  custom:       "bg-fuchsia-100 text-fuchsia-900 ring-fuchsia-200",
+  exempt:       "bg-rose-100 text-rose-900 ring-rose-200",
+};
+
+const LICENSE_BADGE_LABELS: Record<LicenseType, string> = {
+  single:       "Bireysel",
+  professional: "Profesyonel",
+  family:       "Aile",
+  partner:      "Ortak",
+  team:         "Ekip",
+  custom:       "Özel",
+};
+
+function LicenseBadge({ licenseType, exempt }: { licenseType: LicenseType; exempt: boolean }) {
+  if (exempt) {
+    return (
+      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${LICENSE_BADGE_STYLES.exempt ?? ""}`}>
+        İstisna
+      </span>
+    );
+  }
+  if (licenseType === "single") return null;
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${LICENSE_BADGE_STYLES[licenseType] ?? ""}`}>
+      {LICENSE_BADGE_LABELS[licenseType]}
+    </span>
+  );
+}
+
 const PAYMENT_BADGE_STYLES: Record<PaymentStatusUi, string> = {
   paid: "bg-emerald-100 text-emerald-900 ring-emerald-200",
   pending: "bg-amber-100 text-amber-900 ring-amber-200",
@@ -267,6 +303,10 @@ function CompactUserRow({ user, suspiciousCount }: { user: ManagedUser; suspicio
           <RoleBadge role={user.role} />
           <ApprovalBadge status={user.approvalStatus} />
           <StatusBadge active={user.active} />
+          <LicenseBadge
+            licenseType={user.licenseSettings.licenseType}
+            exempt={user.licenseSettings.securityExempt}
+          />
           <span className="hidden sm:contents">
             <PackageBadge label={user.membershipDisplay.packageLabel} />
             <PaymentBadge

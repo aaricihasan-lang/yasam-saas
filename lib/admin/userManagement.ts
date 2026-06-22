@@ -19,6 +19,60 @@ export const PACKAGE_PLAN_OPTIONS: { value: PackagePlanUi; label: string }[] = [
 
 export type ManagedUserRole = "admin" | "expert";
 
+export type LicenseType = "single" | "professional" | "family" | "partner" | "team" | "custom";
+export type SecurityMode = "strict" | "normal" | "flexible";
+
+export type LicenseSettings = {
+  licenseType: LicenseType;
+  allowedActiveSessions: number;
+  allowedLocations: number;
+  allowedDesktopSessions: number;
+  allowedMobileSessions: number;
+  allowedTabletSessions: number;
+  allowedUnknownSessions: number;
+  securityMode: SecurityMode;
+  securityExempt: boolean;
+  licenseNote: string;
+};
+
+export const LICENSE_TYPE_OPTIONS: { value: LicenseType; label: string }[] = [
+  { value: "single",       label: "Bireysel"    },
+  { value: "professional", label: "Profesyonel" },
+  { value: "family",       label: "Aile"        },
+  { value: "partner",      label: "Ortak"       },
+  { value: "team",         label: "Ekip"        },
+  { value: "custom",       label: "Özel"        },
+];
+
+export const SECURITY_MODE_OPTIONS: { value: SecurityMode; label: string }[] = [
+  { value: "strict",   label: "Sıkı"   },
+  { value: "normal",   label: "Normal" },
+  { value: "flexible", label: "Esnek"  },
+];
+
+export const DEFAULT_LICENSE_SETTINGS: LicenseSettings = {
+  licenseType:            "single",
+  allowedActiveSessions:  2,
+  allowedLocations:       1,
+  allowedDesktopSessions: 1,
+  allowedMobileSessions:  1,
+  allowedTabletSessions:  0,
+  allowedUnknownSessions: 0,
+  securityMode:           "normal",
+  securityExempt:         false,
+  licenseNote:            "",
+};
+
+export type LicensePreset = { label: string; settings: LicenseSettings };
+
+export const LICENSE_PRESETS: LicensePreset[] = [
+  { label: "Standart",    settings: { licenseType: "single",       allowedActiveSessions: 2,  allowedLocations: 1, allowedDesktopSessions: 1, allowedMobileSessions: 1, allowedTabletSessions: 0, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Profesyonel", settings: { licenseType: "professional", allowedActiveSessions: 4,  allowedLocations: 1, allowedDesktopSessions: 2, allowedMobileSessions: 1, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "normal",   securityExempt: false, licenseNote: "" } },
+  { label: "Aile",        settings: { licenseType: "family",       allowedActiveSessions: 6,  allowedLocations: 2, allowedDesktopSessions: 2, allowedMobileSessions: 3, allowedTabletSessions: 1, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+  { label: "Ortak",       settings: { licenseType: "partner",      allowedActiveSessions: 8,  allowedLocations: 2, allowedDesktopSessions: 3, allowedMobileSessions: 3, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+  { label: "Ekip",        settings: { licenseType: "team",         allowedActiveSessions: 12, allowedLocations: 4, allowedDesktopSessions: 6, allowedMobileSessions: 4, allowedTabletSessions: 2, allowedUnknownSessions: 0, securityMode: "flexible", securityExempt: false, licenseNote: "" } },
+];
+
 export type ApprovalStatusUi = "pending" | "approved" | "rejected";
 
 export const ADMIN_MODULE_UI_KEYS = [
@@ -395,6 +449,7 @@ export type ManagedUser = {
   membership: MembershipSnapshot;
   membershipDisplay: MembershipDisplay;
   payment: PaymentSnapshot;
+  licenseSettings: LicenseSettings;
   adminLevel?: string;
   createdAt?: string;
 };
@@ -452,6 +507,34 @@ function mapApprovalStatus(value: unknown): ApprovalStatusUi {
   return "pending";
 }
 
+function parseLicenseSettings(row: Record<string, unknown>): LicenseSettings {
+  const VALID_LICENSE_TYPES: LicenseType[] = ["single", "professional", "family", "partner", "team", "custom"];
+  const VALID_SECURITY_MODES: SecurityMode[] = ["strict", "normal", "flexible"];
+
+  const rawType = String(row.license_type ?? "single").trim();
+  const licenseType: LicenseType = VALID_LICENSE_TYPES.includes(rawType as LicenseType)
+    ? (rawType as LicenseType)
+    : "single";
+
+  const rawMode = String(row.security_mode ?? "normal").trim();
+  const securityMode: SecurityMode = VALID_SECURITY_MODES.includes(rawMode as SecurityMode)
+    ? (rawMode as SecurityMode)
+    : "normal";
+
+  return {
+    licenseType,
+    allowedActiveSessions:  Math.max(1, Number(row.allowed_active_sessions ?? 2)),
+    allowedLocations:       Math.max(1, Number(row.allowed_locations ?? 1)),
+    allowedDesktopSessions: Math.max(0, Number(row.allowed_desktop_sessions ?? 1)),
+    allowedMobileSessions:  Math.max(0, Number(row.allowed_mobile_sessions ?? 1)),
+    allowedTabletSessions:  Math.max(0, Number(row.allowed_tablet_sessions ?? 0)),
+    allowedUnknownSessions: Math.max(0, Number(row.allowed_unknown_sessions ?? 0)),
+    securityMode,
+    securityExempt: row.security_exempt === true,
+    licenseNote:    row.license_note != null ? String(row.license_note) : "",
+  };
+}
+
 export function mapDbUser(row: Record<string, unknown>): ManagedUser {
   const roleRaw = normalizeRole(row.role);
   const role: ManagedUserRole = roleRaw === "admin" ? "admin" : "expert";
@@ -471,6 +554,7 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
     membership,
     membershipDisplay: buildMembershipDisplay(membership),
     payment: parsePaymentFromRow(row),
+    licenseSettings: parseLicenseSettings(row),
     adminLevel:
       row.admin_level != null ? String(row.admin_level).trim() : undefined,
     createdAt: row.created_at != null ? String(row.created_at) : undefined,

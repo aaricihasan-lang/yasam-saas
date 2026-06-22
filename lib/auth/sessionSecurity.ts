@@ -1,25 +1,28 @@
 /**
  * Hesap güvenliği — çok cihaz politikası, konum tabanlı risk motoru,
- * oturum doğrulama.
+ * platform bazlı oturum limitleri, oturum doğrulama.
  *
  * Yalnızca server-side (API route) kullanımı içindir.
  *
  * Politika özeti:
- *   - Aynı şehir ≤2 eş zamanlı oturum → izin ver
- *   - Aynı şehir 3. oturum → en eskiyi kapat, düşük öncelikli log
- *   - Farklı şehir + her iki taraf da son 15 dk aktif → suspicious_login + eski kapat
- *   - Farklı ülke + eski oturum son 6 saat içinde aktif → high_risk_login + eski kapat
- *   - Son 15 dk'dan eski oturum (stale) → sessizce kapat, uyarı yok
- *   - Konum bilinmiyorsa → sessizce kapat, risk değerlendirmesi yok
+ *   security_exempt=true   → risk motoru tamamen atlanır
+ *   security_mode=flexible → stale eşiği 60 dk (diğerlerinde 15 dk)
+ *   allowed_locations      → farklı lokasyon sayısı bu limitin altındaysa konum riski yok
+ *   allowed_active_sessions → toplam fresh session limiti; aşılırsa en eskisi kapanır
+ *   allowed_{platform}_sessions → platform bazlı limit; aşılırsa en eski aynı-platform kapanır
+ *   Lokasyon limiti aşılınca:
+ *     diff_city + fresh → suspicious_login (strict modda high_risk)
+ *     diff_country + 6h → high_risk_login
+ *   Lokasyon limit içinde ve diff_country varsa → multi_location_allowed (low) logu
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Eşikler ─────────────────────────────────────────────────────────────────
 
-const FRESH_THRESHOLD_MS     = 15 * 60 * 1000;   // 15 dakika
+const FRESH_THRESHOLD_MS     = 15 * 60 * 1000;    // 15 dakika (strict / normal)
+const FLEXIBLE_THRESHOLD_MS  = 60 * 60 * 1000;    // 60 dakika (flexible)
 const HIGH_RISK_THRESHOLD_MS = 6 * 60 * 60 * 1000; // 6 saat
-const MAX_SAME_CITY_SESSIONS = 2;
 
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,7 @@ type ActiveSession = {
   city: string | null;
   country: string | null;
   last_seen_at: string;
+  platform: string | null;
 };
 
 type SessionClass = "same_city" | "diff_city" | "diff_country" | "unknown";
@@ -51,8 +55,8 @@ function msElapsed(isoDate: string): number {
   return Date.now() - new Date(isoDate).getTime();
 }
 
-function isFresh(session: ActiveSession): boolean {
-  return msElapsed(session.last_seen_at) < FRESH_THRESHOLD_MS;
+function isFreshWith(session: ActiveSession, thresholdMs: number): boolean {
+  return msElapsed(session.last_seen_at) < thresholdMs;
 }
 
 function isWithinHighRiskWindow(session: ActiveSession): boolean {
@@ -63,14 +67,12 @@ function classifySession(
   session: ActiveSession,
   newLoc: LocationInfo,
 ): SessionClass {
-  const sc = normalizeStr(session.city);
+  const sc  = normalizeStr(session.city);
   const sco = normalizeStr(session.country);
-  const nc = normalizeStr(newLoc.city);
+  const nc  = normalizeStr(newLoc.city);
   const nco = normalizeStr(newLoc.country);
 
-  // Herhangi bir tarafın şehri bilinmiyorsa karşılaştırma yapılamaz
   if (!sc || !nc) return "unknown";
-
   if (sco && nco && sco !== nco) return "diff_country";
   if (sc !== nc) return "diff_city";
   return "same_city";
@@ -78,7 +80,6 @@ function classifySession(
 
 /**
  * Tarayıcı user-agent dizesinden platform çıkarır.
- * Basit heruistik — kesin değil, yeterli.
  */
 export function detectPlatform(userAgent: string): string {
   const ua = userAgent.toLowerCase();
@@ -87,13 +88,44 @@ export function detectPlatform(userAgent: string): string {
   return ua ? "desktop" : "unknown";
 }
 
+async function insertSession(
+  db: SupabaseClient,
+  userId: string,
+  location: LocationInfo,
+  sessionToken: string,
+  platform: string,
+  now: string,
+): Promise<void> {
+  const payload: Record<string, unknown> = {
+    user_id:       userId,
+    ip_address:    location.ip,
+    country:       location.country,
+    city:          location.city,
+    user_agent:    location.userAgent,
+    platform,
+    session_token: sessionToken,
+    is_active:     true,
+    created_at:    now,
+    last_seen_at:  now,
+  };
+
+  const { error } = await db.from("user_sessions").insert(payload);
+
+  if (error) {
+    if (error.message.includes("platform")) {
+      const { platform: _p, ...withoutPlatform } = payload;
+      const { error: retryError } = await db.from("user_sessions").insert(withoutPlatform);
+      if (retryError) throw new Error(`Oturum kaydedilemedi: ${retryError.message}`);
+    } else {
+      throw new Error(`Oturum kaydedilemedi: ${error.message}`);
+    }
+  }
+}
+
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
 /**
- * Giriş sonrası çağrılır. Yeni politikayla:
- * - Stale oturumlar sessizce kapatılır
- * - Aynı şehir oturumları korunur (≤2)
- * - Farklı şehir/ülke için risk seviyesine göre eski oturum kapatılır ve event oluşturulur
+ * Giriş sonrası çağrılır. Lisans + platform ayarlarına göre dinamik risk politikası uygular.
  */
 export async function createUserSession(
   db: SupabaseClient,
@@ -101,21 +133,50 @@ export async function createUserSession(
   location: LocationInfo,
   sessionToken: string,
 ): Promise<{ suspiciousLogin: boolean; highRisk: boolean }> {
-  const now = new Date().toISOString();
+  const now      = new Date().toISOString();
   const platform = detectPlatform(location.userAgent);
 
-  // ── Tüm aktif oturumları çek ────────────────────────────────────────────────
+  // ── Kullanıcı lisans + platform ayarları ─────────────────────────────────
+  const { data: lr } = await db
+    .from("users")
+    .select("security_exempt, allowed_active_sessions, allowed_locations, security_mode, license_type, allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const securityExempt  = lr?.security_exempt === true;
+  const allowedSessions = Math.max(1, Number(lr?.allowed_active_sessions ?? 2));
+  const allowedLocs     = Math.max(1, Number(lr?.allowed_locations ?? 1));
+  const rawMode         = String(lr?.security_mode ?? "normal");
+  const secMode         = (["strict", "normal", "flexible"].includes(rawMode) ? rawMode : "normal") as
+    "strict" | "normal" | "flexible";
+  const freshThresholdMs = secMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS;
+
+  // Platform limitleri (0 = platform bazlı limit yok, toplam limitle yönetilir)
+  const platformLimits: Record<string, number> = {
+    desktop: Math.max(0, Number(lr?.allowed_desktop_sessions ?? 1)),
+    mobile:  Math.max(0, Number(lr?.allowed_mobile_sessions  ?? 1)),
+    tablet:  Math.max(0, Number(lr?.allowed_tablet_sessions  ?? 0)),
+    unknown: Math.max(0, Number(lr?.allowed_unknown_sessions ?? 0)),
+  };
+
+  // ── Güvenlik muafiyeti ────────────────────────────────────────────────────
+  if (securityExempt) {
+    await insertSession(db, userId, location, sessionToken, platform, now);
+    return { suspiciousLogin: false, highRisk: false };
+  }
+
+  // ── Aktif oturumları çek ──────────────────────────────────────────────────
   const { data: rawSessions } = await db
     .from("user_sessions")
-    .select("id, city, country, last_seen_at")
+    .select("id, city, country, last_seen_at, platform")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("last_seen_at", { ascending: false });
 
   const sessions: ActiveSession[] = (rawSessions ?? []) as ActiveSession[];
 
-  // ── Stale (≥15 dk) oturumları sessizce kapat ─────────────────────────────
-  const staleSessions = sessions.filter((s) => !isFresh(s));
+  // ── Stale oturumları kapat (dinamik eşik) ─────────────────────────────────
+  const staleSessions = sessions.filter((s) => !isFreshWith(s, freshThresholdMs));
   if (staleSessions.length > 0) {
     await db
       .from("user_sessions")
@@ -123,87 +184,111 @@ export async function createUserSession(
       .in("id", staleSessions.map((s) => s.id));
   }
 
-  // ── Fresh oturumları sınıflandır ─────────────────────────────────────────
-  const freshSessions = sessions.filter(isFresh);
+  const freshSessions = sessions.filter((s) => isFreshWith(s, freshThresholdMs));
 
-  const sameCitySessions: ActiveSession[]   = [];
-  const diffCitySessions: ActiveSession[]   = [];
-  const diffCountrySessions: ActiveSession[] = [];
-  const unknownSessions: ActiveSession[]     = [];
-
-  for (const s of freshSessions) {
-    const cls = classifySession(s, location);
-    if (cls === "same_city")    sameCitySessions.push(s);
-    else if (cls === "diff_city")    diffCitySessions.push(s);
-    else if (cls === "diff_country") diffCountrySessions.push(s);
-    else                             unknownSessions.push(s);
-  }
-
-  // ── Bilinmeyen konumlu fresh oturumları sessizce kapat ───────────────────
-  if (unknownSessions.length > 0) {
+  // ── Bilinmeyen konumlu fresh oturumları kapat ─────────────────────────────
+  const unknownLocSessions = freshSessions.filter((s) => classifySession(s, location) === "unknown");
+  if (unknownLocSessions.length > 0) {
     await db
       .from("user_sessions")
       .update({ is_active: false, ended_at: now, end_reason: "stale" })
-      .in("id", unknownSessions.map((s) => s.id));
+      .in("id", unknownLocSessions.map((s) => s.id));
   }
 
-  // ── Risk değerlendirmesi ─────────────────────────────────────────────────
-  //
-  // Öncelik: diff_country > diff_city > same_city_limit
-  // Aynı girişte hem farklı ülke hem farklı şehir session varsa → high_risk.
+  const knownFreshSessions = freshSessions.filter((s) => classifySession(s, location) !== "unknown");
 
+  // ── Lokasyon sınıflandırması ──────────────────────────────────────────────
+  const diffCitySessions:    ActiveSession[] = [];
+  const diffCountrySessions: ActiveSession[] = [];
+
+  for (const s of knownFreshSessions) {
+    const cls = classifySession(s, location);
+    if (cls === "diff_city")    diffCitySessions.push(s);
+    else if (cls === "diff_country") diffCountrySessions.push(s);
+  }
+
+  // ── Distinct lokasyon sayısı ──────────────────────────────────────────────
+  const locationKeys = new Set<string>();
+  if (location.city) {
+    locationKeys.add(`${normalizeStr(location.city)}|${normalizeStr(location.country ?? "")}`);
+  }
+  for (const s of knownFreshSessions) {
+    if (s.city) {
+      locationKeys.add(`${normalizeStr(s.city)}|${normalizeStr(s.country ?? "")}`);
+    }
+  }
+  const distinctLocs          = locationKeys.size;
+  const locationLimitExceeded = distinctLocs > allowedLocs;
+
+  // ── Konum riski ───────────────────────────────────────────────────────────
   let riskLevel: SecurityRiskLevel = "low";
   const sessionsToCloseForRisk: string[] = [];
 
-  // Farklı ülke — 6 saat penceresi (high_risk_window)
-  const activeHighRisk = diffCountrySessions.filter(isWithinHighRiskWindow);
-  if (activeHighRisk.length > 0) {
-    riskLevel = "high_risk";
-    sessionsToCloseForRisk.push(...activeHighRisk.map((s) => s.id));
+  if (locationLimitExceeded) {
+    const activeHighRisk = diffCountrySessions.filter(isWithinHighRiskWindow);
+    if (activeHighRisk.length > 0) {
+      riskLevel = "high_risk";
+      sessionsToCloseForRisk.push(...activeHighRisk.map((s) => s.id));
+    }
+
+    if (diffCitySessions.length > 0) {
+      if (riskLevel !== "high_risk") {
+        riskLevel = secMode === "strict" ? "high_risk" : "suspicious";
+      }
+      sessionsToCloseForRisk.push(...diffCitySessions.map((s) => s.id));
+    }
+
+    const staleHighRisk = diffCountrySessions.filter((s) => !isWithinHighRiskWindow(s));
+    if (staleHighRisk.length > 0) {
+      await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: now, end_reason: "stale" })
+        .in("id", staleHighRisk.map((s) => s.id));
+    }
+
+    if (sessionsToCloseForRisk.length > 0) {
+      await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: now, end_reason: "new_login" })
+        .in("id", sessionsToCloseForRisk);
+    }
+  } else {
+    // Limit içinde — pencere dışı diff_country stale kapat
+    const staleHighRisk = diffCountrySessions.filter((s) => !isWithinHighRiskWindow(s));
+    if (staleHighRisk.length > 0) {
+      await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: now, end_reason: "stale" })
+        .in("id", staleHighRisk.map((s) => s.id));
+    }
+
+    // Aktif diff_country + limit içinde → isteğe bağlı düşük seviyeli log
+    const activeDiffCountry = diffCountrySessions.filter(isWithinHighRiskWindow);
+    if (activeDiffCountry.length > 0) {
+      await db.from("security_events").insert({
+        user_id:    userId,
+        event_type: "multi_location_allowed",
+        severity:   "low",
+        message:    `İzinli çoklu lokasyon: ${activeDiffCountry[0]?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
+        ip_address: location.ip,
+        country:    location.country,
+        city:       location.city,
+        user_agent: location.userAgent,
+        metadata: {
+          platform,
+          license_type:       lr?.license_type ?? "single",
+          allowed_locations:  allowedLocs,
+          distinct_locations: distinctLocs,
+        },
+      });
+    }
   }
 
-  // Farklı şehir + fresh (her iki taraf son 15 dk'da aktif)
-  if (diffCitySessions.length > 0) {
-    // diffCitySessions zaten freshSessions'dan geldiği için tamamı fresh
-    if (riskLevel !== "high_risk") riskLevel = "suspicious";
-    sessionsToCloseForRisk.push(...diffCitySessions.map((s) => s.id));
-  }
-
-  // Eski yüksek riskli session var ama pencere dışında → sessizce kapat
-  const staleHighRisk = diffCountrySessions.filter((s) => !isWithinHighRiskWindow(s));
-  if (staleHighRisk.length > 0) {
-    await db
-      .from("user_sessions")
-      .update({ is_active: false, ended_at: now, end_reason: "stale" })
-      .in("id", staleHighRisk.map((s) => s.id));
-  }
-
-  if (sessionsToCloseForRisk.length > 0) {
-    await db
-      .from("user_sessions")
-      .update({ is_active: false, ended_at: now, end_reason: "new_login" })
-      .in("id", sessionsToCloseForRisk);
-  }
-
-  // ── Aynı şehir maks-2 politikası ────────────────────────────────────────
-  let closedForLimit = false;
-  if (sameCitySessions.length >= MAX_SAME_CITY_SESSIONS) {
-    // En eski (en düşük last_seen_at) oturumu kapat
-    const oldest = [...sameCitySessions].sort(
-      (a, b) => new Date(a.last_seen_at).getTime() - new Date(b.last_seen_at).getTime(),
-    )[0];
-    await db
-      .from("user_sessions")
-      .update({ is_active: false, ended_at: now, end_reason: "session_limit" })
-      .eq("id", oldest.id);
-    closedForLimit = true;
-  }
-
-  // ── Güvenlik olayları ────────────────────────────────────────────────────
+  // ── Risk olayı logu ───────────────────────────────────────────────────────
   if (riskLevel !== "low") {
     const refSession =
       riskLevel === "high_risk"
-        ? (activeHighRisk[0] ?? diffCountrySessions[0])
+        ? (diffCountrySessions.find(isWithinHighRiskWindow) ?? diffCountrySessions[0])
         : diffCitySessions[0];
 
     await db.from("security_events").insert({
@@ -220,55 +305,85 @@ export async function createUserSession(
       user_agent: location.userAgent,
       metadata: {
         platform,
-        previous_city:      refSession?.city    ?? null,
-        previous_country:   refSession?.country ?? null,
-        new_city:           location.city,
-        new_country:        location.country,
-        conflicting_count:  sessionsToCloseForRisk.length,
+        previous_city:     refSession?.city    ?? null,
+        previous_country:  refSession?.country ?? null,
+        new_city:          location.city,
+        new_country:       location.country,
+        conflicting_count: sessionsToCloseForRisk.length,
       },
     });
   }
 
-  if (closedForLimit) {
+  // ── Platform bazlı oturum limiti ──────────────────────────────────────────
+  // Risk kapatmalarından sonra kalan fresh session'lar
+  const closedForRiskIds = new Set(sessionsToCloseForRisk);
+  const remainingSessions = knownFreshSessions.filter((s) => !closedForRiskIds.has(s.id));
+
+  const platformLimit = platformLimits[platform] ?? 0;
+  let closedForPlatformLimit = false;
+
+  if (platformLimit > 0) {
+    // Platform bazlı limit aktif — aynı platformdaki session'ları say
+    const samePlatformSessions = remainingSessions
+      .filter((s) => (s.platform ?? "desktop") === platform)
+      .sort((a, b) => new Date(a.last_seen_at).getTime() - new Date(b.last_seen_at).getTime());
+
+    if (samePlatformSessions.length >= platformLimit) {
+      const oldest = samePlatformSessions[0];
+      if (oldest) {
+        await db
+          .from("user_sessions")
+          .update({ is_active: false, ended_at: now, end_reason: "session_limit" })
+          .eq("id", oldest.id);
+        closedForPlatformLimit = true;
+        // Remaining'den çıkar, toplam limit hesabında hesaba katılmaz
+        const idx = remainingSessions.findIndex((s) => s.id === oldest.id);
+        if (idx !== -1) remainingSessions.splice(idx, 1);
+      }
+    }
+  }
+
+  // ── Toplam oturum limiti ──────────────────────────────────────────────────
+  let closedForTotalLimit = false;
+  if (remainingSessions.length >= allowedSessions) {
+    const oldest = [...remainingSessions].sort(
+      (a, b) => new Date(a.last_seen_at).getTime() - new Date(b.last_seen_at).getTime(),
+    )[0];
+    if (oldest) {
+      await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: now, end_reason: "session_limit" })
+        .eq("id", oldest.id);
+      closedForTotalLimit = true;
+    }
+  }
+
+  if (closedForPlatformLimit || closedForTotalLimit) {
     await db.from("security_events").insert({
       user_id:    userId,
       event_type: "many_same_city_sessions",
       severity:   "low",
-      message:    `Aynı şehirde çok oturum kapatıldı: ${location.city ?? "bilinmeyen"}`,
+      message: closedForPlatformLimit
+        ? `${platform} oturum limiti aşıldı, en eski ${platform} kapatıldı (limit: ${platformLimit})`
+        : `Toplam oturum limiti aşıldı, en eski kapatıldı (limit: ${allowedSessions})`,
       ip_address: location.ip,
       country:    location.country,
       city:       location.city,
       user_agent: location.userAgent,
-      metadata:   { platform, city: location.city, active_count: sameCitySessions.length + 1 },
+      metadata: {
+        platform,
+        city:          location.city,
+        active_count:  remainingSessions.length + 1,
+        platform_limit: platformLimit,
+        total_limit:   allowedSessions,
+        closed_for_platform: closedForPlatformLimit,
+        closed_for_total:    closedForTotalLimit,
+      },
     });
   }
 
-  // ── Yeni oturum oluştur ──────────────────────────────────────────────────
-  const sessionPayload: Record<string, unknown> = {
-    user_id:       userId,
-    ip_address:    location.ip,
-    country:       location.country,
-    city:          location.city,
-    user_agent:    location.userAgent,
-    platform,
-    session_token: sessionToken,
-    is_active:     true,
-    created_at:    now,
-    last_seen_at:  now,
-  };
-
-  const { error: insertError } = await db.from("user_sessions").insert(sessionPayload);
-
-  if (insertError) {
-    // Migration henüz uygulanmamışsa platform kolonu olmadan tekrar dene
-    if (insertError.message.includes("platform")) {
-      const { platform: _p, ...payloadWithoutPlatform } = sessionPayload;
-      const { error: retryError } = await db.from("user_sessions").insert(payloadWithoutPlatform);
-      if (retryError) throw new Error(`Oturum kaydedilemedi: ${retryError.message}`);
-    } else {
-      throw new Error(`Oturum kaydedilemedi: ${insertError.message}`);
-    }
-  }
+  // ── Yeni oturum oluştur ───────────────────────────────────────────────────
+  await insertSession(db, userId, location, sessionToken, platform, now);
 
   return {
     suspiciousLogin: riskLevel === "suspicious",
@@ -278,10 +393,6 @@ export async function createUserSession(
 
 // ─── Token doğrulama ─────────────────────────────────────────────────────────
 
-/**
- * Oturum token'ının hâlâ aktif olup olmadığını kontrol eder.
- * Geçerliyse last_seen_at güncellenir.
- */
 export async function validateSessionToken(
   db: SupabaseClient,
   sessionToken: string,
@@ -305,10 +416,6 @@ export async function validateSessionToken(
 
 // ─── Header'dan konum bilgisi ─────────────────────────────────────────────────
 
-/**
- * NextRequest header'larından konum bilgisi çıkarır.
- * Vercel ortamında x-vercel-ip-* header'ları otomatik eklenir.
- */
 export function extractLocationFromHeaders(headers: Headers): LocationInfo {
   const ip =
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??

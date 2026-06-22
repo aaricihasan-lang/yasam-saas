@@ -49,13 +49,87 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   }
 
   const body = (await req.json()) as {
-    action?: "edit" | "modules";
+    action?: "edit" | "modules" | "license";
     fullName?: string;
     email?: string;
     role?: string;
     active?: boolean;
     modulePermissions?: Record<string, boolean>;
+    licenseType?: string;
+    allowedActiveSessions?: number;
+    allowedLocations?: number;
+    allowedDesktopSessions?: number;
+    allowedMobileSessions?: number;
+    allowedTabletSessions?: number;
+    allowedUnknownSessions?: number;
+    securityMode?: string;
+    securityExempt?: boolean;
+    licenseNote?: string;
   };
+
+  if (body.action === "license") {
+    const VALID_LICENSE_TYPES  = ["single", "professional", "family", "partner", "team", "custom"];
+    const VALID_SECURITY_MODES = ["strict", "normal", "flexible"];
+
+    // ── Sıkı validasyon — geçersiz değer → 400 ───────────────────────────
+    if (!VALID_LICENSE_TYPES.includes(String(body.licenseType ?? ""))) {
+      return NextResponse.json(
+        { error: `Geçersiz licenseType. Kabul edilenler: ${VALID_LICENSE_TYPES.join(", ")}` },
+        { status: 400 },
+      );
+    }
+    if (!VALID_SECURITY_MODES.includes(String(body.securityMode ?? ""))) {
+      return NextResponse.json(
+        { error: `Geçersiz securityMode. Kabul edilenler: ${VALID_SECURITY_MODES.join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const allowedActiveSessions  = Number(body.allowedActiveSessions);
+    const allowedLocations        = Number(body.allowedLocations);
+    const allowedDesktopSessions  = Number(body.allowedDesktopSessions ?? 0);
+    const allowedMobileSessions   = Number(body.allowedMobileSessions  ?? 0);
+    const allowedTabletSessions   = Number(body.allowedTabletSessions  ?? 0);
+    const allowedUnknownSessions  = Number(body.allowedUnknownSessions ?? 0);
+
+    if (!Number.isInteger(allowedActiveSessions) || allowedActiveSessions < 1 || allowedActiveSessions > 50) {
+      return NextResponse.json({ error: "allowedActiveSessions 1–50 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+    if (!Number.isInteger(allowedLocations) || allowedLocations < 1 || allowedLocations > 20) {
+      return NextResponse.json({ error: "allowedLocations 1–20 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+    if (!Number.isInteger(allowedDesktopSessions) || allowedDesktopSessions < 0 || allowedDesktopSessions > 20) {
+      return NextResponse.json({ error: "allowedDesktopSessions 0–20 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+    if (!Number.isInteger(allowedMobileSessions) || allowedMobileSessions < 0 || allowedMobileSessions > 20) {
+      return NextResponse.json({ error: "allowedMobileSessions 0–20 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+    if (!Number.isInteger(allowedTabletSessions) || allowedTabletSessions < 0 || allowedTabletSessions > 10) {
+      return NextResponse.json({ error: "allowedTabletSessions 0–10 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+    if (!Number.isInteger(allowedUnknownSessions) || allowedUnknownSessions < 0 || allowedUnknownSessions > 5) {
+      return NextResponse.json({ error: "allowedUnknownSessions 0–5 arasında tam sayı olmalıdır." }, { status: 400 });
+    }
+
+    const securityExempt = body.securityExempt === true;
+    const licenseNote    = String(body.licenseNote ?? "").trim().slice(0, 500);
+
+    const { error } = await db.from("users").update({
+      license_type:              body.licenseType,
+      allowed_active_sessions:   allowedActiveSessions,
+      allowed_locations:         allowedLocations,
+      allowed_desktop_sessions:  allowedDesktopSessions,
+      allowed_mobile_sessions:   allowedMobileSessions,
+      allowed_tablet_sessions:   allowedTabletSessions,
+      allowed_unknown_sessions:  allowedUnknownSessions,
+      security_mode:             body.securityMode,
+      security_exempt:           securityExempt,
+      license_note:              licenseNote || null,
+    }).eq("id", id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
 
   if (body.action === "modules") {
     if (!body.modulePermissions || typeof body.modulePermissions !== "object") {

@@ -26,8 +26,11 @@ import {
   ADMIN_MODULE_UI_KEYS,
   ADMIN_MODULE_UI_LABELS,
   adminPermissionsToPayload,
+  DEFAULT_LICENSE_SETTINGS,
   formatCreatedAt,
   isUserPremiumPackage,
+  LICENSE_PRESETS,
+  LICENSE_TYPE_OPTIONS,
   mapDbUser,
   mapPaymentHistoryRow,
   PACKAGE_PLAN_OPTIONS,
@@ -36,8 +39,10 @@ import {
   paymentSnapshotToEditDraft,
   rowHasMembershipColumns,
   rowHasPaymentColumns,
+  SECURITY_MODE_OPTIONS,
   type AdminModulePermissions,
   type ApprovalStatusUi,
+  type LicenseSettings,
   type ManagedUser,
   type ManagedUserRole,
   type PaymentEditDraft,
@@ -447,6 +452,12 @@ export default function AdminUserDetailPage() {
   const [securityLoaded, setSecurityLoaded] = useState(false);
   const [securityEvents, setSecurityEvents] = useState<Record<string, unknown>[]>([]);
   const [userSessions, setUserSessions] = useState<Record<string, unknown>[]>([]);
+  const [licenseDraft, setLicenseDraft] = useState<LicenseSettings>(DEFAULT_LICENSE_SETTINGS);
+  const [savingLicense, setSavingLicense] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<Record<string, unknown>[]>([]);
+  const [activeSessionsLoading, setActiveSessionsLoading] = useState(false);
+  const [activeSessionsSummary, setActiveSessionsSummary] = useState<Record<string, unknown> | null>(null);
+  const [terminatingSessionId, setTerminatingSessionId] = useState<string | null>(null);
 
   function togglePaymentPanel() {
     setShowPaymentPanel((open) => {
@@ -516,10 +527,12 @@ export default function AdminUserDetailPage() {
     setUser(mapped);
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setPackagePlan(inferPackagePlanFromSnapshot(mapped.membership));
+    setLicenseDraft({ ...mapped.licenseSettings });
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
     setNotFound(false);
     setLoading(false);
-  }, [userId]);
+    void loadActiveSessions(mapped.id, adminId);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const session = readYasamUser();
@@ -778,6 +791,69 @@ export default function AdminUserDetailPage() {
     }
 
     showToast({ title: "Başarılı", message: "Modül izinleri güncellendi.", type: "success" });
+  }
+
+  async function saveLicenseSettings() {
+    if (!user) return;
+    setSavingLicense(true);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      body: JSON.stringify({
+        action:                 "license",
+        licenseType:            licenseDraft.licenseType,
+        allowedActiveSessions:  licenseDraft.allowedActiveSessions,
+        allowedLocations:       licenseDraft.allowedLocations,
+        allowedDesktopSessions: licenseDraft.allowedDesktopSessions,
+        allowedMobileSessions:  licenseDraft.allowedMobileSessions,
+        allowedTabletSessions:  licenseDraft.allowedTabletSessions,
+        allowedUnknownSessions: licenseDraft.allowedUnknownSessions,
+        securityMode:           licenseDraft.securityMode,
+        securityExempt:         licenseDraft.securityExempt,
+        licenseNote:            licenseDraft.licenseNote,
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    setSavingLicense(false);
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Lisans ayarları güncellenemedi.", type: "error" });
+      return;
+    }
+    showToast({ title: "Başarılı", message: "Lisans & oturum limitleri güncellendi.", type: "success" });
+    await loadUser(currentAdminId);
+    await loadActiveSessions(user.id, currentAdminId);
+  }
+
+  async function loadActiveSessions(uid: string, adminId: string) {
+    setActiveSessionsLoading(true);
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/active-sessions`, {
+      headers: { "x-admin-id": adminId },
+    });
+    setActiveSessionsLoading(false);
+    if (!res.ok) return;
+    const json = (await res.json()) as {
+      sessions: Record<string, unknown>[];
+      summary: Record<string, unknown>;
+    };
+    setActiveSessions(json.sessions ?? []);
+    setActiveSessionsSummary(json.summary ?? null);
+  }
+
+  async function terminateSession(sessionId: string) {
+    if (!user) return;
+    setTerminatingSessionId(sessionId);
+    const res = await fetch(
+      `/api/admin/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(sessionId)}`,
+      { method: "PATCH", headers: { "x-admin-id": currentAdminId } },
+    );
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    setTerminatingSessionId(null);
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Oturum sonlandırılamadı.", type: "error" });
+      return;
+    }
+    showToast({ title: "Başarılı", message: "Oturum sonlandırıldı.", type: "success" });
+    await loadActiveSessions(user.id, currentAdminId);
   }
 
   if (!sessionChecked) {
@@ -1553,6 +1629,312 @@ export default function AdminUserDetailPage() {
                   )}
                 </div>
               ) : null}
+            </section>
+
+            {/* ── Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
+            <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md">
+                    <Eye className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-sky-950">Aktif Cihazlar & Güvenlik Özeti</h2>
+                    <p className="mt-0.5 text-sm font-medium text-sky-900/70">
+                      Gerçek zamanlı oturum durumu ve platform kullanımı
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadActiveSessions(user.id, currentAdminId)}
+                  disabled={activeSessionsLoading}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-sky-200 bg-white px-4 text-sm font-black text-sky-900 transition hover:border-sky-400 hover:bg-sky-50 disabled:opacity-50"
+                >
+                  {activeSessionsLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                  Yenile
+                </button>
+              </div>
+
+              {activeSessionsSummary ? (
+                <>
+                  {/* Özet kartlar */}
+                  {(() => {
+                    const s = activeSessionsSummary;
+                    const limits = (s.limits ?? {}) as Record<string, number>;
+                    const byPlatform = (s.byPlatform ?? {}) as Record<string, number>;
+                    const exempt = s.securityExempt === true;
+                    const statItems = [
+                      { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: limits.allowedActiveSessions ?? 2, color: "sky" },
+                      { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: limits.allowedLocations ?? 1, color: "violet" },
+                      { label: "Bilgisayar",   current: byPlatform.desktop ?? 0, limit: limits.allowedDesktopSessions ?? 1, color: "indigo" },
+                      { label: "Mobil",        current: byPlatform.mobile  ?? 0, limit: limits.allowedMobileSessions  ?? 1, color: "emerald" },
+                      { label: "Tablet",       current: byPlatform.tablet  ?? 0, limit: limits.allowedTabletSessions  ?? 0, color: "amber" },
+                      { label: "Tanınmayan",   current: byPlatform.unknown ?? 0, limit: limits.allowedUnknownSessions ?? 0, color: "rose" },
+                    ];
+                    return (
+                      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                        {statItems.map((item) => {
+                          const over = item.limit > 0 && item.current > item.limit;
+                          return (
+                            <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
+                              <p className="text-xs font-bold text-slate-500">{item.label}</p>
+                              <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
+                                {item.current}
+                                <span className="text-base font-medium text-slate-400">/{item.limit}</span>
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* İstisna durumu */}
+                  {activeSessionsSummary.securityExempt === true ? (
+                    <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 px-4 py-3">
+                      <p className="text-sm font-black text-rose-900">Güvenlik İstisnası Aktif — Bu kullanıcı için oturum kapatma yapılmaz.</p>
+                    </div>
+                  ) : null}
+
+                  {/* Oturum listesi */}
+                  <div className="mt-5">
+                    <h3 className="text-base font-black text-slate-900">Oturumlar</h3>
+                    {activeSessions.length === 0 ? (
+                      <p className="mt-2 text-sm font-medium text-slate-500">Kayıtlı oturum yok.</p>
+                    ) : (
+                      <div className="mt-3 grid gap-2">
+                        {activeSessions.map((s) => {
+                          const isActive  = s.is_active === true;
+                          const platform  = String(s.platform  ?? "desktop");
+                          const city      = String(s.city      ?? "—");
+                          const country   = String(s.country   ?? "");
+                          const ip        = String(s.ip_address ?? "—");
+                          const ua        = String(s.user_agent ?? "").slice(0, 60);
+                          const lastSeen  = s.last_seen_at  ? new Date(String(s.last_seen_at)).toLocaleString("tr-TR")  : "—";
+                          const createdAt = s.created_at    ? new Date(String(s.created_at)).toLocaleString("tr-TR")    : "—";
+                          const endReason = s.end_reason    ? String(s.end_reason) : null;
+                          const sid       = String(s.id);
+                          return (
+                            <div
+                              key={sid}
+                              className={`flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+                                isActive ? "border-sky-200 bg-sky-50/60" : "border-slate-200 bg-white/70 opacity-70"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${isActive ? "bg-sky-100 text-sky-900 ring-sky-200" : "bg-slate-100 text-slate-600 ring-slate-200"}`}>
+                                    {isActive ? "Aktif" : "Kapandı"}
+                                  </span>
+                                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black text-indigo-900 ring-1 ring-indigo-200">
+                                    {platform}
+                                  </span>
+                                  <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
+                                  <span className="text-slate-500">{ip}</span>
+                                </div>
+                                <p className="mt-1 truncate text-xs text-slate-500" title={String(s.user_agent ?? "")}>{ua}</p>
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                  Son: {lastSeen} · Giriş: {createdAt}
+                                  {endReason ? ` · (${endReason})` : ""}
+                                </p>
+                              </div>
+                              {isActive ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void terminateSession(sid)}
+                                  disabled={terminatingSessionId === sid}
+                                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
+                                >
+                                  {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                                  Sonlandır
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : activeSessionsLoading ? (
+                <div className="flex items-center justify-center gap-3 py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-sky-500" aria-hidden />
+                  <span className="font-bold text-slate-600">Yükleniyor…</span>
+                </div>
+              ) : (
+                <p className="mt-5 text-sm font-medium text-slate-500">Veri yüklenemedi.</p>
+              )}
+            </section>
+
+            {/* ── Lisans & Oturum Limitleri ────────────────────────────── */}
+            <section className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/60`}>
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md">
+                  <KeyRound className="h-5 w-5" aria-hidden />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-indigo-950">Lisans & Oturum Limitleri</h2>
+                  <p className="mt-0.5 text-sm font-medium text-indigo-900/70">
+                    Cihaz, lokasyon ve güvenlik politikası istisnası
+                  </p>
+                </div>
+              </div>
+
+              {/* Hazır Presetler */}
+              <div className="mt-5">
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-indigo-800">Hazır Presetler</p>
+                <div className="flex flex-wrap gap-2">
+                  {LICENSE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setLicenseDraft({ ...preset.settings })}
+                      className="rounded-xl border-2 border-indigo-200 bg-white px-3 py-1.5 text-sm font-black text-indigo-900 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {/* Lisans Türü */}
+                <div>
+                  <label className={labelClass} htmlFor="license-type">Lisans Türü</label>
+                  <select
+                    id="license-type"
+                    value={licenseDraft.licenseType}
+                    onChange={(e) => setLicenseDraft((d) => ({ ...d, licenseType: e.target.value as LicenseSettings["licenseType"] }))}
+                    className={inputClass}
+                  >
+                    {LICENSE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Güvenlik Modu */}
+                <div>
+                  <label className={labelClass} htmlFor="security-mode">Güvenlik Modu</label>
+                  <select
+                    id="security-mode"
+                    value={licenseDraft.securityMode}
+                    onChange={(e) => setLicenseDraft((d) => ({ ...d, securityMode: e.target.value as LicenseSettings["securityMode"] }))}
+                    className={inputClass}
+                  >
+                    {SECURITY_MODE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Lokasyon Limiti */}
+                <div>
+                  <label className={labelClass} htmlFor="allowed-locations">İzinli Lokasyon</label>
+                  <input id="allowed-locations" type="number" min={1} max={20}
+                    value={licenseDraft.allowedLocations}
+                    onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedLocations: Number(e.target.value) }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Platform Limitleri */}
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-indigo-800">Cihaz Bazlı Oturum Limitleri</p>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <div>
+                    <label className={labelClass} htmlFor="allowed-total">Toplam Oturum</label>
+                    <input id="allowed-total" type="number" min={1} max={50}
+                      value={licenseDraft.allowedActiveSessions}
+                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedActiveSessions: Number(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="allowed-desktop">Bilgisayar/Web</label>
+                    <input id="allowed-desktop" type="number" min={0} max={20}
+                      value={licenseDraft.allowedDesktopSessions}
+                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedDesktopSessions: Number(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="allowed-mobile">Telefon/Mobil</label>
+                    <input id="allowed-mobile" type="number" min={0} max={20}
+                      value={licenseDraft.allowedMobileSessions}
+                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedMobileSessions: Number(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="allowed-tablet">Tablet</label>
+                    <input id="allowed-tablet" type="number" min={0} max={10}
+                      value={licenseDraft.allowedTabletSessions}
+                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedTabletSessions: Number(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="allowed-unknown">Tanınmayan</label>
+                    <input id="allowed-unknown" type="number" min={0} max={5}
+                      value={licenseDraft.allowedUnknownSessions}
+                      onChange={(e) => setLicenseDraft((d) => ({ ...d, allowedUnknownSessions: Number(e.target.value) }))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <p className="mt-1 text-xs font-medium text-indigo-700/70">
+                  0 = platform bazlı limit yok (toplam limitiyle yönetilir)
+                </p>
+              </div>
+
+              {/* Admin Notu */}
+              <div className="mt-4">
+                <label className={labelClass} htmlFor="license-note">Admin Notu</label>
+                <textarea
+                  id="license-note"
+                  rows={2}
+                  maxLength={500}
+                  value={licenseDraft.licenseNote}
+                  onChange={(e) => setLicenseDraft((d) => ({ ...d, licenseNote: e.target.value }))}
+                  placeholder="İsteğe bağlı not…"
+                  className="mt-2 w-full resize-none rounded-2xl border-2 border-indigo-100 bg-white px-4 py-3 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                />
+              </div>
+
+              {/* Güvenlik İstisnası */}
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-rose-200/80 bg-rose-50/60 px-4 py-4">
+                <input
+                  id="security-exempt"
+                  type="checkbox"
+                  checked={licenseDraft.securityExempt}
+                  onChange={(e) => setLicenseDraft((d) => ({ ...d, securityExempt: e.target.checked }))}
+                  className="mt-0.5 h-5 w-5 accent-rose-600"
+                />
+                <div>
+                  <label htmlFor="security-exempt" className="text-sm font-black text-rose-950 cursor-pointer">
+                    Güvenlik İstisnası — Tüm güvenlik kısıtlarından muaf tut
+                  </label>
+                  <p className="mt-1 text-xs font-medium text-rose-800/80">
+                    İşaretlendiğinde bu kullanıcı için oturum kapatma ve risk olayı üretilmez.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => void saveLicenseSettings()}
+                  disabled={savingLicense}
+                  className={saveBtnClass}
+                >
+                  {savingLicense ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Kaydediliyor…</>
+                  ) : "Lisans Ayarlarını Kaydet"}
+                </button>
+              </div>
             </section>
 
             <section className={`${panelClass} border-slate-200/80 bg-slate-50/50`}>

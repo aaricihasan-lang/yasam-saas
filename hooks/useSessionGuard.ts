@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { readSessionToken } from "@/lib/auth/yasamUser";
 import type { YasamUser } from "@/lib/auth/yasamUser";
 
-const VALIDATE_INTERVAL_MS = 2 * 60 * 1000; // 2 dakika
+const VALIDATE_INTERVAL_MS = 60 * 1000; // 60 saniye — admin terminate sonrası max 60s içinde kick
 
 type UseSessionGuardOptions = {
   user: YasamUser | null;
