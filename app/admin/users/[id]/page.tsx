@@ -2173,9 +2173,130 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
                 <p className="mt-1 text-xs font-medium text-indigo-700/70">
-                  0 = platform bazlı limit yok (toplam limitiyle yönetilir)
+                  0 = bu cihaz türü için ayrı platform limiti uygulanmaz; toplam oturum limiti içinde değerlendirilir
                 </p>
               </div>
+
+              {/* ── Limit Özeti ─────────────────────────────────────────── */}
+              {(() => {
+                const d = licenseDraft;
+                const platformTotal =
+                  d.allowedDesktopSessions +
+                  d.allowedMobileSessions +
+                  d.allowedTabletSessions +
+                  d.allowedUnknownSessions;
+                const hasZero =
+                  d.allowedDesktopSessions === 0 ||
+                  d.allowedMobileSessions  === 0 ||
+                  d.allowedTabletSessions  === 0 ||
+                  d.allowedUnknownSessions === 0;
+                const effectiveMax =
+                  platformTotal === 0
+                    ? d.allowedActiveSessions
+                    : Math.min(d.allowedActiveSessions, platformTotal);
+
+                const status: "over" | "match" | "under" | "zero" =
+                  platformTotal === 0
+                    ? "zero"
+                    : platformTotal > d.allowedActiveSessions
+                      ? "over"
+                      : platformTotal === d.allowedActiveSessions
+                        ? "match"
+                        : "under";
+
+                const statusConfig = {
+                  over: {
+                    border:  "border-amber-300",
+                    bg:      "bg-amber-50/80",
+                    icon:    "⚠",
+                    iconCls: "text-amber-600",
+                    title:   "Dikkat: Platform toplamı Toplam Limit'ten yüksek",
+                    titleCls:"text-amber-900",
+                    msg:     `Platform limitleri toplamı (${platformTotal}) Toplam Oturum Limiti'nden (${d.allowedActiveSessions}) yüksek. Bu kullanıcı aynı anda en fazla ${d.allowedActiveSessions} cihaz kullanabilir. Yeni bir cihaz türü açılırsa en eski cihaz kapanabilir.`,
+                    msgCls:  "text-amber-800",
+                  },
+                  match: {
+                    border:  "border-emerald-300",
+                    bg:      "bg-emerald-50/80",
+                    icon:    "✓",
+                    iconCls: "text-emerald-600",
+                    title:   "Yapılandırma uyumlu",
+                    titleCls:"text-emerald-900",
+                    msg:     `Toplam limit (${d.allowedActiveSessions}) ve platform limitleri toplamı (${platformTotal}) eşit. Her platform için belirlenen kota tam olarak uygulanır.`,
+                    msgCls:  "text-emerald-800",
+                  },
+                  under: {
+                    border:  "border-sky-300",
+                    bg:      "bg-sky-50/80",
+                    icon:    "ℹ",
+                    iconCls: "text-sky-600",
+                    title:   "Bilgi: Pratik maksimum platform limitleriyle belirleniyor",
+                    titleCls:"text-sky-900",
+                    msg:     `Toplam limit (${d.allowedActiveSessions}) daha yüksek olsa da platform limitleri toplamı (${platformTotal}) nedeniyle kullanıcı pratikte en fazla ${platformTotal} cihaz açık tutabilir.`,
+                    msgCls:  "text-sky-800",
+                  },
+                  zero: {
+                    border:  "border-slate-300",
+                    bg:      "bg-slate-50/80",
+                    icon:    "ℹ",
+                    iconCls: "text-slate-500",
+                    title:   "Tüm platform limitleri 0",
+                    titleCls:"text-slate-800",
+                    msg:     `Tüm platform limitleri 0 olduğunda yalnızca Toplam Oturum Limiti (${d.allowedActiveSessions}) geçerlidir. Her cihaz türünden oturum açılabilir.`,
+                    msgCls:  "text-slate-600",
+                  },
+                }[status];
+
+                return (
+                  <div className={`mt-4 rounded-2xl border-2 p-4 ${statusConfig.border} ${statusConfig.bg}`}>
+                    {/* Başlık satırı */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className={`text-sm font-black ${statusConfig.titleCls}`}>
+                        <span className={`mr-1.5 ${statusConfig.iconCls}`}>{statusConfig.icon}</span>
+                        {statusConfig.title}
+                      </p>
+                      {/* Toplamı X yap butonu — platformTotal > 0 ve toplam ≠ platform toplamı */}
+                      {platformTotal > 0 && platformTotal !== d.allowedActiveSessions ? (
+                        <button
+                          type="button"
+                          onClick={() => setLicenseDraft((prev) => ({ ...prev, allowedActiveSessions: platformTotal }))}
+                          className="inline-flex items-center gap-1 rounded-xl border-2 border-indigo-300 bg-white px-3 py-1 text-xs font-black text-indigo-800 shadow-sm transition hover:border-indigo-500 hover:bg-indigo-50"
+                        >
+                          Toplamı {platformTotal} yap
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Açıklama */}
+                    <p className={`mt-1.5 text-xs font-medium leading-relaxed ${statusConfig.msgCls}`}>
+                      {statusConfig.msg}
+                    </p>
+
+                    {/* Özet sayaçlar */}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-white/60 pt-3 text-xs font-bold text-slate-700">
+                      <span>Toplam Oturum Limiti: <span className="font-black text-slate-900">{d.allowedActiveSessions}</span></span>
+                      <span>Platform Toplamı: <span className="font-black text-slate-900">{platformTotal}</span></span>
+                      <span>
+                        Etkin Maksimum:{" "}
+                        <span className="font-black text-slate-900">
+                          {platformTotal === 0 ? `${d.allowedActiveSessions} (platform limitsiz)` : `${effectiveMax}`}
+                          {hasZero && platformTotal > 0 ? " *" : ""}
+                        </span>
+                      </span>
+                      {hasZero && platformTotal > 0 ? (
+                        <span className="w-full text-[10px] font-medium text-slate-500">
+                          * 0 değeri olan platform türleri sınırsız sayılır; gerçek maksimum koşullara göre değişebilir.
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Sabit kural hatırlatıcı */}
+                    <p className="mt-2 text-[10px] font-medium text-slate-500">
+                      Toplam Oturum her zaman üst sınırdır. Platform limitleri bu toplamın cihaz türlerine dağılımıdır.
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Admin Notu */}
               <div className="mt-4">
