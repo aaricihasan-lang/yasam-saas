@@ -5,6 +5,10 @@ export const runtime = "nodejs";
 
 /**
  * Geri yüklenebilir tablolar — backup whitelist ile birebir aynı olmalı.
+ *
+ * support_messages geri yüklenmez (iletişim kaydı; mevcut sistem konuşmalarını
+ * korumak için kasıtlı olarak hariç tutulmuştur).
+ *
  * Güvenlik:
  *  - Bu listede olmayan tablo adı gönderilirse istek 400 ile reddedilir.
  *  - tenant_id değeri her satırda server tarafından override edilir.
@@ -49,8 +53,11 @@ const ALLOWED_TABLES = new Set<string>([
   "reflexology_protocols",
   // Aromaterapi
   "aromatherapy_oils",
+  "aromatherapy_knowledge_articles",
+  "aromatherapy_reference_sheets",
   // Şifa Rehberi
   "healing_guides",
+  // support_messages intentionally excluded — communications should not be re-imported
 ]);
 
 type BackupPayload = {
@@ -85,9 +92,15 @@ export async function POST(req: NextRequest) {
   if (!backup || typeof backup !== "object") {
     return NextResponse.json({ error: "Yedek dosyası geçersiz." }, { status: 400 });
   }
-  if (backup.version !== "1.0") {
-    return NextResponse.json({ error: "Desteklenmeyen yedek versiyonu." }, { status: 400 });
+
+  // v1.0 ve v2.0 formatları kabul edilir
+  if (backup.version !== "1.0" && backup.version !== "2.0") {
+    return NextResponse.json(
+      { error: `Desteklenmeyen yedek versiyonu: ${String(backup.version)}` },
+      { status: 400 },
+    );
   }
+
   if (!backup.tables || typeof backup.tables !== "object") {
     return NextResponse.json({ error: "Yedek yapısı geçersiz." }, { status: 400 });
   }
@@ -133,13 +146,9 @@ export async function POST(req: NextRequest) {
       const row = { ...(rawRow as Record<string, unknown>) };
 
       // Güvenlik katmanı 1: tenant_id her zaman server değeriyle override edilir.
-      // JSON'dan gelen tenant_id'ye güvenilmez.
       row.tenant_id = tenantId;
 
       // Güvenlik katmanı 2: user_id, yalnızca tabloda bu kolon varsa override edilir.
-      // Tabloda user_id kolonu olmadığında yazmaya çalışmak DB hatası verir → skipped.
-      // Çözüm: satırda user_id anahtarı varsa (backup'ta kaydedilmişse) override et;
-      // satırda yoksa ekleme (kolonun var olup olmadığını bilemeyiz ama satırda yoksa zaten sorun olmaz).
       if ("user_id" in row) {
         row.user_id = userId;
       }
@@ -154,7 +163,6 @@ export async function POST(req: NextRequest) {
       } else if (upsertData && upsertData.length > 0) {
         inserted++;
       } else {
-        // ON CONFLICT DO NOTHING → satır zaten var, atlandı
         skipped++;
       }
     }

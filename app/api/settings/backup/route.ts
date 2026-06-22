@@ -4,15 +4,20 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 export const runtime = "nodejs";
 
 /**
- * Kullanıcıya ait tüm tenant-izole tabloların listesi.
+ * Yedek kapsamındaki tablolar.
  *
- * Dahil edilmeyen tablolar ve nedenler:
- *  - hacamat_rules              → global admin tablosu, tenant_id yok
- *  - human_design_knowledge     → semi-global kütüphane (tenant_id IS NULL olabilir)
- *  - stone_knowledge_articles   → admin kütüphanesi, paylaşımlı içerik
- *  - stone_knowledge_categories → admin kütüphanesi, paylaşımlı içerik
- *  - client_stone_photos        → storage bucket dosyaları (ayrı faz)
- *  - personal_archive_files dosya içerikleri → storage bucket (ayrı faz)
+ * Hariç tutulanlar ve nedenleri:
+ *  - aromatherapy_reference_rows → tenant_id yok; sheet_id FK ile erişim gerekiyor (V3)
+ *  - stone_exclusions            → UI tercihi, iş verisi değil (text tenant_id, farklı PK)
+ *  - hacamat_rules               → Global admin tablosu, tenant_id yok
+ *  - human_design_knowledge      → Semi-global kütüphane (tenant_id IS NULL kayıtlar da var)
+ *  - stone_knowledge_articles    → Admin kütüphanesi, paylaşımlı
+ *  - stone_knowledge_categories  → Admin kütüphanesi, paylaşımlı
+ *  - belge_ceviri_jobs           → Geçici iş kaydı, kalıcı veri değil
+ *  - user_sessions               → Güvenlik logları / aktif oturum yönetimi
+ *  - security_events             → Güvenlik logları
+ *  - client_stone_photos         → Storage bucket dosyaları (V3)
+ *  - personal_archive_files içerik → Storage bucket (V3)
  */
 const BACKUP_TABLES = [
   // ── Danışan Yolculuğu ───────────────────────────────────────────────────────
@@ -56,11 +61,16 @@ const BACKUP_TABLES = [
   // ── Refleksoloji ─────────────────────────────────────────────────────────────
   "reflexology_protocols",
 
-  // ── Aromaterapi (sadece tenant'a ait kayıtlar; global null satırlar hariç) ──
+  // ── Aromaterapi ──────────────────────────────────────────────────────────────
   "aromatherapy_oils",
+  "aromatherapy_knowledge_articles",
+  "aromatherapy_reference_sheets",
 
   // ── Şifa Rehberi ─────────────────────────────────────────────────────────────
   "healing_guides",
+
+  // ── Destek Mesajları (iletişim kaydı; restore'a dahil değil) ─────────────────
+  "support_messages",
 ] as const;
 
 type BackupTable = (typeof BACKUP_TABLES)[number];
@@ -89,7 +99,7 @@ export async function GET(req: NextRequest) {
   );
 
   const payload = {
-    version: "1.0",
+    version: "2.0",
     exported_at: new Date().toISOString(),
     tenant_id: tenantId,
     table_count: BACKUP_TABLES.length,

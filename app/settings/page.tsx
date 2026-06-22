@@ -43,24 +43,29 @@ type ExportModule = {
   key: string;
   label: string;
   desc: string;
-  emoji: string;
+  tableCount: number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound     },
+  { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
   { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
-  { id: "export",    label: "Dışa Aktarım",        icon: FileText     },
-  { id: "backup",    label: "Sistem Yedeği",       icon: FileJson     },
-  { id: "restore",   label: "Geri Yükleme",        icon: RotateCcw    },
+  { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
+  { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
+  { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
 ];
 
 const EXPORT_MODULES: ExportModule[] = [
-  { key: "clients",        label: "Danışan Yolculuğu", desc: "Tüm danışan kayıtları",         emoji: "👥" },
-  { key: "stones",         label: "Doğaltaş",          desc: "Taş ve mineral kayıtları",       emoji: "💎" },
-  { key: "numerology",     label: "Yaşam Analiz",      desc: "Numeroloji analiz kayıtları",    emoji: "🧠" },
-  { key: "digital_content",label: "Dijital İçerik",    desc: "Kişisel arşiv içerikleri",       emoji: "📚" },
+  { key: "clients",        label: "Danışan Yolculuğu",              desc: "Danışanlar, notlar, randevular, seanslar, ödevler, analizler, taş eşleşmeleri", tableCount: 7 },
+  { key: "numerology",     label: "Numeroloji",                     desc: "Analiz kayıtları, bilgi bankası, taş atamaları",                                tableCount: 3 },
+  { key: "human_design",   label: "Human Design",                   desc: "Danışanlar, haritalar, raporlar, bilgi bankası",                                tableCount: 4 },
+  { key: "dogaltas",       label: "Doğaltaş",                       desc: "Taşlar, mineraller, kombinasyonlar, stok",                                      tableCount: 4 },
+  { key: "dijital_icerik", label: "Dijital İçerik",                 desc: "Kişisel arşivler ve dosya listesi (metadata)",                                  tableCount: 2 },
+  { key: "bioenerji",      label: "Biyoenerji & Enerji Bedenleri",  desc: "Seanslar, semboller, imajinasyonlar, çakralar, enerji bedenleri, bilinçaltı",   tableCount: 6 },
+  { key: "refleksoloji",   label: "Refleksoloji",                   desc: "Tüm protokol kayıtları",                                                        tableCount: 1 },
+  { key: "aromaterapi",    label: "Aromaterapi",                    desc: "Yağ kayıtları, bilgi bankası, referans sayfaları",                              tableCount: 3 },
+  { key: "sifa_rehberi",   label: "Şifa Rehberi",                   desc: "Tüm rehber kayıtları",                                                          tableCount: 1 },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -192,24 +197,9 @@ function SecurityTab({ user }: { user: YasamUser }) {
         </p>
       </div>
 
-      <PasswordInput
-        label="Mevcut Şifre"
-        value={oldPw}
-        onChange={setOldPw}
-        placeholder="Mevcut şifrenizi girin"
-      />
-      <PasswordInput
-        label="Yeni Şifre"
-        value={newPw}
-        onChange={setNewPw}
-        placeholder="En az 6 karakter"
-      />
-      <PasswordInput
-        label="Yeni Şifre Tekrar"
-        value={confirmPw}
-        onChange={setConfirmPw}
-        placeholder="Yeni şifrenizi tekrar girin"
-      />
+      <PasswordInput label="Mevcut Şifre"     value={oldPw}     onChange={setOldPw}     placeholder="Mevcut şifrenizi girin"      />
+      <PasswordInput label="Yeni Şifre"        value={newPw}     onChange={setNewPw}     placeholder="En az 6 karakter"            />
+      <PasswordInput label="Yeni Şifre Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni şifrenizi tekrar girin" />
 
       <button
         type="submit"
@@ -345,7 +335,6 @@ function ContactTab({ user }: { user: YasamUser }) {
         </button>
       </form>
 
-      {/* Önceki mesajlar */}
       {loadingMsgs ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" /> Mesajlar yükleniyor…
@@ -428,7 +417,7 @@ function ExportTab({ user }: { user: YasamUser }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${moduleKey}-rapor-${new Date().toISOString().slice(0, 10)}.docx`;
+      a.download = `${moduleKey}-arsiv-${new Date().toISOString().slice(0, 10)}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -441,47 +430,79 @@ function ExportTab({ user }: { user: YasamUser }) {
     }
   }
 
+  const isLoading = loadingModule !== null;
+
   return (
-    <div className="space-y-4 max-w-lg">
-      <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3">
-        <p className="text-xs font-semibold text-sky-800">
-          📄 Word dışa aktarım <strong>okunabilir özet rapordur</strong> — sınırlı kolonları içerir.
-          Eksiksiz ve geri yüklenebilir sistem yedeği için <strong>Sistem Yedeği</strong> sekmesini kullanın.
+    <div className="space-y-5 max-w-2xl">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+        <p className="text-xs font-semibold text-emerald-800">
+          Word dışa aktarım, Yaşam Sistemi dışında da okunabilir tam arşiv rapordur.
+          Tüm kayıtlar dahildir. Geri yüklenebilir sistem yedeği için <strong>Sistem Yedeği</strong> sekmesini kullanın.
         </p>
       </div>
 
       {mobile && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-xs font-semibold text-amber-700">
-            📱 Büyük raporları masaüstü tarayıcıdan indirmeniz önerilir.
+            Büyük raporları masaüstü tarayıcıdan indirmeniz önerilir.
           </p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {EXPORT_MODULES.map((mod) => (
-          <div
-            key={mod.key}
-            className="flex flex-col rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm"
-          >
-            <span className="text-2xl" aria-hidden>{mod.emoji}</span>
-            <h3 className="mt-2 text-sm font-bold text-slate-900">{mod.label}</h3>
-            <p className="mt-0.5 text-xs text-slate-500 flex-1">{mod.desc}</p>
-            <button
-              type="button"
-              onClick={() => { void handleExport(mod.key, mod.label); }}
-              disabled={loadingModule !== null}
-              className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 text-xs font-bold text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
-            >
-              {loadingModule === mod.key ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Download className="h-3.5 w-3.5" />
-              )}
-              {loadingModule === mod.key ? "Hazırlanıyor…" : "Word İndir"}
-            </button>
+      {/* Toplu indirme butonu */}
+      <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-sm font-black text-violet-900">Tüm Verilerimi Word Olarak İndir</p>
+            <p className="mt-0.5 text-xs text-violet-600">
+              9 modül · 31 tablo · Tüm kayıtlar tek belgede
+            </p>
           </div>
-        ))}
+          <button
+            type="button"
+            onClick={() => { void handleExport("all", "Tüm Veriler"); }}
+            disabled={isLoading}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
+          >
+            {loadingModule === "all" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {loadingModule === "all" ? "Hazırlanıyor…" : "Tümünü İndir"}
+          </button>
+        </div>
+      </div>
+
+      {/* Modül bazlı butonlar */}
+      <div>
+        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Modül Bazlı İndir</p>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {EXPORT_MODULES.map((mod) => (
+            <div
+              key={mod.key}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/80 px-4 py-3 shadow-sm"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-800 truncate">{mod.label}</p>
+                <p className="mt-0.5 text-[11px] text-slate-400 truncate">{mod.tableCount} tablo · {mod.desc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { void handleExport(mod.key, mod.label); }}
+                disabled={isLoading}
+                className="flex shrink-0 h-8 w-8 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
+                title={`${mod.label} Word İndir`}
+              >
+                {loadingModule === mod.key ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -528,17 +549,20 @@ function BackupTab({ user }: { user: YasamUser }) {
         <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — Eksiksiz JSON</h3>
         <p className="mt-1.5 text-sm text-slate-600">
           Tüm modüllerdeki verilerinizi <strong>eksiksiz ve geri yüklenebilir</strong> JSON formatında indirin.
-          Word raporlarının aksine bu dosya tüm alanları içerir ve Geri Yükleme ile sisteme aktarılabilir.
+          Bu dosya Geri Yükleme sekmesi ile sisteme aktarılabilir.
         </p>
         <ul className="mt-3 space-y-1">
           {[
             "Danışan yolculuğu (7 tablo)",
-            "Numeroloji kayıtları (3 tablo)",
+            "Numeroloji (3 tablo)",
             "Human Design (4 tablo)",
-            "Doğaltaş & Stok (4 tablo)",
-            "Biyoenerji (6 tablo)",
-            "Refleksoloji, Aromaterapi, Şifa Rehberi",
+            "Doğaltaş & stok (4 tablo)",
             "Dijital içerik metadata (2 tablo)",
+            "Biyoenerji (6 tablo)",
+            "Refleksoloji (1 tablo)",
+            "Aromaterapi (3 tablo — yağlar, bilgi, referans)",
+            "Şifa Rehberi (1 tablo)",
+            "Destek mesajları (1 tablo)",
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 text-xs text-slate-500">
               <Check className="h-3 w-3 shrink-0 text-emerald-500" />
@@ -555,11 +579,7 @@ function BackupTab({ user }: { user: YasamUser }) {
           disabled={loading}
           className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
         >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {loading ? "Hazırlanıyor…" : "Sistem Yedeği İndir"}
         </button>
       </div>
@@ -574,12 +594,12 @@ type RestoreSummary = Record<string, { inserted: number; skipped: number; error:
 function RestoreTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [fileInfo, setFileInfo]     = useState<{ name: string; size: string } | null>(null);
-  const [validated, setValidated]   = useState<{ ok: boolean; message: string } | null>(null);
+  const [fileInfo, setFileInfo]       = useState<{ name: string; size: string } | null>(null);
+  const [validated, setValidated]     = useState<{ ok: boolean; message: string } | null>(null);
   const [parsedBackup, setParsedBackup] = useState<unknown>(null);
-  const [confirmed, setConfirmed]   = useState(false);
-  const [loading, setLoading]       = useState(false);
-  const [summary, setSummary]       = useState<RestoreSummary | null>(null);
+  const [confirmed, setConfirmed]     = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [summary, setSummary]         = useState<RestoreSummary | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -593,13 +613,14 @@ function RestoreTab({ user }: { user: YasamUser }) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const parsed = JSON.parse(ev.target?.result as string);
+        const parsed = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
         if (typeof parsed !== "object" || parsed === null) throw new Error("Geçersiz yapı");
-        if (parsed.version !== "1.0") throw new Error("Desteklenmeyen versiyon: " + parsed.version);
+        const ver = parsed.version as string;
+        if (ver !== "1.0" && ver !== "2.0") throw new Error("Desteklenmeyen versiyon: " + ver);
         if (!parsed.tables || typeof parsed.tables !== "object") throw new Error("'tables' alanı eksik");
-        const tableCount = Object.keys(parsed.tables).length;
+        const tableCount = Object.keys(parsed.tables as object).length;
         setParsedBackup(parsed);
-        setValidated({ ok: true, message: `✓ ${tableCount} tablo, format geçerli.` });
+        setValidated({ ok: true, message: `✓ v${ver} — ${tableCount} tablo, format geçerli.` });
       } catch (err) {
         setValidated({ ok: false, message: (err as Error).message });
       }
@@ -635,7 +656,8 @@ function RestoreTab({ user }: { user: YasamUser }) {
     <div className="space-y-5 max-w-sm">
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
         <p className="text-xs font-semibold text-amber-700">
-          ⚠️ Güvenli Mod: Mevcut veriler silinmez. Çakışan kayıtlar atlanır, yeni kayıtlar eklenir.
+          Güvenli Mod: Mevcut veriler silinmez. Çakışan kayıtlar atlanır, yeni kayıtlar eklenir.
+          v1.0 ve v2.0 yedek formatları desteklenir.
         </p>
       </div>
 
@@ -646,7 +668,9 @@ function RestoreTab({ user }: { user: YasamUser }) {
           onClick={() => fileRef.current?.click()}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); }
+          }}
           aria-label="Yedek dosyası seç"
         >
           <Upload className="h-8 w-8 text-slate-300 mb-2" />
@@ -659,13 +683,7 @@ function RestoreTab({ user }: { user: YasamUser }) {
             <p className="text-sm text-slate-400">Dosyayı buraya sürükleyin veya tıklayın</p>
           )}
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json"
-          className="sr-only"
-          onChange={handleFileChange}
-        />
+        <input ref={fileRef} type="file" accept=".json" className="sr-only" onChange={handleFileChange} />
       </div>
 
       {validated && (
@@ -674,7 +692,6 @@ function RestoreTab({ user }: { user: YasamUser }) {
         </div>
       )}
 
-      {/* İki aşamalı onay — sadece format geçerliyse göster */}
       {validated?.ok && (
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
           <input
@@ -692,11 +709,11 @@ function RestoreTab({ user }: { user: YasamUser }) {
       {summary && (
         <div className="rounded-xl border border-slate-100 bg-white/80 p-4">
           <p className="text-sm font-bold text-slate-700 mb-3">İçe Aktarım Sonucu</p>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {Object.entries(summary).map(([table, s]) => (
               <div key={table} className="flex items-center justify-between gap-3">
-                <span className="text-sm text-slate-600">{table}</span>
-                <div className="flex gap-2 text-xs">
+                <span className="text-xs text-slate-600 truncate">{table}</span>
+                <div className="flex shrink-0 gap-2 text-[11px]">
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">{s.inserted} eklendi</span>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-500">{s.skipped} atlandı</span>
                 </div>
@@ -712,11 +729,7 @@ function RestoreTab({ user }: { user: YasamUser }) {
         disabled={!parsedBackup || !validated?.ok || !confirmed || loading}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <RotateCcw className="h-4 w-4" />
-        )}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
         {loading ? "Geri Yükleniyor…" : "Yedeği İçe Aktar"}
       </button>
     </div>
@@ -761,13 +774,11 @@ export default function SettingsPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_50%,#fff8fb_100%)] text-slate-950 antialiased">
-      {/* Bg blurs */}
       <div className="pointer-events-none absolute -left-24 top-0 h-96 w-96 rounded-full bg-violet-300/20 blur-[100px]" aria-hidden />
       <div className="pointer-events-none absolute right-0 top-32 h-80 w-80 rounded-full bg-pink-200/20 blur-[90px]" aria-hidden />
 
       <div className="relative mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
 
-        {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/"
@@ -782,7 +793,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Tab navigation */}
         <div className="mb-5 overflow-x-auto">
           <div className="flex min-w-max gap-1.5 rounded-2xl border border-white/70 bg-white/60 p-1.5 shadow-sm backdrop-blur-md">
             {TABS.map((t) => {
@@ -807,7 +817,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Tab content card */}
         <div className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-6">
           <div className="mb-5 flex items-center gap-2.5">
             {(() => { const Icon = activeTabDef.icon; return <Icon className="h-5 w-5 text-violet-600" strokeWidth={2} />; })()}
