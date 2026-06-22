@@ -991,50 +991,49 @@ export default function TasBilgiKutuphanesiPage() {
 
           {/* Toplu işlem çubuğu */}
           {!loading && (
-            <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-              {selectedIds.size === 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-400">
-                  ☐ Toplu İşlemler
-                </span>
-              ) : (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-full border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-800">
-                    ✓ {selectedIds.size} kayıt seçildi
+            <div className="shrink-0 border-b border-slate-100 px-3 py-2 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black text-slate-500">📋 Toplu İşlemler</span>
+                {selectedIds.size > 0 && (
+                  <span className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-[11px] font-black text-blue-800">
+                    {selectedIds.size} kayıt seçildi
                   </span>
-                  <button
-                    type="button"
-                    onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
-                    disabled={bulkDeleteBusy || bulkUpdateBusy}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {selectedIds.size >= filtered.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearSelection}
-                    disabled={bulkDeleteBusy || bulkUpdateBusy}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Seçimi Kaldır
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleBulkDelete()}
-                    disabled={bulkDeleteBusy || bulkUpdateBusy}
-                    className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
-                  >
-                    {bulkDeleteBusy ? "Siliniyor…" : `Seçili Sil (${selectedIds.size})`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowBulkUpdateModal(true); setBulkUpdateError(""); setBulkUpdateForm({ category: "", sub_category: "" }); }}
-                    disabled={bulkDeleteBusy || bulkUpdateBusy}
-                    className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:opacity-50"
-                  >
-                    Seçili Güncelle ({selectedIds.size})
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
+                  disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {selectedIds.size > 0 && selectedIds.size >= filtered.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Seçimi Kaldır
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleBulkDelete()}
+                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {bulkDeleteBusy ? "Siliniyor…" : "Seçili Sil"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowBulkUpdateModal(true); setBulkUpdateError(""); setBulkUpdateForm({ category: "", sub_category: "" }); }}
+                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Seçili Güncelle
+                </button>
+              </div>
             </div>
           )}
 
