@@ -729,14 +729,12 @@ function MineralListesiPageContent() {
                     ) : null}
 
                     {/* Mineral seçim checkbox */}
-                    <label
-                      className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
-                      onClick={(e) => e.preventDefault()}
-                    >
+                    <label className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center">
                       <input
                         type="checkbox"
                         checked={isMineralSelected}
-                        onChange={() => toggleMineralSelection(mineral.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleMineralSelection(mineral.id); }}
+                        onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
                       />
                     </label>
