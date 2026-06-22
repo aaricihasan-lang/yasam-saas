@@ -1151,35 +1151,6 @@ export default function Home() {
                     </button>
                   </div>
 
-                  {/* Hızlı İşlemler — yalnızca izinli modüller */}
-                  {(() => {
-                    const quickActions = [
-                      { label: "Danışan Ekle",  href: "/danisan-yolculugu/kayit",  icon: "👥", permKey: "clients" as ModulePermissionKey },
-                      { label: "Taş Ekle",       href: "/dogaltas/dogaltas-kayit", icon: "💎", permKey: "stones" as ModulePermissionKey },
-                      { label: "Analiz Oluştur", href: "/numeroloji/analiz",       icon: "🧠", permKey: "numerology" as ModulePermissionKey },
-                      { label: "İçerik Ekle",    href: "/digital-content",         icon: "📚", permKey: "digital_content" as ModulePermissionKey },
-                    ].filter(({ permKey }) => {
-                      if (isAdminUser(user)) return true;
-                      const mod = dashboardModules.find((m) => m.permissionKey === permKey);
-                      return mod ? isExpertDashboardModuleVisible(user, mod) : false;
-                    });
-                    if (!quickActions.length) return null;
-                    return (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {quickActions.map(({ label, href, icon }) => (
-                          <Link
-                            key={label}
-                            href={href}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/80 bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-slate-700 no-underline shadow-[0_8px_20px_rgba(124,58,237,0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:text-violet-700"
-                          >
-                            <span aria-hidden>{icon}</span>
-                            {label}
-                          </Link>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
                   {/* Admin linki */}
                   {isAdminUser(user) ? (
                     <button
