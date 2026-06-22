@@ -189,7 +189,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
       <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-violet-700">
           <Shield className="h-3.5 w-3.5 shrink-0" />
@@ -276,7 +276,7 @@ function ContactTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="space-y-6 max-w-2xl">
       <form onSubmit={handleSend} className="space-y-4">
         <div>
           <label className="block text-sm font-bold text-slate-700">Konu</label>
@@ -433,7 +433,7 @@ function ExportTab({ user }: { user: YasamUser }) {
   const isLoading = loadingModule !== null;
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-5">
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
         <p className="text-xs font-semibold text-emerald-800">
           Word dışa aktarım, Yaşam Sistemi dışında da okunabilir tam arşiv rapordur.
@@ -543,7 +543,7 @@ function BackupTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-5 max-w-sm">
+    <div className="space-y-5 max-w-xl">
       <div className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
         <FileJson className="h-10 w-10 text-slate-400 mb-3" />
         <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — Eksiksiz JSON</h3>
@@ -653,7 +653,7 @@ function RestoreTab({ user }: { user: YasamUser }) {
   }
 
   return (
-    <div className="space-y-5 max-w-sm">
+    <div className="space-y-5 max-w-md">
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
         <p className="text-xs font-semibold text-amber-700">
           Güvenli Mod: Mevcut veriler silinmez. Çakışan kayıtlar atlanır, yeni kayıtlar eklenir.
@@ -776,29 +776,40 @@ export default function SettingsPage() {
   const isDemoLockedTab = isDemo && DEMO_LOCKED_TABS.includes(tab);
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_50%,#fff8fb_100%)] text-slate-950 antialiased">
-      <div className="pointer-events-none absolute -left-24 top-0 h-96 w-96 rounded-full bg-violet-300/20 blur-[100px]" aria-hidden />
-      <div className="pointer-events-none absolute right-0 top-32 h-80 w-80 rounded-full bg-pink-200/20 blur-[90px]" aria-hidden />
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(160deg,#eef5ff_0%,#f6f3ff_45%,#fff8fb_100%)] text-slate-950 antialiased">
+      <div className="pointer-events-none absolute -left-32 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[140px]" aria-hidden />
+      <div className="pointer-events-none absolute -right-20 top-20 h-[420px] w-[420px] rounded-full bg-fuchsia-200/20 blur-[120px]" aria-hidden />
+      <div className="pointer-events-none absolute bottom-0 left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-sky-200/15 blur-[110px]" aria-hidden />
 
-      <div className="relative mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+      <div className="relative mx-auto w-full max-w-5xl px-4 py-6 sm:px-8 lg:px-10">
 
-        <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-600 shadow-sm transition hover:border-violet-300 hover:text-violet-700"
-            aria-label="Ana sayfaya dön"
-          >
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          </Link>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 sm:text-2xl">Ayarlar & Güvenlik</h1>
-            <p className="mt-0.5 text-xs text-slate-500">Şifre, iletişim, yedekleme ve dışa aktarma</p>
+        {/* Premium header — admin panel çizgisini takip eder */}
+        <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/30 bg-gradient-to-r from-slate-900 via-violet-900 to-fuchsia-900 px-6 py-5 text-white shadow-[0_12px_40px_rgba(88,28,135,0.18)] sm:px-8">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/5 blur-2xl" aria-hidden />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+                <Shield className="h-5 w-5 text-white/90" strokeWidth={2} />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight sm:text-2xl">Ayarlar & Güvenlik</h1>
+                <p className="mt-0.5 text-xs text-white/55">Şifre, iletişim, yedekleme ve dışa aktarma</p>
+              </div>
+            </div>
+            <Link
+              href="/"
+              className="flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-2 text-xs font-bold text-white/80 ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white"
+              aria-label="Ana sayfaya dön"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Ana Sayfa
+            </Link>
           </div>
-        </div>
+        </header>
 
-        {/* Mobile: 2-sütun grid (wrap); md+: yatay flex */}
+        {/* Mobile: 2-sütun grid; md+: eşit genişlikte flex sekmeler */}
         <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/70 bg-white/60 p-1.5 shadow-sm backdrop-blur-md md:flex">
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:flex md:gap-1.5">
             {TABS.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -808,15 +819,15 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setTab(t.id)}
                   className={[
-                    "flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all duration-150",
-                    "md:px-3 md:whitespace-nowrap",
-                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:w-auto" : "",
+                    "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
+                    "md:flex-1 md:whitespace-nowrap md:text-sm",
+                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:mx-0 md:w-auto" : "",
                     isActive
                       ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
-                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900",
+                      : "text-slate-500 hover:bg-violet-50 hover:text-violet-700",
                   ].filter(Boolean).join(" ")}
                 >
-                  <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
                   {t.label}
                 </button>
               );
@@ -833,10 +844,17 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-6">
-          <div className="mb-5 flex items-center gap-2.5">
-            {(() => { const Icon = activeTabDef.icon; return <Icon className="h-5 w-5 text-violet-600" strokeWidth={2} />; })()}
-            <h2 className="text-base font-black text-slate-900">{activeTabDef.label}</h2>
+        <div className="rounded-2xl border border-white/80 bg-white/80 p-6 shadow-[0_8px_30px_rgba(0,0,0,0.07)] backdrop-blur-xl lg:p-8">
+          <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+            {(() => {
+              const Icon = activeTabDef.icon;
+              return (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm">
+                  <Icon className="h-4.5 w-4.5" strokeWidth={2} />
+                </div>
+              );
+            })()}
+            <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeTabDef.label}</h2>
           </div>
 
           {isDemoLockedTab ? (
