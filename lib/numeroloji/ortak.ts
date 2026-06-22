@@ -132,11 +132,12 @@ export function buildSpecialPathDisplay(values: number[]): string {
   }
 
   if (!bestCombo) {
-    // Kombinasyon yok → tüm değerleri sırayla göster
-    return nonZero.join("-");
+    // Kombinasyon yok → büyükten küçüğe sırala
+    return [...nonZero].sort((a, b) => b - a).join("-");
   }
 
-  // Kombinasyon bulundu → ana path üret
+  // Kombinasyon bulundu → ana path üret, büyükten küçüğe sırala
+  // origPath orijinal sırayı korur (hesap izi için)
   const { combined, idxA, idxB } = bestCombo;
   const mainParts: number[] = [];
   let inserted = false;
@@ -151,7 +152,7 @@ export function buildSpecialPathDisplay(values: number[]): string {
     }
   }
 
-  const mainPath = mainParts.join("-");
+  const mainPath = [...mainParts].sort((a, b) => b - a).join("-");
   const origPath = nonZero.join("-");
   return mainPath === origPath ? mainPath : `${mainPath} (${origPath})`;
 }
