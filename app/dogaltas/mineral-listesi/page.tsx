@@ -24,6 +24,9 @@ import {
   MINERALS_UNCATEGORIZED_FILTER,
   type MineralListItem,
 } from "@/lib/dogaltas/mineralsListFetch";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useToast } from "@/components/ui/ToastProvider";
+import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -208,12 +211,16 @@ function MineralListesiPageContent() {
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [selectedMineralIds, setSelectedMineralIds] = useState<Set<string>>(() => new Set());
   const [mineralWordBusy, setMineralWordBusy] = useState(false);
+  const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   // Word raporu modal
   const [showWordModal, setShowWordModal] = useState(false);
   const [wordExportMode, setWordExportMode] = useState<"all" | "filtered" | "viewed" | "selected">("all");
   const [wordReportLoading, setWordReportLoading] = useState(false);
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
+
+  const deleteConfirm = useDeleteConfirm();
+  const { showToast } = useToast();
 
   const applySearchUrl = useCallback(
     (query: string) => {
@@ -376,6 +383,41 @@ function MineralListesiPageContent() {
   const clearMineralSelection = useCallback(() => {
     setSelectedMineralIds(new Set());
   }, []);
+
+  async function handleBulkDelete() {
+    const ids = [...selectedMineralIds];
+    if (!ids.length || bulkDeleteBusy) return;
+
+    const ok = await deleteConfirm({
+      title: "Mineralleri Kalıcı Olarak Sil",
+      message: `${ids.length} mineral kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+    });
+    if (!ok) return;
+
+    const tid = queryTenantId ?? (await getSyncedTenantId());
+    if (!tid) return;
+
+    setBulkDeleteBusy(true);
+    try {
+      const { error } = await supabase
+        .from("minerals")
+        .delete()
+        .eq("tenant_id", tid)
+        .in("id", ids);
+
+      if (error) {
+        showToast({ type: "error", message: `Silme başarısız: ${error.message}` });
+        return;
+      }
+
+      setMinerals((prev) => prev.filter((m) => !ids.includes(m.id)));
+      setTotalCount((prev) => Math.max(0, prev - ids.length));
+      clearMineralSelection();
+      showToast({ type: "success", message: `${ids.length} mineral başarıyla silindi.` });
+    } finally {
+      setBulkDeleteBusy(false);
+    }
+  }
 
   async function exportSelectedMineralsWord() {
     const ids = [...selectedMineralIds];
@@ -547,16 +589,6 @@ function MineralListesiPageContent() {
             >
               📄 Word Raporu
             </button>
-            {selectedMineralIds.size > 0 && (
-              <button
-                type="button"
-                onClick={() => void exportSelectedMineralsWord()}
-                disabled={mineralWordBusy}
-                className={`${uiActionBtn} border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50`}
-              >
-                {mineralWordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedMineralIds.size})`}
-              </button>
-            )}
             <Link
               href="/dogaltas/mineral-bankasi"
               className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
@@ -582,21 +614,61 @@ function MineralListesiPageContent() {
           </div>
         ) : null}
 
-        {/* Mineral seçim çubuğu */}
+        {/* Toplu işlem çubuğu */}
         {!listLoading && filteredMinerals.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 shadow-sm">
-            <span className="shrink-0 rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
-              {selectedMineralIds.size > 0 ? `✓ ${selectedMineralIds.size} seçili` : "Seçim yok"}
-            </span>
-            <button type="button" onClick={selectAllMinerals} disabled={mineralWordBusy}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50">
-              Tümünü Seç ({totalCount})
-            </button>
-            {selectedMineralIds.size > 0 && (
-              <button type="button" onClick={clearMineralSelection} disabled={mineralWordBusy}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50">
-                Seçimi Temizle
-              </button>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 shadow-sm">
+            {selectedMineralIds.size === 0 ? (
+              <>
+                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">
+                  Seçim yok
+                </span>
+                <button
+                  type="button"
+                  onClick={selectAllMinerals}
+                  disabled={bulkDeleteBusy || mineralWordBusy}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Tümünü Seç ({totalCount})
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="shrink-0 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">
+                  ✓ {selectedMineralIds.size} mineral seçildi
+                </span>
+                <button
+                  type="button"
+                  onClick={selectedMineralIds.size >= minerals.length ? clearMineralSelection : selectAllMinerals}
+                  disabled={bulkDeleteBusy || mineralWordBusy}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {selectedMineralIds.size >= minerals.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearMineralSelection}
+                  disabled={bulkDeleteBusy || mineralWordBusy}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Seçimi Kaldır
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleBulkDelete()}
+                  disabled={bulkDeleteBusy || mineralWordBusy}
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+                >
+                  {bulkDeleteBusy ? "Siliniyor…" : `Seçili Sil (${selectedMineralIds.size})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void exportSelectedMineralsWord()}
+                  disabled={bulkDeleteBusy || mineralWordBusy}
+                  className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
+                >
+                  {mineralWordBusy ? "Hazırlanıyor…" : `Seçili Word Raporu (${selectedMineralIds.size})`}
+                </button>
+              </>
             )}
           </div>
         )}
