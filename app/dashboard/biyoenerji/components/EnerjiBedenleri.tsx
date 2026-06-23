@@ -16,6 +16,8 @@ import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 async function exportEnergyBodiesWord(
   tenantId: string,
@@ -196,6 +198,8 @@ export default function EnerjiBedenleri() {
     isDefault: isDefaultFontSize,
   } = useEnergyBodiesFontSize();
 
+  const { isDemo } = useDemoGuard();
+
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyEnergyBodyRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,11 +268,23 @@ export default function EnerjiBedenleri() {
     });
   }, [loadRecords]);
 
+  // Demo modda source_uid başına tek kayıt göster (duplikat koruması)
+  const baseRows = useMemo(() => {
+    if (!isDemo) return rows;
+    const seen = new Set<string>();
+    return rows.filter((r) => {
+      const key = (r.source_uid ?? "").trim().toLocaleLowerCase("tr-TR");
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rows, isDemo]);
+
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLocaleLowerCase("tr-TR");
-    if (!q) return rows;
-    return rows.filter((row) => energyBodySearchBlob(row).includes(q));
-  }, [rows, searchQuery]);
+    if (!q) return baseRows;
+    return baseRows.filter((row) => energyBodySearchBlob(row).includes(q));
+  }, [baseRows, searchQuery]);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
@@ -276,15 +292,15 @@ export default function EnerjiBedenleri() {
   );
 
   const moduleStats = useMemo(() => {
-    const uids = new Set(rows.map((r) => r.source_uid?.trim()).filter(Boolean));
-    const newest = rows.reduce<string | null>((acc, row) => {
+    const uids = new Set(baseRows.map((r) => r.source_uid?.trim()).filter(Boolean));
+    const newest = baseRows.reduce<string | null>((acc, row) => {
       if (!row.created_at) return acc;
       if (!acc || row.created_at > acc) return row.created_at;
       return acc;
     }, null);
     const last = newest ? formatDate(newest) : "—";
-    return { total: rows.length, uids: uids.size, last };
-  }, [rows]);
+    return { total: baseRows.length, uids: uids.size, last };
+  }, [baseRows]);
 
   function fillFormFromRow(row: BioenergyEnergyBodyRecord) {
     setForm({
@@ -452,6 +468,23 @@ export default function EnerjiBedenleri() {
 
   return (
     <section className="w-full min-w-0">
+
+      {/* Demo bilgilendirme banner */}
+      {isDemo && (
+        <div className="mb-4 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
+            <div>
+              <p className="text-sm font-black text-blue-900">Demo Modu — Enerji Bedenleri</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                Bu sayfa demo amaçlıdır. Enerji bedenlerine ait içerikler demo güvenliği nedeniyle flu gösterilmektedir.
+                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri demo modunda devre dışıdır.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
         <div className="flex flex-wrap items-end gap-2">
           <label className="block w-full xl:max-w-sm">
@@ -505,18 +538,22 @@ export default function EnerjiBedenleri() {
               {loading ? (
                 <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
               ) : null}
-              <button type="button" onClick={openCreateModal} className={newRecordBtnPremium}>
-                + Yeni Kayıt
-              </button>
+              {/* Demo modda yeni kayıt butonu gizli */}
+              {!isDemo && (
+                <button type="button" onClick={openCreateModal} className={newRecordBtnPremium}>
+                  + Yeni Kayıt
+                </button>
+              )}
             </div>
           </div>
 
-          {rows.length > 0 && (
+          {/* Demo modda BulkExportBar gizli */}
+          {!isDemo && baseRows.length > 0 && (
             <div className="mb-2">
               <BulkExportBar
                 selectedCount={selectedForExport.size}
-                totalCount={rows.length}
-                onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
+                totalCount={baseRows.length}
+                onSelectAll={() => setSelectedForExport(new Set(baseRows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
                 onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
@@ -528,7 +565,7 @@ export default function EnerjiBedenleri() {
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
             {loading ? (
               <p className="py-6 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
-            ) : loadErrorMessage ? null : rows.length === 0 ? (
+            ) : loadErrorMessage ? null : baseRows.length === 0 ? (
               <CrudEmptyState
                 icon="◎"
                 title="Liste boş"
@@ -545,21 +582,24 @@ export default function EnerjiBedenleri() {
                 const isExportSelected = selectedForExport.has(row.id);
                 return (
                   <div key={row.id} className="relative">
-                    <label
-                      className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isExportSelected}
-                        onChange={() => setSelectedForExport((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
-                          return next;
-                        })}
-                        className="h-4 w-4 rounded accent-cyan-600 shadow"
-                      />
-                    </label>
+                    {/* Demo modda checkbox gizli */}
+                    {!isDemo && (
+                      <label
+                        className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isExportSelected}
+                          onChange={() => setSelectedForExport((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                            return next;
+                          })}
+                          className="h-4 w-4 rounded accent-cyan-600 shadow"
+                        />
+                      </label>
+                    )}
                     <button
                       type="button"
                       onClick={() => selectRow(row)}
@@ -569,7 +609,7 @@ export default function EnerjiBedenleri() {
                           : isExportSelected
                           ? "border-cyan-300/60 bg-cyan-50/80"
                           : "border-transparent bg-white/50 hover:border-violet-100/75 hover:bg-white/88 hover:shadow-sm"
-                      }`}
+                      } ${isDemo ? "" : "pr-10"}`}
                     >
                       <p className="text-[13px] font-black capitalize leading-snug tracking-tight text-slate-900">
                         {row.source_uid?.trim() || "—"}
@@ -607,62 +647,73 @@ export default function EnerjiBedenleri() {
                 />
               </div>
 
-              <div className="mt-4 grid flex-1 gap-3">
-                <DetailFieldCard
-                  title="Genel Tanım"
-                  text={selectedRow.genel_tanim}
-                  typography={detailTypography}
-                />
-                <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} />
-                <DetailFieldCard
-                  title="Bozulma Belirtileri"
-                  text={selectedRow.bozulma}
-                  typography={detailTypography}
-                />
-                <DetailFieldCard
-                  title="Taşlar"
-                  text={selectedRow.onerilen_taslar}
-                  typography={detailTypography}
-                />
-                <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} />
-              </div>
+              {/* Demo modda içerik alanları DemoGate ile korunur */}
+              <DemoGate
+                isProtected={isDemo}
+                message="Bu enerji bedeni içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm açıklamalar, görev ve taş bilgileri açık olarak kullanılabilir."
+                className="mt-4"
+              >
+                <div className="grid flex-1 gap-3">
+                  <DetailFieldCard
+                    title="Genel Tanım"
+                    text={selectedRow.genel_tanim}
+                    typography={detailTypography}
+                  />
+                  <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} />
+                  <DetailFieldCard
+                    title="Bozulma Belirtileri"
+                    text={selectedRow.bozulma}
+                    typography={detailTypography}
+                  />
+                  <DetailFieldCard
+                    title="Taşlar"
+                    text={selectedRow.onerilen_taslar}
+                    typography={detailTypography}
+                  />
+                  <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} />
+                </div>
+              </DemoGate>
 
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-cyan-100/60 pt-4">
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  className="rounded-xl border border-cyan-200/70 bg-cyan-50/90 px-4 py-2 text-[12px] font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100/90"
-                >
-                  Güncelle
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={openDeleteConfirm}
-                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
-                >
-                  Sil
-                </button>
-                <button
-                  type="button"
-                  disabled={wordBusy}
-                  onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-                  className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
-                >
-                  {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                </button>
-              </div>
+              {/* Demo modda aksiyon butonları gizli */}
+              {!isDemo && (
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-cyan-100/60 pt-4">
+                  <button
+                    type="button"
+                    onClick={openEditModal}
+                    className="rounded-xl border border-cyan-200/70 bg-cyan-50/90 px-4 py-2 text-[12px] font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100/90"
+                  >
+                    Güncelle
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={openDeleteConfirm}
+                    className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                  >
+                    Sil
+                  </button>
+                  <button
+                    type="button"
+                    disabled={wordBusy}
+                    onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
+                  >
+                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200/70 bg-cyan-50/30 px-6 text-center">
               <p className="max-w-sm text-sm font-medium text-slate-400">
-                Soldan bir kayıt seçin veya yeni enerji bedeni ekleyin.
+                Soldan bir kayıt seçin{isDemo ? " ve içeriği inceleyin" : " veya yeni enerji bedeni ekleyin"}.
               </p>
             </div>
           )}
         </div>
       </div>
 
+      {/* Form modal — demo modda erişilmez (butonlar gizli) */}
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
         onClose={closeFormModal}
