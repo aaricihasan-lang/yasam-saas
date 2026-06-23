@@ -21,9 +21,12 @@ import {
 import {
   fetchMineralsListCount,
   fetchMineralsListPage,
+  getDemoReferenceMineralId,
   MINERALS_UNCATEGORIZED_FILTER,
   type MineralListItem,
 } from "@/lib/dogaltas/mineralsListFetch";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supabase } from "@/lib/supabase";
@@ -219,8 +222,12 @@ function MineralListesiPageContent() {
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
 
+  const [referenceMineralId, setReferenceMineralId] = useState<string | null>(null);
+  const [refIdFetched, setRefIdFetched] = useState(false);
+
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const { isDemo } = useDemoGuard();
 
   const applySearchUrl = useCallback(
     (query: string) => {
@@ -362,6 +369,23 @@ function MineralListesiPageContent() {
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
+
+  // Demo: listedeki ilk minerali referans olarak tespit et (arama/kategori değişince yeniden çalışır)
+  useEffect(() => {
+    if (!isDemo || !queryTenantId) return;
+    setRefIdFetched(false);
+    const search = debouncedSearch.trim() || undefined;
+    const categoryParam =
+      categoryFilter.trim() === UNCATEGORIZED_LABEL
+        ? MINERALS_UNCATEGORIZED_FILTER
+        : categoryFilter.trim() || undefined;
+    void getDemoReferenceMineralId(queryTenantId, { search, category: categoryParam }).then(
+      (refId) => {
+        setReferenceMineralId(refId);
+        setRefIdFetched(true);
+      },
+    );
+  }, [isDemo, queryTenantId, debouncedSearch, categoryFilter]);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
     markViewedMineralId(mineralId);
@@ -582,19 +606,23 @@ function MineralListesiPageContent() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-              className={`${uiActionBtn} border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-800 shadow-sm hover:shadow-md`}
-            >
-              📄 Word Raporu
-            </button>
-            <Link
-              href="/dogaltas/mineral-bankasi"
-              className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
-            >
-              + Yeni Mineral
-            </Link>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+                className={`${uiActionBtn} border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-800 shadow-sm hover:shadow-md`}
+              >
+                📄 Word Raporu
+              </button>
+            )}
+            {!isDemo && (
+              <Link
+                href="/dogaltas/mineral-bankasi"
+                className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
+              >
+                + Yeni Mineral
+              </Link>
+            )}
           </div>
           {isSearchActive || listBusy ? (
             <p className="mt-3 text-sm font-bold text-cyan-800">
@@ -615,7 +643,7 @@ function MineralListesiPageContent() {
         ) : null}
 
         {/* Toplu işlem çubuğu */}
-        {!listLoading && filteredMinerals.length > 0 && (
+        {!isDemo && !listLoading && filteredMinerals.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 shadow-sm">
             {selectedMineralIds.size === 0 ? (
               <>
@@ -708,6 +736,9 @@ function MineralListesiPageContent() {
                   : `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}`;
 
                 const isMineralSelected = selectedMineralIds.has(mineral.id);
+                // Demo koruma: referans dışı minerallerde önizleme blur
+                const isPreviewProtected =
+                  isDemo && refIdFetched && mineral.id !== referenceMineralId;
                 return (
                   <article
                     key={mineral.id}
@@ -728,16 +759,18 @@ function MineralListesiPageContent() {
                       />
                     ) : null}
 
-                    {/* Mineral seçim checkbox */}
-                    <label className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={isMineralSelected}
-                        onChange={(e) => { e.stopPropagation(); toggleMineralSelection(mineral.id); }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
-                      />
-                    </label>
+                    {/* Mineral seçim checkbox — demo'da gizli */}
+                    {!isDemo && (
+                      <label className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={isMineralSelected}
+                          onChange={(e) => { e.stopPropagation(); toggleMineralSelection(mineral.id); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
+                        />
+                      </label>
+                    )}
 
                     <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
                       <div
@@ -776,11 +809,13 @@ function MineralListesiPageContent() {
                             ? renderHighlightedText(mineral.name, activeSearch)
                             : mineral.name}
                         </h2>
-                        <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
-                          {isSearchActive
-                            ? renderHighlightedText(descriptionPreview, activeSearch)
-                            : descriptionPreview}
-                        </p>
+                        <DemoBlur isProtected={isPreviewProtected} intensity={4} className="mt-2 flex-1">
+                          <p className="text-sm leading-6 text-slate-600">
+                            {isSearchActive
+                              ? renderHighlightedText(descriptionPreview, activeSearch)
+                              : descriptionPreview}
+                          </p>
+                        </DemoBlur>
                         <Link
                           href={detailHref}
                           onClick={() => {
@@ -816,8 +851,8 @@ function MineralListesiPageContent() {
         </section>
       </div>
 
-      {/* Word raporu modal */}
-      {showWordModal && (
+      {/* Word raporu modal — demo'da gizli */}
+      {!isDemo && showWordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
             <div className="mb-4 flex items-center justify-between">

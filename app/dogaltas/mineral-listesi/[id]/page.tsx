@@ -19,9 +19,11 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
-import { ensureMineralStringArray } from "@/lib/dogaltas/mineralsListFetch";
+import { ensureMineralStringArray, getDemoReferenceMineralId } from "@/lib/dogaltas/mineralsListFetch";
 import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
 import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { supabase } from "@/lib/supabase";
 
 const MINERALS_DETAIL_SELECT =
@@ -294,6 +296,7 @@ function TextSectionCard({
   highlightQuery = "",
   hasSearchMatch = false,
   contentTypography,
+  isContentProtected = false,
 }: {
   title: string;
   badge: string;
@@ -302,6 +305,7 @@ function TextSectionCard({
   highlightQuery?: string;
   hasSearchMatch?: boolean;
   contentTypography: MineralContentTypography;
+  isContentProtected?: boolean;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
@@ -317,11 +321,13 @@ function TextSectionCard({
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className="mt-1.5">
-        {displayText ? (
-          renderMineralContent(displayText, contentTypography.bodyStyle, renderSeg)
-        ) : (
-          <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
-        )}
+        <DemoBlur isProtected={isContentProtected} intensity={4}>
+          {displayText ? (
+            renderMineralContent(displayText, contentTypography.bodyStyle, renderSeg)
+          ) : (
+            <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
+          )}
+        </DemoBlur>
       </div>
     </article>
   );
@@ -335,6 +341,7 @@ function ListSectionCard({
   highlightQuery = "",
   hasSearchMatch = false,
   contentTypography,
+  isContentProtected = false,
 }: {
   title: string;
   badge: string;
@@ -343,6 +350,7 @@ function ListSectionCard({
   highlightQuery?: string;
   hasSearchMatch?: boolean;
   contentTypography: MineralContentTypography;
+  isContentProtected?: boolean;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
@@ -354,24 +362,28 @@ function ListSectionCard({
         <h2 className="text-sm font-black text-slate-950">{title}</h2>
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      <div className="mt-1.5 space-y-1 leading-relaxed" style={contentTypography.bodyStyle}>
-        {items.length > 0 ? (
-          items.map((item, idx) => (
-            <div key={idx} className="flex items-start gap-2 text-slate-700">
-              <span
-                className="mt-[0.5em] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1">
-                {highlightQuery.trim()
-                  ? renderHighlightedText(item, highlightQuery)
-                  : item}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
-        )}
+      <div className="mt-1.5">
+        <DemoBlur isProtected={isContentProtected} intensity={4}>
+          <div className="space-y-1 leading-relaxed" style={contentTypography.bodyStyle}>
+            {items.length > 0 ? (
+              items.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-slate-700">
+                  <span
+                    className="mt-[0.5em] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1">
+                    {highlightQuery.trim()
+                      ? renderHighlightedText(item, highlightQuery)
+                      : item}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className={uiEmptyText}>Henüz bilgi girilmedi.</p>
+            )}
+          </div>
+        </DemoBlur>
       </div>
     </article>
   );
@@ -401,6 +413,9 @@ function MineralDetailPageContent() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [wordBusy, setWordBusy] = useState(false);
+  const [isDemoReference, setIsDemoReference] = useState(false);
+  const { isDemo } = useDemoGuard();
+  const isContentProtected = isDemo && !isDemoReference;
 
   const loadMineral = useCallback(async () => {
     if (!id) {
@@ -418,6 +433,14 @@ function MineralDetailPageContent() {
       setMineral(null);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
+    }
+
+    // Demo: liste sıralamasındaki ilk mineral → referans kayıt, tüm içerikler açık
+    if (readYasamUser()?.is_demo_account) {
+      const refId = await getDemoReferenceMineralId(tenantId, {
+        search: highlightQuery || undefined,
+      });
+      setIsDemoReference(refId === id);
     }
 
     const { data, error } = await supabase
@@ -442,7 +465,7 @@ function MineralDetailPageContent() {
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id]);
+  }, [id, highlightQuery]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -605,14 +628,16 @@ function MineralDetailPageContent() {
               canIncrease={canIncreaseFontSize}
               isDefault={isDefaultFontSize}
             />
-            <button
-              type="button"
-              onClick={() => void downloadWordReport()}
-              disabled={wordBusy}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
-            >
-              {wordBusy ? "⏳..." : "📄 Word"}
-            </button>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => void downloadWordReport()}
+                disabled={wordBusy}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+              >
+                {wordBusy ? "⏳..." : "📄 Word"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void loadMineral()}
@@ -641,6 +666,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.aciklama}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Fiziksel"
@@ -650,6 +676,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fiziksel}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Zihinsel"
@@ -659,6 +686,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.zihinsel}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Fizyoloji"
@@ -668,6 +696,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fizyoloji}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Organ etkileri"
@@ -677,6 +706,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.organEtkileri}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Çakralar"
@@ -686,6 +716,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.cakralar}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Eksiklik belirtileri"
@@ -695,6 +726,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.eksiklik}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Fazlalık belirtileri"
@@ -704,6 +736,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.fazlalik}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <ListSectionCard
               title="Doz aşımı"
@@ -713,6 +746,7 @@ function MineralDetailPageContent() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.dozAsimi}
               contentTypography={contentTypography}
+              isContentProtected={isContentProtected}
             />
             <div className="lg:col-span-2">
               <ListSectionCard
@@ -723,6 +757,7 @@ function MineralDetailPageContent() {
                 highlightQuery={highlightQuery}
                 hasSearchMatch={sectionMatches?.icerenTaslar}
                 contentTypography={contentTypography}
+                isContentProtected={isContentProtected}
               />
             </div>
           </section>
