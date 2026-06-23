@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
+import { readDemoClients } from "@/lib/demo/demoSession";
 
 // ─── Yardımcı: ISO tarihi → DD.MM.YYYY ──────────────────────────────────────
 function isoToTR(iso: string | null | undefined): string {
@@ -34,6 +37,105 @@ function isoToTR(iso: string | null | undefined): string {
 function fmtCount(n: number | null): string {
   if (n === null) return "—";
   return String(n);
+}
+
+// ─── Demo stats — DEMO_CLIENTS + session clientlarından hesapla ──────────────
+type FlatClient = { created_at: string; gorusme: string | null };
+
+function calcDemoStats(clients: FlatClient[]): string[] {
+  const now = new Date();
+
+  // Ay sınırları
+  const startOfMonth    = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  // Hafta sınırları (Pzt–Paz)
+  const dow = now.getDay();
+  const diffMon = dow === 0 ? -6 : 1 - dow;
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() + diffMon);
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  // Yıl sınırları
+  const startOfYear    = new Date(now.getFullYear(), 0, 1);
+  const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1);
+
+  // Son 3 ay (bu ay hariç)
+  const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+  // 1 — Toplam Danışan
+  const total = clients.length;
+
+  // 2 — Son Kayıt (en yeni created_at)
+  const lastCreated = clients
+    .map((c) => c.created_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+
+  // 3 — Bu Ay Yeni (created_at bu ay)
+  const thisMonthNew = clients.filter((c) => {
+    const d = new Date(c.created_at);
+    return d >= startOfMonth && d < startOfNextMonth;
+  }).length;
+
+  // 4 — Son 3 Ay Ort. (bu aydan önceki 3 aylık yeni danışan / 3)
+  const last3mTotal = clients.filter((c) => {
+    const d = new Date(c.created_at);
+    return d >= start3MonthsAgo && d < startOfMonth;
+  }).length;
+  const avg3m = Math.round(last3mTotal / 3);
+
+  // 5 — Bu Ay Randevu (gorusme bu ay içinde)
+  const thisMonthAppts = clients.filter((c) => {
+    if (!c.gorusme) return false;
+    const d = new Date(c.gorusme);
+    return d >= startOfMonth && d < startOfNextMonth;
+  }).length;
+
+  // 6 — En Yakın Randevu (demo-0 profilindeki ilk yaklaşan randevu)
+  const nextAppt = "03.07.2026";
+
+  // 7 — Bu Hafta (created_at bu hafta)
+  const thisWeek = clients.filter((c) => {
+    const d = new Date(c.created_at);
+    return d >= startOfWeek && d < endOfWeek;
+  }).length;
+
+  // 8 — Bu Ay Tamamlanan (geçmişteki gorusme tarihleri bu ay)
+  const thisMonthCompleted = clients.filter((c) => {
+    if (!c.gorusme) return false;
+    const d = new Date(c.gorusme);
+    return d >= startOfMonth && d < now;
+  }).length;
+
+  // 9 — Bu Yıl Toplam (gorusme bu yıl içinde)
+  const thisYearTotal = clients.filter((c) => {
+    if (!c.gorusme) return false;
+    const d = new Date(c.gorusme);
+    return d >= startOfYear && d < startOfNextYear;
+  }).length;
+
+  // 10 — Bu Yıl Danışan (created_at bu yıl)
+  const thisYearClients = clients.filter((c) => {
+    const d = new Date(c.created_at);
+    return d >= startOfYear && d < startOfNextYear;
+  }).length;
+
+  return [
+    fmtCount(total),             // 1
+    isoToTR(lastCreated),        // 2
+    fmtCount(thisMonthNew),      // 3
+    fmtCount(avg3m),             // 4
+    fmtCount(thisMonthAppts),    // 5
+    nextAppt,                    // 6
+    fmtCount(thisWeek),          // 7
+    fmtCount(thisMonthCompleted),// 8
+    fmtCount(thisYearTotal),     // 9
+    fmtCount(thisYearClients),   // 10
+  ];
 }
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
@@ -216,6 +318,21 @@ export default function DanisanYolculuguPage() {
     let cancelled = false;
 
     async function loadStats() {
+      // Demo hesap: Supabase yerine local veriden hesapla
+      const user = readYasamUser();
+      if (user?.is_demo_account === true) {
+        const sessionClients = readDemoClients();
+        const allClients: FlatClient[] = [
+          ...sessionClients,
+          ...(DEMO_CLIENTS as FlatClient[]),
+        ];
+        if (!cancelled) {
+          setStats(calcDemoStats(allClients));
+          setLoading(false);
+        }
+        return;
+      }
+
       const tenantId = await getSyncedTenantId();
       if (!tenantId) {
         setLoading(false);
