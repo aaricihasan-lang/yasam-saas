@@ -26,7 +26,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-// ─── Numeroloji (gerçek motor — Eylül Karaca, 1990-03-21) ────────────────────
+// ─── Numeroloji — gerçek motor (Eylül Karaca, 1990-03-21) ────────────────────
 const DEMO0_NUM = hesaplaNumeroloji({
   firstName: "Eylül",
   lastName: "Karaca",
@@ -34,7 +34,7 @@ const DEMO0_NUM = hesaplaNumeroloji({
 });
 const DEMO0_KISISEL_YIL = calcKisiselYil("1990-03-21");
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string | null) {
   if (!iso) return "";
@@ -52,7 +52,20 @@ function goreleSure(date: string | null): string {
   return `${Math.floor(diff / 365)} yıl önce`;
 }
 
-// ─── Demo-0 (Eylül Karaca) — tam açık içerik ─────────────────────────────────
+// ─── Etiket rengi yardımcısı (+ yeşil / - kırmızı) ──────────────────────────
+function signCls(v: string) {
+  if (v.startsWith("+")) return "text-emerald-700 font-black";
+  if (v.startsWith("-")) return "text-red-600 font-black";
+  return "text-slate-700 font-black";
+}
+
+function signBadgeCls(v: string) {
+  if (v.startsWith("+")) return "rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-700 font-black border border-emerald-200";
+  if (v.startsWith("-")) return "rounded-md bg-red-50 px-2 py-0.5 text-red-600 font-black border border-red-200";
+  return "rounded-md bg-slate-50 px-2 py-0.5 text-slate-700 font-black border border-slate-200";
+}
+
+// ─── Demo-0 tam içerik bileşenleri ────────────────────────────────────────────
 
 function GenelContent() {
   return (
@@ -67,32 +80,32 @@ function GenelContent() {
           { label: "Mizaç", value: "Safra" },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">{value}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-0.5 text-base font-bold text-slate-900">{value}</p>
           </div>
         ))}
       </div>
       <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Adres</p>
-        <p className="mt-0.5 text-sm font-bold text-slate-900">Yıldız Mahallesi, Bağcılar / İstanbul</p>
+        <p className="text-xs font-black uppercase tracking-wider text-slate-400">Adres</p>
+        <p className="mt-0.5 text-base font-bold text-slate-900">Yıldız Mahallesi, Bağcılar / İstanbul</p>
       </div>
       <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3.5">
-        <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-amber-600">Sağlık Notu</p>
-        <p className="text-[13px] leading-relaxed text-slate-700">
+        <p className="mb-1 text-xs font-black uppercase tracking-wider text-amber-600">Sağlık Notu</p>
+        <p className="text-sm leading-relaxed text-slate-700">
           Stres kaynaklı baş ağrısı şikayeti mevcut. B vitamini eksikliği doktor onaylıdır.
           Uyku düzensizliği gözlemleniyor; sirkadyen ritim çalışması başlatıldı.
         </p>
       </div>
       <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3.5">
-        <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-violet-600">Öneriler</p>
-        <p className="text-[13px] leading-relaxed text-slate-700">
+        <p className="mb-1 text-xs font-black uppercase tracking-wider text-violet-600">Öneriler</p>
+        <p className="text-sm leading-relaxed text-slate-700">
           Günlük 15 dk sabah meditasyonu · Saat 21:00'den sonra ekran kapalı ·
           Haftada 3×30 dk tempolu yürüyüş · B vitamini takviyesi (doktor önerisiyle)
         </p>
       </div>
       <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3.5">
-        <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-emerald-600">Hedef</p>
-        <p className="text-[13px] leading-relaxed text-slate-700">
+        <p className="mb-1 text-xs font-black uppercase tracking-wider text-emerald-600">Hedef</p>
+        <p className="text-sm leading-relaxed text-slate-700">
           Enerji dengesi ve stres yönetimi · Boğaz çakrası bloğunu çözmek ·
           Duygusal şifa ve sezgisel farkındalık geliştirme
         </p>
@@ -112,14 +125,14 @@ function NotlarContent() {
     { date: "23.06.2026", text: "Lapis lazuli eklendi. Toplantılarda iletişim güçlüğü çektiğini belirtti. Boğaz çakrası desteği için çalışma planı hazırlanacak." },
   ];
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {notes.map((n, i) => (
-        <div key={i} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
-          <div className="mb-1.5 flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700">{i + 1}</span>
-            <span className="text-[11px] font-bold text-slate-400">{n.date}</span>
+        <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">{i + 1}</span>
+            <span className="text-xs font-bold text-slate-400">{n.date}</span>
           </div>
-          <p className="text-[13px] leading-relaxed text-slate-700">{n.text}</p>
+          <p className="text-sm leading-relaxed text-slate-700">{n.text}</p>
         </div>
       ))}
     </div>
@@ -135,20 +148,20 @@ function RandevularContent() {
     { date: "31.07.2026 16:00", title: "Aylık Kapanış Seansı",      status: "bekliyor",   notes: "Bir sonraki dönem planlaması ve hedef güncelleme." },
   ];
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {apts.map((a, i) => (
-        <div key={i} className={`flex gap-3 rounded-xl border-l-4 border border-slate-200 bg-white p-3.5 shadow-sm ${
+        <div key={i} className={`flex gap-3 rounded-xl border-l-4 border border-slate-200 bg-white p-4 shadow-sm ${
           a.status === "tamamlandi" ? "border-l-emerald-500" : "border-l-cyan-500"
         }`}>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-black text-slate-900">{a.title}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              <span className="text-sm font-black text-slate-900">{a.title}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                 a.status === "tamamlandi" ? "bg-emerald-100 text-emerald-700" : "bg-cyan-100 text-cyan-700"
               }`}>{a.status === "tamamlandi" ? "Tamamlandı" : "Yaklaşan"}</span>
             </div>
-            <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{a.date}</p>
-            <p className="mt-1 text-[12px] text-slate-600">{a.notes}</p>
+            <p className="mt-0.5 text-xs font-semibold text-slate-400">{a.date}</p>
+            <p className="mt-1.5 text-sm text-slate-600">{a.notes}</p>
           </div>
         </div>
       ))}
@@ -170,14 +183,14 @@ function TaslarContent() {
       {stones.map((s) => (
         <div key={s.name} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 text-lg">💎</div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 text-xl">💎</div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm font-black text-slate-900">{s.name}</span>
-                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700">{s.chakra}</span>
+                <span className="text-base font-black text-slate-900">{s.name}</span>
+                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-xs font-bold text-cyan-700">{s.chakra}</span>
               </div>
-              <p className="mt-0.5 text-[12px] font-semibold text-violet-700">{s.purpose}</p>
-              <p className="mt-1 text-[11px] leading-snug text-slate-500">{s.note}</p>
+              <p className="mt-0.5 text-sm font-semibold text-violet-700">{s.purpose}</p>
+              <p className="mt-1 text-xs leading-snug text-slate-500">{s.note}</p>
             </div>
           </div>
         </div>
@@ -196,23 +209,23 @@ function SeanslarContent() {
     { no: 6, date: "31.07.2026", status: "upcoming", note: "Aylık kapanış ve yolculuk özeti. Bir sonraki dönem planlaması." },
   ];
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {sessions.map((s) => (
-        <div key={s.no} className={`flex gap-3 rounded-xl border p-3.5 ${
+        <div key={s.no} className={`flex gap-3 rounded-xl border p-4 ${
           s.status === "past" ? "border-emerald-200 bg-emerald-50/50" : "border-cyan-200 bg-cyan-50/50"
         }`}>
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-black ${
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${
             s.status === "past" ? "bg-emerald-600 text-white" : "bg-cyan-500 text-white"
           }`}>{s.no}</div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-black text-slate-900">Seans {s.no}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              <span className="text-sm font-black text-slate-900">Seans {s.no}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                 s.status === "past" ? "bg-emerald-100 text-emerald-700" : "bg-cyan-100 text-cyan-700"
               }`}>{s.status === "past" ? "Tamamlandı" : "Yaklaşan"}</span>
-              <span className="text-[11px] font-semibold text-slate-400">{s.date}</span>
+              <span className="text-xs font-semibold text-slate-400">{s.date}</span>
             </div>
-            <p className="mt-0.5 text-[12px] leading-snug text-slate-600">{s.note}</p>
+            <p className="mt-1 text-sm leading-snug text-slate-600">{s.note}</p>
           </div>
         </div>
       ))}
@@ -222,207 +235,312 @@ function SeanslarContent() {
 
 function OdevlerContent() {
   const homeworks = [
-    { title: "Sabah Meditasyonu",   detail: "15 dk → Bilinçli nefes ve beden tarama",             period: "10.06 – 10.07.2026", status: "devam" },
-    { title: "Günlük Yansıma",      detail: "Her gece yatmadan önce güne dair 3 gözlemi not et",  period: "10.06 – 10.07.2026", status: "devam" },
-    { title: "4-7-8 Nefes Tekniği", detail: "Stres anında ve uyku öncesi uygulanacak",             period: "05.06 – 19.06.2026", status: "tamamlandı" },
-    { title: "Ekran Kısıtlaması",   detail: "21:00'den sonra telefon ve bilgisayar kapalı",         period: "12.06 – devam",      status: "devam" },
-    { title: "Ametist ile Uyuma",   detail: "Her gece yastık altına veya yanına koy",               period: "12.06 – devam",      status: "devam" },
-    { title: "Yürüyüş Programı",    detail: "Haftada 3 kez 30 dk tempolu yürüyüş",                 period: "19.06 – devam",      status: "devam" },
+    { title: "Sabah Meditasyonu",   detail: "15 dk → Bilinçli nefes ve beden tarama",            period: "10.06 – 10.07.2026", status: "devam" },
+    { title: "Günlük Yansıma",      detail: "Her gece yatmadan önce güne dair 3 gözlemi not et", period: "10.06 – 10.07.2026", status: "devam" },
+    { title: "4-7-8 Nefes Tekniği", detail: "Stres anında ve uyku öncesi uygulanacak",            period: "05.06 – 19.06.2026", status: "tamamlandı" },
+    { title: "Ekran Kısıtlaması",   detail: "21:00'den sonra telefon ve bilgisayar kapalı",        period: "12.06 – devam",      status: "devam" },
+    { title: "Ametist ile Uyuma",   detail: "Her gece yastık altına veya yanına koy",              period: "12.06 – devam",      status: "devam" },
+    { title: "Yürüyüş Programı",    detail: "Haftada 3 kez 30 dk tempolu yürüyüş",                period: "19.06 – devam",      status: "devam" },
   ];
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {homeworks.map((hw, i) => (
-        <div key={i} className={`rounded-xl border p-3.5 ${
+        <div key={i} className={`rounded-xl border p-4 ${
           hw.status === "tamamlandı" ? "border-emerald-200 bg-emerald-50/50" : "border-blue-200 bg-blue-50/30"
         }`}>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] font-black text-slate-900">{hw.title}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            <span className="text-sm font-black text-slate-900">{hw.title}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
               hw.status === "tamamlandı" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
             }`}>{hw.status === "tamamlandı" ? "✓ Tamamlandı" : "Devam Ediyor"}</span>
           </div>
-          <p className="mt-0.5 text-[12px] text-slate-600">{hw.detail}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-slate-400">{hw.period}</p>
+          <p className="mt-1 text-sm text-slate-600">{hw.detail}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-400">{hw.period}</p>
         </div>
       ))}
     </div>
   );
 }
 
+// ─── Çakra Analizi ve Gezegen Analizi verileri ────────────────────────────────
+
+const CHAKRA_ROWS = [
+  { label: "Taç",    color: "#a78bfa", before: "-5",  after: "+8"  },
+  { label: "3. Göz", color: "#6366f1", before: "+2",  after: "+14" },
+  { label: "Boğaz",  color: "#38bdf8", before: "-8",  after: "+6"  },
+  { label: "Kalp",   color: "#22c55e", before: "+1",  after: "+11" },
+  { label: "Mide",   color: "#facc15", before: "-6",  after: "+3"  },
+  { label: "Sakral", color: "#f97316", before: "-2",  after: "+9"  },
+  { label: "Kök",    color: "#ef4444", before: "+4",  after: "+12" },
+];
+
+const PLANET_LABELS = ["Güneş", "Ay", "Merkür", "Mars", "Venüs"];
+const PLANET_DATA: Record<string, string[]> = {
+  "Taç":    ["+12", "-3",  "+8",  "+5",  "+14"],
+  "3. Göz": ["-4",  "+11", "+6",  "-2",  "+9" ],
+  "Boğaz":  ["+8",  "-6",  "+15", "+7",  "-3" ],
+  "Kalp":   ["+15", "+9",  "-2",  "+11", "+6" ],
+  "Mide":   ["-2",  "+4",  "+7",  "-5",  "+12"],
+  "Sakral": ["+6",  "-8",  "+11", "+3",  "-1" ],
+  "Kök":    ["+9",  "+12", "-4",  "+8",  "+5" ],
+};
+
 function AnalizlerContent() {
-  const chakras = [
-    { name: "Kök",           pct: 65, color: "bg-red-500" },
-    { name: "Sakral",        pct: 72, color: "bg-orange-500" },
-    { name: "Solar Pleksus", pct: 58, color: "bg-yellow-500" },
-    { name: "Kalp",          pct: 78, color: "bg-green-500" },
-    { name: "Boğaz",         pct: 55, color: "bg-cyan-500" },
-    { name: "Üçüncü Göz",   pct: 82, color: "bg-indigo-500" },
-    { name: "Taç",           pct: 70, color: "bg-violet-500" },
-  ];
-  const lifeScores = [
-    { label: "Fiziksel", score: 6.5 },
-    { label: "Duygusal", score: 7.8 },
-    { label: "Zihinsel", score: 7.5 },
-    { label: "Ruhsal",   score: 7.0 },
-  ];
   const numItems = [
-    { label: "Hayat Yolu",   value: DEMO0_NUM.hayatYolu.display,       note: "Analiz & Sezgi" },
-    { label: "İfade Sayısı", value: DEMO0_NUM.ifadeSayisi.display,     note: "İletişim Gücü" },
-    { label: "Kişisel Yıl",  value: DEMO0_KISISEL_YIL.display,        note: "İçe Dönüş Yılı" },
-    { label: "Ana Kulvar",   value: DEMO0_NUM.anaKulvar.display,       note: "" },
-    { label: "Yan Kulvar",   value: DEMO0_NUM.yanKulvar.display,       note: "" },
+    { label: "Hayat Yolu",   value: DEMO0_NUM.hayatYolu.display,   note: "Analiz & Sezgi" },
+    { label: "İfade Sayısı", value: DEMO0_NUM.ifadeSayisi.display, note: "İletişim Gücü" },
+    { label: "Kişisel Yıl",  value: DEMO0_KISISEL_YIL.display,    note: "İçe Dönüş Yılı" },
+    { label: "Ana Kulvar",   value: DEMO0_NUM.anaKulvar.display,   note: "" },
+    { label: "Yan Kulvar",   value: DEMO0_NUM.yanKulvar.display,   note: "" },
   ];
+
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
-        <h3 className="mb-3 text-sm font-black text-slate-900">Çakra Durumu</h3>
+    <div className="space-y-6">
+
+      {/* ── Çakra Analizi ── */}
+      <div className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-black text-violet-800">Enerji Analizi</span>
+        </div>
+        <h3 className="mb-3 text-base font-black text-slate-900">Çakra Analizi</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[360px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="py-2 pr-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Çakra</th>
+                <th className="px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-slate-500">Seans Öncesi</th>
+                <th className="px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-slate-500">Seans Sonrası</th>
+                <th className="pl-3 py-2 text-center text-xs font-black uppercase tracking-wide text-slate-500">Değişim</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CHAKRA_ROWS.map((row) => {
+                const beforeNum = parseInt(row.before);
+                const afterNum  = parseInt(row.after);
+                const diff      = afterNum - beforeNum;
+                const diffStr   = diff >= 0 ? `+${diff}` : String(diff);
+                return (
+                  <tr key={row.label} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2.5 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: row.color }} />
+                        <span className="text-sm font-bold text-slate-800">{row.label}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={`text-sm ${signCls(row.before)}`}>{row.before}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={`text-sm ${signCls(row.after)}`}>{row.after}</span>
+                    </td>
+                    <td className="pl-3 py-2.5 text-center">
+                      <span className={`text-xs ${signBadgeCls(diffStr)}`}>{diffStr}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Çakra-Gezegen Analizi ── */}
+      <div className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-black text-blue-800">Gezegen Analizi</span>
+        </div>
+        <h3 className="mb-3 text-base font-black text-slate-900">Ç. Gezegen Analizi</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[440px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="py-2 pr-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Çakra</th>
+                {PLANET_LABELS.map((p) => (
+                  <th key={p} className="px-2 py-2 text-center text-xs font-black uppercase tracking-wide text-slate-500">{p}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CHAKRA_ROWS.map((row) => (
+                <tr key={row.label} className="border-b border-slate-100 last:border-0">
+                  <td className="py-2.5 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: row.color }} />
+                      <span className="text-sm font-bold text-slate-800">{row.label}</span>
+                    </div>
+                  </td>
+                  {(PLANET_DATA[row.label] ?? []).map((val, ci) => (
+                    <td key={ci} className="px-2 py-2.5 text-center">
+                      <span className={`text-xs ${signBadgeCls(val)}`}>{val}</span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Doğaltaş Analizi ── */}
+      <div className="rounded-xl border border-cyan-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 text-base font-black text-slate-900">Doğaltaş Analizi</h3>
         <div className="space-y-2">
-          {chakras.map((c) => (
-            <div key={c.name} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-[12px] font-bold text-slate-700">{c.name}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                <div className={`h-2 rounded-full ${c.color}`} style={{ width: `${c.pct}%` }} />
-              </div>
-              <span className="w-10 shrink-0 text-right text-[12px] font-black text-slate-700">%{c.pct}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
-        <h3 className="mb-3 text-sm font-black text-slate-900">Yaşam Skoru</h3>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {lifeScores.map((ls) => (
-            <div key={ls.label} className="rounded-lg border border-emerald-100 bg-white p-2.5 text-center">
-              <span className="block text-xl font-black text-emerald-700">{ls.score}</span>
-              <span className="text-[10px] font-bold text-slate-400">{ls.label}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-center text-sm font-bold text-slate-600">
-          <span className="text-2xl font-black text-slate-900">7.2</span> / 10 Genel Skor
-        </p>
-      </div>
-      <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-4">
-        <h3 className="mb-3 text-sm font-black text-slate-900">Doğaltaş Analizi</h3>
-        <div className="space-y-1.5">
           {[
             { role: "Ana Taş",       name: "Ametist",      detail: "Üçüncü Göz & Taç Çakrası aktivasyonu" },
             { role: "Destekleyici",  name: "Roze Kuvars",  detail: "Kalp Çakrası açılımı" },
             { role: "Koruyucu",      name: "Obsidyen",     detail: "Kök Çakra stabilizasyonu" },
             { role: "Güçlendirici",  name: "Lapis Lazuli", detail: "Boğaz Çakrası açılımı" },
           ].map((s) => (
-            <div key={s.role} className="flex items-center gap-2 rounded-lg border border-cyan-100 bg-white px-3 py-2">
-              <span className="w-24 shrink-0 text-[10px] font-black uppercase tracking-wide text-cyan-600">{s.role}</span>
-              <span className="text-[13px] font-bold text-slate-800">{s.name}</span>
-              <span className="ml-auto hidden text-[11px] text-slate-400 sm:block">{s.detail}</span>
+            <div key={s.role} className="flex items-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50/40 px-3 py-2.5">
+              <span className="w-24 shrink-0 text-xs font-black uppercase tracking-wide text-cyan-600">{s.role}</span>
+              <span className="text-sm font-bold text-slate-800">{s.name}</span>
+              <span className="ml-auto hidden text-xs text-slate-500 sm:block">{s.detail}</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
-        <h3 className="mb-3 text-sm font-black text-slate-900">Numeroloji Özeti</h3>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+
+      {/* ── Numeroloji — gerçek motor ── */}
+      <div className="rounded-xl border border-amber-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 text-base font-black text-slate-900">Numeroloji Özeti</h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {numItems.map((n) => (
-            <div key={n.label} className="rounded-lg border border-amber-100 bg-white p-2.5 text-center">
-              <span className="block text-xl font-black text-amber-700">{n.value || "—"}</span>
-              <span className="mt-0.5 block text-[10px] font-bold text-slate-500">{n.label}</span>
+            <div key={n.label} className="rounded-lg border border-amber-100 bg-amber-50/40 p-3 text-center">
+              <span className="block text-2xl font-black text-amber-700">{n.value || "—"}</span>
+              <span className="mt-0.5 block text-xs font-bold text-slate-600">{n.label}</span>
               {n.note && <span className="block text-[10px] text-slate-400">{n.note}</span>}
             </div>
           ))}
         </div>
       </div>
+
     </div>
   );
 }
+
+// ─── Danışan Yolculuğu ────────────────────────────────────────────────────────
+
+const JOURNEY_TIMELINE = [
+  { date: "05.06.2026", event: "İlk görüşme",                type: "done" },
+  { date: "08.06.2026", event: "Çakra analizi",              type: "done" },
+  { date: "12.06.2026", event: "Seans 1 — Çakra dengeleme", type: "done" },
+  { date: "16.06.2026", event: "Takip görüşmesi",            type: "done" },
+  { date: "19.06.2026", event: "Seans 2 — Taş yerleşimi",   type: "done" },
+  { date: "20.06.2026", event: "Taş önerisi güncellendi",    type: "done" },
+  { date: "03.07.2026", event: "Seans 3 — Numeroloji",       type: "upcoming" },
+  { date: "17.07.2026", event: "Seans 4 — İlerleme değerlendirme", type: "upcoming" },
+];
 
 function YolculukContent() {
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-5">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">Başlangıç</span>
-            <span className="text-lg font-black text-slate-900">05.06.2026</span>
-          </div>
-          <div className="flex-1 text-center text-2xl text-slate-300">→</div>
-          <div className="flex flex-col text-right">
-            <span className="text-[10px] font-black uppercase tracking-wider text-violet-400">Tahmini Tamamlanma</span>
-            <span className="text-lg font-black text-slate-900">Ağustos 2026</span>
-          </div>
-        </div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[12px] font-bold text-slate-600">İlerleme</span>
-          <span className="text-[12px] font-black text-indigo-700">%50</span>
-        </div>
-        <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: "50%" }} />
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+    <div className="space-y-5">
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Tamamlanan Seans", value: "3", icon: "✅" },
-          { label: "Kalan Seans",      value: "3", icon: "📅" },
-          { label: "Aktif Ödev",       value: "5", icon: "📋" },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-            <div className="text-2xl">{stat.icon}</div>
-            <div className="mt-1 text-2xl font-black text-slate-900">{stat.value}</div>
-            <div className="text-[11px] font-bold text-slate-400">{stat.label}</div>
+          { label: "Başlangıç",         value: "05.06.2026", color: "bg-indigo-50 border-indigo-200",  txt: "text-indigo-800" },
+          { label: "Son Görüşme",       value: "22.06.2026", color: "bg-violet-50 border-violet-200",  txt: "text-violet-800" },
+          { label: "Sonraki Randevu",   value: "03.07.2026", color: "bg-cyan-50 border-cyan-200",      txt: "text-cyan-800" },
+          { label: "Tamamlanan Seans",  value: "3",          color: "bg-emerald-50 border-emerald-200",txt: "text-emerald-800" },
+        ].map((s) => (
+          <div key={s.label} className={`rounded-xl border p-3.5 text-center ${s.color}`}>
+            <p className={`text-lg font-black ${s.txt}`}>{s.value}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-500">{s.label}</p>
           </div>
         ))}
       </div>
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-        <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Bir Sonraki Hedef</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-          Boğaz çakrası güçlendirmesi ve duygusal denge çalışması. Lapis lazuli seansı
-          ile iletişim blokunu çözmek. Temmuz sonunda kapsamlı analiz güncellemesi yapılacak.
-        </p>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Yaklaşan Seans",  value: "3",  icon: "📅" },
+          { label: "Aktif Ödev",      value: "5",  icon: "📋" },
+          { label: "Açık Not",        value: "7",  icon: "📝" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-3.5 text-center shadow-sm">
+            <div className="text-2xl">{s.icon}</div>
+            <div className="mt-1 text-xl font-black text-slate-900">{s.value}</div>
+            <div className="text-xs font-bold text-slate-400">{s.label}</div>
+          </div>
+        ))}
       </div>
+
+      {/* Timeline */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Uzman Yorumu</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-          Eylül Hanım yolculuğuna güçlü bir başlangıç yaptı. İlk 3 seansta belirgin ilerleme
-          kaydedildi. Uyku düzeni iyileşti, stres yönetimi gelişiyor. Ağustos sonunda tüm
-          hedeflerin tamamlanması beklenmektedir.
+        <h3 className="mb-4 text-base font-black text-slate-900">Süreç Zaman Çizelgesi</h3>
+        <div className="relative pl-5">
+          {/* Dikey çizgi */}
+          <div className="absolute left-2 top-1 bottom-2 w-px bg-slate-200" />
+
+          <div className="space-y-4">
+            {JOURNEY_TIMELINE.map((item, i) => (
+              <div key={i} className="relative flex items-start gap-3">
+                {/* Nokta */}
+                <div className={`absolute -left-[13px] mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${
+                  item.type === "done"
+                    ? "border-emerald-500 bg-emerald-500"
+                    : "border-cyan-400 bg-white"
+                }`} />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-bold text-slate-400">{item.date}</span>
+                  <p className={`text-sm font-semibold ${
+                    item.type === "done" ? "text-slate-800" : "text-cyan-700"
+                  }`}>
+                    {item.type === "upcoming" && <span className="mr-1 text-xs text-cyan-500">▸</span>}
+                    {item.event}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Uzman notu */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-black uppercase tracking-wider text-slate-400">Uzman Yorumu</p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-700">
+          Eylül Hanım yolculuğuna güçlü bir başlangıç yaptı. İlk seanslarda belirgin ilerleme
+          kaydedildi. Uyku düzeni iyileşti, stres yönetimi gelişiyor. Temmuz sonunda kapsamlı
+          analiz güncellemesi yapılacak.
         </p>
       </div>
+
     </div>
   );
 }
 
-// ─── Session client — Genel sekmesi ──────────────────────────────────────────
+// ─── Session client genel sekmesi ─────────────────────────────────────────────
 
 function SessionGenelContent({ client }: { client: DemoClient }) {
   const items = [
     { label: "Doğum Tarihi", value: fmtDate(client.dogum) || "—" },
-    { label: "Burç",          value: client.burc || "—" },
-    { label: "Telefon",       value: client.telefon || "—" },
-    { label: "Kan Grubu",     value: client.kan || "—" },
-    { label: "Mizaç",         value: client.mizac || "—" },
-    { label: "Görüşme",       value: fmtDate(client.gorusme) || "—" },
+    { label: "Burç",         value: client.burc || "—" },
+    { label: "Telefon",      value: client.telefon || "—" },
+    { label: "Kan Grubu",    value: client.kan || "—" },
+    { label: "Mizaç",        value: client.mizac || "—" },
+    { label: "Görüşme",      value: fmtDate(client.gorusme) || "—" },
   ];
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">{value}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-0.5 text-base font-bold text-slate-900">{value}</p>
           </div>
         ))}
       </div>
       <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3.5">
-        <p className="text-[11px] font-black text-blue-800">Demo Oturumunda Oluşturuldu</p>
-        <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">
+        <p className="text-sm font-black text-blue-800">Demo Oturumunda Oluşturuldu</p>
+        <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
           Bu danışan demo oturumunuzda eklendi. Diğer sekmeler gerçek hesapta nasıl görüneceğini
-          göstermek amacıyla Eylül Karaca örneğiyle doldurulmuştur.
+          göstermek amacıyla Eylül Karaca örnek verileriyle doldurulmuştur.
         </p>
       </div>
     </div>
   );
 }
 
-// ─── Placeholder içerik ────────────────────────────────────────────────────────
+// ─── Placeholder ──────────────────────────────────────────────────────────────
 
 function PlaceholderTabContent({ label }: { label: string }) {
   return (
@@ -430,12 +548,12 @@ function PlaceholderTabContent({ label }: { label: string }) {
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
       ))}
-      <p className="text-center text-[11px] font-semibold text-slate-300">{label} verileri yüklendi</p>
+      <p className="text-center text-sm font-semibold text-slate-300">{label} verileri yüklendi</p>
     </div>
   );
 }
 
-// ─── Tab bileşeni ─────────────────────────────────────────────────────────────
+// ─── Tab butonu ───────────────────────────────────────────────────────────────
 
 function TabBtn({
   tab,
@@ -451,7 +569,7 @@ function TabBtn({
     <button
       type="button"
       onClick={() => onSelect(tab.id)}
-      className={`shrink-0 rounded-xl px-3.5 py-2 text-[12px] font-black transition-all ${
+      className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black transition-all ${
         isActive
           ? "text-white shadow-md"
           : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -463,7 +581,7 @@ function TabBtn({
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Ana sayfa ────────────────────────────────────────────────────────────────
 
 export default function DemoDanisanDetailPage() {
   const params = useParams<{ id: string }>();
@@ -472,19 +590,15 @@ export default function DemoDanisanDetailPage() {
   const [sessionClient, setSessionClient] = useState<DemoClient | null>(null);
 
   const isSessionClient = clientId.startsWith("session-");
-  const fixtureClient = !isSessionClient ? DEMO_CLIENTS.find((c) => c.id === clientId) : null;
-  const isOpen = clientId === "demo-0";
+  const fixtureClient   = !isSessionClient ? DEMO_CLIENTS.find((c) => c.id === clientId) : null;
+  const isOpen          = clientId === "demo-0";
 
-  // Session clientları localStorage'dan yükle
   useEffect(() => {
     initDemoSession();
     if (clientId) recordDemoClientView(clientId);
-    if (isSessionClient) {
-      setSessionClient(getDemoClient(clientId));
-    }
+    if (isSessionClient) setSessionClient(getDemoClient(clientId));
   }, [clientId, isSessionClient]);
 
-  // Birleşik client verisi (fixture veya session)
   const client = fixtureClient ?? sessionClient;
 
   if (!client && !isSessionClient) {
@@ -500,7 +614,6 @@ export default function DemoDanisanDetailPage() {
     );
   }
 
-  // Session client henüz yüklenmediyse bekle
   if (isSessionClient && !sessionClient) {
     return (
       <main className="flex min-h-screen items-center justify-center p-6 bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8]">
@@ -510,15 +623,14 @@ export default function DemoDanisanDetailPage() {
   }
 
   const displayClient = client!;
-  const fullName = `${displayClient.ad ?? ""} ${displayClient.soyad ?? ""}`.trim();
-  const initials = `${(displayClient.ad ?? "")[0] ?? ""}${(displayClient.soyad ?? "")[0] ?? ""}`.toUpperCase();
-  const gorece = goreleSure(displayClient.gorusme);
+  const fullName  = `${displayClient.ad ?? ""} ${displayClient.soyad ?? ""}`.trim();
+  const initials  = `${(displayClient.ad ?? "")[0] ?? ""}${(displayClient.soyad ?? "")[0] ?? ""}`.toUpperCase();
+  const gorece    = goreleSure(displayClient.gorusme);
+  const gateActive = !isOpen && !isSessionClient;
 
   function renderTabContent() {
-    // Session client: genel sekme gerçek veri, diğerleri demo örnek içerik
     if (isSessionClient && sessionClient) {
       if (activeTab === "genel") return <SessionGenelContent client={sessionClient} />;
-      // Diğer sekmeler: demo içerik (Eylül Karaca örneği, blur'suz placeholder olarak)
       if (activeTab === "notlar")     return <NotlarContent />;
       if (activeTab === "randevular") return <RandevularContent />;
       if (activeTab === "taslar")     return <TaslarContent />;
@@ -528,7 +640,6 @@ export default function DemoDanisanDetailPage() {
       if (activeTab === "yolculuk")   return <YolculukContent />;
       return null;
     }
-    // Fixture client (demo-0 tam açık, diğerleri placeholder)
     if (activeTab === "genel")      return isOpen ? <GenelContent />      : <PlaceholderTabContent label="Genel Bilgiler" />;
     if (activeTab === "notlar")     return isOpen ? <NotlarContent />     : <PlaceholderTabContent label="Notlar" />;
     if (activeTab === "randevular") return isOpen ? <RandevularContent /> : <PlaceholderTabContent label="Randevular" />;
@@ -541,8 +652,6 @@ export default function DemoDanisanDetailPage() {
   }
 
   const currentTab = TABS.find((t) => t.id === activeTab);
-  // Session clientlar ve demo-0: içerik açık (DemoGate bypass)
-  const gateActive = !isOpen && !isSessionClient;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
@@ -551,25 +660,32 @@ export default function DemoDanisanDetailPage() {
       <div className="mb-3">
         <Link
           href="/danisan-yolculugu/liste"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-bold text-slate-600 shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Listeye Dön
+          <ArrowLeft className="h-4 w-4" /> Listeye Dön
         </Link>
       </div>
 
-      {/* Demo-0 inceleme notu */}
+      {/* ── Önerilen İnceleme Profili (demo-0) ── */}
       {isOpen && (
-        <div className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/90 px-4 py-3 shadow-sm">
-          <div className="flex items-start gap-2.5">
-            <span className="mt-0.5 text-base leading-none">📋</span>
-            <div>
-              <p className="text-[12px] font-black text-violet-900">İnceleme Notu — Demo Profil</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-violet-800">
-                Bu danışan profili platform demo amacıyla oluşturulmuş örnek bir senaryodur.
-                Tüm sekmeler ve veriler gerçek kullanımı birebir yansıtacak şekilde hazırlanmıştır.
-                Numeroloji değerleri gerçek hesaplama motoru ile üretilmiştir.
-              </p>
+        <div className="mb-4 overflow-hidden rounded-2xl border border-amber-300/70 shadow-md">
+          <div className="bg-gradient-to-r from-amber-500 via-violet-600 to-indigo-600 px-5 py-3.5">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔍</span>
+              <div>
+                <p className="text-base font-black text-white">Önerilen İnceleme Profili</p>
+                <p className="mt-0.5 text-xs font-semibold text-white/80">Demo hesabı · Tüm sekmeler dolu</p>
+              </div>
             </div>
+          </div>
+          <div className="bg-amber-50/95 px-5 py-3.5">
+            <p className="text-sm leading-relaxed text-slate-700">
+              Bu profil demo hesabı için özel hazırlanmıştır. Notlar, seanslar, randevular, analizler ve danışan
+              yolculuğu örnek olarak doldurulmuştur.{" "}
+              <span className="font-bold text-violet-800">
+                Platformun çalışma mantığını görmek için tüm sekmeleri inceleyebilirsiniz.
+              </span>
+            </p>
           </div>
         </div>
       )}
@@ -578,10 +694,10 @@ export default function DemoDanisanDetailPage() {
       {isSessionClient && (
         <div className="mb-3 rounded-2xl border border-blue-200 bg-blue-50/90 px-4 py-3 shadow-sm">
           <div className="flex items-start gap-2.5">
-            <span className="mt-0.5 text-base leading-none">💾</span>
+            <span className="mt-0.5 text-lg leading-none">💾</span>
             <div>
-              <p className="text-[12px] font-black text-blue-900">Demo Oturumu — Geçici Danışan</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-blue-800">
+              <p className="text-sm font-black text-blue-900">Demo Oturumu — Geçici Danışan</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-blue-800">
                 Bu danışan demo oturumunuzda oluşturuldu. Çıkış yapana kadar tarayıcınızda saklanır.
                 Diğer sekmeler Eylül Karaca örnek verileriyle doldurulmuştur.
               </p>
@@ -591,48 +707,51 @@ export default function DemoDanisanDetailPage() {
       )}
 
       {/* Hero card */}
-      <section className="relative mb-3 flex items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/80 bg-white/88 p-3.5 shadow-lg">
+      <section className="relative mb-3 flex items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/80 bg-white/88 p-4 shadow-lg">
         <div className="pointer-events-none absolute -top-[45px] right-[70px] h-[120px] w-[120px] rounded-full bg-violet-300 opacity-40 blur-[36px]" />
         <div className="pointer-events-none absolute -bottom-[40px] -right-[25px] h-[105px] w-[105px] rounded-full bg-pink-300 opacity-45 blur-[34px]" />
 
-        <div className="relative z-10 flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-blue-600 via-violet-600 to-pink-600 text-[26px] font-black text-white shadow-lg">
+        <div className="relative z-10 flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-blue-600 via-violet-600 to-pink-600 text-3xl font-black text-white shadow-lg">
           {initials || "D"}
         </div>
 
         <div className="relative z-10 min-w-0 flex-1">
-          <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-black text-indigo-700">
+          <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-black text-indigo-700">
             {isOpen
               ? "Demo Danışan · Tam Görünüm"
               : isSessionClient
                 ? "Demo Oturumu · Kendi Kaydın"
                 : "Demo Danışan · Kısıtlı Görünüm"}
           </span>
-          <h1 className="mt-1.5 text-[22px] font-black text-slate-950 sm:text-[26px]">{fullName}</h1>
+          <h1 className="mt-1.5 text-2xl font-black text-slate-950 sm:text-3xl">{fullName}</h1>
           <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
             {[
-              { label: "Burç",     value: displayClient.burc },
-              { label: "Kan",      value: displayClient.kan },
-              { label: "Mizaç",    value: displayClient.mizac },
-              { label: "Son Görüşme", value: displayClient.gorusme ? `${fmtDate(displayClient.gorusme)}${gorece ? ` · ${gorece}` : ""}` : "—" },
-            ].map(({ label, value }) => (
+              { label: "Burç",        value: displayClient.burc },
+              { label: "Kan",         value: displayClient.kan },
+              { label: "Mizaç",       value: displayClient.mizac },
+              { label: "Son Görüşme", value: displayClient.gorusme
+                ? `${fmtDate(displayClient.gorusme)}${gorece ? ` · ${gorece}` : ""}`
+                : "—" },
+            ].map(({ label, value }) =>
               value ? (
                 <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                  <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</span>
-                  <span className="block truncate text-[12px] font-bold text-slate-700">{value}</span>
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span>
+                  <span className="block truncate text-sm font-bold text-slate-700">{value}</span>
                 </div>
               ) : null
-            ))}
+            )}
           </div>
           {displayClient.telefon && (
-            <div className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
-              <Phone className="h-3.5 w-3.5 shrink-0" />
-              {/* Fixture demo clients dışındaki (demo-1..19) telefonlar blur — session ve demo-0 açık */}
-              {(isOpen || isSessionClient) ? displayClient.telefon : <span className="blur-sm select-none">{displayClient.telefon}</span>}
+            <div className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+              <Phone className="h-4 w-4 shrink-0" />
+              {(isOpen || isSessionClient)
+                ? displayClient.telefon
+                : <span className="blur-sm select-none">{displayClient.telefon}</span>}
             </div>
           )}
           {displayClient.gorusme && (
-            <div className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
-              <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
+            <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+              <CalendarCheck className="h-4 w-4 shrink-0" />
               Son görüşme: {fmtDate(displayClient.gorusme)}
             </div>
           )}
@@ -656,17 +775,12 @@ export default function DemoDanisanDetailPage() {
           </div>
         </div>
 
-        {/* Tab content */}
-        <DemoGate
-          isProtected={gateActive}
-          message={DEMO_MSG}
-          className="min-h-[200px]"
-        >
+        <DemoGate isProtected={gateActive} message={DEMO_MSG} className="min-h-[200px]">
           <div className="rounded-xl border border-slate-100 bg-white/60 p-4">
             {currentTab && (
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3">
                 <span
-                  className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black text-white"
+                  className="inline-flex rounded-full px-3 py-1 text-xs font-black text-white"
                   style={{ background: currentTab.color }}
                 >
                   {currentTab.label}
