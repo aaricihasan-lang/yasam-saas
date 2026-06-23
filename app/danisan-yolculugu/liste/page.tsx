@@ -395,6 +395,22 @@ export default function DanisanListePage() {
           </div>
         </header>
 
+        {isDemo && (
+          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-lg leading-none">🔎</span>
+              <div>
+                <p className="text-sm font-black text-blue-900">Demo Modu — Örnek Veri</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                  Gerçek verilere benzer hazırlanmış 20 örnek danışan profiliyle platformu keşfediyorsunuz.
+                  Telefon bilgileri gizlenmiştir. Yalnızca{" "}
+                  <span className="font-black">Eylül Karaca</span> profilinin tam içeriğine erişebilirsiniz.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tenantMissing && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
             {!sessionUser

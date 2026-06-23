@@ -238,6 +238,8 @@ export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
   clearSessionToken();
+  // Demo oturum verisini temizle (demo hesap olmasa da key yoksa no-op)
+  localStorage.removeItem("yasam_demo_session");
   invalidateYasamUserSyncCache();
   // Admin httpOnly cookie'yi temizle (fire-and-forget, tüm logout noktalarını kapsar)
   void fetch("/api/auth/admin-session", { method: "DELETE" }).catch(() => {});

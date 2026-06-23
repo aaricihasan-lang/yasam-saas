@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, CalendarCheck } from "lucide-react";
 import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { DemoGate } from "@/components/demo/DemoGate";
+import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
+import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
+import { initDemoSession, recordDemoClientView } from "@/lib/demo/demoSession";
 
 const DEMO_MSG =
   "Bu bilgiler demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir.";
@@ -22,6 +25,14 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+// ─── Numeroloji (gerçek motor — Eylül Karaca, 1990-03-21) ────────────────────
+const DEMO0_NUM = hesaplaNumeroloji({
+  firstName: "Eylül",
+  lastName: "Karaca",
+  birthDate: "1990-03-21",
+});
+const DEMO0_KISISEL_YIL = calcKisiselYil("1990-03-21");
 
 // ─── Demo-0 (Eylül Karaca) — tam açık içerik ─────────────────────────────────
 
@@ -76,10 +87,10 @@ function NotlarContent() {
   const notes = [
     { date: "05.06.2026", text: "İlk görüşmede yüksek stres seviyesi saptandı. Sol omuz ve boyun bölgesinde enerji bloku mevcut. Ametist ve roze kuvars kombinasyonu önerildi. İlk izlenim: çok açık ve çalışmaya hazır." },
     { date: "12.06.2026", text: "Çakra dengeleme sonrası uyku kalitesi belirgin arttı. 'Sabahları daha zinde uyanıyorum' ifadesi kullandı. B vitamini takviyesine başlamış. Yürüyüş alışkanlığı kazanmaya çalışıyor." },
-    { date: "15.06.2026", text: "Telefon görüşmesi: Meditasyon pratiğini düzenli uyguluyor. 4-7-8 nefes tekniği stres anında çok iyi sonuç vermiş. Şükran günlüğü 5 gündür devamlı tutuluyor." },
+    { date: "15.06.2026", text: "Telefon görüşmesi: Meditasyon pratiği düzenlilik kazanıyor. 4-7-8 nefes tekniği stres anında çok iyi sonuç vermiş. Günlük yansıma defterini düzenli tutuyor." },
     { date: "19.06.2026", text: "Taş yerleşimi seansı çok olumlu geçti. Seans sonrası 2 saat derin uyku rapor edildi. Obsidyen evin giriş kapısına yerleştirildi." },
     { date: "20.06.2026", text: "WhatsApp: Ekran kullanım alışkanlığı değişmeye başlamış. Geceleri 21:30'da telefonu kapatıyor. Motivasyon yüksek, süreçten memnun." },
-    { date: "22.06.2026", text: "Numeroloji analizi hazırlandı. Kişisel yıl 4 — düzen ve temel atma yılı. Hayat yolu 3 ile kombinasyonu güçlü yaratıcı enerji işaret ediyor." },
+    { date: "22.06.2026", text: "Numeroloji analizi hazırlandı. Kişisel yıl 7 — içe dönüş ve derinleşme yılı. Hayat yolu 25/7 ile kombinasyonu güçlü analitik ve sezgisel enerji işaret ediyor." },
     { date: "23.06.2026", text: "Lapis lazuli eklendi. Toplantılarda iletişim güçlüğü çektiğini belirtti. Boğaz çakrası desteği için çalışma planı hazırlanacak." },
   ];
   return (
@@ -194,7 +205,7 @@ function SeanslarContent() {
 function OdevlerContent() {
   const homeworks = [
     { title: "Sabah Meditasyonu",   detail: "15 dk → Bilinçli nefes ve beden tarama",             period: "10.06 – 10.07.2026", status: "devam" },
-    { title: "Şükran Günlüğü",      detail: "Her gece yatmadan önce 3 şükran yaz",                 period: "10.06 – 10.07.2026", status: "devam" },
+    { title: "Günlük Yansıma",      detail: "Her gece yatmadan önce güne dair 3 gözlemi not et",  period: "10.06 – 10.07.2026", status: "devam" },
     { title: "4-7-8 Nefes Tekniği", detail: "Stres anında ve uyku öncesi uygulanacak",             period: "05.06 – 19.06.2026", status: "tamamlandı" },
     { title: "Ekran Kısıtlaması",   detail: "21:00'den sonra telefon ve bilgisayar kapalı",         period: "12.06 – devam",      status: "devam" },
     { title: "Ametist ile Uyuma",   detail: "Her gece yastık altına veya yanına koy",               period: "12.06 – devam",      status: "devam" },
@@ -236,6 +247,16 @@ function AnalizlerContent() {
     { label: "Zihinsel", score: 7.5 },
     { label: "Ruhsal",   score: 7.0 },
   ];
+
+  // Gerçek motor sonuçları
+  const numItems = [
+    { label: "Hayat Yolu",   value: DEMO0_NUM.hayatYolu.display,       note: "Analiz & Sezgi" },
+    { label: "İfade Sayısı", value: DEMO0_NUM.ifadeSayisi.display,     note: "İletişim Gücü" },
+    { label: "Kişisel Yıl",  value: DEMO0_KISISEL_YIL.display,        note: "İçe Dönüş Yılı" },
+    { label: "Ana Kulvar",   value: DEMO0_NUM.anaKulvar.display,       note: "" },
+    { label: "Yan Kulvar",   value: DEMO0_NUM.yanKulvar.display,       note: "" },
+  ];
+
   return (
     <div className="space-y-5">
       {/* Çakra */}
@@ -286,19 +307,13 @@ function AnalizlerContent() {
           ))}
         </div>
       </div>
-      {/* Numeroloji */}
+      {/* Numeroloji — gerçek motor */}
       <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
         <h3 className="mb-3 text-sm font-black text-slate-900">Numeroloji Özeti</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {[
-            { label: "Hayat Yolu",   value: "3",   note: "Yaratıcılık & İfade" },
-            { label: "İfade Sayısı", value: "7",   note: "Analiz & Derinlik" },
-            { label: "Kişisel Yıl",  value: "4",   note: "Düzen & Temel" },
-            { label: "Ana Kulvar",   value: "3/5",  note: "" },
-            { label: "Yan Kulvar",   value: "7/2",  note: "" },
-          ].map((n) => (
+          {numItems.map((n) => (
             <div key={n.label} className="rounded-lg border border-amber-100 bg-white p-2.5 text-center">
-              <span className="block text-xl font-black text-amber-700">{n.value}</span>
+              <span className="block text-xl font-black text-amber-700">{n.value || "—"}</span>
               <span className="mt-0.5 block text-[10px] font-bold text-slate-500">{n.label}</span>
               {n.note && <span className="block text-[10px] text-slate-400">{n.note}</span>}
             </div>
@@ -433,6 +448,12 @@ export default function DemoDanisanDetailPage() {
   const client = DEMO_CLIENTS.find((c) => c.id === clientId);
   const isOpen = clientId === "demo-0"; // ilk danışan tamamen açık
 
+  // Demo session kayıt
+  useEffect(() => {
+    initDemoSession();
+    if (clientId) recordDemoClientView(clientId);
+  }, [clientId]);
+
   if (!client) {
     return (
       <main className="flex min-h-screen items-center justify-center p-6 bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8]">
@@ -476,6 +497,23 @@ export default function DemoDanisanDetailPage() {
           <ArrowLeft className="h-3.5 w-3.5" /> Listeye Dön
         </Link>
       </div>
+
+      {/* Demo-0 inceleme notu */}
+      {isOpen && (
+        <div className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/90 px-4 py-3 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 text-base leading-none">📋</span>
+            <div>
+              <p className="text-[12px] font-black text-violet-900">İnceleme Notu — Demo Profil</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-violet-800">
+                Bu danışan profili platform demo amacıyla oluşturulmuş örnek bir senaryodur.
+                Tüm sekmeler ve veriler gerçek kullanımı birebir yansıtacak şekilde hazırlanmıştır.
+                Numeroloji değerleri gerçek hesaplama motoru ile üretilmiştir.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero card */}
       <section className="relative mb-3 flex items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/80 bg-white/88 p-3.5 shadow-lg">
