@@ -12,6 +12,8 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
 
@@ -304,6 +306,7 @@ export default function KombinasyonlarPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [isMobile, setIsMobile] = useState(false);
+  const { isDemo } = useDemoGuard();
 
   const clearSearch = useCallback(() => {
     if (readUrlSearchQuery()) stripUrlSearchQuery();
@@ -679,7 +682,7 @@ export default function KombinasyonlarPage() {
               {loading && <span className="ml-2 text-cyan-600">yükleniyor...</span>}
             </p>
 
-            {!loading && groups.length > 0 && (
+            {!isDemo && !loading && groups.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-semibold text-slate-500">
                   Seçili: <span className="font-black text-violet-700">{selectedCount}</span>
@@ -815,13 +818,15 @@ export default function KombinasyonlarPage() {
                       >
                         Detay →
                       </Link>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleMobileDeleteGroup(issue); }}
-                        className="min-h-[36px] shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 text-xs font-black text-rose-600 hover:bg-rose-100"
-                      >
-                        Sil
-                      </button>
+                      {!isDemo && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleMobileDeleteGroup(issue); }}
+                          className="min-h-[36px] shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 text-xs font-black text-rose-600 hover:bg-rose-100"
+                        >
+                          Sil
+                        </button>
+                      )}
                     </div>
 
                     {/* Desktop */}
@@ -862,14 +867,18 @@ export default function KombinasyonlarPage() {
                       </div>
                       <div className="font-black text-slate-700">{count}</div>
                       <div className="min-w-0 truncate font-medium text-slate-600">
-                        {sourceLine ? (
-                          isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                        <DemoBlur isProtected={isDemo}>
+                          {sourceLine ? (
+                            isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </DemoBlur>
                       </div>
                       <div className="whitespace-nowrap font-medium text-slate-500">
-                        {ts ? formatListCardDate(ts) : "—"}
+                        <DemoBlur isProtected={isDemo}>
+                          {ts ? formatListCardDate(ts) : "—"}
+                        </DemoBlur>
                       </div>
                       <div className="flex justify-end">
                         <Link
@@ -940,24 +949,30 @@ export default function KombinasyonlarPage() {
 
                   {/* Source */}
                   {sourceLine ? (
-                    <p className="mt-1 truncate text-[11px] font-medium text-violet-700">
-                      {isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine}
-                    </p>
+                    <DemoBlur isProtected={isDemo}>
+                      <p className="mt-1 truncate text-[11px] font-medium text-violet-700">
+                        {isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine}
+                      </p>
+                    </DemoBlur>
                   ) : null}
 
                   {/* Preview */}
                   {preview ? (
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
-                      {isSearchActive ? renderHighlightedText(preview, activeSearch) : preview}
-                    </p>
+                    <DemoBlur isProtected={isDemo}>
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
+                        {isSearchActive ? renderHighlightedText(preview, activeSearch) : preview}
+                      </p>
+                    </DemoBlur>
                   ) : null}
 
                   {/* Metadata */}
-                  <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                    {stats.sources > 0 ? `${stats.sources} kaynak · ` : ""}
-                    {stats.stonesCount > 0 ? `${stats.stonesCount} taş metni · ` : ""}
-                    {ts ? formatListCardDate(ts) : "—"}
-                  </p>
+                  <DemoBlur isProtected={isDemo}>
+                    <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+                      {stats.sources > 0 ? `${stats.sources} kaynak · ` : ""}
+                      {stats.stonesCount > 0 ? `${stats.stonesCount} taş metni · ` : ""}
+                      {ts ? formatListCardDate(ts) : "—"}
+                    </p>
+                  </DemoBlur>
 
                   {/* Action */}
                   <div className="mt-2 flex items-center gap-2">
@@ -968,7 +983,7 @@ export default function KombinasyonlarPage() {
                     >
                       Detay →
                     </Link>
-                    {isMobile && (
+                    {!isDemo && isMobile && (
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); void handleMobileDeleteGroup(issue); }}

@@ -19,6 +19,8 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 
 const COMBINATIONS_SELECT =
   "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
@@ -936,6 +938,7 @@ function VariantCard({
   isCalcOpen,
   onToggleCalc,
   applicabilityPct,
+  isDemo = false,
 }: {
   row: CombinationRecord;
   index: number;
@@ -953,6 +956,7 @@ function VariantCard({
   isCalcOpen: boolean;
   onToggleCalc: () => void;
   applicabilityPct?: number;
+  isDemo?: boolean;
 }) {
   const calcOpen = isCalcOpen;
 
@@ -984,15 +988,18 @@ function VariantCard({
           <span>Kombinasyon</span>
           <span>{index + 1} / {total}</span>
         </span>
-        {applicabilityPct !== undefined && !stockLoading ? (
+        {!isDemo && applicabilityPct !== undefined && !stockLoading ? (
           <ApplicabilityBadge pct={applicabilityPct} />
         ) : null}
         {showMatchBadge ? <SearchMatchBadge /> : null}
-        <span className="ml-auto text-[9px] font-medium tabular-nums text-slate-300">
-          {formatDate(row.created_at)}
-        </span>
+        {!isDemo && (
+          <span className="ml-auto text-[9px] font-medium tabular-nums text-slate-300">
+            {formatDate(row.created_at)}
+          </span>
+        )}
       </div>
 
+      <DemoBlur isProtected={isDemo}>
       <div className="space-y-2">
         <FieldBlock
           label="Kaynak"
@@ -1075,6 +1082,7 @@ function VariantCard({
           />
         ) : null}
       </div>
+      </DemoBlur>
     </article>
   );
 }
@@ -1108,6 +1116,7 @@ function KombinasyonDetayPageContent() {
   const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
+  const { isDemo } = useDemoGuard();
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1354,7 +1363,7 @@ function KombinasyonDetayPageContent() {
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {!loading && rows.length > 0 && (
+            {!isDemo && !loading && rows.length > 0 && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
@@ -1381,7 +1390,9 @@ function KombinasyonDetayPageContent() {
         ) : null}
 
         {globalSummary && variantSummaries ? (
-          <AnalysisDashboard global={globalSummary} variantSummaries={variantSummaries} />
+          <DemoBlur isProtected={isDemo}>
+            <AnalysisDashboard global={globalSummary} variantSummaries={variantSummaries} />
+          </DemoBlur>
         ) : null}
 
         {loading ? (
@@ -1420,6 +1431,7 @@ function KombinasyonDetayPageContent() {
                 stockLoading={stockLoading}
                 applicabilityPct={variantSummaries?.[index]?.applicabilityPct}
                 isCalcOpen={openCalcIds.has(row.id)}
+                isDemo={isDemo}
                 onToggleCalc={() =>
                   setOpenCalcIds((prev) => {
                     const next = new Set(prev);
