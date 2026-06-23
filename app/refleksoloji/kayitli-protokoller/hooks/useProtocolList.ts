@@ -2,16 +2,41 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import {
+  DEMO_SEED_PROTOCOLS,
+  DEMO_USER_LOCAL_PREFIX,
+  isDemoFixtureProtocol,
+  isUserLocalProtocol,
+  savedProtocolToRecord,
+} from "@/lib/demo/demoRefleksoloji";
+import {
+  loadProtocolsFromStorage,
+  saveProtocolsToStorage,
+} from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
 import { supabase } from "@/lib/supabase";
 import type { ReflexologyProtocolRecord } from "../types";
 
+function buildDemoProtocolList(): ReflexologyProtocolRecord[] {
+  const local = loadProtocolsFromStorage().map(savedProtocolToRecord);
+  return [...local, ...DEMO_SEED_PROTOCOLS];
+}
+
 export function useProtocolList() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
+
   const [protocols, setProtocols] = useState<ReflexologyProtocolRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemo);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (isDemo) {
+      setProtocols(buildDemoProtocolList());
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setLoadErrorMessage(null);
 
@@ -41,7 +66,7 @@ export function useProtocolList() {
     }
 
     setProtocols((data || []) as ReflexologyProtocolRecord[]);
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
     void refresh();
@@ -49,7 +74,21 @@ export function useProtocolList() {
 
   const deleteProtocol = useCallback(
     async (id: string) => {
-      const tid = tenantId ?? await getSyncedTenantId();
+      if (isDemo) {
+        // Fixture seed protokoller silinemez
+        if (isDemoFixtureProtocol(id)) return false;
+        if (!isUserLocalProtocol(id)) return false;
+
+        const localId = id.slice(DEMO_USER_LOCAL_PREFIX.length);
+        const current = loadProtocolsFromStorage();
+        const next = current.filter((p) => p.id !== localId);
+        if (next.length === current.length) return false;
+        saveProtocolsToStorage(next);
+        setProtocols(buildDemoProtocolList());
+        return true;
+      }
+
+      const tid = tenantId ?? (await getSyncedTenantId());
       if (!tid) return false;
       // GÜVENLIK: hem id hem tenant_id filtresi
       const { error } = await supabase
@@ -61,8 +100,8 @@ export function useProtocolList() {
       await refresh();
       return true;
     },
-    [refresh, tenantId],
+    [isDemo, refresh, tenantId],
   );
 
-  return { protocols, loading, loadErrorMessage, refresh, deleteProtocol };
+  return { protocols, loading, loadErrorMessage, refresh, deleteProtocol, isDemo };
 }

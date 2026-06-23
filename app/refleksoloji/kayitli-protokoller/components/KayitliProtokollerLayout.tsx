@@ -1,11 +1,13 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { getSyncedYasamUser } from "@/lib/auth/sessionTenant";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { isDemoFixtureProtocol } from "@/lib/demo/demoRefleksoloji";
 import {
   normalizeSearchQuery,
   protocolMatchesSearch,
@@ -16,7 +18,7 @@ import { ProtocolListCard } from "./ProtocolListCard";
 export function KayitliProtokollerLayout() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
-  const { protocols, loading, loadErrorMessage, deleteProtocol } = useProtocolList();
+  const { protocols, loading, loadErrorMessage, deleteProtocol, isDemo } = useProtocolList();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
@@ -37,6 +39,7 @@ export function KayitliProtokollerLayout() {
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   async function exportProtocolsWord(mode: "selected" | "all") {
+    if (isDemo) return;
     const user = await getSyncedYasamUser();
     if (!user?.tenant_id || !user.id) return;
     setWordBusy(true);
@@ -105,6 +108,10 @@ export function KayitliProtokollerLayout() {
       </div>
 
       <div className="relative z-10 w-full px-3 py-3 lg:px-6 xl:px-10">
+        {isDemo && (
+          <DemoModuleBanner message="Kayıtlı protokoller demo hesabı için temsili verilerle gösterilmektedir. Kendi oluşturduğunuz protokoller oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman verileri gizlidir." />
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
@@ -166,28 +173,33 @@ export function KayitliProtokollerLayout() {
           </p>
         ) : !loadErrorMessage ? (
           <>
-            <div className="mt-3 mb-3">
-              <BulkExportBar
-                selectedCount={selectedIds.size}
-                totalCount={protocols.length}
-                onSelectAll={selectAllFiltered}
-                onClearSelection={clearSelection}
-                onExportSelected={() => void exportProtocolsWord("selected")}
-                onExportAll={() => void exportProtocolsWord("all")}
-                isExporting={wordBusy}
-              />
-            </div>
-          <section className="mt-1 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((protocol) => (
-              <ProtocolListCard
-                key={protocol.id}
-                protocol={protocol}
-                onDelete={() => void handleDelete(protocol.id)}
-                isSelected={selectedIds.has(protocol.id)}
-                onToggleSelect={() => toggleSelection(protocol.id)}
-              />
-            ))}
-          </section>
+            {/* BulkExportBar sadece gerçek hesaplarda gösterilir */}
+            {!isDemo && (
+              <div className="mt-3 mb-3">
+                <BulkExportBar
+                  selectedCount={selectedIds.size}
+                  totalCount={protocols.length}
+                  onSelectAll={selectAllFiltered}
+                  onClearSelection={clearSelection}
+                  onExportSelected={() => void exportProtocolsWord("selected")}
+                  onExportAll={() => void exportProtocolsWord("all")}
+                  isExporting={wordBusy}
+                />
+              </div>
+            )}
+            <section className="mt-3 grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((protocol) => (
+                <ProtocolListCard
+                  key={protocol.id}
+                  protocol={protocol}
+                  onDelete={() => void handleDelete(protocol.id)}
+                  isSelected={selectedIds.has(protocol.id)}
+                  onToggleSelect={() => toggleSelection(protocol.id)}
+                  isDemo={isDemo}
+                  isSeed={isDemo && isDemoFixtureProtocol(protocol.id)}
+                />
+              ))}
+            </section>
           </>
         ) : null}
       </div>

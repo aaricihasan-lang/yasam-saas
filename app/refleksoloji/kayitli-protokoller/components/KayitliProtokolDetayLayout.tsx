@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { DemoGate } from "@/components/demo/DemoGate";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
 import {
   buildOrganStatuses,
@@ -10,6 +13,14 @@ import {
   resolveColoredRegionsForOrgans,
 } from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
 import type { ProtocolFootView } from "@/app/refleksoloji/protokol-haritasi/types";
+import {
+  DEMO_FIXTURE_PROTO_PREFIX,
+  DEMO_SEED_PROTOCOLS,
+  DEMO_USER_LOCAL_PREFIX,
+  isDemoFixtureProtocol,
+  savedProtocolToRecord,
+} from "@/lib/demo/demoRefleksoloji";
+import { loadProtocolsFromStorage } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
 import { supabase } from "@/lib/supabase";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
@@ -71,14 +82,6 @@ function ClinicalCard({
   );
 }
 
-function EmptyHint({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-lg border border-dashed border-violet-200/90 bg-violet-50/50 px-3 py-2 text-sm font-medium leading-relaxed text-violet-800/85">
-      {children}
-    </p>
-  );
-}
-
 function ApplicationNotesBody({ text }: { text: string }) {
   const paragraphs = text.split(/\r?\n/).map((p) => p.trim()).filter(Boolean);
 
@@ -132,11 +135,7 @@ function OrganPills({
   );
 }
 
-function FootMapAtlasCompactCard({
-  hasOrgans,
-}: {
-  hasOrgans: boolean;
-}) {
+function FootMapAtlasCompactCard({ hasOrgans }: { hasOrgans: boolean }) {
   return (
     <section className={footMapPanelCompactClass} aria-label="Ayak haritasi bilgisi">
       <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Ayak Haritasi</h2>
@@ -153,6 +152,9 @@ function FootMapAtlasCompactCard({
 }
 
 export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayLayoutProps) {
+  const isDemo = readYasamUser()?.is_demo_account === true;
+  const isSeed = isDemo && isDemoFixtureProtocol(protocolId);
+
   const [loading, setLoading] = useState(true);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
@@ -160,7 +162,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [wordBusy, setWordBusy] = useState(false);
 
   const downloadWord = useCallback(async () => {
-    if (!protocol) return;
+    if (!protocol || isDemo) return;
     const tid = await getSyncedTenantId();
     if (!tid) return;
     setWordBusy(true);
@@ -185,7 +187,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     } catch { /* sessiz */ } finally {
       setWordBusy(false);
     }
-  }, [protocol]);
+  }, [protocol, isDemo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,6 +196,24 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
       setLoading(true);
       setLoadErrorMessage(null);
 
+      if (isDemo) {
+        // Demo fixture protokolü
+        if (protocolId.startsWith(DEMO_FIXTURE_PROTO_PREFIX)) {
+          const fixture = DEMO_SEED_PROTOCOLS.find((p) => p.id === protocolId) ?? null;
+          if (!cancelled) { setProtocol(fixture); setLoading(false); }
+          return;
+        }
+        // Demo kullanıcısının kendi localStorage protokolü
+        if (protocolId.startsWith(DEMO_USER_LOCAL_PREFIX)) {
+          const localId = protocolId.slice(DEMO_USER_LOCAL_PREFIX.length);
+          const found = loadProtocolsFromStorage().find((p) => p.id === localId);
+          if (!cancelled) { setProtocol(found ? savedProtocolToRecord(found) : null); setLoading(false); }
+          return;
+        }
+        if (!cancelled) { setProtocol(null); setLoading(false); }
+        return;
+      }
+
       const { data, error } = await supabase
         .from("reflexology_protocols")
         .select("*")
@@ -201,35 +221,19 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         .maybeSingle();
 
       if (cancelled) return;
-
       setLoading(false);
-
-      if (error) {
-        setLoadErrorMessage(`Protokoller okunamadı: ${error.message}`);
-        setProtocol(null);
-        return;
-      }
-
+      if (error) { setLoadErrorMessage(`Protokoller okunamadı: ${error.message}`); setProtocol(null); return; }
       setProtocol((data as ReflexologyProtocolRecord | null) ?? null);
     }
 
     void loadProtocol();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [protocolId]);
+    return () => { cancelled = true; };
+  }, [isDemo, protocolId]);
 
   const organs = useMemo(() => parseOrgansList(protocol?.organs), [protocol?.organs]);
-
-  const { regions } = useMemo(
-    () => resolveColoredRegionsForOrgans(organs, footView),
-    [organs, footView],
-  );
-
+  const { regions } = useMemo(() => resolveColoredRegionsForOrgans(organs, footView), [organs, footView]);
   const organStatuses = useMemo(() => buildOrganStatuses(organs, footView), [organs, footView]);
   const missingOrgans = useMemo(() => missingAtlasOrgans(organStatuses), [organStatuses]);
-
   const rawJson = protocol?.raw_json ?? null;
 
   const clinical = useMemo(
@@ -258,10 +262,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     [protocol?.raw_json],
   );
 
-  const showDevJson =
-    process.env.NODE_ENV === "development" && Boolean(rawJsonDevText.trim());
-
+  const showDevJson = process.env.NODE_ENV === "development" && Boolean(rawJsonDevText.trim()) && !isDemo;
   const hasAtlasMapping = organs.length > 0 && regions.length > 0;
+
+  const notesParagraphs = applicationNotesDisplay
+    ? applicationNotesDisplay.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+    : [];
 
   if (loading) {
     return (
@@ -274,16 +280,11 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   if (loadErrorMessage) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
-        <p
-          className="max-w-xl rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-center text-base font-semibold text-rose-900"
-          role="alert"
-        >
+        <p className="max-w-xl rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-center text-base font-semibold text-rose-900" role="alert">
           {loadErrorMessage}
         </p>
         <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
-          <span className={navBtnIconWrap} aria-hidden>
-            🗂️
-          </span>
+          <span className={navBtnIconWrap} aria-hidden>🗂️</span>
           <span>← Kayıtlı Protokollere Dön</span>
         </Link>
       </main>
@@ -295,18 +296,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
         <p className="text-xl font-bold text-violet-900">Protokol bulunamadı.</p>
         <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
-          <span className={navBtnIconWrap} aria-hidden>
-            🗂️
-          </span>
+          <span className={navBtnIconWrap} aria-hidden>🗂️</span>
           <span>← Kayıtlı Protokollere Dön</span>
         </Link>
       </main>
     );
   }
-
-  const notesParagraphs = applicationNotesDisplay
-    ? applicationNotesDisplay.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
-    : [];
 
   return (
     <main className="relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
@@ -317,10 +312,18 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
       </div>
 
       <div className="relative z-10 w-full px-4 py-3 sm:px-6 lg:px-8 xl:px-12">
-        <nav
-          className="rounded-xl border border-violet-200/50 bg-white/70 p-2.5 backdrop-blur-md"
-          aria-label="Sayfa gezintisi"
-        >
+        {isDemo && (
+          <DemoModuleBanner
+            className="mb-3"
+            message={
+              isSeed
+                ? "Bu demo protokolüdür. Başlık ve harita görünümü açık; klinik detaylar demo hesabında gizlidir."
+                : "Kendi oluşturduğunuz protokol. Oturumunuz boyunca görünür; çıkışta silinir."
+            }
+          />
+        )}
+
+        <nav className="rounded-xl border border-violet-200/50 bg-white/70 p-2.5 backdrop-blur-md" aria-label="Sayfa gezintisi">
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
               <span className={navBtnIconWrap} aria-hidden>🗂️</span>
@@ -329,7 +332,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             <Link href="/refleksoloji" className={navBtnBackToMenu}>
               <span>← Refleksoloji</span>
             </Link>
-            {protocol && (
+            {/* Word raporu sadece gerçek hesaplarda */}
+            {protocol && !isDemo && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
@@ -339,12 +343,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
               </button>
             )}
-            <Link
-              href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
-              className="ml-auto inline-flex h-8 items-center rounded-lg border border-emerald-300 bg-emerald-500 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-600"
-            >
-              Protokolü Düzenle
-            </Link>
+            {/* Düzenle: sadece kullanıcının kendi oluşturduğu protokollerde */}
+            {!isSeed && (
+              <Link
+                href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.source_uid ?? protocol.id)}`}
+                className="ml-auto inline-flex h-8 items-center rounded-lg border border-emerald-300 bg-emerald-500 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-600"
+              >
+                Protokolü Düzenle
+              </Link>
+            )}
           </div>
         </nav>
 
@@ -359,7 +366,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             <span className="inline-flex rounded-full border border-violet-200/80 bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-violet-800">
               {formatProtocolDate(protocol.created_at)}
             </span>
-            {protocol.source_uid?.trim() ? (
+            {/* source_uid demo'da gizli */}
+            {protocol.source_uid?.trim() && !isDemo ? (
               <span className="inline-flex max-w-full truncate rounded-full border border-fuchsia-200/80 bg-fuchsia-50 px-2.5 py-0.5 text-[11px] font-medium text-fuchsia-900">
                 UID: {protocol.source_uid}
               </span>
@@ -386,67 +394,74 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         >
           <div className="min-w-0 space-y-3">
             <div className="rounded-lg border border-violet-200/40 bg-violet-50/30 px-4 py-2.5">
-              <h2 className="text-sm font-bold text-violet-950">
-                Klinik Protokol Bilgileri
-              </h2>
+              <h2 className="text-sm font-bold text-violet-950">Klinik Protokol Bilgileri</h2>
               <p className="mt-0.5 text-xs font-medium text-violet-800/85">
                 Hedef, organlar, uygulama adımları ve seans notları
               </p>
             </div>
 
-            <ClinicalCard title="Hedef / Sorun" tone="fuchsia" hidden={!targetText}>
-              <p className="text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
-                {targetText}
-              </p>
-            </ClinicalCard>
+            {/*
+              DemoGate: isSeed=true → blur+kilit overlay
+              isSeed=false (kullanıcı protokolü veya gerçek hesap) → children doğrudan geçer
+            */}
+            <DemoGate
+              isProtected={isSeed}
+              message="Bu içerik demo hesabında gizlidir. Tam sürümde tüm klinik detaylar açık olarak kullanılabilir."
+            >
+              <>
+                <ClinicalCard title="Hedef / Sorun" tone="fuchsia" hidden={!targetText}>
+                  <p className="text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
+                    {targetText}
+                  </p>
+                </ClinicalCard>
 
-            <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
-              <OrganPills organs={organs} organStatuses={organStatuses} />
-            </ClinicalCard>
+                <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
+                  <OrganPills organs={organs} organStatuses={organStatuses} />
+                </ClinicalCard>
 
-            <ClinicalProtocolStepsCard grouped={groupedProtocol} />
+                <ClinicalProtocolStepsCard grouped={groupedProtocol} />
 
-            <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
-              {notesParagraphs.length >= 2 ? (
-                <div className="space-y-3">
-                  {notesParagraphs.map((paragraph, index) => (
-                    <p
-                      key={`note-${index}-${paragraph.slice(0, 16)}`}
-                      className="rounded-lg border border-amber-100/80 bg-amber-50/40 px-3 py-2 text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]"
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <ApplicationNotesBody text={applicationNotesDisplay!} />
-              )}
-            </ClinicalCard>
+                <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
+                  {notesParagraphs.length >= 2 ? (
+                    <div className="space-y-3">
+                      {notesParagraphs.map((paragraph, index) => (
+                        <p
+                          key={`note-${index}-${paragraph.slice(0, 16)}`}
+                          className="rounded-lg border border-amber-100/80 bg-amber-50/40 px-3 py-2 text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]"
+                        >
+                          {paragraph}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <ApplicationNotesBody text={applicationNotesDisplay!} />
+                  )}
+                </ClinicalCard>
 
-            <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
-              <p className="whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
-                {sourceDescription}
-              </p>
-            </ClinicalCard>
+                <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
+                  <p className="whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
+                    {sourceDescription}
+                  </p>
+                </ClinicalCard>
 
-            {showDevJson ? (
-              <details className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-3">
-                <summary className="cursor-pointer text-sm font-black text-slate-600">
-                  Geliştirici Verisi (raw_json)
-                </summary>
-                <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono leading-relaxed text-slate-700">
-                  {rawJsonDevText}
-                </pre>
-              </details>
-            ) : null}
+                {showDevJson ? (
+                  <details className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-black text-slate-600">
+                      Geliştirici Verisi (raw_json)
+                    </summary>
+                    <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono leading-relaxed text-slate-700">
+                      {rawJsonDevText}
+                    </pre>
+                  </details>
+                ) : null}
+              </>
+            </DemoGate>
           </div>
 
           {hasAtlasMapping ? (
             <section className={footMapPanelLargeClass} aria-label="Ayak haritası önizleme">
               <div className="shrink-0 border-b border-violet-200/70 px-4 py-3">
-                <h2 className="text-sm font-bold text-violet-950">
-                  Ayak Haritası Önizleme
-                </h2>
+                <h2 className="text-sm font-bold text-violet-950">Ayak Haritası Önizleme</h2>
                 <p className="mt-0.5 text-xs font-medium text-violet-800/80">
                   Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
                 </p>

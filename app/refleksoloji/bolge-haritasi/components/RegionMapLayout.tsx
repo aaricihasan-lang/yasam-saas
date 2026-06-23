@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
 import type { RegionDrawShape, RegionToolMode } from "../types";
@@ -17,6 +19,7 @@ type RegionMapLayoutProps = {
 };
 
 export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const { showToast } = useToast();
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
@@ -56,6 +59,12 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
       </div>
 
       <div className="relative z-10 flex h-full w-full max-w-none flex-col px-2 py-1 sm:px-3">
+        {isDemo && (
+          <DemoModuleBanner
+            className="shrink-0"
+            message="Bölge haritasında yaptığınız çizimler sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir."
+          />
+        )}
         <div className="flex max-h-[60px] shrink-0 items-center gap-2 pb-1">
           <header className="min-w-0 flex-1">
             <p className="text-[9px] font-black uppercase tracking-[0.26em] text-violet-700/90">

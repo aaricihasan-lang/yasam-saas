@@ -236,6 +236,23 @@ export function clearSessionToken(): void {
 
 export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
+
+  // Demo hesap çıkışında modül verilerini temizle — gerçek kullanıcı verisi korunur
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as { is_demo_account?: boolean };
+      if (parsed.is_demo_account === true) {
+        [
+          "yasam-refleksoloji-atlas-v1",
+          "yasam-refleksoloji-organs-v1",
+          "yasam-refleksoloji-protokoller-v1",
+          "yasam-refleksoloji-notlar-v1",
+        ].forEach((k) => localStorage.removeItem(k));
+      }
+    }
+  } catch { /* JSON parse başarısız olursa sessiz */ }
+
   localStorage.removeItem(STORAGE_KEY);
   clearSessionToken();
   // Demo oturum verisini temizle (demo hesap olmasa da key yoksa no-op)

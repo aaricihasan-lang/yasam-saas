@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { getOrganColor } from "@/app/refleksoloji/protokol-haritasi/types";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import type { ReflexologyProtocolRecord } from "../types";
@@ -10,9 +11,20 @@ type ProtocolListCardProps = {
   onDelete: () => void;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  /** Demo hesabında mı gösteriliyor */
+  isDemo?: boolean;
+  /** Demo fixture/seed protokolü mü (içerik blur'lu) */
+  isSeed?: boolean;
 };
 
-export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelect }: ProtocolListCardProps) {
+export function ProtocolListCard({
+  protocol,
+  onDelete,
+  isSelected,
+  onToggleSelect,
+  isDemo = false,
+  isSeed = false,
+}: ProtocolListCardProps) {
   const title = protocol.title?.trim() || "Başlıksız protokol";
   const targetProblem = protocol.target_problem?.trim() || "";
   const organsList = parseOrgansList(protocol.organs);
@@ -22,7 +34,8 @@ export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelec
     <article className={`relative flex flex-col rounded-2xl border bg-white/80 p-4 shadow-sm ring-1 backdrop-blur-md transition hover:shadow-md ${
       isSelected ? "border-violet-400 ring-violet-300/50 ring-2" : "border-purple-100 ring-violet-100/60"
     }`}>
-      {onToggleSelect !== undefined && (
+      {/* Checkpoint — sadece demo olmayan ve fixture olmayan protokollerde */}
+      {onToggleSelect !== undefined && !isDemo && (
         <label
           className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
           onClick={(e) => e.preventDefault()}
@@ -35,9 +48,10 @@ export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelec
           />
         </label>
       )}
+
       <Link
         href={`/refleksoloji/kayitli-protokoller/${encodeURIComponent(protocol.id)}`}
-        className={`block min-w-0 flex-1 ${onToggleSelect !== undefined ? "pr-7" : ""}`}
+        className="block min-w-0 flex-1"
       >
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-base font-black text-slate-900">{title}</h2>
@@ -49,34 +63,40 @@ export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelec
         </div>
 
         {targetProblem ? (
-          <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-relaxed text-violet-900/90">
-            {targetProblem}
-          </p>
+          <DemoBlur isProtected={isSeed} className="mt-1.5">
+            <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-violet-900/90">
+              {targetProblem}
+            </p>
+          </DemoBlur>
         ) : null}
 
         {organsSummary ? (
-          <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-600">
-            {organsSummary}
-          </p>
+          <DemoBlur isProtected={isSeed} className="mt-1">
+            <p className="line-clamp-2 text-xs font-medium leading-relaxed text-slate-600">
+              {organsSummary}
+            </p>
+          </DemoBlur>
         ) : (
           <p className="mt-1 text-xs font-medium text-slate-400">Organ bilgisi eklenmemiş.</p>
         )}
 
         {organsList.length > 0 ? (
-          <ul className="mt-2 flex flex-wrap gap-1">
-            {organsList.map((name, index) => {
-              const color = getOrganColor(index);
-              return (
-                <li key={`${name}-${index}`}>
-                  <span
-                    className={`inline-block rounded-lg border px-2 py-0.5 text-[10px] font-bold ${color.chipClass}`}
-                  >
-                    {name}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <DemoBlur isProtected={isSeed} className="mt-2">
+            <ul className="flex flex-wrap gap-1">
+              {organsList.map((name, index) => {
+                const color = getOrganColor(index);
+                return (
+                  <li key={`${name}-${index}`}>
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-0.5 text-[10px] font-bold ${color.chipClass}`}
+                    >
+                      {name}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </DemoBlur>
         ) : null}
       </Link>
 
@@ -87,7 +107,7 @@ export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelec
             {formatProtocolDate(protocol.created_at)}
           </dd>
         </div>
-        {protocol.source_uid?.trim() ? (
+        {protocol.source_uid?.trim() && !isDemo ? (
           <div className="flex min-w-0 justify-between gap-2">
             <dt className="shrink-0">Kaynak UID</dt>
             <dd className="min-w-0 truncate font-mono text-[10px] font-semibold text-slate-600">{protocol.source_uid}</dd>
@@ -102,19 +122,23 @@ export function ProtocolListCard({ protocol, onDelete, isSelected, onToggleSelec
         >
           Görüntüle
         </Link>
-        <Link
-          href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.id)}`}
-          className="flex-1 rounded-xl border border-fuchsia-300/80 bg-fuchsia-50 px-3 py-1.5 text-center text-xs font-bold text-fuchsia-950 transition hover:bg-fuchsia-100/90"
-        >
-          Düzenle
-        </Link>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:w-auto sm:min-w-[80px]"
-        >
-          Sil
-        </button>
+        {!isSeed && (
+          <Link
+            href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.source_uid ?? protocol.id)}`}
+            className="flex-1 rounded-xl border border-fuchsia-300/80 bg-fuchsia-50 px-3 py-1.5 text-center text-xs font-bold text-fuchsia-950 transition hover:bg-fuchsia-100/90"
+          >
+            Düzenle
+          </Link>
+        )}
+        {!isSeed && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:w-auto sm:min-w-[80px]"
+          >
+            Sil
+          </button>
+        )}
       </div>
     </article>
   );

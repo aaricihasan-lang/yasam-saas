@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { EMPTY_PROTOCOL_DRAFT } from "../lib/protocolStorage";
 import {
@@ -19,6 +21,7 @@ const panelClass =
   "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md";
 
 export function ProtokolHaritasiLayout() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const { showToast } = useToast();
   const { hydrated, saveProtocol, syncErrorMessage, clearSyncError } = useProtocolRegistry();
 
@@ -91,6 +94,12 @@ export function ProtokolHaritasiLayout() {
       </div>
 
       <div className="relative z-10 flex h-full w-full flex-col px-3 py-2 md:px-5 xl:px-7">
+        {isDemo && (
+          <DemoModuleBanner
+            className="shrink-0"
+            message="Oluşturduğunuz protokoller sadece cihazınızda saklanır ve Kayıtlı Protokoller sayfasında görünür. Çıkışta silinir."
+          />
+        )}
         <header className="flex shrink-0 items-center gap-3 pb-2">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">

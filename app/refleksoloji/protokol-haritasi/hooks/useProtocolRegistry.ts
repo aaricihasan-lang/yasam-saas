@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { supabase } from "@/lib/supabase";
 import type { ProtocolFormDraft, SavedProtocol } from "../types";
@@ -40,6 +41,8 @@ async function syncProtocolToSupabase(saved: SavedProtocol): Promise<string | nu
 }
 
 export function useProtocolRegistry() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
+
   const [protocols, setProtocols] = useState<SavedProtocol[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
@@ -72,8 +75,8 @@ export function useProtocolRegistry() {
 
       const storageOk = persist(nextList);
 
-      if (!editId) {
-        // Fire-and-forget Supabase sync for new protocols
+      if (!editId && !isDemo) {
+        // Fire-and-forget Supabase sync for new protocols (demo'da atlanır)
         void syncProtocolToSupabase(saved).then((errMsg) => {
           if (errMsg) setSyncErrorMessage(errMsg);
         });
@@ -81,7 +84,7 @@ export function useProtocolRegistry() {
 
       return { saved, storageOk };
     },
-    [protocols, persist],
+    [protocols, persist, isDemo],
   );
 
   const deleteProtocol = useCallback(

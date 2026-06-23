@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useClinicalNotes } from "../hooks/useClinicalNotes";
 import { importTextFromWordFile } from "../lib/wordImport";
 import {
@@ -21,6 +23,7 @@ import { NoteContentModal } from "./NoteContentModal";
 import { NoteSaveToast } from "./NoteSaveToast";
 
 export function KlinikNotlarLayout() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const { notes, hydrated, saveNote, deleteNote } = useClinicalNotes();
@@ -264,6 +267,9 @@ export function KlinikNotlarLayout() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-none px-4 py-4 xl:px-7">
+        {isDemo && (
+          <DemoModuleBanner message="Klinik notlar sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman verileri bu hesapta görünmez." />
+        )}
         <div className="flex flex-wrap items-start gap-3">
           <Link
             href="/refleksoloji"

@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useSavedAtlas } from "../hooks/useSavedAtlas";
 import { AtlasEditModal } from "./AtlasEditModal";
 import { AtlasViewModal } from "./AtlasViewModal";
 import { OrganAtlasCard } from "./OrganAtlasCard";
 
 export function KayitliAtlasLayout() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const { summaries, updatedAt, hydrated, deleteOrgan, deleteRegion, renameOrgan } =
     useSavedAtlas();
@@ -52,6 +55,9 @@ export function KayitliAtlasLayout() {
       </div>
 
       <div className="relative z-10 flex min-h-screen w-full max-w-none flex-col px-4 py-4 md:px-6 xl:px-8">
+        {isDemo && (
+          <DemoModuleBanner message="Atlas bölgeleri sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman atlas verileri bu hesapta görünmez." />
+        )}
         <div className="flex shrink-0 flex-wrap items-center gap-3 pb-4">
           <Link
             href="/refleksoloji"
