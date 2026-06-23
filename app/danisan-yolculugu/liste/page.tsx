@@ -17,6 +17,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -127,6 +128,7 @@ export default function DanisanListePage() {
 
   const tenantId = sessionUser?.tenant_id?.trim() || null;
   const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
+  const isDemo = sessionUser?.is_demo_account === true;
 
   const totalExpiredHomework = useMemo(
     () => Object.values(homeworkAlerts).reduce((sum, count) => sum + count, 0),
@@ -188,6 +190,13 @@ export default function DanisanListePage() {
 
   useEffect(() => {
     if (!sessionChecked) return;
+    // Demo hesap: gerçek DB sorgusu yerine fixture veri kullan
+    if (isDemo) {
+      setClients(DEMO_CLIENTS as DemoListClient[] as Client[]);
+      setHomeworkAlerts({});
+      setLoading(false);
+      return;
+    }
     if (!tenantId) {
       setLoading(false);
       setClients([]);
@@ -203,7 +212,7 @@ export default function DanisanListePage() {
     }
     loadClients();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionChecked, tenantId]);
+  }, [sessionChecked, tenantId, isDemo]);
 
   async function loadHomeworkAlerts(activeTenantId: string) {
     const today = todayForInput();
@@ -373,13 +382,15 @@ export default function DanisanListePage() {
               </strong>
               <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Aktif Uyarı</span>
             </div>
-            <Link
-              href="/danisan-yolculugu/kayit"
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              <UserPlus className="h-4 w-4" />
-              Yeni Kayıt
-            </Link>
+            {!isDemo && (
+              <Link
+                href="/danisan-yolculugu/kayit"
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                <UserPlus className="h-4 w-4" />
+                Yeni Kayıt
+              </Link>
+            )}
           </div>
         </header>
 
@@ -470,7 +481,7 @@ export default function DanisanListePage() {
           </div>
 
           {/* Toplu işlem / Word export çubuğu */}
-          {!loading && filteredClients.length > 0 && (
+          {!isDemo && !loading && filteredClients.length > 0 && (
             <div className="mb-5">
               <BulkExportBar
                 selectedCount={selectedClientIds.size}
@@ -533,21 +544,23 @@ export default function DanisanListePage() {
                           ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
                           : "white",
                     }}
-                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                    onClick={() => router.push(isDemo ? `/demo/danisan/${client.id}` : `/dashboard/clients/${client.id}`)}
                     title="Danışan detayını aç"
                   >
-                    {/* Checkbox */}
-                    <label
-                      className="absolute right-3 top-3 z-10 flex h-6 w-6 cursor-pointer items-center justify-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleClientSelection(client.id)}
-                        className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                      />
-                    </label>
+                    {/* Checkbox — demo'da gizli */}
+                    {!isDemo && (
+                      <label
+                        className="absolute right-3 top-3 z-10 flex h-6 w-6 cursor-pointer items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleClientSelection(client.id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                        />
+                      </label>
+                    )}
 
                     {/* Avatar + İsim + Durum */}
                     <div className="mb-3 flex items-start gap-3 pr-7">
