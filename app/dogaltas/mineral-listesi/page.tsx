@@ -21,7 +21,6 @@ import {
 import {
   fetchMineralsListCount,
   fetchMineralsListPage,
-  getDemoReferenceMineralId,
   MINERALS_UNCATEGORIZED_FILTER,
   type MineralListItem,
 } from "@/lib/dogaltas/mineralsListFetch";
@@ -222,9 +221,6 @@ function MineralListesiPageContent() {
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
 
-  const [referenceMineralId, setReferenceMineralId] = useState<string | null>(null);
-  const [refIdFetched, setRefIdFetched] = useState(false);
-
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const { isDemo } = useDemoGuard();
@@ -369,23 +365,6 @@ function MineralListesiPageContent() {
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
-
-  // Demo: listedeki ilk minerali referans olarak tespit et (arama/kategori değişince yeniden çalışır)
-  useEffect(() => {
-    if (!isDemo || !queryTenantId) return;
-    setRefIdFetched(false);
-    const search = debouncedSearch.trim() || undefined;
-    const categoryParam =
-      categoryFilter.trim() === UNCATEGORIZED_LABEL
-        ? MINERALS_UNCATEGORIZED_FILTER
-        : categoryFilter.trim() || undefined;
-    void getDemoReferenceMineralId(queryTenantId, { search, category: categoryParam }).then(
-      (refId) => {
-        setReferenceMineralId(refId);
-        setRefIdFetched(true);
-      },
-    );
-  }, [isDemo, queryTenantId, debouncedSearch, categoryFilter]);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
     markViewedMineralId(mineralId);
@@ -731,14 +710,21 @@ function MineralListesiPageContent() {
                 const isViewedInSearch =
                   isSearchActive && viewedMineralIds.has(mineral.id);
                 const descriptionPreview = previewText(mineral.aciklama);
-                const detailHref = isSearchActive
-                  ? `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}?q=${encodeURIComponent(activeSearch)}`
-                  : `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}`;
+
+                // Demo: ilk mineralin ID'sini detay sayfasına query ile taşı
+                const demoRefId = isDemo && minerals.length > 0 ? minerals[0]?.id : undefined;
+                const detailBase = `/dogaltas/mineral-listesi/${encodeURIComponent(mineral.id)}`;
+                const detailHref = (() => {
+                  const parts: string[] = [];
+                  if (isSearchActive) parts.push(`q=${encodeURIComponent(activeSearch)}`);
+                  if (demoRefId) parts.push(`refMineralId=${encodeURIComponent(demoRefId)}`);
+                  return parts.length > 0 ? `${detailBase}?${parts.join("&")}` : detailBase;
+                })();
 
                 const isMineralSelected = selectedMineralIds.has(mineral.id);
-                // Demo koruma: referans dışı minerallerde önizleme blur
+                // Demo koruma: listede görünen 1. mineralin önizlemesi açık, diğerleri blur
                 const isPreviewProtected =
-                  isDemo && refIdFetched && mineral.id !== referenceMineralId;
+                  isDemo && minerals.length > 0 && mineral.id !== minerals[0]?.id;
                 return (
                   <article
                     key={mineral.id}

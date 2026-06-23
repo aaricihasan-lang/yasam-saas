@@ -394,6 +394,8 @@ function MineralDetailPageContent() {
   const searchParams = useSearchParams();
   const id = params?.id;
   const highlightQuery = searchParams.get("q")?.trim() ?? "";
+  // Liste sayfasından gelen demo referans — doğrudan karşılaştırma için kullanılır
+  const refMineralIdFromQuery = searchParams.get("refMineralId")?.trim() ?? "";
   const listBackHref = highlightQuery
     ? `/dogaltas/mineral-listesi?q=${encodeURIComponent(highlightQuery)}`
     : "/dogaltas/mineral-listesi";
@@ -435,12 +437,18 @@ function MineralDetailPageContent() {
       return;
     }
 
-    // Demo: liste sıralamasındaki ilk mineral → referans kayıt, tüm içerikler açık
+    // Demo: referans mineral tespiti
+    // 1) Liste üzerinden gelinmişse query param önceliklidir (timing sorunu yok)
+    // 2) Direkt URL ile girilmişse DB sorgusu fallback
     if (readYasamUser()?.is_demo_account) {
-      const refId = await getDemoReferenceMineralId(tenantId, {
-        search: highlightQuery || undefined,
-      });
-      setIsDemoReference(refId === id);
+      if (refMineralIdFromQuery) {
+        setIsDemoReference(refMineralIdFromQuery === id);
+      } else {
+        const refId = await getDemoReferenceMineralId(tenantId, {
+          search: highlightQuery || undefined,
+        });
+        setIsDemoReference(refId === id);
+      }
     }
 
     const { data, error } = await supabase
@@ -465,7 +473,7 @@ function MineralDetailPageContent() {
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery]);
+  }, [id, highlightQuery, refMineralIdFromQuery]);
 
   useEffect(() => {
     runInEffect(() => {
