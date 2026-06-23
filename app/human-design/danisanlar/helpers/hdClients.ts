@@ -85,6 +85,23 @@ export async function deleteHdClient(
   const tenantId = await resolveTenantId();
   if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
 
+  // 1. Bağlı raporları sil
+  const { error: reportsErr } = await supabase
+    .from("human_design_reports")
+    .delete()
+    .eq("client_id", id)
+    .eq("tenant_id", tenantId);
+  if (reportsErr) return { error: `Raporlar silinemedi: ${reportsErr.message}` };
+
+  // 2. Bağlı haritayı sil
+  const { error: chartsErr } = await supabase
+    .from("human_design_charts")
+    .delete()
+    .eq("client_id", id)
+    .eq("tenant_id", tenantId);
+  if (chartsErr) return { error: `Harita silinemedi: ${chartsErr.message}` };
+
+  // 3. Danışanı sil
   const { error } = await supabase
     .from(TABLE)
     .delete()

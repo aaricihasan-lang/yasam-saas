@@ -169,6 +169,21 @@ export async function saveReport(
   return { id: (data as { id: string }).id, error: null };
 }
 
+export async function getClientReportCount(
+  clientId: string,
+): Promise<{ count: number; error: string | null }> {
+  const tenantId = await getSyncedTenantId();
+  if (!tenantId) return { count: 0, error: "Aktif kullanıcı bulunamadı." };
+
+  const { count, error } = await supabase
+    .from("human_design_reports")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+
+  return { count: count ?? 0, error: error?.message ?? null };
+}
+
 type UpdateReportInput = {
   id: string;
   title: string;

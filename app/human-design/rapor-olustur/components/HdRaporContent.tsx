@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   hdTypeLabelFromCode,
   hdAuthorityLabelFromCode,
@@ -17,6 +18,7 @@ import {
   buildReportText,
   saveReport,
   updateReport,
+  getClientReportCount,
   type KnowledgeGroup,
 } from "../helpers/hdRapor";
 import { getReportById } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
@@ -31,6 +33,7 @@ const sectionCls = "mb-2 text-xs font-black uppercase tracking-widest text-indig
 
 export function HdRaporContent() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -198,6 +201,25 @@ export function HdRaporContent() {
       showToast({ message: "Danışan seçin.", type: "warning" });
       return;
     }
+
+    // Aynı danışan için mevcut rapor kontrolü — çift kayıt önleme
+    setSaving(false); // confirm açılmadan önce butonu serbest bırak
+    const { count } = await getClientReportCount(clientId);
+    if (count > 0) {
+      const ok = await confirm({
+        title: "Bu danışanın raporu var",
+        message:
+          count === 1
+            ? "Bu danışanın 1 kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporu düzenleyebilirsiniz."
+            : `Bu danışanın ${count} kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporları düzenleyebilirsiniz.`,
+        confirmText: "Yine de Oluştur",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!ok) return;
+    }
+
+    setSaving(true);
     const { error } = await saveReport({
       clientId,
       chartId: chart?.id ?? null,
