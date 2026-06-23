@@ -25,7 +25,6 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { DemoGate } from "@/components/demo/DemoGate";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -481,6 +480,7 @@ function TextBlock({
   hasSearchMatch = false,
   onOpenEdit,
   onOpenRead,
+  isContentProtected = false,
 }: {
   title: string;
   badge: string;
@@ -491,9 +491,31 @@ function TextBlock({
   hasSearchMatch?: boolean;
   onOpenEdit: () => void;
   onOpenRead: () => void;
+  isContentProtected?: boolean;
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
+
+  if (isContentProtected) {
+    return (
+      <div className={cardClass}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={toneClass(tone)}>{badge}</span>
+          <h2 className="text-sm font-black text-slate-950">{title}</h2>
+        </div>
+        <div
+          className="pointer-events-none mt-2 min-h-[60px] select-none overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-3 shadow-inner"
+          style={{ filter: "blur(4px)", userSelect: "none" }}
+          aria-hidden="true"
+        >
+          <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+            {shortPreview(text, 240) || "Henüz bilgi girilmedi."}
+          </p>
+        </div>
+        <p className="mt-2 text-[11px] font-black text-amber-600">🔒 Demo hesabında korumalı</p>
+      </div>
+    );
+  }
 
   if (editEnabled) {
     return (
@@ -601,7 +623,9 @@ function StoneDetailPage() {
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
+  const isContentProtected = isDemo && !isDemoReference;
 
   useEffect(() => {
     if (!id) return;
@@ -649,6 +673,18 @@ function StoneDetailPage() {
         tenantId === ADMIN_LIBRARY_TENANT_ID
           ? [tenantId]
           : [tenantId, ADMIN_LIBRARY_TENANT_ID];
+
+      // Demo: liste sıralamasındaki ilk taş referans kayıt → korumasız açık
+      if (readYasamUser()?.is_demo_account) {
+        const { data: firstStone } = await supabase
+          .from("stones")
+          .select("id")
+          .in("tenant_id", tenantIds)
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        setIsDemoReference(firstStone?.id === id);
+      }
 
       const { data, error } = await supabase
         .from("stones")
@@ -1434,7 +1470,6 @@ function StoneDetailPage() {
               )}
             </div>
 
-            <DemoGate isProtected={isDemo}>
             <div className="space-y-3">
             <button
               type="button"
@@ -1453,15 +1488,29 @@ function StoneDetailPage() {
                 )}
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {safeChakras.length === 0 ? (
-                  <span className="text-xs text-slate-400">-</span>
-                ) : (
-                  safeChakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
-                    <span key={chakra} className={toneClass("violet")}>{chakra}</span>
-                  ))
-                )}
-              </div>
+              {isContentProtected ? (
+                <div className="pointer-events-none mt-2 select-none overflow-hidden" style={{ filter: "blur(4px)", userSelect: "none" }} aria-hidden="true">
+                  <div className="flex flex-wrap gap-1.5">
+                    {safeChakras.length === 0 ? (
+                      <span className="text-xs text-slate-400">-</span>
+                    ) : (
+                      safeChakras.map((chakra) => (
+                        <span key={chakra} className={toneClass("violet")}>{chakra}</span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {safeChakras.length === 0 ? (
+                    <span className="text-xs text-slate-400">-</span>
+                  ) : (
+                    safeChakras.slice(0, editEnabled ? 3 : 99).map((chakra) => (
+                      <span key={chakra} className={toneClass("violet")}>{chakra}</span>
+                    ))
+                  )}
+                </div>
+              )}
             </button>
 
             <button
@@ -1481,15 +1530,29 @@ function StoneDetailPage() {
                 )}
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {safeWarningTags.length === 0 ? (
-                  <span className="text-xs text-slate-400">-</span>
-                ) : (
-                  safeWarningTags.slice(0, editEnabled ? 3 : 99).map((tag) => (
-                    <span key={tag} className={toneClass("rose")}>{tag}</span>
-                  ))
-                )}
-              </div>
+              {isContentProtected ? (
+                <div className="pointer-events-none mt-2 select-none overflow-hidden" style={{ filter: "blur(4px)", userSelect: "none" }} aria-hidden="true">
+                  <div className="flex flex-wrap gap-1.5">
+                    {safeWarningTags.length === 0 ? (
+                      <span className="text-xs text-slate-400">-</span>
+                    ) : (
+                      safeWarningTags.map((tag) => (
+                        <span key={tag} className={toneClass("rose")}>{tag}</span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {safeWarningTags.length === 0 ? (
+                    <span className="text-xs text-slate-400">-</span>
+                  ) : (
+                    safeWarningTags.slice(0, editEnabled ? 3 : 99).map((tag) => (
+                      <span key={tag} className={toneClass("rose")}>{tag}</span>
+                    ))
+                  )}
+                </div>
+              )}
             </button>
 
             <button
@@ -1509,37 +1572,64 @@ function StoneDetailPage() {
                 )}
               </div>
 
-              <div className="mt-2 space-y-1.5">
-                {hasAssignments ? (
-                  Object.entries(safeAssignments).map(([title, rows]) => {
-                    const safeRows = Array.isArray(rows) ? rows : [];
-                    if (safeRows.length === 0) return null;
-
-                    return (
-                      <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
-                        <p className="text-[11px] font-black text-slate-600">{title}</p>
-                        <div className="mt-0.5 space-y-0.5">
-                          {safeRows.slice(0, editEnabled ? 2 : 4).map((row, index) => {
-                            const cells = Array.isArray(row)
-                              ? row.map((cell) => String(cell ?? ""))
-                              : [String(row ?? "")];
-                            return (
-                              <p key={`${title}-${index}`} className="text-[11px] leading-4 text-slate-500">
-                                • {cells.filter(Boolean).join(" / ")}
-                              </p>
-                            );
-                          })}
+              {isContentProtected ? (
+                <div className="pointer-events-none mt-2 select-none overflow-hidden space-y-1.5" style={{ filter: "blur(4px)", userSelect: "none" }} aria-hidden="true">
+                  {hasAssignments ? (
+                    Object.entries(safeAssignments).slice(0, 3).map(([title, rows]) => {
+                      const safeRows = Array.isArray(rows) ? rows : [];
+                      if (safeRows.length === 0) return null;
+                      return (
+                        <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
+                          <p className="text-[11px] font-black text-slate-600">{title}</p>
+                          <div className="mt-0.5 space-y-0.5">
+                            {safeRows.slice(0, 2).map((row, index) => {
+                              const cells = Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : [String(row ?? "")];
+                              return (
+                                <p key={`${title}-${index}`} className="text-[11px] leading-4 text-slate-500">
+                                  • {cells.filter(Boolean).join(" / ")}
+                                </p>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <span className="text-xs text-slate-400">-</span>
-                )}
-              </div>
+                      );
+                    })
+                  ) : (
+                    <span className="text-xs text-slate-400">-</span>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-2 space-y-1.5">
+                  {hasAssignments ? (
+                    Object.entries(safeAssignments).map(([title, rows]) => {
+                      const safeRows = Array.isArray(rows) ? rows : [];
+                      if (safeRows.length === 0) return null;
+
+                      return (
+                        <div key={title} className="rounded-lg bg-slate-50/80 px-2 py-1.5">
+                          <p className="text-[11px] font-black text-slate-600">{title}</p>
+                          <div className="mt-0.5 space-y-0.5">
+                            {safeRows.slice(0, editEnabled ? 2 : 4).map((row, index) => {
+                              const cells = Array.isArray(row)
+                                ? row.map((cell) => String(cell ?? ""))
+                                : [String(row ?? "")];
+                              return (
+                                <p key={`${title}-${index}`} className="text-[11px] leading-4 text-slate-500">
+                                  • {cells.filter(Boolean).join(" / ")}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <span className="text-xs text-slate-400">-</span>
+                  )}
+                </div>
+              )}
             </button>
             </div>
-            </DemoGate>
           </aside>
 
           <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1555,96 +1645,89 @@ function StoneDetailPage() {
               onOpenRead={() => openReader("Kısa Açıklama", "GENEL BİLGİ", safeStone.short_description)}
             />
 
-            <DemoGate isProtected={isDemo}>
-              <TextBlock
-                title="Genel Taş Açıklaması"
-                badge="DETAYLI BİLGİ"
-                text={safeStone.general_info}
-                tone="cyan"
-                editEnabled={editEnabled}
-                highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.generalInfo}
-                onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
-                onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
-              />
-            </DemoGate>
+            <TextBlock
+              title="Genel Taş Açıklaması"
+              badge="DETAYLI BİLGİ"
+              text={safeStone.general_info}
+              tone="cyan"
+              editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.generalInfo}
+              isContentProtected={isContentProtected}
+              onOpenEdit={() => openTextEditor("general_info", "Genel Taş Açıklaması", "DETAYLI BİLGİ")}
+              onOpenRead={() => openReader("Genel Taş Açıklaması", "DETAYLI BİLGİ", safeStone.general_info)}
+            />
 
-            <DemoGate isProtected={isDemo}>
-              <TextBlock
-                title="Kaynak Notu"
-                badge="KAYNAK"
-                text={safeStone.source_note}
-                tone="slate"
-                editEnabled={editEnabled}
-                highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.sourceNote}
-                onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
-                onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
-              />
-            </DemoGate>
+            <TextBlock
+              title="Kaynak Notu"
+              badge="KAYNAK"
+              text={safeStone.source_note}
+              tone="slate"
+              editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.sourceNote}
+              isContentProtected={isContentProtected}
+              onOpenEdit={() => openTextEditor("source_note", "Kaynak Notu", "KAYNAK")}
+              onOpenRead={() => openReader("Kaynak Notu", "KAYNAK", safeStone.source_note)}
+            />
 
-            <DemoGate isProtected={isDemo}>
-              <TextBlock
-                title="Fiziksel Etkiler"
-                badge="BEDENSEL ETKİ"
-                text={safeStone.physical_effects}
-                tone="emerald"
-                editEnabled={editEnabled}
-                highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.physicalEffects}
-                onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
-                onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
-              />
-            </DemoGate>
+            <TextBlock
+              title="Fiziksel Etkiler"
+              badge="BEDENSEL ETKİ"
+              text={safeStone.physical_effects}
+              tone="emerald"
+              editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.physicalEffects}
+              isContentProtected={isContentProtected}
+              onOpenEdit={() => openTextEditor("physical_effects", "Fiziksel Etkiler", "BEDENSEL ETKİ")}
+              onOpenRead={() => openReader("Fiziksel Etkiler", "BEDENSEL ETKİ", safeStone.physical_effects)}
+            />
 
-            <DemoGate isProtected={isDemo}>
-              <TextBlock
-                title="Ruhsal Etkiler"
-                badge="RUHSAL ETKİ"
-                text={safeStone.spiritual_effects}
-                tone="violet"
-                editEnabled={editEnabled}
-                highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.spiritualEffects}
-                onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
-                onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
-              />
-            </DemoGate>
+            <TextBlock
+              title="Ruhsal Etkiler"
+              badge="RUHSAL ETKİ"
+              text={safeStone.spiritual_effects}
+              tone="violet"
+              editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.spiritualEffects}
+              isContentProtected={isContentProtected}
+              onOpenEdit={() => openTextEditor("spiritual_effects", "Ruhsal Etkiler", "RUHSAL ETKİ")}
+              onOpenRead={() => openReader("Ruhsal Etkiler", "RUHSAL ETKİ", safeStone.spiritual_effects)}
+            />
 
-            <DemoGate isProtected={isDemo}>
-              <TextBlock
-                title="Diğer Etkiler"
-                badge="TAMAMLAYICI NOT"
-                text={safeStone.other_effects}
-                tone="amber"
-                editEnabled={editEnabled}
-                highlightQuery={highlightQuery}
-                hasSearchMatch={sectionMatches?.otherEffects}
-                onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
-                onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
-              />
-            </DemoGate>
+            <TextBlock
+              title="Diğer Etkiler"
+              badge="TAMAMLAYICI NOT"
+              text={safeStone.other_effects}
+              tone="amber"
+              editEnabled={editEnabled}
+              highlightQuery={highlightQuery}
+              hasSearchMatch={sectionMatches?.otherEffects}
+              isContentProtected={isContentProtected}
+              onOpenEdit={() => openTextEditor("other_effects", "Diğer Etkiler", "TAMAMLAYICI NOT")}
+              onOpenRead={() => openReader("Diğer Etkiler", "TAMAMLAYICI NOT", safeStone.other_effects)}
+            />
 
             <div className="lg:col-span-2">
-              <DemoGate isProtected={isDemo}>
-                <TextBlock
-                  title="Uyarılar ve Hassasiyetler"
-                  badge="KLİNİK NOT"
-                  text={safeStone.warning_text}
-                  tone="rose"
-                  editEnabled={editEnabled}
-                  highlightQuery={highlightQuery}
-                  hasSearchMatch={sectionMatches?.warningText}
-                  onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
-                  onOpenRead={() =>
-                    openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
-                  }
-                />
-              </DemoGate>
+              <TextBlock
+                title="Uyarılar ve Hassasiyetler"
+                badge="KLİNİK NOT"
+                text={safeStone.warning_text}
+                tone="rose"
+                editEnabled={editEnabled}
+                highlightQuery={highlightQuery}
+                hasSearchMatch={sectionMatches?.warningText}
+                isContentProtected={isContentProtected}
+                onOpenEdit={() => openTextEditor("warning_text", "Uyarılar ve Hassasiyetler", "KLİNİK NOT")}
+                onOpenRead={() =>
+                  openReader("Uyarılar ve Hassasiyetler", "KLİNİK NOT", safeStone.warning_text)
+                }
+              />
             </div>
 
-            <DemoGate isProtected={isDemo} className="lg:col-span-2">
-            <section className={uiInfoCard}>
+            <section className={`${uiInfoCard} lg:col-span-2`}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className={toneClass("cyan")}>KULLANIM ALANLARI</span>
                 <h2 className="text-sm font-black text-slate-950">Kullanım / Uygulama Notları</h2>
@@ -1674,13 +1757,11 @@ function StoneDetailPage() {
                     key={title}
                     type="button"
                     onClick={() =>
-                      editEnabled
-                        ? openTextEditor(
-                            key as EditableTextField,
-                            String(title),
-                            "KULLANIM ALANI"
-                          )
-                        : openReader(String(title), "KULLANIM ALANI", String(text || ""))
+                      isContentProtected
+                        ? undefined
+                        : editEnabled
+                          ? openTextEditor(key as EditableTextField, String(title), "KULLANIM ALANI")
+                          : openReader(String(title), "KULLANIM ALANI", String(text || ""))
                     }
                     className={mergeMatchCardClass(
                       "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white",
@@ -1692,7 +1773,7 @@ function StoneDetailPage() {
                         <h3 className="text-xs font-black text-slate-950">{title}</h3>
                         {usageHasMatch ? <SearchMatchBadge /> : null}
                       </div>
-                      {editEnabled ? (
+                      {!isContentProtected && (editEnabled ? (
                         <span className="rounded-md bg-cyan-50 px-1.5 py-0.5 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
                           Düzenle
                         </span>
@@ -1700,20 +1781,31 @@ function StoneDetailPage() {
                         <span className="rounded-md bg-white px-1.5 py-0.5 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
                           Oku
                         </span>
-                      )}
+                      ))}
                     </div>
 
-                    <p className={`mt-1 line-clamp-2 text-xs leading-5 ${!String(text || "").trim() ? uiEmptyText : "text-slate-600"}`}>
-                      {String(text || "").trim()
-                        ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
-                        : shortPreview(String(text || ""), 80)}
-                    </p>
+                    {isContentProtected ? (
+                      <div className="overflow-hidden">
+                        <p
+                          className="pointer-events-none mt-1 select-none line-clamp-2 text-xs leading-5 text-slate-600"
+                          style={{ filter: "blur(4px)", userSelect: "none" }}
+                          aria-hidden="true"
+                        >
+                          {String(text || "").trim() ? shortPreview(String(text || ""), 80) : "—"}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className={`mt-1 line-clamp-2 text-xs leading-5 ${!String(text || "").trim() ? uiEmptyText : "text-slate-600"}`}>
+                        {String(text || "").trim()
+                          ? renderHighlightedText(shortPreview(String(text || ""), 80), highlightQuery)
+                          : shortPreview(String(text || ""), 80)}
+                      </p>
+                    )}
                   </button>
                   );
                 })}
               </div>
             </section>
-            </DemoGate>
           </section>
         </section>
       </div>
