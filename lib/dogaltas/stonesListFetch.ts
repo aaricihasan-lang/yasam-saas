@@ -20,11 +20,18 @@ export const STONES_LIST_PAGE_SIZE = 30;
 // Tüm liste sorguları ve demo referans tespiti bu sabitleri kullanır.
 // Sıralama değişince yalnızca bu iki satırı güncelle.
 
-export const STONES_LIST_ORDER_COLUMN = "updated_at" as const;
+export const STONES_LIST_ORDER_COLUMN = "stone_name" as const;
 export const STONES_LIST_ORDER_OPTIONS = {
-  ascending: false,
+  ascending: true,
   nullsFirst: false,
 } as const;
+
+/** Türkçe alfabetik sıralama — Ç, Ğ, İ, Ö, Ş, Ü destekli */
+function sortStonesByNameTr<T extends { stone_name: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) =>
+    a.stone_name.localeCompare(b.stone_name, "tr-TR", { sensitivity: "base" }),
+  );
+}
 
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -277,7 +284,7 @@ export async function fetchStonesListPage(
   const rows = (data ?? []).map((row) =>
     mapStoneListRow(row as Record<string, unknown>),
   );
-  return { rows, error: null };
+  return { rows: sortStonesByNameTr(rows), error: null };
 }
 
 /**
@@ -298,7 +305,7 @@ export async function fetchAllStonesExtended(
   const rows = (data ?? []).map((row) =>
     mapStoneExtendedRow(row as Record<string, unknown>),
   );
-  return { rows, error: null };
+  return { rows: sortStonesByNameTr(rows), error: null };
 }
 
 // ─── Kullanıcı bazlı exclusion yardımcısı ────────────────────────────────────
@@ -320,11 +327,11 @@ export async function fetchStoneExclusions(tenantId: string): Promise<Set<string
  *
  * Liste sayfasıyla birebir aynı mantık kullanır:
  *   - tenantFilterIds  → kullanıcı + admin kütüphanesi
- *   - ORDER BY updated_at DESC  → liste sıralamasıyla senkron
+ *   - ORDER BY stone_name ASC   → liste sıralamasıyla senkron (alfabetik)
  *   - stone_exclusions  → gizlenmiş taşlar atlanır
  *   - search/searchMode  → ?q= parametresi varsa aynı filtre uygulanır
  *
- * Sıralama ileride değişirse (alfabetik vb.) bu fonksiyonu da güncelle;
+ * Sıralama ileride değişirse bu fonksiyonu da güncelle;
  * her ikisi aynı kaynak kullandığından bozulma olmaz.
  */
 export async function getDemoReferenceStoneId(

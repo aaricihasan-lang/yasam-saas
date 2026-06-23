@@ -11,16 +11,6 @@ export const MINERALS_LIST_SEARCH_SELECT =
 
 export const MINERALS_LIST_PAGE_SIZE = 30;
 
-// ─── Sıralama — tek kaynak ───────────────────────────────────────────────────
-// Tüm liste sorguları ve demo referans tespiti bu sabitleri kullanır.
-// Sıralama değişince yalnızca bu iki satırı güncelle.
-
-export const MINERALS_LIST_ORDER_COLUMN = "name" as const;
-export const MINERALS_LIST_ORDER_OPTIONS = {
-  ascending: true,
-  nullsFirst: false,
-} as const;
-
 /** Liste sayfası "Kategorisiz" filtresi */
 export const MINERALS_UNCATEGORIZED_FILTER = "__uncategorized__";
 
@@ -41,13 +31,6 @@ export type MineralListItem = {
   kategori: string | null;
   created_at: string;
 };
-
-/** Türkçe alfabetik sıralama — Ç, Ğ, İ, Ö, Ş, Ü destekli */
-function sortMineralsByNameTr(rows: MineralListItem[]): MineralListItem[] {
-  return [...rows].sort((a, b) =>
-    a.name.localeCompare(b.name, "tr-TR", { sensitivity: "base" }),
-  );
-}
 
 type MineralSearchRow = MineralListItem & {
   fiziksel: unknown;
@@ -201,7 +184,7 @@ async function fetchAllMineralsForSearch(
     .from("minerals")
     .select(MINERALS_LIST_SEARCH_SELECT)
     .eq("tenant_id", tenantId)
-    .order(MINERALS_LIST_ORDER_COLUMN, MINERALS_LIST_ORDER_OPTIONS);
+    .order("created_at", { ascending: false, nullsFirst: false });
 
   if (error) return { rows: [], error: error.message };
 
@@ -214,40 +197,7 @@ async function fetchAllMineralsForSearch(
     })
     .map(mapMineralListRow);
 
-  return { rows: sortMineralsByNameTr(filtered), error: null };
-}
-
-/**
- * Demo referans mineral — liste sıralamasındaki ilk görünen kayıt.
- * Sıralama (name ASC) ve filtreler fetchMineralsListPage ile eşleşir;
- * böylece detay sayfasındaki referans tespiti liste görünümüyle tutarlı kalır.
- */
-export async function getDemoReferenceMineralId(
-  tenantId: string,
-  options: { search?: string; category?: string } = {},
-): Promise<string | null> {
-  let query = supabase
-    .from("minerals")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .order(MINERALS_LIST_ORDER_COLUMN, MINERALS_LIST_ORDER_OPTIONS)
-    .limit(1);
-
-  const categoryTrim = options.category?.trim();
-  if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
-    query = query.or("kategori.is.null,kategori.eq.");
-  } else if (categoryTrim) {
-    query = query.eq("kategori", categoryTrim);
-  }
-
-  const q = options.search?.trim();
-  if (q) {
-    const orFilter = buildMineralsListSearchOrFilter(q);
-    if (orFilter) query = query.or(orFilter);
-  }
-
-  const { data } = await query.maybeSingle();
-  return typeof data?.id === "string" ? data.id : null;
+  return { rows: filtered, error: null };
 }
 
 export async function fetchMineralsListPage(
@@ -269,7 +219,7 @@ export async function fetchMineralsListPage(
       .from("minerals")
       .select(MINERALS_LIST_SELECT)
       .eq("tenant_id", tenantId)
-      .order(MINERALS_LIST_ORDER_COLUMN, MINERALS_LIST_ORDER_OPTIONS)
+      .order("created_at", { ascending: false, nullsFirst: false })
       .range(from, from + limit - 1);
 
     if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
@@ -284,7 +234,7 @@ export async function fetchMineralsListPage(
     const rows = (data ?? []).map((row) =>
       mapMineralListRow(row as Record<string, unknown>),
     );
-    return { rows: sortMineralsByNameTr(rows), error: null };
+    return { rows, error: null };
   }
 
   const { rows: allMatches, error } = await fetchAllMineralsForSearch(
@@ -298,4 +248,36 @@ export async function fetchMineralsListPage(
     rows: allMatches.slice(from, from + limit),
     error: null,
   };
+}
+
+/**
+ * Demo referans mineral — liste sıralamasındaki ilk görünen kayıt.
+ * Sıralama (created_at DESC) ve filtreler fetchMineralsListPage ile eşleşir.
+ */
+export async function getDemoReferenceMineralId(
+  tenantId: string,
+  options: { search?: string; category?: string } = {},
+): Promise<string | null> {
+  let query = supabase
+    .from("minerals")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+
+  const categoryTrim = options.category?.trim();
+  if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
+    query = query.or("kategori.is.null,kategori.eq.");
+  } else if (categoryTrim) {
+    query = query.eq("kategori", categoryTrim);
+  }
+
+  const q = options.search?.trim();
+  if (q) {
+    const orFilter = buildMineralsListSearchOrFilter(q);
+    if (orFilter) query = query.or(orFilter);
+  }
+
+  const { data } = await query.maybeSingle();
+  return typeof data?.id === "string" ? data.id : null;
 }
