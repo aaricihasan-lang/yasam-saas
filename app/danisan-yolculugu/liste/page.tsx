@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
+import { initDemoSession, readDemoClients, type DemoClient } from "@/lib/demo/demoSession";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -191,9 +192,13 @@ export default function DanisanListePage() {
 
   useEffect(() => {
     if (!sessionChecked) return;
-    // Demo hesap: gerçek DB sorgusu yerine fixture veri kullan
+    // Demo hesap: gerçek DB sorgusu yerine session + fixture veri kullan
     if (isDemo) {
-      setClients(DEMO_CLIENTS as DemoListClient[] as Client[]);
+      initDemoSession();
+      const sessionClients = readDemoClients() as DemoClient[] as Client[];
+      const fixtureClients = DEMO_CLIENTS as DemoListClient[] as Client[];
+      // Session clients en üstte (daha yeni created_at)
+      setClients([...sessionClients, ...fixtureClients]);
       setHomeworkAlerts({});
       setLoading(false);
       return;
@@ -383,15 +388,13 @@ export default function DanisanListePage() {
               </strong>
               <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Aktif Uyarı</span>
             </div>
-            {!isDemo && (
-              <Link
-                href="/danisan-yolculugu/kayit"
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <UserPlus className="h-4 w-4" />
-                Yeni Kayıt
-              </Link>
-            )}
+            <Link
+              href="/danisan-yolculugu/kayit"
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <UserPlus className="h-4 w-4" />
+              {isDemo ? "Demo Kayıt" : "Yeni Kayıt"}
+            </Link>
           </div>
         </header>
 

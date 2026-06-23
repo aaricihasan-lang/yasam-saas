@@ -8,7 +8,7 @@ import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
-import { initDemoSession, recordDemoClientView } from "@/lib/demo/demoSession";
+import { initDemoSession, recordDemoClientView, getDemoClient, type DemoClient } from "@/lib/demo/demoSession";
 
 const DEMO_MSG =
   "Bu bilgiler demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir.";
@@ -33,6 +33,24 @@ const DEMO0_NUM = hesaplaNumeroloji({
   birthDate: "1990-03-21",
 });
 const DEMO0_KISISEL_YIL = calcKisiselYil("1990-03-21");
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+function fmtDate(iso: string | null) {
+  if (!iso) return "";
+  const p = iso.split("-");
+  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
+}
+
+function goreleSure(date: string | null): string {
+  if (!date) return "";
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  if (diff < 1)   return "bugün";
+  if (diff < 7)   return `${diff} gün önce`;
+  if (diff < 30)  return `${Math.floor(diff / 7)} hafta önce`;
+  if (diff < 365) return `${Math.floor(diff / 30)} ay önce`;
+  return `${Math.floor(diff / 365)} yıl önce`;
+}
 
 // ─── Demo-0 (Eylül Karaca) — tam açık içerik ─────────────────────────────────
 
@@ -247,8 +265,6 @@ function AnalizlerContent() {
     { label: "Zihinsel", score: 7.5 },
     { label: "Ruhsal",   score: 7.0 },
   ];
-
-  // Gerçek motor sonuçları
   const numItems = [
     { label: "Hayat Yolu",   value: DEMO0_NUM.hayatYolu.display,       note: "Analiz & Sezgi" },
     { label: "İfade Sayısı", value: DEMO0_NUM.ifadeSayisi.display,     note: "İletişim Gücü" },
@@ -256,10 +272,8 @@ function AnalizlerContent() {
     { label: "Ana Kulvar",   value: DEMO0_NUM.anaKulvar.display,       note: "" },
     { label: "Yan Kulvar",   value: DEMO0_NUM.yanKulvar.display,       note: "" },
   ];
-
   return (
     <div className="space-y-5">
-      {/* Çakra */}
       <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
         <h3 className="mb-3 text-sm font-black text-slate-900">Çakra Durumu</h3>
         <div className="space-y-2">
@@ -274,7 +288,6 @@ function AnalizlerContent() {
           ))}
         </div>
       </div>
-      {/* Yaşam Skoru */}
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
         <h3 className="mb-3 text-sm font-black text-slate-900">Yaşam Skoru</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -289,7 +302,6 @@ function AnalizlerContent() {
           <span className="text-2xl font-black text-slate-900">7.2</span> / 10 Genel Skor
         </p>
       </div>
-      {/* Doğaltaş */}
       <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-4">
         <h3 className="mb-3 text-sm font-black text-slate-900">Doğaltaş Analizi</h3>
         <div className="space-y-1.5">
@@ -307,7 +319,6 @@ function AnalizlerContent() {
           ))}
         </div>
       </div>
-      {/* Numeroloji — gerçek motor */}
       <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
         <h3 className="mb-3 text-sm font-black text-slate-900">Numeroloji Özeti</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -379,7 +390,39 @@ function YolculukContent() {
   );
 }
 
-// ─── Placeholder içerik (demo-0 dışı) ────────────────────────────────────────
+// ─── Session client — Genel sekmesi ──────────────────────────────────────────
+
+function SessionGenelContent({ client }: { client: DemoClient }) {
+  const items = [
+    { label: "Doğum Tarihi", value: fmtDate(client.dogum) || "—" },
+    { label: "Burç",          value: client.burc || "—" },
+    { label: "Telefon",       value: client.telefon || "—" },
+    { label: "Kan Grubu",     value: client.kan || "—" },
+    { label: "Mizaç",         value: client.mizac || "—" },
+    { label: "Görüşme",       value: fmtDate(client.gorusme) || "—" },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map(({ label, value }) => (
+          <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3.5">
+        <p className="text-[11px] font-black text-blue-800">Demo Oturumunda Oluşturuldu</p>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">
+          Bu danışan demo oturumunuzda eklendi. Diğer sekmeler gerçek hesapta nasıl görüneceğini
+          göstermek amacıyla Eylül Karaca örneğiyle doldurulmuştur.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Placeholder içerik ────────────────────────────────────────────────────────
 
 function PlaceholderTabContent({ label }: { label: string }) {
   return (
@@ -420,41 +463,31 @@ function TabBtn({
   );
 }
 
-// ─── Helper — format date ─────────────────────────────────────────────────────
-
-function fmtDate(iso: string | null) {
-  if (!iso) return "";
-  const p = iso.split("-");
-  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
-}
-
-function goreleSure(date: string | null): string {
-  if (!date) return "";
-  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (diff < 1)   return "bugün";
-  if (diff < 7)   return `${diff} gün önce`;
-  if (diff < 30)  return `${Math.floor(diff / 7)} hafta önce`;
-  if (diff < 365) return `${Math.floor(diff / 30)} ay önce`;
-  return `${Math.floor(diff / 365)} yıl önce`;
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DemoDanisanDetailPage() {
   const params = useParams<{ id: string }>();
   const clientId = (Array.isArray(params?.id) ? params.id[0] : params?.id) ?? "";
   const [activeTab, setActiveTab] = useState<TabId>("genel");
+  const [sessionClient, setSessionClient] = useState<DemoClient | null>(null);
 
-  const client = DEMO_CLIENTS.find((c) => c.id === clientId);
-  const isOpen = clientId === "demo-0"; // ilk danışan tamamen açık
+  const isSessionClient = clientId.startsWith("session-");
+  const fixtureClient = !isSessionClient ? DEMO_CLIENTS.find((c) => c.id === clientId) : null;
+  const isOpen = clientId === "demo-0";
 
-  // Demo session kayıt
+  // Session clientları localStorage'dan yükle
   useEffect(() => {
     initDemoSession();
     if (clientId) recordDemoClientView(clientId);
-  }, [clientId]);
+    if (isSessionClient) {
+      setSessionClient(getDemoClient(clientId));
+    }
+  }, [clientId, isSessionClient]);
 
-  if (!client) {
+  // Birleşik client verisi (fixture veya session)
+  const client = fixtureClient ?? sessionClient;
+
+  if (!client && !isSessionClient) {
     return (
       <main className="flex min-h-screen items-center justify-center p-6 bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8]">
         <div className="rounded-2xl border border-white/80 bg-white/85 p-8 text-center shadow-lg">
@@ -467,11 +500,35 @@ export default function DemoDanisanDetailPage() {
     );
   }
 
-  const fullName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
-  const initials = `${(client.ad ?? "")[0] ?? ""}${(client.soyad ?? "")[0] ?? ""}`.toUpperCase();
-  const gorece = goreleSure(client.gorusme);
+  // Session client henüz yüklenmediyse bekle
+  if (isSessionClient && !sessionClient) {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-6 bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-300 border-t-violet-700" />
+      </main>
+    );
+  }
+
+  const displayClient = client!;
+  const fullName = `${displayClient.ad ?? ""} ${displayClient.soyad ?? ""}`.trim();
+  const initials = `${(displayClient.ad ?? "")[0] ?? ""}${(displayClient.soyad ?? "")[0] ?? ""}`.toUpperCase();
+  const gorece = goreleSure(displayClient.gorusme);
 
   function renderTabContent() {
+    // Session client: genel sekme gerçek veri, diğerleri demo örnek içerik
+    if (isSessionClient && sessionClient) {
+      if (activeTab === "genel") return <SessionGenelContent client={sessionClient} />;
+      // Diğer sekmeler: demo içerik (Eylül Karaca örneği, blur'suz placeholder olarak)
+      if (activeTab === "notlar")     return <NotlarContent />;
+      if (activeTab === "randevular") return <RandevularContent />;
+      if (activeTab === "taslar")     return <TaslarContent />;
+      if (activeTab === "seanslar")   return <SeanslarContent />;
+      if (activeTab === "odevler")    return <OdevlerContent />;
+      if (activeTab === "analizler")  return <AnalizlerContent />;
+      if (activeTab === "yolculuk")   return <YolculukContent />;
+      return null;
+    }
+    // Fixture client (demo-0 tam açık, diğerleri placeholder)
     if (activeTab === "genel")      return isOpen ? <GenelContent />      : <PlaceholderTabContent label="Genel Bilgiler" />;
     if (activeTab === "notlar")     return isOpen ? <NotlarContent />     : <PlaceholderTabContent label="Notlar" />;
     if (activeTab === "randevular") return isOpen ? <RandevularContent /> : <PlaceholderTabContent label="Randevular" />;
@@ -484,6 +541,8 @@ export default function DemoDanisanDetailPage() {
   }
 
   const currentTab = TABS.find((t) => t.id === activeTab);
+  // Session clientlar ve demo-0: içerik açık (DemoGate bypass)
+  const gateActive = !isOpen && !isSessionClient;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
@@ -515,6 +574,22 @@ export default function DemoDanisanDetailPage() {
         </div>
       )}
 
+      {/* Session client notu */}
+      {isSessionClient && (
+        <div className="mb-3 rounded-2xl border border-blue-200 bg-blue-50/90 px-4 py-3 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 text-base leading-none">💾</span>
+            <div>
+              <p className="text-[12px] font-black text-blue-900">Demo Oturumu — Geçici Danışan</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-blue-800">
+                Bu danışan demo oturumunuzda oluşturuldu. Çıkış yapana kadar tarayıcınızda saklanır.
+                Diğer sekmeler Eylül Karaca örnek verileriyle doldurulmuştur.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero card */}
       <section className="relative mb-3 flex items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/80 bg-white/88 p-3.5 shadow-lg">
         <div className="pointer-events-none absolute -top-[45px] right-[70px] h-[120px] w-[120px] rounded-full bg-violet-300 opacity-40 blur-[36px]" />
@@ -526,15 +601,19 @@ export default function DemoDanisanDetailPage() {
 
         <div className="relative z-10 min-w-0 flex-1">
           <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-black text-indigo-700">
-            {isOpen ? "Demo Danışan · Tam Görünüm" : "Demo Danışan · Kısıtlı Görünüm"}
+            {isOpen
+              ? "Demo Danışan · Tam Görünüm"
+              : isSessionClient
+                ? "Demo Oturumu · Kendi Kaydın"
+                : "Demo Danışan · Kısıtlı Görünüm"}
           </span>
           <h1 className="mt-1.5 text-[22px] font-black text-slate-950 sm:text-[26px]">{fullName}</h1>
           <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
             {[
-              { label: "Burç",     value: client.burc },
-              { label: "Kan",      value: client.kan },
-              { label: "Mizaç",    value: client.mizac },
-              { label: "Son Görüşme", value: client.gorusme ? `${fmtDate(client.gorusme)}${gorece ? ` · ${gorece}` : ""}` : "—" },
+              { label: "Burç",     value: displayClient.burc },
+              { label: "Kan",      value: displayClient.kan },
+              { label: "Mizaç",    value: displayClient.mizac },
+              { label: "Son Görüşme", value: displayClient.gorusme ? `${fmtDate(displayClient.gorusme)}${gorece ? ` · ${gorece}` : ""}` : "—" },
             ].map(({ label, value }) => (
               value ? (
                 <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
@@ -544,16 +623,17 @@ export default function DemoDanisanDetailPage() {
               ) : null
             ))}
           </div>
-          {client.telefon && (
+          {displayClient.telefon && (
             <div className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
               <Phone className="h-3.5 w-3.5 shrink-0" />
-              {isOpen ? client.telefon : <span className="blur-sm select-none">{client.telefon}</span>}
+              {/* Fixture demo clients dışındaki (demo-1..19) telefonlar blur — session ve demo-0 açık */}
+              {(isOpen || isSessionClient) ? displayClient.telefon : <span className="blur-sm select-none">{displayClient.telefon}</span>}
             </div>
           )}
-          {client.gorusme && (
+          {displayClient.gorusme && (
             <div className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
               <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
-              Son görüşme: {fmtDate(client.gorusme)}
+              Son görüşme: {fmtDate(displayClient.gorusme)}
             </div>
           )}
         </div>
@@ -561,7 +641,6 @@ export default function DemoDanisanDetailPage() {
 
       {/* Tabs */}
       <section className="rounded-[20px] border border-white/78 bg-white/92 px-3.5 pb-5 pt-3.5 shadow-lg">
-        {/* Tab bar — mobilde yatay scroll */}
         <div className="relative mb-4">
           <div
             className="pointer-events-none absolute right-0 top-0 z-10 h-full w-14 bg-gradient-to-l from-white/95 to-transparent sm:hidden"
@@ -579,7 +658,7 @@ export default function DemoDanisanDetailPage() {
 
         {/* Tab content */}
         <DemoGate
-          isProtected={!isOpen}
+          isProtected={gateActive}
           message={DEMO_MSG}
           className="min-h-[200px]"
         >

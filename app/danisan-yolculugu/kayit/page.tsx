@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
 
 function todayForInput() {
   return new Date().toISOString().slice(0, 10);
@@ -245,7 +246,9 @@ export default function DanisanKayitPage() {
   const [saving, setSaving] = useState(false);
 
   const tenantId = sessionUser?.tenant_id?.trim() || null;
-  const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
+  const isDemo = sessionUser?.is_demo_account === true;
+  // Demo hesapta tenant kontrolü devre dışı — kayıt localStorage'a gider
+  const tenantMissing = !isDemo && sessionChecked && (!sessionUser || !tenantId);
 
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const forceSaveRef = useRef(false);
@@ -276,14 +279,33 @@ export default function DanisanKayitPage() {
   }
 
   async function saveClient() {
-    const user = readYasamUser();
-    const activeTenantId = user?.tenant_id?.trim();
-    if (!user || !activeTenantId) { showTenantWarning(); return; }
-
     if (!ad.trim() || !soyad.trim()) {
       showToast({ title: "İşlem başarısız", message: "Ad ve soyad gerekli", type: "error" });
       return;
     }
+
+    // Demo hesap: DB yerine localStorage'a kaydet
+    if (isDemo) {
+      setSaving(true);
+      initDemoSession();
+      addDemoClient({
+        ad: ad.trim(),
+        soyad: soyad.trim(),
+        telefon: telefon.trim(),
+        dogum,
+        gorusme,
+        burc,
+        kan,
+        mizac,
+      });
+      showToast({ title: "Başarılı", message: "Demo danışan oluşturuldu.", type: "success" });
+      router.push("/danisan-yolculugu/liste");
+      return;
+    }
+
+    const user = readYasamUser();
+    const activeTenantId = user?.tenant_id?.trim();
+    if (!user || !activeTenantId) { showTenantWarning(); return; }
 
     // Duplicate kontrolü (forceSaveRef ile override edilebilir)
     if (!forceSaveRef.current) {
@@ -341,6 +363,21 @@ export default function DanisanKayitPage() {
       </div>
 
       <div className="relative z-10 w-full">
+        {isDemo && (
+          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-lg leading-none">🔎</span>
+              <div>
+                <p className="text-sm font-black text-blue-900">Demo Modu — Geçici Kayıt</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                  Bu danışan veritabanına kaydedilmeyecek; yalnızca oturumunuz süresince tarayıcınızda saklanacak.
+                  Çıkış yaptığınızda otomatik olarak silinir.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tenantMissing && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-5 py-4 text-sm font-bold text-amber-950 shadow-sm">
             {!sessionUser
@@ -352,8 +389,10 @@ export default function DanisanKayitPage() {
         {/* Form */}
         <section className="overflow-visible rounded-2xl border border-emerald-200/80 bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8">
           <div className="mb-6">
-            <span className="inline-flex rounded-full bg-emerald-100 px-3.5 py-1.5 text-xs font-black text-emerald-800">
-              Yeni Danışan
+            <span className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-black ${
+              isDemo ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
+            }`}>
+              {isDemo ? "Demo Danışan" : "Yeni Danışan"}
             </span>
             <h2 className="mt-3 text-2xl font-black text-slate-950">Danışanı Kaydet</h2>
             <p className="mt-1 text-sm text-slate-500">Tüm alanlar isteğe bağlıdır; ad ve soyad zorunludur.</p>
@@ -427,7 +466,7 @@ export default function DanisanKayitPage() {
               disabled={saving || tenantMissing}
               className="btn-primary px-7 py-3 text-sm hover:-translate-y-0.5 hover:scale-[1.02]"
             >
-              {saving ? "Kaydediliyor..." : "Danışanı Kaydet"}
+              {saving ? "Kaydediliyor..." : isDemo ? "Demo Danışan Oluştur" : "Danışanı Kaydet"}
             </button>
             <Link
               href="/danisan-yolculugu/liste"
