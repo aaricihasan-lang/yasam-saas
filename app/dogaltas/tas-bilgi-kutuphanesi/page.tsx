@@ -15,6 +15,9 @@ import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -287,6 +290,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const { isDemo } = useDemoGuard();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
   const katMap = useMemo(() => {
@@ -445,7 +449,7 @@ export default function TasBilgiKutuphanesiPage() {
     return countInText(selectedArticle.content, searchTerms);
   }, [selectedArticle, searchTerms]);
 
-  const canEdit = !!(selectedArticle && tenantId && selectedArticle.tenant_id === tenantId);
+  const canEdit = !!(selectedArticle && tenantId && selectedArticle.tenant_id === tenantId) && !isDemo;
 
   // Makale değişince düzenleme modundan çık
   useEffect(() => {
@@ -783,31 +787,35 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
 
             {/* Word raporu butonu */}
-            <button
-              type="button"
-              onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-              className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-sm font-black text-indigo-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
-            >
-              📄 Word Raporu
-            </button>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+                className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-sm font-black text-indigo-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+              >
+                📄 Word Raporu
+              </button>
+            )}
 
             {/* Yeni kayıt butonu */}
-            <button
-              type="button"
-              onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
-              className={`rounded-xl px-4 py-2 text-sm font-black shadow-sm transition hover:brightness-105 ${
-                showForm
-                  ? "border border-slate-200 bg-white text-slate-700"
-                  : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-              }`}
-            >
-              {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
-            </button>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
+                className={`rounded-xl px-4 py-2 text-sm font-black shadow-sm transition hover:brightness-105 ${
+                  showForm
+                    ? "border border-slate-200 bg-white text-slate-700"
+                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                }`}
+              >
+                {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Yeni kayıt formu */}
-        {showForm && (
+        {!isDemo && showForm && (
           <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
             <h3 className="mb-3 text-sm font-black text-slate-900">Yeni Makale Ekle</h3>
             {saveError && (
@@ -1017,7 +1025,7 @@ export default function TasBilgiKutuphanesiPage() {
           </div>
 
           {/* Toplu işlem çubuğu */}
-          {!loading && (
+          {!isDemo && !loading && (
             <div className="shrink-0 border-b border-slate-100 px-3 py-2 space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-black text-slate-500">📋 Toplu İşlemler</span>
@@ -1092,13 +1100,15 @@ export default function TasBilgiKutuphanesiPage() {
                   const matchCount = matchCounts.get(rec.id) ?? 0;
                   return (
                     <div key={rec.id} className="mx-2 mb-0.5 flex items-center gap-1.5">
-                      <input
-                        type="checkbox"
-                        checked={isBulkSelected}
-                        onChange={(e) => { e.stopPropagation(); toggleSelection(rec.id); }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-emerald-600"
-                      />
+                      {!isDemo && (
+                        <input
+                          type="checkbox"
+                          checked={isBulkSelected}
+                          onChange={(e) => { e.stopPropagation(); toggleSelection(rec.id); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-emerald-600"
+                        />
+                      )}
                       <button type="button" onClick={(e) => { if ((e.target as HTMLElement).tagName === "INPUT") return; selectArticle(rec.id); }}
                         className={`flex flex-1 items-start gap-3 rounded-xl px-3 py-3 text-left transition-all
                           ${isActive ? "shadow-md" : "hover:bg-slate-50"}
@@ -1285,27 +1295,35 @@ export default function TasBilgiKutuphanesiPage() {
                     {!isEditing && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {selectedArticle.source && (
-                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                            📄 {selectedArticle.source.replace(/\.(docx|pdf)$/i, "")}
-                          </span>
+                          <DemoBlur isProtected={isDemo}>
+                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                              📄 {selectedArticle.source.replace(/\.(docx|pdf)$/i, "")}
+                            </span>
+                          </DemoBlur>
                         )}
                         {selectedArticle.source_section && selectedArticle.source_section !== selectedArticle.title && (
-                          <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                            § {selectedArticle.source_section}
-                          </span>
+                          <DemoBlur isProtected={isDemo}>
+                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                              § {selectedArticle.source_section}
+                            </span>
+                          </DemoBlur>
                         )}
                         {selectedArticle.tags.map((tag, i) => (
                           <span key={i} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">#{tag}</span>
                         ))}
                         {selectedArticle.related_stones.length > 0 && (
-                          <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                            💎 {selectedArticle.related_stones.join(", ")}
-                          </span>
+                          <DemoBlur isProtected={isDemo}>
+                            <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                              💎 {selectedArticle.related_stones.join(", ")}
+                            </span>
+                          </DemoBlur>
                         )}
                         {selectedArticle.related_minerals.length > 0 && (
-                          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                            ⚗️ {selectedArticle.related_minerals.join(", ")}
-                          </span>
+                          <DemoBlur isProtected={isDemo}>
+                            <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              ⚗️ {selectedArticle.related_minerals.join(", ")}
+                            </span>
+                          </DemoBlur>
                         )}
                       </div>
                     )}
@@ -1349,9 +1367,15 @@ export default function TasBilgiKutuphanesiPage() {
                 ) : (
                   <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
                     <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
-                      <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
-                        {renderContent(selectedArticle.content, isSearchActive ? searchTerms : [])}
-                      </div>
+                      <DemoGate
+                        isProtected={isDemo}
+                        message="Bu içerik demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir."
+                        className="min-h-[200px]"
+                      >
+                        <div className="text-base lg:text-[17px]" style={{ color: "#374151" }}>
+                          {renderContent(selectedArticle.content, isSearchActive ? searchTerms : [])}
+                        </div>
+                      </DemoGate>
                     </article>
                   </div>
                 )}
