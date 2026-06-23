@@ -10,6 +10,9 @@ import {
   type ReferenceRow,
   type ReferenceSheet,
 } from "@/lib/aromaterapi/aromatherapyKnowledgeData";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { DemoGate } from "@/components/demo/DemoGate";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 // -------------------------------------------------------
 // Tasarım token'ları
@@ -198,6 +201,7 @@ function SheetContent({ sheet }: { sheet: ReferenceSheet }) {
 // -------------------------------------------------------
 
 export default function BilgiBankasiPage() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [sheets, setSheets] = useState<ReferenceSheet[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,6 +235,10 @@ export default function BilgiBankasiPage() {
       <div className="pointer-events-none absolute -right-20 top-40 h-[300px] w-[300px] rounded-full bg-amber-200/15 blur-[100px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+
+        {isDemo && (
+          <DemoModuleBanner message="Bilgi bankası içerikleri demo hesabında korunur. Sekme başlıkları görünür; makale içerikleri tam sürümde açılır." />
+        )}
 
         {/* ─── HEADER ─────────────────────────────────────────────── */}
         <header className="rounded-[24px] border border-amber-200/50 bg-white/85 p-5 shadow-sm backdrop-blur-xl sm:p-6">
@@ -313,7 +321,12 @@ export default function BilgiBankasiPage() {
                   </h2>
                 </div>
 
+                <DemoGate
+                isProtected={isDemo}
+                message="Bilgi bankası makaleleri demo hesabında korunur. Tam sürümde tüm içerikler açık olarak kullanılabilir."
+              >
                 <SheetContent sheet={activeSheet} />
+              </DemoGate>
               </div>
             ) : null}
           </>

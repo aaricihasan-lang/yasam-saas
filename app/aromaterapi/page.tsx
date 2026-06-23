@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { supabase } from "@/lib/supabase";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { getDemoOilStats } from "@/lib/demo/demoAromaterapi";
 
 type OilStats = {
   total: number;
@@ -63,13 +66,15 @@ function AromaBadge({
 }
 
 export default function AromaTerapiHubPage() {
-  const [stats, setStats] = useState<OilStats>({
-    total: 0, essential: 0, carrier: 0, maceration: 0, other: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const isDemo = readYasamUser()?.is_demo_account === true;
+  const [stats, setStats] = useState<OilStats>(() =>
+    isDemo ? getDemoOilStats() : { total: 0, essential: 0, carrier: 0, maceration: 0, other: 0 },
+  );
+  const [loading, setLoading] = useState(!isDemo);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (isDemo) return;
     runInEffect(() => {
       void (async () => {
         setLoading(true);
@@ -97,7 +102,7 @@ export default function AromaTerapiHubPage() {
         }
       })();
     });
-  }, []);
+  }, [isDemo]);
 
   useBfcacheRefresh();
 
@@ -108,6 +113,10 @@ export default function AromaTerapiHubPage() {
       <div className="pointer-events-none absolute bottom-0 left-1/2 h-[280px] w-[280px] -translate-x-1/2 rounded-full bg-rose-200/15 blur-[100px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+
+        {isDemo && (
+          <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz." />
+        )}
 
         {/* Header */}
         <header className={headerCard}>

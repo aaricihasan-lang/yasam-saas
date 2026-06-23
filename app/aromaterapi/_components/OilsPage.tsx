@@ -29,6 +29,10 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { DemoBlur } from "@/components/demo/DemoBlur";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { DEMO_SEED_OILS, isDemoFixtureOil } from "@/lib/demo/demoAromaterapi";
 
 // -------------------------------------------------------
 // Sayfa yapılandırması
@@ -610,12 +614,15 @@ function viewFromParam(v: string | null): PageView {
 function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, pageDescription }: OilsPageConfig) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
-  const [rows, setRows] = useState<OilListRow[]>([]);
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<OilListRow[]>(() =>
+    isDemo ? (fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS) : [],
+  );
+  const [tenantId, setTenantId] = useState<string | null>(isDemo ? "demo" : null);
+  const [loading, setLoading] = useState(!isDemo);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>(fixedOilType ?? "all");
@@ -625,15 +632,20 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [errorMessage, setErrorMessage] = useState("");
 
   const loadOils = useCallback(async (tid: string) => {
+    if (isDemo) {
+      setRows(fixedOilType ? DEMO_SEED_OILS.filter((o) => o.oil_type === fixedOilType) : DEMO_SEED_OILS);
+      return;
+    }
     setLoading(true);
     setErrorMessage("");
     const { rows: nextRows, error } = await fetchOilList(tid, fixedOilType);
     setLoading(false);
     if (error) { setErrorMessage(`Yağlar yüklenemedi: ${error}`); return; }
     setRows(nextRows);
-  }, [fixedOilType]);
+  }, [fixedOilType, isDemo]);
 
   useEffect(() => {
+    if (isDemo) return;
     runInEffect(() => {
       void (async () => {
         const tid = await getSyncedTenantId();
@@ -642,7 +654,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
         await loadOils(tid);
       })();
     });
-  }, [loadOils]);
+  }, [loadOils, isDemo]);
 
   useBfcacheRefresh();
 
@@ -720,7 +732,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     if (tenantId) void loadOils(tenantId);
   }
 
-  if (pageView === "new") {
+  if (pageView === "new" && !isDemo) {
     return (
       <NewOilForm
         onBack={goToList}
@@ -736,6 +748,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
       <div className="pointer-events-none absolute -right-20 top-40 h-[280px] w-[280px] rounded-full bg-violet-200/18 blur-[100px]" />
 
       <div className="relative z-10 w-full space-y-3 px-3 py-3 sm:px-5 xl:px-7">
+        {isDemo && (
+          <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz." />
+        )}
         {/* Header */}
         <header className={`${headerCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0 flex-1">
@@ -751,9 +766,11 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
               <span className="hidden sm:inline">Aromaterapi Ana</span>
               <span className="sm:hidden">Ana</span>
             </Link>
-            <button type="button" onClick={goToNew} className={newBtn}>
-              + Yeni Yağ
-            </button>
+            {!isDemo && (
+              <button type="button" onClick={goToNew} className={newBtn}>
+                + Yeni Yağ
+              </button>
+            )}
           </div>
         </header>
 
@@ -824,7 +841,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           </div>
         </section>
 
-        {!loading && filteredRows.length > 0 ? (
+        {!isDemo && !loading && filteredRows.length > 0 ? (
           <BulkExportBar
             compact
             selectedCount={selectedIds.size}
@@ -855,13 +872,15 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                   ? "Aramayı değiştirin veya filtreyi kaldırın."
                   : "Yeni yağ ekle butonuyla ilk kaydınızı oluşturun."}
               </p>
-              <button
-                type="button"
-                onClick={goToNew}
-                className="mt-5 inline-flex items-center rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 py-2.5 text-[13px] font-black text-white shadow-md"
-              >
-                + Yeni Yağ Ekle
-              </button>
+              {!isDemo && (
+                <button
+                  type="button"
+                  onClick={goToNew}
+                  className="mt-5 inline-flex items-center rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 py-2.5 text-[13px] font-black text-white shadow-md"
+                >
+                  + Yeni Yağ Ekle
+                </button>
+              )}
             </div>
           ) : viewMode === "card" ? (
             <div className={oilCardGrid}>
@@ -869,15 +888,17 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                 const isSelected = selectedIds.has(row.id);
                 return (
                 <article key={row.id} className={`${oilCard} ${isSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""}`}>
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleOilSelection(row.id)}
-                      aria-label={`${row.name} seç`}
-                      className="h-4 w-4 rounded accent-amber-600"
-                    />
-                  </div>
+                  {!isDemo && (
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleOilSelection(row.id)}
+                        aria-label={`${row.name} seç`}
+                        className="h-4 w-4 rounded accent-amber-600"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black tracking-wide ${oilTypeBadgeClass(row.oil_type)}`}>
                       {oilTypeLabel(row.oil_type)}
@@ -904,9 +925,11 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     </p>
                   ) : null}
 
-                  <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-slate-600">
-                    {oilListRowPreview(row)}
-                  </p>
+                  <DemoBlur isProtected={isDemo && isDemoFixtureOil(row.id)} className="mt-2">
+                    <p className="line-clamp-2 text-[12px] leading-snug text-slate-600">
+                      {oilListRowPreview(row)}
+                    </p>
+                  </DemoBlur>
 
                   <div className="mt-auto pt-3">
                     <Link
@@ -939,13 +962,15 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     return (
                     <div key={row.id} className={`grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-amber-50/30 ${isSelected ? "bg-amber-50/60" : ""}`}>
                       <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleOilSelection(row.id)}
-                          aria-label={`${row.name} seç`}
-                          className="h-4 w-4 rounded accent-amber-600"
-                        />
+                        {isDemo ? null : (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleOilSelection(row.id)}
+                            aria-label={`${row.name} seç`}
+                            className="h-4 w-4 rounded accent-amber-600"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-black text-slate-950">{row.name}</p>
@@ -968,7 +993,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>
                       <div className="min-w-0">
-                        <span className="line-clamp-2 text-slate-500">{oilListRowPreview(row, 100)}</span>
+                        <DemoBlur isProtected={isDemo && isDemoFixtureOil(row.id)}>
+                          <span className="line-clamp-2 text-slate-500">{oilListRowPreview(row, 100)}</span>
+                        </DemoBlur>
                       </div>
                       <div className="flex justify-end">
                         <Link

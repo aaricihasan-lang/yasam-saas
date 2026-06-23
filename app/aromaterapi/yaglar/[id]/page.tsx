@@ -21,6 +21,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/demo/demoAromaterapi";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -296,6 +298,21 @@ export default function OilDetailPage() {
     setLoading(true);
     setErrorMessage("");
     setNotFound(false);
+
+    // Demo fixture yağı — Supabase atlanır
+    if (isDemo && isDemoFixtureOil(id)) {
+      const fixture = getDemoOilDetail(id);
+      setLoading(false);
+      if (fixture) {
+        setOil(fixture);
+        setDraft(oilToFormData(fixture));
+        setBlendMap(buildBlendMap(DEMO_SEED_OILS_FULL.map((o) => ({ id: o.id, name: o.name }))));
+      } else {
+        setNotFound(true);
+      }
+      return;
+    }
+
     const tid = await getSyncedTenantId();
     if (!tid) { setLoading(false); setErrorMessage(MISSING_SESSION_TENANT_MESSAGE); return; }
     setTenantId(tid);
@@ -443,6 +460,16 @@ export default function OilDetailPage() {
   return (
     <main className={`flex min-h-screen flex-col text-slate-950 ${pageBg}`}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-2 px-3 py-4 sm:px-5 lg:px-8 xl:px-10">
+
+        {isDemo && (
+          <DemoModuleBanner
+            message={
+              isDemoFixtureOil(id)
+                ? "Bu demo yağ kaydıdır. Kimlik bilgileri görünürdür; klinik detaylar demo hesabında korunur."
+                : "Kütüphane kaydı. Kimlik sekmesi açıktır; klinik içerikler demo hesabında korunur."
+            }
+          />
+        )}
 
         {/* ─── HERO HEADER ──────────────────────────────────── */}
         <header className="overflow-hidden rounded-[20px] bg-white/95 shadow-[0_2px_20px_rgba(245,158,11,0.09)] ring-1 ring-amber-200/40">
