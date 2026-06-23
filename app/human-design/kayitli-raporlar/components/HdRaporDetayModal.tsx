@@ -74,15 +74,13 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
           >
             Kapat
           </button>
-          {row.client_id && (
-            <a
-              href={`/human-design/rapor-olustur?clientId=${row.client_id}`}
-              className="flex h-9 items-center rounded-xl border border-fuchsia-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-fuchsia-700 no-underline shadow-sm transition hover:border-fuchsia-400 hover:bg-fuchsia-50"
-              onClick={onClose}
-            >
-              Düzenle
-            </a>
-          )}
+          <a
+            href={`/human-design/rapor-olustur?reportId=${row.id}`}
+            className="flex h-9 items-center rounded-xl border border-fuchsia-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-fuchsia-700 no-underline shadow-sm transition hover:border-fuchsia-400 hover:bg-fuchsia-50"
+            onClick={onClose}
+          >
+            Düzenle
+          </a>
         </div>
       </div>
     </div>

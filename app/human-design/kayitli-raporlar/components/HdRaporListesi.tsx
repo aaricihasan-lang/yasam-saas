@@ -144,14 +144,12 @@ export function HdRaporListesi() {
                 >
                   Detay
                 </button>
-                {row.client_id && (
-                  <Link
-                    href={`/human-design/rapor-olustur?clientId=${row.client_id}`}
-                    className="flex h-8 items-center rounded-lg border border-violet-200 bg-white px-3.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
-                  >
-                    Düzenle
-                  </Link>
-                )}
+                <Link
+                  href={`/human-design/rapor-olustur?reportId=${row.id}`}
+                  className="flex h-8 items-center rounded-lg border border-violet-200 bg-white px-3.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
+                >
+                  Düzenle
+                </Link>
                 <button
                   type="button"
                   disabled={deletingId === row.id}

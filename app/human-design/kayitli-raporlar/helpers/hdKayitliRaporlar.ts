@@ -40,6 +40,46 @@ export async function listReportsWithClients(): Promise<{
   return { rows, error: null };
 }
 
+export async function getReportById(id: string): Promise<{
+  row: HdReportWithClient | null;
+  error: string | null;
+}> {
+  const tenantId = await getSyncedTenantId();
+  if (!tenantId) return { row: null, error: "Aktif kullanıcı bulunamadı." };
+
+  const { data: reportData, error: reportErr } = await supabase
+    .from("human_design_reports")
+    .select("*")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .single();
+
+  if (reportErr || !reportData) {
+    return { row: null, error: reportErr?.message ?? "Rapor bulunamadı." };
+  }
+
+  const report = reportData as HumanDesignReport;
+
+  if (!report.client_id) {
+    return { row: { ...report, client: null }, error: null };
+  }
+
+  const { data: clientData } = await supabase
+    .from("human_design_clients")
+    .select("id, name")
+    .eq("id", report.client_id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  return {
+    row: {
+      ...report,
+      client: (clientData as Pick<HumanDesignClient, "id" | "name"> | null) ?? null,
+    },
+    error: null,
+  };
+}
+
 export async function deleteReport(id: string): Promise<{ error: string | null }> {
   const tenantId = await getSyncedTenantId();
   if (!tenantId) return { error: "Aktif kullanıcı bulunamadı." };

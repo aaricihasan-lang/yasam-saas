@@ -168,3 +168,28 @@ export async function saveReport(
   if (error) return { id: null, error: error.message };
   return { id: (data as { id: string }).id, error: null };
 }
+
+type UpdateReportInput = {
+  id: string;
+  title: string;
+  editedContent: string;
+};
+
+export async function updateReport(
+  input: UpdateReportInput,
+): Promise<{ error: string | null }> {
+  const tenantId = await getSyncedTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı bulunamadı." };
+
+  const { error } = await supabase
+    .from("human_design_reports")
+    .update({
+      title: input.title,
+      edited_content: input.editedContent,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.id)
+    .eq("tenant_id", tenantId);
+
+  return { error: error?.message ?? null };
+}
