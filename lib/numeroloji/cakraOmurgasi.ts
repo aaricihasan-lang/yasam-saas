@@ -41,7 +41,9 @@ function vowelValueOfWord(word: string): number {
 }
 
 function splitDmDisplay(display: string): [number | null, number | null] {
-  const text = (display || "").trim();
+  // Parantez içi bilgi amaçlıdır; ana değeri parse etmek için önce soy.
+  // Örnek: "11/6 (19/7)" → "11/6"
+  const text = (display || "").trim().replace(/\s*\([^)]*\)\s*$/, "");
   if (!text) return [null, null];
 
   if (!text.includes("/")) {

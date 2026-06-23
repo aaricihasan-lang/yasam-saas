@@ -93,6 +93,47 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
   steps.push(`Yan Kulvar yolu (büyükten küçüğe): ${valuesSorted.join("-")}`);
 
   if (specialCandidates.length > 0) {
+    // Kural: per-part özel sayı korunur, kalan (özel olmayan) bileşenler toplanır ve indirgenir.
+    const perPartSpecials = nonZeroValues.filter((v) => SPECIAL_NUMBERS.has(v));
+    const nonSpecialValues = nonZeroValues.filter((v) => !SPECIAL_NUMBERS.has(v));
+
+    if (perPartSpecials.length > 0 && nonSpecialValues.length > 0) {
+      const nonSpecialSum = nonSpecialValues.reduce((a, b) => a + b, 0);
+      const reducedNonSpecial = reduceNumber(nonSpecialSum, true);
+      const mainSpecialStr = [...perPartSpecials].sort((a, b) => b - a).join("/");
+      const mainDisplay = `${mainSpecialStr}/${reducedNonSpecial}`;
+
+      steps.push(
+        `Özel sayı korundu: ${perPartSpecials.join(", ")} | Kalan: ${nonSpecialValues.join(" + ")} = ${nonSpecialSum} → ${reducedNonSpecial}`
+      );
+
+      // Tüm ikili kombinasyonlarda özel/karmik toplam ara
+      let bracketStr = "";
+      let bestPairSum = 0;
+      for (let i = 0; i < nonZeroValues.length; i++) {
+        for (let j = i + 1; j < nonZeroValues.length; j++) {
+          const pairSum = nonZeroValues[i] + nonZeroValues[j];
+          if (SPECIAL_NUMBERS.has(pairSum) && pairSum > bestPairSum) {
+            const remaining = nonZeroValues.filter((_, k) => k !== i && k !== j);
+            const remainingNum =
+              remaining.length === 1
+                ? remaining[0]
+                : reduceNumber(remaining.reduce((a, b) => a + b, 0), true);
+            bestPairSum = pairSum;
+            bracketStr = `(${pairSum}/${remainingNum})`;
+            steps.push(
+              `Ara kontrol: ${nonZeroValues[i]} + ${nonZeroValues[j]} = ${pairSum} → özel/karmik | Kalan: ${remainingNum}`
+            );
+          }
+        }
+      }
+
+      const display = bracketStr ? `${mainDisplay} ${bracketStr}` : mainDisplay;
+      steps.push(`SONUÇ → Yan Kulvar: ${display}`);
+      return { display, key: String(reducedNonSpecial), steps };
+    }
+
+    // Mevcut mantık: tüm değerler özel veya yalnızca çift özel oluşumu var
     const best = [...specialCandidates].sort((a, b) =>
       a.specialNum !== b.specialNum ? b.specialNum - a.specialNum : b.priority - a.priority
     )[0];
@@ -113,7 +154,6 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
       mainDigit = usedValues.length >= 2 ? Math.min(...usedValues) : specialNum;
     }
 
-    // Per-part değerlerinde özel sayı varsa yeni path formatı, yoksa eski slash formatı
     const pathDisplay = buildSpecialPathDisplay(values);
     const display = pathDisplay !== "" ? pathDisplay : `${specialNum}/${mainDigit}`;
     const uniqueSpecialNums = [...new Set(specialCandidates.map((c) => c.specialNum))].sort((a, b) => a - b);
