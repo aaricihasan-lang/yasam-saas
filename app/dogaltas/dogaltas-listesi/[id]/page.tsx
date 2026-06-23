@@ -25,7 +25,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { fetchStoneExclusions } from "@/lib/dogaltas/stonesListFetch";
+import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -679,21 +679,14 @@ function StoneDetailPage() {
           ? [tenantId]
           : [tenantId, ADMIN_LIBRARY_TENANT_ID];
 
-      // Demo: liste sıralamasındaki ilk taş referans kayıt → korumasız açık
-      // Liste ile birebir aynı mantık: updated_at DESC + exclusion filtresi
+      // Demo: liste sıralamasındaki ilk görünen taş → referans kayıt, tüm içerikler açık
+      // getDemoReferenceStoneId: tenantFilter + updated_at DESC + exclusions + ?q= arama
       if (readYasamUser()?.is_demo_account) {
-        const excludedSet = await fetchStoneExclusions(tenantId);
-        let refQuery = supabase
-          .from("stones")
-          .select("id")
-          .in("tenant_id", tenantIds)
-          .order("updated_at", { ascending: false, nullsFirst: false })
-          .limit(1);
-        if (excludedSet.size > 0) {
-          refQuery = refQuery.not("id", "in", `(${Array.from(excludedSet).join(",")})`);
-        }
-        const { data: firstStone } = await refQuery.maybeSingle();
-        setIsDemoReference(firstStone?.id === id);
+        const refId = await getDemoReferenceStoneId(tenantId, {
+          search: highlightQuery || undefined,
+          searchMode: "name",
+        });
+        setIsDemoReference(refId === id);
       }
 
       const { data, error } = await supabase

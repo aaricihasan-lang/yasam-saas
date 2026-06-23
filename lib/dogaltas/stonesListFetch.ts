@@ -16,6 +16,16 @@ export const STONES_LIST_EXTENDED_SELECT =
 
 export const STONES_LIST_PAGE_SIZE = 30;
 
+// ─── Sıralama — tek kaynak ───────────────────────────────────────────────────
+// Tüm liste sorguları ve demo referans tespiti bu sabitleri kullanır.
+// Sıralama değişince yalnızca bu iki satırı güncelle.
+
+export const STONES_LIST_ORDER_COLUMN = "updated_at" as const;
+export const STONES_LIST_ORDER_OPTIONS = {
+  ascending: false,
+  nullsFirst: false,
+} as const;
+
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type StoneListItem = {
@@ -251,7 +261,7 @@ export async function fetchStonesListPage(
     .from("stones")
     .select(STONES_LIST_SELECT)
     .in("tenant_id", ids)
-    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
     .range(from, to);
 
   const searchOr = q
@@ -281,7 +291,7 @@ export async function fetchAllStonesExtended(
     .from("stones")
     .select(STONES_LIST_EXTENDED_SELECT)
     .in("tenant_id", tenantFilterIds(tenantId))
-    .order("updated_at", { ascending: false, nullsFirst: false });
+    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS);
 
   if (error) return { rows: [], error: error.message };
 
@@ -303,6 +313,46 @@ export async function fetchStoneExclusions(tenantId: string): Promise<Set<string
     .select("stone_id")
     .eq("tenant_id", tenantId);
   return new Set((data ?? []).map((r) => String(r.stone_id)));
+}
+
+/**
+ * Demo hesapta referans taş ID'sini döner.
+ *
+ * Liste sayfasıyla birebir aynı mantık kullanır:
+ *   - tenantFilterIds  → kullanıcı + admin kütüphanesi
+ *   - ORDER BY updated_at DESC  → liste sıralamasıyla senkron
+ *   - stone_exclusions  → gizlenmiş taşlar atlanır
+ *   - search/searchMode  → ?q= parametresi varsa aynı filtre uygulanır
+ *
+ * Sıralama ileride değişirse (alfabetik vb.) bu fonksiyonu da güncelle;
+ * her ikisi aynı kaynak kullandığından bozulma olmaz.
+ */
+export async function getDemoReferenceStoneId(
+  tenantId: string,
+  options: { search?: string; searchMode?: SearchMode } = {},
+): Promise<string | null> {
+  const ids = tenantFilterIds(tenantId);
+  const excludedSet = await fetchStoneExclusions(tenantId);
+
+  let query = supabase
+    .from("stones")
+    .select("id")
+    .in("tenant_id", ids)
+    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
+    .limit(1);
+
+  if (excludedSet.size > 0) {
+    query = query.not("id", "in", `(${Array.from(excludedSet).join(",")})`);
+  }
+
+  const q = options.search?.trim();
+  if (q) {
+    const searchOr = buildStonesListSearchOrFilter(q, options.searchMode ?? "name");
+    if (searchOr) query = query.or(searchOr);
+  }
+
+  const { data } = await query.maybeSingle();
+  return typeof data?.id === "string" ? data.id : null;
 }
 
 /**
