@@ -399,18 +399,19 @@ export default function DanisanListePage() {
         </header>
 
         {isDemo && (
-          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-lg leading-none">🔎</span>
+          <div className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400 shadow-md">
+            <div className="flex items-start gap-3.5 bg-amber-50 px-5 py-4">
+              <span className="mt-0.5 text-2xl leading-none">🔎</span>
               <div>
-                <p className="text-sm font-black text-blue-900">Demo Modu — Örnek Veri</p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                <p className="text-base font-black text-amber-900">Demo Modu — Örnek Veri</p>
+                <p className="mt-1 text-sm leading-relaxed text-amber-800">
                   Gerçek verilere benzer hazırlanmış 20 örnek danışan profiliyle platformu keşfediyorsunuz.
                   Telefon bilgileri gizlenmiştir. Yalnızca{" "}
                   <span className="font-black">Eylül Karaca</span> profilinin tam içeriğine erişebilirsiniz.
                 </p>
               </div>
             </div>
+            <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400" />
           </div>
         )}
 

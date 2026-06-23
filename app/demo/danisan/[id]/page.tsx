@@ -674,7 +674,7 @@ export default function DemoDanisanDetailPage() {
               <span className="text-2xl">🔍</span>
               <div>
                 <p className="text-base font-black text-white">Önerilen İnceleme Profili</p>
-                <p className="mt-0.5 text-xs font-semibold text-white/80">Demo hesabı · Tüm sekmeler dolu</p>
+                <p className="mt-0.5 text-xs font-semibold text-white/80">Demo hesabı</p>
               </div>
             </div>
           </div>
