@@ -12,6 +12,8 @@ import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/N
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { supabase } from "@/lib/supabase";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 
 const listeNavSecondaryClass =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
@@ -23,6 +25,7 @@ export default function NumerolojiListePage() {
   const pathname = usePathname();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+  const { isDemo } = useDemoGuard();
   const [rows, setRows] = useState<NumerolojiListeSatir[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +71,14 @@ export default function NumerolojiListePage() {
     });
   }, [rows, search]);
 
+  // Demo modda Hasan YILMAZ her zaman en üstte
+  const displayRows = useMemo(() => {
+    if (!isDemo) return filteredRows;
+    const open = filteredRows.filter((r) => isDemoNumerologiOpenRecord(r));
+    const rest = filteredRows.filter((r) => !isDemoNumerologiOpenRecord(r));
+    return [...open, ...rest];
+  }, [filteredRows, isDemo]);
+
   const hasActiveFilter = Boolean(search.trim());
 
   const toggleSelection = useCallback((id: string) => {
@@ -85,6 +96,10 @@ export default function NumerolojiListePage() {
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   async function handleBulkDelete() {
+    if (isDemo) {
+      showToast({ title: "Demo Modu", message: "Demo hesapta silme işlemi gerçekleştirilemez.", type: "error" });
+      return;
+    }
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
@@ -130,6 +145,10 @@ export default function NumerolojiListePage() {
   }
 
   async function exportWord(mode: "selected" | "all" | "filtered") {
+    if (isDemo) {
+      showToast({ title: "Demo Modu", message: "Demo hesapta toplu Word raporu alınamaz.", type: "error" });
+      return;
+    }
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
       showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
@@ -196,6 +215,22 @@ export default function NumerolojiListePage() {
           </p>
         </div>
 
+        {/* Demo bilgilendirme banner */}
+        {isDemo && (
+          <div className="mt-2.5 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
+              <div>
+                <p className="text-sm font-black text-blue-900">Demo Modu — Örnek Analiz Listesi</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                  <span className="font-black">Hasan YILMAZ</span> örnek analizi tamamen açıktır ve tüm içeriğe erişilebilir.
+                  Diğer kayıtlar sistemi göstermek için eklenmiştir; analiz içerikleri demo güvenliği nedeniyle flu gösterilir.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!loading && rows.length > 0 ? (
           <div className="mt-2.5 space-y-2">
             <input
@@ -209,21 +244,24 @@ export default function NumerolojiListePage() {
               autoComplete="off"
             />
 
-            <BulkExportBar
-              compact
-              selectedCount={selectedIds.size}
-              totalCount={rows.length}
-              filteredCount={filteredRows.length}
-              hasActiveFilter={hasActiveFilter}
-              onSelectAll={selectAllFiltered}
-              onClearSelection={clearSelection}
-              onExportSelected={() => void exportWord("selected")}
-              onExportAll={() => void exportWord("all")}
-              onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
-              isExporting={wordBusy}
-              onDeleteSelected={() => void handleBulkDelete()}
-              isDeleting={deleteLoading}
-            />
+            {/* Demo modda toplu işlem çubuğu gizlenir */}
+            {!isDemo && (
+              <BulkExportBar
+                compact
+                selectedCount={selectedIds.size}
+                totalCount={rows.length}
+                filteredCount={filteredRows.length}
+                hasActiveFilter={hasActiveFilter}
+                onSelectAll={selectAllFiltered}
+                onClearSelection={clearSelection}
+                onExportSelected={() => void exportWord("selected")}
+                onExportAll={() => void exportWord("all")}
+                onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
+                isExporting={wordBusy}
+                onDeleteSelected={() => void handleBulkDelete()}
+                isDeleting={deleteLoading}
+              />
+            )}
           </div>
         ) : null}
 
@@ -245,20 +283,20 @@ export default function NumerolojiListePage() {
           </div>
         ) : null}
 
-        {!loading && !error && rows.length > 0 && filteredRows.length === 0 ? (
+        {!loading && !error && rows.length > 0 && displayRows.length === 0 ? (
           <div className="mt-3 rounded-[14px] border border-violet-300/35 bg-white/80 px-5 py-6 text-center text-sm font-semibold text-slate-500 shadow-[0_0_16px_rgba(139,92,246,0.07)] backdrop-blur-xl">
             Aramanızla eşleşen kayıt bulunamadı.
           </div>
         ) : null}
 
-        {!loading && !error && filteredRows.length > 0 ? (
+        {!loading && !error && displayRows.length > 0 ? (
           <ul className="mt-2.5 w-full space-y-1.5">
-            {filteredRows.map((r) => (
+            {displayRows.map((r) => (
               <NumerolojiListeKarti
                 key={r.id}
                 row={r}
                 isSelected={selectedIds.has(r.id)}
-                onToggleSelect={() => toggleSelection(r.id)}
+                onToggleSelect={isDemo ? undefined : () => toggleSelection(r.id)}
               />
             ))}
           </ul>

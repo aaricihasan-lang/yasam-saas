@@ -13,6 +13,9 @@ import {
   type NumerologyRecordRow,
 } from "../../helpers/numerolojiKayit";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
+import { DemoGate } from "@/components/demo/DemoGate";
 
 const detayNavSecondaryClass =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
@@ -23,14 +26,19 @@ const detayNavPrimaryClass =
 export default function NumerolojiKayitDetayPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
+  const { isDemo } = useDemoGuard();
 
   const [row, setRow] = useState<NumerologyRecordRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
 
+  const isOpenRecord = row ? isDemoNumerologiOpenRecord(row) : false;
+  const gateActive = isDemo && !isOpenRecord;
+
   const downloadWord = useCallback(async () => {
     if (!row) return;
+    if (gateActive) return;
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
       alert("Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.");
@@ -65,7 +73,7 @@ export default function NumerolojiKayitDetayPage() {
     } finally {
       setWordBusy(false);
     }
-  }, [row]);
+  }, [row, gateActive]);
 
   useEffect(() => {
     if (!id) {
@@ -126,7 +134,8 @@ export default function NumerolojiKayitDetayPage() {
           <Link href="/numeroloji" className={detayNavSecondaryClass}>
             Modül seçimi
           </Link>
-          {row && !loading && (
+          {/* Word raporu: demo modda kilitli kayıtlarda gösterilmez */}
+          {row && !loading && !gateActive && (
             <button
               type="button"
               onClick={() => void downloadWord()}
@@ -184,15 +193,20 @@ export default function NumerolojiKayitDetayPage() {
             </header>
 
             {motor ? (
-              <NumerolojiKayitDetayPanel
-                out={motor}
-                name={row.name}
-                surname={row.surname}
-                birthDate={row.birth_date}
-                analysisData={row.analysis_data}
-                recordId={row.id}
-                onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
-              />
+              <DemoGate
+                isProtected={gateActive}
+                message="Bu analiz içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm detaylar ve tablolar açık olarak kullanılabilir."
+              >
+                <NumerolojiKayitDetayPanel
+                  out={motor}
+                  name={row.name}
+                  surname={row.surname}
+                  birthDate={row.birth_date}
+                  analysisData={row.analysis_data}
+                  recordId={row.id}
+                  onAnalysisDataUpdate={(analysis_data) => setRow((prev) => (prev ? { ...prev, analysis_data } : prev))}
+                />
+              </DemoGate>
             ) : (
               <p className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_24px_rgba(139,92,246,0.1)] backdrop-blur-xl">
                 Kayıtlı analiz verisi okunamadı veya eski formatta.
