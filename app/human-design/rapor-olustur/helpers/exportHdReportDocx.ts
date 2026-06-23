@@ -21,6 +21,33 @@ function toSafeFilename(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
+// Satır içi **kalın** ve *italik* markdown'ı TextRun dizisine çevirir.
+function parseInlineMarkdown(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  // Önce **bold** sonra *italic* — sıra önemli
+  const regex = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }));
+    }
+    if (match[1] !== undefined) {
+      runs.push(new TextRun({ text: match[1], bold: true }));
+    } else if (match[2] !== undefined) {
+      runs.push(new TextRun({ text: match[2], italics: true }));
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push(new TextRun({ text: text.slice(lastIndex) }));
+  }
+
+  return runs.length > 0 ? runs : [new TextRun({ text })];
+}
+
 function parseMarkdownLine(line: string): Paragraph | null {
   // --- ayraç
   if (/^-{3,}$/.test(line.trim())) {
@@ -63,14 +90,27 @@ function parseMarkdownLine(line: string): Paragraph | null {
     });
   }
 
+  // - veya * ile başlayan liste öğesi → madde imi
+  const bullet = line.match(/^[-*]\s+(.+)$/);
+  if (bullet) {
+    return new Paragraph({
+      children: [
+        new TextRun({ text: "• " }),
+        ...parseInlineMarkdown(bullet[1].trim()),
+      ],
+      indent: { left: 240 },
+      spacing: { after: 60 },
+    });
+  }
+
   // Boş satır → boşluk paragrafı
   if (line.trim() === "") {
     return new Paragraph({ children: [], spacing: { after: 80 } });
   }
 
-  // Normal satır
+  // Normal satır — inline markdown işle
   return new Paragraph({
-    children: [new TextRun({ text: line })],
+    children: parseInlineMarkdown(line),
     spacing: { after: 80 },
   });
 }
@@ -82,11 +122,13 @@ export async function exportHdReportDocx(params: {
 }): Promise<void> {
   const { reportTitle, clientName, reportText } = params;
 
-  const today = new Date().toLocaleDateString("tr-TR", {
+  const now = new Date();
+  const today = now.toLocaleDateString("tr-TR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
+  const dateStr = now.toISOString().slice(0, 10); // "2026-06-23"
 
   const headerParagraphs: Paragraph[] = [
     new Paragraph({
@@ -136,7 +178,7 @@ export async function exportHdReportDocx(params: {
   const blob = await Packer.toBlob(doc);
 
   const safeName = toSafeFilename(clientName) || "Danisan";
-  const filename = `Human-Design-Raporu-${safeName}.docx`;
+  const filename = `Human-Design-Raporu-${safeName}-${dateStr}.docx`;
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

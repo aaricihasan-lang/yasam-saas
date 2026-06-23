@@ -221,6 +221,17 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
               Aktif kayıt
             </label>
           </div>
+
+          {/* Kod rehberi */}
+          <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
+            {getStructuredCategoryOptions(form.category) !== null ? (
+              <><span className="font-bold">Yapısal kategori: </span>Dropdown seçiminden kod otomatik üretilir ve harita verileriyle birebir eşleşir. Başlığı kendiniz yazmayın.</>
+            ) : form.category ? (
+              <><span className="font-bold">Serbest kategori: </span>Başlık serbest girilebilir; kod başlıktan türetilir. Bu kategori harita kodu eşleştirmesinde kullanılmaz, raporda ek bölüm olarak eklenir.</>
+            ) : (
+              <>Önce kategori seçin. Yapısal kategorilerde (Tipler, Otoriteler, Profiller, Tanımlar, Merkezler, Kanallar, Kapılar) kod harita verileriyle otomatik eşleşir.</>
+            )}
+          </div>
         </div>
       </section>
 
