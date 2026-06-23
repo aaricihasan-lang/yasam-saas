@@ -405,7 +405,7 @@ export function HdRaporContent() {
               <textarea
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
-                rows={24}
+                rows={32}
                 className="w-full rounded-xl border border-indigo-200/90 bg-white/70 px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
               />
             ) : (

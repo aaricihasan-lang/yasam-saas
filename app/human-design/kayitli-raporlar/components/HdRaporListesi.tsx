@@ -60,6 +60,20 @@ export function HdRaporListesi() {
     );
   }, [rows, search]);
 
+  // rows zaten created_at DESC — her client_id için ilk kayıt en son rapordur
+  const latestIdPerClient = useMemo(() => {
+    const seen = new Set<string>();
+    const latest = new Set<string>();
+    for (const row of rows) {
+      if (!row.client_id) continue;
+      if (!seen.has(row.client_id)) {
+        seen.add(row.client_id);
+        latest.add(row.id);
+      }
+    }
+    return latest;
+  }, [rows]);
+
   async function handleDelete(row: HdReportWithClient) {
     const ok = await confirm({
       title: "Raporu sil",
@@ -123,9 +137,16 @@ export function HdRaporListesi() {
             >
               {/* Bilgiler */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black text-slate-900">
-                  {row.title}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-black text-slate-900">
+                    {row.title}
+                  </p>
+                  {latestIdPerClient.has(row.id) && (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/80">
+                      Son
+                    </span>
+                  )}
+                </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
                   <span className="font-semibold text-indigo-700">
                     {row.client?.name ?? "—"}
