@@ -291,7 +291,7 @@ export default function OilDetailPage() {
   const tabIsEmpty = !editEnabled && activeFields.length === 0;
   const isSharedContent = oil?.tenant_id === null;
   const { isDemo } = useDemoGuard();
-  const isDemoTabProtected = isDemo && DEMO_PROTECTED_TABS.has(tab);
+  const isDemoProtectedTab = isDemo && DEMO_PROTECTED_TABS.has(tab);
 
   const loadOil = useCallback(async () => {
     if (!id) { setNotFound(true); setLoading(false); return; }
@@ -639,8 +639,27 @@ export default function OilDetailPage() {
               </div>
             </div>
 
-            {/* Boş sekme */}
-            {tabIsEmpty ? (
+            {/* Demo korumalı sekme — her zaman önce kontrol edilir */}
+            {isDemoProtectedTab ? (
+              <DemoGate
+                isProtected={true}
+                message="Bu sekme içeriği demo hesabında korunur. Tam sürümde tüm klinik detaylar açık olarak kullanılabilir."
+              >
+                <div className="space-y-3">
+                  <div className="h-20 rounded-xl border border-slate-100 bg-white/70" />
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="h-16 rounded-xl border border-slate-100 bg-white/70" />
+                    <div className="h-16 rounded-xl border border-slate-100 bg-white/70" />
+                  </div>
+                  <div className="h-24 rounded-xl border border-slate-100 bg-white/70" />
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="h-14 rounded-xl border border-slate-100 bg-white/70" />
+                    <div className="h-14 rounded-xl border border-slate-100 bg-white/70" />
+                  </div>
+                </div>
+              </DemoGate>
+
+            ) : tabIsEmpty ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/50 text-2xl shadow-sm">📋</div>
                 <p className="mt-3 text-[13px] font-medium text-slate-400">Bu bölümde kayıtlı bilgi yok</p>
@@ -730,8 +749,7 @@ export default function OilDetailPage() {
               </div>
 
             ) : (
-              /* ── Görünüm modu — 2-kolon responsive grid ── */
-              <DemoGate isProtected={isDemoTabProtected}>
+              /* ── Görünüm modu — gerçek hesap veya açık kimlik sekmesi ── */
               <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {activeFields.map((fieldKey) => {
                   const meta = FIELD_META[fieldKey as string];
@@ -849,7 +867,6 @@ export default function OilDetailPage() {
                   );
                 })}
               </dl>
-              </DemoGate>
             )}
           </div>
         </section>
