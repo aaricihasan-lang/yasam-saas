@@ -125,10 +125,10 @@ function SalesDetailModal({ record, onClose }: { record: SoapCreamSaleRecord; on
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-black text-sky-800">
-                  <th className="py-1.5">Urun</th>
+                  <th className="py-1.5">Ürün</th>
                   <th>Miktar</th>
                   <th>Maliyet</th>
-                  <th>Satis</th>
+                  <th>Satış</th>
                 </tr>
               </thead>
               <tbody>
@@ -661,13 +661,13 @@ export default function SabunKremUrunStokPage() {
                 <table className="w-full min-w-[1280px] text-sm">
                   <thead>
                     <tr className="text-xs font-black uppercase text-sky-800">
-                      <th className="p-1.5">Sec</th>
+                      <th className="p-1.5">Seç</th>
                       <th>No</th>
-                      <th>Urun</th>
+                      <th>Ürün</th>
                       <th>Grup</th>
                       <th>Stok</th>
-                      <th>Birim maliyet</th>
-                      <th>Birim satis</th>
+                      <th>Birim Maliyet</th>
+                      <th>Birim Satış</th>
                       <th>Net</th>
                       <th>Ambalaj</th>
                       <th>SKT</th>
@@ -879,9 +879,9 @@ export default function SabunKremUrunStokPage() {
                     <th className="p-1.5">No</th>
                     <th>Sec</th>
                     <th>Tarih</th>
-                    <th>Urun</th>
+                    <th>Ürün</th>
                     <th>Maliyet</th>
-                    <th>Satis</th>
+                    <th>Satış</th>
                     <th />
                   </tr>
                 </thead>

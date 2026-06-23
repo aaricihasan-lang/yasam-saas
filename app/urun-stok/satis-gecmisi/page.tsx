@@ -360,13 +360,13 @@ export default function SatisRaporlariPage() {
                   <tr className="border-b-2 border-rose-100 text-xs font-black uppercase tracking-wide text-slate-500">
                     <th className="px-2 py-2">Tarih</th>
                     <th className="px-2 py-2">Kategori</th>
-                    <th className="px-2 py-2">Urun</th>
+                    <th className="px-2 py-2">Ürün</th>
                     <th className="px-2 py-2 text-right">Miktar</th>
                     <th className="px-2 py-2">Birim</th>
                     <th className="px-2 py-2 text-right">Maliyet</th>
-                    <th className="px-2 py-2 text-right">Satis</th>
-                    <th className="px-2 py-2 text-right">Kar</th>
-                    <th className="px-2 py-2 text-right">Kar %</th>
+                    <th className="px-2 py-2 text-right">Satış</th>
+                    <th className="px-2 py-2 text-right">Kâr</th>
+                    <th className="px-2 py-2 text-right">Kâr %</th>
                     <th className="px-2 py-2">Kaynak</th>
                   </tr>
                 </thead>

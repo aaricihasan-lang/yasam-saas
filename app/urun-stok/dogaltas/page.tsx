@@ -156,9 +156,9 @@ function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: ()
                   <tr key={i} className="rounded-xl bg-slate-50/80">
                     <td className="px-3 py-3 font-semibold">{ln.stone}</td>
                     <td className="px-3 py-3">{ln.type}</td>
-                    <td className="px-3 py-3 text-center">{fmtTrim(ln.unit, 4)}</td>
-                    <td className="px-3 py-3 text-center">{fmtTrim(ln.qty, 4)}</td>
-                    <td className="px-3 py-3 text-center">{fmtTrim(ln.line_total, 4)}</td>
+                    <td className="px-3 py-3 text-center">{fmtMoney(ln.unit)}</td>
+                    <td className="px-3 py-3 text-center">{fmtTrim(ln.qty, 2)}</td>
+                    <td className="px-3 py-3 text-center">{fmtMoney(ln.line_total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -799,12 +799,12 @@ export default function DogaltasUrunStokPage() {
                       <th className="px-4 py-3">Taş Adı</th>
                       <th className="px-4 py-3">Tür</th>
                       <th className="px-4 py-3 text-center">Stok</th>
-                      <th className="px-4 py-3 text-center">TL ₺</th>
+                      <th className="px-4 py-3 text-center">Maliyet (₺)</th>
                       <th className="px-4 py-3 text-center">USD $</th>
                       <th className="px-4 py-3 text-center">EUR €</th>
-                      <th className="px-4 py-3 text-center">Toplam TL</th>
-                      <th className="px-4 py-3 text-center">Birim TL</th>
-                      <th className="px-4 py-3 text-center">Adet ₺</th>
+                      <th className="px-4 py-3 text-center">Toplam Maliyet</th>
+                      <th className="px-4 py-3 text-center">Birim Maliyet</th>
+                      <th className="px-4 py-3 text-center">Adet Fiyatı</th>
                       <th className="px-4 py-3 text-center">Foto</th>
                     </tr>
                   </thead>
@@ -838,16 +838,16 @@ export default function DogaltasUrunStokPage() {
                           <td className="px-4 py-2 text-center font-semibold">
                             {Math.round(it.adet || 0)}
                           </td>
-                          <td className="px-4 py-2 text-center">{(it.dizi_price || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center">{fmtMoney(it.dizi_price || 0)}</td>
                           <td className="px-4 py-2 text-center">{(it.dizi_price_usd || 0).toFixed(2)}</td>
                           <td className="px-4 py-2 text-center">{(it.dizi_price_eur || 0).toFixed(2)}</td>
                           <td className="px-4 py-2 text-center font-semibold text-emerald-900">
-                            {(it.total_cost_try || 0).toFixed(2)}
+                            {fmtMoney(it.total_cost_try || 0)}
                           </td>
                           <td className="px-4 py-2 text-center font-semibold text-emerald-800">
-                            {(it.unit_cost_try || 0).toFixed(4)}
+                            {fmtMoney(it.unit_cost_try || 0)}
                           </td>
-                          <td className="px-4 py-2 text-center">{(it.adet_price || 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-center">{fmtMoney(it.adet_price || 0)}</td>
                           <td className="px-4 py-2 text-center">
                             <button
                               type="button"
@@ -986,7 +986,7 @@ export default function DogaltasUrunStokPage() {
                         <td className="py-2 font-semibold">{r.stone}</td>
                         <td className="py-2">{r.type}</td>
                         <td className="py-2 text-center">{r.currency}</td>
-                        <td className="py-2 text-center">{fmtTrim(r.unit, 4)}</td>
+                        <td className="py-2 text-center">{fmtMoney(r.unit)}</td>
                         <td className="py-2">
                           <input
                             className="h-10 w-20 rounded-lg border border-sky-200 text-center"
@@ -1002,7 +1002,7 @@ export default function DogaltasUrunStokPage() {
                             }}
                           />
                         </td>
-                        <td className="py-2 text-center font-bold">{fmtTrim(r.unit * r.qty, 4)}</td>
+                        <td className="py-2 text-center font-bold">{fmtMoney(r.unit * r.qty)}</td>
                         <td className="py-2">
                           <button
                             type="button"

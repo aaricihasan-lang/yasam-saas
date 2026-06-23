@@ -174,10 +174,10 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-black text-lime-800">
-                  <th className="py-1.5">Urun</th>
+                  <th className="py-1.5">Ürün</th>
                   <th>Miktar</th>
                   <th>Maliyet</th>
-                  <th>Satis</th>
+                  <th>Satış</th>
                 </tr>
               </thead>
               <tbody>
@@ -726,14 +726,14 @@ export default function DigerUrunStokPage() {
                 <table className="w-full min-w-[1320px] text-sm">
                   <thead>
                     <tr className="text-xs font-black uppercase text-lime-800">
-                      <th className="p-1.5">Sec</th>
+                      <th className="p-1.5">Seç</th>
                       <th>No</th>
                       <th>Varyant</th>
                       <th>Grup</th>
-                      <th>Alt kategori</th>
+                      <th>Alt Kategori</th>
                       <th>Stok</th>
-                      <th>Birim maliyet</th>
-                      <th>Birim satis</th>
+                      <th>Birim Maliyet</th>
+                      <th>Birim Satış</th>
                       <th>Varyasyon</th>
                       <th>Barkod</th>
                       <th>Foto</th>
@@ -875,7 +875,7 @@ export default function DigerUrunStokPage() {
                 <p className="text-sm font-semibold text-red-700">{previewLine.error}</p>
               ) : null}
               <label className="cursor-pointer inline-block">
-                <span className={btnSecondary}>({salePhotos.length}) Urun fotografi</span>
+                <span className={btnSecondary}>({salePhotos.length}) Ürün fotoğrafı</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -940,11 +940,11 @@ export default function DigerUrunStokPage() {
                 <thead>
                   <tr className="text-xs font-black uppercase text-lime-800">
                     <th className="p-1.5">No</th>
-                    <th>Sec</th>
+                    <th>Seç</th>
                     <th>Tarih</th>
-                    <th>Urun</th>
+                    <th>Ürün</th>
                     <th>Maliyet</th>
-                    <th>Satis</th>
+                    <th>Satış</th>
                     <th />
                   </tr>
                 </thead>

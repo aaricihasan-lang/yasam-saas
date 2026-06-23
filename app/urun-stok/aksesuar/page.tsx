@@ -116,10 +116,10 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-black text-amber-800">
-                  <th className="py-1.5">Urun</th>
+                  <th className="py-1.5">Ürün</th>
                   <th>Adet</th>
                   <th>Maliyet</th>
-                  <th>Satis</th>
+                  <th>Satış</th>
                 </tr>
               </thead>
               <tbody>
@@ -615,17 +615,17 @@ export default function AksesuarUrunStokPage() {
                 <table className="w-full min-w-[1400px] text-sm">
                   <thead>
                     <tr className="text-xs font-black uppercase text-amber-800">
-                      <th className="p-1.5">Sec</th>
+                      <th className="p-1.5">Seç</th>
                       <th>No</th>
                       <th>Varyant</th>
                       <th>Grup</th>
                       <th>Model</th>
                       <th>Malzeme</th>
                       <th>Renk</th>
-                      <th>Olcu</th>
+                      <th>Ölçü</th>
                       <th>Stok</th>
-                      <th>Birim maliyet</th>
-                      <th>Birim satis</th>
+                      <th>Birim Maliyet</th>
+                      <th>Birim Satış</th>
                       <th>Barkod</th>
                       <th>Foto</th>
                       <th />
@@ -749,7 +749,7 @@ export default function AksesuarUrunStokPage() {
                 <p className="text-sm font-semibold text-red-700">{previewLine.error}</p>
               ) : null}
               <label className="inline-block cursor-pointer">
-                <span className={btnSecondary}>({salePhotos.length}) Urun fotografi</span>
+                <span className={btnSecondary}>({salePhotos.length}) Ürün fotoğrafı</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -813,11 +813,11 @@ export default function AksesuarUrunStokPage() {
                 <thead>
                   <tr className="text-xs font-black uppercase text-amber-800">
                     <th className="p-1.5">No</th>
-                    <th>Sec</th>
+                    <th>Seç</th>
                     <th>Tarih</th>
-                    <th>Urun</th>
+                    <th>Ürün</th>
                     <th>Maliyet</th>
-                    <th>Satis</th>
+                    <th>Satış</th>
                     <th />
                   </tr>
                 </thead>
