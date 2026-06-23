@@ -9,7 +9,12 @@ import {
   HUMAN_DESIGN_GATES,
   type HdKnowledgeCategory,
 } from "@/lib/human-design/constants";
-import { buildKnowledgeCode } from "@/lib/human-design/codeHelpers";
+import {
+  buildKnowledgeCode,
+  buildKnowledgeCodeFromValue,
+  getStructuredCategoryOptions,
+  type StructuredOption,
+} from "@/lib/human-design/codeHelpers";
 import { insertHdKnowledgeRecord } from "../helpers/hdBilgiKayit";
 
 const fieldBase =
@@ -22,7 +27,7 @@ type Props = { onSuccess?: () => void };
 const empty = {
   category: "" as HdKnowledgeCategory | "",
   title: "",
-  code: "",
+  structuredValue: "", // yapısal kategorilerde seçilen ham kod (örn. "sacral", "1_3")
   content: "",
   keywordsText: "",
   tagsText: "",
@@ -33,6 +38,15 @@ const empty = {
   is_active: true,
 };
 
+function computeCode(category: string, title: string, structuredValue: string): string {
+  if (!category) return "";
+  const opts = getStructuredCategoryOptions(category);
+  if (opts !== null) {
+    return structuredValue ? buildKnowledgeCodeFromValue(category, structuredValue) : "";
+  }
+  return title.trim() ? buildKnowledgeCode(category as HdKnowledgeCategory, title.trim()) : "";
+}
+
 function parseCSV(text: string): string[] {
   return text.split(",").map((s) => s.trim()).filter(Boolean);
 }
@@ -41,18 +55,6 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
   const { showToast } = useToast();
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (form.category && form.title.trim()) {
-      const generated = buildKnowledgeCode(
-        form.category as HdKnowledgeCategory,
-        form.title.trim(),
-      );
-      setForm((p) => ({ ...p, code: generated }));
-    } else {
-      setForm((p) => ({ ...p, code: "" }));
-    }
-  }, [form.category, form.title]);
 
   function toggleCenter(code: string) {
     setForm((p) => ({
@@ -87,18 +89,20 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       return;
     }
     if (!form.title.trim()) {
-      showToast({ message: "Başlık girin.", type: "warning" });
+      const isStructured = !!getStructuredCategoryOptions(form.category);
+      showToast({ message: isStructured ? "Değer seçin." : "Başlık girin.", type: "warning" });
       return;
     }
     if (!form.content.trim()) {
       showToast({ message: "İçerik alanını doldurun.", type: "warning" });
       return;
     }
+    const code = computeCode(form.category, form.title, form.structuredValue);
     setSaving(true);
     const { error } = await insertHdKnowledgeRecord({
       category: form.category,
       title: form.title.trim(),
-      code: form.code,
+      code,
       content: form.content.trim(),
       keywords: parseCSV(form.keywordsText),
       tags: parseCSV(form.tagsText),
@@ -129,7 +133,12 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
             <select
               value={form.category}
               onChange={(e) =>
-                setForm((p) => ({ ...p, category: e.target.value as HdKnowledgeCategory }))
+                setForm((p) => ({
+                  ...p,
+                  category: e.target.value as HdKnowledgeCategory,
+                  title: "",
+                  structuredValue: "",
+                }))
               }
               className={`h-9 ${fieldBase}`}
             >
@@ -144,20 +153,46 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
 
           <div>
             <label className={labelCls}>Başlık *</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-              placeholder="Örn: Generator"
-              className={`h-9 ${fieldBase}`}
-            />
+            {(() => {
+              const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
+              if (opts) {
+                return (
+                  <select
+                    value={form.structuredValue}
+                    onChange={(e) => {
+                      const opt = opts.find((o) => o.code === e.target.value);
+                      setForm((p) => ({
+                        ...p,
+                        structuredValue: e.target.value,
+                        title: opt?.label ?? "",
+                      }));
+                    }}
+                    className={`h-9 ${fieldBase}`}
+                  >
+                    <option value="">— Seçin —</option>
+                    {opts.map((opt) => (
+                      <option key={opt.code} value={opt.code}>{opt.label}</option>
+                    ))}
+                  </select>
+                );
+              }
+              return (
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="Başlık girin..."
+                  className={`h-9 ${fieldBase}`}
+                />
+              );
+            })()}
           </div>
 
           <div>
             <label className={labelCls}>Kod (otomatik)</label>
             <input
               type="text"
-              value={form.code}
+              value={computeCode(form.category, form.title, form.structuredValue)}
               readOnly
               className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
             />

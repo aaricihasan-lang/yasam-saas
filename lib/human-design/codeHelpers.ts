@@ -4,6 +4,7 @@ import {
   HUMAN_DESIGN_CENTERS,
   HUMAN_DESIGN_CHANNELS,
   HUMAN_DESIGN_DEFINITIONS,
+  HUMAN_DESIGN_GATES,
   HUMAN_DESIGN_PROFILES,
   HUMAN_DESIGN_TYPES,
   type HdKnowledgeCategory,
@@ -75,4 +76,67 @@ export function buildKnowledgeCode(
 ): string {
   const prefix = HD_KNOWLEDGE_CATEGORY_PREFIX[category as HdKnowledgeCategory] ?? "hd";
   return `${prefix}_${slugify(title)}`;
+}
+
+// -------------------------------------------------------
+// Structured option helpers — Bilgi Bankası formu için
+// -------------------------------------------------------
+
+export type StructuredOption = { code: string; label: string };
+
+/**
+ * Yapısal kategoriler için önceden tanımlı seçenek listesi döner.
+ * Serbest kategoriler (Stratejiler, Genel Notlar) için null döner.
+ * Dönen code değerleri buildCodesFromChart() çıktısıyla birebir eşleşir.
+ */
+export function getStructuredCategoryOptions(category: string): StructuredOption[] | null {
+  switch (category) {
+    case "Tipler":
+      return HUMAN_DESIGN_TYPES.map(({ code, label }) => ({ code, label }));
+    case "Otoriteler":
+      return HUMAN_DESIGN_AUTHORITIES.map(({ code, label }) => ({ code, label }));
+    case "Profiller":
+      return HUMAN_DESIGN_PROFILES.map(({ code, label }) => ({ code, label }));
+    case "Tanımlar":
+      return HUMAN_DESIGN_DEFINITIONS.map(({ code, label }) => ({ code, label }));
+    case "Merkezler":
+      return HUMAN_DESIGN_CENTERS.map(({ code, label }) => ({ code, label }));
+    case "Kanallar":
+      // "34-57" → "34_57" — buildCodesFromChart ile aynı dönüşüm
+      return HUMAN_DESIGN_CHANNELS.map(({ code, label }) => ({
+        code: (code as string).replace(/-/g, "_"),
+        label,
+      }));
+    case "Kapılar":
+      return HUMAN_DESIGN_GATES.map(({ code, label }) => ({
+        code: String(code),
+        label,
+      }));
+    default:
+      return null;
+  }
+}
+
+/**
+ * Yapısal kategori için prefix + rawValue şeklinde doğrudan kod üretir (slugify yok).
+ * buildCodesFromChart() çıktısıyla eşleşen kodlar üretir.
+ */
+export function buildKnowledgeCodeFromValue(category: string, rawValue: string): string {
+  const prefix = HD_KNOWLEDGE_CATEGORY_PREFIX[category as HdKnowledgeCategory] ?? "hd";
+  return `${prefix}_${rawValue}`;
+}
+
+/**
+ * Mevcut bir Bilgi Bankası kaydının code alanından structuredValue türetir.
+ * Düzenleme formunda mevcut seçimin dropdown'da doğru gösterilmesi için kullanılır.
+ */
+export function deriveStructuredValue(category: string, code: string): string {
+  const opts = getStructuredCategoryOptions(category);
+  if (opts === null) return "";
+  const prefix = HD_KNOWLEDGE_CATEGORY_PREFIX[category as HdKnowledgeCategory];
+  if (!prefix) return "";
+  const pfx = `${prefix}_`;
+  if (!code.startsWith(pfx)) return "";
+  const raw = code.slice(pfx.length);
+  return opts.some((o) => o.code === raw) ? raw : "";
 }

@@ -9,7 +9,13 @@ import {
   HUMAN_DESIGN_GATES,
   type HdKnowledgeCategory,
 } from "@/lib/human-design/constants";
-import { buildKnowledgeCode } from "@/lib/human-design/codeHelpers";
+import {
+  buildKnowledgeCode,
+  buildKnowledgeCodeFromValue,
+  deriveStructuredValue,
+  getStructuredCategoryOptions,
+  type StructuredOption,
+} from "@/lib/human-design/codeHelpers";
 import { updateHdKnowledgeRecord, type HdKnowledgeRow } from "../helpers/hdBilgiKayit";
 
 const fieldBase =
@@ -26,6 +32,7 @@ type Props = {
 type FormState = {
   category: string;
   title: string;
+  structuredValue: string; // yapısal kategorilerde seçilen ham kod
   code: string;
   content: string;
   keywordsText: string;
@@ -37,10 +44,21 @@ type FormState = {
   is_active: boolean;
 };
 
+function computeCode(category: string, title: string, structuredValue: string): string {
+  if (!category) return "";
+  const opts = getStructuredCategoryOptions(category);
+  if (opts !== null) {
+    return structuredValue ? buildKnowledgeCodeFromValue(category, structuredValue) : "";
+  }
+  return title.trim() ? buildKnowledgeCode(category, title.trim()) : "";
+}
+
 function rowToForm(row: HdKnowledgeRow): FormState {
+  const structuredValue = deriveStructuredValue(row.category, row.code);
   return {
     category: row.category,
     title: row.title,
+    structuredValue,
     code: row.code,
     content: row.content,
     keywordsText: row.keywords.join(", "),
@@ -67,14 +85,9 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
   }, [row]);
 
   useEffect(() => {
-    if (form.category && form.title.trim()) {
-      const generated = buildKnowledgeCode(
-        form.category as HdKnowledgeCategory,
-        form.title.trim(),
-      );
-      setForm((p) => ({ ...p, code: generated }));
-    }
-  }, [form.category, form.title]);
+    const newCode = computeCode(form.category, form.title, form.structuredValue);
+    setForm((p) => (p.code === newCode ? p : { ...p, code: newCode }));
+  }, [form.category, form.title, form.structuredValue]);
 
   function toggleCenter(code: string) {
     setForm((p) => ({
@@ -183,6 +196,8 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
                       setForm((p) => ({
                         ...p,
                         category: e.target.value as HdKnowledgeCategory,
+                        title: "",
+                        structuredValue: "",
                       }))
                     }
                     className={`h-9 ${fieldBase}`}
@@ -198,12 +213,38 @@ export function HdDetayModal({ row, onClose, onSaved }: Props) {
 
                 <div>
                   <label className={labelCls}>Başlık *</label>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                    className={`h-9 ${fieldBase}`}
-                  />
+                  {(() => {
+                    const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
+                    if (opts) {
+                      return (
+                        <select
+                          value={form.structuredValue}
+                          onChange={(e) => {
+                            const opt = opts.find((o) => o.code === e.target.value);
+                            setForm((p) => ({
+                              ...p,
+                              structuredValue: e.target.value,
+                              title: opt?.label ?? "",
+                            }));
+                          }}
+                          className={`h-9 ${fieldBase}`}
+                        >
+                          <option value="">— Seçin —</option>
+                          {opts.map((opt) => (
+                            <option key={opt.code} value={opt.code}>{opt.label}</option>
+                          ))}
+                        </select>
+                      );
+                    }
+                    return (
+                      <input
+                        type="text"
+                        value={form.title}
+                        onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                        className={`h-9 ${fieldBase}`}
+                      />
+                    );
+                  })()}
                 </div>
 
                 <div>
