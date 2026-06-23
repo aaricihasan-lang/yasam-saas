@@ -19,6 +19,8 @@ import { imaginationDetailHref } from "@/lib/bioenergy/imaginationsRoutes";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -121,6 +123,7 @@ const detailOpenBtnClass =
   "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
 
 export default function Imajinasyonlar() {
+  const { isDemo } = useDemoGuard();
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<ImaginationListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -300,10 +303,26 @@ export default function Imajinasyonlar() {
 
   return (
     <section className="w-full min-w-0">
+      {isDemo && (
+        <div className="mb-4 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
+            <div>
+              <p className="text-sm font-black text-blue-900">Demo Modu — İmajinasyonlar</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                Bu sayfa demo amaçlıdır. Kayıt içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
+                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
-          + Yeni Kayıt
-        </button>
+        {!isDemo && (
+          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
+            + Yeni Kayıt
+          </button>
+        )}
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-2">
@@ -382,7 +401,7 @@ export default function Imajinasyonlar() {
         />
       ) : (
         <>
-          <div className="mb-6">
+          {!isDemo && <div className="mb-6">
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
@@ -392,7 +411,7 @@ export default function Imajinasyonlar() {
               onExportAll={() => void exportImaginationsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
             />
-          </div>
+          </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = imaginationDetailHref(row.id);
@@ -405,24 +424,26 @@ export default function Imajinasyonlar() {
 
               return (
                 <div key={row.id} className="relative">
-                  <label
-                    className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isExportSelected}
-                      onChange={() => setSelectedForExport((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
-                        return next;
-                      })}
-                      className="h-4 w-4 rounded accent-amber-600 shadow"
-                    />
-                  </label>
+                  {!isDemo && (
+                    <label
+                      className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isExportSelected}
+                        onChange={() => setSelectedForExport((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                          return next;
+                        })}
+                        className="h-4 w-4 rounded accent-amber-600 shadow"
+                      />
+                    </label>
+                  )}
                 <Link
                   href={detailHref}
-                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${isExportSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${!isDemo && isExportSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {hasCategory ? (
                     <span
@@ -442,9 +463,11 @@ export default function Imajinasyonlar() {
                     {row.title?.trim() || "İsimsiz kayıt"}
                   </h2>
 
-                  <p className="mt-2 line-clamp-2 flex-1 text-[13px] leading-relaxed text-slate-700/90">
-                    {preview}
-                  </p>
+                  <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
+                    <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">
+                      {preview}
+                    </p>
+                  </DemoBlur>
 
                   <span className={detailOpenBtnClass}>Detayı Aç →</span>
                 </Link>

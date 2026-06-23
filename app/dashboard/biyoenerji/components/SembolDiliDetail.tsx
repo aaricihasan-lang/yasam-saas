@@ -23,6 +23,8 @@ import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFont
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { supabase } from "@/lib/supabase";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -92,6 +94,7 @@ function DetailContentCard({
 }
 
 export default function SembolDiliDetail({ id }: { id: string }) {
+  const { isDemo } = useDemoGuard();
   const router = useRouter();
   const lastGoodRecordRef = useRef<SymbolLanguageListItem | null>(null);
   const isMobile = useMobileViewport();
@@ -375,21 +378,32 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             defaultFontSizePx={SYMBOL_LANGUAGE_FONT_DEFAULT}
             compact
           />
-          <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
-          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
-          <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
-            {wordBusy ? "..." : "Word"}
-          </button>
+          {!isDemo && (
+            <>
+              <div className="h-4 w-px bg-slate-200" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+                {wordBusy ? "..." : "Word"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Document sections */}
-      {meaningContent ? <DetailContentCard title="Anlam" text={meaningContent} typography={contentTypography} /> : null}
-      {sourceContent ? <DetailContentCard title="Kaynak" text={sourceContent} typography={contentTypography} /> : null}
-      {!meaningContent && !sourceContent ? (
-        <DetailContentCard title="Icerik" text="Bu kayit icin henuz anlam veya kaynak girilmemis." typography={contentTypography} />
-      ) : null}
+      <DemoGate
+        isProtected={isDemo}
+        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+      >
+        <div>
+          {meaningContent ? <DetailContentCard title="Anlam" text={meaningContent} typography={contentTypography} /> : null}
+          {sourceContent ? <DetailContentCard title="Kaynak" text={sourceContent} typography={contentTypography} /> : null}
+          {!meaningContent && !sourceContent ? (
+            <DetailContentCard title="Icerik" text="Bu kayit icin henuz anlam veya kaynak girilmemis." typography={contentTypography} />
+          ) : null}
+        </div>
+      </DemoGate>
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}

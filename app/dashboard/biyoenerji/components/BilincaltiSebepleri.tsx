@@ -19,6 +19,8 @@ import { subconsciousCauseDetailHref } from "@/lib/bioenergy/subconsciousCausesR
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -116,6 +118,7 @@ const detailOpenBtnClass =
   "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
 
 export default function BilincaltiSebepleri() {
+  const { isDemo } = useDemoGuard();
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SubconsciousCauseListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -294,6 +297,20 @@ export default function BilincaltiSebepleri() {
 
   return (
     <section className="w-full min-w-0">
+      {isDemo && (
+        <div className="mb-4 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
+            <div>
+              <p className="text-sm font-black text-blue-900">Demo Modu — Bilinçaltı Sebepleri</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                Bu sayfa demo amaçlıdır. Kayıt içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
+                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-4 flex flex-col gap-3 border-b border-fuchsia-100/60 pb-4">
         <div className="flex flex-wrap items-end gap-2">
           <label className="block w-full xl:max-w-sm">
@@ -315,9 +332,11 @@ export default function BilincaltiSebepleri() {
               </p>
             ) : null}
           </label>
-          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
-            + Yeni Kayıt
-          </button>
+          {!isDemo && (
+            <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
+              + Yeni Kayıt
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -380,7 +399,7 @@ export default function BilincaltiSebepleri() {
         />
       ) : (
         <>
-          <div className="mb-3">
+          {!isDemo && <div className="mb-3">
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
@@ -390,7 +409,7 @@ export default function BilincaltiSebepleri() {
               onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
             />
-          </div>
+          </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((row, index) => {
               const detailHref = subconsciousCauseDetailHref(row.id);
@@ -403,24 +422,26 @@ export default function BilincaltiSebepleri() {
 
               return (
                 <div key={row.id} className="relative">
-                  <label
-                    className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isExportSelected}
-                      onChange={() => setSelectedForExport((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
-                        return next;
-                      })}
-                      className="h-4 w-4 rounded accent-fuchsia-600 shadow"
-                    />
-                  </label>
+                  {!isDemo && (
+                    <label
+                      className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isExportSelected}
+                        onChange={() => setSelectedForExport((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                          return next;
+                        })}
+                        className="h-4 w-4 rounded accent-fuchsia-600 shadow"
+                      />
+                    </label>
+                  )}
                 <Link
                   href={detailHref}
-                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 ${isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
+                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
                 >
                   {hasCategory ? (
                     <span
@@ -440,9 +461,11 @@ export default function BilincaltiSebepleri() {
                     {row.title?.trim() || "İsimsiz kayıt"}
                   </h2>
 
-                  <p className="mt-2 line-clamp-2 flex-1 text-[13px] leading-relaxed text-slate-700/90">
-                    {preview}
-                  </p>
+                  <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
+                    <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">
+                      {preview}
+                    </p>
+                  </DemoBlur>
 
                   <span className={detailOpenBtnClass}>Detayı Aç →</span>
                 </Link>

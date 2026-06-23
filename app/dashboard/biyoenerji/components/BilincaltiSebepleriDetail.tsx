@@ -17,6 +17,8 @@ import { useSubconsciousCausesFontSize } from "@/lib/bioenergy/useSubconsciousCa
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { supabase } from "@/lib/supabase";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -110,6 +112,7 @@ function DetailSection({
 export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   const router = useRouter();
   const isMobile = useMobileViewport();
+  const { isDemo } = useDemoGuard();
   const {
     fontSizePx,
     decrease: decreaseFontSize,
@@ -378,18 +381,32 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             defaultFontSizePx={SUBCONSCIOUS_CAUSES_FONT_DEFAULT}
             compact
           />
-          <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
-          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
-          <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
-            {wordBusy ? "..." : "Word"}
-          </button>
+          {!isDemo && (
+            <>
+              <div className="h-4 w-px bg-slate-200" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+                {wordBusy ? "..." : "Word"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Document sections */}
-      {contentText ? <DetailSection title="Icerik" text={contentText} typography={contentTypography} /> : null}
-      {noteText ? <DetailSection title="Not" text={noteText} typography={contentTypography} /> : null}
+      <DemoGate
+        isProtected={isDemo}
+        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+      >
+        <div>
+          {contentText ? <DetailSection title="Icerik" text={contentText} typography={contentTypography} /> : null}
+          {noteText ? <DetailSection title="Not" text={noteText} typography={contentTypography} /> : null}
+          {isDemo && !contentText && !noteText ? (
+            <DetailSection title="Icerik" text="Demo içerik alanı." typography={contentTypography} />
+          ) : null}
+        </div>
+      </DemoGate>
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}

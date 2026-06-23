@@ -18,6 +18,8 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 
 type BioenergySession = {
   id: string;
@@ -72,6 +74,7 @@ function previewText(s: string | null, max = 200) {
 }
 
 export default function BiyoenerjiSeanslari() {
+  const { isDemo } = useDemoGuard();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -369,6 +372,20 @@ export default function BiyoenerjiSeanslari() {
 
   return (
     <section className={sectionShellClass}>
+      {isDemo && (
+        <div className="mb-4 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
+            <div>
+              <p className="text-sm font-black text-blue-900">Demo Modu — Biyoenerji Seansları</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
+                Bu sayfa demo amaçlıdır. Seans içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
+                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-2xl">
@@ -430,13 +447,15 @@ export default function BiyoenerjiSeanslari() {
               {loading ? (
                 <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
               ) : null}
-              <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
-                + Yeni Kayıt
-              </button>
+              {!isDemo && (
+                <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                  + Yeni Kayıt
+                </button>
+              )}
             </div>
           </div>
           {/* Word export çubuğu */}
-          {!loading && filteredRows.length > 0 && (
+          {!isDemo && !loading && filteredRows.length > 0 && (
             <div className="mb-2">
               <BulkExportBar
                 selectedCount={selectedForExport.size}
@@ -469,21 +488,23 @@ export default function BiyoenerjiSeanslari() {
                 const exportSelected = selectedForExport.has(row.id);
                 return (
                   <div key={row.id} className="relative">
-                    <label
-                      className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2 flex h-4 w-4 cursor-pointer items-center justify-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={exportSelected}
-                        onChange={() => toggleExportSelection(row.id)}
-                        className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
-                      />
-                    </label>
+                    {!isDemo && (
+                      <label
+                        className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2 flex h-4 w-4 cursor-pointer items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={exportSelected}
+                          onChange={() => toggleExportSelection(row.id)}
+                          className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
+                        />
+                      </label>
+                    )}
                   <button
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border pl-7 pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
                       active
                         ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18),0_14px_36px_-12px_rgba(109,40,217,0.14)] ring-2 ring-violet-200/45 ring-offset-1 ring-offset-transparent"
                         : exportSelected
@@ -532,39 +553,43 @@ export default function BiyoenerjiSeanslari() {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                {previewText(selectedRow.content)}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
-                <button
-                  type="button"
-                  disabled={wordBusy}
-                  onClick={() => void exportSessionsWord("single", selectedRow.id)}
-                  className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
-                >
-                  {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                </button>
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[12px] font-black text-violet-900 shadow-[0_4px_18px_-8px_rgba(109,40,217,0.12)] transition hover:bg-violet-100/90"
-                >
-                  Güncelle
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={openDeleteConfirm}
-                  className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
-                >
-                  Sil
-                </button>
-              </div>
+              <DemoBlur isProtected={isDemo}>
+                <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
+                  {previewText(selectedRow.content)}
+                </p>
+              </DemoBlur>
+              {!isDemo && (
+                <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+                  <button
+                    type="button"
+                    disabled={wordBusy}
+                    onClick={() => void exportSessionsWord("single", selectedRow.id)}
+                    className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
+                  >
+                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openEditModal}
+                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[12px] font-black text-violet-900 shadow-[0_4px_18px_-8px_rgba(109,40,217,0.12)] transition hover:bg-violet-100/90"
+                  >
+                    Güncelle
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={openDeleteConfirm}
+                    className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                  >
+                    Sil
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-white/65 px-4 text-center">
               <p className="max-w-sm text-sm font-medium text-slate-400">
-                Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin.
+                {isDemo ? "Soldan bir kayıt seçerek özetini görün." : "Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin."}
               </p>
             </div>
           )}

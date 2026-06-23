@@ -25,6 +25,8 @@ import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
 import { supabase } from "@/lib/supabase";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoGate } from "@/components/demo/DemoGate";
 import { LongTextareaField } from "./LargeTextModal";
 
 type ChakraForm = {
@@ -110,6 +112,7 @@ function recordToForm(record: ChakraDetailItem): ChakraForm {
 
 export default function CakralarDetail({ id }: { id: string }) {
   const router = useRouter();
+  const { isDemo } = useDemoGuard();
   const lastGoodRecordRef = useRef<ChakraDetailItem | null>(null);
   const isMobile = useMobileViewport();
   const {
@@ -402,29 +405,40 @@ export default function CakralarDetail({ id }: { id: string }) {
             defaultFontSizePx={CHAKRAS_FONT_DEFAULT}
             compact
           />
-          <div className="h-4 w-px bg-slate-200" aria-hidden />
-          <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
-          <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
-          {record && (
-            <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
-              {wordBusy ? "..." : "Word"}
-            </button>
+          {!isDemo && (
+            <>
+              <div className="h-4 w-px bg-slate-200" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              {record && (
+                <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
+                  {wordBusy ? "..." : "Word"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
       {/* Document sections */}
-      {sections.length > 0 ? (
-        sections.map((s) => (
-          <DetailContentCard key={s.title} title={s.title} text={s.text} typography={contentTypography} />
-        ))
-      ) : (
-        <DetailContentCard
-          title="İçerik"
-          text="Bu kayıt için henüz organ, renk veya not girilmemiş."
-          typography={contentTypography}
-        />
-      )}
+      <DemoGate
+        isProtected={isDemo}
+        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+      >
+        <div>
+        {sections.length > 0 ? (
+          sections.map((s) => (
+            <DetailContentCard key={s.title} title={s.title} text={s.text} typography={contentTypography} />
+          ))
+        ) : (
+          <DetailContentCard
+            title="İçerik"
+            text="Bu kayıt için henüz organ, renk veya not girilmemiş."
+            typography={contentTypography}
+          />
+        )}
+        </div>
+      </DemoGate>
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
