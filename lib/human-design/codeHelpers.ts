@@ -99,8 +99,14 @@ export function getStructuredCategoryOptions(category: string): StructuredOption
       return HUMAN_DESIGN_PROFILES.map(({ code, label }) => ({ code, label }));
     case "Tanımlar":
       return HUMAN_DESIGN_DEFINITIONS.map(({ code, label }) => ({ code, label }));
-    case "Merkezler":
-      return HUMAN_DESIGN_CENTERS.map(({ code, label }) => ({ code, label }));
+    case "Merkezler": {
+      const result: StructuredOption[] = [];
+      for (const { code, label } of HUMAN_DESIGN_CENTERS) {
+        result.push({ code: `tanimli_${code}`, label: `Tanımlı — ${label}` });
+        result.push({ code: `acik_${code}`,    label: `Açık — ${label}` });
+      }
+      return result;
+    }
     case "Kanallar":
       // "34-57" → "34_57" — buildCodesFromChart ile aynı dönüşüm
       return HUMAN_DESIGN_CHANNELS.map(({ code, label }) => ({

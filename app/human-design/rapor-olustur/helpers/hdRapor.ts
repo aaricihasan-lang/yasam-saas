@@ -36,8 +36,11 @@ export function buildCodesFromChart(chart: HumanDesignChart): string[] {
   if (chart.profile_code) codes.push(`profil_${chart.profile_code}`);
   if (chart.definition_code) codes.push(`tanim_${chart.definition_code}`);
 
-  for (const center of [...(chart.active_centers ?? []), ...(chart.open_centers ?? [])]) {
-    codes.push(`merkez_${center}`);
+  for (const center of (chart.active_centers ?? [])) {
+    codes.push(`merkez_tanimli_${center}`);
+  }
+  for (const center of (chart.open_centers ?? [])) {
+    codes.push(`merkez_acik_${center}`);
   }
 
   // "34-57" → "kanal_34_57"

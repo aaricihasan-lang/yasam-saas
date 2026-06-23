@@ -24,7 +24,8 @@ function buildCodes(f: typeof emptyForm): string[] {
   if (f.authority_code) codes.push(`otorite_${f.authority_code}`);
   if (f.profile_code) codes.push(`profil_${f.profile_code}`);
   if (f.definition_code) codes.push(`tanim_${f.definition_code}`);
-  for (const c of [...f.active_centers, ...f.open_centers]) codes.push(`merkez_${c}`);
+  for (const c of f.active_centers) codes.push(`merkez_tanimli_${c}`);
+  for (const c of f.open_centers) codes.push(`merkez_acik_${c}`);
   for (const ch of f.channels) codes.push(`kanal_${ch.replace(/-/g, "_")}`);
   for (const g of f.gates) codes.push(`kapi_${g}`);
   return [...new Set(codes)];
