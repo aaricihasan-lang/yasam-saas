@@ -18,6 +18,7 @@ import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -590,7 +591,9 @@ export default function DanisanListePage() {
                     <div className="space-y-1.5 text-[12px] text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
-                        <span className="truncate">{client.telefon || "Telefon yok"}</span>
+                        <DemoBlur isProtected={isDemo} intensity={4} className="min-w-0 flex-1">
+                          <span className="block truncate">{client.telefon || "Telefon yok"}</span>
+                        </DemoBlur>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
