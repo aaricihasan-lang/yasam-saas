@@ -25,6 +25,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { fetchStoneExclusions } from "@/lib/dogaltas/stonesListFetch";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -498,22 +499,26 @@ function TextBlock({
 
   if (isContentProtected) {
     return (
-      <div className={cardClass}>
+      <button type="button" onClick={onOpenRead} className={cardClass}>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={toneClass(tone)}>{badge}</span>
           <h2 className="text-sm font-black text-slate-950">{title}</h2>
         </div>
-        <div
-          className="pointer-events-none mt-2 min-h-[60px] select-none overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-3 shadow-inner"
-          style={{ filter: "blur(4px)", userSelect: "none" }}
-          aria-hidden="true"
-        >
-          <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-            {shortPreview(text, 240) || "Henüz bilgi girilmedi."}
-          </p>
+        <div className={uiContentBox}>
+          <div
+            className="overflow-hidden pointer-events-none select-none"
+            style={{ filter: "blur(4px)", userSelect: "none" }}
+            aria-hidden="true"
+          >
+            <p className={`line-clamp-4 whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}>
+              {shortPreview(text, 240) || "Henüz bilgi girilmedi."}
+            </p>
+          </div>
         </div>
-        <p className="mt-2 text-[11px] font-black text-amber-600">🔒 Demo hesabında korumalı</p>
-      </div>
+        <p className="mt-2 text-[11px] font-black text-amber-600">
+          🔒 Demo hesabında korumalı · yapıyı görmek için tıklayın
+        </p>
+      </button>
     );
   }
 
@@ -675,14 +680,19 @@ function StoneDetailPage() {
           : [tenantId, ADMIN_LIBRARY_TENANT_ID];
 
       // Demo: liste sıralamasındaki ilk taş referans kayıt → korumasız açık
+      // Liste ile birebir aynı mantık: updated_at DESC + exclusion filtresi
       if (readYasamUser()?.is_demo_account) {
-        const { data: firstStone } = await supabase
+        const excludedSet = await fetchStoneExclusions(tenantId);
+        let refQuery = supabase
           .from("stones")
           .select("id")
           .in("tenant_id", tenantIds)
           .order("updated_at", { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+        if (excludedSet.size > 0) {
+          refQuery = refQuery.not("id", "in", `(${Array.from(excludedSet).join(",")})`);
+        }
+        const { data: firstStone } = await refQuery.maybeSingle();
         setIsDemoReference(firstStone?.id === id);
       }
 
@@ -1821,6 +1831,7 @@ function StoneDetailPage() {
           <Fragment key={key}>{renderHighlightedText(segment, highlightQuery)}</Fragment>
         )}
         matchBadge={readerHasMatch ? <SearchMatchBadge /> : null}
+        contentBlurred={isContentProtected}
         onClose={() => setActiveReader(null)}
       />
 

@@ -15,6 +15,8 @@ export type StoneReaderModalProps = {
   highlightQuery?: string;
   renderHighlight?: (text: string, key: string) => ReactNode;
   matchBadge?: ReactNode;
+  /** Demo hesapta içerik koruması: başlık/kontroller açık kalır, metin alanı blur olur */
+  contentBlurred?: boolean;
   onClose: () => void;
 };
 
@@ -27,6 +29,7 @@ export function StoneReaderModal({
   highlightQuery,
   renderHighlight,
   matchBadge,
+  contentBlurred = false,
   onClose,
 }: StoneReaderModalProps) {
   const {
@@ -137,7 +140,22 @@ export function StoneReaderModal({
             className="mx-auto w-full max-w-[58rem]"
             style={{ fontSize: modalFontSize, lineHeight: DOGALTAS_MODAL_LINE_HEIGHT }}
           >
-            {formatStoneContent(text, { renderSegment, fontSizePx: modalFontSize })}
+            {contentBlurred ? (
+              <>
+                <div
+                  className="overflow-hidden pointer-events-none select-none"
+                  style={{ filter: "blur(6px)", userSelect: "none" }}
+                  aria-hidden="true"
+                >
+                  {formatStoneContent(text, { renderSegment, fontSizePx: modalFontSize })}
+                </div>
+                <p className="mt-6 text-center text-sm font-black text-amber-600">
+                  🔒 Demo hesabında bu içerik korumalıdır
+                </p>
+              </>
+            ) : (
+              formatStoneContent(text, { renderSegment, fontSizePx: modalFontSize })
+            )}
           </div>
         </div>
       </div>
