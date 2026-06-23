@@ -24,6 +24,9 @@ import {
   topProfit,
   topSelling,
 } from "@/lib/urun-stok/salesReportsLogic";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(254,205,211,0.35),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(251,113,133,0.12),transparent_30%),linear-gradient(160deg,#fff1f2_0%,#fdf2f8_42%,#f5f3ff_100%)] text-slate-950";
@@ -82,6 +85,7 @@ function RankList({ title, items, valueKey }: { title: string; items: ProductRan
 
 export default function SatisRaporlariPage() {
   const [hydrated, setHydrated] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [allLines, setAllLines] = useState<ReturnType<typeof loadAllReportLines>>([]);
   const [stockRows, setStockRows] = useState<ReturnType<typeof loadLiveStockRows>>([]);
   const [usdRate, setUsdRate] = useState("");
@@ -93,6 +97,9 @@ export default function SatisRaporlariPage() {
   }, [usdRate]);
 
   useEffect(() => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
     reload();
     setHydrated(true);
   }, [reload]);
@@ -168,6 +175,7 @@ export default function SatisRaporlariPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-700">Rapor &amp; analiz</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">

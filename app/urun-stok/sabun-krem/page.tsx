@@ -40,6 +40,9 @@ import {
   turkishUpper,
 } from "@/lib/urun-stok/soapCreamStockLogic";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -166,10 +169,15 @@ export default function SabunKremUrunStokPage() {
   const [sales, setSales] = useState<SoapCreamSaleRecord[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
+  const [isDemo, setIsDemo] = useState(false);
+
   const reloadInv = useCallback(() => setInventory(loadSoapCreamInventory()), []);
   const reloadSales = useCallback(() => setSales(loadSoapCreamSales()), []);
 
   useEffect(() => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
     reloadInv();
     reloadSales();
     setHydrated(true);
@@ -462,6 +470,7 @@ export default function SabunKremUrunStokPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-sky-700">Sabun &amp; Krem</p>
           <h1 className="mt-1 text-2xl font-black xl:text-3xl">Sabun / Krem Urunleri</h1>

@@ -19,6 +19,7 @@ import {
   fmtTrim,
   formatTotalsCard,
   isDizi,
+  loadInventory,
   loadSales,
   normalizeDiziInventory,
   saveInventory,
@@ -34,6 +35,9 @@ import {
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -195,8 +199,18 @@ export default function DogaltasUrunStokPage() {
   const [hydrated, setHydrated] = useState(false);
   // Z-2: Supabase sync için tenantId state'de tutulur
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   const reloadInventory = useCallback(async () => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) {
+      // Demo modda: sadece localStorage; Supabase'e dokunma
+      const items = loadInventory();
+      const { items: normalized, dirty } = normalizeDiziInventory(items);
+      if (dirty) saveInventory(normalized);
+      setInventory(dirty ? normalized : items);
+      return;
+    }
     const tenantId = await getSyncedTenantId();
     setActiveTenantId(tenantId);
     const { items: loaded } = await loadDogaltasInventoryForTenant(tenantId);
@@ -211,7 +225,10 @@ export default function DogaltasUrunStokPage() {
   }, []);
 
   useEffect(() => {
-    reloadInventory();
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
+    void reloadInventory();
     reloadSales();
     setHydrated(true);
   }, [reloadInventory, reloadSales]);
@@ -448,8 +465,8 @@ export default function DogaltasUrunStokPage() {
       reloadSales();
       setBasket([]);
       setPricingMsg("Satışlar kaydedildi ve stoktan düşüldü.");
-      // Z-2: Supabase'i güncelle; sayfa yenilenince stok eski haline dönmez
-      if (activeTenantId) {
+      // Z-2: Demo modda Supabase'e yazma; gerçek hesaplarda sync yap
+      if (!isDemo && activeTenantId) {
         void syncDogaltasInventoryToDb(activeTenantId, updated).then(({ error }) => {
           if (error) console.warn("[dogaltas] Supabase sync hatası (satış):", error);
         });
@@ -505,8 +522,8 @@ export default function DogaltasUrunStokPage() {
     saveSales(next);
     setSales(next);
     setHistorySelected(new Set());
-    // Z-2: Stok iadesi sonrası Supabase'i güncelle
-    if (activeTenantId) {
+    // Z-2: Demo modda Supabase'e yazma; gerçek hesaplarda sync yap
+    if (!isDemo && activeTenantId) {
       void syncDogaltasInventoryToDb(activeTenantId, inv).then(({ error }) => {
         if (error) console.warn("[dogaltas] Supabase sync hatası (stok iadesi):", error);
       });
@@ -536,6 +553,7 @@ export default function DogaltasUrunStokPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-4 w-full`}>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-800">Doğaltaş</p>
           <h1 className="mt-1 text-2xl font-black text-slate-900">Ürün / Stok Yönetimi</h1>

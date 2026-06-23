@@ -14,10 +14,14 @@ import {
   filterLiveStock,
   fmtMoney,
   formatStockTotals,
+  loadLiveStockRows,
   loadLiveStockRowsAsync,
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(221,214,254,0.35),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(129,140,248,0.14),transparent_30%),linear-gradient(160deg,#f5f3ff_0%,#eef2ff_40%,#faf5ff_100%)] text-slate-950";
@@ -106,6 +110,7 @@ function StockCard({ row }: { row: LiveStockRow }) {
 
 export default function CanliStokMerkeziPage() {
   const [hydrated, setHydrated] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [rows, setRows] = useState<LiveStockRow[]>([]);
   const [usdRate, setUsdRate] = useState("");
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -115,6 +120,13 @@ export default function CanliStokMerkeziPage() {
   );
 
   const reload = useCallback(async () => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) {
+      // Demo modda: senkron, localStorage tabanlı yükleme; Supabase'e dokunma
+      setRows(loadLiveStockRows(toFloat(usdRate, 0)));
+      setInventorySource("demo");
+      return;
+    }
     const tid = await getSyncedTenantId();
     setTenantId(tid);
     const result = await loadLiveStockRowsAsync(tid, toFloat(usdRate, 0));
@@ -133,6 +145,9 @@ export default function CanliStokMerkeziPage() {
   }, [usdRate]);
 
   useEffect(() => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
     void reload().then(() => setHydrated(true));
   }, [reload]);
 
@@ -210,6 +225,7 @@ export default function CanliStokMerkeziPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-4`}>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-700">Canlı depo</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">Canlı Stok Merkezi</h1>

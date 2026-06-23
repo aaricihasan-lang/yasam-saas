@@ -42,6 +42,9 @@ import {
   turkishUpper,
 } from "@/lib/urun-stok/oilStockLogic";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 type TabId = "stock" | "pricing" | "history";
 
@@ -168,10 +171,15 @@ export default function YagUrunStokPage() {
   const [sales, setSales] = useState<OilSaleRecord[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
+  const [isDemo, setIsDemo] = useState(false);
+
   const reloadInv = useCallback(() => setInventory(loadOilInventory()), []);
   const reloadSales = useCallback(() => setSales(loadOilSales()), []);
 
   useEffect(() => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
     reloadInv();
     reloadSales();
     setHydrated(true);
@@ -460,6 +468,7 @@ export default function YagUrunStokPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-4`}>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-700">Yağ Ürünleri</p>
           <h1 className="mt-1 text-2xl font-black">Yağ Ürün / Stok</h1>

@@ -16,6 +16,9 @@ import {
   toFloat,
   turkishUpper,
 } from "@/lib/urun-stok/generalSalesLogic";
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
+import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
 const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(245,208,254,0.28),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(244,114,182,0.12),transparent_30%),linear-gradient(160deg,#fdf4ff_0%,#fff1f2_40%,#f5f3ff_100%)] text-slate-950";
@@ -43,6 +46,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const committingRef = useRef(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [products, setProducts] = useState<UnifiedProduct[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgOk, setMsgOk] = useState(false);
@@ -56,6 +60,9 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   const liveCounts = useMemo(() => countLiveInventoryByCategory(), [products]);
 
   useEffect(() => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) seedDemoUrunStok();
+    setIsDemo(demo);
     reloadProducts();
     setHydrated(true);
   }, [reloadProducts]);
@@ -224,6 +231,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       </div>
 
       <div className={pageShell}>
+        {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satis</p>
           <h1 className="mt-1 text-2xl font-black xl:text-3xl">Satis &amp; Fiyatlandirma</h1>
