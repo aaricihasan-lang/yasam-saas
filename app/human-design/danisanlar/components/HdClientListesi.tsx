@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   listHdClients,
   deleteHdClient,
@@ -58,6 +59,10 @@ export function HdClientListesi() {
   }, [rows, search]);
 
   async function handleDelete(row: HdClientRow) {
+    if (readYasamUser()?.is_demo_account === true) {
+      showToast({ message: "Demo hesabında danışan silinemez.", type: "info" });
+      return;
+    }
     const ok = await confirm({
       title: "Danışanı sil",
       message: `"${row.name}" kalıcı olarak silinecek. Emin misiniz?`,

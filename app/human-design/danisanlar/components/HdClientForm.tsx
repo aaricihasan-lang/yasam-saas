@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { insertHdClient } from "../helpers/hdClients";
 
 const fieldBase =
@@ -32,6 +33,10 @@ export function HdClientForm({ onSuccess }: Props) {
   }
 
   async function handleSave() {
+    if (readYasamUser()?.is_demo_account === true) {
+      showToast({ message: "Demo hesabında danışan eklenemez.", type: "info" });
+      return;
+    }
     if (!form.name.trim()) {
       showToast({ message: "Ad Soyad zorunludur.", type: "warning" });
       return;

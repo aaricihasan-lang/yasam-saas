@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -31,6 +33,7 @@ function charCountColor(len: number): string {
 
 export default function DersNotuPage() {
   useBfcacheRefresh();
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -155,6 +158,10 @@ export default function DersNotuPage() {
       <div className="pointer-events-none absolute bottom-0 left-[35%] h-64 w-64 rounded-full bg-cyan-300/15 blur-3xl" aria-hidden />
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
+
+        {isDemo && (
+          <DemoModuleBanner message="Ders notu transkript aracı demo hesabında kullanılabilir. Metin girip düzenleyebilirsiniz." />
+        )}
 
         {/* header */}
         <header className="mb-2">

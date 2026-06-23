@@ -5,6 +5,8 @@ import { HumanDesignShell } from "../components/HumanDesignShell";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { HdClientForm } from "./components/HdClientForm";
 import { HdClientListesi } from "./components/HdClientListesi";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 const TABS = [
   { id: "ekle" as const, label: "Danışan Ekle" },
@@ -15,10 +17,14 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function HdDanisanlarPage() {
   useBfcacheRefresh();
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [tab, setTab] = useState<TabId>("liste");
 
   return (
     <HumanDesignShell>
+      {isDemo && (
+        <DemoModuleBanner className="mb-3" message="Human Design demo hesabında görüntüleme modundadır. Yeni danışan ekleme, düzenleme ve silme işlemleri yapılamaz." />
+      )}
       {/* Başlık */}
       <div className="mb-3 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
@@ -31,9 +37,9 @@ export default function HdDanisanlarPage() {
 
       {/* İçerik */}
       <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md">
-        {/* Tab Bar */}
+        {/* Tab Bar — demo'da sadece liste sekmesi */}
         <div className="flex flex-wrap gap-2 rounded-t-2xl border-b border-indigo-200/60 bg-white/75 p-3 backdrop-blur-xl">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !isDemo || t.id === "liste").map((t) => (
             <button
               key={t.id}
               type="button"

@@ -5,6 +5,8 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   HUMAN_DESIGN_TYPES,
   HUMAN_DESIGN_AUTHORITIES,
@@ -40,6 +42,7 @@ function formatDate(val: string | null | undefined): string {
 export default function HdKayitliHaritalarPage() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   const [rows, setRows] = useState<HdChartWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,7 @@ export default function HdKayitliHaritalarPage() {
   useEffect(() => { loadRows(); }, [loadRows]);
 
   async function handleDelete(row: HdChartWithClient) {
+    if (isDemo) { showToast({ message: "Demo hesabında harita silinemez.", type: "info" }); return; }
     const clientName = row.client?.name ?? row.client_name ?? "Bu danışan";
     const ok = await confirm({
       title: "Haritayı sil",
@@ -103,6 +107,9 @@ export default function HdKayitliHaritalarPage() {
   return (
     <HumanDesignShell>
       <BfcacheRefreshHandler />
+      {isDemo && (
+        <DemoModuleBanner className="mb-3" message="Human Design kayıtlı haritalar demo hesabında görüntülenebilir. Silme işlemi yapılamaz." />
+      )}
       {/* Başlık */}
       <div className="mb-3 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">

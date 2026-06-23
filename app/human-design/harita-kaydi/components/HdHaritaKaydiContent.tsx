@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   HUMAN_DESIGN_TYPES,
   HUMAN_DESIGN_AUTHORITIES,
@@ -149,6 +150,10 @@ export function HdHaritaKaydiContent() {
   }
 
   async function handleSave() {
+    if (readYasamUser()?.is_demo_account === true) {
+      showToast({ message: "Demo hesabında harita kaydı yapılamaz.", type: "info" });
+      return;
+    }
     if (!clientId) {
       showToast({ message: "Danışan seçin.", type: "warning" });
       return;

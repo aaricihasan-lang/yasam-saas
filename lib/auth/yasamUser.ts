@@ -244,10 +244,16 @@ export function clearYasamUser(): void {
       const parsed = JSON.parse(stored) as { is_demo_account?: boolean };
       if (parsed.is_demo_account === true) {
         [
+          // Refleksoloji
           "yasam-refleksoloji-atlas-v1",
           "yasam-refleksoloji-organs-v1",
           "yasam-refleksoloji-protokoller-v1",
           "yasam-refleksoloji-notlar-v1",
+          // Numeroloji bilgi bankası
+          "yasam-numeroloji-stone-assignments",
+          "yasam-numeroloji-training-explanations",
+          // Belge çeviri aktif iş
+          "belge_ceviri_active_job",
         ].forEach((k) => localStorage.removeItem(k));
       }
     }

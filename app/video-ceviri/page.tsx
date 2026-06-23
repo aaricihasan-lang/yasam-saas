@@ -25,6 +25,7 @@ import {
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import VideoUploadZone from "./components/VideoUploadZone";
 import {
   fetchVideoJobs,
@@ -71,6 +72,7 @@ const LANGUAGE_DISPLAY: Record<string, string> = {
 
 export default function VideoCeviriPage() {
   const { showToast } = useToast();
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   // veri
   const [tenantId, setTenantId]       = useState<string | null>(null);
@@ -448,6 +450,10 @@ export default function VideoCeviriPage() {
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-fuchsia-300/15 blur-3xl" aria-hidden />
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
+
+        {isDemo && (
+          <DemoModuleBanner message="Demo hesabında video yükleme işlemi yapılamaz. Modülün akışını ve arayüzünü önizleyebilirsiniz." />
+        )}
 
         {/* header */}
         <header className="mb-2">

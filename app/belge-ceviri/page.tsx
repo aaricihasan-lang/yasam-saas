@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   BookOpen,
   CheckCircle,
@@ -128,6 +129,7 @@ const LARGE_FILE_BYTES = 3 * 1024 * 1024;  // ~50+ sayfa heuristic — çeviri s
 
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -295,6 +297,12 @@ export default function BelgeCeviriPage() {
   }
 
   async function handleSubmit(cardId: CardId) {
+    // Demo hesapta belge işleme engeli
+    if (isDemo) {
+      showToast({ title: "Demo Hesabı", message: "Demo hesabında belge dönüştürme işlemi yapılamaz.", type: "info" });
+      return;
+    }
+
     const file = selectedFiles[cardId];
     const endpoint = ENDPOINT[cardId];
     if (!file || !endpoint || submitting) return;
@@ -422,6 +430,10 @@ export default function BelgeCeviriPage() {
       <div className="pointer-events-none absolute bottom-0 left-[30%] h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" aria-hidden />
 
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
+
+        {isDemo && (
+          <DemoModuleBanner message="Demo hesabında belge dönüştürme ve çeviri işlemleri yapılamaz. Modülün arayüzünü önizleyebilirsiniz." />
+        )}
 
         {/* hero — rozet + başlık + buton tek satırda */}
         <header className="mb-2">

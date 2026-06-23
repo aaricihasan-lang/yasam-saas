@@ -165,6 +165,13 @@ export default function VideoUploadZone({ onSuccess }: Props) {
   async function handleUpload() {
     if (!selectedFile) return;
 
+    // Demo hesapta yükleme engeli
+    if (readYasamUser()?.is_demo_account === true) {
+      setErrorMsg("Demo hesabında video yükleme işlemi yapılamaz.");
+      setPhase("error");
+      return;
+    }
+
     // 1. Validate
     setPhase("validating");
     const validErr = validateVideoFile(selectedFile);

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
@@ -313,6 +315,7 @@ const SUPPORT_END_YEAR = 2030;
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
 export default function CosmicCalendarPage() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [realNow] = useState(() => new Date());
   const todayYear = realNow.getFullYear(), todayMonth = realNow.getMonth(), todayDay = realNow.getDate();
 
@@ -603,6 +606,10 @@ export default function CosmicCalendarPage() {
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" aria-hidden />
 
       <div className="relative z-10 w-full px-4 pt-4 pb-4 sm:px-6 lg:px-8 xl:px-10">
+
+        {isDemo && (
+          <DemoModuleBanner message="Kozmik takvim hesaplamaları anlık ve gerçek verilerle çalışır. Tüm içerikler demo hesabında görüntülenebilir." />
+        )}
 
         {/* ── Hero ── */}
         <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/90 bg-gradient-to-br from-indigo-200 via-violet-100 to-cyan-100 px-5 py-3.5 shadow-[0_12px_40px_rgba(99,102,241,0.18)] backdrop-blur-xl sm:px-6">

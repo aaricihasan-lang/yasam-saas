@@ -24,6 +24,7 @@ import {
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { supabase } from "@/lib/supabase";
@@ -509,6 +510,7 @@ function SifaRehberiContent() {
   const searchParams = useSearchParams();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -593,6 +595,7 @@ function SifaRehberiContent() {
   }, []);
 
   async function exportWord(mode: "all" | "selected" | "filtered") {
+    if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında Word raporu oluşturulamaz.", type: "info" }); return; }
     const tenantId = queryTenantId;
     if (!tenantId) return;
     const userId = readYasamUser()?.id;
@@ -645,6 +648,7 @@ function SifaRehberiContent() {
   }
 
   async function handleBulkDeleteGuides() {
+    if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında silme işlemi yapılamaz.", type: "info" }); return; }
     const ids = Array.from(selectedForExport);
     if (ids.length === 0) return;
     const tenantId = queryTenantId;
@@ -698,6 +702,7 @@ function SifaRehberiContent() {
   }
 
   function openNewRecord() {
+    if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında yeni kayıt oluşturulamaz.", type: "info" }); return; }
     resetForm();
     setErrorMessage("");
     setSuccessMessage("");
@@ -744,6 +749,7 @@ function SifaRehberiContent() {
   }
 
   async function handleGuideImageFileChange(e: ChangeEvent<HTMLInputElement>) {
+    if (isDemo) { e.target.value = ""; return; }
     const file = e.target.files?.[0];
     const section = uploadTargetSection;
     e.target.value = "";
@@ -789,6 +795,7 @@ function SifaRehberiContent() {
   }
 
   async function removeGuideImage(img: GuideImage) {
+    if (isDemo) return;
     setErrorMessage("");
     if (img.file_path) {
       const { error: rmErr } = await supabase.storage.from("stone-photos").remove([img.file_path]);
@@ -827,6 +834,7 @@ function SifaRehberiContent() {
   }
 
   async function handleSave() {
+    if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında kayıt yapılamaz.", type: "info" }); return; }
     const nameTrim = form.name.trim();
     if (!nameTrim) {
       setErrorMessage("Rahatsızlık adı zorunludur.");
@@ -1220,6 +1228,9 @@ function SifaRehberiContent() {
       />
 
       <div className={isMenuView ? menuPageContent : isListView ? listPageContent : pageContent}>
+        {isDemo && (
+          <DemoModuleBanner message="Şifa rehberi kayıtları demo hesabı için görüntülenebilirdir. Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri demo hesabında çalışmaz." />
+        )}
         <header
           className={
             isMenuView

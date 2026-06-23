@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { saveNumerologyAnalysis } from "../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 
@@ -24,8 +25,12 @@ export function SaveAnalysisButton({
 }: Props) {
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   const disabled = busy || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
+
+  // Demo hesapta kayıt butonu gösterilmez
+  if (isDemo) return null;
 
   async function handleClick() {
     if (!motorOutput) return;

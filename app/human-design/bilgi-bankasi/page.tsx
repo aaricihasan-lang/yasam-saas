@@ -5,6 +5,8 @@ import { HumanDesignShell } from "../components/HumanDesignShell";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { HdBilgiKayitForm } from "./components/HdBilgiKayitForm";
 import { HdBilgiKayitListesi } from "./components/HdBilgiKayitListesi";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 const TABS = [
   { id: "kayit-ekle" as const, label: "Kayıt Ekle" },
@@ -15,10 +17,14 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function HdBilgiBankasiPage() {
   useBfcacheRefresh();
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [tab, setTab] = useState<TabId>("kayit-listesi");
 
   return (
     <HumanDesignShell>
+      {isDemo && (
+        <DemoModuleBanner className="mb-3" message="Demo hesabında Human Design bilgi bankası görüntülenebilir. Kayıt ekleme, düzenleme ve silme işlemleri yapılamaz." />
+      )}
       {/* Başlık */}
       <div className="mb-3 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
@@ -33,7 +39,7 @@ export default function HdBilgiBankasiPage() {
       <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md">
         {/* Tab Bar */}
         <div className="flex flex-wrap gap-2 rounded-t-2xl border-b border-indigo-200/60 bg-white/75 p-3 backdrop-blur-xl">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !isDemo || t.id === "kayit-listesi").map((t) => (
             <button
               key={t.id}
               type="button"
