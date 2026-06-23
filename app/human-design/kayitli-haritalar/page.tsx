@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   HUMAN_DESIGN_TYPES,
   HUMAN_DESIGN_AUTHORITIES,
@@ -18,6 +19,7 @@ import {
 import { HumanDesignShell } from "../components/HumanDesignShell";
 import {
   listChartsWithClients,
+  deleteHdChart,
   type HdChartWithClient,
 } from "./helpers/hdKayitliHaritalar";
 import { HdHaritaDetayModal } from "./components/HdHaritaDetayModal";
@@ -37,6 +39,7 @@ function formatDate(val: string | null | undefined): string {
 
 export default function HdKayitliHaritalarPage() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [rows, setRows] = useState<HdChartWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +48,7 @@ export default function HdKayitliHaritalarPage() {
   const [authorityFilter, setAuthorityFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
   const [detayRow, setDetayRow] = useState<HdChartWithClient | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -58,6 +62,29 @@ export default function HdKayitliHaritalarPage() {
   }, [showToast]);
 
   useEffect(() => { loadRows(); }, [loadRows]);
+
+  async function handleDelete(row: HdChartWithClient) {
+    const clientName = row.client?.name ?? row.client_name ?? "Bu danışan";
+    const ok = await confirm({
+      title: "Haritayı sil",
+      message: `"${clientName}" danışanına ait Human Design haritası kalıcı olarak silinecek. Emin misiniz?`,
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setDeletingId(row.id);
+    const { error } = await deleteHdChart(row.id);
+    setDeletingId(null);
+
+    if (error) {
+      showToast({ message: `Silinemedi: ${error}`, type: "error" });
+    } else {
+      showToast({ message: "Harita silindi.", type: "success" });
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
@@ -220,6 +247,14 @@ export default function HdKayitliHaritalarPage() {
                                 </Link>
                               </>
                             )}
+                            <button
+                              type="button"
+                              disabled={deletingId === row.id}
+                              onClick={() => handleDelete(row)}
+                              className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
+                            >
+                              {deletingId === row.id ? "..." : "Sil"}
+                            </button>
                           </div>
                         </td>
                       </tr>

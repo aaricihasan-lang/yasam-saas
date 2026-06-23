@@ -3,7 +3,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import type { HumanDesignChart, HumanDesignClient } from "@/lib/human-design/types";
 
 export type HdChartWithClient = HumanDesignChart & {
-  client: Pick<HumanDesignClient, "id" | "name" | "birth_date" | "birth_time" | "birth_place"> | null;
+  client: Pick<HumanDesignClient, "id" | "name" | "birth_date" | "birth_time" | "birth_place" | "external_chart_url"> | null;
 };
 
 export async function listChartsWithClients(): Promise<{
@@ -21,7 +21,7 @@ export async function listChartsWithClients(): Promise<{
       .order("created_at", { ascending: false }),
     supabase
       .from("human_design_clients")
-      .select("id, name, birth_date, birth_time, birth_place")
+      .select("id, name, birth_date, birth_time, birth_place, external_chart_url")
       .eq("tenant_id", tenantId),
   ]);
 
@@ -29,7 +29,7 @@ export async function listChartsWithClients(): Promise<{
   if (clientsRes.error) return { rows: [], error: clientsRes.error.message };
 
   const clientMap = new Map(
-    (clientsRes.data ?? []).map((c) => [c.id as string, c as Pick<HumanDesignClient, "id" | "name" | "birth_date" | "birth_time" | "birth_place">]),
+    (clientsRes.data ?? []).map((c) => [c.id as string, c as Pick<HumanDesignClient, "id" | "name" | "birth_date" | "birth_time" | "birth_place" | "external_chart_url">]),
   );
 
   const rows: HdChartWithClient[] = (chartsRes.data ?? []).map((chart) => ({
@@ -38,4 +38,17 @@ export async function listChartsWithClients(): Promise<{
   }));
 
   return { rows, error: null };
+}
+
+export async function deleteHdChart(id: string): Promise<{ error: string | null }> {
+  const tenantId = await getSyncedTenantId();
+  if (!tenantId) return { error: "Aktif kullanıcı tenant_id bulunamadı." };
+
+  const { error } = await supabase
+    .from("human_design_charts")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  return { error: error?.message ?? null };
 }

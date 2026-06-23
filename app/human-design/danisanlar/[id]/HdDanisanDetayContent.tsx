@@ -232,6 +232,17 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   placeholder="https://..."
                   className={`h-9 ${fieldBase}`}
                 />
+                {form.external_chart_url.trim() && (
+                  <a
+                    href={form.external_chart_url.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                  >
+                    <span className="truncate">Haritayı Dış Sitede Aç</span>
+                    <span aria-hidden className="shrink-0">↗</span>
+                  </a>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Not</label>
