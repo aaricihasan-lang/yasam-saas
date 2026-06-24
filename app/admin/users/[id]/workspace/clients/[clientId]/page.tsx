@@ -284,7 +284,6 @@ export default function AdminWorkspaceClientDetailPage() {
       stonesRes,
       sessionsRes,
       homeworksRes,
-      analysesRes,
     ] = await Promise.all([
       supabase
         .from("client_stones")
@@ -307,12 +306,6 @@ export default function AdminWorkspaceClientDetailPage() {
         .select(
           "id, title, homework_type, description, start_date, end_date, status, expert_note, client_feedback, created_at",
         )
-        .eq("client_id", clientId)
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("client_analyses")
-        .select("id, analysis_type, note, created_at")
         .eq("client_id", clientId)
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false }),
@@ -342,10 +335,26 @@ export default function AdminWorkspaceClientDetailPage() {
       setNotes(null);
     }
 
+    // client_analyses artık güvenli admin API üzerinden okunur (publishable key ile doğrudan okunmaz).
+    let analysesList: ClientAnalysis[] = [];
+    try {
+      const adminId = readYasamUser()?.id;
+      const aRes = await fetch(
+        `/api/admin/users/${expertUserId}/workspace/clients/${clientId}/analyses`,
+        { headers: { "x-admin-id": adminId ?? "" } },
+      );
+      if (aRes.ok) {
+        const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: ClientAnalysis[] };
+        analysesList = (aJson.analyses ?? []) as ClientAnalysis[];
+      }
+    } catch {
+      /* sessiz */
+    }
+
     setStones((stonesRes.data ?? []) as ClientStone[]);
     setSessions((sessionsRes.data ?? []) as ClientSession[]);
     setHomeworks((homeworksRes.data ?? []) as ClientHomework[]);
-    setAnalyses((analysesRes.data ?? []) as ClientAnalysis[]);
+    setAnalyses(analysesList);
     setLoading(false);
   }, [expertUserId, clientId]);
 

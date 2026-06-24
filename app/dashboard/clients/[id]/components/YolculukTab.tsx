@@ -1169,14 +1169,34 @@ export default function YolculukTab({
     async function fetchTimeline() {
       setTimelineLoading(true);
       try {
-        const [sessionsRes, appointmentsRes, stonesRes, analysesRes, homeworksRes] =
+        const [sessionsRes, appointmentsRes, stonesRes, homeworksRes] =
           await Promise.all([
             supabase.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
-            supabase.from("client_analyses").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
           ]);
+
+        // client_analyses artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let analysesData: any[] = [];
+        try {
+          const userId = readYasamUser()?.id;
+          const sessionToken = readSessionToken();
+          const aRes = await fetch(`/api/clients/${clientId}/analyses`, {
+            headers: {
+              "x-user-id": userId ?? "",
+              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+            },
+          });
+          if (aRes.ok) {
+            const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: unknown[] };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            analysesData = (aJson.analyses ?? []) as any[];
+          }
+        } catch {
+          /* sessiz — zaman çizelgesi analizleri opsiyonel */
+        }
 
         // client_notes artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1243,7 +1263,7 @@ export default function YolculukTab({
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const an of (analysesRes.data ?? []) as any[]) {
+        for (const an of analysesData as any[]) {
           normalized.push({
             id: `analiz-${an.id}`,
             type: "analiz",
@@ -1469,7 +1489,7 @@ export default function YolculukTab({
           : null;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const analysisSorted = ((analysesRes.data ?? []) as any[])
+        const analysisSorted = (analysesData as any[])
           .filter((a) => a.created_at)
           .sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
         const lastAnalizDaysAgo = analysisSorted[0]?.created_at
@@ -1480,7 +1500,7 @@ export default function YolculukTab({
 
         setEntries(normalized);
         setCounts({
-          analizler: analysesRes.data?.length ?? 0,
+          analizler: analysesData.length,
           seanslar: sessionsRes.data?.length ?? 0,
           randevular: appointmentsRes.data?.length ?? 0,
           taslar: stonesRes.data?.length ?? 0,

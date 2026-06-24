@@ -7,7 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnalizlerTabProps = {
@@ -162,17 +162,22 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   async function loadSavedAnalyses() {
     if (!clientId || !tenantId) return;
     setLoadingSaved(true);
-    const { data, error } = await supabase
-      .from("client_analyses").select("*")
-      .eq("tenant_id", tenantId).eq("client_id", clientId)
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Analizler yüklenemedi:", error);
-      showToast({ title: "İşlem başarısız", message: "Analizler yüklenemedi: " + error.message, type: "error" });
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/analyses`, {
+      headers: {
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; analyses?: SavedAnalysis[] };
+    if (!res.ok || !json.ok) {
+      console.error("Analizler yüklenemedi:", json.error);
+      showToast({ title: "İşlem başarısız", message: "Analizler yüklenemedi: " + (json.error ?? ""), type: "error" });
       setLoadingSaved(false);
       return;
     }
-    setSavedAnalyses((data || []) as SavedAnalysis[]);
+    setSavedAnalyses((json.analyses || []) as SavedAnalysis[]);
     setLoadingSaved(false);
   }
 
@@ -202,8 +207,19 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       message: "Bu analiz kaydı silinsin mi?",
     });
     if (!ok) return;
-    const { error } = await supabase.from("client_analyses").delete().eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
-    if (error) { showToast({ title: "İşlem başarısız", message: "Analiz silinemedi: " + error.message, type: "error" }); return; }
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/analyses`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ analysisId: id }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) { showToast({ title: "İşlem başarısız", message: "Analiz silinemedi: " + (json.error ?? ""), type: "error" }); return; }
     setSavedAnalyses((old) => old.filter((item) => item.id !== id));
     showToast({ title: "Başarılı", message: "Analiz silindi.", type: "success" });
   }
@@ -265,17 +281,24 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     if (!activeAnalysis) { showToast({ title: "İşlem başarısız", message: "Önce analiz seçmelisiniz.", type: "error" }); return; }
     setSavingAnalysis(true);
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
-    const { data: insertData, error } = await supabase
-      .from("client_analyses")
-      .insert({ tenant_id: tenantId, client_id: clientId, analysis_type: activeAnalysis, analysis_data: analysisData, note })
-      .select("id")
-      .single();
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + error.message, type: "error" });
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/analyses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ analysis_type: activeAnalysis, analysis_data: analysisData, note }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: "Analiz kaydedilemedi: " + (json.error ?? ""), type: "error" });
       setSavingAnalysis(false);
       return;
     }
-    const newId = (insertData as { id: string } | null)?.id;
+    const newId = json.id ?? undefined;
     await loadSavedAnalyses();
     showToast({ title: "Başarılı", message: "Analiz kaydedildi.", type: "success" });
     setSavingAnalysis(false);
