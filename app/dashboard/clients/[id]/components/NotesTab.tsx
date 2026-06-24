@@ -149,53 +149,36 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* ── Premium başlık kartı ─────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-200/50">
-        <div className="border-b border-slate-100 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/40 px-3 py-2">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="mb-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-violet-700 shadow-sm">
-                Danışan Not Takip Sistemi
-              </div>
+      {/* ── Üst toolbar ─────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-base font-black tracking-tight text-slate-950">
+          Kayıtlı Notlar
+        </h3>
 
-              <h2 className="text-base font-black tracking-tight text-slate-950">
-                Danışan Notları
-              </h2>
-
-              <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
-                Danışana ait özel notları, seans gözlemlerini ve takip
-                bilgilerini tek ekrandan yönetebilirsin.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-stretch gap-2 lg:items-end">
-              <div className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-center shadow-md">
-                <div className="text-base font-black text-violet-700">
-                  {items.length}
-                </div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  toplam not
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm((v) => !v);
-                  setNewContent("");
-                }}
-                className={
-                  showForm
-                    ? "rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                    : "rounded-2xl border border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700"
-                }
-              >
-                {showForm ? "Formu Kapat" : "+ Yeni Not Ekle"}
-              </button>
-            </div>
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <div className="flex items-baseline gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 shadow-sm">
+            <span className="text-sm font-black leading-none text-violet-700">
+              {items.length}
+            </span>
+            <span className="text-[11px] font-black uppercase tracking-wide text-violet-700/70">
+              Toplam Not
+            </span>
           </div>
 
-          <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400" />
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm((v) => !v);
+              setNewContent("");
+            }}
+            className={
+              showForm
+                ? "rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                : "rounded-xl border border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700"
+            }
+          >
+            {showForm ? "Formu Kapat" : "+ Yeni Not Ekle"}
+          </button>
         </div>
       </div>
 
@@ -252,18 +235,8 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
         </div>
       )}
 
-      {/* ── Kayıtlı notlar ───────────────────────────────────────────── */}
+      {/* ── Not listesi ──────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-200/50">
-        <div className="mb-3">
-          <h3 className="text-base font-black tracking-tight text-slate-950">
-            Kayıtlı Notlar
-          </h3>
-          <p className="mt-1 text-sm font-medium text-slate-600">
-            Bu danışana ait tüm notlar. Notu görüntüleyebilir, güncelleyebilir
-            veya silebilirsin.
-          </p>
-        </div>
-
         {items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
             <div className="text-base font-black text-slate-800">
