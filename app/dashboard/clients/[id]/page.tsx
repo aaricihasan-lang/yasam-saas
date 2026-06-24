@@ -402,37 +402,23 @@ export default function ClientDetailPage() {
 
     setDeletingClient(true);
 
-    // Alt kayıtları önce sil — DB'de CASCADE yoksa orphan oluşmasın
-    const childTables = [
-      "client_notes",
-      "client_sessions",
-      "client_homeworks",
-      "appointments",
-      "client_analyses",
-    ] as const;
-
-    for (const table of childTables) {
-      const { error: childErr } = await supabase
-        .from(table)
-        .delete()
-        .eq("client_id", clientId)
-        .eq("tenant_id", tenantId);
-      if (childErr) console.error(`${table} silinirken hata (cascade varsa göz ardı edilebilir):`, childErr);
-    }
-
-    // Taş fotoğraflarını da temizle
-    const { data: stoneIds } = await supabase
-      .from("client_stones")
-      .select("id")
-      .eq("client_id", clientId)
-      .eq("tenant_id", tenantId);
-
-    if (stoneIds?.length) {
-      await supabase
-        .from("client_stone_photos")
-        .delete()
-        .in("stone_id", stoneIds.map((s) => s.id))
-        .eq("tenant_id", tenantId);
+    // Alt kayıtları (notlar, seanslar, ödevler, randevular, analizler, taş fotoğrafları)
+    // güvenli cascade API üzerinden sil — service_role, tenant+client kapsamlı.
+    {
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const cascadeRes = await fetch(`/api/clients/${clientId}/cascade-delete`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+      });
+      if (!cascadeRes.ok) {
+        const j = (await cascadeRes.json().catch(() => ({}))) as { error?: string };
+        console.error("Alt kayıt temizleme hatası:", j.error);
+      }
     }
 
     await supabase.from("client_stones").delete().eq("client_id", clientId).eq("tenant_id", tenantId);

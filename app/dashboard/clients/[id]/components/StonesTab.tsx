@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   parseStoneNames,
   checkStoneWarnings,
@@ -665,21 +666,24 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setPhotosLoading(true);
     setErrorMessage("");
 
-    const { data, error } = await supabase
-      .from("client_stone_photos")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false });
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/stone-photos`, {
+      headers: {
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; photos?: StonePhoto[] };
 
-    if (error) {
-      console.error("Taş fotoğrafları yüklenemedi:", error);
-      setErrorMessage("Taş fotoğrafları yüklenemedi: " + error.message);
+    if (!res.ok || !json.ok) {
+      console.error("Taş fotoğrafları yüklenemedi:", json.error);
+      setErrorMessage("Taş fotoğrafları yüklenemedi: " + (json.error ?? ""));
       setPhotosLoading(false);
       return;
     }
 
-    setPhotos(data || []);
+    setPhotos((json.photos || []) as StonePhoto[]);
     setPhotosLoading(false);
   }
 
@@ -731,21 +735,28 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         .from(STONE_PHOTO_BUCKET)
         .getPublicUrl(filePath);
 
-      const { error: insertError } = await supabase
-        .from("client_stone_photos")
-        .insert({
-          tenant_id: tenantId,
-          client_id: clientId,
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const insertRes = await fetch(`/api/clients/${clientId}/stone-photos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({
           stone_id: stoneId,
           image_url: publicUrlData.publicUrl,
           file_path: filePath,
-        });
+        }),
+      });
+      const insertJson = (await insertRes.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-      if (insertError) {
-        console.error("Foto kaydı veritabanına yazılamadı:", insertError);
+      if (!insertRes.ok || !insertJson.ok) {
+        console.error("Foto kaydı veritabanına yazılamadı:", insertJson.error);
         showToast({
           title: "İşlem başarısız",
-          message: "Foto kaydı yazılamadı: " + insertError.message,
+          message: "Foto kaydı yazılamadı: " + (insertJson.error ?? ""),
           type: "error",
         });
 
@@ -989,18 +1000,24 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       console.error("Foto storage üzerinden silinemedi:", storageError);
     }
 
-    const { error } = await supabase
-      .from("client_stone_photos")
-      .delete()
-      .eq("id", photo.id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/stone-photos`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ photoId: photo.id }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
-      console.error("Foto kaydı silinemedi:", error);
+    if (!res.ok || !json.ok) {
+      console.error("Foto kaydı silinemedi:", json.error);
       showToast({
         title: "İşlem başarısız",
-        message: "Foto kaydı silinemedi: " + error.message,
+        message: "Foto kaydı silinemedi: " + (json.error ?? ""),
         type: "error",
       });
       setDeletingPhotoId(null);
