@@ -11,7 +11,7 @@ import {
   MessageSquare,
   RefreshCw,
 } from "lucide-react";
-import { clearYasamUser, isAdminUser, readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
+import { clearYasamUser, isAdminUser, readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -77,10 +77,7 @@ function MessageCard({
     try {
       const res = await fetch("/api/admin/support", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-id": adminId,
-        },
+        headers: adminHeaders(adminId, true),
         body: JSON.stringify({ id: msg.id, status, admin_note: note }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
@@ -191,6 +188,15 @@ function MessageCard({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminSupportPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -210,7 +216,7 @@ export default function AdminSupportPage() {
     try {
       const params = filter !== "all" ? `?status=${filter}` : "";
       const res = await fetch(`/api/admin/support${params}`, {
-        headers: { "x-admin-id": adminId },
+        headers: adminHeaders(adminId),
       });
       const json = (await res.json()) as { messages?: SupportMsg[] };
       setMessages(json.messages ?? []);

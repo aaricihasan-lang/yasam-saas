@@ -9,9 +9,18 @@ import {
   SummaryStatCard,
   useSistemSagligiAdminGate,
 } from "../detail-shared";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 type HealthState = "healthy" | "check";
+
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 
 export default function SistemSagligiDurumPage() {
   useBfcacheRefresh();
@@ -39,7 +48,7 @@ export default function SistemSagligiDurumPage() {
 
     const adminId = readYasamUser()?.id;
     const res = await fetch("/api/admin/health/db-ping", {
-      headers: { "x-admin-id": adminId ?? "" },
+      headers: adminHeaders(adminId),
     });
 
     const elapsed = Math.round(performance.now() - started);

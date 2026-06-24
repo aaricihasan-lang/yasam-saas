@@ -9,7 +9,7 @@ import {
   type ManagedUser,
   type ManagedUserRole,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 type StatTone = "indigo" | "violet" | "emerald" | "amber" | "slate" | "rose";
 
@@ -96,6 +96,15 @@ function pickLastUsers(users: ManagedUser[], limit = 10): ManagedUser[] {
     .slice(0, limit);
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function SistemSagligiKullanicilarPage() {
   useBfcacheRefresh();
   const [checked, setChecked] = useState(false);
@@ -110,7 +119,7 @@ export default function SistemSagligiKullanicilarPage() {
 
     const adminId = readYasamUser()?.id;
     const res = await fetch("/api/admin/users", {
-      headers: { "x-admin-id": adminId ?? "" },
+      headers: adminHeaders(adminId),
     });
 
     if (!res.ok) {

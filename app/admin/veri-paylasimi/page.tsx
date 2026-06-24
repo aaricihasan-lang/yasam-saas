@@ -25,6 +25,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
+  readSessionToken,
   syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
@@ -249,6 +250,15 @@ function FlowStepBar({
   );
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function VeriPaylasimiPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -363,7 +373,7 @@ export default function VeriPaylasimiPage() {
     setExpertsLoading(true);
     const adminId = readYasamUser()?.id;
     const res = await fetch("/api/admin/users", {
-      headers: { "x-admin-id": adminId ?? "" },
+      headers: adminHeaders(adminId),
     });
 
     setExpertsLoading(false);

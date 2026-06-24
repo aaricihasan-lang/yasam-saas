@@ -25,6 +25,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
+  readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 
@@ -337,6 +338,15 @@ function AdminToolCardInactive({ item }: { item: AdminCard }) {
   );
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -350,7 +360,7 @@ export default function AdminPage() {
     try {
       const adminId = readYasamUser()?.id;
       const res = await fetch("/api/admin/metrics", {
-        headers: { "x-admin-id": adminId ?? "" },
+        headers: adminHeaders(adminId),
       });
       if (!res.ok) {
         setAdminMetrics({ total: null, active: null, pending: null, systemOk: false });

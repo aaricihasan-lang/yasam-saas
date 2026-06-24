@@ -15,7 +15,16 @@ import {
   useSistemSagligiAdminGate,
 } from "../detail-shared";
 import type { ManagedUser } from "@/lib/admin/userManagement";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 
 export default function SistemSagligiBekleyenlerPage() {
   useBfcacheRefresh();
@@ -30,7 +39,7 @@ export default function SistemSagligiBekleyenlerPage() {
 
     const adminId = readYasamUser()?.id;
     const res = await fetch("/api/admin/users", {
-      headers: { "x-admin-id": adminId ?? "" },
+      headers: adminHeaders(adminId),
     });
 
     if (!res.ok) {

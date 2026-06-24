@@ -4,7 +4,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Database, Loader2, Shield } from "lucide-react";
 import { normalizeApprovalStatus, normalizeRole } from "@/lib/auth/yasamUser";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const LEGACY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -188,7 +188,7 @@ async function checkSupabaseConnection(): Promise<boolean> {
   try {
     const adminId = readYasamUser()?.id;
     const res = await fetch("/api/admin/health/db-ping", {
-      headers: { "x-admin-id": adminId ?? "" },
+      headers: adminHeaders(adminId),
     });
     return res.ok;
   } catch {
@@ -203,7 +203,7 @@ async function fetchUsersForMetrics(): Promise<{
 }> {
   const adminId = readYasamUser()?.id;
   const res = await fetch("/api/admin/users", {
-    headers: { "x-admin-id": adminId ?? "" },
+    headers: adminHeaders(adminId),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -390,6 +390,15 @@ const MODULE_CARDS = [
   { key: "stones" as const, label: "Taş", tone: "cyan" as const },
   { key: "archives" as const, label: "Arşiv", tone: "amber" as const },
 ];
+
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 
 export default function KullanimTakibiPage() {
   useBfcacheRefresh();
