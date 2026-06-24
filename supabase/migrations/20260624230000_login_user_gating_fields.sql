@@ -57,7 +57,7 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT
     u.id::uuid,
@@ -72,8 +72,9 @@ AS $$
   WHERE lower(btrim(u.email)) = lower(btrim(p_email))
     AND (
       -- bcrypt: hash varsa yalnızca hash eşleşmesi geçerli
+      -- pgcrypto canlı DB'de `extensions` şemasında kurulu; şema-nitelikli çağrı.
       (u.password_hash IS NOT NULL AND u.password_hash <> ''
-        AND crypt(p_password, u.password_hash) = u.password_hash)
+        AND extensions.crypt(p_password, u.password_hash) = u.password_hash)
       OR
       -- geçiş dönemi: hash yoksa plaintext karşılaştır
       ((u.password_hash IS NULL OR u.password_hash = '')
