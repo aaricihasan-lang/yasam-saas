@@ -25,6 +25,8 @@ import {
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { DemoBlur } from "@/components/demo/DemoBlur";
+import { getDemoGuideListRows } from "@/lib/demo/demoSifaRehberi";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { supabase } from "@/lib/supabase";
@@ -541,6 +543,13 @@ function SifaRehberiContent() {
     setErrorMessage("");
     setSuccessMessage("");
 
+    // Demo hesap — Supabase atlanır, zengin fixture bilgi bankası gösterilir.
+    if (isDemo) {
+      setRows(getDemoGuideListRows());
+      setLoading(false);
+      return;
+    }
+
     const { rows: nextRows, error } = await fetchHealingGuideList(tenantId);
 
     setLoading(false);
@@ -556,6 +565,13 @@ function SifaRehberiContent() {
   useEffect(() => {
     runInEffect(() => {
       void (async () => {
+        // Demo hesap — tenant beklemeden fixture bilgi bankasını yükle.
+        if (isDemo) {
+          setQueryTenantId("demo");
+          setRows(getDemoGuideListRows());
+          setLoading(false);
+          return;
+        }
         const tenantId = await getSyncedTenantId();
         setQueryTenantId(tenantId);
         if (!tenantId) {
@@ -1229,7 +1245,7 @@ function SifaRehberiContent() {
 
       <div className={isMenuView ? menuPageContent : isListView ? listPageContent : pageContent}>
         {isDemo && (
-          <DemoModuleBanner message="Şifa rehberi kayıtları demo hesabı için görüntülenebilirdir. Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri demo hesabında çalışmaz." />
+          <DemoModuleBanner message="Şifa rehberi kütüphanesini demo olarak inceliyorsunuz. Rahatsızlık başlıkları, kategoriler ve bölüm yapısı görünür; uzmanın klinik içerikleri ve özet metinleri demo hesabında korunur. Yeni kayıt, düzenleme, silme ve dışa aktarma çalışmaz." />
         )}
         <header
           className={
@@ -1495,7 +1511,7 @@ function SifaRehberiContent() {
         </section>
         ) : null}
 
-        {pageView === "list" && !loading && filteredRows.length > 0 ? (
+        {pageView === "list" && !loading && filteredRows.length > 0 && !isDemo ? (
           <div>
             <BulkExportBar
               selectedCount={selectedForExport.size}
@@ -1554,12 +1570,14 @@ function SifaRehberiContent() {
                         className={`grid grid-cols-[2rem_1.1fr_0.85fr_0.55fr_1.2fr_0.75fr_0.55fr] gap-3 px-4 py-3 text-[12px] transition ${isSelected ? "bg-emerald-50/60" : "hover:bg-cyan-50/45"}`}
                       >
                         <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleExportSelection(row.id)}
-                            className="h-4 w-4 rounded accent-emerald-600"
-                          />
+                          {!isDemo ? (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleExportSelection(row.id)}
+                              className="h-4 w-4 rounded accent-emerald-600"
+                            />
+                          ) : null}
                         </div>
                         <div className="min-w-0 font-black text-slate-950">
                           <span className="block truncate">{row.name}</span>
@@ -1569,7 +1587,9 @@ function SifaRehberiContent() {
                         </div>
                         <div className="font-bold text-slate-600">{filled}</div>
                         <div className="min-w-0 text-[12px] leading-5 text-slate-500">
-                          <span className="line-clamp-2 block">{listRowPreview(row, 100)}</span>
+                          <DemoBlur isProtected={isDemo}>
+                            <span className="line-clamp-2 block">{listRowPreview(row, 100)}</span>
+                          </DemoBlur>
                         </div>
                         <div className="whitespace-nowrap text-[12px] font-semibold text-slate-500">
                           {formatDate(row.updated_at || row.created_at)}
@@ -1595,17 +1615,19 @@ function SifaRehberiContent() {
                 const isSelected = selectedForExport.has(row.id);
                 return (
                   <article key={row.id} className={`relative ${listGuideCard} ${isSelected ? "ring-2 ring-emerald-400/60 ring-offset-2" : ""}`}>
-                    {/* Checkbox */}
-                    <label
-                      className="absolute right-4 top-4 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleExportSelection(row.id)}
-                        className="h-4 w-4 rounded accent-emerald-600 shadow"
-                      />
-                    </label>
+                    {/* Checkbox — demo hesapta gizli */}
+                    {!isDemo ? (
+                      <label
+                        className="absolute right-4 top-4 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleExportSelection(row.id)}
+                          className="h-4 w-4 rounded accent-emerald-600 shadow"
+                        />
+                      </label>
+                    ) : null}
 
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={listGuideCardBadge}>{filled} bölüm dolu</span>
@@ -1618,9 +1640,11 @@ function SifaRehberiContent() {
                       {row.name}
                     </h2>
 
-                    <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-slate-600">
-                      {listRowPreview(row)}
-                    </p>
+                    <DemoBlur isProtected={isDemo}>
+                      <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-slate-600">
+                        {listRowPreview(row)}
+                      </p>
+                    </DemoBlur>
 
                     <div className="mt-3 border-t border-emerald-50 pt-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">

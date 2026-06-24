@@ -19,8 +19,9 @@ import {
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { DemoGate } from "@/components/demo/DemoGate";
+import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { isDemoFixtureGuide, getDemoGuideDetail } from "@/lib/demo/demoSifaRehberi";
 
 type GuideImage = {
   id: string;
@@ -355,6 +356,15 @@ function recordToDraft(r: HealingGuideRecord): Draft {
   };
 }
 
+// Demo hesapta korunan içerik başlığının yanında gösterilen küçük kilit rozeti.
+function DemoLockChip() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-amber-700">
+      🔒 Demo
+    </span>
+  );
+}
+
 export default function SifaRehberiDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -389,8 +399,7 @@ export default function SifaRehberiDetailPage() {
 
   const useSectionView = sections.length > 0 && !editEnabled;
   const { isDemo } = useDemoGuard();
-  // Section view → tüm uzman içerik korumalı. Legacy tab → ilk sekme (rahatsizlik) açık, kalanlar korumalı.
-  const isDemoContentProtected = isDemo && (useSectionView || tab !== "rahatsizlik");
+  // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
   const groupedSections = useMemo(() => groupSectionsByType(sections), [sections]);
 
@@ -418,6 +427,28 @@ export default function SifaRehberiDetailPage() {
     setLoading(true);
     setErrorMessage("");
     setNotFound(false);
+
+    // Demo fixture rahatsızlık — Supabase atlanır, zengin korumalı içerik gösterilir.
+    if (isDemo && isDemoFixtureGuide(id)) {
+      const detail = getDemoGuideDetail(id);
+      setLoading(false);
+      if (!detail) {
+        setNotFound(true);
+        setRecord(null);
+        setDraft(null);
+        setSections([]);
+        setSymptoms(null);
+        return;
+      }
+      const demoRow = detailToRecord(detail);
+      setRecord(demoRow);
+      setDraft(recordToDraft(demoRow));
+      setSymptoms(detail.guide.symptoms);
+      setSections(detail.sections);
+      setQueryTenantId("demo");
+      setNotFound(false);
+      return;
+    }
 
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
@@ -463,7 +494,7 @@ export default function SifaRehberiDetailPage() {
       setSectionTab(firstSectionTabWithContent(groupSectionsByType(detail.sections)));
     }
     setNotFound(false);
-  }, [id]);
+  }, [id, isDemo]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -749,7 +780,7 @@ export default function SifaRehberiDetailPage() {
     <main className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] text-slate-950">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-4 lg:px-8 xl:px-10">
         {isDemo && (
-          <DemoModuleBanner className="mb-3" message="Şifa rehberi detayı demo hesabında korunur. Temel bilgiler görünür; klinik içerikler gizlidir. Düzenleme yapılamaz." />
+          <DemoModuleBanner className="mb-3" message="Demo görünümü: rahatsızlık adı, kategori, tüm bölümler ve başlıklar görünür; uzmanın klinik içerikleri her başlığın altında korunur. Düzenleme yapılamaz." />
         )}
         <header className="mb-3 rounded-xl bg-white/70 p-3 shadow-sm ring-1 ring-white/80">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -789,9 +820,11 @@ export default function SifaRehberiDetailPage() {
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                     Belirtiler
                   </p>
-                  <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-5 text-slate-600">
-                    {symptoms.trim()}
-                  </p>
+                  <DemoBlur isProtected={isDemo}>
+                    <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-5 text-slate-600">
+                      {symptoms.trim()}
+                    </p>
+                  </DemoBlur>
                 </div>
               ) : null}
             </div>
@@ -973,7 +1006,6 @@ export default function SifaRehberiDetailPage() {
                 </div>
               ) : null}
 
-              <DemoGate isProtected={isDemoContentProtected}>
               <div className="mt-3 space-y-3">
                 {useSectionView ? (
                   sectionsInActiveTab.length === 0 ? (
@@ -1008,19 +1040,24 @@ export default function SifaRehberiDetailPage() {
                                   {badge.label}
                                 </span>
                               ) : null}
-                              <h3 className="text-[13px] font-semibold tracking-tight text-slate-950">
+                              <h3 className="flex items-center gap-1.5 text-[13px] font-semibold tracking-tight text-slate-950">
                                 {displayTitle}
+                                {isDemo ? <DemoLockChip /> : null}
                               </h3>
                             </div>
                           </div>
                           {hasNote ? (
-                            <div className={`mt-2.5 ${sectionNoteBody}`}>{section.note!.trim()}</div>
+                            <DemoBlur isProtected={isDemo}>
+                              <div className={`mt-2.5 ${sectionNoteBody}`}>{section.note!.trim()}</div>
+                            </DemoBlur>
                           ) : null}
                           {hasSource ? (
-                            <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
-                              <span className="font-bold text-slate-600">Kaynak:</span>{" "}
-                              {section.source!.trim()}
-                            </p>
+                            <DemoBlur isProtected={isDemo}>
+                              <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+                                <span className="font-bold text-slate-600">Kaynak:</span>{" "}
+                                {section.source!.trim()}
+                              </p>
+                            </DemoBlur>
                           ) : null}
                           {!hasNote && !hasSource ? (
                             <p className="mt-2 text-xs font-medium text-slate-400">
@@ -1037,7 +1074,10 @@ export default function SifaRehberiDetailPage() {
                     const value = draft[key];
                     return (
                       <div key={key} className={sectionPremiumCard}>
-                        <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">{label}</h3>
+                        <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
+                          {label}
+                          {isDemo ? <DemoLockChip /> : null}
+                        </h3>
                         {editEnabled ? (
                           <textarea
                             value={value}
@@ -1046,18 +1086,19 @@ export default function SifaRehberiDetailPage() {
                             className="mt-1 w-full resize-y rounded-lg border border-slate-200/90 bg-white/95 p-3 text-sm leading-6 text-slate-900 shadow-inner outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100/50"
                           />
                         ) : (
-                          <div className={sectionNoteBody}>
-                            {value.trim() ? value : (
-                              <span className="text-slate-400">Henüz kayıt yok</span>
-                            )}
-                          </div>
+                          <DemoBlur isProtected={isDemo}>
+                            <div className={sectionNoteBody}>
+                              {value.trim() ? value : (
+                                <span className="text-slate-400">Henüz kayıt yok</span>
+                              )}
+                            </div>
+                          </DemoBlur>
                         )}
                       </div>
                     );
                   })
                 )}
               </div>
-              </DemoGate>
             </div>
           </div>
         </section>
