@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
@@ -35,13 +35,6 @@ type Client = {
   created_at: string;
 };
 
-type HomeworkAlert = {
-  client_id: string;
-  end_date: string | null;
-  status: string | null;
-  alert_dismissed_at?: string | null;
-};
-
 type SortKey =
   | "newest"
   | "oldest"
@@ -53,10 +46,6 @@ type SortKey =
 type AktifDurum = "aktif" | "takip" | "pasif" | "notr";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function todayForInput() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function formatDateTR(date: string | null) {
   if (!date) return "";
   const parts = date.split("-");
@@ -220,25 +209,20 @@ export default function DanisanListePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionChecked, tenantId, isDemo]);
 
-  async function loadHomeworkAlerts(activeTenantId: string) {
-    const today = todayForInput();
-    const { data, error } = await supabase
-      .from("client_homeworks")
-      .select("client_id,end_date,status,alert_dismissed_at")
-      .eq("tenant_id", activeTenantId)
-      .eq("status", "devam")
-      .is("alert_dismissed_at", null)
-      .not("end_date", "is", null)
-      .lte("end_date", today);
-
-    if (error) { console.error("Ödev uyarıları yüklenemedi:", error); setHomeworkAlerts({}); return; }
-
-    const grouped: Record<string, number> = {};
-    ((data || []) as HomeworkAlert[]).forEach((item) => {
-      if (!item.client_id) return;
-      grouped[item.client_id] = (grouped[item.client_id] || 0) + 1;
+  async function loadHomeworkAlerts() {
+    // client_homeworks uyarı özeti artık güvenli API üzerinden okunur
+    // (publishable key ile doğrudan okunmaz). tenant + "bugün" sunucuda belirlenir.
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch("/api/clients/homeworks-alerts", {
+      headers: {
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
     });
-    setHomeworkAlerts(grouped);
+    if (!res.ok) { console.error("Ödev uyarıları yüklenemedi:", res.status); setHomeworkAlerts({}); return; }
+    const json = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number> };
+    setHomeworkAlerts(json.alerts ?? {});
   }
 
   async function loadClients() {
@@ -260,7 +244,7 @@ export default function DanisanListePage() {
     }
 
     setClients(data || []);
-    await loadHomeworkAlerts(activeTenantId);
+    await loadHomeworkAlerts();
     setLoading(false);
   }
 

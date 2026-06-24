@@ -1169,13 +1169,33 @@ export default function YolculukTab({
     async function fetchTimeline() {
       setTimelineLoading(true);
       try {
-        const [sessionsRes, appointmentsRes, stonesRes, homeworksRes] =
+        const [sessionsRes, appointmentsRes, stonesRes] =
           await Promise.all([
             supabase.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
-            supabase.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
           ]);
+
+        // client_homeworks artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let homeworksData: any[] = [];
+        try {
+          const userId = readYasamUser()?.id;
+          const sessionToken = readSessionToken();
+          const hRes = await fetch(`/api/clients/${clientId}/homeworks`, {
+            headers: {
+              "x-user-id": userId ?? "",
+              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+            },
+          });
+          if (hRes.ok) {
+            const hJson = (await hRes.json().catch(() => ({}))) as { homeworks?: unknown[] };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            homeworksData = (hJson.homeworks ?? []) as any[];
+          }
+        } catch {
+          /* sessiz — zaman çizelgesi ödevleri opsiyonel */
+        }
 
         // client_analyses artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1276,7 +1296,7 @@ export default function YolculukTab({
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const hw of (homeworksRes.data ?? []) as any[]) {
+        for (const hw of homeworksData as any[]) {
           normalized.push({
             id: `odev-${hw.id}`,
             type: "odev",
@@ -1441,7 +1461,7 @@ export default function YolculukTab({
 
         // ── Ödev takibi hesabı ─────────────────────────────────────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const hwList = (homeworksRes.data ?? []) as any[];
+        const hwList = homeworksData as any[];
         const hwTamamlanan = hwList.filter((h) => h.status === "tamamlandi");
         const hwGecikti    = hwList.filter((h) => h.status === "gecikti");
         const hwDevam = hwList.filter((h) => h.status !== "tamamlandi");
@@ -1504,7 +1524,7 @@ export default function YolculukTab({
           seanslar: sessionsRes.data?.length ?? 0,
           randevular: appointmentsRes.data?.length ?? 0,
           taslar: stonesRes.data?.length ?? 0,
-          odevler: homeworksRes.data?.length ?? 0,
+          odevler: homeworksData.length,
           notlar:
             noteData &&
             ([noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (string | null | undefined)[]).some(Boolean)

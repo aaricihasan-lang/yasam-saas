@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { odevDurumLabel, odevDurumClass } from "@/lib/odevStatus";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
@@ -489,22 +489,24 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setLoading(true);
     setErrorMessage("");
 
-    const { data, error } = await supabase
-      .from("client_homeworks")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
-      .order("end_date", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      headers: {
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; homeworks?: ClientHomework[] };
 
-    if (error) {
-      console.error("Ödev kayıtları yüklenemedi:", error);
-      setErrorMessage("Ödev kayıtları yüklenemedi: " + error.message);
+    if (!res.ok || !json.ok) {
+      console.error("Ödev kayıtları yüklenemedi:", json.error);
+      setErrorMessage("Ödev kayıtları yüklenemedi: " + (json.error ?? ""));
       setLoading(false);
       return;
     }
 
-    setHomeworks(data || []);
+    setHomeworks(json.homeworks || []);
     setLoading(false);
   }
 
@@ -538,17 +540,24 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setSaving(true);
     setErrorMessage("");
 
-    const { error } = await supabase.from("client_homeworks").insert({
-      tenant_id: tenantId,
-      client_id: clientId,
-      ...formToPayload(form),
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify(formToPayload(form)),
     });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
-      console.error("Ödev kaydı eklenemedi:", error);
+    if (!res.ok || !json.ok) {
+      console.error("Ödev kaydı eklenemedi:", json.error);
       showToast({
         title: "İşlem başarısız",
-        message: "Ödev kaydı eklenemedi: " + error.message,
+        message: "Ödev kaydı eklenemedi: " + (json.error ?? ""),
         type: "error",
       });
       setSaving(false);
@@ -590,18 +599,24 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setUpdating(true);
     setErrorMessage("");
 
-    const { error } = await supabase
-      .from("client_homeworks")
-      .update(formToPayload(editForm))
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ homeworkId: id, patch: formToPayload(editForm) }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
-      console.error("Ödev kaydı güncellenemedi:", error);
+    if (!res.ok || !json.ok) {
+      console.error("Ödev kaydı güncellenemedi:", json.error);
       showToast({
         title: "İşlem başarısız",
-        message: "Ödev kaydı güncellenemedi: " + error.message,
+        message: "Ödev kaydı güncellenemedi: " + (json.error ?? ""),
         type: "error",
       });
       setUpdating(false);
@@ -620,17 +635,23 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   }
 
   async function updateHomeworkStatus(id: string, status: HomeworkStatus) {
-    const { error } = await supabase
-      .from("client_homeworks")
-      .update({ status })
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ homeworkId: id, patch: { status } }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
+    if (!res.ok || !json.ok) {
       showToast({
         title: "İşlem başarısız",
-        message: "Durum güncellenemedi: " + error.message,
+        message: "Durum güncellenemedi: " + (json.error ?? ""),
         type: "error",
       });
       return;
@@ -648,17 +669,24 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   }
 
   async function dismissHomeworkAlert(id: string) {
-    const { error } = await supabase
-      .from("client_homeworks")
-      .update({ alert_dismissed_at: new Date().toISOString() })
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const nowIso = new Date().toISOString();
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ homeworkId: id, patch: { alert_dismissed_at: nowIso } }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
+    if (!res.ok || !json.ok) {
       showToast({
         title: "İşlem başarısız",
-        message: "Uyarı kapatılamadı: " + error.message,
+        message: "Uyarı kapatılamadı: " + (json.error ?? ""),
         type: "error",
       });
       return;
@@ -667,7 +695,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setHomeworks((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, alert_dismissed_at: new Date().toISOString() }
+          ? { ...item, alert_dismissed_at: nowIso }
           : item
       )
     );
@@ -686,17 +714,23 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     });
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("client_homeworks")
-      .delete()
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ homeworkId: id }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-    if (error) {
+    if (!res.ok || !json.ok) {
       showToast({
         title: "İşlem başarısız",
-        message: "Ödev silinemedi: " + error.message,
+        message: "Ödev silinemedi: " + (json.error ?? ""),
         type: "error",
       });
       return;
