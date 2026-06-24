@@ -281,17 +281,11 @@ export default function AdminWorkspaceClientDetailPage() {
     setNotFound(false);
 
     const [
-      notesRes,
       stonesRes,
       sessionsRes,
       homeworksRes,
       analysesRes,
     ] = await Promise.all([
-      supabase
-        .from("client_notes")
-        .select("saglik_notu, adres, oneriler, notlar")
-        .eq("client_id", clientId)
-        .maybeSingle(),
       supabase
         .from("client_stones")
         .select(
@@ -324,15 +318,27 @@ export default function AdminWorkspaceClientDetailPage() {
         .order("created_at", { ascending: false }),
     ]);
 
-    if (notesRes.data) {
-      const n = notesRes.data as Record<string, unknown>;
-      setNotes({
-        saglik_notu: n.saglik_notu != null ? String(n.saglik_notu) : null,
-        adres: n.adres != null ? String(n.adres) : null,
-        oneriler: n.oneriler != null ? String(n.oneriler) : null,
-        notlar: n.notlar != null ? String(n.notlar) : null,
-      });
-    } else {
+    // client_notes artık güvenli admin API üzerinden okunur (publishable key ile doğrudan okunmaz).
+    try {
+      const adminId = readYasamUser()?.id;
+      const notesRes = await fetch(
+        `/api/admin/users/${expertUserId}/workspace/clients/${clientId}/notes`,
+        { headers: { "x-admin-id": adminId ?? "" } },
+      );
+      const n = notesRes.ok
+        ? ((await notesRes.json().catch(() => ({}))) as { note?: Record<string, unknown> | null }).note
+        : null;
+      if (n) {
+        setNotes({
+          saglik_notu: n.saglik_notu != null ? String(n.saglik_notu) : null,
+          adres: n.adres != null ? String(n.adres) : null,
+          oneriler: n.oneriler != null ? String(n.oneriler) : null,
+          notlar: n.notlar != null ? String(n.notlar) : null,
+        });
+      } else {
+        setNotes(null);
+      }
+    } catch {
       setNotes(null);
     }
 
