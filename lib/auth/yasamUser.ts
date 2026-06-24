@@ -331,6 +331,7 @@ export async function refreshYasamUserFromDb(
   try {
     const res = await fetch("/api/auth/profile", {
       headers: { "x-user-id": user.id, "x-session-token": token },
+      cache: "no-store",
     });
 
     if (!res.ok) {

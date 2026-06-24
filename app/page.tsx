@@ -580,6 +580,12 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<YasamUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  // Modül izinleri (package_type / module_permissions) login_user RPC'de DÖNMEZ;
+  // yalnızca token'lı /api/auth/profile sync'inden gelir. profileSynced true olana
+  // kadar modül kartları render EDİLMEZ (skeleton gösterilir) — aksi halde eksik
+  // veri ile yanlışlıkla yalnızca 2 kart basılır. profileError sync başarısızsa true.
+  const [profileSynced, setProfileSynced] = useState(false);
+  const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -656,6 +662,12 @@ export default function Home() {
     if (stored) {
       setUser(stored);
       setAuthLoading(false);
+      // Warm cache: localStorage zaten yetkili profil alanlarını (package_type) içeriyorsa
+      // skeleton göstermeden hemen render et. package_type yalnızca /api/auth/profile
+      // sync'inden sonra var olur — RPC kaydında asla bulunmaz.
+      if (isAdminUser(stored) || stored.package_type) {
+        setProfileSynced(true);
+      }
       // Cookie refresh DB sync'ten önce (paralel) başlatılıyor; tıklama anında
       // Promise zaten resolved olacak → sıfır bekleme.
       if (isAdminUser(stored)) {
@@ -672,6 +684,7 @@ export default function Home() {
           return;
         }
         setUser(fresh);
+        setProfileSynced(true);
         // Admin olup localStorage'da admin değilse (nadir durum) cookie set et.
         if (isAdminUser(fresh) && !adminCookiePromiseRef.current) {
           adminCookiePromiseRef.current = fetch("/api/auth/admin-session", {
@@ -1011,6 +1024,23 @@ export default function Home() {
     setMessage("");
     setLoading(false);
 
+    // Modül izinleri login_user RPC'de gelmez; token artık kaydedildiği için
+    // /api/auth/profile sync'ini şimdi çalıştır. Bitene kadar modül grid'i
+    // skeleton kalır (profileSynced=false) — eksik 2 kart asla render edilmez.
+    // Admin modül gating'e tabi değil; ayrıca /admin'e yönlendirilir.
+    if (!isAdminUser(loggedUser)) {
+      setProfileSynced(false);
+      setProfileError(false);
+      void syncYasamUserFromDb(loggedUser, { force: true }).then((fresh) => {
+        if (fresh) {
+          setUser(fresh);
+          setProfileSynced(true);
+        } else {
+          setProfileError(true);
+        }
+      });
+    }
+
     if (isSuspiciousLogin) {
       showToast({
         title: "Güvenlik Uyarısı",
@@ -1062,6 +1092,10 @@ export default function Home() {
     }
     const firstName = displayName ? displayName.split(" ")[0] : "";
     const panelAccess = hasFullPanelAccess(user);
+    // Modül kartları yalnızca yetkili profil verisi (package_type / module_permissions)
+    // /api/auth/profile'dan geldikten sonra deterministik. Admin gating'e tabi değil.
+    const permissionsReady =
+      isAdminUser(user) || profileSynced || Boolean(user.package_type);
     const visibleDashboardModules = getVisibleDashboardModules(user);
     const membershipExpired = isExpertMembershipExpired(user);
     const expertModulesEmpty =
@@ -1087,6 +1121,18 @@ export default function Home() {
         } catch {}
       }
       router.push("/admin");
+    }
+
+    async function retryProfileSync() {
+      if (!user) return;
+      setProfileError(false);
+      const fresh = await syncYasamUserFromDb(user, { force: true });
+      if (fresh) {
+        setUser(fresh);
+        setProfileSynced(true);
+      } else {
+        setProfileError(true);
+      }
     }
 
     function handleLockedModuleClick(reason: ModuleLockReason) {
@@ -1239,7 +1285,45 @@ export default function Home() {
                 Ana Merkezler
               </p>
 
-              {membershipExpired ? (
+              {!permissionsReady ? (
+                profileError ? (
+                  <div role="alert" className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
+                    <p className="text-base font-black text-rose-700">Modül izinleri yüklenemedi</p>
+                    <p className="mt-2 max-w-md text-sm text-rose-500">
+                      Bağlantı veya oturum doğrulama hatası nedeniyle modül erişiminiz alınamadı.
+                      Lütfen tekrar deneyin.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryProfileSync}
+                      className="mt-4 rounded-full border border-rose-300 bg-white px-4 py-1.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-100"
+                    >
+                      Tekrar dene
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
+                    aria-busy="true"
+                    aria-label="Modüller yükleniyor"
+                  >
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex min-h-[150px] flex-col rounded-[18px] border border-slate-200/70 bg-white/60 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+                      >
+                        <div className="h-8 w-8 animate-pulse rounded-xl bg-slate-200/80" />
+                        <div className="mt-3 h-4 w-3/5 animate-pulse rounded bg-slate-200/80" />
+                        <div className="mt-2 h-3 w-4/5 animate-pulse rounded bg-slate-100" />
+                        <div className="mt-auto flex items-center justify-between pt-4">
+                          <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200/80" />
+                          <div className="h-6 w-6 animate-pulse rounded-full bg-slate-200/80" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : membershipExpired ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
                   <p className="text-base font-black text-rose-700">Üyelik süreniz doldu</p>
                   <p className="mt-2 max-w-md text-sm text-rose-500">
