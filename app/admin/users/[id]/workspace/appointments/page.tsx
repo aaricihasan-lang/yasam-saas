@@ -11,7 +11,7 @@ import {
   mapDbUser,
   type ManagedUser,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const panelClass =
@@ -116,6 +116,15 @@ function mapAppointmentRow(row: Record<string, unknown>): ReadonlyAppointment {
   };
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminWorkspaceAppointmentsPage() {
   useBfcacheRefresh();
   const params = useParams();
@@ -166,7 +175,7 @@ export default function AdminWorkspaceAppointmentsPage() {
     {
       const adminId = readYasamUser()?.id;
       const userRes = await fetch(`/api/admin/users/${userId}`, {
-        headers: { "x-admin-id": adminId ?? "" },
+        headers: adminHeaders(adminId),
       });
       if (userRes.ok) {
         const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };

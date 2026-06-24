@@ -10,7 +10,7 @@ import {
   mapDbUser,
   type ManagedUser,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { notesToPlainText } from "@/lib/clientNotes";
 
@@ -204,6 +204,15 @@ function SectionCard({
   );
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminWorkspaceClientDetailPage() {
   useBfcacheRefresh();
   const params = useParams();
@@ -237,7 +246,7 @@ export default function AdminWorkspaceClientDetailPage() {
     {
       const adminId = readYasamUser()?.id;
       const userRes = await fetch(`/api/admin/users/${expertUserId}`, {
-        headers: { "x-admin-id": adminId ?? "" },
+        headers: adminHeaders(adminId),
       });
       if (userRes.ok) {
         const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };
@@ -317,7 +326,7 @@ export default function AdminWorkspaceClientDetailPage() {
       const adminId = readYasamUser()?.id;
       const notesRes = await fetch(
         `/api/admin/users/${expertUserId}/workspace/clients/${clientId}/notes`,
-        { headers: { "x-admin-id": adminId ?? "" } },
+        { headers: adminHeaders(adminId) },
       );
       const n = notesRes.ok
         ? ((await notesRes.json().catch(() => ({}))) as { note?: Record<string, unknown> | null }).note
@@ -342,7 +351,7 @@ export default function AdminWorkspaceClientDetailPage() {
       const adminId = readYasamUser()?.id;
       const aRes = await fetch(
         `/api/admin/users/${expertUserId}/workspace/clients/${clientId}/analyses`,
-        { headers: { "x-admin-id": adminId ?? "" } },
+        { headers: adminHeaders(adminId) },
       );
       if (aRes.ok) {
         const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: ClientAnalysis[] };
@@ -358,7 +367,7 @@ export default function AdminWorkspaceClientDetailPage() {
       const adminId = readYasamUser()?.id;
       const hRes = await fetch(
         `/api/admin/users/${expertUserId}/workspace/clients/${clientId}/homeworks`,
-        { headers: { "x-admin-id": adminId ?? "" } },
+        { headers: adminHeaders(adminId) },
       );
       if (hRes.ok) {
         const hJson = (await hRes.json().catch(() => ({}))) as { homeworks?: ClientHomework[] };

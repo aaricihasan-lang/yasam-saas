@@ -11,7 +11,7 @@ import {
   type HacamatMonthData,
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
-import { readYasamUser, isAdminUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, isAdminUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -230,6 +230,15 @@ function MonthContent({
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
+function adminHeaders(adminId: string | null | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function HacamatPage() {
   const today      = useMemo(() => new Date(), []);
   const todayYear  = today.getFullYear();
@@ -325,7 +334,7 @@ export default function HacamatPage() {
     try {
       const res  = await fetch("/api/hacamat/rules", {
         method:  "POST",
-        headers: { "Content-Type": "application/json", "x-admin-id": adminId },
+        headers: adminHeaders(adminId, true),
         body:    JSON.stringify({
           category:   newRuleCat,
           rule_text:  t,
@@ -345,7 +354,7 @@ export default function HacamatPage() {
     setRules(prev => prev.filter(r => r.id !== id)); // optimistic
     await fetch(`/api/hacamat/rules/${id}`, {
       method:  "DELETE",
-      headers: { "x-admin-id": adminId },
+      headers: adminHeaders(adminId),
     });
   }
 
@@ -362,7 +371,7 @@ export default function HacamatPage() {
     setEditingId(null);
     await fetch(`/api/hacamat/rules/${id}`, {
       method:  "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-id": adminId },
+      headers: adminHeaders(adminId, true),
       body:    JSON.stringify({ rule_text: t }),
     });
   }

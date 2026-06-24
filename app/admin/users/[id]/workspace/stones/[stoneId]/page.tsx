@@ -9,7 +9,7 @@ import {
   mapDbUser,
   type ManagedUser,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 const panelClass =
@@ -75,6 +75,15 @@ function ReadonlyTextSection({
   );
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminWorkspaceStoneDetailPage() {
   useBfcacheRefresh();
   const params = useParams();
@@ -111,7 +120,7 @@ export default function AdminWorkspaceStoneDetailPage() {
     {
       const adminId = readYasamUser()?.id;
       const userRes = await fetch(`/api/admin/users/${expertUserId}`, {
-        headers: { "x-admin-id": adminId ?? "" },
+        headers: adminHeaders(adminId),
       });
       if (userRes.ok) {
         const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };

@@ -31,6 +31,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
+  readSessionToken,
 } from "@/lib/auth/yasamUser";
 
 const panelClass =
@@ -118,6 +119,15 @@ const WORKSPACE_MODULES: WorkspaceModuleMeta[] = [
   },
 ];
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-3) */
+function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminUserWorkspacePage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -144,7 +154,7 @@ export default function AdminUserWorkspacePage() {
     {
       const adminId = readYasamUser()?.id;
       const userRes = await fetch(`/api/admin/users/${userId}`, {
-        headers: { "x-admin-id": adminId ?? "" },
+        headers: adminHeaders(adminId),
       });
       if (userRes.ok) {
         const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };
