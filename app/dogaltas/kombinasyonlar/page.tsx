@@ -10,8 +10,36 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+
+/** Güvenli delete API'sine issue listesi gönderir (publishable delete yerine). */
+async function deleteCombinationsViaApi(
+  issues: string[],
+): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
+  const userId = readYasamUser()?.id;
+  const sessionToken = readSessionToken();
+  try {
+    const res = await fetch("/api/dogaltas/combinations/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ issues }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      demo?: boolean;
+    };
+    if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    return { ok: true, demo: json.demo };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Ağ hatası" };
+  }
+}
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 
@@ -478,23 +506,12 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setDeleteLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("combinations")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("issue", issueKeys);
+    const result = await deleteCombinationsViaApi(issueKeys);
 
     setDeleteLoading(false);
 
-    if (error) {
-      setErrorMessage(`Seçili kombinasyonlar silinemedi: ${error.message}`);
+    if (!result.ok) {
+      setErrorMessage(`Seçili kombinasyonlar silinemedi: ${result.error ?? ""}`);
       return;
     }
 
@@ -565,23 +582,12 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setDeleteLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("combinations")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("issue", issueKey);
+    const result = await deleteCombinationsViaApi([issueKey]);
 
     setDeleteLoading(false);
 
-    if (error) {
-      setErrorMessage(`Kombinasyon silinemedi: ${error.message}`);
+    if (!result.ok) {
+      setErrorMessage(`Kombinasyon silinemedi: ${result.error ?? ""}`);
       return;
     }
 

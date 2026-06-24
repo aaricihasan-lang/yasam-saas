@@ -34,6 +34,7 @@ import {
   type InventoryJsonRow,
 } from "@/lib/urun-stok/inventoryJsonImport";
 import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { HealingGuideJsonTab } from "./HealingGuideJsonTab";
 
 type StoneJsonRecord = Record<string, unknown>;
@@ -964,6 +965,32 @@ function countCombinationVariants(issues: CombinationJsonIssue[]): number {
   }, 0);
 }
 
+/** Güvenli admin import API'sine batch gönderir (publishable insert yerine service_role). */
+async function insertCombinationsViaApi(
+  rows: CombinationInsertRow[],
+): Promise<{ ok: boolean; error?: string }> {
+  const adminId = readYasamUser()?.id ?? "";
+  const sessionToken = readSessionToken();
+  try {
+    const res = await fetch("/api/admin/dogaltas/combinations/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-id": adminId,
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ rows }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) {
+      return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Ağ hatası" };
+  }
+}
+
 async function importCombinationRows(rows: CombinationInsertRow[]): Promise<{
   successCount: number;
   failedCount: number;
@@ -975,19 +1002,20 @@ async function importCombinationRows(rows: CombinationInsertRow[]): Promise<{
 
   for (let offset = 0; offset < rows.length; offset += KOMBINASYON_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + KOMBINASYON_BATCH_SIZE);
-    const { error } = await supabase.from("combinations").insert(batch);
+    const result = await insertCombinationsViaApi(batch);
 
-    if (!error) {
+    if (result.ok) {
       successCount += batch.length;
       continue;
     }
 
+    // Batch başarısızsa tek tek dene (mevcut fallback davranışı korunur).
     for (const row of batch) {
-      const { error: singleError } = await supabase.from("combinations").insert(row);
-      if (singleError) {
+      const single = await insertCombinationsViaApi([row]);
+      if (!single.ok) {
         failedCount += 1;
         if (failures.length < KOMBINASYON_FAILED_PREVIEW_LIMIT) {
-          failures.push({ issue: row.issue, message: singleError.message });
+          failures.push({ issue: row.issue, message: single.error ?? "Kayıt eklenemedi." });
         }
       } else {
         successCount += 1;
