@@ -54,6 +54,13 @@ const emptyCondition = (): MineralCondition => ({
   minPercent: null,
 });
 
+/** Kombinasyon sepetindeki taş (yalnızca yerel state — Faz 3'te DB). */
+type CartStone = {
+  id: string;
+  name: string;
+  inStock: boolean;
+};
+
 export default function KombinasyonOlusturPage() {
   const { isDemo } = useDemoGuard();
 
@@ -65,6 +72,20 @@ export default function KombinasyonOlusturPage() {
 
   const [conditions, setConditions] = useState<MineralCondition[]>([emptyCondition()]);
   const [searched, setSearched] = useState(false);
+
+  // Kombinasyon sepeti — yalnızca yerel state (henüz DB kaydı yok).
+  const [cart, setCart] = useState<CartStone[]>([]);
+  const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
+
+  function addToCart(item: CartStone) {
+    setCart((prev) => (prev.some((c) => c.id === item.id) ? prev : [...prev, item]));
+  }
+  function removeFromCart(id: string) {
+    setCart((prev) => prev.filter((c) => c.id !== id));
+  }
+  function clearCart() {
+    setCart([]);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -308,14 +329,16 @@ export default function KombinasyonOlusturPage() {
           )}
         </section>
 
-        {/* ── Sonuçlar ───────────────────────────────────────────────────── */}
-        {error && (
-          <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-            {error}
-          </div>
-        )}
+        {/* ── Sonuçlar + Kombinasyon Sepeti ───────────────────────────── */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="min-w-0 space-y-4 lg:flex-1">
+            {error && (
+              <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                {error}
+              </div>
+            )}
 
-        {!error && (
+            {!error && (
           <section>
             {!showResults ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-cyan-300/50 bg-white/70 p-6 text-center">
@@ -343,15 +366,18 @@ export default function KombinasyonOlusturPage() {
                   ).slice(0, 4);
 
                   return (
-                    <Link
+                    <div
                       key={stone.id}
-                      href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                      className={`group block overflow-hidden rounded-[18px] border-[3px] p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${
+                      className={`overflow-hidden rounded-[18px] border-[3px] p-4 shadow-sm transition-all duration-300 ${
                         inStock
-                          ? "border-emerald-400/70 bg-emerald-50/60 shadow-[0_0_24px_rgba(16,185,129,0.18)] hover:border-emerald-500"
-                          : "border-slate-200 bg-white/70 opacity-80 hover:opacity-100 hover:border-slate-300"
+                          ? "border-emerald-400/70 bg-emerald-50/60 shadow-[0_0_24px_rgba(16,185,129,0.18)]"
+                          : "border-slate-200 bg-white/70 opacity-80 hover:opacity-100"
                       }`}
                     >
+                      <Link
+                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
+                        className="group block transition hover:-translate-y-0.5"
+                      >
                       <div className="flex items-start gap-3">
                         <div
                           className={`flex h-12 w-12 shrink-0 overflow-hidden rounded-2xl ring-1 ${
@@ -407,13 +433,102 @@ export default function KombinasyonOlusturPage() {
                           </div>
                         </div>
                       </div>
-                    </Link>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          cartIds.has(stone.id)
+                            ? removeFromCart(stone.id)
+                            : addToCart({
+                                id: stone.id,
+                                name: stone.stone_name || "İsimsiz taş",
+                                inStock,
+                              })
+                        }
+                        className={`mt-3 w-full rounded-xl border-2 px-3 py-1.5 text-xs font-black shadow-sm transition ${
+                          cartIds.has(stone.id)
+                            ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                            : "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
+                        }`}
+                      >
+                        {cartIds.has(stone.id) ? "Sepetten Çıkar" : "+ Kombinasyona Ekle"}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
             )}
           </section>
-        )}
+            )}
+          </div>
+
+          {/* ── Kombinasyon Sepeti ──────────────────────────────────────── */}
+          <aside className="lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+            <div className="rounded-[20px] border-[3px] border-violet-300/50 bg-white/90 p-3 shadow-md sm:p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-black text-slate-900">🧺 Kombinasyon Sepeti</h2>
+                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-700">
+                  {cart.length}
+                </span>
+              </div>
+
+              {cart.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs font-semibold text-slate-500">
+                  Sepet boş. Sonuç listesinden "Kombinasyona Ekle" ile taş ekleyin.
+                </p>
+              ) : (
+                <>
+                  <ul className="space-y-1.5">
+                    {cart.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm"
+                      >
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            className={`h-2 w-2 shrink-0 rounded-full ${
+                              item.inStock ? "bg-emerald-500" : "bg-slate-300"
+                            }`}
+                            title={item.inStock ? "Stokta" : "Stok yok"}
+                          />
+                          <span className="truncate text-xs font-bold text-slate-800">
+                            {item.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id)}
+                          aria-label={`${item.name} sepetten çıkar`}
+                          className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-black text-rose-600 transition hover:bg-rose-100"
+                        >
+                          Çıkar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      {cart.filter((c) => c.inStock).length} stokta
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Temizle
+                    </button>
+                  </div>
+
+                  <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                    Henüz kaydedilmiyor — kayıt sonraki fazda eklenecek.
+                  </p>
+                </>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   );
