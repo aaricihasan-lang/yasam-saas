@@ -185,14 +185,32 @@ async function fetchCountSince(
 }
 
 async function checkSupabaseConnection(): Promise<boolean> {
-  const urlOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
-  const keyOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim());
-  if (!urlOk || !keyOk) return false;
+  try {
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/health/db-ping", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
-  const { error } = await supabase
-    .from("users")
-    .select("id", { count: "exact", head: true });
-  return !error;
+/** users agregasyon verisi — güvenli admin API (service_role), password dönmez */
+async function fetchUsersForMetrics(): Promise<{
+  data: Record<string, unknown>[] | null;
+  error: { message: string } | null;
+}> {
+  const adminId = readYasamUser()?.id;
+  const res = await fetch("/api/admin/users", {
+    headers: { "x-admin-id": adminId ?? "" },
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    return { data: null, error: { message: j.error ?? `HTTP ${res.status}` } };
+  }
+  const j = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
+  return { data: j.users ?? [], error: null };
 }
 
 function shortTenantId(id: string): string {
@@ -389,7 +407,7 @@ export default function KullanimTakibiPage() {
 
     const [usersRes, clients, numerology, stones, archives, supabaseConnected, clientsMonth] =
       await Promise.all([
-        supabase.from("users").select("role, active, approval_status, tenant_id, created_at"),
+        fetchUsersForMetrics(),
         loadModuleMetrics("clients"),
         loadModuleMetrics("numerology_analyses"),
         loadModuleMetrics("stones"),

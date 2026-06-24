@@ -27,7 +27,6 @@ import {
   readYasamUser,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const navBtn =
   "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
@@ -349,23 +348,25 @@ export default function AdminPage() {
   const fetchMetrics = useCallback(async () => {
     setMetricsLoading(true);
     try {
-      const [totalRes, activeRes, pendingRes] = await Promise.all([
-        supabase.from("users").select("*", { count: "exact", head: true }),
-        supabase
-          .from("users")
-          .select("*", { count: "exact", head: true })
-          .eq("active", true)
-          .eq("approval_status", "approved"),
-        supabase
-          .from("users")
-          .select("*", { count: "exact", head: true })
-          .eq("approval_status", "pending"),
-      ]);
+      const adminId = readYasamUser()?.id;
+      const res = await fetch("/api/admin/metrics", {
+        headers: { "x-admin-id": adminId ?? "" },
+      });
+      if (!res.ok) {
+        setAdminMetrics({ total: null, active: null, pending: null, systemOk: false });
+        return;
+      }
+      const json = (await res.json().catch(() => ({}))) as {
+        total: number | null;
+        active: number | null;
+        pending: number | null;
+        systemOk?: boolean;
+      };
       setAdminMetrics({
-        total: totalRes.error ? null : (totalRes.count ?? 0),
-        active: activeRes.error ? null : (activeRes.count ?? 0),
-        pending: pendingRes.error ? null : (pendingRes.count ?? 0),
-        systemOk: !totalRes.error,
+        total: json.total ?? null,
+        active: json.active ?? null,
+        pending: json.pending ?? null,
+        systemOk: json.systemOk !== false,
       });
     } catch {
       setAdminMetrics({ total: null, active: null, pending: null, systemOk: false });
