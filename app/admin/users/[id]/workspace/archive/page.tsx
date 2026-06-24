@@ -139,11 +139,20 @@ export default function AdminWorkspaceArchivePage() {
     setLoading(true);
     setArchivesError(null);
 
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    let userRow: Record<string, unknown> | null = null;
+    let userError: { message: string } | null = null;
+    {
+      const adminId = readYasamUser()?.id;
+      const userRes = await fetch(`/api/admin/users/${userId}`, {
+        headers: { "x-admin-id": adminId ?? "" },
+      });
+      if (userRes.ok) {
+        const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };
+        userRow = userJson.user ?? null;
+      } else {
+        userError = { message: `HTTP ${userRes.status}` };
+      }
+    }
 
     if (userError || !userRow) {
       console.error("Uzman yükleme hatası:", userError);

@@ -32,7 +32,6 @@ import {
   isAdminUser,
   readYasamUser,
 } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -140,11 +139,20 @@ export default function AdminUserWorkspacePage() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    let data: Record<string, unknown> | null = null;
+    let error: { message: string } | null = null;
+    {
+      const adminId = readYasamUser()?.id;
+      const userRes = await fetch(`/api/admin/users/${userId}`, {
+        headers: { "x-admin-id": adminId ?? "" },
+      });
+      if (userRes.ok) {
+        const userJson = (await userRes.json().catch(() => ({}))) as { user?: Record<string, unknown> };
+        data = userJson.user ?? null;
+      } else {
+        error = { message: `HTTP ${userRes.status}` };
+      }
+    }
 
     if (error || !data) {
       console.error("Uzman çalışma alanı yükleme hatası:", error);
