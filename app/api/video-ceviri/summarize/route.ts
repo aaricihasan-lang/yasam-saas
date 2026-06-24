@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     const { data: userRow, error: userErr } = await db
       .from("users")
-      .select("id")
+      .select("id, is_demo_account")
       .eq("id", userId)
       .eq("tenant_id", tenantId)
       .eq("active", true)
@@ -70,6 +70,14 @@ export async function POST(request: Request) {
     if (userErr || !userRow) {
       return NextResponse.json(
         { ok: false, error: "Oturum doğrulanamadı." },
+        { status: 403 },
+      );
+    }
+
+    // Demo hesap: özet üretimi engellenir.
+    if (userRow.is_demo_account === true) {
+      return NextResponse.json(
+        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
         { status: 403 },
       );
     }

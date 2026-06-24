@@ -390,6 +390,8 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }
 
+  // DEMO-NOTE: kimlik taşımıyor; demo bloğu uygulanamadı
+  // (rapor tarih/kural payload'ından hesaplanır; userId/tenantId yok, DB erişimi yok)
   const {
     year, month,
     rules       = [],

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -128,6 +129,10 @@ export async function POST(
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId, db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // Kütüphane taşları da dahil et
   const tenantIds = tenantId === ADMIN_LIBRARY_TENANT_ID

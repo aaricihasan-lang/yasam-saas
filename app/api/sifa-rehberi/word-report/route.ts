@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -379,6 +380,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!verifiedTenantId || verifiedTenantId !== tenantId.trim()) {
     return Response.json({ ok: false, error: "Erişim reddedildi." }, { status: 403 });
   }
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId.trim(), db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // Hem legacy kolonlar hem sections join — hangi veri yapısı olursa olsun çalışır
   const SELECT = `

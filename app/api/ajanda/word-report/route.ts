@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
+import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -85,6 +86,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // Demo tenant gerçek tenant verisini export edemez (body yalnızca tenantId taşır)
+  if (await isDemoTenantId(tenantId, db))
+    return Response.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let query = db.from("appointments").select("*").eq("tenant_id", tenantId);
 

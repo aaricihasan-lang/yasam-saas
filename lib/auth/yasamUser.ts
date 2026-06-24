@@ -6,6 +6,7 @@ import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
+import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 
 export type UserRole = "admin" | "expert";
 
@@ -255,6 +256,9 @@ export function clearYasamUser(): void {
           // Belge çeviri aktif iş
           "belge_ceviri_active_job",
         ].forEach((k) => localStorage.removeItem(k));
+
+        // Ürün & Stok demo fixture'ları (envanter, satış geçmişi, hareketler, seed bayrağı)
+        clearDemoUrunStok();
       }
     }
   } catch { /* JSON parse başarısız olursa sessiz */ }

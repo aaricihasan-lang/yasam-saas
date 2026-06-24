@@ -13,6 +13,7 @@ import {
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import { DEMO_AROMA_KNOWLEDGE_SHEETS } from "@/lib/demo/demoAromaterapiKnowledge";
 
 // -------------------------------------------------------
 // Tasarım token'ları
@@ -210,6 +211,17 @@ export default function BilgiBankasiPage() {
   const loadSheets = useCallback(async () => {
     setLoading(true);
     setErrorMsg("");
+
+    // Demo hesap: gerçek tenant referans içeriği ÇEKİLMEZ (DevTools ile dahi
+    // okunamaması için). Sekme başlıkları görünür, gövde örnek fixture'dır.
+    if (isDemo) {
+      const data = DEMO_AROMA_KNOWLEDGE_SHEETS;
+      setSheets(data);
+      if (data.length > 0 && !activeId) setActiveId(data[0]!.id);
+      setLoading(false);
+      return;
+    }
+
     const tid = await getSyncedTenantId();
     if (!tid) {
       setLoading(false);
@@ -221,7 +233,7 @@ export default function BilgiBankasiPage() {
     if (error) { setErrorMsg(`Veriler yüklenemedi: ${error}`); return; }
     setSheets(data);
     if (data.length > 0 && !activeId) setActiveId(data[0]!.id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { runInEffect(() => { void loadSheets(); }); }, [loadSheets]);
   useBfcacheRefresh();

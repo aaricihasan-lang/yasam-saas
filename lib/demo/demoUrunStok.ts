@@ -404,9 +404,16 @@ export function seedDemoUrunStok(): void {
   }
 }
 
+/** Ürün & Stok modülünün yazdığı diğer demo key'leri (envanter/satış dışı). */
+const EXTRA_URUN_STOK_KEYS = [
+  "stock_movements_v1",
+  "dogaltas_inventory_active_tenant_v1",
+];
+
 /** Demo verilerini localStorage'dan temizler (logout'ta çağrılır). */
 export function clearDemoUrunStok(): void {
   if (typeof window === "undefined") return;
   Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+  EXTRA_URUN_STOK_KEYS.forEach((k) => localStorage.removeItem(k));
   localStorage.removeItem(DEMO_URUN_STOK_SEEDED_KEY);
 }

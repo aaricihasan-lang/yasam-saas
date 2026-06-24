@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     // userId + tenantId çiftini users tablosunda doğrula
     const { data: userRow, error: userErr } = await db
       .from("users")
-      .select("id")
+      .select("id, is_demo_account")
       .eq("id", userId)
       .eq("tenant_id", tenantId)
       .eq("active", true)
@@ -58,6 +58,11 @@ export async function GET(request: Request) {
 
     if (userErr || !userRow) {
       return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 403 });
+    }
+
+    // Demo hesap: signed URL üretimi engellenir.
+    if (userRow.is_demo_account === true) {
+      return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
     }
 
     // Service role ile signed URL üret (bucket PRIVATE olsa bile çalışır)

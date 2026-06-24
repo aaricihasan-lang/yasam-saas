@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import type { NextRequest } from "next/server";
+import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 
 export const runtime = "nodejs";
 
@@ -8,9 +10,13 @@ const supabase = createClient(
 );
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Yalnızca admin global kuralı güncelleyebilir (anon → 401, expert/demo → 403)
+  const guard = await verifyAdminRequest(request);
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
 
   let body: unknown;
@@ -45,9 +51,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Yalnızca admin global kuralı silebilir (anon → 401, expert/demo → 403)
+  const guard = await verifyAdminRequest(request);
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
 
   const { error } = await supabase

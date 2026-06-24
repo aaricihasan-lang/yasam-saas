@@ -74,6 +74,7 @@ function buildParagraphs(text: string): Paragraph[] {
 }
 
 export async function POST(request: Request) {
+  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
   try {
     const formData = await request.formData();
     const text = formData.get("text");

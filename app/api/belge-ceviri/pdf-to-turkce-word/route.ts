@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { extractText } from "unpdf";
 import { createClient } from "@supabase/supabase-js";
 import { inngest } from "@/lib/inngest/client";
+import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -70,6 +71,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, message: "Oturum bilgisi eksik. Sayfayı yenileyip tekrar deneyin." },
         { status: 400 },
+      );
+    }
+
+    // Demo tenant gerçek çeviri işlemi başlatamaz (form yalnızca tenantId taşır)
+    if (await isDemoTenantId(tenantId)) {
+      return NextResponse.json(
+        { success: false, message: "Demo hesabında bu işlem kullanılamaz." },
+        { status: 403 },
       );
     }
 

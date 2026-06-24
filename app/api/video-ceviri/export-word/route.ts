@@ -74,7 +74,7 @@ export async function GET(request: Request) {
 
   const { data: userRow, error: userErr } = await db
     .from("users")
-    .select("id")
+    .select("id, is_demo_account")
     .eq("id", userId)
     .eq("tenant_id", tenantId)
     .eq("active", true)
@@ -83,6 +83,14 @@ export async function GET(request: Request) {
   if (userErr || !userRow) {
     return NextResponse.json(
       { ok: false, error: "Oturum doğrulanamadı." },
+      { status: 403 },
+    );
+  }
+
+  // Demo hesap: Word dışa aktarımı engellenir.
+  if (userRow.is_demo_account === true) {
+    return NextResponse.json(
+      { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
       { status: 403 },
     );
   }

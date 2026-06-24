@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -81,6 +82,11 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId, db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
   const SELECT = "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
 
   let query = db.from("combinations").select(SELECT).eq("tenant_id", tenantId);

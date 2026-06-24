@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   arraySection,
   bodyText,
@@ -98,6 +99,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
 
   const db = createClient(supabaseUrl, supabaseKey);
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId, db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let knowledgeQ = db.from("numerology_knowledge_records").select("*").eq("tenant_id", tenantId);
   let stoneQ = db.from("numerology_stone_assignments").select("*").eq("tenant_id", tenantId);

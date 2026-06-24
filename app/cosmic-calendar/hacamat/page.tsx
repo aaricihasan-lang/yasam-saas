@@ -11,6 +11,7 @@ import {
   type HacamatMonthData,
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
+import { readYasamUser, isAdminUser } from "@/lib/auth/yasamUser";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -262,6 +263,15 @@ export default function HacamatPage() {
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [rulesError,     setRulesError]     = useState<string | null>(null);
 
+  // Kural yönetimi yalnızca admin için açık (server tarafı da zorunlu kılar).
+  // Expert/demo/anonim kullanıcılar kuralları yalnızca okuyabilir.
+  const [adminId, setAdminId] = useState<string | null>(null);
+  useEffect(() => {
+    const u = readYasamUser();
+    setAdminId(isAdminUser(u) ? (u?.id ?? null) : null);
+  }, []);
+  const canManageRules = adminId !== null;
+
   // Kural ekleme
   const [newRuleText,  setNewRuleText]  = useState("");
   const [newRuleCat,   setNewRuleCat]   = useState<RuleCategory>("before");
@@ -310,12 +320,12 @@ export default function HacamatPage() {
 
   async function addRule() {
     const t = newRuleText.trim();
-    if (!t || isAddingRule) return;
+    if (!t || isAddingRule || !adminId) return;
     setIsAddingRule(true);
     try {
       const res  = await fetch("/api/hacamat/rules", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-admin-id": adminId },
         body:    JSON.stringify({
           category:   newRuleCat,
           rule_text:  t,
@@ -331,8 +341,12 @@ export default function HacamatPage() {
   }
 
   async function deleteRule(id: string) {
+    if (!adminId) return;
     setRules(prev => prev.filter(r => r.id !== id)); // optimistic
-    await fetch(`/api/hacamat/rules/${id}`, { method: "DELETE" });
+    await fetch(`/api/hacamat/rules/${id}`, {
+      method:  "DELETE",
+      headers: { "x-admin-id": adminId },
+    });
   }
 
   function startEdit(rule: HijamRule) {
@@ -343,11 +357,12 @@ export default function HacamatPage() {
   async function saveEdit(id: string) {
     const t = editText.trim();
     if (!t) { cancelEdit(); return; }
+    if (!adminId) { cancelEdit(); return; }
     setRules(prev => prev.map(r => r.id === id ? { ...r, rule_text: t } : r)); // optimistic
     setEditingId(null);
     await fetch(`/api/hacamat/rules/${id}`, {
       method:  "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-id": adminId },
       body:    JSON.stringify({ rule_text: t }),
     });
   }
@@ -597,8 +612,9 @@ export default function HacamatPage() {
             <div className="rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md sm:p-4">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-teal-700">📜 Hacamat Kuralları</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
-                Veritabanından yüklenir. Ekleyebilir, düzenleyebilir, silebilirsiniz.
-                Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez.
+                {canManageRules
+                  ? "Veritabanından yüklenir. Ekleyebilir, düzenleyebilir, silebilirsiniz. Kayıtlar Word raporuna birebir aktarılır — sistem metni değiştirmez."
+                  : "Veritabanından yüklenir ve Word raporuna birebir aktarılır. Kural yönetimi yalnızca yöneticiye açıktır."}
               </p>
             </div>
 
@@ -638,7 +654,7 @@ export default function HacamatPage() {
                           {catRules.map((rule, idx) => (
                             <div key={rule.id} className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
                               <span className="mt-0.5 min-w-[18px] shrink-0 text-[10px] font-black text-teal-500">{idx + 1}.</span>
-                              {editingId === rule.id ? (
+                              {canManageRules && editingId === rule.id ? (
                                 <>
                                   <input
                                     value={editText}
@@ -665,20 +681,24 @@ export default function HacamatPage() {
                               ) : (
                                 <>
                                   <p className="flex-1 text-[10px] leading-snug text-slate-700">{rule.rule_text}</p>
-                                  <button
-                                    onClick={() => startEdit(rule)}
-                                    className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
-                                    title="Düzenle"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => void deleteRule(rule.id)}
-                                    className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                                    title="Sil"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
+                                  {canManageRules && (
+                                    <>
+                                      <button
+                                        onClick={() => startEdit(rule)}
+                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600"
+                                        title="Düzenle"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => void deleteRule(rule.id)}
+                                        className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                        title="Sil"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -686,7 +706,8 @@ export default function HacamatPage() {
                         </div>
                       )}
 
-                      {/* Bu kategori için ekle formu */}
+                      {/* Bu kategori için ekle formu — yalnızca admin */}
+                      {canManageRules && (
                       <div className={catRules.length > 0 ? "border-t border-slate-100 pt-3" : ""}>
                         <div className="flex flex-wrap gap-1.5">
                           <input
@@ -725,6 +746,7 @@ export default function HacamatPage() {
                           </button>
                         </div>
                       </div>
+                      )}
                     </div>
                   );
                 })}

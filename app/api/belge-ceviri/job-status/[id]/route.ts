@@ -41,7 +41,7 @@ export async function GET(
     // Eşleşme yoksa veya kullanıcı pasifse 403
     const { data: userRow, error: userErr } = await db
       .from("users")
-      .select("id")
+      .select("id, is_demo_account")
       .eq("id", userId)
       .eq("tenant_id", tenantId)
       .eq("active", true)
@@ -49,6 +49,11 @@ export async function GET(
 
     if (userErr || !userRow) {
       return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 403 });
+    }
+
+    // Demo hesap: gerçek job kaydı tutulmaz; mevcut "bulunamadı" davranışını döndür.
+    if (userRow.is_demo_account === true) {
+      return NextResponse.json({ error: "Job bulunamadı." }, { status: 404 });
     }
 
     const { data: job, error } = await db

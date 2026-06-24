@@ -21,6 +21,7 @@ import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { odevDurumLabel } from "@/lib/odevStatus";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -880,6 +881,10 @@ export async function POST(
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  // Demo hesap: tüm export işlemleri sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId, db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   // ─── Tab mode early-return ────────────────────────────────────────────────
   const TAB_VALID = ["genel","notlar","randevular","taslar","seanslar","odevler","analizler"] as const;

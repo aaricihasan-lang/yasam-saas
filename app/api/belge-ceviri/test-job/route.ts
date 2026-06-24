@@ -5,6 +5,7 @@ import { inngest } from "@/lib/inngest/client";
 export const runtime = "nodejs";
 
 export async function POST() {
+  // DEMO-NOTE: bu route kimlik taşımıyor; demo bloğu uygulanamadı (client davranışını bozmamak için)
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

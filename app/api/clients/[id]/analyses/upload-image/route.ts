@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,14 @@ export async function POST(
     }
 
     const db = createClient(supabaseUrl, supabaseKey);
+
+    // Demo tenant'ı gerçek storage'a upload yapamaz (tenantId taşıyor, userId yok)
+    if (await isDemoTenantId(tenantId, db)) {
+      return NextResponse.json(
+        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+        { status: 403 },
+      );
+    }
 
     // Verify the analysis record belongs to this client and tenant
     const { data: analysis, error: analysisErr } = await db

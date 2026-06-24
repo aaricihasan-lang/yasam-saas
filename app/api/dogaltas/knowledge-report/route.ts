@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
 import {
   bodyText,
   buildFooter,
@@ -194,6 +195,11 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
+
+  // Demo hesap: export sunucu seviyesinde engellenir
+  if (await isDemoAccountId(userId, db))
+    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+
   const tenants = [ADMIN_LIBRARY_TENANT_ID];
   if (tenantId !== ADMIN_LIBRARY_TENANT_ID) tenants.push(tenantId);
 

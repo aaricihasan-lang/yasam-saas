@@ -13,6 +13,8 @@ import {
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   ADMIN_LIBRARY_TENANT_ID,
@@ -39,6 +41,9 @@ import {
   stoneMatchesZodiac,
 } from "@/lib/dogaltas/stoneSearchUtils";
 import { supabase } from "@/lib/supabase";
+
+const DEMO_ACTION_MESSAGE =
+  "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
 const LAST_VIEWED_STONE_KEY = "yasam-dogaltas-last-viewed-stone-id";
@@ -287,6 +292,7 @@ const uiRowCheckbox =
 function DogaltasListesiPageContent() {
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
+  const { isDemo } = useDemoGuard();
   // Liste verisi
   const [stones, setStones] = useState<StoneListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -386,6 +392,11 @@ function DogaltasListesiPageContent() {
 
   async function deleteStone() {
     if (!stoneToDelete) return;
+    if (isDemo) {
+      setStoneToDelete(null);
+      showToast({ type: "info", message: DEMO_ACTION_MESSAGE });
+      return;
+    }
 
     setDeleteLoading(true);
     setErrorMessage("");
@@ -687,6 +698,10 @@ function DogaltasListesiPageContent() {
 
   const deleteSelectedStones = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    if (isDemo) {
+      showToast({ type: "info", message: DEMO_ACTION_MESSAGE });
+      return;
+    }
 
     const confirmed = await deleteConfirm({
       title: "Seçili kayıtları kaldır",
@@ -763,7 +778,7 @@ function DogaltasListesiPageContent() {
     showToast({ type: "success", message: `${deletedCount} kayıt listenizden kaldırıldı.` });
     setSelectedIds(new Set());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones]);
+  }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo]);
 
   const loadedImages = filteredStones.reduce(
     (total, stone) => total + stoneListImageCount(stone.images),
@@ -771,6 +786,7 @@ function DogaltasListesiPageContent() {
   );
 
   const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
+    if (isDemo) { showToast({ type: "info", message: DEMO_ACTION_MESSAGE }); return; }
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) { showToast({ type: "error", message: MISSING_SESSION_TENANT_MESSAGE }); return; }
     const userId = readYasamUser()?.id;
@@ -818,7 +834,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, showToast]);
+  }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo]);
 
   return (
     <main className={pageBg}>
@@ -826,6 +842,9 @@ function DogaltasListesiPageContent() {
       <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-300/15 blur-3xl" />
 
       <div className={pageContent}>
+        {isDemo && (
+          <DemoModuleBanner message="Doğaltaş listesini inceleyebilirsiniz. Yeni kayıt, düzenleme, silme ve Word/PDF dışa aktarma demo hesabında kapalıdır." />
+        )}
         <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
             <div className="mb-1.5 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
@@ -1027,12 +1046,14 @@ function DogaltasListesiPageContent() {
                 Kart
               </button>
 
-              <Link
-                href="/dogaltas/dogaltas-kayit"
-                className={`${uiViewBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.25)] hover:from-cyan-600 hover:to-violet-700`}
-              >
-                + Yeni Kayıt
-              </Link>
+              {!isDemo && (
+                <Link
+                  href="/dogaltas/dogaltas-kayit"
+                  className={`${uiViewBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.25)] hover:from-cyan-600 hover:to-violet-700`}
+                >
+                  + Yeni Kayıt
+                </Link>
+              )}
             </div>
           </div>
 
@@ -1056,7 +1077,7 @@ function DogaltasListesiPageContent() {
             )}
           </div>
 
-          {!listLoading && filteredStones.length > 0 ? (
+          {!listLoading && filteredStones.length > 0 && !isDemo ? (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
               <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800 shadow-sm">
                 Seçili: {selectedCount}
@@ -1234,14 +1255,16 @@ function DogaltasListesiPageContent() {
                         {isViewedInSearch ? (
                           <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
                         ) : null}
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleStoneSelection(stone.id)}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`${displayName} seç`}
-                          className={uiRowCheckbox}
-                        />
+                        {!isDemo && (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleStoneSelection(stone.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`${displayName} seç`}
+                            className={uiRowCheckbox}
+                          />
+                        )}
                         <Link
                           href={detailHref}
                           onClick={() => {
@@ -1279,17 +1302,19 @@ function DogaltasListesiPageContent() {
                         >
                           Detay→
                         </Link>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setStoneToDelete(stone);
-                          }}
-                          className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
-                        >
-                          Sil
-                        </button>
+                        {!isDemo && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setStoneToDelete(stone);
+                            }}
+                            className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
+                          >
+                            Sil
+                          </button>
+                        )}
                       </div>
 
                       {/* Desktop row: all 7 columns */}
@@ -1311,14 +1336,16 @@ function DogaltasListesiPageContent() {
                           />
                         ) : null}
                         <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleStoneSelection(stone.id)}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                            className={uiRowCheckbox}
-                          />
+                          {!isDemo && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleStoneSelection(stone.id)}
+                              onClick={(event) => event.stopPropagation()}
+                              aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                              className={uiRowCheckbox}
+                            />
+                          )}
                         </div>
                         <Link
                           href={detailHref}
@@ -1430,17 +1457,19 @@ function DogaltasListesiPageContent() {
                         </Link>
 
                         <div className="flex flex-col items-end justify-center">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setStoneToDelete(stone);
-                            }}
-                            className={uiDeleteBtn}
-                          >
-                            Sil
-                          </button>
+                          {!isDemo && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setStoneToDelete(stone);
+                              }}
+                              className={uiDeleteBtn}
+                            >
+                              Sil
+                            </button>
+                          )}
                         </div>
                       </div>
                     </Fragment>
@@ -1486,16 +1515,18 @@ function DogaltasListesiPageContent() {
                       />
                     ) : null}
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleStoneSelection(stone.id)}
-                        onClick={(event) => event.stopPropagation()}
-                        aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                        className={uiRowCheckbox}
-                      />
+                      {!isDemo ? (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleStoneSelection(stone.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+                          className={uiRowCheckbox}
+                        />
+                      ) : <span />}
                       <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        {isLibraryStone ? "Kütüphane" : "Seç"}
+                        {isLibraryStone ? "Kütüphane" : isDemo ? "" : "Seç"}
                       </span>
                     </div>
                     <Link
@@ -1584,17 +1615,19 @@ function DogaltasListesiPageContent() {
                         Detay sayfasında oku →
                       </Link>
 
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setStoneToDelete(stone);
-                        }}
-                        className={`shrink-0 ${uiDeleteBtn}`}
-                      >
-                        Sil
-                      </button>
+                      {!isDemo && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setStoneToDelete(stone);
+                          }}
+                          className={`shrink-0 ${uiDeleteBtn}`}
+                        >
+                          Sil
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

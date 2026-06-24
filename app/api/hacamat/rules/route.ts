@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import type { NextRequest } from "next/server";
+import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 
 export const runtime = "nodejs";
 
@@ -21,7 +23,12 @@ export async function GET() {
   return Response.json({ ok: true, data });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Global hacamat_rules tablosu tüm tenant'lara servis edilir → yalnızca admin yazabilir.
+  // Anonim (header yok) → 401, expert/demo (role!=admin) → 403.
+  const guard = await verifyAdminRequest(request);
+  if (!guard.ok) return guard.response;
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek." }, { status: 400 }); }
