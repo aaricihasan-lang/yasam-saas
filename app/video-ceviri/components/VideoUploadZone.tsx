@@ -19,6 +19,7 @@ import {
   updateVideoJobTempPath,
   validateVideoFile,
 } from "@/lib/video-ceviri/videoJobHelpers";
+import { DIGITAL_CONTENT_DEMO_MESSAGE } from "@/lib/demo/digitalContentDemo";
 
 /** 100 MB üzerindeki dosyalar için TUS resumable upload kullanılır */
 const RESUMABLE_THRESHOLD = 100 * 1024 * 1024;
@@ -167,7 +168,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
     // Demo hesapta yükleme engeli
     if (readYasamUser()?.is_demo_account === true) {
-      setErrorMsg("Demo hesabında video yükleme işlemi yapılamaz.");
+      setErrorMsg(DIGITAL_CONTENT_DEMO_MESSAGE);
       setPhase("error");
       return;
     }

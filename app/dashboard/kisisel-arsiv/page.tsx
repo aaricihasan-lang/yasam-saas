@@ -16,6 +16,11 @@ import {
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import {
+  DIGITAL_CONTENT_DEMO_BANNER,
+  DIGITAL_CONTENT_DEMO_MESSAGE,
+} from "@/lib/demo/digitalContentDemo";
 
 /**
  * Supabase kolonları:
@@ -537,6 +542,7 @@ function DetailArchiveFileCard({
 }
 
 export default function KisiselArsivPage() {
+  const isDemo = readYasamUser()?.is_demo_account === true;
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -597,8 +603,15 @@ export default function KisiselArsivPage() {
     [showToast],
   );
 
+  // Demo hesap — standart "işlem pasif" uyarısı (içerik gizlenmez, işlem engellenir).
+  const notifyDemo = useCallback(
+    () => showToast(DIGITAL_CONTENT_DEMO_MESSAGE, "error", 5000),
+    [showToast],
+  );
+
   const handleDownload = useCallback(
     async (file: ArchiveFileRow) => {
+      if (isDemo) { notifyDemo(); return; }
       const name = file.file_name?.trim() || "dosya";
       if (!tenantId || !userId) {
         showToast("Dosya indirilemedi.", "error", 2000);
@@ -626,7 +639,7 @@ export default function KisiselArsivPage() {
         showToast("Dosya indirilemedi.", "error", 2000);
       }
     },
-    [showToast, tenantId, userId],
+    [showToast, tenantId, userId, isDemo, notifyDemo],
   );
 
   useEffect(() => {
@@ -666,6 +679,12 @@ export default function KisiselArsivPage() {
   }, [isCreateModalOpen, detailId, lightboxUrl, deleteConfirmRow]);
 
   const loadRecords = useCallback(async () => {
+    // Demo hesap — gerçek/örnek kayıt gösterilmez, temiz boş arşiv.
+    if (isDemo) {
+      setRecords([]);
+      setLoadingList(false);
+      return;
+    }
     if (!tenantId) return;
 
     setLoadingList(true);
@@ -715,7 +734,7 @@ export default function KisiselArsivPage() {
 
     setRecords(mergeArchivesWithFiles(archives, allFiles));
     setLoadingList(false);
-  }, [tenantId]);
+  }, [tenantId, isDemo]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -798,6 +817,7 @@ export default function KisiselArsivPage() {
   }
 
   async function saveDetailEdit() {
+    if (isDemo) { notifyDemo(); return; }
     if (!detailRow || savingDetail) return;
     if (!detailEditTitle.trim()) {
       showToast("Başlık alanı zorunludur.", "error", 1800);
@@ -873,6 +893,7 @@ export default function KisiselArsivPage() {
   }
 
   async function confirmDeleteArchive() {
+    if (isDemo) { notifyDemo(); setDeleteConfirmRow(null); return; }
     const row = deleteConfirmRow;
     if (!row) return;
 
@@ -930,6 +951,8 @@ export default function KisiselArsivPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
+    if (isDemo) { notifyDemo(); return; }
 
     if (!title.trim()) {
       setInfo({ kind: "err", text: "Başlık alanı zorunludur." });
@@ -1040,6 +1063,7 @@ export default function KisiselArsivPage() {
       <div className="pointer-events-none absolute right-0 top-0 h-[360px] w-[360px] rounded-full bg-cyan-300/15 blur-[100px]" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1400px] min-w-0 flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6 lg:px-8">
+        {isDemo && <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />}
         <header className="rounded-2xl border border-violet-200/60 bg-white/80 px-4 py-4 shadow-[0_0_24px_rgba(139,92,246,0.10)] backdrop-blur-xl sm:px-6 sm:py-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
@@ -1065,6 +1089,7 @@ export default function KisiselArsivPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (isDemo) { notifyDemo(); return; }
                   setInfo(null);
                   setIsCreateModalOpen(true);
                 }}
@@ -1161,6 +1186,7 @@ export default function KisiselArsivPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (isDemo) { notifyDemo(); return; }
                     setInfo(null);
                     setIsCreateModalOpen(true);
                   }}
@@ -1223,7 +1249,7 @@ export default function KisiselArsivPage() {
                     <button
                       type="button"
                       disabled={deletingId === row.id}
-                      onClick={() => setDeleteConfirmRow(row)}
+                      onClick={() => { if (isDemo) { notifyDemo(); return; } setDeleteConfirmRow(row); }}
                       className="rounded-xl border border-red-200 bg-red-50 px-4 py-1.5 text-sm font-black text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {deletingId === row.id ? "Siliniyor…" : "Sil"}
@@ -1685,7 +1711,7 @@ export default function KisiselArsivPage() {
                 <>
                   <button
                     type="button"
-                    onClick={() => setDetailEditMode(true)}
+                    onClick={() => { if (isDemo) { notifyDemo(); return; } setDetailEditMode(true); }}
                     className="rounded-2xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-8 py-4 text-base font-black text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95"
                   >
                     Düzenle

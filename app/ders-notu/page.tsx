@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import {
+  DIGITAL_CONTENT_DEMO_BANNER,
+  notifyDigitalContentDemo,
+} from "@/lib/demo/digitalContentDemo";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -44,6 +48,7 @@ export default function DersNotuPage() {
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
 
   function handleTxtUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); e.target.value = ""; return; }
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -70,6 +75,7 @@ export default function DersNotuPage() {
   }
 
   async function handleWordDownload() {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!result || downloadingWord) return;
     setDownloadingWord(true);
     try {
@@ -101,6 +107,7 @@ export default function DersNotuPage() {
   // ── Temizleme işlemi ───────────────────────────────────────────────────────
 
   async function handleSubmit() {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     const trimmed = inputText.trim();
     if (!trimmed || processing) return;
 
@@ -160,7 +167,7 @@ export default function DersNotuPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {isDemo && (
-          <DemoModuleBanner message="Ders notu transkript aracı demo hesabında kullanılabilir. Metin girip düzenleyebilirsiniz." />
+          <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />
         )}
 
         {/* header */}

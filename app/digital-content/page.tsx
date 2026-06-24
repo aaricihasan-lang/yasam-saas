@@ -7,6 +7,7 @@ import {
   Layers,
   Video,
 } from "lucide-react";
+import DigitalContentDemoBanner from "./DigitalContentDemoBanner";
 
 const subModules = [
   {
@@ -64,6 +65,7 @@ export default function DigitalContentPage() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
+        <DigitalContentDemoBanner />
         {/* Başlık */}
         <div className="mt-5 mb-7">
           <div className="flex items-center gap-3">

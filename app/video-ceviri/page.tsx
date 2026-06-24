@@ -26,6 +26,10 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import {
+  DIGITAL_CONTENT_DEMO_BANNER,
+  notifyDigitalContentDemo,
+} from "@/lib/demo/digitalContentDemo";
 import VideoUploadZone from "./components/VideoUploadZone";
 import {
   fetchVideoJobs,
@@ -102,13 +106,19 @@ export default function VideoCeviriPage() {
   }, []);
 
   useEffect(() => {
+    // Demo hesap — gerçek/örnek kayıt gösterilmez, temiz boş liste.
+    if (isDemo) {
+      setJobsLoading(false);
+      setUserId(readYasamUser()?.id ?? null);
+      return;
+    }
     void getSyncedTenantId().then((tid) => {
       if (!tid) { setJobsLoading(false); return; }
       setTenantId(tid);
       void loadJobs(tid);
     });
     setUserId(readYasamUser()?.id ?? null);
-  }, [loadJobs]);
+  }, [loadJobs, isDemo]);
 
   function handleUploadSuccess() {
     if (tenantId) void loadJobs(tenantId);
@@ -117,6 +127,7 @@ export default function VideoCeviriPage() {
   // ── API handler'ları — DEĞIŞMEDI ────────────────────────────────────────────
 
   function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!tenantId || !userId || !job.transcript_original) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
     const url =
@@ -129,6 +140,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleDownloadPdf(job: VideoJobRow, mode: ExportMode) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!job.transcript_original || pdfGeneratingId) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
     const key = `${job.id}-${mode}`;
@@ -153,6 +165,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleTranslate(job: VideoJobRow) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!tenantId || !userId || !job.transcript_original || translatingId) return;
     setTranslatingId(job.id);
     try {
@@ -176,6 +189,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleSummarize(job: VideoJobRow) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!tenantId || !userId || !job.transcript_tr || summarizingId) return;
     setSummarizingId(job.id);
     try {
@@ -197,6 +211,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleHeadings(job: VideoJobRow) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!tenantId || !userId || !job.transcript_tr || headliningId) return;
     setHeadliningId(job.id);
     try {
@@ -218,6 +233,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleTranscribe(job: VideoJobRow) {
+    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
     if (!tenantId || !userId || transcribingId) return;
     setTranscribingId(job.id);
     try {
@@ -452,7 +468,7 @@ export default function VideoCeviriPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {isDemo && (
-          <DemoModuleBanner message="Demo hesabında video yükleme işlemi yapılamaz. Modülün akışını ve arayüzünü önizleyebilirsiniz." />
+          <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />
         )}
 
         {/* header */}
