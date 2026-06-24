@@ -15,7 +15,7 @@ import {
   useSistemSagligiAdminGate,
 } from "../detail-shared";
 import type { ManagedUser } from "@/lib/admin/userManagement";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 export default function SistemSagligiBekleyenlerPage() {
   useBfcacheRefresh();
@@ -28,21 +28,25 @@ export default function SistemSagligiBekleyenlerPage() {
     setLoading(true);
     setLoadError(null);
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("approval_status", "pending")
-      .order("created_at", { ascending: false });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/users", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
 
-    if (error) {
-      console.error("Sistem sağlığı bekleyen kullanıcılar:", error);
-      setLoadError(error.message);
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error("Sistem sağlığı bekleyen kullanıcılar:", j.error);
+      setLoadError(j.error ?? `HTTP ${res.status}`);
       setPendingUsers([]);
       setLoading(false);
       return;
     }
 
-    const mapped = mapUsersFromRows(data ?? []);
+    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
+    const rows = (json.users ?? []).filter(
+      (u) => (u as { approval_status?: string }).approval_status === "pending",
+    );
+    const mapped = mapUsersFromRows(rows);
     setPendingUsers(mapped);
     setLoading(false);
   }, []);

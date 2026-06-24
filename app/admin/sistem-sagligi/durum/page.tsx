@@ -9,7 +9,7 @@ import {
   SummaryStatCard,
   useSistemSagligiAdminGate,
 } from "../detail-shared";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 type HealthState = "healthy" | "check";
 
@@ -37,16 +37,18 @@ export default function SistemSagligiDurumPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("users")
-      .select("id", { count: "exact", head: true });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/health/db-ping", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
 
     const elapsed = Math.round(performance.now() - started);
     setPingMs(elapsed);
 
-    if (error) {
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
       setHealth("check");
-      setDetail(`Bağlantı hatası: ${error.message}`);
+      setDetail(`Bağlantı hatası: ${j.error ?? `HTTP ${res.status}`}`);
     } else {
       setHealth("healthy");
       setDetail(`users tablosuna head isteği başarılı (${elapsed} ms).`);

@@ -10,7 +10,6 @@ import {
   type ManagedUserRole,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 type StatTone = "indigo" | "violet" | "emerald" | "amber" | "slate" | "rose";
 
@@ -109,20 +108,22 @@ export default function SistemSagligiKullanicilarPage() {
     setLoading(true);
     setLoadError(null);
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/users", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
 
-    if (error) {
-      console.error("Sistem sağlığı kullanıcı listesi:", error);
-      setLoadError(error.message);
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error("Sistem sağlığı kullanıcı listesi:", j.error);
+      setLoadError(j.error ?? `HTTP ${res.status}`);
       setUsers([]);
       setLoading(false);
       return;
     }
 
-    const mapped = (data ?? []).map((row) =>
+    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
+    const mapped = (json.users ?? []).map((row) =>
       mapDbUser(row as Record<string, unknown>),
     );
     setUsers(mapped);

@@ -15,7 +15,7 @@ import {
   useSistemSagligiAdminGate,
 } from "../detail-shared";
 import type { ManagedUser } from "@/lib/admin/userManagement";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 function computeExpertStats(experts: ManagedUser[]) {
   const total = experts.length;
@@ -40,21 +40,25 @@ export default function SistemSagligiUzmanlarPage() {
     setLoading(true);
     setLoadError(null);
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("role", "expert")
-      .order("created_at", { ascending: false });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/users", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
 
-    if (error) {
-      console.error("Sistem sağlığı uzman listesi:", error);
-      setLoadError(error.message);
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error("Sistem sağlığı uzman listesi:", j.error);
+      setLoadError(j.error ?? `HTTP ${res.status}`);
       setExperts([]);
       setLoading(false);
       return;
     }
 
-    setExperts(mapUsersFromRows(data ?? []));
+    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
+    const rows = (json.users ?? []).filter(
+      (u) => (u as { role?: string }).role === "expert",
+    );
+    setExperts(mapUsersFromRows(rows));
     setLoading(false);
   }, []);
 
