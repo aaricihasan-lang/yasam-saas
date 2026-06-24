@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import NotesTab from "./components/NotesTab";
 import StonesTab from "./components/StonesTab";
@@ -178,18 +178,28 @@ export default function ClientDetailPage() {
       setEditKan(data.kan || "");
       setEditMizac(data.mizac || "");
 
-      const { data: notesData, error: notesError } = await supabase
-        .from("client_notes").select("*").eq("client_id", clientId).maybeSingle();
+      // client_notes artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
+        headers: {
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+      });
 
-      if (notesError) console.error("Genel bilgiler okuma hatası:", notesError);
-
-      if (notesData) {
-        const note = notesData as ClientNote;
-        setNoteId(note.id || null);
-        setSaglikNotu(note.saglik_notu || "");
-        setAdres(note.adres || "");
-        setOneriler(note.oneriler || "");
-        setNoteText(note.notlar || "");
+      if (!notesRes.ok) {
+        console.error("Genel bilgiler okuma hatası:", notesRes.status);
+      } else {
+        const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: ClientNote | null };
+        const note = notesJson.note;
+        if (note) {
+          setNoteId(note.id || null);
+          setSaglikNotu(note.saglik_notu || "");
+          setAdres(note.adres || "");
+          setOneriler(note.oneriler || "");
+          setNoteText(note.notlar || "");
+        }
       }
 
       setLoading(false);
@@ -215,16 +225,26 @@ export default function ClientDetailPage() {
 
     setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: editSoyad.trim() || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined } : prev);
 
-    const notesPayload = { id: noteId || undefined, tenant_id: tenantId, client_id: clientId, saglik_notu: saglikNotu, adres, oneriler };
-    const { data: notesData, error: notesError } = await supabase.from("client_notes").upsert(notesPayload).select().single();
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler }),
+    });
+    const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
 
-    if (notesError) {
-      showToast({ title: "İşlem başarısız", message: "Notlar kaydedilemedi: " + notesError.message, type: "error" });
+    if (!notesRes.ok || !notesJson.ok) {
+      showToast({ title: "İşlem başarısız", message: "Notlar kaydedilemedi: " + (notesJson.error ?? ""), type: "error" });
       setSavingAll(false);
       return;
     }
 
-    if (notesData?.id) setNoteId(notesData.id);
+    if (notesJson.note?.id) setNoteId(notesJson.note.id);
     showToast({ title: "Başarılı", message: "Değişiklikler kaydedildi.", type: "success" });
     setSavingAll(false);
     setIsEditingGeneral(false);
@@ -256,16 +276,26 @@ export default function ClientDetailPage() {
     if (!tenantId) return;
     setSavingClientNotes(true);
 
-    const payload = { id: noteId || undefined, tenant_id: tenantId, client_id: clientId, saglik_notu: saglikNotu, adres, oneriler, notlar: noteText };
-    const { data, error } = await supabase.from("client_notes").upsert(payload).select().single();
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/notes`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": userId ?? "",
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, notlar: noteText }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: "Not kayıt hatası: " + error.message, type: "error" });
+    if (!res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: "Not kayıt hatası: " + (json.error ?? ""), type: "error" });
       setSavingClientNotes(false);
       return;
     }
 
-    if (data?.id) setNoteId(data.id);
+    if (json.note?.id) setNoteId(json.note.id);
     showToast({ title: "Başarılı", message: "Notlar kaydedildi.", type: "success" });
     setSavingClientNotes(false);
   }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
@@ -1168,15 +1169,34 @@ export default function YolculukTab({
     async function fetchTimeline() {
       setTimelineLoading(true);
       try {
-        const [sessionsRes, appointmentsRes, stonesRes, analysesRes, homeworksRes, notesRes] =
+        const [sessionsRes, appointmentsRes, stonesRes, analysesRes, homeworksRes] =
           await Promise.all([
             supabase.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_analyses").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
             supabase.from("client_homeworks").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
-            supabase.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
           ]);
+
+        // client_notes artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let noteData: any = null;
+        try {
+          const userId = readYasamUser()?.id;
+          const sessionToken = readSessionToken();
+          const notesRes = await fetch(`/api/clients/${clientId}/notes`, {
+            headers: {
+              "x-user-id": userId ?? "",
+              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+            },
+          });
+          if (notesRes.ok) {
+            const notesJson = (await notesRes.json().catch(() => ({}))) as { note?: unknown };
+            noteData = notesJson.note ?? null;
+          }
+        } catch {
+          /* sessiz — zaman çizelgesi notu opsiyonel */
+        }
 
         const normalized: TimelineEntry[] = [];
 
@@ -1249,8 +1269,6 @@ export default function YolculukTab({
           });
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const noteData = notesRes.data as any;
         if (noteData) {
           const noteText = (
             [noteData.notlar, noteData.oneriler, noteData.saglik_notu] as (string | null | undefined)[]
