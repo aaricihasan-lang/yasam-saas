@@ -272,8 +272,8 @@ export default function ClientDetailPage() {
     setGeneralSnap(null);
   }
 
-  async function saveClientNotes() {
-    if (!tenantId) return;
+  async function saveClientNotes(notlarRaw: string): Promise<boolean> {
+    if (!tenantId) return false;
     setSavingClientNotes(true);
 
     const userId = readYasamUser()?.id;
@@ -285,19 +285,21 @@ export default function ClientDetailPage() {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, notlar: noteText }),
+      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, notlar: notlarRaw }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null };
 
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: "Not kayıt hatası: " + (json.error ?? ""), type: "error" });
       setSavingClientNotes(false);
-      return;
+      return false;
     }
 
     if (json.note?.id) setNoteId(json.note.id);
-    showToast({ title: "Başarılı", message: "Notlar kaydedildi.", type: "success" });
+    // Kaynak gerçekliği güncelle; başarı bildirimini NotesTab gösterir.
+    setNoteText(notlarRaw);
     setSavingClientNotes(false);
+    return true;
   }
 
   async function generateWordReport() {
@@ -700,7 +702,7 @@ export default function ClientDetailPage() {
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Notlar Word"}
                 </button>
               </div>
-              <NotesTab noteText={noteText} setNoteText={setNoteText} onSave={saveClientNotes} saving={savingClientNotes} />
+              <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
             </>
           )}
 

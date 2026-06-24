@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { notesToPlainText } from "@/lib/clientNotes";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -490,7 +491,7 @@ export default function AdminWorkspaceClientDetailPage() {
                   <ReadonlyField label="Öneriler" value={notes?.oneriler} />
                   <ReadonlyField
                     label="Notlar"
-                    value={notes?.notlar}
+                    value={notesToPlainText(notes?.notlar) || null}
                   />
                 </div>
               )}

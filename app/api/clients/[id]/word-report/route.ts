@@ -22,6 +22,7 @@ import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { odevDurumLabel } from "@/lib/odevStatus";
 import { isDemoAccountId } from "@/lib/auth/demoServerGuard";
+import { notesToPlainText } from "@/lib/clientNotes";
 import {
   bodyText,
   buildFooter,
@@ -981,7 +982,8 @@ export async function POST(
     }
 
     else if (tab === "notlar") {
-      all.push(tabNotes?.notlar?.trim() ? bodyText(tabNotes.notlar.trim()) : muted("Henüz not girilmemiş."));
+      const notlarText = notesToPlainText(tabNotes?.notlar).trim();
+      all.push(notlarText ? bodyText(notlarText) : muted("Henüz not girilmemiş."));
     }
 
     else if (tab === "randevular") {
@@ -1503,7 +1505,8 @@ export async function POST(
   all.push(notes?.oneriler?.trim() ? bodyText(notes.oneriler.trim()) : muted("Bilgi girilmemiş."));
 
   all.push(h2("Notlar"));
-  all.push(notes?.notlar?.trim() ? bodyText(notes.notlar.trim()) : muted("Bilgi girilmemiş."));
+  const notlarFull = notesToPlainText(notes?.notlar).trim();
+  all.push(notlarFull ? bodyText(notlarFull) : muted("Bilgi girilmemiş."));
 
   // ── 3. Randevular
   all.push(h1Colored("3. Randevular", C.randevular, true));
