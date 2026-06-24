@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { useToast } from "@/components/ui/ToastProvider";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import {
   ADMIN_LIBRARY_TENANT_ID,
@@ -65,6 +67,7 @@ type CartStone = {
 
 export default function KombinasyonOlusturPage() {
   const { isDemo } = useDemoGuard();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +78,7 @@ export default function KombinasyonOlusturPage() {
   const [conditions, setConditions] = useState<MineralCondition[]>([emptyCondition()]);
   const [searched, setSearched] = useState(false);
 
-  // Kombinasyon sepeti — yalnızca yerel state (henüz DB kaydı yok).
+  // Kombinasyon sepeti — yerel state.
   const [cart, setCart] = useState<CartStone[]>([]);
   const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
 
@@ -87,6 +90,20 @@ export default function KombinasyonOlusturPage() {
   }
   function clearCart() {
     setCart([]);
+  }
+
+  // Kombinasyonu kaydet formu
+  const [saveName, setSaveName] = useState("");
+  const [saveDescription, setSaveDescription] = useState("");
+  const [saveNote, setSaveNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedInfo, setSavedInfo] = useState<{ name: string } | null>(null);
+
+  function resetSaveForm() {
+    setSaveName("");
+    setSaveDescription("");
+    setSaveNote("");
+    setSavedInfo(null);
   }
 
   useEffect(() => {
@@ -206,6 +223,90 @@ export default function KombinasyonOlusturPage() {
 
     return { metMinerals, missingMinerals, warnings, hasAnyWarning };
   }, [cart, stones, activeConditions]);
+
+  // ─── Kombinasyonu kaydet (güvenli API) ────────────────────────────────────
+  function buildMineralSummary(): string {
+    if (activeConditions.length === 0) return "";
+    const lines = [
+      "Hedef mineraller: " +
+        activeConditions
+          .map((c) =>
+            c.minPercent != null ? `${c.mineral.trim()} ≥ %${c.minPercent}` : c.mineral.trim(),
+          )
+          .join(", "),
+      "Karşılanan: " +
+        (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
+      "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
+    ];
+    return lines.join("\n");
+  }
+
+  function buildWarningStockSummary(): string {
+    const inStockCount = cart.filter((c) => c.inStock).length;
+    const warned = cartAnalysis.warnings.filter((w) => w.has).map((w) => w.name);
+    return [
+      `Stok: ${inStockCount}/${cart.length} stokta`,
+      warned.length ? `Uyarılı taşlar: ${warned.join(", ")}` : "Belirgin uyarı yok",
+    ].join("\n");
+  }
+
+  async function saveCombination() {
+    const name = saveName.trim();
+    if (!name || cart.length === 0) return;
+
+    setSaving(true);
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    try {
+      const res = await fetch("/api/dogaltas/combinations/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId ?? "",
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
+        body: JSON.stringify({
+          name,
+          description: saveDescription.trim() || null,
+          note: saveNote.trim() || null,
+          stones: cart.map((c) => c.name),
+          notesText: buildMineralSummary() || null,
+          notesText2: buildWarningStockSummary(),
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        demo?: boolean;
+      };
+
+      if (!res.ok || !json.ok) {
+        showToast({
+          title: "Kayıt başarısız",
+          message: json.error ?? "Kombinasyon kaydedilemedi.",
+          type: "error",
+        });
+        setSaving(false);
+        return;
+      }
+
+      showToast({
+        title: "Kaydedildi",
+        message: json.demo
+          ? "Demo hesabında kayıt veritabanına yazılmaz (önizleme)."
+          : `"${name}" kombinasyonlara kaydedildi.`,
+        type: "success",
+      });
+      setSavedInfo({ name });
+    } catch {
+      showToast({
+        title: "Kayıt başarısız",
+        message: "Sunucuya ulaşılamadı.",
+        type: "error",
+      });
+    }
+    setSaving(false);
+  }
 
   // ─── Koşul işlemleri ───────────────────────────────────────────────────────
   function addCondition() {
@@ -661,11 +762,83 @@ export default function KombinasyonOlusturPage() {
                     )}
                   </div>
 
-                  <p className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[10px] font-semibold text-slate-500 ring-1 ring-slate-200">
-                    Henüz kaydedilmiyor — kayıt sonraki fazda eklenecek.
-                  </p>
                 </>
               )}
+
+              {/* ── Kombinasyonu Kaydet ─────────────────────────────── */}
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                {savedInfo ? (
+                  <div className="space-y-2">
+                    <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                      ✓ &quot;{savedInfo.name}&quot; kaydedildi.{" "}
+                      <Link href="/dogaltas/kombinasyonlar" className="underline">
+                        Listede gör
+                      </Link>
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearCart();
+                          resetSaveForm();
+                        }}
+                        className="flex-1 rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                      >
+                        Sepeti Temizle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSavedInfo(null)}
+                        className="flex-1 rounded-xl border-2 border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700"
+                      >
+                        Devam Et
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+                      Kombinasyonu Kaydet
+                    </div>
+                    <input
+                      type="text"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      placeholder="Kombinasyon adı (zorunlu)"
+                      maxLength={200}
+                      className="h-9 w-full rounded-xl border-2 border-cyan-300/50 bg-white px-3 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                    />
+                    <input
+                      type="text"
+                      value={saveDescription}
+                      onChange={(e) => setSaveDescription(e.target.value)}
+                      placeholder="Açıklama / amaç (opsiyonel)"
+                      maxLength={200}
+                      className="h-9 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                    />
+                    <textarea
+                      value={saveNote}
+                      onChange={(e) => setSaveNote(e.target.value)}
+                      placeholder="Serbest not (opsiyonel)"
+                      rows={2}
+                      className="w-full resize-y rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveCombination}
+                      disabled={cart.length === 0 || saveName.trim() === "" || saving}
+                      className="w-full rounded-xl border-2 border-violet-400 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? "Kaydediliyor..." : "💾 Kombinasyonu Kaydet"}
+                    </button>
+                    {cart.length === 0 && (
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        Kaydetmek için sepete en az bir taş ekleyin.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
         </div>
