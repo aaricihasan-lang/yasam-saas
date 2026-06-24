@@ -223,12 +223,36 @@ function aggregateCountsByTenant(
   return map;
 }
 
+/** tenants id/name listesini admin service_role API'den çeker; supabase select ile aynı {data,error} şekli */
+async function fetchTenantNames(): Promise<{
+  data: { id: string; name: string | null }[] | null;
+  error: { message: string } | null;
+}> {
+  try {
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/tenants", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      return { data: null, error: { message: j.error ?? `HTTP ${res.status}` } };
+    }
+    const json = (await res.json().catch(() => ({}))) as {
+      tenants?: { id: string; name: string | null }[];
+    };
+    return { data: json.tenants ?? [], error: null };
+  } catch (err) {
+    return { data: null, error: { message: err instanceof Error ? err.message : "tenants alınamadı" } };
+  }
+}
+
 async function loadTenantSummaries(): Promise<TenantSummary[]> {
   const [usersRes, clientsRes, analysesRes, tenantsRes] = await Promise.all([
     fetchAllTenantIds("users"),
     fetchAllTenantIds("clients"),
     fetchAllTenantIds("numerology_analyses"),
-    supabase.from("tenants").select("id, name"),
+    // tenants artık publishable key ile okunmaz — admin service_role API üzerinden gelir.
+    fetchTenantNames(),
   ]);
 
   const tenantNames = new Map<string, string>();
