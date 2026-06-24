@@ -42,6 +42,9 @@ const LOCKED_SUBSCRIPTION_TOAST =
 export const PENDING_APPROVAL_MESSAGE =
   "Hesabınız yönetici onayı bekliyor.";
 
+export const INACTIVE_ACCOUNT_MESSAGE =
+  "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin.";
+
 const STORAGE_KEY = "yasam_user";
 const SESSION_TOKEN_KEY = "yasam_session_token";
 
@@ -165,10 +168,18 @@ export function isExpertAccountReady(user: YasamUser): boolean {
   return false;
 }
 
-/** Admin hariç giriş: active ve onay kontrolü */
+/**
+ * Giriş kontrolü.
+ *  - active=false ise HERKES (admin dahil) giriş yapamaz.
+ *  - Admin: yalnızca active kontrolüne tabidir (onay/approval'a değil).
+ *  - Expert: active + onay kontrolü (mevcut davranış korunur).
+ */
 export function canLoginYasamUser(
   user: YasamUser,
 ): { allowed: true } | { allowed: false; message: string } {
+  if (user.active !== true) {
+    return { allowed: false, message: INACTIVE_ACCOUNT_MESSAGE };
+  }
   if (isAdminUser(user)) return { allowed: true };
   if (!isExpertAccountReady(user)) {
     return { allowed: false, message: PENDING_APPROVAL_MESSAGE };

@@ -107,6 +107,18 @@ function isOwnerAdmin(admin: YasamUser | null | undefined): boolean {
   return false;
 }
 
+/**
+ * Yönetilen hedef kullanıcı owner (sistem sahibi) admin mi?
+ * NOT: admin_level kolonu varsayılan 'owner' ürettiğinden güvenilmez; owner
+ * kimliği e-posta ile belirlenir (server tarafı isOwnerAdminRow ile aynı kural).
+ */
+function isManagedOwnerAdmin(
+  u: { role?: string; email?: string } | null | undefined,
+): boolean {
+  if (!u || u.role !== "admin") return false;
+  return String(u.email ?? "").trim().toLowerCase() === OWNER_FALLBACK_EMAIL;
+}
+
 const pageContainerClass =
   "relative z-10 mx-auto w-full max-w-[1700px] px-6 py-6 md:px-10 md:py-8 xl:px-16 2xl:px-20";
 
@@ -794,8 +806,8 @@ export default function AdminUserDetailPage() {
     showToast({ title: "Başarılı", message: "Şifre güncellendi.", type: "success" });
   }
 
-  async function postStatus(action: string, extra?: Record<string, unknown>) {
-    if (!user) return;
+  async function postStatus(action: string, extra?: Record<string, unknown>): Promise<boolean> {
+    if (!user) return false;
     setActionUserId(user.id);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
       method: "POST",
@@ -806,26 +818,43 @@ export default function AdminUserDetailPage() {
     setActionUserId(null);
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
-      return;
+      return false;
     }
     await loadUser(currentAdminId);
+    return true;
   }
 
   async function approveUser() {
-    showToast({ title: "Başarılı", message: "Kullanıcı onaylandı.", type: "success" });
-    await postStatus("approve");
+    if (await postStatus("approve")) {
+      showToast({ title: "Başarılı", message: "Kullanıcı onaylandı.", type: "success" });
+    }
   }
 
   async function rejectUser() {
-    showToast({ title: "Başarılı", message: "Kullanıcı reddedildi.", type: "success" });
-    await postStatus("reject");
+    if (await postStatus("reject")) {
+      showToast({ title: "Başarılı", message: "Kullanıcı reddedildi.", type: "success" });
+    }
   }
 
   async function toggleActive() {
     if (!user || isSelf()) return;
-    const label = user.active ? "Kullanıcı pasif yapıldı." : "Kullanıcı aktif yapıldı.";
-    showToast({ title: "Başarılı", message: label, type: "success" });
-    await postStatus("toggle_active", { currentActive: user.active });
+    const wasActive = user.active;
+    // Owner (sistem sahibi) admin pasifleştirilemez — sunucu da engeller, burada erken uyarı.
+    if (wasActive && isManagedOwnerAdmin(user)) {
+      showToast({
+        title: "İşlem engellendi",
+        message: "Sistem sahibi (owner) admin pasifleştirilemez.",
+        type: "error",
+      });
+      return;
+    }
+    if (await postStatus("toggle_active", { currentActive: wasActive })) {
+      showToast({
+        title: "Başarılı",
+        message: wasActive ? "Kullanıcı pasif yapıldı." : "Kullanıcı aktif yapıldı.",
+        type: "success",
+      });
+    }
   }
 
   async function savePackageMembership() {
@@ -1422,7 +1451,16 @@ export default function AdminUserDetailPage() {
                 ) : null}
                 <button
                   type="button"
-                  disabled={isSelf() || actionUserId === user.id}
+                  disabled={
+                    isSelf() ||
+                    actionUserId === user.id ||
+                    (user.active && isManagedOwnerAdmin(user))
+                  }
+                  title={
+                    user.active && isManagedOwnerAdmin(user)
+                      ? "Sistem sahibi (owner) admin pasifleştirilemez."
+                      : undefined
+                  }
                   onClick={toggleActive}
                   className={`${actionBtn} border-emerald-200 bg-emerald-50 text-emerald-950`}
                 >

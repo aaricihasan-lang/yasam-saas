@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,14 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
         { error: "Geçersiz action. approve | reject | toggle_active bekleniyor." },
         { status: 400 },
       );
+  }
+
+  // Kilitlenme koruması: pasifleştirme (active=false) owner'ı veya son aktif admini düşüremez.
+  if (updatePayload.active === false) {
+    const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
+    if (!lock.ok) {
+      return NextResponse.json({ error: lock.error }, { status: lock.status });
+    }
   }
 
   const { error } = await db.from("users").update(updatePayload).eq("id", id);

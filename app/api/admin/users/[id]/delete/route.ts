@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -76,6 +77,12 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       { error: "Admin şifresi doğrulanamadı." },
       { status: 403 },
     );
+  }
+
+  // Kilitlenme koruması: owner veya son aktif admin (soft) silinemez.
+  const lock = await guardAdminLockoutById(db, id, { isDelete: true });
+  if (!lock.ok) {
+    return NextResponse.json({ error: lock.error }, { status: lock.status });
   }
 
   // Soft delete: active=false

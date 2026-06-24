@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import { isUserPremiumPackage, adminPermissionsToPayload, mapDbUser } from "@/lib/admin/userManagement";
+import { guardAdminLockoutById } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { adminId, db } = guard;
 
   const { id } = await ctx.params;
   if (!id) {
@@ -173,12 +174,32 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
 
   // Rol yükseltme koruması: sadece 'admin' veya 'expert' kabul edilir
   const role = body.role === "admin" ? "admin" : "expert";
+  const willBeActive = body.active !== false;
+
+  // Admin kendi hesabını edit ile pasifleştiremez.
+  if (id === adminId && !willBeActive) {
+    return NextResponse.json(
+      { error: "Kendi hesabınızı pasifleştiremezsiniz." },
+      { status: 400 },
+    );
+  }
+
+  // Kilitlenme koruması: owner / son aktif admin pasifleştirilemez veya rolü düşürülemez.
+  if (!willBeActive || role !== "admin") {
+    const lock = await guardAdminLockoutById(db, id, {
+      willBeActive,
+      willBeAdmin: role === "admin",
+    });
+    if (!lock.ok) {
+      return NextResponse.json({ error: lock.error }, { status: lock.status });
+    }
+  }
 
   const updatePayload: Record<string, unknown> = {
     full_name: fullName,
     email,
     role,
-    active: body.active !== false,
+    active: willBeActive,
   };
 
   const { error } = await db.from("users").update(updatePayload).eq("id", id);
