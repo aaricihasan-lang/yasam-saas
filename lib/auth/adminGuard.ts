@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
+import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AdminGuardOk = {
@@ -28,12 +29,24 @@ export type AdminGuardResult = AdminGuardOk | AdminGuardFail;
  */
 export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardResult> {
   const adminId = req.headers.get("x-admin-id")?.trim() ?? "";
+  const sessionToken = req.headers.get("x-session-token")?.trim() ?? "";
 
   if (!adminId) {
     return {
       ok: false,
       response: NextResponse.json(
         { error: "Yetki gerekli." },
+        { status: 401 },
+      ),
+    };
+  }
+
+  // x-session-token zorunlu — yalnızca x-admin-id ile kimlik kabul edilmez.
+  if (!sessionToken) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Admin oturum doğrulaması gerekli." },
         { status: 401 },
       ),
     };
@@ -52,6 +65,29 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
     };
   }
 
+  // Token aktif mi + hangi kullanıcıya ait?
+  const tokenUserId = await getActiveSessionUserId(db, sessionToken);
+  if (!tokenUserId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Admin oturumu geçersiz." },
+        { status: 401 },
+      ),
+    };
+  }
+
+  // Binding: token'ın sahibi, iddia edilen x-admin-id ile aynı olmalı.
+  if (tokenUserId !== adminId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Admin oturum kimliği uyuşmuyor." },
+        { status: 403 },
+      ),
+    };
+  }
+
   const { data, error } = await db
     .from("users")
     .select("id, role, active")
@@ -62,7 +98,7 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Yetki yok." },
+        { error: "Admin yetkisi gerekli." },
         { status: 403 },
       ),
     };
