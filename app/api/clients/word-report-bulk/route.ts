@@ -87,10 +87,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!supabaseUrl || !supabaseKey)
     return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
 
-  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması)
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? supabaseKey;
-  const anonDb = createClient(supabaseUrl, anonKey);
-  const { data: userRow } = await anonDb
+  const db = createClient(supabaseUrl, supabaseKey);
+
+  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması) — service_role
+  const { data: userRow } = await db
     .from("users")
     .select("id")
     .eq("id", userId)
@@ -98,8 +98,6 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
   if (!userRow)
     return Response.json({ ok: false, error: "Yetkisiz erişim." }, { status: 403 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
 
   // Demo hesap: export sunucu seviyesinde engellenir
   if (await isDemoAccountId(userId, db))

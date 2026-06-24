@@ -871,10 +871,8 @@ export async function POST(
 
   const db = createClient(supabaseUrl, supabaseKey);
 
-  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması)
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? supabaseKey;
-  const anonDb = createClient(supabaseUrl, anonKey);
-  const { data: userRow } = await anonDb
+  // Kullanıcının bu tenant'a gerçekten ait olduğunu doğrula (IDOR koruması) — service_role
+  const { data: userRow } = await db
     .from("users")
     .select("id")
     .eq("id", userId)
