@@ -253,6 +253,8 @@ export function clearYasamUser(): void {
           // Numeroloji bilgi bankası
           "yasam-numeroloji-stone-assignments",
           "yasam-numeroloji-training-explanations",
+          // Numeroloji demo örnek analiz (IP hakkı server'da; bu yalnızca görüntüleme cache'i)
+          "yasam_demo_numeroloji_analiz",
           // Belge çeviri aktif iş
           "belge_ceviri_active_job",
         ].forEach((k) => localStorage.removeItem(k));

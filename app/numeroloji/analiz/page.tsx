@@ -7,6 +7,10 @@ import { createPortal } from "react-dom";
 import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import {
+  readDemoNumerolojiAnaliz,
+  saveDemoNumerolojiAnaliz,
+} from "@/lib/demo/demoNumerolojiAnaliz";
 import Link from "next/link";
 import { hesaplaNumeroloji } from "@/lib/numeroloji";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
@@ -31,6 +35,9 @@ import {
 } from "../components/NumerolojiGorselRaporKontrolPaneli";
 
 type TabId = "summary" | "plain" | "detailed" | "tas" | "gorsel";
+
+const DEMO_LIMIT_TEXT =
+  "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
 
 function collapseSpaces(value: string): string {
   return value.replace(/\s+/g, " ");
@@ -116,6 +123,10 @@ export default function NumerolojiAnalizPage() {
   const [gorselPngHazirlaniyor, setGorselPngHazirlaniyor] = useState(false);
   const gorselIndirmeKilitli = gorselPngHazirlaniyor;
 
+  const isDemo = readYasamUser()?.is_demo_account === true;
+  // Demo'da IP bazlı tek-analiz limiti aşıldığında gösterilen uyarı
+  const [demoLimitMsg, setDemoLimitMsg] = useState<string | null>(null);
+
   // URL parametrelerinden form prefill — ?ad=...&soyad=...&dogum=YYYY-MM-DD
   // window.location.search kullanımı Suspense gerektirmez, "use client" ile güvenli.
   useEffect(() => {
@@ -132,6 +143,20 @@ export default function NumerolojiAnalizPage() {
   // Sadece mount'ta bir kez çalışır — URL param'ları yeniden izlemeye gerek yok.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Demo: bu oturumda oluşturulmuş analiz varsa geri yükle ve göster
+  // (kullanıcı çıkış yapana kadar kendi analizini görebilir).
+  useEffect(() => {
+    if (!isDemo) return;
+    const stored = readDemoNumerolojiAnaliz();
+    if (!stored) return;
+    setFirstName(stored.firstName);
+    setLastName(stored.lastName);
+    setBirthDate(stored.birthDate);
+    computeAndShow(stored.firstName, stored.lastName, stored.birthDate);
+  // Yalnızca mount'ta — isDemo render başına stabil boolean.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -205,9 +230,73 @@ export default function NumerolojiAnalizPage() {
     }
   }
 
-  function handleSubmit(e: FormEvent) {
+  /** Hesaplama sonucunu üretip gösterir (girdiler önceden normalize edilmiş olmalı). */
+  function computeAndShow(fn: string, ln: string, bd: string): void {
+    try {
+      setOut(
+        hesaplaNumeroloji({
+          firstName: fn,
+          lastName: ln,
+          birthDate: birthDateForMotor(bd),
+        }),
+      );
+      setTab("summary");
+    } catch (err) {
+      console.error(err);
+      setError("Hesaplama sırasında bir hata oluştu.");
+    }
+  }
+
+  /**
+   * Demo'da IP bazlı tek-analiz hakkını yönetir.
+   * - Bu oturumda zaten bir analiz oluşturulmuşsa: aynı girdi → görüntülemeye izin;
+   *   farklı girdi → limit uyarısı + kayıtlı analizi geri göster.
+   * - Henüz oluşturulmamışsa: server'dan hak ister (IP bazlı). İzin varsa kaydeder.
+   * @returns hesaplamaya izin verilirse true
+   */
+  async function ensureDemoCreateAllowed(fn: string, ln: string, bd: string): Promise<boolean> {
+    const stored = readDemoNumerolojiAnaliz();
+    if (stored) {
+      const same =
+        stored.firstName === fn && stored.lastName === ln && stored.birthDate === bd;
+      if (same) return true; // kendi oluşturduğu analizi tekrar görüntülüyor
+      // Farklı bir analiz oluşturmaya çalışıyor → limit; kayıtlı analizi geri yükle
+      setDemoLimitMsg(DEMO_LIMIT_TEXT);
+      setFirstName(stored.firstName);
+      setLastName(stored.lastName);
+      setBirthDate(stored.birthDate);
+      computeAndShow(stored.firstName, stored.lastName, stored.birthDate);
+      return false;
+    }
+
+    // İlk oluşturma → server'dan IP bazlı hak iste
+    try {
+      const userId = readYasamUser()?.id ?? "";
+      const res = await fetch("/api/numeroloji/demo-analiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        allowed?: boolean;
+        message?: string;
+      };
+      if (res.ok && json.allowed) {
+        saveDemoNumerolojiAnaliz({ firstName: fn, lastName: ln, birthDate: bd });
+        return true;
+      }
+      setDemoLimitMsg(typeof json.message === "string" ? json.message : DEMO_LIMIT_TEXT);
+      return false;
+    } catch {
+      setDemoLimitMsg("Bağlantı doğrulanamadı. Lütfen tekrar deneyin.");
+      return false;
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setDemoLimitMsg(null);
     setOut(null);
 
     const fnRaw = firstName.trim();
@@ -236,19 +325,13 @@ export default function NumerolojiAnalizPage() {
     setFirstName(fn);
     setLastName(ln);
 
-    try {
-      setOut(
-        hesaplaNumeroloji({
-          firstName: fn,
-          lastName: ln,
-          birthDate: birthDateForMotor(bd),
-        }),
-      );
-      setTab("summary");
-    } catch (err) {
-      console.error(err);
-      setError("Hesaplama sırasında bir hata oluştu.");
+    // Demo: IP bazlı tek-analiz hakkı kontrolü (normal kullanıcı etkilenmez)
+    if (isDemo) {
+      const allowed = await ensureDemoCreateAllowed(fn, ln, bd);
+      if (!allowed) return;
     }
+
+    computeAndShow(fn, ln, bd);
   }
 
   const isimGoster = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();
@@ -258,13 +341,11 @@ export default function NumerolojiAnalizPage() {
   const analizNavLinkClass =
     "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-900 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md transition-all hover:scale-[1.02] hover:border-violet-300 hover:bg-white/95 no-underline";
 
-  const isDemo = readYasamUser()?.is_demo_account === true;
-
   return (
     <NumerolojiPremiumShell maxWidthClass="max-w-none">
       <BfcacheRefreshHandler />
       {isDemo && (
-        <DemoModuleBanner message="Numeroloji analizi demo hesabında yapılabilir. Hesaplama sonuçlarını görüntüleyebilirsiniz; kaydetme işlemi devre dışıdır." />
+        <DemoModuleBanner message="Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır." />
       )}
       <div className="space-y-3">
         <header className="relative overflow-hidden rounded-2xl border border-violet-200/50 bg-gradient-to-br from-violet-200/40 via-white/70 to-amber-100/35 px-4 py-4 text-center shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] ring-1 ring-white/60 backdrop-blur-xl sm:px-6 sm:py-5">
@@ -377,6 +458,16 @@ export default function NumerolojiAnalizPage() {
             className="mb-4 rounded-2xl border border-rose-200/80 bg-rose-50/90 px-4 py-3 text-center text-sm font-semibold text-rose-900 shadow-sm ring-1 ring-rose-100/60 backdrop-blur-sm"
           >
             {error}
+          </div>
+        ) : null}
+
+        {demoLimitMsg ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 whitespace-pre-line rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-900 shadow-sm"
+          >
+            {demoLimitMsg}
           </div>
         ) : null}
 
