@@ -1,7 +1,6 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
-import { supabase } from "@/lib/supabase";
 import {
   parseModulePermissions,
   type ModulePermissions,
@@ -304,37 +303,45 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
   return normalizeRole(user?.role) === "expert";
 }
 
-const USER_REFRESH_SELECT =
-  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account";
-  // password ve password_hash kasıtlı olarak hariç tutulmuştur
-
-/** users tablosundan güncel kayıt (localStorage yerine kaynak doğruluk) */
+/**
+ * Güncel kullanıcı kaydı — güvenli /api/auth/profile (service_role) üzerinden.
+ * Tarayıcıdan doğrudan users tablosu okunmaz.
+ */
 export async function refreshYasamUserFromDb(
   user: YasamUser,
 ): Promise<YasamUser | null> {
   if (!user.id) return null;
 
-  const { data, error } = await supabase
-    .from("users")
-    .select(USER_REFRESH_SELECT)
-    .eq("id", user.id)
-    .maybeSingle();
+  const token = readSessionToken();
+  // Oturum token'ı henüz yoksa (ör. login anında, session oluşturulmadan önce)
+  // güvenli API çağrılamaz — mevcut (RPC'den gelen) kaydı koru, login akışını bozma.
+  if (!token) return user;
 
-  if (error) {
-    console.error("Kullanıcı kaydı yenilenemedi:", error);
+  try {
+    const res = await fetch("/api/auth/profile", {
+      headers: { "x-user-id": user.id, "x-session-token": token },
+    });
+
+    if (!res.ok) {
+      console.error("Kullanıcı kaydı yenilenemedi:", res.status);
+      return null;
+    }
+
+    const json = (await res.json().catch(() => ({}))) as {
+      profile?: Record<string, unknown> | null;
+    };
+    if (!json.profile) return null;
+
+    const row = json.profile;
+    return parseLoginUserRecord({
+      ...row,
+      module_permissions:
+        row.module_permissions ?? user.module_permissions ?? undefined,
+    });
+  } catch (err) {
+    console.error("Kullanıcı kaydı yenileme hatası:", err);
     return null;
   }
-
-  if (!data) return null;
-
-  const row = data as Record<string, unknown>;
-  const refreshed = parseLoginUserRecord({
-    ...row,
-    module_permissions:
-      row.module_permissions ?? user.module_permissions ?? undefined,
-  });
-
-  return refreshed;
 }
 
 export type SyncYasamUserOptions = {
