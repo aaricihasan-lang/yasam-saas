@@ -240,6 +240,14 @@ const modules = [
     iconBg: "bg-orange-50",
   },
   {
+    title: "Kombinasyon Oluştur",
+    subtitle: "Minerale göre taş bul.",
+    icon: "⚗️",
+    href: "/dogaltas/kombinasyon-olustur",
+    dot: "bg-teal-500",
+    iconBg: "bg-teal-50",
+  },
+  {
     title: "Taş Bilgi Kütüphanesi",
     subtitle: "Eğitim ve referans.",
     icon: "📚",
