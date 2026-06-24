@@ -28,6 +28,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
+  readSessionToken,
 } from "@/lib/auth/yasamUser";
 
 type UserListFilter =
@@ -346,6 +347,15 @@ const emptyCreateForm: CreateForm = {
   active: true,
 };
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-1) */
+function adminHeaders(adminId: string, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminUsersPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -386,7 +396,7 @@ export default function AdminUsersPage() {
   const loadUsers = useCallback(async (adminId: string) => {
     setListLoading(true);
     const res = await fetch("/api/admin/users", {
-      headers: { "x-admin-id": adminId },
+      headers: adminHeaders(adminId),
     });
 
     if (!res.ok) {
@@ -445,10 +455,7 @@ export default function AdminUsersPage() {
 
     const res = await fetch("/api/admin/users", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-id": currentUserId,
-      },
+      headers: adminHeaders(currentUserId, true),
       body: JSON.stringify({
         fullName,
         email,

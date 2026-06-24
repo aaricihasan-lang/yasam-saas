@@ -62,6 +62,7 @@ import {
   clearYasamUser,
   isAdminUser,
   readYasamUser,
+  readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 
@@ -418,6 +419,15 @@ function ModulePermissionCard({
   );
 }
 
+/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-1) */
+function adminHeaders(adminId: string, json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-admin-id": adminId };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 export default function AdminUserDetailPage() {
   useBfcacheRefresh();
   const router = useRouter();
@@ -508,7 +518,7 @@ export default function AdminUserDetailPage() {
   const loadPaymentHistory = useCallback(async (uid: string, adminId: string) => {
     setHistoryLoading(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/payment-history`, {
-      headers: { "x-admin-id": adminId },
+      headers: adminHeaders(adminId),
     });
     setHistoryLoading(false);
     if (!res.ok) { setPaymentHistory([]); return; }
@@ -541,7 +551,7 @@ export default function AdminUserDetailPage() {
 
     const res = await fetch(
       `/api/admin/users/${encodeURIComponent(user.id)}/security-events?${p.toString()}`,
-      { headers: { "x-admin-id": currentAdminId } },
+      { headers: adminHeaders(currentAdminId) },
     );
     setSecurityLoading(false);
     if (!res.ok) return;
@@ -599,7 +609,7 @@ export default function AdminUserDetailPage() {
 
     setLoading(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
-      headers: { "x-admin-id": adminId },
+      headers: adminHeaders(adminId),
     });
 
     if (!res.ok) {
@@ -643,10 +653,10 @@ export default function AdminUserDetailPage() {
   async function loadPanelSummaries(uid: string, adminId: string) {
     const [secRes, actRes] = await Promise.allSettled([
       fetch(`/api/admin/users/${encodeURIComponent(uid)}/security-events?limit=0&sessions_limit=0`, {
-        headers: { "x-admin-id": adminId },
+        headers: adminHeaders(adminId),
       }),
       fetch(`/api/admin/users/${encodeURIComponent(uid)}/active-sessions?limit=0`, {
-        headers: { "x-admin-id": adminId },
+        headers: adminHeaders(adminId),
       }),
     ]);
     if (secRes.status === "fulfilled" && secRes.value.ok) {
@@ -717,7 +727,7 @@ export default function AdminUserDetailPage() {
 
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/delete`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ adminPassword: deleteAdminPassword.trim() }),
     });
 
@@ -759,7 +769,7 @@ export default function AdminUserDetailPage() {
     setSavingEdit(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({
         action: "edit",
         fullName,
@@ -790,7 +800,7 @@ export default function AdminUserDetailPage() {
     setSavingPassword(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/password`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ newPassword: newPassword.trim() }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -811,7 +821,7 @@ export default function AdminUserDetailPage() {
     setActionUserId(user.id);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ action, ...extra }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -867,7 +877,7 @@ export default function AdminUserDetailPage() {
     setSavingPackage(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/package`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ packagePlan }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -892,7 +902,7 @@ export default function AdminUserDetailPage() {
     setSavingPayment(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/payment`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ draft: paymentDraft }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; warning?: string; error?: string };
@@ -920,7 +930,7 @@ export default function AdminUserDetailPage() {
     setSavingModules(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({ action: "modules", modulePermissions: adminPermissionsToPayload(next) }),
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
@@ -940,7 +950,7 @@ export default function AdminUserDetailPage() {
     setSavingLicense(true);
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-id": currentAdminId },
+      headers: adminHeaders(currentAdminId, true),
       body: JSON.stringify({
         action:                 "license",
         licenseType:            licenseDraft.licenseType,
@@ -981,7 +991,7 @@ export default function AdminUserDetailPage() {
 
     const res = await fetch(
       `/api/admin/users/${encodeURIComponent(user.id)}/active-sessions?${p.toString()}`,
-      { headers: { "x-admin-id": currentAdminId } },
+      { headers: adminHeaders(currentAdminId) },
     );
     setActiveSessionsLoading(false);
     if (!res.ok) return;
@@ -1016,7 +1026,7 @@ export default function AdminUserDetailPage() {
     setTerminatingSessionId(sessionId);
     const res = await fetch(
       `/api/admin/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(sessionId)}`,
-      { method: "PATCH", headers: { "x-admin-id": currentAdminId } },
+      { method: "PATCH", headers: adminHeaders(currentAdminId) },
     );
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setTerminatingSessionId(null);
