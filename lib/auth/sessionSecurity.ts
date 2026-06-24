@@ -414,6 +414,35 @@ export async function validateSessionToken(
   return !!data;
 }
 
+/**
+ * Aktif bir oturum token'ının sahibi olan user_id'yi döndürür.
+ * Token yoksa / pasifse null döner. Aktivite üzerine last_seen_at tazelenir.
+ *
+ * verifyUserRequest gibi guard'ların token.user_id === x-user-id bağını
+ * kurabilmesi için kullanılır (yalnızca aktif/geçerli olduğunu değil,
+ * KİMİN token'ı olduğunu da bilmek gerekir).
+ */
+export async function getActiveSessionUserId(
+  db: SupabaseClient,
+  sessionToken: string,
+): Promise<string | null> {
+  const { data } = await db
+    .from("user_sessions")
+    .select("user_id")
+    .eq("session_token", sessionToken)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (data) {
+    void db
+      .from("user_sessions")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("session_token", sessionToken);
+  }
+
+  return data?.user_id != null ? String(data.user_id) : null;
+}
+
 // ─── Header'dan konum bilgisi ─────────────────────────────────────────────────
 
 export function extractLocationFromHeaders(headers: Headers): LocationInfo {

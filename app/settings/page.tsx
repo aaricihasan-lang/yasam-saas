@@ -233,9 +233,13 @@ function ContactTab({ user }: { user: YasamUser }) {
 
   async function loadMessages() {
     setLoadingMsgs(true);
+    const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/support", {
-        headers: { "x-user-id": user.id },
+        headers: {
+          "x-user-id": user.id,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
       });
       const json = (await res.json()) as { messages?: SupportMessage[] };
       setMessages(json.messages ?? []);
@@ -254,10 +258,15 @@ function ContactTab({ user }: { user: YasamUser }) {
     if (!message.trim()) { showToast({ message: "Mesaj giriniz.", type: "warning" }); return; }
 
     setLoading(true);
+    const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/support", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": user.id },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify({ subject, message, priority }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
@@ -402,10 +411,15 @@ function ExportTab({ user }: { user: YasamUser }) {
   async function handleExport(moduleKey: string, label: string) {
     if (loadingModule) return;
     setLoadingModule(moduleKey);
+    const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/export", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": user.id },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify({ module: moduleKey }),
       });
       if (!res.ok) {
@@ -517,9 +531,13 @@ function BackupTab({ user }: { user: YasamUser }) {
   async function handleBackup() {
     if (loading) return;
     setLoading(true);
+    const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/backup", {
-        headers: { "x-user-id": user.id },
+        headers: {
+          "x-user-id": user.id,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
       });
       if (!res.ok) {
         showToast({ message: "Yedek alınamadı.", type: "error" });
@@ -632,10 +650,15 @@ function RestoreTab({ user }: { user: YasamUser }) {
     if (!parsedBackup || !confirmed || loading) return;
     setLoading(true);
     setSummary(null);
+    const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/restore", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": user.id },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+        },
         body: JSON.stringify({ backup: parsedBackup }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string; summary?: RestoreSummary };
