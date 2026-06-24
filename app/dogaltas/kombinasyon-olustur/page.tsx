@@ -17,9 +17,11 @@ import {
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
-import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
   evaluateStone,
+  evaluateCondition,
+  extractStoneMinerals,
   makeStockMatcher,
   type MineralCondition,
 } from "@/lib/dogaltas/mineralCombination";
@@ -172,6 +174,38 @@ export default function KombinasyonOlusturPage() {
 
   const inStockMatched = results.filter((r) => r.inStock).length;
   const anyThreshold = activeConditions.some((c) => c.minPercent != null);
+
+  // ─── Sepet analizi (client-side; DB yok) ──────────────────────────────────
+  const cartAnalysis = useMemo(() => {
+    const fullStones = cart
+      .map((c) => stones.find((s) => s.id === c.id))
+      .filter((s): s is StoneListItemExtended => Boolean(s));
+
+    // Hedef minerallerin (seçili koşullar) sepet taşlarınca karşılanma durumu.
+    const conditionStatus = activeConditions.map((cond) => {
+      const met = fullStones.some(
+        (s) => evaluateCondition(extractStoneMinerals(s.assignments), cond).satisfied,
+      );
+      const label = cond.minPercent != null
+        ? `${cond.mineral.trim()} ≥ %${cond.minPercent}`
+        : cond.mineral.trim();
+      return { id: cond.id, label, met };
+    });
+    const metMinerals = conditionStatus.filter((c) => c.met);
+    const missingMinerals = conditionStatus.filter((c) => !c.met);
+
+    // Taş bazlı uyarılar (warning_text + warning_tags).
+    const warnings = fullStones.map((s) => ({
+      id: s.id,
+      name: s.stone_name || "İsimsiz taş",
+      text: (s.warning_text ?? "").trim(),
+      tags: Array.isArray(s.warning_tags) ? s.warning_tags.filter(Boolean) : [],
+      has: stoneHasWarning(s.warning_text, s.warning_tags),
+    }));
+    const hasAnyWarning = warnings.some((w) => w.has);
+
+    return { metMinerals, missingMinerals, warnings, hasAnyWarning };
+  }, [cart, stones, activeConditions]);
 
   // ─── Koşul işlemleri ───────────────────────────────────────────────────────
   function addCondition() {
@@ -521,7 +555,113 @@ export default function KombinasyonOlusturPage() {
                     </button>
                   </div>
 
-                  <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                  {/* ── Karşılanan / Eksik Mineraller ─────────────────── */}
+                  {activeConditions.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                      <div>
+                        <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                          Karşılanan Mineraller
+                        </div>
+                        {cartAnalysis.metMinerals.length === 0 ? (
+                          <p className="text-[11px] font-semibold text-slate-400">Henüz yok.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {cartAnalysis.metMinerals.map((m) => (
+                              <span
+                                key={m.id}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
+                              >
+                                ✓ {m.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                          Eksik Mineraller
+                        </div>
+                        {cartAnalysis.missingMinerals.length === 0 ? (
+                          <p className="text-[11px] font-semibold text-emerald-600">
+                            Tümü karşılandı.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {cartAnalysis.missingMinerals.map((m) => (
+                              <span
+                                key={m.id}
+                                className="inline-flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700"
+                              >
+                                ✕ {m.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Taş Bazlı Uyarılar ─────────────────────────────── */}
+                  <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+                      Taş Uyarıları
+                    </div>
+                    {cartAnalysis.warnings.map((w) => (
+                      <div
+                        key={w.id}
+                        className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5"
+                      >
+                        <div className="text-[11px] font-black text-slate-800">{w.name}</div>
+                        {w.has ? (
+                          <div className="mt-0.5">
+                            {w.text && (
+                              <p className="text-[11px] font-medium leading-snug text-amber-700">
+                                ⚠️ {w.text}
+                              </p>
+                            )}
+                            {w.tags.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {w.tags.map((t, i) => (
+                                  <span
+                                    key={`${w.id}-t-${i}`}
+                                    className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                            Belirgin uyarı yok
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Sepet Durumu Özeti ─────────────────────────────── */}
+                  <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                    {activeConditions.length > 0 &&
+                      (cartAnalysis.missingMinerals.length === 0 ? (
+                        <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                          ✓ Kombinasyon hedef mineralleri karşılıyor.
+                        </p>
+                      ) : (
+                        <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
+                          Eksik mineraller var, taş ekleyin veya değiştirin.
+                        </p>
+                      ))}
+                    {cartAnalysis.hasAnyWarning && (
+                      <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
+                        ⚠️ Uyarı bulunan taşlar var, danışan durumuna göre kontrol edin.
+                      </p>
+                    )}
+                  </div>
+
+                  <p className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[10px] font-semibold text-slate-500 ring-1 ring-slate-200">
                     Henüz kaydedilmiyor — kayıt sonraki fazda eklenecek.
                   </p>
                 </>
