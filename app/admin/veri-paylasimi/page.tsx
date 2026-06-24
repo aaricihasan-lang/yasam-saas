@@ -361,26 +361,34 @@ export default function VeriPaylasimiPage() {
 
   const loadExperts = useCallback(async () => {
     setExpertsLoading(true);
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, full_name, name, email, tenant_id, role")
-      .eq("role", "expert")
-      .order("full_name", { ascending: true });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch("/api/admin/users", {
+      headers: { "x-admin-id": adminId ?? "" },
+    });
 
     setExpertsLoading(false);
 
-    if (error) {
-      console.error("Uzman listesi hatası:", error);
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error("Uzman listesi hatası:", j.error);
       showToast({
         title: "İşlem başarısız",
-        message: error.message,
+        message: j.error ?? `HTTP ${res.status}`,
         type: "error",
       });
       setExperts([]);
       return;
     }
 
-    const mapped: ExpertOption[] = (data ?? []).map((row) => {
+    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
+    const data = (json.users ?? [])
+      .filter((u) => (u as { role?: string }).role === "expert")
+      .sort((a, b) =>
+        String((a as { full_name?: string }).full_name ?? "")
+          .localeCompare(String((b as { full_name?: string }).full_name ?? ""), "tr-TR"),
+      );
+
+    const mapped: ExpertOption[] = data.map((row) => {
       const r = row as Record<string, unknown>;
       const fullName = String(r.full_name ?? r.name ?? "").trim();
       const email = String(r.email ?? "").trim();
