@@ -784,83 +784,96 @@ export default function KombinasyonOlusturPage() {
                 </>
               )}
 
-              {/* ── Kombinasyonu Kaydet ─────────────────────────────── */}
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                {savedInfo ? (
-                  <div className="space-y-2">
-                    <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
-                      ✓ &quot;{savedInfo.name}&quot; kaydedildi.{" "}
-                      <Link href="/dogaltas/kombinasyonlar" className="underline">
-                        Listede gör
-                      </Link>
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearCart();
-                          resetSaveForm();
-                        }}
-                        className="flex-1 rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                      >
-                        Sepeti Temizle
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSavedInfo(null)}
-                        className="flex-1 rounded-xl border-2 border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700"
-                      >
-                        Devam Et
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">
-                      Kombinasyonu Kaydet
-                    </div>
-                    <input
-                      type="text"
-                      value={saveName}
-                      onChange={(e) => setSaveName(e.target.value)}
-                      placeholder="Kombinasyon adı (zorunlu)"
-                      maxLength={200}
-                      className="h-9 w-full rounded-xl border-2 border-cyan-300/50 bg-white px-3 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
-                    />
-                    <input
-                      type="text"
-                      value={saveDescription}
-                      onChange={(e) => setSaveDescription(e.target.value)}
-                      placeholder="Açıklama / amaç (opsiyonel)"
-                      maxLength={200}
-                      className="h-9 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
-                    />
-                    <textarea
-                      value={saveNote}
-                      onChange={(e) => setSaveNote(e.target.value)}
-                      placeholder="Serbest not (opsiyonel)"
-                      rows={2}
-                      className="w-full resize-y rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
-                    />
-                    <button
-                      type="button"
-                      onClick={saveCombination}
-                      disabled={cart.length === 0 || saveName.trim() === "" || saving}
-                      className="w-full rounded-xl border-2 border-violet-400 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {saving ? "Kaydediliyor..." : "💾 Kombinasyonu Kaydet"}
-                    </button>
-                    {cart.length === 0 && (
-                      <p className="text-[10px] font-semibold text-slate-400">
-                        Kaydetmek için sepete en az bir taş ekleyin.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </aside>
         </div>
+
+        {/* ── Kombinasyonu Kaydet (tam genişlik) ───────────────────── */}
+        <section className={uiFilterCard}>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-black text-slate-900">💾 Kombinasyonu Kaydet</h2>
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-700">
+              {cart.length} taş
+            </span>
+          </div>
+
+          {savedInfo ? (
+            <div className="space-y-2">
+              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                ✓ &quot;{savedInfo.name}&quot; kaydedildi.{" "}
+                <Link href="/dogaltas/kombinasyonlar" className="underline">
+                  Listede gör
+                </Link>
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearCart();
+                    resetSaveForm();
+                  }}
+                  className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 sm:flex-1"
+                >
+                  Sepeti Temizle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSavedInfo(null)}
+                  className="rounded-xl border-2 border-violet-300 bg-violet-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 sm:flex-1"
+                >
+                  Devam Et
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="Kombinasyon adı (zorunlu)"
+                  maxLength={200}
+                  className="h-10 w-full rounded-xl border-2 border-cyan-300/50 bg-white px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                />
+                <input
+                  type="text"
+                  value={saveDescription}
+                  onChange={(e) => setSaveDescription(e.target.value)}
+                  placeholder="Açıklama / amaç (opsiyonel)"
+                  maxLength={200}
+                  className="h-10 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                />
+              </div>
+              <textarea
+                value={saveNote}
+                onChange={(e) => setSaveNote(e.target.value)}
+                placeholder="Serbest not (opsiyonel)"
+                rows={2}
+                className="w-full resize-y rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                {cart.length === 0 ? (
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Kaydetmek için sepete en az bir taş ekleyin.
+                  </p>
+                ) : (
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {cart.length} taş kaydedilecek
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={saveCombination}
+                  disabled={cart.length === 0 || saveName.trim() === "" || saving}
+                  className="rounded-xl border-2 border-violet-400 bg-violet-600 px-5 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  {saving ? "Kaydediliyor..." : "💾 Kombinasyonu Kaydet"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Taş Detay Drawer — navigasyon yok; kapanınca tüm sayfa state'i korunur */}
