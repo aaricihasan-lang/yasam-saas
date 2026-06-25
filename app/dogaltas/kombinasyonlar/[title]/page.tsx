@@ -13,17 +13,12 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import {
-  getSyncedTenantId,
-  MISSING_SESSION_TENANT_MESSAGE,
-} from "@/lib/auth/sessionTenant";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { supabase } from "@/lib/supabase";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
-
-const COMBINATIONS_SELECT =
-  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
@@ -1167,30 +1162,17 @@ function KombinasyonDetayPageContent() {
     setLoading(true);
     setErrorMessage("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setLoading(false);
-      setRows([]);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("combinations")
-      .select(COMBINATIONS_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("issue", decodedIssue)
-      .order("variant_index", { ascending: true });
+    const result = await fetchCombinationsViaApi(decodedIssue);
 
     setLoading(false);
 
-    if (error) {
-      setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+    if (!result.ok) {
+      setErrorMessage(`Kayıtlar alınamadı: ${result.error ?? ""}`);
       setRows([]);
       return;
     }
 
-    const raw = (data || []) as CombinationRecord[];
+    const raw = result.rows as CombinationRecord[];
     const unique = deduplicateRows(raw);
     const droppedCount = raw.length - unique.length;
 

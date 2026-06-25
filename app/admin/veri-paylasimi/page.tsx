@@ -466,18 +466,21 @@ export default function VeriPaylasimiPage() {
           });
         }
       } else {
-        const { data, error } = await supabase
-          .from("combinations")
-          .select("id, issue, variant_index")
-          .eq("tenant_id", sourceAdminTenantId)
-          .order("issue", { ascending: true })
-          .order("variant_index", { ascending: true });
-        if (error) {
-          console.error("[veri-paylasimi] combinations kayıt yükleme hatası:", error.message);
-          fetchError = error.message;
+        const adminId = readYasamUser()?.id;
+        const res = await fetch(
+          `/api/admin/dogaltas/combinations?tenantId=${encodeURIComponent(sourceAdminTenantId)}`,
+          { headers: adminHeaders(adminId), cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: { id: string; issue: string; variant_index: number }[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          fetchError = json.error ?? `HTTP ${res.status}`;
+          console.error("[veri-paylasimi] combinations kayıt yükleme hatası:", fetchError);
         } else {
-          items = (data ?? []).map((r) => {
-            const row = r as Record<string, unknown>;
+          items = (json.rows ?? []).map((row) => {
             const issue = String(row.issue ?? "");
             const vi = Number(row.variant_index ?? 0);
             return {

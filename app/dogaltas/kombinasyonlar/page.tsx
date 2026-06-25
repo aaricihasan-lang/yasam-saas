@@ -11,7 +11,7 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 
 /** Güvenli delete API'sine issue listesi gönderir (publishable delete yerine). */
 async function deleteCombinationsViaApi(
@@ -187,9 +187,6 @@ type CombinationRecord = {
   created_at: string;
 };
 
-const COMBINATIONS_SELECT =
-  "id,tenant_id,source_id,issue,description,variant_index,source,stones_text,notes_text,notes_text_2,notes_text_3,created_at";
-
 function previewText(rows: CombinationRecord[], limit = 100) {
   for (const row of rows) {
     const chunk = [row.stones_text, row.notes_text, row.notes_text_2, row.notes_text_3, row.source]
@@ -364,30 +361,17 @@ export default function KombinasyonlarPage() {
     setLoading(true);
     setErrorMessage("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setLoading(false);
-      setRows([]);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("combinations")
-      .select(COMBINATIONS_SELECT)
-      .eq("tenant_id", tenantId)
-      .order("issue", { ascending: true })
-      .order("variant_index", { ascending: true });
+    const result = await fetchCombinationsViaApi();
 
     setLoading(false);
 
-    if (error) {
-      setErrorMessage(`Kayıtlar alınamadı: ${error.message}`);
+    if (!result.ok) {
+      setErrorMessage(`Kayıtlar alınamadı: ${result.error ?? ""}`);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as CombinationRecord[]);
+    setRows(result.rows as CombinationRecord[]);
   }
 
   useEffect(() => {
