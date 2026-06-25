@@ -124,6 +124,104 @@ export function evaluateStone(
   return { matches: perCondition.every((r) => r.satisfied), perCondition };
 }
 
+// ─── Mineral arama / sıralama (dropdown için) ────────────────────────────────
+
+/**
+ * Her mineral adı için onu içeren taş sayısını döndürür.
+ * Bir kez hesaplanır (useMemo) — dropdown'da "X taş" rozeti için kullanılır.
+ *
+ * Taş mineral hücreleri serbest metindir ("Kalsiyum (güven, denge)"),
+ * bu nedenle eşleştirme normalize edilmiş substring üzerinden yapılır.
+ */
+export function buildMineralStoneCounts(
+  stones: { assignments: unknown }[],
+  mineralNames: string[],
+): Map<string, number> {
+  // Her taşın mineral hücrelerini bir kez normalize edip birleştir.
+  const stoneTexts = stones.map((s) =>
+    extractStoneMinerals(s.assignments)
+      .map((m) => normalizeTr(m.name))
+      .join(" | "),
+  );
+
+  const counts = new Map<string, number>();
+  for (const name of mineralNames) {
+    const needle = normalizeTr(name);
+    if (!needle) {
+      counts.set(name, 0);
+      continue;
+    }
+    let c = 0;
+    for (const text of stoneTexts) {
+      if (text.includes(needle)) c += 1;
+    }
+    counts.set(name, c);
+  }
+  return counts;
+}
+
+export type RankedMineral = {
+  name: string;
+  count: number;
+  /** Sorgu kelime başında eşleşiyor mu (vurgu/sıralama için). */
+  isPrefix: boolean;
+};
+
+/** Normalize metinde sorgunun eşleşme katmanı: 0=baş, 1=kelime başı, 2=içeride. */
+function mineralMatchTier(norm: string, q: string): number {
+  if (norm.startsWith(q)) return 0;
+  const idx = norm.indexOf(q);
+  if (idx > 0) {
+    const prev = norm[idx - 1];
+    if (prev === " " || prev === "(" || prev === "-" || prev === "/") return 1;
+  }
+  return 2;
+}
+
+/**
+ * Mineral seçeneklerini aramaya göre filtreler ve sıralar.
+ *
+ * Sıralama önceliği:
+ *   1. Kelime başı (prefix) eşleşmeleri en üstte (örn. "si" → SİLİSYUM, SİLİKAT)
+ *   2. Kelime sınırı eşleşmeleri
+ *   3. Daha çok taşta geçen mineraller (count desc)
+ *   4. Türkçe alfabetik
+ *
+ * Tüm karşılaştırmalar Türkçe-normalize + büyük/küçük harf duyarsızdır.
+ */
+export function rankMineralOptions(
+  options: string[],
+  counts: Map<string, number>,
+  query: string,
+  limit = 60,
+): RankedMineral[] {
+  const q = normalizeTr(query.trim());
+
+  const scored = options.map((name) => ({
+    name,
+    norm: normalizeTr(name),
+    count: counts.get(name) ?? 0,
+  }));
+
+  const filtered = q ? scored.filter((o) => o.norm.includes(q)) : scored;
+
+  filtered.sort((a, b) => {
+    if (q) {
+      const ta = mineralMatchTier(a.norm, q);
+      const tb = mineralMatchTier(b.norm, q);
+      if (ta !== tb) return ta - tb;
+    }
+    if (b.count !== a.count) return b.count - a.count;
+    return a.name.localeCompare(b.name, "tr-TR", { sensitivity: "base" });
+  });
+
+  return filtered.slice(0, limit).map((o) => ({
+    name: o.name,
+    count: o.count,
+    isPrefix: q ? o.norm.startsWith(q) : false,
+  }));
+}
+
 /**
  * Stok eşleştirici — isim bazlı (taş ↔ dogaltas_inventory FK yoktur).
  * Türkçe-normalize tam eşitlik veya güvenli substring eşleşmesi.

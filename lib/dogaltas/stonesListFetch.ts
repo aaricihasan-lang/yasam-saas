@@ -212,6 +212,27 @@ export function stoneListImageCount(images: unknown): number {
   return Array.isArray(images) ? images.length : 0;
 }
 
+/** Detay drawer'ı için web'de gösterilebilir (http/https) tüm görsel URL'leri. */
+export function getStoneImageUrls(
+  images: unknown,
+): { url: string; name: string }[] {
+  if (!Array.isArray(images)) return [];
+  const out: { url: string; name: string }[] = [];
+  images.forEach((img, index) => {
+    if (!img || typeof img !== "object") return;
+    const rec = img as Record<string, unknown>;
+    const url = typeof rec.url === "string" ? rec.url.trim() : "";
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    out.push({
+      url,
+      name: typeof rec.name === "string" && rec.name.trim()
+        ? rec.name
+        : `Görsel ${index + 1}`,
+    });
+  });
+  return out;
+}
+
 // ─── Tenant yardımcısı ───────────────────────────────────────────────────────
 
 /**

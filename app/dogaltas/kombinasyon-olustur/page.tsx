@@ -25,8 +25,11 @@ import {
   evaluateCondition,
   extractStoneMinerals,
   makeStockMatcher,
+  buildMineralStoneCounts,
   type MineralCondition,
 } from "@/lib/dogaltas/mineralCombination";
+import { MineralCombobox } from "@/app/dogaltas/components/MineralCombobox";
+import { StoneDetailDrawer } from "@/app/dogaltas/components/StoneDetailDrawer";
 
 // ─── Stil sabitleri (Doğaltaş modülü diliyle uyumlu) ─────────────────────────
 const pageBg =
@@ -77,6 +80,12 @@ export default function KombinasyonOlusturPage() {
 
   const [conditions, setConditions] = useState<MineralCondition[]>([emptyCondition()]);
   const [searched, setSearched] = useState(false);
+
+  // Taş detay drawer'ı — sayfa navigasyonu yok; tüm liste/filtre/sepet state'i korunur.
+  const [detail, setDetail] = useState<{
+    stone: StoneListItemExtended;
+    inStock: boolean;
+  } | null>(null);
 
   // Kombinasyon sepeti — yerel state.
   const [cart, setCart] = useState<CartStone[]>([]);
@@ -170,6 +179,12 @@ export default function KombinasyonOlusturPage() {
   );
 
   const stockMatcher = useMemo(() => makeStockMatcher(inStockNames), [inStockNames]);
+
+  // Mineral → kaç taşta bulunduğu (bir kez hesaplanır; dropdown rozeti için).
+  const mineralCounts = useMemo(
+    () => buildMineralStoneCounts(stones, mineralOptions),
+    [stones, mineralOptions],
+  );
 
   const results = useMemo(() => {
     if (activeConditions.length === 0) return [];
@@ -392,21 +407,15 @@ export default function KombinasyonOlusturPage() {
             </span>
           </div>
 
-          <datalist id="kombinasyon-mineral-options">
-            {mineralOptions.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-
           <div className="space-y-2">
             {conditions.map((cond, index) => (
               <div key={cond.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    list="kombinasyon-mineral-options"
+                <div className="min-w-0 flex-1">
+                  <MineralCombobox
                     value={cond.mineral}
-                    onChange={(e) => updateMineral(cond.id, e.target.value)}
+                    onChange={(v) => updateMineral(cond.id, v)}
+                    options={mineralOptions}
+                    counts={mineralCounts}
                     placeholder={`Mineral ${index + 1} (örn. Demir, Lityum, Kalsiyum)`}
                     className={uiInput}
                   />
@@ -509,9 +518,10 @@ export default function KombinasyonOlusturPage() {
                           : "border-slate-200 bg-white/70 opacity-80 hover:opacity-100"
                       }`}
                     >
-                      <Link
-                        href={`/dogaltas/dogaltas-listesi/${stone.id}`}
-                        className="group block transition hover:-translate-y-0.5"
+                      <button
+                        type="button"
+                        onClick={() => setDetail({ stone, inStock })}
+                        className="group block w-full text-left transition hover:-translate-y-0.5"
                       >
                       <div className="flex items-start gap-3">
                         <div
@@ -568,27 +578,36 @@ export default function KombinasyonOlusturPage() {
                           </div>
                         </div>
                       </div>
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          cartIds.has(stone.id)
-                            ? removeFromCart(stone.id)
-                            : addToCart({
-                                id: stone.id,
-                                name: stone.stone_name || "İsimsiz taş",
-                                inStock,
-                              })
-                        }
-                        className={`mt-3 w-full rounded-xl border-2 px-3 py-1.5 text-xs font-black shadow-sm transition ${
-                          cartIds.has(stone.id)
-                            ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                            : "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
-                        }`}
-                      >
-                        {cartIds.has(stone.id) ? "Sepetten Çıkar" : "+ Kombinasyona Ekle"}
                       </button>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ stone, inStock })}
+                          className="rounded-xl border-2 border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 shadow-sm transition hover:bg-cyan-100"
+                        >
+                          🔍 Detay
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            cartIds.has(stone.id)
+                              ? removeFromCart(stone.id)
+                              : addToCart({
+                                  id: stone.id,
+                                  name: stone.stone_name || "İsimsiz taş",
+                                  inStock,
+                                })
+                          }
+                          className={`rounded-xl border-2 px-3 py-1.5 text-xs font-black shadow-sm transition ${
+                            cartIds.has(stone.id)
+                              ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              : "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
+                          }`}
+                        >
+                          {cartIds.has(stone.id) ? "Çıkar" : "+ Ekle"}
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -843,6 +862,27 @@ export default function KombinasyonOlusturPage() {
           </aside>
         </div>
       </div>
+
+      {/* Taş Detay Drawer — navigasyon yok; kapanınca tüm sayfa state'i korunur */}
+      <StoneDetailDrawer
+        open={detail !== null}
+        stone={detail?.stone ?? null}
+        inStock={detail?.inStock ?? false}
+        inCart={detail ? cartIds.has(detail.stone.id) : false}
+        onToggleCart={() => {
+          if (!detail) return;
+          if (cartIds.has(detail.stone.id)) {
+            removeFromCart(detail.stone.id);
+          } else {
+            addToCart({
+              id: detail.stone.id,
+              name: detail.stone.stone_name || "İsimsiz taş",
+              inStock: detail.inStock,
+            });
+          }
+        }}
+        onClose={() => setDetail(null)}
+      />
     </main>
   );
 }
