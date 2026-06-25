@@ -36,7 +36,7 @@ const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
 const pageContent = "relative z-10 w-full space-y-4 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg";
+  "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 px-4 py-3 shadow-lg";
 const uiFilterCard =
   "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md sm:p-4";
 const uiStatCard =
@@ -364,12 +364,12 @@ export default function KombinasyonOlusturPage() {
         )}
 
         {/* ── Başlık ─────────────────────────────────────────────────────── */}
-        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+        <header className={`${uiHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <div className="mb-1.5 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
+            <div className="mb-1 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
               ⚗️ KOMBİNASYON OLUŞTUR
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">
+            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
               Mineral Kombinasyonu
             </h1>
             <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
@@ -474,8 +474,8 @@ export default function KombinasyonOlusturPage() {
         </section>
 
         {/* ── Sonuçlar + Kombinasyon Sepeti ───────────────────────────── */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="min-w-0 space-y-4 lg:flex-1">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_20rem] lg:items-start">
+          <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
             {error && (
               <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
                 {error}
@@ -618,7 +618,7 @@ export default function KombinasyonOlusturPage() {
           </div>
 
           {/* ── Kombinasyon Sepeti ──────────────────────────────────────── */}
-          <aside className="lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+          <aside className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start lg:sticky lg:top-4">
             <div className="rounded-[20px] border-[3px] border-violet-300/50 bg-white/90 p-3 shadow-md sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="text-sm font-black text-slate-900">🧺 Kombinasyon Sepeti</h2>
@@ -786,10 +786,9 @@ export default function KombinasyonOlusturPage() {
 
             </div>
           </aside>
-        </div>
 
-        {/* ── Kombinasyonu Kaydet (tam genişlik) ───────────────────── */}
-        <section className={uiFilterCard}>
+          {/* ── Kombinasyonu Kaydet (sonuç listesinin hemen altında) ──── */}
+          <section className={`${uiFilterCard} lg:col-start-1 lg:row-start-2`}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-black text-slate-900">💾 Kombinasyonu Kaydet</h2>
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-700">
@@ -873,7 +872,8 @@ export default function KombinasyonOlusturPage() {
               </div>
             </div>
           )}
-        </section>
+          </section>
+        </div>
       </div>
 
       {/* Taş Detay Drawer — navigasyon yok; kapanınca tüm sayfa state'i korunur */}
