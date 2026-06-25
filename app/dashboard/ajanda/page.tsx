@@ -13,7 +13,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+
+/** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
+function userHeaders(json = false): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return {
+    "x-user-id": uid ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+    ...(json ? { "Content-Type": "application/json" } : {}),
+  };
+}
 
 type Client = {
   id: string;
@@ -325,43 +336,38 @@ export default function AjandaPage() {
   async function loadClients() {
     if (!tenantId) return;
 
-    const { data, error } = await supabase
-      .from("clients")
-      .select("id, ad, soyad")
-      .eq("tenant_id", tenantId)
-      .order("ad", { ascending: true });
-
-    if (error) {
+    const res = await fetch("/api/clients", { headers: userHeaders() });
+    if (!res.ok) {
       showToast({
         title: "Danışanlar yüklenemedi",
-        message: error.message,
+        message: "Danışan listesi alınamadı.",
         type: "error",
       });
       return;
     }
 
-    setClients(data || []);
+    const json = (await res.json()) as { clients?: Client[] };
+    const list = (json.clients ?? [])
+      .slice()
+      .sort((a, b) => (a.ad ?? "").localeCompare(b.ad ?? "", "tr"));
+    setClients(list);
   }
 
   async function loadAppointments() {
     if (!tenantId) return;
 
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("appointment_date", { ascending: true });
-
-    if (error) {
+    const res = await fetch("/api/appointments", { headers: userHeaders() });
+    if (!res.ok) {
       showToast({
         title: "Randevular yüklenemedi",
-        message: error.message,
+        message: "Randevu listesi alınamadı.",
         type: "error",
       });
       return;
     }
 
-    setAppointments(data || []);
+    const json = (await res.json()) as { appointments?: Appointment[] };
+    setAppointments(json.appointments ?? []);
   }
 
   function formatDate(value: string) {
@@ -385,16 +391,16 @@ export default function AjandaPage() {
   async function updateAppointmentStatus(id: string, status: AppointmentStatus) {
     if (!tenantId) return;
 
-    const { error } = await supabase
-      .from("appointments")
-      .update({ status })
-      .eq("id", id)
-      .eq("tenant_id", tenantId);
+    const res = await fetch(`/api/appointments/${id}`, {
+      method: "PATCH",
+      headers: userHeaders(true),
+      body: JSON.stringify({ status }),
+    });
 
-    if (error) {
+    if (!res.ok) {
       showToast({
         title: "Durum güncellenemedi",
-        message: error.message,
+        message: "Randevu durumu güncellenemedi.",
         type: "error",
       });
       return;
@@ -419,16 +425,15 @@ export default function AjandaPage() {
 
     if (!tenantId) return;
 
-    const { error } = await supabase
-      .from("appointments")
-      .delete()
-      .eq("id", id)
-      .eq("tenant_id", tenantId);
+    const res = await fetch(`/api/appointments/${id}`, {
+      method: "DELETE",
+      headers: userHeaders(),
+    });
 
-    if (error) {
+    if (!res.ok) {
       showToast({
         title: "Silme hatası",
-        message: error.message,
+        message: "Randevu silinemedi.",
         type: "error",
       });
       return;
@@ -466,17 +471,20 @@ export default function AjandaPage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("appointments").insert({
-      tenant_id: tenantId,
-      client_id: appointmentType === "kayitli" ? formClientId : null,
-      title: formTitle.trim(),
-      notes: formNotes.trim() || null,
-      appointment_date: appointmentDate,
-      status: formStatus,
+    const res = await fetch("/api/appointments", {
+      method: "POST",
+      headers: userHeaders(true),
+      body: JSON.stringify({
+        client_id: appointmentType === "kayitli" ? formClientId : null,
+        title: formTitle.trim(),
+        notes: formNotes.trim() || null,
+        appointment_date: appointmentDate,
+        status: formStatus,
+      }),
     });
 
-    if (error) {
-      showToast({ title: "Kayıt hatası", message: error.message, type: "error" });
+    if (!res.ok) {
+      showToast({ title: "Kayıt hatası", message: "Randevu oluşturulamadı.", type: "error" });
       setSaving(false);
       return;
     }
