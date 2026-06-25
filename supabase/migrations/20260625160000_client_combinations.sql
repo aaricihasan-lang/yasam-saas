@@ -35,6 +35,19 @@
 
 BEGIN;
 
+-- updated_at trigger fonksiyonu — başka migration'larda da tanımlı; burada
+-- CREATE OR REPLACE ile garanti altına alınır (SQL Editor'e tek başına
+-- yapıştırıldığında da çalışsın diye). Idempotent ve güvenli.
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 create table if not exists public.client_combinations (
   id            uuid        primary key default gen_random_uuid(),
   tenant_id     uuid        not null,
