@@ -1,10 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getSessionTenantId } from "@/lib/auth/sessionTenant";
-import { backgroundSyncYasamUserFromDb } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import {
+  backgroundSyncYasamUserFromDb,
+  readYasamUser,
+  readSessionToken,
+} from "@/lib/auth/yasamUser";
+
 const WARNING_MINUTES = 30;
+
+/** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
+function userHeaders(): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return { "x-user-id": uid ?? "", ...(token ? { "x-session-token": token } : {}) };
+}
 
 type Appointment = {
   id: string;
@@ -19,8 +29,7 @@ export default function DashboardNotifications() {
   const warnedIdsRef = useRef<Set<string>>(new Set());
 
   async function loadAppointments() {
-    const tenantId = getSessionTenantId();
-    if (!tenantId) return;
+    if (!readYasamUser()?.id) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -28,20 +37,24 @@ export default function DashboardNotifications() {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("id, title, appointment_date, client_id")
-      .eq("tenant_id", tenantId)
-      .gte("appointment_date", today.toISOString())
-      .lt("appointment_date", tomorrow.toISOString())
-      .order("appointment_date", { ascending: true });
+    const params = new URLSearchParams({
+      from: today.toISOString(),
+      to: new Date(tomorrow.getTime() - 1).toISOString(),
+    });
 
-    if (error) {
-      console.error("Bildirim randevu okuma hatası:", error);
-      return;
+    try {
+      const res = await fetch(`/api/appointments?${params.toString()}`, {
+        headers: userHeaders(),
+      });
+      if (!res.ok) {
+        console.error("Bildirim randevu okuma hatası");
+        return;
+      }
+      const json = (await res.json()) as { appointments?: Appointment[] };
+      setAppointments(json.appointments ?? []);
+    } catch (err) {
+      console.error("Bildirim randevu okuma hatası:", err);
     }
-
-    setAppointments(data || []);
   }
 
   function checkUpcomingAppointments() {
