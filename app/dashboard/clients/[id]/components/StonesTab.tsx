@@ -13,6 +13,7 @@ import {
   type StoneWarningResult,
 } from "@/lib/stones/stoneWarningService";
 import StoneWarningModal from "./StoneWarningModal";
+import ClientCombinationsSection from "./ClientCombinationsSection";
 const STONE_PHOTO_BUCKET = "stone-photos";
 
 type ClientStone = {
@@ -1403,6 +1404,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           </div>
         )}
       </div>
+
+      {/* Danışana özel kayıtlı kombinasyonlar (Kombinasyon Oluştur → Danışana Özel Kaydet) */}
+      <ClientCombinationsSection clientId={clientId} />
 
       {activeLightboxPhoto && (
         <div

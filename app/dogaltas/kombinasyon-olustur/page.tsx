@@ -30,6 +30,12 @@ import {
 } from "@/lib/dogaltas/mineralCombination";
 import { MineralCombobox } from "@/app/dogaltas/components/MineralCombobox";
 import { StoneDetailDrawer } from "@/app/dogaltas/components/StoneDetailDrawer";
+import {
+  SaveCombinationModal,
+  clientFullName,
+  type PickerClient,
+} from "@/app/dogaltas/components/SaveCombinationModal";
+import { saveClientCombination } from "@/lib/dogaltas/clientCombinationsApi";
 
 // ─── Stil sabitleri (Doğaltaş modülü diliyle uyumlu) ─────────────────────────
 const pageBg =
@@ -86,6 +92,24 @@ export default function KombinasyonOlusturPage() {
     stone: StoneListItemExtended;
     inStock: boolean;
   } | null>(null);
+
+  // Kaydetme hedef seçim modalı (Genel / Danışana Özel).
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+
+  // Gelecek entegrasyon: Danışan Detayı'ndan "+ Kombinasyon Oluştur" ile bu sayfa
+  // ?clientId=&clientName= ile açılırsa danışan ön-seçili gelir ve Kaydet doğrudan
+  // o danışana yazar (seçim ekranı çıkmadan). Yoksa normal hedef seçim modalı açılır.
+  const [preselectedClient, setPreselectedClient] = useState<PickerClient | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const clientId = sp.get("clientId")?.trim();
+    if (!clientId) return;
+    const ad = sp.get("clientName")?.trim() || sp.get("ad")?.trim() || "";
+    setPreselectedClient({ id: clientId, ad });
+  }, []);
 
   // Kombinasyon sepeti — yerel state.
   const [cart, setCart] = useState<CartStone[]>([]);
@@ -321,6 +345,59 @@ export default function KombinasyonOlusturPage() {
       });
     }
     setSaving(false);
+  }
+
+  // Genel kayıt akışı: modal'daki "Genel Kombinasyonlara Kaydet" → mevcut davranış.
+  async function handleSaveGeneral() {
+    await saveCombination();
+    setSaveModalOpen(false);
+  }
+
+  // Danışana özel kayıt: ayrı tablo/route (genel kombinasyonlara YAZILMAZ).
+  async function saveCombinationToClient(client: PickerClient) {
+    const name = saveName.trim();
+    if (!name || cart.length === 0) return;
+
+    setSavingClient(true);
+    const res = await saveClientCombination(client.id, {
+      name,
+      description: saveDescription.trim() || null,
+      note: saveNote.trim() || null,
+      stones: cart.map((c) => c.name),
+      notesText: buildMineralSummary() || null,
+      notesText2: buildWarningStockSummary(),
+    });
+    setSavingClient(false);
+
+    if (!res.ok) {
+      showToast({
+        title: "Kayıt başarısız",
+        message: res.error ?? "Kombinasyon danışana kaydedilemedi.",
+        type: "error",
+      });
+      return;
+    }
+
+    setSaveModalOpen(false);
+    showToast({
+      title: "Kaydedildi",
+      message: res.demo
+        ? "Demo hesabında kayıt veritabanına yazılmaz (önizleme)."
+        : `"${name}" → ${clientFullName(client)} danışanına kaydedildi.`,
+      type: "success",
+    });
+    setSavedInfo({ name });
+  }
+
+  // "Kombinasyonu Kaydet" butonu: ön-seçili danışan varsa doğrudan ona yazar;
+  // yoksa hedef seçim modalını açar.
+  function handleSaveClick() {
+    if (saveName.trim() === "" || cart.length === 0) return;
+    if (preselectedClient) {
+      void saveCombinationToClient(preselectedClient);
+    } else {
+      setSaveModalOpen(true);
+    }
   }
 
   // ─── Koşul işlemleri ───────────────────────────────────────────────────────
@@ -863,11 +940,15 @@ export default function KombinasyonOlusturPage() {
                 )}
                 <button
                   type="button"
-                  onClick={saveCombination}
-                  disabled={cart.length === 0 || saveName.trim() === "" || saving}
+                  onClick={handleSaveClick}
+                  disabled={cart.length === 0 || saveName.trim() === "" || saving || savingClient}
                   className="rounded-xl border-2 border-violet-400 bg-violet-600 px-5 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
-                  {saving ? "Kaydediliyor..." : "💾 Kombinasyonu Kaydet"}
+                  {saving || savingClient
+                    ? "Kaydediliyor..."
+                    : preselectedClient
+                      ? `💾 ${clientFullName(preselectedClient)} danışanına Kaydet`
+                      : "💾 Kombinasyonu Kaydet"}
                 </button>
               </div>
             </div>
@@ -895,6 +976,18 @@ export default function KombinasyonOlusturPage() {
           }
         }}
         onClose={() => setDetail(null)}
+      />
+
+      {/* Kaydetme hedef seçim modalı (Genel / Danışana Özel) */}
+      <SaveCombinationModal
+        open={saveModalOpen}
+        cartCount={cart.length}
+        combinationName={saveName}
+        saving={saving}
+        savingClient={savingClient}
+        onClose={() => setSaveModalOpen(false)}
+        onSaveGeneral={handleSaveGeneral}
+        onSaveToClient={(client) => void saveCombinationToClient(client)}
       />
     </main>
   );

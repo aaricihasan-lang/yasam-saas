@@ -28,6 +28,7 @@ const CHILD_TABLES = [
   "client_homeworks",
   "appointments",
   "client_analyses",
+  "client_combinations",
 ] as const;
 
 export async function DELETE(
