@@ -22,14 +22,40 @@ Tüm görsel, fonksiyonel ve veri katmanı testleri başarılı.
 ### Görsel testler
 | Ekran görüntüsü | Kapsam |
 |---|---|
-| `desktop-initial.png` | Açılış — "Arama Koşulları", tür select (🧪 Mineral · 🔵 Çakra · ♈ Astroloji · 🫀 Etkili Organ · 💎 Taş İsmi) |
-| `chakra-search.png` | Çakra araması (Kalp) → 92 sonuç; mineral dışı türde yüzde alanı gizli; "🔵 Kalp Çakra" eşleşme etiketleri |
-| `astrology-search.png` | Astroloji araması (Aslan) → 60 sonuç |
-| `stone-name-search.png` | Taş ismi kısmi araması (Akik) → 18 sonuç |
-| `multitype-and-results.png` | Çoklu koşul VE (Mineral: Demir + Çakra: Kalp + Taş İsmi: Akik) |
-| `save-modal.png` | Kaydet hedef seçim modalı — "Kombinasyon nereye kaydedilsin?" (Genel / Danışana Özel) |
-| `client-save-toast.png` | Danışana özel kayıt onayı (toast: "… danışanına kaydedildi") |
-| `mobile-responsive.png` | Mobil (390px) — tek sütun, yatay taşma yok, select/input/Sil düzgün |
+| [`desktop-initial.png`](desktop-initial.png) | Açılış — "Arama Koşulları", tür select (🧪 Mineral · 🔵 Çakra · ♈ Astroloji · 🫀 Etkili Organ · 💎 Taş İsmi) |
+| [`chakra-search.png`](chakra-search.png) | Çakra araması (Kalp) → 92 sonuç; mineral dışı türde yüzde alanı gizli; "🔵 Kalp Çakra" eşleşme etiketleri |
+| [`astrology-search.png`](astrology-search.png) | Astroloji araması (Aslan) → 60 sonuç |
+| [`stone-name-search.png`](stone-name-search.png) | Taş ismi kısmi araması (Akik) → 18 sonuç |
+| [`multitype-and-results.png`](multitype-and-results.png) | Çoklu koşul VE (Mineral: Demir + Çakra: Kalp + Taş İsmi: Akik) |
+| [`save-modal.png`](save-modal.png) | Kaydet hedef seçim modalı — "Kombinasyon nereye kaydedilsin?" (Genel / Danışana Özel) |
+| [`client-save-toast.png`](client-save-toast.png) | Danışana özel kayıt onayı (toast: "… danışanına kaydedildi") |
+| [`mobile-responsive.png`](mobile-responsive.png) | Mobil (390px) — tek sütun, yatay taşma yok, select/input/Sil düzgün |
+
+## Ekran Görüntüleri
+
+### 1. Açılış (Desktop)
+![Açılış — Arama Koşulları ve tür select](desktop-initial.png)
+
+### 2. Çakra araması (Kalp)
+![Çakra araması — 92 sonuç, yüzde gizli, 🔵 etiketler](chakra-search.png)
+
+### 3. Astroloji araması (Aslan)
+![Astroloji araması — 60 sonuç](astrology-search.png)
+
+### 4. Taş ismi kısmi araması (Akik)
+![Taş ismi kısmi araması — 18 sonuç](stone-name-search.png)
+
+### 5. Çoklu koşul VE
+![Çoklu koşul VE — Mineral + Çakra + Taş İsmi](multitype-and-results.png)
+
+### 6. Kaydet hedef seçim modalı
+![Kaydet modalı — Genel / Danışana Özel](save-modal.png)
+
+### 7. Danışana özel kayıt onayı
+![Danışana özel kayıt — başarı toast'ı](client-save-toast.png)
+
+### 8. Mobil responsive (390px)
+![Mobil görünüm — taşma yok](mobile-responsive.png)
 
 ### Doğrulanan maddeler (18/18)
 1. Tür select + 5 seçenek · 2. Seçenekler tam · 3. Mineral'de yüzde görünür ·
