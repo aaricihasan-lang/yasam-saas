@@ -17,6 +17,8 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
+import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { supabase } from "@/lib/supabase";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
@@ -415,38 +417,49 @@ function DogaltasPageContent() {
       return;
     }
 
-    const [stonesCountRes, stonesRowsRes, mineralsCount, combinationsCount] =
+    const [stonesCountRes, stonesRowsRes, mineralsCount, combinationsRes] =
       await Promise.all([
-        supabase
-          .from("stones")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId),
+        // Toplam Taş Kaydı — /dogaltas/dogaltas-listesi ile AYNI kaynak:
+        // kullanıcı tenant'ı + admin kütüphanesi (ADMIN_LIBRARY_TENANT_ID).
+        // Demo'da taşlar kütüphanede olduğundan eq(ownTenant) yanlış 0 üretir.
+        fetchStonesListCount(tenantId),
+        // Aylık trend + stok değeri için ham satırlar (kullanıcı tenant'ı).
         supabase.from("stones").select("*").eq("tenant_id", tenantId),
         fetchTableCount("minerals", tenantId),
-        fetchTableCount("combinations", tenantId),
+        // Aktif Kombinasyonlar — combinations artık anon SELECT'e kapalı.
+        // /dogaltas/kombinasyonlar ile AYNI kaynak: güvenli server API (oturum tenant'ı).
+        fetchCombinationsViaApi(),
       ]);
 
     setLoading(false);
 
+    // Sessizce 0 YAZMA: hata olan sayaç null (→ "—") + console.error + kullanıcı uyarısı.
+    const failed: string[] = [];
+
     if (stonesCountRes.error) {
-      setErrorMessage(`Analiz verileri okunamadı: ${stonesCountRes.error.message}`);
+      console.error("[dogaltas/dashboard] Taş sayımı hatası:", stonesCountRes.error);
       setStonesCount(null);
-      setMineralsCount(null);
-      setCombinationsCount(null);
-      setMonthlyTrend([]);
-      setStockValue(null);
-      setStockValueMessage(null);
-      return;
+      failed.push("taş kaydı");
+    } else {
+      setStonesCount(stonesCountRes.count);
     }
 
+    if (!combinationsRes.ok) {
+      console.error("[dogaltas/dashboard] Kombinasyon sayımı hatası:", combinationsRes.error);
+      setCombinationsCount(null);
+      failed.push("kombinasyon");
+    } else {
+      setCombinationsCount(combinationsRes.rows.length);
+    }
+
+    // Mineral Bankası — /dogaltas/mineral-listesi ile aynı (yalnız kullanıcı tenant'ı).
+    setMineralsCount(mineralsCount);
+
+    // Aylık trend + stok değeri — kullanıcı tenant'ı ham satırları (mevcut davranış).
     const rows = (stonesRowsRes.data ?? []) as Record<string, unknown>[];
     if (stonesRowsRes.error) {
-      setErrorMessage(`Taş kayıtları okunamadı: ${stonesRowsRes.error.message}`);
+      console.error("[dogaltas/dashboard] Taş satırları (trend/stok) hatası:", stonesRowsRes.error);
     }
-
-    setStonesCount(stonesCountRes.count ?? 0);
-    setMineralsCount(mineralsCount);
-    setCombinationsCount(combinationsCount);
 
     const createdAts = rows
       .map((row) => (row.created_at != null ? String(row.created_at) : ""))
@@ -461,6 +474,10 @@ function DogaltasPageContent() {
     } else {
       setStockValue(null);
       setStockValueMessage("Stok değeri için fiyat/stok verisi bekleniyor");
+    }
+
+    if (failed.length > 0) {
+      setErrorMessage(`Bazı sayaçlar okunamadı (${failed.join(", ")}). Lütfen sayfayı yenileyin.`);
     }
   }, []);
 
