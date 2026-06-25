@@ -11,7 +11,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 import { notesToPlainText } from "@/lib/clientNotes";
 
 const panelClass =
@@ -282,44 +281,33 @@ export default function AdminWorkspaceClientDetailPage() {
       return;
     }
 
-    const { data: clientRow, error: clientError } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+    const wsAdminId = readYasamUser()?.id;
+    const wsRes = await fetch(
+      `/api/admin/users/${expertUserId}/workspace/clients/${clientId}`,
+      { headers: adminHeaders(wsAdminId) },
+    );
+    const wsJson = wsRes.ok
+      ? ((await wsRes.json()) as {
+          client?: Record<string, unknown> | null;
+          stones?: ClientStone[];
+          sessions?: ClientSession[];
+        })
+      : null;
+    const clientRow = wsJson?.client ?? null;
 
-    if (clientError || !clientRow) {
+    if (!clientRow) {
       setNotFound(true);
       setLoading(false);
       return;
     }
 
-    setClient(mapClientProfile(clientRow as Record<string, unknown>));
+    setClient(mapClientProfile(clientRow));
     setModuleDisabled(false);
     setNotFound(false);
 
-    const [
-      stonesRes,
-      sessionsRes,
-    ] = await Promise.all([
-      supabase
-        .from("client_stones")
-        .select(
-          "id, stone_name, stone_type, stone_date, note, usage_area, combination_text, warning_text, other_notes, created_at",
-        )
-        .eq("client_id", clientId)
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("client_sessions")
-        .select(
-          "id, session_date, session_type, duration_minutes, fee, session_note, actions_done, suggestions, next_plan, created_at",
-        )
-        .eq("client_id", clientId)
-        .eq("tenant_id", tenantId)
-        .order("session_date", { ascending: false }),
-    ]);
+    // Taş + seans kayıtları aynı admin endpoint'inden gelir (publishable okuma yok).
+    const stonesRes = { data: (wsJson?.stones ?? []) as ClientStone[] };
+    const sessionsRes = { data: (wsJson?.sessions ?? []) as ClientSession[] };
 
     // client_notes artık güvenli admin API üzerinden okunur (publishable key ile doğrudan okunmaz).
     try {

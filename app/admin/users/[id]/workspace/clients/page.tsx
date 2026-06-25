@@ -12,7 +12,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -179,23 +178,21 @@ export default function AdminWorkspaceClientsPage() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("clients")
-      .select(
-        "id, ad, soyad, telefon, dogum, gorusme, burc, kan, mizac, created_at",
-      )
-      .eq("tenant_id", activeTenantId)
-      .order("created_at", { ascending: false });
+    const adminId = readYasamUser()?.id;
+    const res = await fetch(`/api/admin/users/${userId}/workspace/clients`, {
+      headers: adminHeaders(adminId),
+    });
 
-    if (error) {
-      console.error("Danışan listesi hatası:", error);
+    if (!res.ok) {
+      console.error("Danışan listesi hatası");
       setClients([]);
-      setClientsError(error.message);
+      setClientsError("Danışan listesi alınamadı.");
       setLoading(false);
       return;
     }
 
-    setClients((data ?? []).map((item) => mapClientRow(item as Record<string, unknown>)));
+    const json = (await res.json()) as { clients?: Record<string, unknown>[] };
+    setClients((json.clients ?? []).map((item) => mapClientRow(item)));
     setLoading(false);
   }, [userId]);
 

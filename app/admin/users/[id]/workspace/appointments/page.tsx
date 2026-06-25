@@ -12,7 +12,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -215,40 +214,33 @@ export default function AdminWorkspaceAppointmentsPage() {
       return;
     }
 
+    const adminId = readYasamUser()?.id;
     const [clientsRes, appointmentsRes] = await Promise.all([
-      supabase
-        .from("clients")
-        .select("id, ad, soyad")
-        .eq("tenant_id", activeTenantId),
-      supabase
-        .from("appointments")
-        .select(
-          "id, title, notes, appointment_date, created_at, client_id, status",
-        )
-        .eq("tenant_id", activeTenantId)
-        .order("appointment_date", { ascending: false }),
+      fetch(`/api/admin/users/${userId}/workspace/clients`, { headers: adminHeaders(adminId) }),
+      fetch(`/api/admin/users/${userId}/workspace/appointments`, { headers: adminHeaders(adminId) }),
     ]);
 
+    const clientsList = clientsRes.ok
+      ? ((await clientsRes.json()) as { clients?: ClientNameRow[] }).clients ?? []
+      : [];
     const nameMap = new Map<string, string>();
-    (clientsRes.data ?? []).forEach((c) => {
-      const client = c as ClientNameRow;
+    clientsList.forEach((client) => {
       const name = `${client.ad || ""} ${client.soyad || ""}`.trim();
       if (client.id) nameMap.set(client.id, name || "—");
     });
     setClientNames(nameMap);
 
-    if (appointmentsRes.error) {
-      console.error("Randevu listesi hatası:", appointmentsRes.error);
+    if (!appointmentsRes.ok) {
+      console.error("Randevu listesi hatası");
       setAppointments([]);
-      setLoadError(appointmentsRes.error.message);
+      setLoadError("Randevu listesi alınamadı.");
       setLoading(false);
       return;
     }
 
+    const apptJson = (await appointmentsRes.json()) as { appointments?: Record<string, unknown>[] };
     setAppointments(
-      (appointmentsRes.data ?? []).map((item) =>
-        mapAppointmentRow(item as Record<string, unknown>),
-      ),
+      (apptJson.appointments ?? []).map((item) => mapAppointmentRow(item)),
     );
     setLoading(false);
   }, [userId]);

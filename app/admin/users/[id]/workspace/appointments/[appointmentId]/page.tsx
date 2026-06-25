@@ -11,7 +11,6 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -228,50 +227,50 @@ export default function AdminWorkspaceAppointmentDetailPage() {
       return;
     }
 
-    const { data: appointmentRow, error: appointmentError } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("id", appointmentId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+    const apptAdminId = readYasamUser()?.id;
+    // Tek-randevu endpoint'i yok: randevu listesini çekip id ile bulunur.
+    const apptListRes = await fetch(
+      `/api/admin/users/${expertUserId}/workspace/appointments`,
+      { headers: adminHeaders(apptAdminId) },
+    );
+    const apptList = apptListRes.ok
+      ? ((await apptListRes.json()) as { appointments?: Record<string, unknown>[] }).appointments ?? []
+      : [];
+    const appointmentRow = apptList.find((a) => String(a.id) === appointmentId) ?? null;
 
-    if (appointmentError || !appointmentRow) {
+    if (!appointmentRow) {
       setNotFound(true);
       setLoading(false);
       return;
     }
 
-    const mapped = mapAppointmentRow(appointmentRow as Record<string, unknown>);
+    const mapped = mapAppointmentRow(appointmentRow);
     setAppointment(mapped);
     setModuleDisabled(false);
     setNotFound(false);
 
     if (mapped.client_id) {
-      const { data: clientRow } = await supabase
-        .from("clients")
-        .select("ad, soyad")
-        .eq("id", mapped.client_id)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
+      // Danışan adı + seanslar mevcut clients/[clientId] admin endpoint'inden.
+      const detailRes = await fetch(
+        `/api/admin/users/${expertUserId}/workspace/clients/${mapped.client_id}`,
+        { headers: adminHeaders(apptAdminId) },
+      );
+      const detailJson = detailRes.ok
+        ? ((await detailRes.json()) as {
+            client?: { ad?: string | null; soyad?: string | null } | null;
+            sessions?: ClientSession[];
+          })
+        : null;
 
-      if (clientRow) {
-        const c = clientRow as { ad?: string | null; soyad?: string | null };
+      const c = detailJson?.client ?? null;
+      if (c) {
         const name = `${c.ad || ""} ${c.soyad || ""}`.trim();
         setClientName(name || null);
       } else {
         setClientName(null);
       }
 
-      const { data: sessionsData } = await supabase
-        .from("client_sessions")
-        .select(
-          "id, session_date, session_type, duration_minutes, fee, session_note, actions_done, suggestions, next_plan, created_at",
-        )
-        .eq("client_id", mapped.client_id)
-        .eq("tenant_id", tenantId)
-        .order("session_date", { ascending: false });
-
-      setSessions((sessionsData ?? []) as ClientSession[]);
+      setSessions((detailJson?.sessions ?? []) as ClientSession[]);
     } else {
       setClientName(null);
       setSessions([]);
