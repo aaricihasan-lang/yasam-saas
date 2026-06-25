@@ -15,7 +15,6 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -268,30 +267,33 @@ export default function DanisanListePage() {
 
     setDeleteLoading(true);
 
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("clients")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ids)
-      .select("id");
+    // Her danışan için tam silme güvenli cascade-delete API'si üzerinden yapılır.
+    const user = readYasamUser();
+    const bulkToken = readSessionToken();
+    const bulkHeaders = {
+      "x-user-id": user?.id ?? "",
+      ...(bulkToken ? { "x-session-token": bulkToken } : {}),
+    };
+    const deletedIds: string[] = [];
+    for (const id of ids) {
+      const res = await fetch(`/api/clients/${id}/cascade-delete`, {
+        method: "DELETE",
+        headers: bulkHeaders,
+      });
+      if (res.ok) deletedIds.push(id);
+    }
 
     setDeleteLoading(false);
 
-    if (deleteError) {
-      showToast({ title: "Hata", message: `Danışanlar silinemedi: ${deleteError.message}`, type: "error" });
-      return;
-    }
-
-    const deletedCount = deletedRows?.length ?? 0;
-    if (deletedCount === 0) {
+    if (deletedIds.length === 0) {
       showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
       return;
     }
 
-    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    const deletedIdSet = new Set(deletedIds);
     setClients((prev) => prev.filter((c) => !deletedIdSet.has(c.id)));
     setSelectedClientIds(new Set());
-    showToast({ title: "Başarılı", message: `${deletedCount} danışan başarıyla silindi.`, type: "success" });
+    showToast({ title: "Başarılı", message: `${deletedIds.length} danışan başarıyla silindi.`, type: "success" });
   }
 
   async function exportClientsWord(mode: "selected" | "all" | "filtered") {

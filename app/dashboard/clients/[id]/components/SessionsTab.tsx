@@ -6,7 +6,6 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 type ClientSession = {
   id: string;
@@ -532,17 +531,22 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setSaving(true);
     setErrorMessage("");
 
-    const { error } = await supabase.from("client_sessions").insert({
-      tenant_id: tenantId,
-      client_id: clientId,
-      ...formToPayload(form),
+    const addToken = readSessionToken();
+    const addRes = await fetch(`/api/clients/${clientId}/sessions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(addToken ? { "x-session-token": addToken } : {}),
+      },
+      body: JSON.stringify(formToPayload(form)),
     });
 
-    if (error) {
-      console.error("Seans kaydı eklenemedi:", error);
+    if (!addRes.ok) {
+      console.error("Seans kaydı eklenemedi");
       showToast({
         title: "İşlem başarısız",
-        message: "Seans kaydı eklenemedi: " + error.message,
+        message: "Seans kaydı eklenemedi.",
         type: "error",
       });
       setSaving(false);
@@ -562,11 +566,15 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
         ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
         : null;
       if (!cli?.gorusme || form.sessionDate > cli.gorusme) {
-        await supabase
-          .from("clients")
-          .update({ gorusme: form.sessionDate })
-          .eq("id", clientId)
-          .eq("tenant_id", tenantId);
+        await fetch(`/api/clients/${clientId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": readYasamUser()?.id ?? "",
+            ...(gToken ? { "x-session-token": gToken } : {}),
+          },
+          body: JSON.stringify({ gorusme: form.sessionDate }),
+        });
       }
     }
 
@@ -605,18 +613,22 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setUpdating(true);
     setErrorMessage("");
 
-    const { error } = await supabase
-      .from("client_sessions")
-      .update(formToPayload(editForm))
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const updToken = readSessionToken();
+    const updRes = await fetch(`/api/clients/${clientId}/sessions`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(updToken ? { "x-session-token": updToken } : {}),
+      },
+      body: JSON.stringify({ id, ...formToPayload(editForm) }),
+    });
 
-    if (error) {
-      console.error("Seans kaydı güncellenemedi:", error);
+    if (!updRes.ok) {
+      console.error("Seans kaydı güncellenemedi");
       showToast({
         title: "İşlem başarısız",
-        message: "Seans kaydı güncellenemedi: " + error.message,
+        message: "Seans kaydı güncellenemedi.",
         type: "error",
       });
       setUpdating(false);
@@ -641,18 +653,20 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     });
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("client_sessions")
-      .delete()
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const delToken = readSessionToken();
+    const delRes = await fetch(`/api/clients/${clientId}/sessions?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(delToken ? { "x-session-token": delToken } : {}),
+      },
+    });
 
-    if (error) {
-      console.error("Seans kaydı silinemedi:", error);
+    if (!delRes.ok) {
+      console.error("Seans kaydı silinemedi");
       showToast({
         title: "İşlem başarısız",
-        message: "Seans kaydı silinemedi: " + error.message,
+        message: "Seans kaydı silinemedi.",
         type: "error",
       });
       return;

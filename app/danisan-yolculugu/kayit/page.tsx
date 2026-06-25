@@ -6,8 +6,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
-import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
 
 function todayForInput() {
@@ -309,13 +308,23 @@ export default function DanisanKayitPage() {
 
     // Duplicate kontrolü (forceSaveRef ile override edilebilir)
     if (!forceSaveRef.current) {
-      const { data: existing } = await supabase
-        .from("clients")
-        .select("id, ad, soyad")
-        .eq("tenant_id", activeTenantId)
-        .ilike("ad", ad.trim())
-        .ilike("soyad", soyad.trim())
-        .limit(1);
+      const dupToken = readSessionToken();
+      const dupRes = await fetch("/api/clients", {
+        headers: {
+          "x-user-id": user.id ?? "",
+          ...(dupToken ? { "x-session-token": dupToken } : {}),
+        },
+      });
+      const dupList = dupRes.ok
+        ? ((await dupRes.json()) as { clients?: { ad?: string | null; soyad?: string | null }[] }).clients ?? []
+        : [];
+      const adLc = ad.trim().toLocaleLowerCase("tr");
+      const soyadLc = soyad.trim().toLocaleLowerCase("tr");
+      const existing = dupList.filter(
+        (c) =>
+          (c.ad ?? "").toLocaleLowerCase("tr") === adLc &&
+          (c.soyad ?? "").toLocaleLowerCase("tr") === soyadLc,
+      );
 
       if (existing && existing.length > 0) {
         setDuplicateWarning(
@@ -329,20 +338,28 @@ export default function DanisanKayitPage() {
     forceSaveRef.current = false;
     setSaving(true);
 
-    const { error } = await supabase.from("clients").insert({
-      tenant_id: activeTenantId,
-      ad: ad.trim(),
-      soyad: soyad.trim(),
-      telefon: telefon.trim(),
-      dogum,
-      gorusme,
-      burc,
-      kan,
-      mizac,
+    const insToken = readSessionToken();
+    const insRes = await fetch("/api/clients", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": user.id ?? "",
+        ...(insToken ? { "x-session-token": insToken } : {}),
+      },
+      body: JSON.stringify({
+        ad: ad.trim(),
+        soyad: soyad.trim(),
+        telefon: telefon.trim(),
+        dogum,
+        gorusme,
+        burc,
+        kan,
+        mizac,
+      }),
     });
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: "Kayıt hatası: " + error.message, type: "error" });
+    if (!insRes.ok) {
+      showToast({ title: "İşlem başarısız", message: "Kayıt hatası", type: "error" });
       setSaving(false);
       return;
     }

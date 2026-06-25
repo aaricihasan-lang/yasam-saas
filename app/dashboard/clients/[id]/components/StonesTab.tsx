@@ -811,22 +811,25 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setSaving(true);
     setErrorMessage("");
 
-    const { data, error } = await supabase
-      .from("client_stones")
-      .insert({
-        tenant_id: tenantId,
-        client_id: clientId,
-        ...formToPayload(form),
-      })
-      .select("id")
-      .single();
+    const addToken = readSessionToken();
+    const addRes = await fetch(`/api/clients/${clientId}/stones`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(addToken ? { "x-session-token": addToken } : {}),
+      },
+      body: JSON.stringify(formToPayload(form)),
+    });
+    const data = addRes.ok
+      ? ((await addRes.json()) as { stone?: { id?: string } }).stone ?? null
+      : null;
 
-    if (error || !data?.id) {
-      console.error("Taş kaydı eklenemedi:", error);
+    if (!data?.id) {
+      console.error("Taş kaydı eklenemedi");
       showToast({
         title: "İşlem başarısız",
-        message:
-          "Taş kaydı eklenemedi: " + (error?.message || "Kayıt ID alınamadı."),
+        message: "Taş kaydı eklenemedi.",
         type: "error",
       });
       setSaving(false);
@@ -890,18 +893,22 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setUpdating(true);
     setErrorMessage("");
 
-    const { error } = await supabase
-      .from("client_stones")
-      .update(formToPayload(editForm))
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const updToken = readSessionToken();
+    const updRes = await fetch(`/api/clients/${clientId}/stones`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(updToken ? { "x-session-token": updToken } : {}),
+      },
+      body: JSON.stringify({ id, ...formToPayload(editForm) }),
+    });
 
-    if (error) {
-      console.error("Taş kaydı güncellenemedi:", error);
+    if (!updRes.ok) {
+      console.error("Taş kaydı güncellenemedi");
       showToast({
         title: "İşlem başarısız",
-        message: "Taş kaydı güncellenemedi: " + error.message,
+        message: "Taş kaydı güncellenemedi.",
         type: "error",
       });
       setUpdating(false);
@@ -942,18 +949,20 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       }
     }
 
-    const { error } = await supabase
-      .from("client_stones")
-      .delete()
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId);
+    const delToken = readSessionToken();
+    const delRes = await fetch(`/api/clients/${clientId}/stones?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(delToken ? { "x-session-token": delToken } : {}),
+      },
+    });
 
-    if (error) {
-      console.error("Taş kaydı silinemedi:", error);
+    if (!delRes.ok) {
+      console.error("Taş kaydı silinemedi");
       showToast({
         title: "İşlem başarısız",
-        message: "Taş kaydı silinemedi: " + error.message,
+        message: "Taş kaydı silinemedi.",
         type: "error",
       });
       return;

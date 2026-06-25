@@ -9,7 +9,6 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 import NotesTab from "./components/NotesTab";
 import StonesTab from "./components/StonesTab";
 import SessionsTab from "./components/SessionsTab";
@@ -223,13 +222,19 @@ export default function ClientDetailPage() {
     if (!tenantId || !client) return;
     setSavingAll(true);
 
-    const { error: clientError } = await supabase
-      .from("clients")
-      .update({ ad: editAd.trim() || null, soyad: editSoyad.trim() || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null })
-      .eq("id", client.id).eq("tenant_id", tenantId);
+    const saveToken = readSessionToken();
+    const clientRes = await fetch(`/api/clients/${client.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(saveToken ? { "x-session-token": saveToken } : {}),
+      },
+      body: JSON.stringify({ ad: editAd.trim() || null, soyad: editSoyad.trim() || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
+    });
 
-    if (clientError) {
-      showToast({ title: "İşlem başarısız", message: "Danışan bilgileri kaydedilemedi: " + clientError.message, type: "error" });
+    if (!clientRes.ok) {
+      showToast({ title: "İşlem başarısız", message: "Danışan bilgileri kaydedilemedi", type: "error" });
       setSavingAll(false);
       return;
     }
@@ -429,25 +434,11 @@ export default function ClientDetailPage() {
         },
       });
       if (!cascadeRes.ok) {
-        const j = (await cascadeRes.json().catch(() => ({}))) as { error?: string };
-        console.error("Alt kayıt temizleme hatası:", j.error);
+        console.error("Danışan silme hatası");
+        showToast({ title: "İşlem başarısız", message: "Danışan silinemedi", type: "error" });
+        setDeletingClient(false);
+        return;
       }
-    }
-
-    await supabase.from("client_stones").delete().eq("client_id", clientId).eq("tenant_id", tenantId);
-
-    // Ana danışan kaydını sil
-    const { error } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", clientId)
-      .eq("tenant_id", tenantId);
-
-    if (error) {
-      console.error("Danışan silme hatası:", error);
-      showToast({ title: "İşlem başarısız", message: "Danışan silinemedi: " + error.message, type: "error" });
-      setDeletingClient(false);
-      return;
     }
 
     setDeletingClient(false);
@@ -871,16 +862,39 @@ function AppointmentsTab({
     }
 
     setSaving(true);
-    const { error } = await supabase.from("appointments").insert(rows);
-    if (error) { showToast({ title: "İşlem başarısız", message: "Randevu kayıt hatası: " + error.message, type: "error" }); setSaving(false); return; }
+    const apptToken = readSessionToken();
+    const apptHeaders = {
+      "Content-Type": "application/json",
+      "x-user-id": readYasamUser()?.id ?? "",
+      ...(apptToken ? { "x-session-token": apptToken } : {}),
+    };
+    let apptErr = false;
+    for (const row of rows) {
+      const res = await fetch(`/api/clients/${clientId}/appointments`, {
+        method: "POST",
+        headers: apptHeaders,
+        body: JSON.stringify({ title: row.title, notes: row.notes, appointment_date: row.appointment_date, status: row.status }),
+      });
+      if (!res.ok) { apptErr = true; break; }
+    }
+    if (apptErr) { showToast({ title: "İşlem başarısız", message: "Randevu kayıt hatası", type: "error" }); setSaving(false); return; }
     setTitle("Seans"); setNotes(""); setSessionCount(1); setPlanningMode("auto"); setDate(""); setDayInterval(1); setManualDates([""]); setShowForm(false);
     await loadAppointments();
     setSaving(false);
   }
 
   async function updateAppointmentStatus(id: string, status: AppointmentStatus) {
-    const { error } = await supabase.from("appointments").update({ status }).eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
-    if (error) { showToast({ title: "İşlem başarısız", message: "Randevu durumu güncellenemedi: " + error.message, type: "error" }); return; }
+    const statusToken = readSessionToken();
+    const statusRes = await fetch(`/api/appointments/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(statusToken ? { "x-session-token": statusToken } : {}),
+      },
+      body: JSON.stringify({ status }),
+    });
+    if (!statusRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevu durumu güncellenemedi", type: "error" }); return; }
     setSelectedAppointment((old) => old && old.id === id ? { ...old, status } : old);
 
     // Z-3: Randevu tamamlandığında clients.gorusme güncelle
@@ -899,7 +913,15 @@ function AppointmentsTab({
           ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
           : null;
         if (!cli?.gorusme || aptDate > cli.gorusme) {
-          await supabase.from("clients").update({ gorusme: aptDate }).eq("id", clientId).eq("tenant_id", tenantId);
+          await fetch(`/api/clients/${clientId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": readYasamUser()?.id ?? "",
+              ...(gorusmeToken ? { "x-session-token": gorusmeToken } : {}),
+            },
+            body: JSON.stringify({ gorusme: aptDate }),
+          });
         }
       }
     }
@@ -913,8 +935,15 @@ function AppointmentsTab({
       message: "Bu randevu silinsin mi?",
     });
     if (!ok) return;
-    const { error } = await supabase.from("appointments").delete().eq("id", id).eq("tenant_id", tenantId).eq("client_id", clientId);
-    if (error) { showToast({ title: "İşlem başarısız", message: "Randevu silinemedi: " + error.message, type: "error" }); return; }
+    const delToken = readSessionToken();
+    const delRes = await fetch(`/api/appointments/${id}`, {
+      method: "DELETE",
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(delToken ? { "x-session-token": delToken } : {}),
+      },
+    });
+    if (!delRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevu silinemedi", type: "error" }); return; }
     setSelectedAppointment(null);
     await loadAppointments();
   }

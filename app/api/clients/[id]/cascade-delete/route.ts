@@ -16,13 +16,15 @@ export const runtime = "nodejs";
  *   - Tüm silmeler tenant_id + client_id kapsamıyla yapılır.
  *   - Demo hesap: hiçbir DB DELETE yapılmaz.
  *
- * NOT: Ana `clients` kaydı ve `client_stones` bu route'un kapsamı dışındadır;
- *      onlar çağıran tarafça yönetilir (bu cleanup'ın hedefi dinamik .from(table) döngüsüdür).
+ * NOT: Bu route artık TAM silme yapar — tüm alt kayıtlar + client_stones + ana
+ *      `clients` kaydı silinir (C2-B1b: tarayıcı tarafı supabase silmeleri kaldırıldı).
+ *      Tekil ve toplu danışan silme bu route üzerinden yürütülür.
  */
 
 // Silinecek alt tablolar — fotoğraflar taş kayıtlarından önce silinir (FK güvenliği).
 const CHILD_TABLES = [
   "client_stone_photos",
+  "client_stones",
   "client_notes",
   "client_sessions",
   "client_homeworks",
@@ -72,6 +74,20 @@ export async function DELETE(
       .eq("tenant_id", tenantId)
       .eq("client_id", clientId);
     if (error) warnings.push(`${table}: ${error.message}`);
+  }
+
+  // Ana danışan kaydını sil (tam silme — tenant + id kapsamlı).
+  const { error: clientDelErr } = await db
+    .from("clients")
+    .delete()
+    .eq("id", clientId)
+    .eq("tenant_id", tenantId);
+
+  if (clientDelErr) {
+    return NextResponse.json(
+      { ok: false, error: clientDelErr.message, warnings },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true, warnings });
