@@ -159,12 +159,23 @@ export default function ClientDetailPage() {
     async function fetchClient() {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("clients").select("*")
-        .eq("id", clientId).eq("tenant_id", tenantId).single();
+      const detailToken = readSessionToken();
+      const clientRes = await fetch(`/api/clients/${clientId}`, {
+        headers: {
+          "x-user-id": readYasamUser()?.id ?? "",
+          ...(detailToken ? { "x-session-token": detailToken } : {}),
+        },
+      });
 
-      if (error) {
-        console.error("Danışan detay hatası:", error);
+      if (!clientRes.ok) {
+        console.error("Danışan detay hatası");
+        setClient(null);
+        setLoading(false);
+        return;
+      }
+
+      const data = ((await clientRes.json()) as { client?: Client }).client;
+      if (!data) {
         setClient(null);
         setLoading(false);
         return;
@@ -815,12 +826,16 @@ function AppointmentsTab({
   async function loadAppointments() {
     if (!tenantId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("appointments").select("*")
-      .eq("tenant_id", tenantId).eq("client_id", clientId)
-      .order("appointment_date", { ascending: true });
-    if (error) { showToast({ title: "İşlem başarısız", message: "Randevular yüklenemedi: " + error.message, type: "error" }); setLoading(false); return; }
-    setAppointments(data || []);
+    const apptToken = readSessionToken();
+    const apptRes = await fetch(`/api/clients/${clientId}/appointments`, {
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(apptToken ? { "x-session-token": apptToken } : {}),
+      },
+    });
+    if (!apptRes.ok) { showToast({ title: "İşlem başarısız", message: "Randevular yüklenemedi", type: "error" }); setLoading(false); return; }
+    const apptJson = (await apptRes.json()) as { appointments?: Appointment[] };
+    setAppointments(apptJson.appointments ?? []);
     setLoading(false);
   }
 
@@ -873,7 +888,16 @@ function AppointmentsTab({
       const apt = appointments.find((a) => a.id === id);
       if (apt) {
         const aptDate = apt.appointment_date.split("T")[0];
-        const { data: cli } = await supabase.from("clients").select("gorusme").eq("id", clientId).maybeSingle();
+        const gorusmeToken = readSessionToken();
+        const cliRes = await fetch(`/api/clients/${clientId}`, {
+          headers: {
+            "x-user-id": readYasamUser()?.id ?? "",
+            ...(gorusmeToken ? { "x-session-token": gorusmeToken } : {}),
+          },
+        });
+        const cli = cliRes.ok
+          ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
+          : null;
         if (!cli?.gorusme || aptDate > cli.gorusme) {
           await supabase.from("clients").update({ gorusme: aptDate }).eq("id", clientId).eq("tenant_id", tenantId);
         }

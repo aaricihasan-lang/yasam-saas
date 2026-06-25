@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
@@ -1169,11 +1168,24 @@ export default function YolculukTab({
     async function fetchTimeline() {
       setTimelineLoading(true);
       try {
+        const yUserId = readYasamUser()?.id;
+        const yToken = readSessionToken();
+        const yHeaders: Record<string, string> = {
+          "x-user-id": yUserId ?? "",
+          ...(yToken ? { "x-session-token": yToken } : {}),
+        };
+        // Güvenli service_role API'leri; downstream .data şekli korunur.
+        const apiList = async (path: string, key: string): Promise<{ data: unknown[] }> => {
+          const r = await fetch(path, { headers: yHeaders });
+          if (!r.ok) return { data: [] };
+          const j = (await r.json().catch(() => ({}))) as Record<string, unknown[]>;
+          return { data: (j[key] ?? []) as unknown[] };
+        };
         const [sessionsRes, appointmentsRes, stonesRes] =
           await Promise.all([
-            supabase.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
-            supabase.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
-            supabase.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId),
+            apiList(`/api/clients/${clientId}/sessions`, "sessions"),
+            apiList(`/api/clients/${clientId}/appointments`, "appointments"),
+            apiList(`/api/clients/${clientId}/stones`, "stones"),
           ]);
 
         // client_homeworks artık güvenli API üzerinden okunur (publishable key ile doğrudan okunmaz).

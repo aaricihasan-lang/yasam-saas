@@ -642,22 +642,29 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setLoading(true);
     setErrorMessage("");
 
-    const { data, error } = await supabase
-      .from("client_stones")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
-      .order("stone_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false });
+    const stToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/stones`, {
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(stToken ? { "x-session-token": stToken } : {}),
+      },
+    });
 
-    if (error) {
-      console.error("Taş kayıtları yüklenemedi:", error);
-      setErrorMessage("Taş kayıtları yüklenemedi: " + error.message);
+    if (!res.ok) {
+      console.error("Taş kayıtları yüklenemedi");
+      setErrorMessage("Taş kayıtları yüklenemedi");
       setLoading(false);
       return;
     }
 
-    setStones(data || []);
+    const json = (await res.json()) as { stones?: ClientStone[] };
+    // Sıralama korunur: stone_date desc (null'lar sonda), sonra created_at desc.
+    const list = (json.stones ?? []).slice().sort((a, b) => {
+      const sd = (b.stone_date ?? "").localeCompare(a.stone_date ?? "");
+      if (sd !== 0) return sd;
+      return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+    });
+    setStones(list);
     setLoading(false);
   }
 

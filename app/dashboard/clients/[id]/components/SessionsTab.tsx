@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 type ClientSession = {
@@ -475,22 +476,29 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
     setLoading(true);
     setErrorMessage("");
 
-    const { data, error } = await supabase
-      .from("client_sessions")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("client_id", clientId)
-      .order("session_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false });
+    const seToken = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/sessions`, {
+      headers: {
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(seToken ? { "x-session-token": seToken } : {}),
+      },
+    });
 
-    if (error) {
-      console.error("Seans kayıtları yüklenemedi:", error);
-      setErrorMessage("Seans kayıtları yüklenemedi: " + error.message);
+    if (!res.ok) {
+      console.error("Seans kayıtları yüklenemedi");
+      setErrorMessage("Seans kayıtları yüklenemedi");
       setLoading(false);
       return;
     }
 
-    setSessions(data || []);
+    const json = (await res.json()) as { sessions?: ClientSession[] };
+    // Sıralama korunur: session_date desc (null'lar sonda), sonra created_at desc.
+    const list = (json.sessions ?? []).slice().sort((a, b) => {
+      const sd = (b.session_date ?? "").localeCompare(a.session_date ?? "");
+      if (sd !== 0) return sd;
+      return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+    });
+    setSessions(list);
     setLoading(false);
   }
 
@@ -543,12 +551,16 @@ export default function SessionsTab({ clientId }: SessionsTabProps) {
 
     // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için)
     if (form.sessionDate && tenantId) {
-      const { data: cli } = await supabase
-        .from("clients")
-        .select("gorusme")
-        .eq("id", clientId)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
+      const gToken = readSessionToken();
+      const cliRes = await fetch(`/api/clients/${clientId}`, {
+        headers: {
+          "x-user-id": readYasamUser()?.id ?? "",
+          ...(gToken ? { "x-session-token": gToken } : {}),
+        },
+      });
+      const cli = cliRes.ok
+        ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
+        : null;
       if (!cli?.gorusme || form.sessionDate > cli.gorusme) {
         await supabase
           .from("clients")
