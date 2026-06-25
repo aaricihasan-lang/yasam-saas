@@ -116,9 +116,28 @@ function computeTableRisk(
   return "Güvenli";
 }
 
+/** users.tenant_id listesi — güvenli admin API (tarayıcıdan publishable users okuması YOK) */
+async function fetchUsersTenantIds(): Promise<{ ids: (string | null)[]; error: string | null }> {
+  const adminId = readYasamUser()?.id;
+  try {
+    const res = await fetch("/api/admin/users-tenant-ids", { headers: adminHeaders(adminId) });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ids: [], error: j.error ?? `HTTP ${res.status}` };
+    }
+    const json = (await res.json().catch(() => ({}))) as { ids?: (string | null)[] };
+    return { ids: json.ids ?? [], error: null };
+  } catch (err) {
+    return { ids: [], error: err instanceof Error ? err.message : "users tenant_id alınamadı" };
+  }
+}
+
 async function fetchAllTenantIds(
   table: string,
 ): Promise<{ ids: (string | null)[]; error: string | null }> {
+  // users tablosu tarayıcıdan publishable ile okunmaz — güvenli admin API'ye yönlendir.
+  if (table === "users") return fetchUsersTenantIds();
+
   const ids: (string | null)[] = [];
   const pageSize = 1000;
   let from = 0;
