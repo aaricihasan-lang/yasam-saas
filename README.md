@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Doğrulanmış Özellikler
+
+- **Doğaltaş — Kombinasyon Oluştur (çok türlü arama):** `/dogaltas/kombinasyon-olustur`
+  sayfası artık **Mineral, Çakra, Astroloji, Etkili Organ ve Taş İsmi** ile çok türlü
+  arama destekler (tüm koşullar VE mantığıyla birleşir). Oluşturulan kombinasyon hem
+  **genel kombinasyonlara** hem de **danışana özel** olarak kaydedilebilir; her iki kayıt
+  akışı tarayıcı + DB/API testleriyle doğrulanmıştır.
+  Kanıt: [`docs/verification/dogaltas-combination-multitype/`](docs/verification/dogaltas-combination-multitype/README.md)
+  (18/18 PASS, commit `4ff859a`).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
