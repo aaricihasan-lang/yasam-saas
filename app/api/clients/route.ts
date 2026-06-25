@@ -4,15 +4,27 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 export const runtime = "nodejs";
 
 /**
- * GET /api/clients — uzmanın danışan listesi (C2-B1a, salt-okuma).
+ * /api/clients — uzmanın danışan listesi/oluşturma (C2-B1a read + C2-B1b write).
  *
  * Güvenlik:
  *   - verifyUserRequest → x-user-id + x-session-token + token↔user_id binding.
- *   - tenant_id SUNUCUDA session/user kaydından alınır; request'ten GÜVENİLMEZ.
- *   - Tüm sorgu tenant_id ile .eq filtrelenir (çapraz-tenant okuma engellenir).
- *
- * Query (opsiyonel): search (ad/soyad ilike), limit (1..1000), order (asc|desc, created_at).
+ *   - tenant_id SUNUCUDA session/user kaydından alınır; request body/query'den GÜVENİLMEZ.
+ *   - Tüm sorgu/insert tenant_id ile bağlanır (çapraz-tenant erişim engellenir).
+ *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
+
+const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at"]);
+
+/** Body'den korunan alanları (tenant_id/id/created_at) çıkarır. */
+function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body ?? {})) {
+    if (!PROTECTED_KEYS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+// ─── GET /api/clients ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
@@ -21,7 +33,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   const url = new URL(req.url);
 
   const rawSearch = url.searchParams.get("search")?.trim() ?? "";
-  // PostgREST .or filtre söz dizimini bozabilecek karakterleri temizle.
   const search = rawSearch.replace(/[,()*%]/g, "").slice(0, 100);
 
   const limitRaw = Number(url.searchParams.get("limit"));
@@ -48,4 +59,37 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   return NextResponse.json({ ok: true, clients: data ?? [] });
+}
+
+// ─── POST /api/clients ─────────────────────────────────────────────────────────
+export async function POST(req: NextRequest): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const { db, tenantId, is_demo_account } = guard;
+
+  if (is_demo_account) {
+    return NextResponse.json({ ok: true, demo: true, client: null });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+  }
+
+  const fields = sanitizePayload(body);
+
+  const { data, error } = await db
+    .from("clients")
+    .insert({ ...fields, tenant_id: tenantId })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, client: data });
 }
