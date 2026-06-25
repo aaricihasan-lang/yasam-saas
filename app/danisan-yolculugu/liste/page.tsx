@@ -231,19 +231,22 @@ export default function DanisanListePage() {
     if (!user || !activeTenantId) { setLoading(false); return; }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("tenant_id", activeTenantId)
-      .order("created_at", { ascending: false });
+    const token = readSessionToken();
+    const res = await fetch("/api/clients", {
+      headers: {
+        "x-user-id": user.id ?? "",
+        ...(token ? { "x-session-token": token } : {}),
+      },
+    });
 
-    if (error) {
-      showToast({ title: "İşlem başarısız", message: "Listeleme hatası: " + error.message, type: "error" });
+    if (!res.ok) {
+      showToast({ title: "İşlem başarısız", message: "Listeleme hatası", type: "error" });
       setLoading(false);
       return;
     }
 
-    setClients(data || []);
+    const json = (await res.json()) as { clients?: Client[] };
+    setClients(json.clients ?? []);
     await loadHomeworkAlerts();
     setLoading(false);
   }

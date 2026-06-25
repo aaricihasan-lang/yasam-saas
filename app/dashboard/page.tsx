@@ -2,8 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+
+/** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
+function userHeaders(): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return { "x-user-id": uid ?? "", ...(token ? { "x-session-token": token } : {}) };
+}
 
 export default function DashboardPage() {
   const [totalClients, setTotalClients] = useState<number | null>(null);
@@ -15,23 +21,19 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function loadTotalClients() {
-      const tenantId = await getSyncedTenantId();
-      if (!tenantId) return;
-
-      const { count, error } = await supabase
-        .from("clients")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", tenantId);
+      const res = await fetch("/api/clients", { headers: userHeaders() });
 
       if (cancelled) return;
 
-      if (error) {
-        console.error(error);
+      if (!res.ok) {
+        console.error("Danışan sayısı alınamadı");
         setTotalClients(0);
         return;
       }
 
-      setTotalClients(count ?? 0);
+      const json = (await res.json()) as { clients?: unknown[] };
+      if (cancelled) return;
+      setTotalClients(json.clients?.length ?? 0);
     }
 
     loadTotalClients();
@@ -45,30 +47,30 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function loadTodayAppointments() {
-      const tenantId = await getSyncedTenantId();
-      if (!tenantId) return;
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
 
-      const { count, error } = await supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .gte("appointment_date", today.toISOString())
-        .lt("appointment_date", tomorrow.toISOString());
+      const params = new URLSearchParams({
+        from: today.toISOString(),
+        to: new Date(tomorrow.getTime() - 1).toISOString(),
+      });
+      const res = await fetch(`/api/appointments?${params.toString()}`, {
+        headers: userHeaders(),
+      });
 
       if (cancelled) return;
 
-      if (error) {
-        console.error(error);
+      if (!res.ok) {
+        console.error("Randevu sayısı alınamadı");
         setTodayAppointments(0);
         return;
       }
 
-      setTodayAppointments(count ?? 0);
+      const json = (await res.json()) as { appointments?: unknown[] };
+      if (cancelled) return;
+      setTodayAppointments(json.appointments?.length ?? 0);
     }
 
     loadTodayAppointments();

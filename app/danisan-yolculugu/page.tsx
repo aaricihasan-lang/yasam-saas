@@ -19,9 +19,7 @@ import {
   UserPlus,
   UsersRound,
 } from "lucide-react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
 import { readDemoClients } from "@/lib/demo/demoSession";
 
@@ -333,11 +331,16 @@ export default function DanisanYolculuguPage() {
         return;
       }
 
-      const tenantId = await getSyncedTenantId();
-      if (!tenantId) {
+      const uid = readYasamUser()?.id;
+      if (!uid) {
         setLoading(false);
         return;
       }
+      const token = readSessionToken();
+      const headers: Record<string, string> = {
+        "x-user-id": uid,
+        ...(token ? { "x-session-token": token } : {}),
+      };
 
       const now = new Date();
 
@@ -361,121 +364,94 @@ export default function DanisanYolculuguPage() {
       // Son 3 ay (bu ay hariç)
       const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
-      const [
-        totalClientsRes,
-        lastClientRes,
-        thisMonthClientsRes,
-        last3mClientsRes,
-        thisMonthApptsRes,
-        nextApptRes,
-        thisWeekApptsRes,
-        thisMonthCompletedRes,
-        thisYearApptsRes,
-        thisYearClientsRes,
-      ] = await Promise.all([
-        // 1 — Toplam Danışan
-        supabase
-          .from("clients")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId),
-
-        // 2 — Son Kayıt tarihi
-        supabase
-          .from("clients")
-          .select("created_at")
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(1),
-
-        // 3 — Bu Ay Yeni
-        supabase
-          .from("clients")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("created_at", startOfMonth.toISOString())
-          .lt("created_at", startOfNextMonth.toISOString()),
-
-        // 4 — Son 3 Ay Ort. (son 3 ay toplamı / 3)
-        supabase
-          .from("clients")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("created_at", start3MonthsAgo.toISOString())
-          .lt("created_at", startOfMonth.toISOString()),
-
-        // 5 — Bu Ay Randevu (toplam)
-        supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("appointment_date", startOfMonth.toISOString())
-          .lt("appointment_date", startOfNextMonth.toISOString()),
-
-        // 6 — En Yakın Randevu tarihi
-        supabase
-          .from("appointments")
-          .select("appointment_date")
-          .eq("tenant_id", tenantId)
-          .gt("appointment_date", now.toISOString())
-          .neq("status", "iptal")
-          .order("appointment_date", { ascending: true })
-          .limit(1),
-
-        // 7 — Bu Hafta Randevu
-        supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("appointment_date", startOfWeek.toISOString())
-          .lt("appointment_date", endOfWeek.toISOString()),
-
-        // 8 — Bu Ay Tamamlanan
-        supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .eq("status", "tamamlandi")
-          .gte("appointment_date", startOfMonth.toISOString())
-          .lt("appointment_date", startOfNextMonth.toISOString()),
-
-        // 9 — Bu Yıl Toplam Randevu
-        supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("appointment_date", startOfYear.toISOString())
-          .lt("appointment_date", startOfNextYear.toISOString()),
-
-        // 10 — Bu Yıl Danışan
-        supabase
-          .from("clients")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("created_at", startOfYear.toISOString())
-          .lt("created_at", startOfNextYear.toISOString()),
+      // Tüm veri güvenli service_role API'lerinden alınır; metrikler client-side hesaplanır.
+      const [clientsRes, apptsRes] = await Promise.all([
+        fetch("/api/clients", { headers }),
+        fetch("/api/appointments", { headers }),
       ]);
 
       if (cancelled) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const lastClientDate = (lastClientRes.data as any)?.[0]?.created_at ?? null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nextApptDate = (nextApptRes.data as any)?.[0]?.appointment_date ?? null;
+      if (!clientsRes.ok || !apptsRes.ok) {
+        setLoading(false);
+        return;
+      }
 
-      const last3mTotal = last3mClientsRes.count ?? 0;
+      const clientsJson = (await clientsRes.json()) as {
+        clients?: { created_at?: string | null }[];
+      };
+      const apptsJson = (await apptsRes.json()) as {
+        appointments?: { appointment_date?: string | null; status?: string | null }[];
+      };
+      if (cancelled) return;
+
+      const clients = clientsJson.clients ?? [];
+      const appts = apptsJson.appointments ?? [];
+
+      const ts = (iso: string | null | undefined): number =>
+        iso ? new Date(iso).getTime() : NaN;
+      const inRange = (
+        iso: string | null | undefined,
+        start: Date,
+        end: Date,
+      ): boolean => {
+        const v = ts(iso);
+        return !Number.isNaN(v) && v >= start.getTime() && v < end.getTime();
+      };
+
+      // Danışan metrikleri
+      const totalClients = clients.length;
+      const lastClientDate =
+        clients
+          .map((c) => c.created_at)
+          .filter((d): d is string => !!d)
+          .sort((a, b) => ts(b) - ts(a))[0] ?? null;
+      const thisMonthClients = clients.filter((c) =>
+        inRange(c.created_at, startOfMonth, startOfNextMonth),
+      ).length;
+      const last3mTotal = clients.filter((c) =>
+        inRange(c.created_at, start3MonthsAgo, startOfMonth),
+      ).length;
       const avg3m = Math.round(last3mTotal / 3);
+      const thisYearClients = clients.filter((c) =>
+        inRange(c.created_at, startOfYear, startOfNextYear),
+      ).length;
+
+      // Randevu metrikleri
+      const thisMonthAppts = appts.filter((a) =>
+        inRange(a.appointment_date, startOfMonth, startOfNextMonth),
+      ).length;
+      const nextApptDate =
+        appts
+          .filter(
+            (a) => a.status !== "iptal" && ts(a.appointment_date) > now.getTime(),
+          )
+          .map((a) => a.appointment_date)
+          .filter((d): d is string => !!d)
+          .sort((a, b) => ts(a) - ts(b))[0] ?? null;
+      const thisWeekAppts = appts.filter((a) =>
+        inRange(a.appointment_date, startOfWeek, endOfWeek),
+      ).length;
+      const thisMonthCompleted = appts.filter(
+        (a) =>
+          a.status === "tamamlandi" &&
+          inRange(a.appointment_date, startOfMonth, startOfNextMonth),
+      ).length;
+      const thisYearAppts = appts.filter((a) =>
+        inRange(a.appointment_date, startOfYear, startOfNextYear),
+      ).length;
 
       setStats([
-        fmtCount(totalClientsRes.count ?? null),   // 1 Toplam Danışan
-        isoToTR(lastClientDate),                    // 2 Son Kayıt
-        fmtCount(thisMonthClientsRes.count ?? null),// 3 Bu Ay Yeni
-        fmtCount(avg3m),                            // 4 Son 3 Ay Ort.
-        fmtCount(thisMonthApptsRes.count ?? null),  // 5 Bu Ay Randevu
-        isoToTR(nextApptDate),                      // 6 En Yakın Randevu
-        fmtCount(thisWeekApptsRes.count ?? null),   // 7 Bu Hafta
-        fmtCount(thisMonthCompletedRes.count ?? null), // 8 Bu Ay Tamamlanan
-        fmtCount(thisYearApptsRes.count ?? null),   // 9 Bu Yıl Toplam
-        fmtCount(thisYearClientsRes.count ?? null), // 10 Bu Yıl Danışan
+        fmtCount(totalClients),          // 1 Toplam Danışan
+        isoToTR(lastClientDate),         // 2 Son Kayıt
+        fmtCount(thisMonthClients),      // 3 Bu Ay Yeni
+        fmtCount(avg3m),                 // 4 Son 3 Ay Ort.
+        fmtCount(thisMonthAppts),        // 5 Bu Ay Randevu
+        isoToTR(nextApptDate),           // 6 En Yakın Randevu
+        fmtCount(thisWeekAppts),         // 7 Bu Hafta
+        fmtCount(thisMonthCompleted),    // 8 Bu Ay Tamamlanan
+        fmtCount(thisYearAppts),         // 9 Bu Yıl Toplam
+        fmtCount(thisYearClients),       // 10 Bu Yıl Danışan
       ]);
       setLoading(false);
     }
