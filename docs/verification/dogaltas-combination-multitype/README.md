@@ -66,6 +66,21 @@ Tüm görsel, fonksiyonel ve veri katmanı testleri başarılı.
 15. Genel kombinasyona kaydet · 16. Danışana özel kaydet ·
 17. Desktop yatay taşma yok · 18. Mobil responsive (select/input/Sil).
 
+## GitHub Render Kanıtı
+
+Yukarıdaki 8 görselin GitHub'da bu sayfada **satır içi (inline) render edildiği**
+gerçek tarayıcıyla (Playwright) açılıp doğrulandı: `markdown-body` içindeki 8 `<img>`
+ögesinin tamamı yüklendi (`naturalWidth > 0`; 7× 1440×950 desktop, 1× 390×844 mobil).
+
+| Kanıt | İçerik |
+|---|---|
+| [`github-render-proof/render-top.png`](github-render-proof/render-top.png) | "Ekran Görüntüleri" başlığı + tablo + ilk gömülü görsel (Açılış) |
+| [`github-render-proof/render-bottom.png`](github-render-proof/render-bottom.png) | Sayfanın alt kısmı — kalan gömülü görseller (Danışan kaydı + Mobil) |
+
+![GitHub render — üst](github-render-proof/render-top.png)
+
+![GitHub render — alt](github-render-proof/render-bottom.png)
+
 ## Not
 Tüm test verileri (geçici `user_sessions` token'ları, oluşturulan genel + danışan
 kombinasyonları) test sonunda **otomatik temizlendi**; canlı/gerçek veri etkilenmedi.
