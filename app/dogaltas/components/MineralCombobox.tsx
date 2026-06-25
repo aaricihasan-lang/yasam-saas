@@ -11,6 +11,8 @@ type MineralComboboxProps = {
   counts: Map<string, number>;
   placeholder?: string;
   className?: string;
+  /** Dropdown öğesi ikonu (arama türüne göre). Varsayılan 🧪. */
+  icon?: string;
 };
 
 /**
@@ -30,6 +32,7 @@ export function MineralCombobox({
   counts,
   placeholder,
   className,
+  icon = "🧪",
 }: MineralComboboxProps) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -130,7 +133,7 @@ export function MineralCombobox({
               }`}
             >
               <span className="flex min-w-0 items-center gap-1.5">
-                <span aria-hidden className="shrink-0">🧪</span>
+                <span aria-hidden className="shrink-0">{icon}</span>
                 <span
                   className={`truncate font-bold ${
                     item.isPrefix ? "text-cyan-800" : "text-slate-700"

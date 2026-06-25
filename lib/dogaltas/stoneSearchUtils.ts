@@ -57,7 +57,7 @@ function parseAssignments(raw: unknown): AssignmentsObj {
  * Örnek: getAssignmentSection(assignments, "burc", "burç", "astroloj")
  *   → "Koç", "Akrep" gibi değerler döner
  */
-function getAssignmentSection(
+export function getAssignmentSection(
   raw: unknown,
   ...sectionPatterns: string[]
 ): string[] {

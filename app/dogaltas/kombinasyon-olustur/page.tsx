@@ -21,13 +21,21 @@ import {
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
-  evaluateStone,
-  evaluateCondition,
-  extractStoneMinerals,
   makeStockMatcher,
   buildMineralStoneCounts,
-  type MineralCondition,
 } from "@/lib/dogaltas/mineralCombination";
+import {
+  SEARCH_TYPES,
+  SEARCH_TYPE_META,
+  evaluateOne,
+  evaluateStoneConditions,
+  collectSuggestions,
+  buildTypeCounts,
+  buildConditionsSummary,
+  describeCondition,
+  type SearchType,
+  type SearchCondition,
+} from "@/lib/dogaltas/stoneConditionSearch";
 import { MineralCombobox } from "@/app/dogaltas/components/MineralCombobox";
 import { StoneDetailDrawer } from "@/app/dogaltas/components/StoneDetailDrawer";
 import {
@@ -50,6 +58,15 @@ const uiStatCard =
 const uiInput =
   "h-10 w-full rounded-xl border-2 border-cyan-300/50 bg-white/90 px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
 
+// Sonuç kartı eşleşme etiketi tonları (arama türüne göre).
+const CHIP_TONE: Record<SearchType, string> = {
+  mineral: "bg-violet-100 text-violet-700",
+  chakra: "bg-indigo-100 text-indigo-700",
+  astrology: "bg-amber-100 text-amber-700",
+  organ: "bg-rose-100 text-rose-700",
+  stone_name: "bg-emerald-100 text-emerald-700",
+};
+
 function newId(): string {
   try {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -61,9 +78,10 @@ function newId(): string {
   return `c-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
-const emptyCondition = (): MineralCondition => ({
+const emptyCondition = (): SearchCondition => ({
   id: newId(),
-  mineral: "",
+  type: "mineral",
+  value: "",
   minPercent: null,
 });
 
@@ -84,7 +102,7 @@ export default function KombinasyonOlusturPage() {
   const [inStockNames, setInStockNames] = useState<string[]>([]);
   const [mineralOptions, setMineralOptions] = useState<string[]>([]);
 
-  const [conditions, setConditions] = useState<MineralCondition[]>([emptyCondition()]);
+  const [conditions, setConditions] = useState<SearchCondition[]>([emptyCondition()]);
   const [searched, setSearched] = useState(false);
 
   // Taş detay drawer'ı — sayfa navigasyonu yok; tüm liste/filtre/sepet state'i korunur.
@@ -198,7 +216,7 @@ export default function KombinasyonOlusturPage() {
   }, []);
 
   const activeConditions = useMemo(
-    () => conditions.filter((c) => c.mineral.trim()),
+    () => conditions.filter((c) => c.value.trim()),
     [conditions],
   );
 
@@ -210,11 +228,26 @@ export default function KombinasyonOlusturPage() {
     [stones, mineralOptions],
   );
 
+  // Her arama türü için öneri listesi + sayım (mineral mevcut sistemden gelir).
+  const optionsByType = useMemo(() => {
+    const make = (type: SearchType) => {
+      const options = collectSuggestions(stones, type);
+      return { options, counts: buildTypeCounts(stones, type, options) };
+    };
+    return {
+      mineral: { options: mineralOptions, counts: mineralCounts },
+      chakra: make("chakra"),
+      astrology: make("astrology"),
+      organ: make("organ"),
+      stone_name: make("stone_name"),
+    } as Record<SearchType, { options: string[]; counts: Map<string, number> }>;
+  }, [stones, mineralOptions, mineralCounts]);
+
   const results = useMemo(() => {
     if (activeConditions.length === 0) return [];
     const list = stones
       .map((stone) => {
-        const evaluation = evaluateStone(stone.assignments, conditions);
+        const evaluation = evaluateStoneConditions(stone, conditions);
         return { stone, evaluation, inStock: stockMatcher(stone.stone_name) };
       })
       .filter((r) => r.evaluation.matches);
@@ -229,7 +262,9 @@ export default function KombinasyonOlusturPage() {
   }, [stones, conditions, activeConditions.length, stockMatcher]);
 
   const inStockMatched = results.filter((r) => r.inStock).length;
-  const anyThreshold = activeConditions.some((c) => c.minPercent != null);
+  const anyThreshold = activeConditions.some(
+    (c) => c.type === "mineral" && c.minPercent != null,
+  );
 
   // ─── Sepet analizi (client-side; DB yok) ──────────────────────────────────
   const cartAnalysis = useMemo(() => {
@@ -237,15 +272,10 @@ export default function KombinasyonOlusturPage() {
       .map((c) => stones.find((s) => s.id === c.id))
       .filter((s): s is StoneListItemExtended => Boolean(s));
 
-    // Hedef minerallerin (seçili koşullar) sepet taşlarınca karşılanma durumu.
+    // Tüm koşulların (mineral/çakra/astroloji/organ/isim) sepet taşlarınca karşılanması.
     const conditionStatus = activeConditions.map((cond) => {
-      const met = fullStones.some(
-        (s) => evaluateCondition(extractStoneMinerals(s.assignments), cond).satisfied,
-      );
-      const label = cond.minPercent != null
-        ? `${cond.mineral.trim()} ≥ %${cond.minPercent}`
-        : cond.mineral.trim();
-      return { id: cond.id, label, met };
+      const met = fullStones.some((s) => evaluateOne(s, cond).satisfied);
+      return { id: cond.id, label: describeCondition(cond), met };
     });
     const metMinerals = conditionStatus.filter((c) => c.met);
     const missingMinerals = conditionStatus.filter((c) => !c.met);
@@ -265,14 +295,11 @@ export default function KombinasyonOlusturPage() {
 
   // ─── Kombinasyonu kaydet (güvenli API) ────────────────────────────────────
   function buildMineralSummary(): string {
-    if (activeConditions.length === 0) return "";
+    const summary = buildConditionsSummary(activeConditions);
+    if (!summary) return "";
     const lines = [
-      "Hedef mineraller: " +
-        activeConditions
-          .map((c) =>
-            c.minPercent != null ? `${c.mineral.trim()} ≥ %${c.minPercent}` : c.mineral.trim(),
-          )
-          .join(", "),
+      summary,
+      "",
       "Karşılanan: " +
         (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
       "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
@@ -410,8 +437,17 @@ export default function KombinasyonOlusturPage() {
     );
     setSearched(false);
   }
-  function updateMineral(id: string, mineral: string) {
-    setConditions((prev) => prev.map((c) => (c.id === id ? { ...c, mineral } : c)));
+  function updateValue(id: string, value: string) {
+    setConditions((prev) => prev.map((c) => (c.id === id ? { ...c, value } : c)));
+    setSearched(false);
+  }
+  function updateType(id: string, type: SearchType) {
+    // Tür değişince değer ve (mineral dışı) yüzde sıfırlanır.
+    setConditions((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, type, value: "", minPercent: null } : c,
+      ),
+    );
     setSearched(false);
   }
   function updatePercent(id: string, raw: string) {
@@ -447,11 +483,12 @@ export default function KombinasyonOlusturPage() {
               ⚗️ KOMBİNASYON OLUŞTUR
             </div>
             <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-              Mineral Kombinasyonu
+              Taş Kombinasyonu
             </h1>
             <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
-              Bir veya daha fazla mineral seçin; tüm koşulları sağlayan taşlar
-              listelenir. Stokta olan taşlar belirgin gösterilir.
+              Mineral, çakra, astroloji, etkili organ veya taş ismine göre koşul
+              ekleyin; tüm koşulları (VE) sağlayan taşlar listelenir. Stokta olan
+              taşlar belirgin gösterilir.
             </p>
           </div>
 
@@ -478,38 +515,58 @@ export default function KombinasyonOlusturPage() {
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-black text-slate-900">Mineral Koşulları</h2>
+            <h2 className="text-sm font-black text-slate-900">Arama Koşulları</h2>
             <span className="text-[11px] font-bold text-slate-500">
-              Yüzde opsiyonel · tümü eşleşmeli (VE)
+              Tümü eşleşmeli (VE) · yüzde yalnız mineralde
             </span>
           </div>
 
           <div className="space-y-2">
-            {conditions.map((cond, index) => (
+            {conditions.map((cond) => (
               <div key={cond.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* Arama türü */}
+                <select
+                  value={cond.type}
+                  onChange={(e) => updateType(cond.id, e.target.value as SearchType)}
+                  className="h-10 shrink-0 rounded-xl border-2 border-cyan-300/50 bg-white px-2 text-sm font-bold text-slate-800 shadow-inner outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30 sm:w-[150px]"
+                >
+                  {SEARCH_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {SEARCH_TYPE_META[t].icon} {SEARCH_TYPE_META[t].label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Arama değeri (türüne göre öneriler) */}
                 <div className="min-w-0 flex-1">
                   <MineralCombobox
-                    value={cond.mineral}
-                    onChange={(v) => updateMineral(cond.id, v)}
-                    options={mineralOptions}
-                    counts={mineralCounts}
-                    placeholder={`Mineral ${index + 1} (örn. Demir, Lityum, Kalsiyum)`}
+                    value={cond.value}
+                    onChange={(v) => updateValue(cond.id, v)}
+                    options={optionsByType[cond.type].options}
+                    counts={optionsByType[cond.type].counts}
+                    icon={SEARCH_TYPE_META[cond.type].icon}
+                    placeholder={SEARCH_TYPE_META[cond.type].placeholder}
                     className={uiInput}
                   />
                 </div>
 
-                <div className="flex items-center gap-2 sm:w-[190px] sm:shrink-0">
-                  <span className="text-xs font-black text-slate-500">≥ %</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    inputMode="decimal"
-                    value={cond.minPercent ?? ""}
-                    onChange={(e) => updatePercent(cond.id, e.target.value)}
-                    placeholder="opsiyonel"
-                    className={uiInput}
-                  />
+                {/* Yüzde (yalnız mineral) + Sil */}
+                <div className="flex items-center gap-2 sm:shrink-0">
+                  {cond.type === "mineral" && (
+                    <div className="flex items-center gap-1.5 sm:w-[140px]">
+                      <span className="text-xs font-black text-slate-500">≥ %</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        inputMode="decimal"
+                        value={cond.minPercent ?? ""}
+                        onChange={(e) => updatePercent(cond.id, e.target.value)}
+                        placeholder="ops."
+                        className={uiInput}
+                      />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => removeCondition(cond.id)}
@@ -529,7 +586,7 @@ export default function KombinasyonOlusturPage() {
               onClick={addCondition}
               className="rounded-xl border-2 border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 shadow-sm transition hover:bg-cyan-100"
             >
-              + Mineral Ekle
+              + Koşul Ekle
             </button>
 
             <button
@@ -564,10 +621,11 @@ export default function KombinasyonOlusturPage() {
             {!showResults ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-cyan-300/50 bg-white/70 p-6 text-center">
                 <div className="text-base font-black text-slate-800">
-                  Mineral seçip "Taşları Tara"ya basın
+                  Koşul ekleyip "Taşları Tara"ya basın
                 </div>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Seçtiğiniz tüm minerallere uyan taşlar burada listelenir.
+                  Seçtiğiniz tüm koşulları (mineral, çakra, astroloji, organ, isim)
+                  sağlayan taşlar burada listelenir.
                 </p>
               </div>
             ) : results.length === 0 ? (
@@ -582,9 +640,13 @@ export default function KombinasyonOlusturPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {results.map(({ stone, evaluation, inStock }) => {
                   const cover = getFirstStoneImageUrl(stone.images);
-                  const matched = Array.from(
-                    new Set(evaluation.perCondition.flatMap((p) => p.matchedNames)),
-                  ).slice(0, 4);
+                  // Eşleşen koşulları tür bilgisiyle birlikte etiketle (mineral dışı türler de).
+                  const matchChips = evaluation.perCondition
+                    .filter((p) => p.matchedNames.length > 0)
+                    .flatMap((p) =>
+                      p.matchedNames.slice(0, 2).map((name) => ({ type: p.type, name })),
+                    )
+                    .slice(0, 5);
 
                   return (
                     <div
@@ -643,13 +705,13 @@ export default function KombinasyonOlusturPage() {
                           )}
 
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {matched.map((m, i) => (
+                            {matchChips.map((m, i) => (
                               <span
                                 key={`${stone.id}-m-${i}`}
-                                className="max-w-full truncate rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700"
-                                title={m}
+                                className={`max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold ${CHIP_TONE[m.type]}`}
+                                title={`${SEARCH_TYPE_META[m.type].label}: ${m.name}`}
                               >
-                                🧪 {m}
+                                {SEARCH_TYPE_META[m.type].icon} {m.name}
                               </span>
                             ))}
                           </div>
@@ -752,12 +814,12 @@ export default function KombinasyonOlusturPage() {
                     </button>
                   </div>
 
-                  {/* ── Karşılanan / Eksik Mineraller ─────────────────── */}
+                  {/* ── Karşılanan / Eksik Koşullar ───────────────────── */}
                   {activeConditions.length > 0 && (
                     <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
                       <div>
                         <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                          Karşılanan Mineraller
+                          Karşılanan Koşullar
                         </div>
                         {cartAnalysis.metMinerals.length === 0 ? (
                           <p className="text-[11px] font-semibold text-slate-400">Henüz yok.</p>
@@ -777,7 +839,7 @@ export default function KombinasyonOlusturPage() {
 
                       <div>
                         <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                          Eksik Mineraller
+                          Eksik Koşullar
                         </div>
                         {cartAnalysis.missingMinerals.length === 0 ? (
                           <p className="text-[11px] font-semibold text-emerald-600">
@@ -844,11 +906,11 @@ export default function KombinasyonOlusturPage() {
                     {activeConditions.length > 0 &&
                       (cartAnalysis.missingMinerals.length === 0 ? (
                         <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
-                          ✓ Kombinasyon hedef mineralleri karşılıyor.
+                          ✓ Kombinasyon tüm koşulları karşılıyor.
                         </p>
                       ) : (
                         <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
-                          Eksik mineraller var, taş ekleyin veya değiştirin.
+                          Eksik koşullar var, taş ekleyin veya değiştirin.
                         </p>
                       ))}
                     {cartAnalysis.hasAnyWarning && (
