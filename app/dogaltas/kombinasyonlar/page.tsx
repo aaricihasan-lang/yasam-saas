@@ -316,6 +316,13 @@ const uiSelectActionBtn =
 const uiRowCheckbox =
   "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-violet-600 focus:ring-2 focus:ring-violet-200/40";
 
+/**
+ * İlk render'da gösterilecek başlık (grup) sayısı; kalanı "Daha Fazla Göster"
+ * ile açılır. Tüm kayıtlar API'den çekilir (arama/filtre tam set üzerinde
+ * çalışır) ama DOM'a yalnızca bu kadarı basılır → ağır liste/mobil yükü önlenir.
+ */
+const GROUPS_PAGE_SIZE = 24;
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KombinasyonlarPage() {
@@ -331,6 +338,7 @@ export default function KombinasyonlarPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [isMobile, setIsMobile] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(GROUPS_PAGE_SIZE);
   const { isDemo } = useDemoGuard();
 
   const clearSearch = useCallback(() => {
@@ -439,6 +447,19 @@ export default function KombinasyonlarPage() {
     rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz"));
     return set.size;
   }, [rows]);
+
+  // Sayfalama yalnızca RENDER'ı sınırlar; arama/filtre tam set (`rows`) üzerinde
+  // yapıldıktan SONRA uygulanır → K-1'deki "filtre sonrası boş kalma" tuzağına düşmez.
+  const visibleGroups = useMemo(
+    () => groups.slice(0, visibleCount),
+    [groups, visibleCount],
+  );
+  const hasMoreGroups = groups.length > visibleGroups.length;
+
+  // Arama/kategori değişince sayfalamayı başa sar (kullanıcı ilk eşleşmeleri görsün).
+  useEffect(() => {
+    setVisibleCount(GROUPS_PAGE_SIZE);
+  }, [searchTerm, categoryFilter]);
 
   const hasFilters = Boolean(isSearchActive || categoryFilter.trim());
   const [wordBusy, setWordBusy] = useState(false);
@@ -606,7 +627,7 @@ export default function KombinasyonlarPage() {
             <p className="mt-1 text-[11px] font-medium text-slate-500">
               {loading
                 ? "Yükleniyor..."
-                : `${uniqueIssues} başlık · ${rows.length} variant · ${groups.length} gösterilen`}
+                : `${uniqueIssues} başlık · ${rows.length} variant · ${visibleGroups.length}/${groups.length} gösterilen`}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -773,7 +794,7 @@ export default function KombinasyonlarPage() {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {groups.map(({ issue, rows: groupRows }) => {
+              {visibleGroups.map(({ issue, rows: groupRows }) => {
                 const sourceLine = firstSourceInGroup(groupRows);
                 const category = groupDescription(groupRows);
                 const ts = latestDisplayTimestamp(groupRows);
@@ -890,7 +911,7 @@ export default function KombinasyonlarPage() {
 
           /* ── Card view ── */
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {groups.map(({ issue, rows: groupRows }) => {
+            {visibleGroups.map(({ issue, rows: groupRows }) => {
               const sourceLine = firstSourceInGroup(groupRows);
               const category = groupDescription(groupRows);
               const ts = latestDisplayTimestamp(groupRows);
@@ -986,6 +1007,21 @@ export default function KombinasyonlarPage() {
                 </article>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Daha Fazla Göster ─────────────────────────────────────────
+            Sayfalama: yalnız hasMoreGroups iken çıkar (boş listede çıkmaz);
+            arama/filtre aktifken de eşleşmelerin kalanını açar → çıkmaz sokak yok. */}
+        {!loading && !errorMessage && hasMoreGroups && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((c) => c + GROUPS_PAGE_SIZE)}
+              className="rounded-xl border border-violet-200 bg-white px-5 py-2.5 text-sm font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50"
+            >
+              Daha Fazla Göster ({visibleGroups.length} / {groups.length})
+            </button>
           </div>
         )}
 
