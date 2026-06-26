@@ -154,6 +154,45 @@ const uiPanel =
 const uiBtn =
   "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-black transition";
 
+/**
+ * Doğrudan yazılabilen textarea + isteğe bağlı "geniş ekran" butonu.
+ * Eskiden alanlar focus'ta beklenmedik bir modal açıyordu (sezgisiz); artık
+ * kullanıcı yerinde yazar, geniş düzen yalnızca ⤢ butonuna basınca açılır.
+ */
+function ExpandableTextarea({
+  value,
+  onChange,
+  onExpand,
+  placeholder,
+  className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onExpand: () => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className={`${uiTextarea} pr-12`}
+      />
+      <button
+        type="button"
+        onClick={onExpand}
+        title="Geniş ekranda düzenle"
+        aria-label="Geniş ekranda düzenle"
+        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-300/60 bg-white/95 text-base font-black text-cyan-700 shadow-sm transition hover:bg-cyan-50 hover:text-cyan-900"
+      >
+        ⤢
+      </button>
+    </div>
+  );
+}
+
 function safeFileName(fileName: string) {
   return fileName
     .replaceAll("ı", "i")
@@ -575,15 +614,15 @@ export default function DogaltasKayitPage() {
 
                 <div>
                   <label className={uiLabel}>
-                    Kısa Açıklama
+                    Kısa Açıklama{" "}
+                    <span className="font-semibold text-slate-400">(isteğe bağlı)</span>
                   </label>
 
-                  <textarea
+                  <ExpandableTextarea
                     value={formData.short_description}
-                    onChange={(event) => updateField("short_description", event.target.value)}
-                    onFocus={() => openLargeEditor("Kısa Açıklama", "short_description")}
+                    onChange={(value) => updateField("short_description", value)}
+                    onExpand={() => openLargeEditor("Kısa Açıklama", "short_description")}
                     placeholder="Taşın kısa tanımı, temel özelliği ve öne çıkan etkisi..."
-                    className={uiTextarea}
                   />
                 </div>
               </div>
@@ -656,12 +695,11 @@ export default function DogaltasKayitPage() {
                     {item.title}
                   </label>
 
-                  <textarea
+                  <ExpandableTextarea
                     value={formData[item.key]}
-                    onChange={(event) => updateField(item.key, event.target.value)}
-                    onFocus={() => openLargeEditor(item.title, item.key)}
+                    onChange={(value) => updateField(item.key, value)}
+                    onExpand={() => openLargeEditor(item.title, item.key)}
                     placeholder={`${item.title} yaz...`}
-                    className={uiTextarea}
                   />
                 </div>
               ))}
@@ -698,12 +736,12 @@ export default function DogaltasKayitPage() {
                   </div>
                 </div>
 
-                <textarea
+                <ExpandableTextarea
                   value={formData[section.key as keyof FormData]}
-                  onChange={(event) => updateField(section.key as keyof FormData, event.target.value)}
-                  onFocus={() => openLargeEditor(section.title, section.key as keyof FormData)}
-                  placeholder="Bu alana tıklayınca büyük yazı ekranı açılır..."
-                  className={`${uiTextarea} mt-auto`}
+                  onChange={(value) => updateField(section.key as keyof FormData, value)}
+                  onExpand={() => openLargeEditor(section.title, section.key as keyof FormData)}
+                  placeholder={`${section.title} yaz...`}
+                  className="mt-auto"
                 />
               </div>
             ))}
@@ -736,12 +774,11 @@ export default function DogaltasKayitPage() {
                     <div key={item.key} className={`${uiPanel} p-4`}>
                       <p className="mb-2 text-[13px] font-bold text-slate-800">{item.title}</p>
 
-                      <textarea
+                      <ExpandableTextarea
                         value={formData[item.key as keyof FormData]}
-                        onChange={(event) => updateField(item.key as keyof FormData, event.target.value)}
-                        onFocus={() => openLargeEditor(item.title, item.key as keyof FormData)}
+                        onChange={(value) => updateField(item.key as keyof FormData, value)}
+                        onExpand={() => openLargeEditor(item.title, item.key as keyof FormData)}
                         placeholder={`${item.title} notu...`}
-                        className={uiTextarea}
                       />
                     </div>
                   ))}
@@ -766,12 +803,11 @@ export default function DogaltasKayitPage() {
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
                     <div>
                       <label className={uiLabel}>Uyarı Metni</label>
-                      <textarea
+                      <ExpandableTextarea
                         value={formData.warning_text}
-                        onChange={(event) => updateField("warning_text", event.target.value)}
-                        onFocus={() => openLargeEditor("Uyarılar", "warning_text")}
+                        onChange={(value) => updateField("warning_text", value)}
+                        onExpand={() => openLargeEditor("Uyarılar", "warning_text")}
                         placeholder="Bu taş için dikkat edilmesi gereken durumları yazın. Örn. hassas kişilerde uzun süreli kullanım önerilmez..."
-                        className={uiTextarea}
                       />
                     </div>
 
