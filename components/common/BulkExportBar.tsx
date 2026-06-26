@@ -152,7 +152,7 @@ export function BulkExportBar({
         disabled={busy}
         className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
       >
-        Tümünü Seç ({totalCount})
+        {selectAllLabel} ({selectCountDisplay})
       </button>
 
       {selectedCount > 0 && (
