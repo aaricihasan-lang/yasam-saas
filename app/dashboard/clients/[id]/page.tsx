@@ -107,7 +107,7 @@ const textareaCls =
   "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[12px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const labelCls = "block mb-1 font-extrabold text-[12px] text-slate-700";
 const wordBtnCls =
-  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
+  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
@@ -470,6 +470,7 @@ export default function ClientDetailPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
+      <div className="mx-auto w-full max-w-[1280px]">
 
       {/* Top bar */}
       <div className="mb-3 flex flex-wrap items-center justify-end gap-2.5">
@@ -525,7 +526,7 @@ export default function ClientDetailPage() {
           <div
             role="tablist"
             aria-label="Danışan sekmeleri"
-            className="flex items-center gap-1.5 overflow-x-auto py-1 pb-1.5 pr-16 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1 sm:pr-0"
+            className="flex snap-x scroll-smooth items-center gap-1.5 overflow-x-auto py-1 pb-1.5 pr-4 [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-1 sm:pr-0"
           >
             <Tab label="Genel Bilgiler"      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
             <Tab label="Notlar"              id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
@@ -778,6 +779,7 @@ export default function ClientDetailPage() {
           )}
         </div>
       </section>
+      </div>
 
     </main>
   );
@@ -1190,7 +1192,7 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
       aria-controls={`tabpanel-${id}`}
       id={`tab-${id}`}
       onClick={() => setActiveTab(id)}
-      className="min-h-[42px] whitespace-nowrap rounded-xl px-[18px] py-2.5 text-[13px] font-extrabold leading-[1.2] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+      className="min-h-[42px] snap-start whitespace-nowrap rounded-xl px-[18px] py-2.5 text-[13px] font-extrabold leading-[1.2] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
       style={{
         background: active ? color : "transparent",
         color: active ? "white" : color,

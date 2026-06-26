@@ -12,6 +12,7 @@ import {
   LOCKED_SUBSCRIPTION_TOAST,
   parseLoginUserRecord,
   readYasamUser,
+  readSessionToken,
   saveYasamUser,
   saveSessionToken,
   type YasamUser,
@@ -841,9 +842,21 @@ export default function Home() {
 
     let cancelled = false;
     const entries = Object.entries(MODULE_STAT_TABLES) as Array<[ModulePermissionKey, string]>;
+    // clients RLS-korumalı; anon HEAD count 401 verir → güvenli /api/clients hattından say.
+    const token = readSessionToken();
+    const authHeaders: Record<string, string> = {
+      "x-user-id": user.id ?? "",
+      ...(token ? { "x-session-token": token } : {}),
+    };
 
     void Promise.allSettled(
       entries.map(async ([key, table]) => {
+        if (table === "clients") {
+          const res = await fetch("/api/clients", { headers: authHeaders });
+          if (!res.ok) return { key, count: null };
+          const json = (await res.json()) as { clients?: unknown[] };
+          return { key, count: json.clients?.length ?? null };
+        }
         const { count, error } = await supabase
           .from(table)
           .select("*", { count: "exact", head: true })
@@ -869,15 +882,35 @@ export default function Home() {
 
     let cancelled = false;
     type RawItem = { icon: string; label: string; rawDate: string };
-    const sources: { table: string; icon: string; col: string }[] = [
-      { table: "clients",             icon: "👥", col: "full_name" },
-      { table: "stones",              icon: "💎", col: "name" },
+    // clients RLS-korumalı + isim ad/soyad kolonlarında → güvenli /api/clients hattı.
+    // Diğerleri anon-okunabilir; stones'ta isim kolonu `stone_name`.
+    const token = readSessionToken();
+    const authHeaders: Record<string, string> = {
+      "x-user-id": user.id ?? "",
+      ...(token ? { "x-session-token": token } : {}),
+    };
+    const directSources: { table: string; icon: string; col: string }[] = [
+      { table: "stones",              icon: "💎", col: "stone_name" },
       { table: "personal_archives",   icon: "📚", col: "title" },
       { table: "numerology_analyses", icon: "🧠", col: "full_name" },
     ];
 
-    void Promise.allSettled(
-      sources.map(async ({ table, icon, col }) => {
+    const clientsSource = (async (): Promise<RawItem[]> => {
+      const res = await fetch("/api/clients", { headers: authHeaders });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        clients?: { ad?: string | null; soyad?: string | null; created_at?: string | null }[];
+      };
+      return (json.clients ?? []).slice(0, 3).map((c) => ({
+        icon: "👥",
+        label: `${c.ad ?? ""} ${c.soyad ?? ""}`.trim() || "Yeni kayıt",
+        rawDate: String(c.created_at ?? ""),
+      }));
+    })();
+
+    void Promise.allSettled([
+      clientsSource,
+      ...directSources.map(async ({ table, icon, col }): Promise<RawItem[]> => {
         const { data } = await supabase
           .from(table)
           .select(`${col}, created_at`)
@@ -893,7 +926,7 @@ export default function Home() {
           } satisfies RawItem;
         });
       }),
-    ).then((results) => {
+    ]).then((results) => {
       if (cancelled) return;
       const all: RawItem[] = results
         .filter((r) => r.status === "fulfilled")

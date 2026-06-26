@@ -379,7 +379,7 @@ export default function DanisanKayitPage() {
         <div className="absolute bottom-0 left-1/3 h-[380px] w-[380px] -translate-x-1/2 rounded-full bg-teal-300/10 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
         {isDemo && (
           <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
             <div className="flex items-start gap-3">
@@ -430,6 +430,10 @@ export default function DanisanKayitPage() {
             </Field>
             <Field label="Görüşme Tarihi">
               <PremiumDatePicker value={gorusme} onChange={setGorusme} inputClassName={inputClassName} />
+              <p className="text-[11px] font-medium leading-snug text-slate-400">
+                Danışanın ilk/son görüşme tarihi. Planlı seanslar için{" "}
+                <span className="font-bold text-slate-500">Ajanda &amp; Randevu</span>’yu kullanın.
+              </p>
             </Field>
             <Field label="Burç (Otomatik)">
               <input value={burc} disabled className={`${inputClassName} bg-slate-100 text-slate-600`} />

@@ -521,7 +521,7 @@ export default function AjandaPage() {
         <div className="absolute bottom-0 left-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-teal-300/12 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px]">
         <header className="mb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -724,7 +724,7 @@ export default function AjandaPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02] sm:col-span-3 xl:col-span-1">
+            <div className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100/60 px-4 py-3 shadow-sm transition-all hover:scale-[1.02] sm:col-span-1 sm:justify-start">
               <XCircle className="h-5 w-5 shrink-0 text-rose-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-rose-800">{cancelledCount}</div>
@@ -740,7 +740,7 @@ export default function AjandaPage() {
               key={option.key}
               type="button"
               onClick={() => setFilter(option.key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-black transition-all ${
+              className={`min-h-[40px] rounded-full px-4 py-1.5 text-sm font-black transition-all lg:min-h-0 ${
                 filter === option.key
                   ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md"
                   : "border border-white/80 bg-white/90 text-slate-700 shadow-sm hover:scale-[1.03]"
@@ -754,40 +754,40 @@ export default function AjandaPage() {
         {/* Word export çubuğu */}
         {appointments.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 shadow-sm">
-            <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-black text-blue-800 shadow-sm">
+            <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-blue-800 shadow-sm">
               {selectedApptIds.size > 0 ? `✓ ${selectedApptIds.size} seçili` : "Ajanda Word"}
             </span>
             <button type="button" disabled={wordBusy} onClick={selectAllFiltered}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50">
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50">
               Tümünü Seç ({filteredAppointments.length})
             </button>
             {selectedApptIds.size > 0 && (
               <button type="button" disabled={wordBusy} onClick={clearApptSelection}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-50">
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-50">
                 Seçimi Temizle
               </button>
             )}
             <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
             <button type="button" disabled={selectedApptIds.size === 0 || wordBusy} onClick={() => void exportAjandaWord("selected")}
-              className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+              className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
               {wordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedApptIds.size})`}
             </button>
             {filter !== "all" && (
               <button type="button" disabled={wordBusy || filteredAppointments.length === 0} onClick={() => void exportAjandaWord("filtered")}
-                className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-violet-700 disabled:opacity-40">
+                className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-violet-700 disabled:opacity-40">
                 {wordBusy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredAppointments.length})`}
               </button>
             )}
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("weekly")}
-              className="rounded-lg border border-cyan-400 bg-cyan-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-cyan-700 disabled:opacity-40">
+              className="rounded-lg border border-cyan-400 bg-cyan-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-cyan-700 disabled:opacity-40">
               {wordBusy ? "⏳..." : "📄 Haftalık"}
             </button>
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("monthly")}
-              className="rounded-lg border border-teal-400 bg-teal-600 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-teal-700 disabled:opacity-40">
+              className="rounded-lg border border-teal-400 bg-teal-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-teal-700 disabled:opacity-40">
               {wordBusy ? "⏳..." : "📄 Aylık"}
             </button>
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("all")}
-              className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-1 text-xs font-black text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
+              className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
               {wordBusy ? "⏳..." : "📄 Tümünü Word"}
             </button>
           </div>
@@ -817,14 +817,14 @@ export default function AjandaPage() {
                 return (
                   <div key={item.id} className="relative">
                     <label
-                      className="absolute right-2.5 top-2.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-2.5 lg:top-2.5 lg:h-5 lg:w-5"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleApptSelection(item.id)}
-                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                        className="h-5 w-5 rounded border-slate-300 accent-indigo-600 lg:h-4 lg:w-4"
                       />
                     </label>
                   <button

@@ -346,7 +346,7 @@ export default function DanisanListePage() {
         <div className="absolute bottom-0 left-1/3 h-[380px] w-[380px] -translate-x-1/2 rounded-full bg-indigo-300/10 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px]">
         {/* Header */}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
@@ -478,7 +478,7 @@ export default function DanisanListePage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortKey)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="min-h-[40px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 lg:min-h-0"
               >
                 <option value="newest">En Yeni Kayıt</option>
                 <option value="oldest">En Eski Kayıt</option>
@@ -560,14 +560,14 @@ export default function DanisanListePage() {
                     {/* Checkbox — demo'da gizli */}
                     {!isDemo && (
                       <label
-                        className="absolute right-3 top-3 z-10 flex h-6 w-6 cursor-pointer items-center justify-center"
+                        className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-6 lg:w-6"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleClientSelection(client.id)}
-                          className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                          className="h-5 w-5 rounded border-slate-300 accent-blue-600 lg:h-4 lg:w-4"
                         />
                       </label>
                     )}
@@ -583,13 +583,13 @@ export default function DanisanListePage() {
                             {client.ad} {client.soyad}
                           </span>
                           {hasExpiredHw && (
-                            <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
                               ⚠ {expiredCount} ödev
                             </span>
                           )}
                         </div>
                         {durum.label && (
-                          <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black ${durum.cls}`}>
+                          <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durum.cls}`}>
                             {durum.label}
                           </span>
                         )}

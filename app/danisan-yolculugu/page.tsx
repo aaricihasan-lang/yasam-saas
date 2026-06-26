@@ -280,23 +280,23 @@ function SummaryStatCard({
 }: StatCardDef & { value: string; loading: boolean }) {
   return (
     <div
-      className={`group relative z-0 flex flex-col justify-between gap-3 rounded-xl border p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${border} ${cardBg}`}
+      className={`group relative z-0 flex flex-col justify-between gap-3 rounded-xl border p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md 2xl:p-4 ${border} ${cardBg}`}
     >
       <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm transition-all duration-200 group-hover:scale-105 ${iconBox}`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm transition-all duration-200 group-hover:scale-105 2xl:h-10 2xl:w-10 ${iconBox}`}
       >
-        <Icon className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+        <Icon className="h-4 w-4 2xl:h-5 2xl:w-5" strokeWidth={2.25} aria-hidden />
       </div>
       <div>
         <p
-          className={`text-2xl font-black tabular-nums leading-none tracking-tight text-slate-950 transition-all duration-300 ${
+          className={`text-2xl font-black tabular-nums leading-none tracking-tight text-slate-950 transition-all duration-300 2xl:text-[28px] ${
             loading ? "animate-pulse text-slate-300" : ""
           }`}
         >
           {loading ? "—" : value}
         </p>
         <p
-          className="mt-1 truncate text-[10.5px] font-semibold leading-tight text-slate-600"
+          className="mt-1 truncate text-[11px] font-semibold leading-tight text-slate-600 sm:text-xs"
           title={label}
         >
           {label}
@@ -468,10 +468,10 @@ export default function DanisanYolculuguPage() {
         <div className="absolute bottom-1/3 left-1/2 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-violet-300/10 blur-[140px]" />
       </div>
 
-      <div className="relative z-10 w-full">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start lg:gap-6 2xl:gap-8">
           {/* SOL KOLON */}
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 2xl:gap-6">
             {/* Hero Header */}
             <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-6 py-5 shadow-lg sm:px-8">
               <CalendarCheck
