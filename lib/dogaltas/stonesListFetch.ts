@@ -244,6 +244,27 @@ function tenantFilterIds(tenantId: string): string[] {
   return [tenantId, ADMIN_LIBRARY_TENANT_ID];
 }
 
+/**
+ * Bu tenant'ın gizlediği (kaldırdığı) taş ID'lerini dizi olarak döner.
+ * Liste sorgularında `.not("id","in",...)` ile SUNUCU TARAFINDA elenir;
+ * böylece sayfalama (range) zaten-filtrelenmiş satırlar üzerinde çalışır ve
+ * ilk sayfa hariç tutulan taşlarla dolup boş kalmaz.
+ * Kütüphane tenant'ı kendi kütüphanesini gizleyemez → exclusion uygulanmaz.
+ */
+async function fetchExclusionIdArray(tenantId: string): Promise<string[]> {
+  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [];
+  const { data } = await supabase
+    .from("stone_exclusions")
+    .select("stone_id")
+    .eq("tenant_id", tenantId);
+  return (data ?? []).map((r) => String(r.stone_id));
+}
+
+/** PostgREST in-list dizesi: (uuid1,uuid2,...) — UUID değerleri tırnak gerektirmez. */
+function exclusionInList(excludedIds: string[]): string {
+  return `(${excludedIds.join(",")})`;
+}
+
 // ─── Sorgu fonksiyonları ─────────────────────────────────────────────────────
 
 export async function fetchStonesListCount(
@@ -252,11 +273,16 @@ export async function fetchStonesListCount(
   searchMode?: SearchMode,
 ): Promise<{ count: number; error: string | null }> {
   const ids = tenantFilterIds(tenantId);
+  const excluded = await fetchExclusionIdArray(tenantId);
   const q = search?.trim();
   let query = supabase
     .from("stones")
     .select("id", { count: "exact", head: true })
     .in("tenant_id", ids);
+
+  if (excluded.length > 0) {
+    query = query.not("id", "in", exclusionInList(excluded));
+  }
 
   const searchOr = q
     ? buildStonesListSearchOrFilter(q, searchMode ?? "name")
@@ -283,6 +309,7 @@ export async function fetchStonesListPage(
   const from = options.offset ?? 0;
   const to = from + limit - 1;
   const ids = tenantFilterIds(tenantId);
+  const excluded = await fetchExclusionIdArray(tenantId);
   const q = options.search?.trim();
 
   let query = supabase
@@ -291,6 +318,10 @@ export async function fetchStonesListPage(
     .in("tenant_id", ids)
     .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
     .range(from, to);
+
+  if (excluded.length > 0) {
+    query = query.not("id", "in", exclusionInList(excluded));
+  }
 
   const searchOr = q
     ? buildStonesListSearchOrFilter(q, options.searchMode ?? "name")
