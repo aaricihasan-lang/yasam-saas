@@ -8,6 +8,7 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/ToastProvider";
 const STONE_BUCKET = "stone-photos";
 
 const chakraOptions = [
@@ -227,6 +228,7 @@ export default function DogaltasKayitPage() {
   const [savedMessage, setSavedMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { showToast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
@@ -417,7 +419,13 @@ export default function DogaltasKayitPage() {
     setIsSaving(false);
 
     if (error) {
+      // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
       showError(`Kayıt yapılamadı: ${error.message}`);
+      showToast({
+        type: "error",
+        title: "Kayıt başarısız",
+        message: "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+      });
       return;
     }
 
@@ -428,7 +436,13 @@ export default function DogaltasKayitPage() {
     setAssignmentInputs(emptyAssignmentInputs);
     setImages([]);
     setPreviewImage(null);
-    showMessage("Doğaltaş kaydı Supabase'e kaydedildi.");
+    // Toast provider seviyesinde render edilir → form kapanıp intro'ya dönülse de
+    // 4 sn boyunca görünür kalır (inline savedMessage'a bağımlı değil).
+    showToast({
+      type: "success",
+      title: "Kaydedildi",
+      message: "Taş kaydı başarıyla oluşturuldu.",
+    });
     setShowForm(false);
   }
 

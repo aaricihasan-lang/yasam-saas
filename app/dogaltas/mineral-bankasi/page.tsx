@@ -8,6 +8,7 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type MineralForm = {
   name: string;
@@ -129,6 +130,7 @@ export default function MineralBankasiPage() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const { showToast } = useToast();
 
   const activeSectionInfo = useMemo(
     () => mineralSections.find((section) => section.key === activeSection)!,
@@ -196,11 +198,24 @@ export default function MineralBankasiPage() {
     setSaving(false);
 
     if (error) {
+      // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
       setErrorMessage(`Mineral kaydedilemedi: ${error.message}`);
+      showToast({
+        type: "error",
+        title: "Kayıt başarısız",
+        message: "Kayıt oluşturulamadı. Lütfen tekrar deneyin.",
+      });
       return;
     }
 
-    setMessage(`${nameTrim} başarıyla kaydedildi.`);
+    // ÖNEMLİ: resetForm() inline message'ı anında temizliyordu → kullanıcı onayı
+    // göremiyordu. Onay artık toast ile (provider seviyesinde, 4 sn) gösterilir;
+    // form reset/kapanış mesajı yok etmez.
+    showToast({
+      type: "success",
+      title: "Kaydedildi",
+      message: "Mineral kaydı başarıyla oluşturuldu.",
+    });
     resetForm();
     setShowForm(false);
   }
