@@ -21,7 +21,7 @@ import {
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { supabase } from "@/lib/supabase";
+import { bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -261,28 +261,18 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { data: updatedRows, error } = await supabase
-      .from("bioenergy_symbols")
-      .update({
-        symbol: nameTrim,
-        title: nameTrim,
-        category: trimOrNull(form.category),
-        meaning: trimOrNull(form.meaning),
-        source: trimOrNull(form.source),
-      })
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId)
-      .select("id");
+    const { error } = await bioApiUpdate("symbols", record.id, {
+      symbol: nameTrim,
+      title: nameTrim,
+      category: trimOrNull(form.category),
+      meaning: trimOrNull(form.meaning),
+      source: trimOrNull(form.source),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!updatedRows || updatedRows.length === 0) {
-      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
+      showSoft("err", `Güncellenemedi: ${error}`);
       return;
     }
 
@@ -296,17 +286,13 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     if (!tenantId || !record) return;
 
     setSaving(true);
-    const { error } = await supabase
-      .from("bioenergy_symbols")
-      .delete()
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+    const { error } = await bioApiDelete("symbols", record.id);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
+      showSoft("err", `Silinemedi: ${error}`);
       return;
     }
 

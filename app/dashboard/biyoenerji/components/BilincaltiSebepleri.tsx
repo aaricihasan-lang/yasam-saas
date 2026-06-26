@@ -16,7 +16,7 @@ import {
   type SubconsciousCauseListItem,
 } from "@/lib/bioenergy/subconsciousCausesListFetch";
 import { subconsciousCauseDetailHref } from "@/lib/bioenergy/subconsciousCausesRoutes";
-import { supabase } from "@/lib/supabase";
+import { bioApiCreate, bioApiLastCreated } from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -109,7 +109,7 @@ function formatDate(iso: string | null) {
 }
 
 const newRecordBtnPremium =
-  "inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 const loadMoreBtnClass =
   "rounded-lg border border-fuchsia-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-fuchsia-50 disabled:opacity-60";
@@ -197,14 +197,8 @@ export default function BilincaltiSebepleri() {
           ? fetchSubconsciousCausesCount(tenantId, search)
           : Promise.resolve({ count: searchResultCount, error: null }),
         opts.reset
-          ? supabase
-              .from("bioenergy_subconscious_causes")
-              .select("created_at")
-              .eq("tenant_id", tenantId)
-              .order("created_at", { ascending: false, nullsFirst: false })
-              .limit(1)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
+          ? bioApiLastCreated("subconscious-causes")
+          : Promise.resolve({ lastCreatedAt: null, error: null }),
       ]);
 
       if (opts.reset) setListLoading(false);
@@ -227,8 +221,9 @@ export default function BilincaltiSebepleri() {
         } else {
           setSearchResultCount(searchCountRes.count);
         }
-        const lastRow = lastRes.data as { created_at?: string } | null;
-        setLastCreatedAt(lastRow?.created_at ?? null);
+        setLastCreatedAt(
+          (lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null,
+        );
       }
 
       setRows((current) =>
@@ -273,8 +268,7 @@ export default function BilincaltiSebepleri() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("bioenergy_subconscious_causes").insert({
-      tenant_id: tenantId,
+    const { error } = await bioApiCreate("subconscious-causes", {
       source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
       title: titleTrim,
       category: trimOrEmpty(form.category),
@@ -285,7 +279,7 @@ export default function BilincaltiSebepleri() {
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error.message}`);
+      showSoft("err", `Kayıt eklenemedi: ${error}`);
       return;
     }
 
@@ -424,7 +418,7 @@ export default function BilincaltiSebepleri() {
                 <div key={row.id} className="relative">
                   {!isDemo && (
                     <label
-                      className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      className="absolute right-1 top-1 z-20 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
                       onClick={(e) => e.preventDefault()}
                     >
                       <input

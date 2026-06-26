@@ -1,5 +1,7 @@
-import { supabase } from "@/lib/supabase";
 import { sanitizeOrSearchTerm } from "@/lib/dogaltas/stonesListFetch";
+import { bioApiCount, bioApiList } from "@/lib/biyoenerji/secureApi";
+
+const RESOURCE = "subconscious-causes";
 
 export const SUBCONSCIOUS_CAUSES_LIST_PATH =
   "/dashboard/biyoenerji/bilincalti-sebepleri";
@@ -66,51 +68,21 @@ export function previewSubconsciousText(
 }
 
 export async function fetchSubconsciousCausesCount(
-  tenantId: string,
+  _tenantId: string,
   search?: string,
 ): Promise<{ count: number; error: string | null }> {
-  const q = search?.trim();
-  let query = supabase
-    .from("bioenergy_subconscious_causes")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
-
-  const searchOr = q ? buildSubconsciousCausesSearchOrFilter(q) : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { count, error } = await query;
-  if (error) return { count: 0, error: error.message };
-  return { count: count ?? 0, error: null };
+  return bioApiCount(RESOURCE, search);
 }
 
 export async function fetchSubconsciousCausesPage(
-  tenantId: string,
+  _tenantId: string,
   options: { offset?: number; search?: string; limit?: number } = {},
 ): Promise<{ rows: SubconsciousCauseListItem[]; error: string | null }> {
-  const limit = options.limit ?? SUBCONSCIOUS_CAUSES_PAGE_SIZE;
-  const from = options.offset ?? 0;
-  const to = from + limit - 1;
-  const q = options.search?.trim();
-
-  let query = supabase
-    .from("bioenergy_subconscious_causes")
-    .select(SUBCONSCIOUS_CAUSES_LIST_SELECT)
-    .eq("tenant_id", tenantId)
-    .order("title", { ascending: true, nullsFirst: false })
-    .range(from, to);
-
-  const searchOr = q ? buildSubconsciousCausesSearchOrFilter(q) : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { data, error } = await query;
-  if (error) return { rows: [], error: error.message };
-
-  const rows = (data ?? []).map((row) =>
-    mapSubconsciousCauseListRow(row as Record<string, unknown>),
-  );
-  return { rows, error: null };
+  const { rows, error } = await bioApiList(RESOURCE, {
+    offset: options.offset,
+    limit: options.limit ?? SUBCONSCIOUS_CAUSES_PAGE_SIZE,
+    search: options.search,
+  });
+  if (error) return { rows: [], error };
+  return { rows: rows.map((row) => mapSubconsciousCauseListRow(row)), error: null };
 }

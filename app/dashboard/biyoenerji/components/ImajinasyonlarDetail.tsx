@@ -16,7 +16,7 @@ import {
 import { IMAGINATIONS_LIST_PATH } from "@/lib/bioenergy/imaginationsListFetch";
 import { useImaginationsFontSize } from "@/lib/bioenergy/useImaginationsFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { supabase } from "@/lib/supabase";
+import { bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -206,17 +206,12 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("bioenergy_imaginations")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("id", recordId)
-      .maybeSingle();
+    const { row: data, error } = await bioApiGetOne("imaginations", recordId);
 
     setLoading(false);
 
     if (error) {
-      setErrorMessage(`Kayıt okunamadı: ${error.message}`);
+      setErrorMessage(`Kayıt okunamadı: ${error}`);
       setRecord(null);
       return;
     }
@@ -259,28 +254,18 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { data: updatedRows, error } = await supabase
-      .from("bioenergy_imaginations")
-      .update({
-        title: titleTrim,
-        category: trimOrNull(form.category) || "Genel",
-        text: trimOrEmpty(form.text),
-        notes: trimOrEmpty(form.notes),
-        source: trimOrNull(form.source),
-      })
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId)
-      .select("id");
+    const { error } = await bioApiUpdate("imaginations", record.id, {
+      title: titleTrim,
+      category: trimOrNull(form.category) || "Genel",
+      text: trimOrEmpty(form.text),
+      notes: trimOrEmpty(form.notes),
+      source: trimOrNull(form.source),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!updatedRows || updatedRows.length === 0) {
-      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
+      showSoft("err", `Güncellenemedi: ${error}`);
       return;
     }
 
@@ -294,17 +279,13 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     if (!tenantId || !record) return;
 
     setSaving(true);
-    const { error } = await supabase
-      .from("bioenergy_imaginations")
-      .delete()
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+    const { error } = await bioApiDelete("imaginations", record.id);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
+      showSoft("err", `Silinemedi: ${error}`);
       return;
     }
 

@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { bioApiCreate, bioApiDelete, bioApiList, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
   CrudEmptyState,
@@ -119,21 +119,17 @@ export default function BiyoenerjiSeanslari() {
 
     setLoading(true);
     setInfoError("");
-    const { data, error } = await supabase
-      .from("bioenergy_sessions")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+    const { rows: data, error } = await bioApiList("sessions");
 
     setLoading(false);
 
     if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error.message}`);
+      showSoft("err", `Kayıtlar yüklenemedi: ${error}`);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as BioenergySession[]);
+    setRows(data as unknown as BioenergySession[]);
   }, [showSoft, tenantId]);
 
   useEffect(() => {
@@ -271,21 +267,18 @@ export default function BiyoenerjiSeanslari() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
-      .from("bioenergy_sessions")
-      .insert({
-        tenant_id: tenantId,
-        title: titleTrim,
-        content: trimOrNull(form.content),
-        category: trimOrNull(form.category),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
-      });
+    const { error } = await bioApiCreate("sessions", {
+      title: titleTrim,
+      content: trimOrNull(form.content),
+      category: trimOrNull(form.category),
+      source: trimOrNull(form.source),
+      note: trimOrNull(form.note),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error.message}`);
+      showSoft("err", `Kayıt eklenemedi: ${error}`);
       return;
     }
 
@@ -307,28 +300,18 @@ export default function BiyoenerjiSeanslari() {
 
     setSaving(true);
     setInfoError("");
-    const { data: updatedRows, error } = await supabase
-      .from("bioenergy_sessions")
-      .update({
-        title: titleTrim,
-        content: trimOrNull(form.content),
-        category: trimOrNull(form.category),
-        source: trimOrNull(form.source),
-        note: trimOrNull(form.note),
-      })
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId)
-      .select("id");
+    const { error } = await bioApiUpdate("sessions", selectedId, {
+      title: titleTrim,
+      content: trimOrNull(form.content),
+      category: trimOrNull(form.category),
+      source: trimOrNull(form.source),
+      note: trimOrNull(form.note),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!updatedRows || updatedRows.length === 0) {
-      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
+      showSoft("err", `Güncellenemedi: ${error}`);
       return;
     }
 
@@ -351,17 +334,13 @@ export default function BiyoenerjiSeanslari() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
-      .from("bioenergy_sessions")
-      .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
+    const { error } = await bioApiDelete("sessions", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
+      showSoft("err", `Silinemedi: ${error}`);
       return;
     }
 
@@ -490,7 +469,7 @@ export default function BiyoenerjiSeanslari() {
                   <div key={row.id} className="relative">
                     {!isDemo && (
                       <label
-                        className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2 flex h-4 w-4 cursor-pointer items-center justify-center"
+                        className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2 flex h-11 w-9 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input

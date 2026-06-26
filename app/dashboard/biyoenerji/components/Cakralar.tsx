@@ -22,7 +22,7 @@ import {
   type ChakraListItem,
 } from "@/lib/bioenergy/chakrasListFetch";
 import { chakraDetailHref } from "@/lib/bioenergy/chakrasRoutes";
-import { supabase } from "@/lib/supabase";
+import { bioApiCreate, bioApiLastCreated } from "@/lib/biyoenerji/secureApi";
 import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
@@ -120,7 +120,7 @@ function formatDate(iso: string | null) {
 }
 
 const newRecordBtnPremium =
-  "inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 const loadMoreBtnClass =
   "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
@@ -210,14 +210,8 @@ export default function Cakralar() {
             ? fetchChakrasCount(tenantId, search)
             : Promise.resolve({ data: searchResultCount, error: null, usedFallback: false }),
           opts.reset
-            ? supabase
-                .from("bioenergy_chakras")
-                .select("created_at")
-                .eq("tenant_id", tenantId)
-                .order("created_at", { ascending: false, nullsFirst: false })
-                .limit(1)
-                .maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
+            ? bioApiLastCreated("chakras")
+            : Promise.resolve({ lastCreatedAt: null, error: null }),
         ]);
 
         if (opts.reset) setListLoading(false);
@@ -252,8 +246,10 @@ export default function Cakralar() {
         if (opts.reset) {
           if (!totalRes.error) setTotalInDb(totalRes.data);
           if (!searchCountRes.error) setSearchResultCount(searchCountRes.data);
-          const lastRow = lastRes.data as { created_at?: string } | null;
-          if (!lastRes.error) setLastCreatedAt(lastRow?.created_at ?? null);
+          if (!lastRes.error)
+            setLastCreatedAt(
+              (lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null,
+            );
         }
       } catch (err) {
         if (opts.reset) setListLoading(false);
@@ -302,8 +298,7 @@ export default function Cakralar() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("bioenergy_chakras").insert({
-      tenant_id: tenantId,
+    const { error } = await bioApiCreate("chakras", {
       source_uid: slugifySourceUid(nameTrim),
       name: nameTrim,
       organs: trimOrEmpty(form.organs),
@@ -319,7 +314,7 @@ export default function Cakralar() {
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error.message}`);
+      showSoft("err", `Kayıt eklenemedi: ${error}`);
       return;
     }
 
@@ -458,7 +453,7 @@ export default function Cakralar() {
                   {/* Checkbox */}
                   {!isDemo && (
                     <label
-                      className="absolute right-3 top-3 z-20 flex h-5 w-5 cursor-pointer items-center justify-center"
+                      className="absolute right-1 top-1 z-20 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
                       onClick={(e) => e.preventDefault()}
                     >
                       <input

@@ -1,11 +1,11 @@
-import { supabase } from "@/lib/supabase";
 import { sanitizeOrSearchTerm } from "@/lib/dogaltas/stonesListFetch";
 import {
-  BIOENERGY_CHAKRAS_DETAIL_SELECT,
-  BIOENERGY_CHAKRAS_LIST_SELECT,
   BIOENERGY_CHAKRAS_TEXT_SEARCH_COLUMNS,
   logBioenergyChakrasSchemaOnce,
 } from "@/lib/bioenergy/chakrasSchema";
+import { bioApiCount, bioApiGetOne, bioApiList } from "@/lib/biyoenerji/secureApi";
+
+const RESOURCE = "chakras";
 
 export const CHAKRAS_LIST_PATH = "/dashboard/biyoenerji/cakralar";
 
@@ -89,21 +89,10 @@ export type ChakrasFetchResult<T> = {
 };
 
 async function runChakrasCountQuery(
-  tenantId: string,
+  _tenantId: string,
   search?: string,
 ): Promise<{ count: number; error: string | null }> {
-  const q = search?.trim();
-  let query = supabase
-    .from("bioenergy_chakras")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
-
-  const searchOr = q ? buildChakrasSearchOrFilter(q) : null;
-  if (searchOr) query = query.or(searchOr);
-
-  const { count, error } = await query;
-  if (error) return { count: 0, error: error.message };
-  return { count: count ?? 0, error: null };
+  return bioApiCount(RESOURCE, search);
 }
 
 export async function fetchChakrasCount(
@@ -129,31 +118,16 @@ export async function fetchChakrasCount(
 }
 
 async function runChakrasPageQuery(
-  tenantId: string,
+  _tenantId: string,
   options: { offset?: number; search?: string; limit?: number },
 ): Promise<{ rows: ChakraListItem[]; error: string | null }> {
-  const limit = options.limit ?? CHAKRAS_PAGE_SIZE;
-  const from = options.offset ?? 0;
-  const to = from + limit - 1;
-  const q = options.search?.trim();
-
-  let query = supabase
-    .from("bioenergy_chakras")
-    .select(BIOENERGY_CHAKRAS_LIST_SELECT)
-    .eq("tenant_id", tenantId)
-    .order("name", { ascending: true, nullsFirst: false })
-    .range(from, to);
-
-  const searchOr = q ? buildChakrasSearchOrFilter(q) : null;
-  if (searchOr) query = query.or(searchOr);
-
-  const { data, error } = await query;
-  if (error) return { rows: [], error: error.message };
-
-  const rows = (data ?? []).map((row) =>
-    mapChakraListRow(row as unknown as Record<string, unknown>),
-  );
-  return { rows, error: null };
+  const { rows, error } = await bioApiList(RESOURCE, {
+    offset: options.offset,
+    limit: options.limit ?? CHAKRAS_PAGE_SIZE,
+    search: options.search,
+  });
+  if (error) return { rows: [], error };
+  return { rows: rows.map((row) => mapChakraListRow(row)), error: null };
 }
 
 export async function fetchChakrasPage(
@@ -182,23 +156,17 @@ export async function fetchChakrasPage(
 }
 
 export async function fetchChakraRecordById(
-  tenantId: string,
+  _tenantId: string,
   recordId: string,
 ): Promise<ChakrasFetchResult<ChakraDetailItem | null>> {
   logBioenergyChakrasSchemaOnce();
   try {
-    const { data, error } = await supabase
-      .from("bioenergy_chakras")
-      .select(BIOENERGY_CHAKRAS_DETAIL_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("id", recordId)
-      .maybeSingle();
-
-    if (error) return { data: null, error: error.message };
-    if (!data) return { data: null, error: null };
+    const { row, error } = await bioApiGetOne(RESOURCE, recordId);
+    if (error) return { data: null, error };
+    if (!row) return { data: null, error: null };
 
     return {
-      data: mapChakraDetailRow(data as unknown as Record<string, unknown>),
+      data: mapChakraDetailRow(row),
       error: null,
     };
   } catch (err) {

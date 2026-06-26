@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { bioApiCreate, bioApiDelete, bioApiList, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import {
@@ -184,7 +184,7 @@ const detailPanelClass =
   "flex min-h-[240px] min-w-0 flex-1 flex-col rounded-2xl border border-cyan-200/50 bg-gradient-to-br from-cyan-50/70 via-white/94 to-violet-50/40 p-4 shadow-[0_0_20px_rgba(34,211,238,0.08)]";
 
 const newRecordBtnPremium =
-  "inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 export default function EnerjiBedenleri() {
   const {
@@ -245,21 +245,17 @@ export default function EnerjiBedenleri() {
     setLoading(true);
     setLoadErrorMessage(null);
     setInfoError("");
-    const { data, error } = await supabase
-      .from("bioenergy_energy_bodies")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("source_uid");
+    const { rows: data, error } = await bioApiList("energy-bodies");
 
     setLoading(false);
 
     if (error) {
-      setLoadErrorMessage(`Enerji bedenleri okunamadı: ${error.message}`);
+      setLoadErrorMessage(`Enerji bedenleri okunamadı: ${error}`);
       setRows([]);
       return;
     }
 
-    setRows((data || []) as BioenergyEnergyBodyRecord[]);
+    setRows(data as unknown as BioenergyEnergyBodyRecord[]);
   }, [tenantId]);
 
   useEffect(() => {
@@ -367,8 +363,7 @@ export default function EnerjiBedenleri() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase.from("bioenergy_energy_bodies").insert({
-      tenant_id: tenantId,
+    const { error } = await bioApiCreate("energy-bodies", {
       source_uid: uidTrim,
       genel_tanim: trimOrEmpty(form.genel_tanim),
       gorevi: trimOrEmpty(form.gorevi),
@@ -380,7 +375,7 @@ export default function EnerjiBedenleri() {
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Kayıt eklenemedi: ${error.message}`);
+      showSoft("err", `Kayıt eklenemedi: ${error}`);
       return;
     }
 
@@ -402,29 +397,19 @@ export default function EnerjiBedenleri() {
 
     setSaving(true);
     setInfoError("");
-    const { data: updatedRows, error } = await supabase
-      .from("bioenergy_energy_bodies")
-      .update({
-        source_uid: uidTrim,
-        genel_tanim: trimOrEmpty(form.genel_tanim),
-        gorevi: trimOrEmpty(form.gorevi),
-        bozulma: trimOrEmpty(form.bozulma),
-        onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
-        not_text: trimOrEmpty(form.not_text),
-      })
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId)
-      .select("id");
+    const { error } = await bioApiUpdate("energy-bodies", selectedId, {
+      source_uid: uidTrim,
+      genel_tanim: trimOrEmpty(form.genel_tanim),
+      gorevi: trimOrEmpty(form.gorevi),
+      bozulma: trimOrEmpty(form.bozulma),
+      onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
+      not_text: trimOrEmpty(form.not_text),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!updatedRows || updatedRows.length === 0) {
-      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
+      showSoft("err", `Güncellenemedi: ${error}`);
       return;
     }
 
@@ -447,17 +432,13 @@ export default function EnerjiBedenleri() {
 
     setSaving(true);
     setInfoError("");
-    const { error } = await supabase
-      .from("bioenergy_energy_bodies")
-      .delete()
-      .eq("id", selectedId)
-      .eq("tenant_id", tenantId);
+    const { error } = await bioApiDelete("energy-bodies", selectedId);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
+      showSoft("err", `Silinemedi: ${error}`);
       return;
     }
 
@@ -585,7 +566,7 @@ export default function EnerjiBedenleri() {
                     {/* Demo modda checkbox gizli */}
                     {!isDemo && (
                       <label
-                        className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center"
+                        className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input

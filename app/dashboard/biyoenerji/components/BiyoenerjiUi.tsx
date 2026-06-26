@@ -22,7 +22,7 @@ export function searchInputClass(tone: BiyoenerjiTone) {
     tone === "cyan"
       ? "border-slate-200 focus:border-cyan-300 focus:ring-cyan-200/40"
       : "border-slate-200 focus:border-violet-300 focus:ring-violet-200/40";
-  return `h-9 w-full rounded-lg border bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:ring-2 ${borderFocus}`;
+  return `h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:ring-2 lg:h-9 ${borderFocus}`;
 }
 
 const badgeTone: Record<BiyoenerjiTone, string> = {
@@ -69,7 +69,7 @@ export function ModuleStats({
           key={it.k}
           className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{it.k}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{it.k}</p>
           <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
             {it.v}
           </p>
@@ -163,4 +163,4 @@ export const sectionShellClass =
   "rounded-2xl border border-cyan-200/40 bg-white/78 p-4 shadow-[0_0_30px_rgba(34,211,238,0.09)] backdrop-blur-xl sm:p-5";
 
 export const newRecordBtnClass =
-  "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
+  "inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";

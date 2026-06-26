@@ -13,11 +13,11 @@ export default function BiyoenerjiFolderPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-4 sm:px-5 xl:px-8 2xl:px-12">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-3 py-4 sm:px-5 xl:px-8 2xl:px-12">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Link
             href="/enerji-beden"
-            className="inline-flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:border-cyan-300/40 hover:bg-white/15"
+            className="inline-flex min-h-[40px] items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:border-cyan-300/40 hover:bg-white/15 lg:min-h-0"
           >
             <span aria-hidden>←</span>
             Enerji &amp; Beden
@@ -25,7 +25,7 @@ export default function BiyoenerjiFolderPage() {
         </div>
 
         <header className="mb-4 text-center">
-          <p className="text-[9px] font-bold uppercase tracking-[0.35em] text-cyan-300/80">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300/80">
             ENERJİ &amp; BEDEN
           </p>
           <h1 className="mt-1 bg-gradient-to-r from-fuchsia-300 via-cyan-200 to-violet-300 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl xl:text-3xl">

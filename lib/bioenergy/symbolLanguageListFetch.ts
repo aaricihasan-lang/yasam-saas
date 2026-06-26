@@ -1,10 +1,12 @@
-import { supabase } from "@/lib/supabase";
 import { sanitizeOrSearchTerm } from "@/lib/dogaltas/stonesListFetch";
 import {
   BIOENERGY_SYMBOLS_LIST_SELECT,
   BIOENERGY_SYMBOLS_TEXT_SEARCH_COLUMNS,
   logBioenergySymbolsSchemaOnce,
 } from "@/lib/bioenergy/symbolLanguageSchema";
+import { bioApiCount, bioApiGetOne, bioApiList } from "@/lib/biyoenerji/secureApi";
+
+const RESOURCE = "symbols";
 
 export const SYMBOL_LANGUAGE_LIST_PATH = "/dashboard/biyoenerji/sembol-dili";
 
@@ -72,23 +74,10 @@ export type SymbolLanguageFetchResult<T> = {
 };
 
 async function runSymbolLanguageCountQuery(
-  tenantId: string,
+  _tenantId: string,
   search?: string,
 ): Promise<{ count: number; error: string | null }> {
-  const q = search?.trim();
-  let query = supabase
-    .from("bioenergy_symbols")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
-
-  const searchOr = q ? buildSymbolLanguageSearchOrFilter(q) : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { count, error } = await query;
-  if (error) return { count: 0, error: error.message };
-  return { count: count ?? 0, error: null };
+  return bioApiCount(RESOURCE, search);
 }
 
 export async function fetchSymbolLanguageCount(
@@ -121,33 +110,16 @@ export async function fetchSymbolLanguageCount(
 }
 
 async function runSymbolLanguagePageQuery(
-  tenantId: string,
+  _tenantId: string,
   options: { offset?: number; search?: string; limit?: number },
 ): Promise<{ rows: SymbolLanguageListItem[]; error: string | null }> {
-  const limit = options.limit ?? SYMBOL_LANGUAGE_PAGE_SIZE;
-  const from = options.offset ?? 0;
-  const to = from + limit - 1;
-  const q = options.search?.trim();
-
-  let query = supabase
-    .from("bioenergy_symbols")
-    .select(SYMBOL_LANGUAGE_LIST_SELECT)
-    .eq("tenant_id", tenantId)
-    .order("title", { ascending: true, nullsFirst: false })
-    .range(from, to);
-
-  const searchOr = q ? buildSymbolLanguageSearchOrFilter(q) : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { data, error } = await query;
-  if (error) return { rows: [], error: error.message };
-
-  const rows = (data ?? []).map((row) =>
-    mapSymbolLanguageListRow(row as unknown as Record<string, unknown>),
-  );
-  return { rows, error: null };
+  const { rows, error } = await bioApiList(RESOURCE, {
+    offset: options.offset,
+    limit: options.limit ?? SYMBOL_LANGUAGE_PAGE_SIZE,
+    search: options.search,
+  });
+  if (error) return { rows: [], error };
+  return { rows: rows.map((row) => mapSymbolLanguageListRow(row)), error: null };
 }
 
 export async function fetchSymbolLanguagePage(
@@ -183,30 +155,23 @@ export async function fetchSymbolLanguagePage(
 }
 
 export async function fetchSymbolLanguageRecordById(
-  tenantId: string,
+  _tenantId: string,
   recordId: string,
 ): Promise<SymbolLanguageFetchResult<SymbolLanguageListItem | null>> {
   logBioenergySymbolsSchemaOnce();
 
   try {
-    const { data, error } = await supabase
-      .from("bioenergy_symbols")
-      .select(SYMBOL_LANGUAGE_LIST_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("id", recordId)
-      .maybeSingle();
-
+    const { row, error } = await bioApiGetOne(RESOURCE, recordId);
     if (error) {
-      console.warn("[bioenergy_symbols] detay sorgusu başarısız:", error.message);
-      return { data: null, error: error.message };
+      console.warn("[bioenergy_symbols] detay sorgusu başarısız:", error);
+      return { data: null, error };
     }
-
-    if (!data) {
+    if (!row) {
       return { data: null, error: null };
     }
 
     return {
-      data: mapSymbolLanguageListRow(data as unknown as Record<string, unknown>),
+      data: mapSymbolLanguageListRow(row),
       error: null,
     };
   } catch (err) {

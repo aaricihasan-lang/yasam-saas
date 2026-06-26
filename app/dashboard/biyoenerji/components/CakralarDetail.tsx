@@ -23,7 +23,7 @@ import {
 } from "@/lib/bioenergy/chakrasListFetch";
 import { useChakrasFontSize } from "@/lib/bioenergy/useChakrasFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { supabase } from "@/lib/supabase";
+import { bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -273,32 +273,22 @@ export default function CakralarDetail({ id }: { id: string }) {
     }
 
     setSaving(true);
-    const { data: updatedRows, error } = await supabase
-      .from("bioenergy_chakras")
-      .update({
-        name: nameTrim,
-        organs: trimOrEmpty(form.organs),
-        glands: trimOrEmpty(form.glands),
-        color: trimOrEmpty(form.color),
-        stones: trimOrEmpty(form.stones),
-        causes: trimOrEmpty(form.causes),
-        physical: trimOrEmpty(form.physical),
-        mental: trimOrEmpty(form.mental),
-        notes: trimOrEmpty(form.notes),
-      })
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId)
-      .select("id");
+    const { error } = await bioApiUpdate("chakras", record.id, {
+      name: nameTrim,
+      organs: trimOrEmpty(form.organs),
+      glands: trimOrEmpty(form.glands),
+      color: trimOrEmpty(form.color),
+      stones: trimOrEmpty(form.stones),
+      causes: trimOrEmpty(form.causes),
+      physical: trimOrEmpty(form.physical),
+      mental: trimOrEmpty(form.mental),
+      notes: trimOrEmpty(form.notes),
+    });
 
     setSaving(false);
 
     if (error) {
-      showSoft("err", `Güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!updatedRows || updatedRows.length === 0) {
-      showSoft("err", "Kayıt bulunamadı veya güncelleme yetkiniz yok.");
+      showSoft("err", `Güncellenemedi: ${error}`);
       return;
     }
 
@@ -312,17 +302,13 @@ export default function CakralarDetail({ id }: { id: string }) {
     if (!tenantId || !record) return;
 
     setSaving(true);
-    const { error } = await supabase
-      .from("bioenergy_chakras")
-      .delete()
-      .eq("id", record.id)
-      .eq("tenant_id", tenantId);
+    const { error } = await bioApiDelete("chakras", record.id);
 
     setSaving(false);
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error.message}`);
+      showSoft("err", `Silinemedi: ${error}`);
       return;
     }
 

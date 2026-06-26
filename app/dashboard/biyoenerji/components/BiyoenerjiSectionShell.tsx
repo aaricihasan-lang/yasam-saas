@@ -27,7 +27,7 @@ export default function BiyoenerjiSectionShell({
       <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#ede9fe_0%,#ecfeff_38%,#f8fafc_100%)] text-slate-950">
         <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-violet-400/12 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-3 sm:px-5 sm:py-3.5 xl:px-8 2xl:px-12">
+        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-5 sm:py-3.5 xl:px-8 2xl:px-12">
           <div className="min-h-0 min-w-0 flex-1 pb-2">{children}</div>
         </div>
       </main>
@@ -39,7 +39,7 @@ export default function BiyoenerjiSectionShell({
       <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-violet-400/12 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col px-3 py-3 sm:px-5 sm:py-4 xl:px-8 2xl:px-12">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-5 sm:py-4 xl:px-8 2xl:px-12">
         <header
           className={`mb-4 shrink-0 rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-md sm:rounded-3xl sm:px-5 sm:py-3.5 ${
             premium
@@ -51,14 +51,14 @@ export default function BiyoenerjiSectionShell({
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={BIOENERJI_FOLDER_BASE}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-violet-700"
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-violet-700"
               >
                 <span aria-hidden>←</span>
                 Biyoenerji
               </Link>
               <Link
                 href="/enerji-beden"
-                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-cyan-700"
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-cyan-700"
               >
                 <span aria-hidden>←</span>
                 Enerji &amp; Beden
