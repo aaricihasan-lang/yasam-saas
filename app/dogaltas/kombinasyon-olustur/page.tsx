@@ -186,8 +186,12 @@ export default function KombinasyonOlusturPage() {
       );
 
       // Mineral adı önerileri (Mineral Bankası) — başarısız olursa serbest metin yine çalışır.
+      // Kütüphane mineralleri gerçek uzmana otomatik görünmez; yalnız demo showcase görür.
+      const isDemoUser = readYasamUser()?.is_demo_account === true;
       const tenantIds =
-        tid === ADMIN_LIBRARY_TENANT_ID ? [tid] : [tid, ADMIN_LIBRARY_TENANT_ID];
+        isDemoUser && tid !== ADMIN_LIBRARY_TENANT_ID
+          ? [tid, ADMIN_LIBRARY_TENANT_ID]
+          : [tid];
       const { data: minRows } = await supabase
         .from("minerals")
         .select("name")

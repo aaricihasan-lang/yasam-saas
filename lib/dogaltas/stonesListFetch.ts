@@ -1,4 +1,5 @@
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 
 // ─── Select ──────────────────────────────────────────────────────────────────
@@ -236,12 +237,22 @@ export function getStoneImageUrls(
 // ─── Tenant yardımcısı ───────────────────────────────────────────────────────
 
 /**
- * Liste sorgularında kütüphane taşlarının (ADMIN_LIBRARY_TENANT_ID) da
- * görünmesi için kullanıcı tenant_id'si ile birlikte döner.
+ * Liste/sayım/arama sorgularının hangi tenant'ları kapsayacağını döner.
+ *
+ * MİMARİ KARAR: Admin/kütüphane (ADMIN_LIBRARY_TENANT_ID) taşları gerçek
+ * uzmanlara OTOMATİK GÖRÜNMEZ. Her uzman yalnızca kendi tenant'ındaki taşları
+ * görür/sayar/arar; yeni hesap tamamen boş başlar. Kütüphane admin'in ana bilgi
+ * deposudur ve uzmana ancak "seçili uzmana kopyala/aktar" ile gönderilir
+ * (kopyalama → uzman tenant'ında yeni kayıt; canlı bağlantı değil).
+ *
+ * Tek istisna: DEMO (showcase) hesaplar örnek içeriği göstermek için kütüphaneyi
+ * de görür. Demo tespiti localStorage'daki yasam_user kaydından yapılır
+ * (SSR'de null → güvenli şekilde tenant-only).
  */
 function tenantFilterIds(tenantId: string): string[] {
   if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
-  return [tenantId, ADMIN_LIBRARY_TENANT_ID];
+  const isDemo = readYasamUser()?.is_demo_account === true;
+  return isDemo ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
 }
 
 /**
