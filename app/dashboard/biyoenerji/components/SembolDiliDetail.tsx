@@ -36,9 +36,9 @@ type SymbolForm = {
 };
 
 const tbBtn =
-  "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
+  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
 const tbBtnDanger =
-  "h-7 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
+  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
 
 function trimOrNull(v: string) {
   const t = v.trim();

@@ -4,7 +4,16 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { bioApiCreate, bioApiDelete, bioApiList, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import {
+  bioApiCount,
+  bioApiCreate,
+  bioApiDelete,
+  bioApiDeleteAll,
+  bioApiDeleteMany,
+  bioApiLastCreated,
+  bioApiList,
+  bioApiUpdate,
+} from "@/lib/biyoenerji/secureApi";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import {
@@ -15,9 +24,13 @@ import { useEnergyBodiesFontSize } from "@/lib/bioenergy/useEnergyBodiesFontSize
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
+import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
+
+const ENERGY_BODIES_PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 async function exportEnergyBodiesWord(
   tenantId: string,
@@ -105,19 +118,6 @@ function formatDate(iso: string) {
   }
 }
 
-function energyBodySearchBlob(row: BioenergyEnergyBodyRecord) {
-  return [
-    row.genel_tanim,
-    row.gorevi,
-    row.bozulma,
-    row.onerilen_taslar,
-    row.not_text,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase("tr-TR");
-}
-
 function EnergyBodyStats({
   total,
   uidCount,
@@ -203,9 +203,14 @@ export default function EnerjiBedenleri() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergyEnergyBodyRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [totalInDb, setTotalInDb] = useState(0);
+  const [searchResultCount, setSearchResultCount] = useState(0);
+  const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -215,6 +220,11 @@ export default function EnerjiBedenleri() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [danger, setDanger] = useState<{ open: boolean; mode: DangerDeleteMode }>({
+    open: false,
+    mode: "selected",
+  });
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -239,30 +249,70 @@ export default function EnerjiBedenleri() {
     void getSyncedTenantId().then(setTenantId);
   }, []);
 
-  const loadRecords = useCallback(async () => {
-    if (!tenantId) return;
+  const loadRecords = useCallback(
+    async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      if (!tenantId) {
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
 
-    setLoading(true);
-    setLoadErrorMessage(null);
-    setInfoError("");
-    const { rows: data, error } = await bioApiList("energy-bodies");
+      if (opts.reset) {
+        setLoading(true);
+        setLoadErrorMessage(null);
+        setInfoError("");
+      } else {
+        setLoadingMore(true);
+      }
 
-    setLoading(false);
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
 
-    if (error) {
-      setLoadErrorMessage(`Enerji bedenleri okunamadı: ${error}`);
-      setRows([]);
-      return;
-    }
+      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
+        bioApiList("energy-bodies", { offset, limit: ENERGY_BODIES_PAGE_SIZE, search }),
+        opts.reset ? bioApiCount("energy-bodies") : Promise.resolve({ count: totalInDb, error: null }),
+        opts.reset
+          ? bioApiCount("energy-bodies", search)
+          : Promise.resolve({ count: searchResultCount, error: null }),
+        opts.reset
+          ? bioApiLastCreated("energy-bodies")
+          : Promise.resolve({ lastCreatedAt: null, error: null }),
+      ]);
 
-    setRows(data as unknown as BioenergyEnergyBodyRecord[]);
-  }, [tenantId]);
+      if (opts.reset) setLoading(false);
+      setLoadingMore(false);
+
+      if (pageRes.error) {
+        setLoadErrorMessage(`Enerji bedenleri okunamadı: ${pageRes.error}`);
+        if (opts.reset) setRows([]);
+        return;
+      }
+
+      if (opts.reset) {
+        if (!totalRes.error) setTotalInDb(totalRes.count);
+        if (!searchCountRes.error) setSearchResultCount(searchCountRes.count);
+        setLastCreatedAt((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+      }
+
+      const pageRows = pageRes.rows as unknown as BioenergyEnergyBodyRecord[];
+      setRows((current) => (opts.append ? [...current, ...pageRows] : pageRows));
+    },
+    [tenantId, debouncedSearch, totalInDb, searchResultCount],
+  );
 
   useEffect(() => {
+    if (!tenantId) return;
     runInEffect(() => {
-      void loadRecords();
+      void loadRecords({ reset: true });
     });
-  }, [loadRecords]);
+  }, [tenantId, debouncedSearch, loadRecords]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   // Demo modda source_uid başına tek kayıt göster (duplikat koruması)
   const baseRows = useMemo(() => {
@@ -276,27 +326,20 @@ export default function EnerjiBedenleri() {
     });
   }, [rows, isDemo]);
 
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLocaleLowerCase("tr-TR");
-    if (!q) return baseRows;
-    return baseRows.filter((row) => energyBodySearchBlob(row).includes(q));
-  }, [baseRows, searchQuery]);
+  const filteredRows = baseRows;
+  const hasMore = rows.length < searchResultCount;
+  const isSearchActive = Boolean(debouncedSearch);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
     [rows, selectedId],
   );
 
-  const moduleStats = useMemo(() => {
-    const uids = new Set(baseRows.map((r) => r.source_uid?.trim()).filter(Boolean));
-    const newest = baseRows.reduce<string | null>((acc, row) => {
-      if (!row.created_at) return acc;
-      if (!acc || row.created_at > acc) return row.created_at;
-      return acc;
-    }, null);
-    const last = newest ? formatDate(newest) : "—";
-    return { total: baseRows.length, uids: uids.size, last };
-  }, [baseRows]);
+  const moduleStats = {
+    total: totalInDb,
+    uids: totalInDb,
+    last: lastCreatedAt ? formatDate(lastCreatedAt) : "—",
+  };
 
   function fillFormFromRow(row: BioenergyEnergyBodyRecord) {
     setForm({
@@ -380,7 +423,7 @@ export default function EnerjiBedenleri() {
     }
 
     setFormModalOpen(false);
-    await loadRecords();
+    await loadRecords({ reset: true });
     showSoft("ok", "Enerji bedeni kaydı oluşturuldu.");
   }
 
@@ -414,7 +457,7 @@ export default function EnerjiBedenleri() {
     }
 
     setFormModalOpen(false);
-    await loadRecords();
+    await loadRecords({ reset: true });
     showSoft("ok", "Kayıt güncellendi.");
   }
 
@@ -442,9 +485,48 @@ export default function EnerjiBedenleri() {
       return;
     }
 
-    await loadRecords();
+    setSelectedForExport((prev) => {
+      if (!selectedId || !prev.has(selectedId)) return prev;
+      const next = new Set(prev);
+      next.delete(selectedId);
+      return next;
+    });
+    await loadRecords({ reset: true });
     resetFormSelection();
     showSoft("ok", "Kayıt silindi.");
+  }
+
+  async function handleBulkDeleteSelected() {
+    const ids = [...selectedForExport];
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteMany("energy-bodies", ids);
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    const deletedSet = new Set(ids);
+    if (selectedId && deletedSet.has(selectedId)) resetFormSelection();
+    setSelectedForExport(new Set());
+    await loadRecords({ reset: true });
+    showSoft("ok", `${ids.length} kayıt silindi.`);
+  }
+
+  async function handleDeleteAll() {
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteAll("energy-bodies");
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    resetFormSelection();
+    await loadRecords({ reset: true });
+    showSoft("ok", "Tüm kayıtlar silindi.");
   }
 
   return (
@@ -479,6 +561,11 @@ export default function EnerjiBedenleri() {
               placeholder="Örn. eterik, aura, görev, bozulma…"
               className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
             />
+            {isSearchActive ? (
+              <p className="mt-1 text-[10px] font-semibold text-cyan-600">
+                “{debouncedSearch}” · {searchResultCount} eşleşme
+              </p>
+            ) : null}
           </label>
         </div>
         <EnergyBodyStats
@@ -533,12 +620,17 @@ export default function EnerjiBedenleri() {
             <div className="mb-2">
               <BulkExportBar
                 selectedCount={selectedForExport.size}
-                totalCount={baseRows.length}
+                totalCount={totalInDb}
+                selectAllLabel="Görünenleri Seç"
+                selectAllCount={baseRows.length}
                 onSelectAll={() => setSelectedForExport(new Set(baseRows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
                 onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
                 isExporting={wordBusy}
+                onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+                isDeleting={isBulkDeleting}
+                onDeleteAll={() => setDanger({ open: true, mode: "all" })}
               />
             </div>
           )}
@@ -549,8 +641,12 @@ export default function EnerjiBedenleri() {
             ) : loadErrorMessage ? null : baseRows.length === 0 ? (
               <CrudEmptyState
                 icon="◎"
-                title="Liste boş"
-                subtitle="Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
+                title={isSearchActive ? "Sonuç bulunamadı" : "Liste boş"}
+                subtitle={
+                  isSearchActive
+                    ? "Arama terimini değiştirin veya Yeni Kayıt ile enerji bedeni ekleyin."
+                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
+                }
                 tone="cyan"
               />
             ) : filteredRows.length === 0 ? (
@@ -601,6 +697,18 @@ export default function EnerjiBedenleri() {
               })
             )}
           </div>
+          {hasMore ? (
+            <div className="mt-3 flex shrink-0 justify-center">
+              <button
+                type="button"
+                disabled={loadingMore || loading}
+                onClick={() => void loadRecords({ reset: false, append: true, offset: rows.length })}
+                className="rounded-lg border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-cyan-50 disabled:opacity-60"
+              >
+                {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className={detailPanelClass}>
@@ -871,6 +979,16 @@ export default function EnerjiBedenleri() {
           </div>
         </div>
       ) : null}
+
+      <BiyoenerjiDangerDeleteModal
+        open={danger.open}
+        mode={danger.mode}
+        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        resourceLabel="Enerji Bedenleri"
+        isDeleting={isBulkDeleting}
+        onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
+        onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}
+      />
     </section>
   );
 }

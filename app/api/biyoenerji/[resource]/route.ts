@@ -42,6 +42,30 @@ export async function GET(
       ? cfg.search.map((c) => `${c}.ilike.%${search}%`).join(",")
       : null;
 
+  // Kategori filtresi — yalnız "category" kolonu olan kaynaklarda geçerli (tam eşleşme).
+  const hasCategoryCol = cfg.write.includes("category");
+  const categoryParam = (url.searchParams.get("category") ?? "").trim();
+  const categoryFilter = hasCategoryCol && categoryParam.length > 0 ? categoryParam.slice(0, 100) : null;
+
+  // Benzersiz kategori listesi (kategori filtresi açılır menüsü)
+  if (url.searchParams.get("distinct") === "category") {
+    if (!hasCategoryCol) return NextResponse.json({ ok: true, categories: [] });
+    const { data, error } = await db
+      .from(cfg.table)
+      .select("category")
+      .eq("tenant_id", tenantId)
+      .not("category", "is", null)
+      .limit(5000);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    const set = new Set<string>();
+    for (const r of (data ?? []) as { category?: string | null }[]) {
+      const c = (r.category ?? "").trim();
+      if (c) set.add(c);
+    }
+    const categories = [...set].sort((a, b) => a.localeCompare(b, "tr"));
+    return NextResponse.json({ ok: true, categories });
+  }
+
   // Son kayıt tarihi (Son kayıt istatistiği)
   if (url.searchParams.get("lastCreated") === "1") {
     const { data, error } = await db
@@ -59,6 +83,7 @@ export async function GET(
   if (url.searchParams.get("count") === "1") {
     let q = db.from(cfg.table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
     if (orFilter) q = q.or(orFilter);
+    if (categoryFilter) q = q.eq("category", categoryFilter);
     const { count, error } = await q;
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, count: count ?? 0 });
@@ -77,6 +102,7 @@ export async function GET(
     .order(cfg.orderCol, { ascending: cfg.orderAsc, nullsFirst: false })
     .range(offset, offset + limit - 1);
   if (orFilter) q = q.or(orFilter);
+  if (categoryFilter) q = q.eq("category", categoryFilter);
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -113,4 +139,69 @@ export async function POST(
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, row: data });
+}
+
+/**
+ * DELETE /api/biyoenerji/[resource] — toplu silme.
+ *
+ * Body:
+ *   { ids: string[] }  → seçili kayıtları sil (en çok 1000)
+ *   { all: true }      → bu modüldeki TÜM tenant kayıtlarını sil ("Tümünü Sil")
+ *
+ * Güvenlik:
+ *   - verifyUserRequest → binding. tenant_id SUNUCUDA session'dan.
+ *   - Her sorgu .eq("tenant_id", tenantId) ile sınırlanır → başka tenant verisi
+ *     ASLA silinemez (id'ler başka tenant'a aitse hiçbir şey silinmez).
+ *   - resource whitelist (getBioResource).
+ *   - Demo hesap: silme yapılmaz.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ resource: string }> },
+): Promise<Response> {
+  const guard = await verifyUserRequest(req);
+  if (!guard.ok) return guard.response;
+
+  const { resource } = await params;
+  const cfg = getBioResource(resource);
+  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
+
+  const { db, tenantId, is_demo_account } = guard;
+  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+
+  let body: { ids?: unknown; all?: unknown };
+  try {
+    body = (await req.json()) as { ids?: unknown; all?: unknown };
+  } catch {
+    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+  }
+
+  // "Tümünü Sil" — bu tenant'ın tüm kayıtları
+  if (body.all === true) {
+    const { data, error } = await db
+      .from(cfg.table)
+      .delete()
+      .eq("tenant_id", tenantId)
+      .select("id");
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  }
+
+  // Seçilenleri sil
+  if (Array.isArray(body.ids)) {
+    const ids = body.ids
+      .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      .slice(0, 1000);
+    if (ids.length === 0) return NextResponse.json({ ok: true, deleted: 0 });
+    const { data, error } = await db
+      .from(cfg.table)
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids)
+      .select("id");
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  }
+
+  return NextResponse.json({ ok: false, error: "ids veya all gerekli." }, { status: 400 });
 }

@@ -4,7 +4,17 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { bioApiCreate, bioApiDelete, bioApiList, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import {
+  bioApiCategories,
+  bioApiCount,
+  bioApiCreate,
+  bioApiDelete,
+  bioApiDeleteAll,
+  bioApiDeleteMany,
+  bioApiLastCreated,
+  bioApiList,
+  bioApiUpdate,
+} from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
   CrudEmptyState,
@@ -17,7 +27,11 @@ import {
   sectionShellClass,
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
+import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
+
+const SESSIONS_PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 
@@ -78,9 +92,15 @@ export default function BiyoenerjiSeanslari() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [searchTitle, setSearchTitle] = useState("");
-  const [searchContent, setSearchContent] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [totalInDb, setTotalInDb] = useState(0);
+  const [searchResultCount, setSearchResultCount] = useState(0);
+  const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SessionForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -90,6 +110,11 @@ export default function BiyoenerjiSeanslari() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [danger, setDanger] = useState<{ open: boolean; mode: DangerDeleteMode }>({
+    open: false,
+    mode: "selected",
+  });
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -114,54 +139,97 @@ export default function BiyoenerjiSeanslari() {
     void getSyncedTenantId().then(setTenantId);
   }, []);
 
-  const loadSessions = useCallback(async () => {
-    if (!tenantId) return;
+  const loadSessions = useCallback(
+    async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      if (!tenantId) {
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
 
-    setLoading(true);
-    setInfoError("");
-    const { rows: data, error } = await bioApiList("sessions");
+      if (opts.reset) {
+        setLoading(true);
+        setInfoError("");
+      } else {
+        setLoadingMore(true);
+      }
 
-    setLoading(false);
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
 
-    if (error) {
-      showSoft("err", `Kayıtlar yüklenemedi: ${error}`);
-      setRows([]);
-      return;
-    }
+      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
+        bioApiList("sessions", { offset, limit: SESSIONS_PAGE_SIZE, search, category }),
+        opts.reset ? bioApiCount("sessions") : Promise.resolve({ count: totalInDb, error: null }),
+        opts.reset
+          ? bioApiCount("sessions", search, category)
+          : Promise.resolve({ count: searchResultCount, error: null }),
+        opts.reset
+          ? bioApiLastCreated("sessions")
+          : Promise.resolve({ lastCreatedAt: null, error: null }),
+      ]);
 
-    setRows(data as unknown as BioenergySession[]);
-  }, [showSoft, tenantId]);
+      if (opts.reset) setLoading(false);
+      setLoadingMore(false);
+
+      if (pageRes.error) {
+        showSoft("err", `Kayıtlar yüklenemedi: ${pageRes.error}`);
+        if (opts.reset) setRows([]);
+        return;
+      }
+
+      if (opts.reset) {
+        if (!totalRes.error) setTotalInDb(totalRes.count);
+        if (!searchCountRes.error) setSearchResultCount(searchCountRes.count);
+        setLastCreatedAt((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+      }
+
+      const pageRows = pageRes.rows as unknown as BioenergySession[];
+      setRows((current) => (opts.append ? [...current, ...pageRows] : pageRows));
+    },
+    [tenantId, debouncedSearch, categoryFilter, totalInDb, searchResultCount, showSoft],
+  );
+
+  const refreshCategories = useCallback(async () => {
+    const { categories: cats, error } = await bioApiCategories("sessions");
+    if (!error) setCategories(cats);
+  }, []);
 
   useEffect(() => {
-    runInEffect(() => {
-      void loadSessions();
-    });
-  }, [loadSessions]);
+    if (!tenantId) return;
+    void refreshCategories();
+  }, [tenantId, refreshCategories]);
 
-  const filteredRows = useMemo(() => {
-    const t = searchTitle.trim().toLocaleLowerCase("tr-TR");
-    const c = searchContent.trim().toLocaleLowerCase("tr-TR");
-    return rows.filter((row) => {
-      const titleOk =
-        !t || (row.title ?? "").toLocaleLowerCase("tr-TR").includes(t);
-      const contentOk =
-        !c || (row.content ?? "").toLocaleLowerCase("tr-TR").includes(c);
-      return titleOk && contentOk;
+  useEffect(() => {
+    if (!tenantId) return;
+    runInEffect(() => {
+      void loadSessions({ reset: true });
     });
-  }, [rows, searchTitle, searchContent]);
+  }, [tenantId, debouncedSearch, categoryFilter, loadSessions]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  const filteredRows = rows;
+  const hasMore = rows.length < searchResultCount;
+  const isSearchActive = Boolean(debouncedSearch);
 
   const selectedRow = useMemo(
     () => (selectedId ? rows.find((r) => r.id === selectedId) ?? null : null),
     [rows, selectedId],
   );
 
-  const moduleStats = useMemo(() => {
-    const cats = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
-    const last = rows.length ? formatDate(rows[0].created_at) : "—";
-    return { total: rows.length, cats: cats.size, last };
-  }, [rows]);
+  const moduleStats = {
+    total: totalInDb,
+    cats: categories.length,
+    last: lastCreatedAt ? formatDate(lastCreatedAt) : "—",
+  };
 
-  const hasSearch = Boolean(searchTitle.trim() || searchContent.trim());
+  const hasSearch = Boolean(debouncedSearch.trim() || categoryFilter);
 
   const toggleExportSelection = useCallback((id: string) => {
     setSelectedForExport((prev) => {
@@ -283,7 +351,8 @@ export default function BiyoenerjiSeanslari() {
     }
 
     setFormModalOpen(false);
-    await loadSessions();
+    await loadSessions({ reset: true });
+    void refreshCategories();
     showSoft("ok", "Seans kaydı oluşturuldu.");
   }
 
@@ -316,7 +385,8 @@ export default function BiyoenerjiSeanslari() {
     }
 
     setFormModalOpen(false);
-    await loadSessions();
+    await loadSessions({ reset: true });
+    void refreshCategories();
     showSoft("ok", "Kayıt güncellendi.");
   }
 
@@ -344,9 +414,53 @@ export default function BiyoenerjiSeanslari() {
       return;
     }
 
-    await loadSessions();
+    // Silinen kaydı seçim setinden de düş (hayalet id kalmasın)
+    setSelectedForExport((prev) => {
+      if (!selectedId || !prev.has(selectedId)) return prev;
+      const next = new Set(prev);
+      next.delete(selectedId);
+      return next;
+    });
+    await loadSessions({ reset: true });
+    void refreshCategories();
     resetFormSelection();
     showSoft("ok", "Kayıt silindi.");
+  }
+
+  async function handleBulkDeleteSelected() {
+    const ids = [...selectedForExport];
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteMany("sessions", ids);
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    const deletedSet = new Set(ids);
+    if (selectedId && deletedSet.has(selectedId)) resetFormSelection();
+    setSelectedForExport(new Set());
+    await loadSessions({ reset: true });
+    void refreshCategories();
+    showSoft("ok", `${ids.length} kayıt silindi.`);
+  }
+
+  async function handleDeleteAll() {
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteAll("sessions");
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    setCategoryFilter("");
+    resetFormSelection();
+    await loadSessions({ reset: true });
+    void refreshCategories();
+    showSoft("ok", "Tüm kayıtlar silindi.");
   }
 
   return (
@@ -366,31 +480,41 @@ export default function BiyoenerjiSeanslari() {
         </div>
       )}
       <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-2xl">
-            <label className="block min-w-0 flex-1">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-end">
+          <label className="block min-w-0 flex-1">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
+              Başlık, metin, kategori, kaynak ve not içinde ara
+            </span>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Örn. analiz, enerji, blokaj…"
+              className={searchInputClass("violet")}
+            />
+            {isSearchActive ? (
+              <p className="mt-1 text-[10px] font-semibold text-violet-600">
+                “{debouncedSearch}” · {searchResultCount} eşleşme
+              </p>
+            ) : null}
+          </label>
+          {categories.length > 0 && (
+            <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-                Başlıkta ara
+                Kategori
               </span>
-              <input
-                type="search"
-                value={searchTitle}
-                onChange={(e) => setSearchTitle(e.target.value)}
-                className={searchInputClass("violet")}
-              />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40 lg:h-9"
+              >
+                <option value="">Tümü</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </label>
-            <label className="block min-w-0 flex-1">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
-                Metin içinde ara
-              </span>
-              <input
-                type="search"
-                value={searchContent}
-                onChange={(e) => setSearchContent(e.target.value)}
-                className={searchInputClass("cyan")}
-              />
-            </label>
-          </div>
+          )}
         </div>
         <ModuleStats
           total={moduleStats.total}
@@ -438,12 +562,17 @@ export default function BiyoenerjiSeanslari() {
             <div className="mb-2">
               <BulkExportBar
                 selectedCount={selectedForExport.size}
-                totalCount={rows.length}
+                totalCount={totalInDb}
+                selectAllLabel="Görünenleri Seç"
+                selectAllCount={rows.length}
                 onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
                 onExportSelected={() => void exportSessionsWord("selected")}
                 onExportAll={() => void exportSessionsWord("all")}
                 isExporting={wordBusy}
+                onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+                isDeleting={isBulkDeleting}
+                onDeleteAll={() => setDanger({ open: true, mode: "all" })}
               />
             </div>
           )}
@@ -508,6 +637,18 @@ export default function BiyoenerjiSeanslari() {
               })
             )}
           </div>
+          {hasMore ? (
+            <div className="mt-3 flex shrink-0 justify-center">
+              <button
+                type="button"
+                disabled={loadingMore || loading}
+                onClick={() => void loadSessions({ reset: false, append: true, offset: rows.length })}
+                className="rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-violet-50 disabled:opacity-60"
+              >
+                {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className={`${formGlassPanelClass} order-2 xl:order-none`}>
@@ -736,6 +877,16 @@ export default function BiyoenerjiSeanslari() {
           </div>
         </div>
       ) : null}
+
+      <BiyoenerjiDangerDeleteModal
+        open={danger.open}
+        mode={danger.mode}
+        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        resourceLabel="Biyoenerji Seansları"
+        isDeleting={isBulkDeleting}
+        onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
+        onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}
+      />
     </section>
   );
 }

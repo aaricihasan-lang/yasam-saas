@@ -70,18 +70,20 @@ export function previewSubconsciousText(
 export async function fetchSubconsciousCausesCount(
   _tenantId: string,
   search?: string,
+  category?: string,
 ): Promise<{ count: number; error: string | null }> {
-  return bioApiCount(RESOURCE, search);
+  return bioApiCount(RESOURCE, search, category);
 }
 
 export async function fetchSubconsciousCausesPage(
   _tenantId: string,
-  options: { offset?: number; search?: string; limit?: number } = {},
+  options: { offset?: number; search?: string; limit?: number; category?: string } = {},
 ): Promise<{ rows: SubconsciousCauseListItem[]; error: string | null }> {
   const { rows, error } = await bioApiList(RESOURCE, {
     offset: options.offset,
     limit: options.limit ?? SUBCONSCIOUS_CAUSES_PAGE_SIZE,
     search: options.search,
+    category: options.category,
   });
   if (error) return { rows: [], error };
   return { rows: rows.map((row) => mapSubconsciousCauseListRow(row)), error: null };

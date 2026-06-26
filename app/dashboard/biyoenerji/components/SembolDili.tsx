@@ -17,8 +17,15 @@ import {
   type SymbolLanguageListItem,
 } from "@/lib/bioenergy/symbolLanguageListFetch";
 import { symbolLanguageDetailHref } from "@/lib/bioenergy/symbolLanguageRoutes";
-import { bioApiCreate, bioApiLastCreated } from "@/lib/biyoenerji/secureApi";
+import {
+  bioApiCategories,
+  bioApiCreate,
+  bioApiDeleteAll,
+  bioApiDeleteMany,
+  bioApiLastCreated,
+} from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -126,6 +133,13 @@ export default function SembolDili() {
   const [infoError, setInfoError] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [danger, setDanger] = useState<{ open: boolean; mode: DangerDeleteMode }>({
+    open: false,
+    mode: "selected",
+  });
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -177,15 +191,16 @@ export default function SembolDili() {
 
       const offset = opts.offset ?? 0;
       const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
 
       try {
         const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-          fetchSymbolLanguagePage(tenantId, { offset, search }),
+          fetchSymbolLanguagePage(tenantId, { offset, search, category }),
           opts.reset
             ? fetchSymbolLanguageCount(tenantId)
             : Promise.resolve({ data: totalInDb, error: null, usedFallback: false }),
           opts.reset
-            ? fetchSymbolLanguageCount(tenantId, search)
+            ? fetchSymbolLanguageCount(tenantId, search, category)
             : Promise.resolve({ data: searchResultCount, error: null, usedFallback: false }),
           opts.reset
             ? bioApiLastCreated("symbols")
@@ -256,8 +271,13 @@ export default function SembolDili() {
         }
       }
     },
-    [debouncedSearch, queryTenantId, searchResultCount, totalInDb],
+    [categoryFilter, debouncedSearch, queryTenantId, searchResultCount, totalInDb],
   );
+
+  const refreshCategories = useCallback(async () => {
+    const { categories: cats, error } = await bioApiCategories("symbols");
+    if (!error) setCategories(cats);
+  }, []);
 
   useEffect(() => {
     void resolveTenant();
@@ -265,8 +285,13 @@ export default function SembolDili() {
 
   useEffect(() => {
     if (!queryTenantId) return;
+    void refreshCategories();
+  }, [queryTenantId, refreshCategories]);
+
+  useEffect(() => {
+    if (!queryTenantId) return;
     void fetchList({ reset: true });
-  }, [queryTenantId, debouncedSearch, fetchList]);
+  }, [queryTenantId, debouncedSearch, categoryFilter, fetchList]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -312,7 +337,41 @@ export default function SembolDili() {
     setFormModalOpen(false);
     setForm({ ...emptyForm });
     await fetchList({ reset: true });
+    void refreshCategories();
     showSoft("ok", "Sembol kaydı oluşturuldu.");
+  }
+
+  async function handleBulkDeleteSelected() {
+    const ids = [...selectedForExport];
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteMany("symbols", ids);
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    await fetchList({ reset: true });
+    void refreshCategories();
+    showSoft("ok", `${ids.length} kayıt silindi.`);
+  }
+
+  async function handleDeleteAll() {
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteAll("symbols");
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    setCategoryFilter("");
+    await fetchList({ reset: true });
+    void refreshCategories();
+    showSoft("ok", "Tüm kayıtlar silindi.");
   }
 
   return (
@@ -362,22 +421,39 @@ export default function SembolDili() {
         </div>
       </div>
 
-      <label className="mb-4 block w-full xl:max-w-sm">
-        <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kütüphane araması</span>
-        <input
-          type="search"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Sembol adı, kategori, anlam ve bilinçaltı mesajı içinde ara..."
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200/40"
-        />
-        {listBusy ? (
-          <p className="mt-1 text-[10px] font-semibold text-emerald-600">Aranıyor…</p>
-        ) : isSearchActive ? (
-          <p className="mt-1 text-[10px] font-semibold text-emerald-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
-          </p>
-        ) : null}
-      </label>
+      <div className="mb-4 flex w-full flex-col gap-2 sm:flex-row sm:items-end">
+        <label className="block w-full min-w-0 sm:max-w-sm">
+          <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kütüphane araması</span>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Sembol adı, kategori, anlam ve bilinçaltı mesajı içinde ara..."
+            className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200/40"
+          />
+          {listBusy ? (
+            <p className="mt-1 text-[10px] font-semibold text-emerald-600">Aranıyor…</p>
+          ) : isSearchActive ? (
+            <p className="mt-1 text-[10px] font-semibold text-emerald-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+            </p>
+          ) : null}
+        </label>
+        {categories.length > 0 && (
+          <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kategori</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200/40"
+            >
+              <option value="">Tümü</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {loadErrorMessage ? (
         <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
@@ -419,11 +495,16 @@ export default function SembolDili() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
+              selectAllLabel="Görünenleri Seç"
+              selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
               onExportSelected={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
+              onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+              isDeleting={isBulkDeleting}
+              onDeleteAll={() => setDanger({ open: true, mode: "all" })}
             />
           </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -589,6 +670,16 @@ export default function SembolDili() {
           </label>
         </div>
       </BiyoenerjiCrudFormModal>
+
+      <BiyoenerjiDangerDeleteModal
+        open={danger.open}
+        mode={danger.mode}
+        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        resourceLabel="Sembol Dili"
+        isDeleting={isBulkDeleting}
+        onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
+        onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}
+      />
     </section>
   );
 }

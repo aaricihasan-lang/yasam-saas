@@ -76,18 +76,20 @@ export type SymbolLanguageFetchResult<T> = {
 async function runSymbolLanguageCountQuery(
   _tenantId: string,
   search?: string,
+  category?: string,
 ): Promise<{ count: number; error: string | null }> {
-  return bioApiCount(RESOURCE, search);
+  return bioApiCount(RESOURCE, search, category);
 }
 
 export async function fetchSymbolLanguageCount(
   tenantId: string,
   search?: string,
+  category?: string,
 ): Promise<SymbolLanguageFetchResult<number>> {
   logBioenergySymbolsSchemaOnce();
 
   try {
-    const primary = await runSymbolLanguageCountQuery(tenantId, search);
+    const primary = await runSymbolLanguageCountQuery(tenantId, search, category);
     if (!primary.error) {
       return { data: primary.count, error: null };
     }
@@ -95,7 +97,7 @@ export async function fetchSymbolLanguageCount(
     console.warn("[bioenergy_symbols] count sorgusu başarısız:", primary.error);
 
     if (search?.trim()) {
-      const fallback = await runSymbolLanguageCountQuery(tenantId);
+      const fallback = await runSymbolLanguageCountQuery(tenantId, undefined, category);
       if (!fallback.error) {
         return { data: fallback.count, error: primary.error, usedFallback: true };
       }
@@ -111,12 +113,13 @@ export async function fetchSymbolLanguageCount(
 
 async function runSymbolLanguagePageQuery(
   _tenantId: string,
-  options: { offset?: number; search?: string; limit?: number },
+  options: { offset?: number; search?: string; limit?: number; category?: string },
 ): Promise<{ rows: SymbolLanguageListItem[]; error: string | null }> {
   const { rows, error } = await bioApiList(RESOURCE, {
     offset: options.offset,
     limit: options.limit ?? SYMBOL_LANGUAGE_PAGE_SIZE,
     search: options.search,
+    category: options.category,
   });
   if (error) return { rows: [], error };
   return { rows: rows.map((row) => mapSymbolLanguageListRow(row)), error: null };
@@ -124,7 +127,7 @@ async function runSymbolLanguagePageQuery(
 
 export async function fetchSymbolLanguagePage(
   tenantId: string,
-  options: { offset?: number; search?: string; limit?: number } = {},
+  options: { offset?: number; search?: string; limit?: number; category?: string } = {},
 ): Promise<SymbolLanguageFetchResult<SymbolLanguageListItem[]>> {
   logBioenergySymbolsSchemaOnce();
 
@@ -140,6 +143,7 @@ export async function fetchSymbolLanguagePage(
       const fallback = await runSymbolLanguagePageQuery(tenantId, {
         offset: options.offset,
         limit: options.limit,
+        category: options.category,
       });
       if (!fallback.error) {
         return { data: fallback.rows, error: primary.error, usedFallback: true };

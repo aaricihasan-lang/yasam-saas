@@ -16,8 +16,15 @@ import {
   type SubconsciousCauseListItem,
 } from "@/lib/bioenergy/subconsciousCausesListFetch";
 import { subconsciousCauseDetailHref } from "@/lib/bioenergy/subconsciousCausesRoutes";
-import { bioApiCreate, bioApiLastCreated } from "@/lib/biyoenerji/secureApi";
+import {
+  bioApiCategories,
+  bioApiCreate,
+  bioApiDeleteAll,
+  bioApiDeleteMany,
+  bioApiLastCreated,
+} from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -136,6 +143,13 @@ export default function BilincaltiSebepleri() {
   const [infoError, setInfoError] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [danger, setDanger] = useState<{ open: boolean; mode: DangerDeleteMode }>({
+    open: false,
+    mode: "selected",
+  });
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -187,14 +201,15 @@ export default function BilincaltiSebepleri() {
 
       const offset = opts.offset ?? 0;
       const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
 
       const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-        fetchSubconsciousCausesPage(tenantId, { offset, search }),
+        fetchSubconsciousCausesPage(tenantId, { offset, search, category }),
         opts.reset
           ? fetchSubconsciousCausesCount(tenantId)
           : Promise.resolve({ count: totalInDb, error: null }),
         opts.reset
-          ? fetchSubconsciousCausesCount(tenantId, search)
+          ? fetchSubconsciousCausesCount(tenantId, search, category)
           : Promise.resolve({ count: searchResultCount, error: null }),
         opts.reset
           ? bioApiLastCreated("subconscious-causes")
@@ -230,8 +245,13 @@ export default function BilincaltiSebepleri() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
     },
-    [debouncedSearch, queryTenantId, searchResultCount, totalInDb],
+    [categoryFilter, debouncedSearch, queryTenantId, searchResultCount, totalInDb],
   );
+
+  const refreshCategories = useCallback(async () => {
+    const { categories: cats, error } = await bioApiCategories("subconscious-causes");
+    if (!error) setCategories(cats);
+  }, []);
 
   useEffect(() => {
     void resolveTenant();
@@ -239,8 +259,13 @@ export default function BilincaltiSebepleri() {
 
   useEffect(() => {
     if (!queryTenantId) return;
+    void refreshCategories();
+  }, [queryTenantId, refreshCategories]);
+
+  useEffect(() => {
+    if (!queryTenantId) return;
     void fetchList({ reset: true });
-  }, [queryTenantId, debouncedSearch, fetchList]);
+  }, [queryTenantId, debouncedSearch, categoryFilter, fetchList]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -286,7 +311,41 @@ export default function BilincaltiSebepleri() {
     setFormModalOpen(false);
     setForm({ ...emptyForm });
     await fetchList({ reset: true });
+    void refreshCategories();
     showSoft("ok", "Kayıt oluşturuldu.");
+  }
+
+  async function handleBulkDeleteSelected() {
+    const ids = [...selectedForExport];
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteMany("subconscious-causes", ids);
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    await fetchList({ reset: true });
+    void refreshCategories();
+    showSoft("ok", `${ids.length} kayıt silindi.`);
+  }
+
+  async function handleDeleteAll() {
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteAll("subconscious-causes");
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    setCategoryFilter("");
+    await fetchList({ reset: true });
+    void refreshCategories();
+    showSoft("ok", "Tüm kayıtlar silindi.");
   }
 
   return (
@@ -326,6 +385,23 @@ export default function BilincaltiSebepleri() {
               </p>
             ) : null}
           </label>
+          {categories.length > 0 && (
+            <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
+                Kategori
+              </span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-fuchsia-300 focus:ring-2 focus:ring-fuchsia-200/40"
+              >
+                <option value="">Tümü</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+          )}
           {!isDemo && (
             <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
               + Yeni Kayıt
@@ -397,11 +473,16 @@ export default function BilincaltiSebepleri() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
+              selectAllLabel="Görünenleri Seç"
+              selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
               onExportSelected={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
+              onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+              isDeleting={isBulkDeleting}
+              onDeleteAll={() => setDanger({ open: true, mode: "all" })}
             />
           </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -570,6 +651,16 @@ export default function BilincaltiSebepleri() {
           />
         </div>
       </BiyoenerjiCrudFormModal>
+
+      <BiyoenerjiDangerDeleteModal
+        open={danger.open}
+        mode={danger.mode}
+        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        resourceLabel="Bilinçaltı Sebepleri"
+        isDeleting={isBulkDeleting}
+        onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
+        onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}
+      />
     </section>
   );
 }

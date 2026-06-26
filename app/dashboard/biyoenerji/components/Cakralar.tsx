@@ -22,7 +22,13 @@ import {
   type ChakraListItem,
 } from "@/lib/bioenergy/chakrasListFetch";
 import { chakraDetailHref } from "@/lib/bioenergy/chakrasRoutes";
-import { bioApiCreate, bioApiLastCreated } from "@/lib/biyoenerji/secureApi";
+import {
+  bioApiCreate,
+  bioApiDeleteAll,
+  bioApiDeleteMany,
+  bioApiLastCreated,
+} from "@/lib/biyoenerji/secureApi";
+import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { CrudEmptyState } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
@@ -148,6 +154,11 @@ export default function Cakralar() {
   const [infoError, setInfoError] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [danger, setDanger] = useState<{ open: boolean; mode: DangerDeleteMode }>({
+    open: false,
+    mode: "selected",
+  });
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const showSoft = useCallback((kind: "ok" | "err", text: string) => {
     if (kind === "ok") {
@@ -324,6 +335,36 @@ export default function Cakralar() {
     showSoft("ok", "Çakra kaydı oluşturuldu.");
   }
 
+  async function handleBulkDeleteSelected() {
+    const ids = [...selectedForExport];
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteMany("chakras", ids);
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    await fetchList({ reset: true });
+    showSoft("ok", `${ids.length} kayıt silindi.`);
+  }
+
+  async function handleDeleteAll() {
+    setIsBulkDeleting(true);
+    const { error } = await bioApiDeleteAll("chakras");
+    setIsBulkDeleting(false);
+    setDanger((d) => ({ ...d, open: false }));
+    if (error) {
+      showSoft("err", `Silinemedi: ${error}`);
+      return;
+    }
+    setSelectedForExport(new Set());
+    await fetchList({ reset: true });
+    showSoft("ok", "Tüm kayıtlar silindi.");
+  }
+
   return (
     <section className="w-full min-w-0">
       {isDemo && (
@@ -429,11 +470,16 @@ export default function Cakralar() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
+              selectAllLabel="Görünenleri Seç"
+              selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
               onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
               isExporting={wordBusy}
+              onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
+              isDeleting={isBulkDeleting}
+              onDeleteAll={() => setDanger({ open: true, mode: "all" })}
             />
           </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -644,6 +690,16 @@ export default function Cakralar() {
           />
         </div>
       </BiyoenerjiCrudFormModal>
+
+      <BiyoenerjiDangerDeleteModal
+        open={danger.open}
+        mode={danger.mode}
+        count={danger.mode === "all" ? totalInDb : selectedForExport.size}
+        resourceLabel="Çakralar"
+        isDeleting={isBulkDeleting}
+        onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
+        onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}
+      />
     </section>
   );
 }

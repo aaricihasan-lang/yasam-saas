@@ -14,6 +14,12 @@ export type BulkExportBarProps = {
   compact?: boolean;
   onDeleteSelected?: () => void;
   isDeleting?: boolean;
+  /** "Tümünü Sil" aksiyonu (çok güvenli, doğrulama kodlu modal tetikler) */
+  onDeleteAll?: () => void;
+  /** Seç butonu etiketi (varsayılan "Tümünü Seç"). Örn. "Görünenleri Seç" */
+  selectAllLabel?: string;
+  /** Seç butonunda gösterilecek sayı (varsayılan totalCount). Örn. görünen kayıt sayısı */
+  selectAllCount?: number;
 };
 
 export function BulkExportBar({
@@ -30,9 +36,13 @@ export function BulkExportBar({
   compact,
   onDeleteSelected,
   isDeleting,
+  onDeleteAll,
+  selectAllLabel = "Tümünü Seç",
+  selectAllCount,
 }: BulkExportBarProps) {
   const busy = Boolean(isExporting) || Boolean(isDeleting);
   const hasExport = Boolean(onExportSelected || onExportAll);
+  const selectCountDisplay = selectAllCount ?? totalCount;
 
   if (compact) {
     return (
@@ -47,7 +57,7 @@ export function BulkExportBar({
           disabled={busy}
           className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
         >
-          Tümünü Seç ({totalCount})
+          {selectAllLabel} ({selectCountDisplay})
         </button>
 
         {selectedCount > 0 && (
@@ -112,6 +122,17 @@ export function BulkExportBar({
               {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
             </button>
           </>
+        )}
+
+        {onDeleteAll && (
+          <button
+            type="button"
+            onClick={onDeleteAll}
+            disabled={busy || totalCount === 0}
+            className="rounded-lg border border-red-300 bg-white px-2.5 py-0.5 text-[11px] font-black text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            🗑 Tümünü Sil
+          </button>
         )}
       </div>
     );
@@ -194,6 +215,20 @@ export function BulkExportBar({
             className="rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isDeleting ? "⏳ Siliniyor..." : `🗑 Seçilileri Sil (${selectedCount})`}
+          </button>
+        </>
+      )}
+
+      {onDeleteAll && (
+        <>
+          <div className="hidden h-4 w-px bg-red-200 sm:block" aria-hidden />
+          <button
+            type="button"
+            onClick={onDeleteAll}
+            disabled={busy || totalCount === 0}
+            className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            🗑 Tümünü Sil ({totalCount})
           </button>
         </>
       )}

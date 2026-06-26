@@ -25,12 +25,13 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 
 export async function bioApiList(
   resource: string,
-  opts: { offset?: number; limit?: number; search?: string } = {},
+  opts: { offset?: number; limit?: number; search?: string; category?: string } = {},
 ): Promise<{ rows: BioRow[]; error: string | null }> {
   const p = new URLSearchParams();
   if (opts.offset) p.set("offset", String(opts.offset));
   if (opts.limit) p.set("limit", String(opts.limit));
   if (opts.search?.trim()) p.set("search", opts.search.trim());
+  if (opts.category?.trim()) p.set("category", opts.category.trim());
   const qs = p.toString();
   const res = await fetch(`${BASE}/${resource}${qs ? `?${qs}` : ""}`, { headers: authHeaders() });
   const j = await readJson(res);
@@ -41,13 +42,25 @@ export async function bioApiList(
 export async function bioApiCount(
   resource: string,
   search?: string,
+  category?: string,
 ): Promise<{ count: number; error: string | null }> {
   const p = new URLSearchParams({ count: "1" });
   if (search?.trim()) p.set("search", search.trim());
+  if (category?.trim()) p.set("category", category.trim());
   const res = await fetch(`${BASE}/${resource}?${p.toString()}`, { headers: authHeaders() });
   const j = await readJson(res);
   if (!res.ok || j.ok !== true) return { count: 0, error: String(j.error ?? `HTTP ${res.status}`) };
   return { count: Number(j.count ?? 0), error: null };
+}
+
+/** Bu kaynak için tenant'a ait benzersiz kategori değerleri (kategori filtresi açılır listesi). */
+export async function bioApiCategories(
+  resource: string,
+): Promise<{ categories: string[]; error: string | null }> {
+  const res = await fetch(`${BASE}/${resource}?distinct=category`, { headers: authHeaders() });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { categories: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  return { categories: (j.categories as string[]) ?? [], error: null };
 }
 
 export async function bioApiLastCreated(
@@ -107,4 +120,41 @@ export async function bioApiDelete(
   const j = await readJson(res);
   if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
   return { error: null };
+}
+
+/**
+ * Seçili kayıtları toplu sil. Sunucuda tenant binding zorlanır; yalnız bu
+ * tenant'a ait ve id listesindeki kayıtlar silinir (çapraz-tenant engellenir).
+ */
+export async function bioApiDeleteMany(
+  resource: string,
+  ids: string[],
+): Promise<{ deleted: number; error: string | null }> {
+  const clean = ids.filter((x) => typeof x === "string" && x.trim().length > 0);
+  if (clean.length === 0) return { deleted: 0, error: null };
+  const res = await fetch(`${BASE}/${resource}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+    body: JSON.stringify({ ids: clean }),
+  });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { deleted: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  return { deleted: Number(j.deleted ?? 0), error: null };
+}
+
+/**
+ * Bu modüldeki TÜM tenant kayıtlarını sil ("Tümünü Sil"). Sunucuda tenant
+ * binding zorlanır; yalnız mevcut uzmanın kayıtları silinir.
+ */
+export async function bioApiDeleteAll(
+  resource: string,
+): Promise<{ deleted: number; error: string | null }> {
+  const res = await fetch(`${BASE}/${resource}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+    body: JSON.stringify({ all: true }),
+  });
+  const j = await readJson(res);
+  if (!res.ok || j.ok !== true) return { deleted: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  return { deleted: Number(j.deleted ?? 0), error: null };
 }
