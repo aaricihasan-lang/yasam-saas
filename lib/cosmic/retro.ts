@@ -1,15 +1,20 @@
 /**
  * lib/cosmic/retro.ts
- * Gezegen retro dönemleri — 2026-2036 doğrulanmış veri.
+ * Gezegen retro dönemleri — astronomy-engine station hesabı (FAZ 1B).
  *
- * Kaynak: ProKerala Planetary Retrograde Calendars
- * Çapraz doğrulama: MoonTracks.com (Merkür), In-The-Sky.org (Satürn),
- *                   DrikPanchang (Satürn), Britannica (Merkür 2026)
- * Kapsam: 2026-01-01 → 2036-12-31 (bazı retro dönemleri 2037'ye uzanır)
- * Uyarı: 2037-2040 arası doğrulanmış kaynak yetersizliği nedeniyle dahil edilmedi.
+ * Tarih kaynağı: astronomy-engine (geosentrik ekliptik boylam HIZININ işaret değişimi).
+ *   +→−  Station Retrograde   |   −→+  Station Direct
+ * Hesaplama Türkiye saatine (UTC+3) göre tarihlendirilir; sabit pencere → SSR/client deterministik.
  *
- * Yorumlar uzman tarafından sonradan eklenecek (expertNote alanı).
+ * Doğrulama (2026-2040): AE, kürasyonlu ProKerala tablosuyla 2026-2037 aralığında 67/67
+ * (ET'de) birebir; 2037-2040 bağımsız kaynaklarla (findyourfate / astro-seek = Swiss Ephemeris)
+ * gün-gününe doğrulandı. Eski hardcoded tablo, ABD-Doğu (ET) saatine göre olduğundan TR'de
+ * 37/67 dönemi 1 gün erken gösteriyordu; AE bunu Türkiye saatine göre düzeltir.
+ *
+ * Editöryel içerik (theme) gezegen başına korunur; expertNote ileride eklenebilir.
  */
+
+import * as AE from "astronomy-engine";
 
 // ─── Tip tanımları ────────────────────────────────────────────────────────────
 
@@ -18,174 +23,114 @@ export type PlanetName = "Merkür" | "Venüs" | "Mars" | "Jüpiter" | "Satürn";
 export type RetroPeriod = {
   planet:      PlanetName;
   symbol:      string;
-  start:       string;       // YYYY-MM-DD
-  end:         string;       // YYYY-MM-DD
+  start:       string;       // YYYY-MM-DD (Türkiye saati)
+  end:         string;       // YYYY-MM-DD (Türkiye saati)
   theme:       string;
   expertNote?: string;
 };
 
-// ─── Veri ─────────────────────────────────────────────────────────────────────
+// ─── Editöryel içerik (gezegen başına sabit — eski tablodan birebir korundu) ──
 
-export const RETRO_PERIODS: RetroPeriod[] = [
+const RETRO_THEME: Record<PlanetName, string> = {
+  "Merkür":  "İletişim, anlaşmalar, teknoloji, eski konular",
+  "Venüs":   "İlişkiler, değerler, estetik, para algısı",
+  "Mars":    "Eylem, öfke, cesaret, fiziksel enerji",
+  "Jüpiter": "İnançlar, büyüme, eğitim, fırsatlar",
+  "Satürn":  "Sorumluluk, yapı, disiplin, sınırlar",
+};
+const RETRO_SYMBOL: Record<PlanetName, string> = {
+  "Merkür": "☿", "Venüs": "♀", "Mars": "♂", "Jüpiter": "♃", "Satürn": "♄",
+};
 
-  // ── Merkür Retrosu ☿ — yılda 3-4 kez, ~21 gün ────────────────────────────
-  // 2026
-  { planet: "Merkür", symbol: "☿", start: "2026-02-26", end: "2026-03-20",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2026-06-29", end: "2026-07-23",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2026-10-24", end: "2026-11-13",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2027
-  { planet: "Merkür", symbol: "☿", start: "2027-02-09", end: "2027-03-03",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2027-06-10", end: "2027-07-04",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2027-10-07", end: "2027-10-28",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2028
-  { planet: "Merkür", symbol: "☿", start: "2028-01-24", end: "2028-02-14",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2028-05-21", end: "2028-06-14",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2028-09-19", end: "2028-10-11",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2029 — bu yıl 4 retro (Aralık retrosu 2030'a taşıyor)
-  { planet: "Merkür", symbol: "☿", start: "2029-01-07", end: "2029-01-27",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2029-05-01", end: "2029-05-25",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2029-09-02", end: "2029-09-24",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2029-12-22", end: "2030-01-11",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2030
-  { planet: "Merkür", symbol: "☿", start: "2030-04-12", end: "2030-05-06",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2030-08-15", end: "2030-09-08",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2030-12-05", end: "2030-12-25",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2031
-  { planet: "Merkür", symbol: "☿", start: "2031-03-25", end: "2031-04-18",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2031-07-29", end: "2031-08-22",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2031-11-19", end: "2031-12-09",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2032
-  { planet: "Merkür", symbol: "☿", start: "2032-03-07", end: "2032-03-30",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2032-07-09", end: "2032-08-03",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2032-11-02", end: "2032-11-22",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2033
-  { planet: "Merkür", symbol: "☿", start: "2033-02-18", end: "2033-03-12",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2033-06-21", end: "2033-07-15",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2033-10-16", end: "2033-11-06",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2034
-  { planet: "Merkür", symbol: "☿", start: "2034-02-02", end: "2034-02-23",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2034-06-02", end: "2034-06-26",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2034-09-29", end: "2034-10-21",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2035
-  { planet: "Merkür", symbol: "☿", start: "2035-01-17", end: "2035-02-06",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2035-05-13", end: "2035-06-06",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2035-09-12", end: "2035-10-05",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  // 2036 (Aralık retrosu 2037'ye taşıyor)
-  { planet: "Merkür", symbol: "☿", start: "2036-04-23", end: "2036-05-17",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2036-08-25", end: "2036-09-17",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
-  { planet: "Merkür", symbol: "☿", start: "2036-12-14", end: "2037-01-03",
-    theme: "İletişim, anlaşmalar, teknoloji, eski konular" },
+// İleride uzman notu eklemek için: anahtar `"<Gezegen>:<YYYY-MM-DD>"` (start tarihi).
+const RETRO_EXPERT_NOTES: Record<string, string> = {
+  // örn. "Merkür:2026-06-29": "..."  — şu an boş; UI'da expertNote opsiyoneldir.
+};
 
-  // ── Venüs Retrosu ♀ — ~19 ayda bir, ~41 gün ──────────────────────────────
-  // Venüs 2026, 2028, 2029/2030, 2031, 2033, 2034, 2036
-  { planet: "Venüs", symbol: "♀", start: "2026-10-03", end: "2026-11-13",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2028-05-10", end: "2028-06-22",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2029-12-16", end: "2030-01-26",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2031-07-20", end: "2031-09-01",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2033-02-27", end: "2033-04-10",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2034-09-30", end: "2034-11-11",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
-  { planet: "Venüs", symbol: "♀", start: "2036-05-08", end: "2036-06-20",
-    theme: "İlişkiler, değerler, estetik, para algısı" },
+// ─── AE station motoru ────────────────────────────────────────────────────────
+// astronomy-engine'de hazır "retrograde" fonksiyonu YOKTUR; station = boylam hızının
+// işaret değiştirdiği andır. Kaba tarama (gezegene göre adım, en kısa retro Merkür ~21g)
+// + ikili arama ile dakika hassasiyetinde bulunur.
 
-  // ── Mars Retrosu ♂ — ~26 ayda bir, ~70 gün ────────────────────────────────
-  // Mars retrograde olmayan yıllar: 2026, 2028, 2030, 2032, 2034, 2036
-  { planet: "Mars", symbol: "♂", start: "2027-01-10", end: "2027-04-01",
-    theme: "Eylem, öfke, cesaret, fiziksel enerji" },
-  { planet: "Mars", symbol: "♂", start: "2029-02-14", end: "2029-05-05",
-    theme: "Eylem, öfke, cesaret, fiziksel enerji" },
-  { planet: "Mars", symbol: "♂", start: "2031-03-28", end: "2031-06-13",
-    theme: "Eylem, öfke, cesaret, fiziksel enerji" },
-  { planet: "Mars", symbol: "♂", start: "2033-05-26", end: "2033-08-01",
-    theme: "Eylem, öfke, cesaret, fiziksel enerji" },
-  { planet: "Mars", symbol: "♂", start: "2035-08-15", end: "2035-10-15",
-    theme: "Eylem, öfke, cesaret, fiziksel enerji" },
+const RETRO_AE_BODY: Record<PlanetName, AE.Body> = {
+  "Merkür": AE.Body.Mercury, "Venüs": AE.Body.Venus, "Mars": AE.Body.Mars,
+  "Jüpiter": AE.Body.Jupiter, "Satürn": AE.Body.Saturn,
+};
+const RETRO_AE_STEP_DAYS: Record<PlanetName, number> = {
+  "Merkür": 3, "Venüs": 5, "Mars": 5, "Jüpiter": 8, "Satürn": 8,
+};
+const RETRO_BISECT_ITERS = 28;          // ~saniye-altı hassasiyet (adım/2^28)
+const RETRO_TR_OFFSET = 3 * 3_600_000;  // Türkiye UTC+3 sabit (2016'dan beri DST yok)
 
-  // ── Jüpiter Retrosu ♃ — yılda 1 kez, ~4 ay ────────────────────────────────
-  // 2027 retrosu yok (2026-12-12'de başlayan 2027-04-12'ye uzanıyor)
-  { planet: "Jüpiter", symbol: "♃", start: "2026-12-12", end: "2027-04-12",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2028-01-12", end: "2028-05-13",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2029-02-10", end: "2029-06-13",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2030-03-13", end: "2030-07-14",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2031-04-15", end: "2031-08-16",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2032-05-19", end: "2032-09-17",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2033-06-25", end: "2033-10-23",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2034-08-02", end: "2034-11-28",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2035-09-09", end: "2036-01-04",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
-  { planet: "Jüpiter", symbol: "♃", start: "2036-10-13", end: "2037-02-09",
-    theme: "İnançlar, büyüme, eğitim, fırsatlar" },
+// Sabit, deterministik pencere (SSR↔client tutarlılığı için new Date() KULLANILMAZ).
+const RETRO_FROM_YEAR = 2024;
+const RETRO_TO_YEAR   = 2050;
 
-  // ── Satürn Retrosu ♄ — yılda 1 kez, ~4.5 ay ──────────────────────────────
-  { planet: "Satürn", symbol: "♄", start: "2026-07-26", end: "2026-12-10",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2027-08-09", end: "2027-12-23",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2028-08-22", end: "2029-01-05",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2029-09-06", end: "2030-01-18",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2030-09-20", end: "2031-02-01",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2031-10-05", end: "2032-02-16",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2032-10-18", end: "2033-03-01",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2033-11-02", end: "2034-03-15",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2034-11-16", end: "2035-03-30",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2035-11-30", end: "2036-04-12",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-  { planet: "Satürn", symbol: "♄", start: "2036-12-12", end: "2037-04-27",
-    theme: "Sorumluluk, yapı, disiplin, sınırlar" },
-];
+function aeEclLon(body: AE.Body, ms: number): number {
+  return AE.Ecliptic(AE.GeoVector(body, new Date(ms), true)).elon;
+}
+/** işaretli açısal hız (±6s sonlu fark); + ileri, − retro */
+function aeVelocity(body: AE.Body, ms: number): number {
+  const h = 6 * 3_600_000;
+  let d = aeEclLon(body, ms + h) - aeEclLon(body, ms - h);
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
+}
+function aeTrDateStr(ms: number): string {
+  const d = new Date(ms + RETRO_TR_OFFSET);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+type AeStation = { kind: "R" | "D"; ms: number };
+function aeStations(body: AE.Body, fromMs: number, toMs: number, stepDays: number): AeStation[] {
+  const out: AeStation[] = [];
+  const step = stepDays * 86_400_000;
+  let prev = aeVelocity(body, fromMs);
+  for (let t = fromMs; t < toMs; t += step) {
+    const nt = Math.min(t + step, toMs);
+    const v = aeVelocity(body, nt);
+    if (prev !== 0 && Math.sign(v) !== Math.sign(prev)) {
+      let lo = t, hi = nt;
+      for (let i = 0; i < RETRO_BISECT_ITERS; i++) {
+        const mid = (lo + hi) / 2;
+        if (Math.sign(aeVelocity(body, mid)) === Math.sign(prev)) lo = mid; else hi = mid;
+      }
+      out.push({ kind: prev > 0 ? "R" : "D", ms: hi });
+    }
+    prev = v;
+  }
+  return out;
+}
+
+/** Tüm gezegenlerin retro dönemlerini AE ile üretir (bir Station R'den sonraki Station D). */
+function buildRetroPeriods(fromYear: number, toYear: number): RetroPeriod[] {
+  const out: RetroPeriod[] = [];
+  const fromMs = Date.UTC(fromYear, 0, 1);
+  const toMs   = Date.UTC(toYear, 0, 1);
+  for (const planet of Object.keys(RETRO_AE_BODY) as PlanetName[]) {
+    const st = aeStations(RETRO_AE_BODY[planet], fromMs, toMs, RETRO_AE_STEP_DAYS[planet]);
+    for (let i = 0; i < st.length; i++) {
+      if (st[i]!.kind !== "R") continue;
+      const dir = st.slice(i + 1).find(s => s.kind === "D");
+      if (!dir) continue;  // pencere sonunda yarım kalan retro atlanır
+      const start = aeTrDateStr(st[i]!.ms);
+      const period: RetroPeriod = {
+        planet,
+        symbol: RETRO_SYMBOL[planet],
+        start,
+        end:   aeTrDateStr(dir.ms),
+        theme: RETRO_THEME[planet],
+      };
+      const note = RETRO_EXPERT_NOTES[`${planet}:${start}`];
+      if (note) period.expertNote = note;
+      out.push(period);
+    }
+  }
+  return out;
+}
+
+// Modül yüklemesinde bir kez hesaplanır (ES modülü singleton → süreç/oturum başına 1).
+export const RETRO_PERIODS: RetroPeriod[] = buildRetroPeriods(RETRO_FROM_YEAR, RETRO_TO_YEAR);
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
