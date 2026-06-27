@@ -8,16 +8,22 @@ import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
 import type { DogaltasInventoryLoadDebug } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   CATEGORY_LABELS,
+  DEFAULT_THRESHOLDS,
   DOGALTAS_INVENTORY_TABLE,
   type LiveStockCategory,
   type LiveStockRow,
   type StockDeltaResult,
+  type StockThresholds,
   applyStockDelta,
+  buildCriticalListText,
   filterLiveStock,
   fmtMoney,
   formatStockTotals,
+  isCriticalAmount,
   loadLiveStockRows,
   loadLiveStockRowsAsync,
+  loadStockThresholds,
+  saveStockThresholds,
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
@@ -256,12 +262,23 @@ export default function CanliStokMerkeziPage() {
     });
   }, [usdRate]);
 
+  const [thresholds, setThresholds] = useState<StockThresholds>(DEFAULT_THRESHOLDS);
+  const [copyMsg, setCopyMsg] = useState<string | null>(null);
+
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
+    setThresholds(loadStockThresholds());
     void reload().then(() => setHydrated(true));
   }, [reload]);
+
+  function updateThreshold(key: keyof StockThresholds, value: string) {
+    const n = Math.max(0, Math.round(toFloat(value, 0)));
+    const next = { ...thresholds, [key]: n };
+    setThresholds(next);
+    saveStockThresholds(next);
+  }
 
   // Hızlı sat/ekle: kart üzerinden stok düş/artır → localStorage + DB sync → tazele
   const handleAdjust = useCallback(
@@ -322,12 +339,29 @@ export default function CanliStokMerkeziPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const list = filterLiveStock(rows, { q: search, category, criticalOnly });
-    return sortLiveStock(list, sortMode);
-  }, [rows, search, category, criticalOnly, sortMode]);
+  // Ayarlanabilir eşiğe göre kritik bayrağını canlı yeniden hesapla (reload gerekmez)
+  const adjustedRows = useMemo(
+    () => rows.map((r) => ({ ...r, isCritical: isCriticalAmount(r.stockAmount, r.unitLabel, thresholds) })),
+    [rows, thresholds],
+  );
 
-  const summary = useMemo(() => summarizeLiveStock(rows), [rows]);
+  const filtered = useMemo(() => {
+    const list = filterLiveStock(adjustedRows, { q: search, category, criticalOnly });
+    return sortLiveStock(list, sortMode);
+  }, [adjustedRows, search, category, criticalOnly, sortMode]);
+
+  const summary = useMemo(() => summarizeLiveStock(adjustedRows), [adjustedRows]);
+
+  async function copyCriticalList() {
+    const text = buildCriticalListText(adjustedRows);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMsg(`Kritik liste kopyalandı (${summary.criticalCount} ürün) — toptancıya yapıştırabilirsiniz.`);
+    } catch {
+      setCopyMsg("Kopyalanamadı. Tarayıcı izni gerekebilir.");
+    }
+    window.setTimeout(() => setCopyMsg(null), 4000);
+  }
 
   if (!hydrated) {
     return (
@@ -378,6 +412,52 @@ export default function CanliStokMerkeziPage() {
           </div>
         </div>
 
+        {/* Kritik stok aksiyon barı — toptancıya hazır (Senaryo 2) */}
+        <section className={`${panelClass} mb-4`}>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCriticalOnly((v) => !v)}
+              className={`inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
+                criticalOnly
+                  ? "border-rose-500 bg-rose-600 text-white"
+                  : "border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100"
+              }`}
+            >
+              🔴 Kritik Stok ({summary.criticalCount}){criticalOnly ? " · filtre açık" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyCriticalList()}
+              disabled={summary.criticalCount === 0}
+              className="inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border-2 border-violet-300 bg-white px-4 text-sm font-black text-violet-800 transition hover:bg-violet-50 disabled:opacity-50"
+            >
+              📋 Kritik listeyi kopyala
+            </button>
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Kritik eşiği:</span>
+              {(["adet", "ml", "gram"] as (keyof StockThresholds)[]).map((k) => (
+                <label key={k} className="flex items-center gap-1 text-sm font-bold text-slate-700">
+                  <span className="text-slate-400">≤</span>
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={thresholds[k]}
+                    onChange={(e) => updateThreshold(k, e.target.value)}
+                    className="h-9 w-16 rounded-lg border-2 border-violet-200 bg-white px-2 text-center text-sm font-bold outline-none focus:border-violet-500"
+                  />
+                  <span className="text-slate-500">{k}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {copyMsg ? <p className="mt-2 text-sm font-bold text-emerald-700">{copyMsg}</p> : null}
+          <p className="mt-2 text-xs font-medium text-slate-500">
+            Eşik altındaki ürünler kritik sayılır. Kritik listeyi kopyalayıp toptancıya WhatsApp'tan gönderebilirsiniz.
+          </p>
+        </section>
+
         <section className={`${panelClass} mb-4 space-y-3`}>
           <h2 className="text-base font-black text-slate-800">Filtreler</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -419,15 +499,6 @@ export default function CanliStokMerkeziPage() {
             </label>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-2 text-sm font-black">
-              <input
-                type="checkbox"
-                className="h-5 w-5 accent-violet-600"
-                checked={criticalOnly}
-                onChange={(e) => setCriticalOnly(e.target.checked)}
-              />
-              Sadece kritik stoklar
-            </label>
             <button
               type="button"
               className={`rounded-xl border-2 px-3 py-2 text-sm font-black transition ${

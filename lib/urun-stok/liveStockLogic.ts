@@ -103,15 +103,64 @@ export type LiveStockSummary = {
   totalValue: number;
 };
 
-const CRITICAL_ADET = 5;
-const CRITICAL_ML = 150;
-const CRITICAL_GRAM = 150;
+export type StockThresholds = { adet: number; ml: number; gram: number };
+
+/** Varsayılan kritik eşikler. ml/gram 300'e çıkarıldı (örn. 250 ml lavanta da kritik sayılsın). */
+export const DEFAULT_THRESHOLDS: StockThresholds = { adet: 5, ml: 300, gram: 300 };
+
+const THRESHOLD_KEY = "stock_critical_thresholds_v1";
+
+export function loadStockThresholds(): StockThresholds {
+  if (typeof window === "undefined") return DEFAULT_THRESHOLDS;
+  try {
+    const raw = localStorage.getItem(THRESHOLD_KEY);
+    if (!raw) return DEFAULT_THRESHOLDS;
+    const p = JSON.parse(raw) as Partial<StockThresholds>;
+    const pick = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : d);
+    return {
+      adet: pick(p.adet, DEFAULT_THRESHOLDS.adet),
+      ml: pick(p.ml, DEFAULT_THRESHOLDS.ml),
+      gram: pick(p.gram, DEFAULT_THRESHOLDS.gram),
+    };
+  } catch {
+    return DEFAULT_THRESHOLDS;
+  }
+}
+
+export function saveStockThresholds(t: StockThresholds): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(THRESHOLD_KEY, JSON.stringify(t));
+  } catch {
+    /* kota dolabilir; kritik eşik kaybı veri kaybı değil */
+  }
+}
+
+/** Eşiğe göre kritik mi (ayarlanabilir; UI canlı yeniden hesaplar). */
+export function isCriticalAmount(
+  amount: number,
+  unitLabel: string,
+  t: StockThresholds = DEFAULT_THRESHOLDS,
+): boolean {
+  if (unitLabel === "adet") return amount <= t.adet;
+  if (unitLabel === "ml") return amount <= t.ml;
+  if (unitLabel === "gram") return amount <= t.gram;
+  return amount <= t.adet;
+}
 
 function isCriticalStock(amount: number, unit: string): boolean {
-  if (unit === "adet") return amount <= CRITICAL_ADET;
-  if (unit === "ml") return amount <= CRITICAL_ML;
-  if (unit === "gram") return amount <= CRITICAL_GRAM;
-  return amount <= CRITICAL_ADET;
+  return isCriticalAmount(amount, unit, DEFAULT_THRESHOLDS);
+}
+
+/**
+ * Toptancıya gönderilebilir düz-metin kritik liste (panoya kopyala).
+ * Senaryo 2: "🔴 Ay Taşı — 2 adet" satırları; WhatsApp'a yapıştırılır.
+ */
+export function buildCriticalListText(rows: LiveStockRow[]): string {
+  const crit = rows.filter((r) => r.isCritical).sort((a, b) => a.stockAmount - b.stockAmount);
+  if (!crit.length) return "Kritik stokta ürün yok.";
+  const lines = crit.map((r) => `🔴 ${r.name} — ${r.stockDisplay}`);
+  return `KRİTİK STOK (${crit.length})\n${lines.join("\n")}`;
 }
 
 function fmtQty(n: number): string {

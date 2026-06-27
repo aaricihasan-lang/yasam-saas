@@ -1,4 +1,5 @@
 import Link from "next/link";
+import KritikStokRozeti from "./KritikStokRozeti";
 
 const hubModules = [
   {
@@ -155,6 +156,9 @@ export default function UrunStokHubPage() {
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-600">
             Tüm ürünlerinizi, stoklarınızı, satış ve fiyatlandırma süreçlerinizi tek merkezden yönetin.
           </p>
+          <div className="mt-3 flex justify-center">
+            <KritikStokRozeti />
+          </div>
         </header>
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
