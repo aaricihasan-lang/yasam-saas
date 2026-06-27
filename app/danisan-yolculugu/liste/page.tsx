@@ -111,6 +111,7 @@ export default function DanisanListePage() {
   const [filterKan, setFilterKan] = useState("");
   const [filterMizac, setFilterMizac] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
+  const [showAllClients, setShowAllClients] = useState(false);
 
   // Toplu seçim ve Word export
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
@@ -156,6 +157,18 @@ export default function DanisanListePage() {
   }, [clients, search, filterBurc, filterKan, filterMizac, sortBy]);
 
   const hasActiveFilter = Boolean(search.trim() || filterBurc || filterKan || filterMizac);
+
+  // Performans/okunabilirlik: ilk 20 kayıt gösterilir; "Tümünü göster" ile tamamı açılır.
+  const LIST_INITIAL_COUNT = 20;
+  const visibleClients = showAllClients
+    ? filteredClients
+    : filteredClients.slice(0, LIST_INITIAL_COUNT);
+  const hiddenClientCount = filteredClients.length - visibleClients.length;
+
+  // Filtre / arama / sıralama değişince listeyi başa sar (yeniden ilk 20).
+  useEffect(() => {
+    setShowAllClients(false);
+  }, [search, filterBurc, filterKan, filterMizac, sortBy]);
 
   const toggleClientSelection = useCallback((id: string) => {
     setSelectedClientIds((prev) => {
@@ -531,8 +544,9 @@ export default function DanisanListePage() {
               )}
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredClients.map((client) => {
+              {visibleClients.map((client) => {
                 const expiredCount   = homeworkAlerts[client.id] || 0;
                 const hasExpiredHw   = expiredCount > 0;
                 const isSelected     = selectedClientIds.has(client.id);
@@ -624,6 +638,18 @@ export default function DanisanListePage() {
                 );
               })}
             </div>
+            {hiddenClientCount > 0 && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllClients(true)}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow"
+                >
+                  Tümünü göster ({hiddenClientCount} kayıt daha)
+                </button>
+              </div>
+            )}
+            </>
           )}
         </section>
       </div>

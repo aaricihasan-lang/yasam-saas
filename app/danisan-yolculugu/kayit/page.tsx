@@ -436,7 +436,7 @@ export default function DanisanKayitPage() {
               </p>
             </Field>
             <Field label="Burç (Otomatik)">
-              <input value={burc} disabled className={`${inputClassName} bg-slate-100 text-slate-600`} />
+              <input value={burc} disabled placeholder="Doğum tarihinden otomatik hesaplanır" className={`${inputClassName} bg-slate-100 text-slate-600`} />
             </Field>
             <Field label="Kan Grubu">
               <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>

@@ -499,10 +499,10 @@ export default function ClientDetailPage() {
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
             {fullName || "İsimsiz Danışan"}
           </h1>
-          <p className="mt-1 text-[12px] text-slate-500">
+          <p className="mt-1 hidden text-[12px] text-slate-500 sm:block">
             Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir.
           </p>
-          <div className="mt-2.5 grid grid-cols-[repeat(auto-fit,minmax(135px,1fr))] gap-2">
+          <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(135px,1fr))]">
             <Info label="Telefon"       value={client.telefon}              color="#2563eb" />
             <Info label="Doğum Tarihi"  value={formatDateTR(client.dogum)}  color="#7c3aed" />
             <Info label="Görüşme Tarihi" value={formatDateTR(client.gorusme)} color="#db2777" />
@@ -518,11 +518,13 @@ export default function ClientDetailPage() {
 
         {/* Tab bar — mobilde yatay scroll, masaüstünde wrap */}
         <div className="relative mb-4">
-          {/* Mobil scroll göstergesi — sağ fade */}
+          {/* Mobil scroll göstergesi — sağ fade + "devamı var" ok ipucu */}
           <div
-            className="pointer-events-none absolute right-0 top-0 z-10 h-full w-14 bg-gradient-to-l from-white/95 to-transparent sm:hidden"
+            className="pointer-events-none absolute right-0 top-0 z-10 flex h-full w-16 items-center justify-end bg-gradient-to-l from-white via-white/85 to-transparent pr-1 sm:hidden"
             aria-hidden
-          />
+          >
+            <span className="animate-pulse text-xl font-black leading-none text-violet-500">›</span>
+          </div>
           <div
             role="tablist"
             aria-label="Danışan sekmeleri"
