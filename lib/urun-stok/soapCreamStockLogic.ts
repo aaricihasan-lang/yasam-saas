@@ -92,8 +92,12 @@ export function fmtMoney(x: number): string {
 }
 
 export function fmtQty(x: number, maxDec = 2): string {
-  const s = x.toFixed(maxDec).replace(/\.?0+$/, "");
-  return s || "0";
+  const s = x.toFixed(maxDec);
+  // Yalnızca ONDALIK kısmın sonundaki sıfırları kırp; tam sayı sıfırlarını koru
+  // (aksi halde 1000→"1", 50→"5" gibi yanlış gösterim oluşur).
+  if (!s.includes(".")) return s;
+  const trimmed = s.replace(/0+$/, "").replace(/\.$/, "");
+  return trimmed || "0";
 }
 
 export function measureTypeToBase(measureType: string): ScBaseUnit {

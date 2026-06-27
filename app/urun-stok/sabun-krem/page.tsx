@@ -41,6 +41,13 @@ import {
 } from "@/lib/urun-stok/soapCreamStockLogic";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser } from "@/lib/auth/yasamUser";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import {
+  deleteSoapCreamInventoryItems,
+  loadSoapCreamInventoryForTenant,
+  syncSoapCreamInventoryToDb,
+  upsertSoapCreamInventoryItem,
+} from "@/lib/urun-stok/soapCreamInventoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
@@ -170,15 +177,28 @@ export default function SabunKremUrunStokPage() {
   const [hydrated, setHydrated] = useState(false);
 
   const [isDemo, setIsDemo] = useState(false);
+  // K-2: Supabase sync için tenantId state'de tutulur
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
-  const reloadInv = useCallback(() => setInventory(loadSoapCreamInventory()), []);
+  const reloadInv = useCallback(async () => {
+    const demo = readYasamUser()?.is_demo_account === true;
+    if (demo) {
+      // Demo modda: yalnızca localStorage; Supabase'e dokunma
+      setInventory(loadSoapCreamInventory());
+      return;
+    }
+    const tenantId = await getSyncedTenantId();
+    setActiveTenantId(tenantId);
+    const { items } = await loadSoapCreamInventoryForTenant(tenantId);
+    setInventory(items);
+  }, []);
   const reloadSales = useCallback(() => setSales(loadSoapCreamSales()), []);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) seedDemoUrunStok();
     setIsDemo(demo);
-    reloadInv();
+    void reloadInv();
     reloadSales();
     setHydrated(true);
   }, [reloadInv, reloadSales]);
@@ -267,10 +287,12 @@ export default function SabunKremUrunStokPage() {
     setAddDelta(false);
   }
 
-  function handleSaveStock() {
+  async function handleSaveStock() {
     setMsg(null);
+    const beforeIds = new Set(inventory.map((i) => i.id));
+    const editingId = editId;
     const result = addOrUpdateSoapCreamItem(inventory, {
-      id: editId ?? undefined,
+      id: editingId ?? undefined,
       name: turkishUpper(name),
       productGroup,
       measureType,
@@ -291,6 +313,7 @@ export default function SabunKremUrunStokPage() {
       setMsg(result.error);
       return;
     }
+    // localStorage: anında geri bildirim + çevrimdışı yedek (DB önbelleği)
     const saved = saveSoapCreamInventory(result.items);
     setInventory(result.items);
     if (!saved) {
@@ -299,8 +322,35 @@ export default function SabunKremUrunStokPage() {
       );
       return;
     }
+
+    // K-2: Demo değilse kaydı kalıcı olarak Supabase'e yaz. Böylece sayfa
+    // yenilenince kaybolmaz ve cihazlar arası senkron olur.
+    if (!isDemo && activeTenantId) {
+      const target = editingId
+        ? result.items.find((it) => it.id === editingId)
+        : result.items.find((it) => !beforeIds.has(it.id));
+      if (target) {
+        const res = await upsertSoapCreamInventoryItem(activeTenantId, target);
+        if (!res.ok) {
+          setMsg(
+            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+          );
+          return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
+        }
+        // DB'den taze çek: kanonik durum; önbelleğin DB'yi ezme riski kalmaz.
+        await reloadInv();
+        resetForm();
+        setMsg(
+          res.created
+            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
+            : "Kayıt güncellendi ve buluta kaydedildi.",
+        );
+        return;
+      }
+    }
+
     resetForm();
-    setMsg(editId ? "Kayit guncellendi." : "Kayit eklendi.");
+    setMsg(editingId ? "Kayit guncellendi." : "Kayit eklendi.");
   }
 
   async function deleteSelected() {
@@ -313,11 +363,22 @@ export default function SabunKremUrunStokPage() {
       message: `Seçili ${selectedIds.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
     });
     if (!ok) return;
+    const removed = inventory.filter((i) => selectedIds.has(i.id));
     const next = inventory.filter((i) => !selectedIds.has(i.id));
     saveSoapCreamInventory(next);
     setInventory(next);
+    const count = selectedIds.size;
     setSelectedIds(new Set());
-    setMsg(`${selectedIds.size} kayit silindi.`);
+    // K-2: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
+    if (!isDemo && activeTenantId && removed.length > 0) {
+      const res = await deleteSoapCreamInventoryItems(activeTenantId, removed);
+      await reloadInv();
+      if (!res.ok) {
+        setMsg(`${count} kayit cihazınızdan silindi ancak buluttan silmede hata: ${res.error}`);
+        return;
+      }
+    }
+    setMsg(`${count} kayit silindi.`);
   }
 
   const [pickId, setPickId] = useState("");
@@ -408,6 +469,12 @@ export default function SabunKremUrunStokPage() {
       reloadSales();
       setBasket([]);
       setMsg("Satis kaydedildi, stok dusuldu.");
+      // K-2: Demo modda Supabase'e yazma; gerçek hesaplarda stok düşümünü senkronla
+      if (!isDemo && activeTenantId) {
+        void syncSoapCreamInventoryToDb(activeTenantId, updated).then(({ error }) => {
+          if (error) console.warn("[soap_cream] Supabase sync hatası (satış):", error);
+        });
+      }
     } finally {
       committingRef.current = false;
       setIsCommitting(false);
@@ -439,6 +506,12 @@ export default function SabunKremUrunStokPage() {
     saveSoapCreamSales(next);
     setSales(next);
     setHistSel(new Set());
+    // K-2: Demo modda Supabase'e yazma; gerçek hesaplarda stok iadesini senkronla
+    if (!isDemo && activeTenantId) {
+      void syncSoapCreamInventoryToDb(activeTenantId, inv).then(({ error }) => {
+        if (error) console.warn("[soap_cream] Supabase sync hatası (stok iadesi):", error);
+      });
+    }
     setMsg(missing.length > 0
       ? `Silindi. Uyari: ${[...new Set(missing)].join(", ")} stoku bulunamadi, iade yapilamadi.`
       : "Satis silindi, stok guncellendi.");
@@ -635,7 +708,7 @@ export default function SabunKremUrunStokPage() {
                     }}
                   />
                 </label>
-                <button type="button" className={btnPrimary} onClick={handleSaveStock}>
+                <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()}>
                   {editId ? "Guncelle" : "Ekle"}
                 </button>
                 {editId ? (
