@@ -51,12 +51,6 @@ const hubModules = [
     href: "/urun-stok/satis-gecmisi",
   },
   {
-    title: "Stok Hareketleri",
-    desc: "Tüm ürün girişleri, satışlar, çıkışlar ve stok değişim geçmişi — yakında aktif.",
-    icon: "📊",
-    accent: "from-slate-100 to-zinc-50 border-slate-200/80 ring-slate-100",
-  },
-  {
     title: "Diğer Ürünler",
     desc: "Kategoriye sığmayan tüm özel ürünler, farklı satış kalemleri ve serbest ürün stokları.",
     icon: "🛍️",
@@ -171,7 +165,7 @@ export default function UrunStokHubPage() {
             </p>
           </div>
           <span className="rounded-full border border-amber-200/90 bg-amber-50/90 px-3 py-1 text-xs font-black text-amber-900 shadow-sm">
-            9 modül
+            8 modül
           </span>
         </div>
 
