@@ -330,8 +330,10 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   };
 }
 
-// Doğrulanmış veri destek aralığı (20.06.2026 – 31.12.2030)
-const SUPPORT_END_YEAR = 2030;
+// Doğrulanmış veri destek aralığı (20.06.2026 – 31.12.2050)
+// FAZ 1A/1B/1C sonrası gezegen konumları, retro ve burç geçişleri astronomy-engine ile
+// hesaplandığından destek ufku AE pencerelerinin bittiği 2050'ye taşındı.
+const SUPPORT_END_YEAR = 2050;
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
@@ -865,7 +867,7 @@ export default function CosmicCalendarPage() {
               <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
                 <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
                 <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
-                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2030). Gezegen konumları ve diğer veriler yaklaşık olabilir.
+                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050). Gezegen konumları ve diğer veriler yaklaşık olabilir.
                 </p>
               </div>
             )}
