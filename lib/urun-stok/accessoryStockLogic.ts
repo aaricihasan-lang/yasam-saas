@@ -92,8 +92,12 @@ export function fmtMoney(x: number): string {
 }
 
 export function fmtQty(x: number, maxDec = 0): string {
-  const s = x.toFixed(maxDec).replace(/\.?0+$/, "");
-  return s || "0";
+  const s = x.toFixed(maxDec);
+  // Yalnızca ONDALIK kısmın sonundaki sıfırları kırp; tam sayı sıfırlarını koru
+  // (aksi halde 10→"1", 100→"1", 20→"2" gibi yanlış adet gösterimi oluşur).
+  if (!s.includes(".")) return s;
+  const trimmed = s.replace(/0+$/, "").replace(/\.$/, "");
+  return trimmed || "0";
 }
 
 export function formatSizeLabel(item: AccessoryItem): string {
