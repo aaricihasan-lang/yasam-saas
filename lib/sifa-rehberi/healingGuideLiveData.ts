@@ -31,6 +31,17 @@ export type HealingGuideListRow = {
   sectionTypes: HealingGuideSectionType[];
   /** Arama / önizleme için kısa metin parçaları */
   sectionSnippets: string[];
+  /**
+   * Manuel kayıtlar healing_guides düz kolonlarına yazar (healing_guide_sections
+   * JOIN'i boştur). Aşağıdaki alanlar bu düz kolonlardan türetilir ki liste
+   * kartı "0 bölüm / özet yok" göstermesin ve arama içerikte de eşleşsin.
+   */
+  /** Dolu düz-kolon grubu (bölüm) sayısı — 0..7 */
+  legacyGroupCount?: number;
+  /** Önizleme için en uygun düz-kolon metni (öncelik general_summary) */
+  legacyPreview?: string | null;
+  /** Aramada eşleşme için tüm düz-kolon metinlerinin birleşimi */
+  legacyText?: string;
 };
 
 export type HealingGuideSectionRow = {
@@ -218,6 +229,36 @@ const LEGACY_TEXT_KEYS = [
   "islamic_recommendations",
 ] as const;
 
+/**
+ * Düz-kolonların form/detay bölümlerine (sekmelerine) eşlemesi. Bir grupta en az
+ * bir alan doluysa o "bölüm" dolu sayılır → countListFilledSections bunu kullanır.
+ * 7 grup, yeni-kayıt formundaki sekmelerle aynı (ad/kategori hariç).
+ */
+const LEGACY_FIELD_GROUPS: readonly (typeof LEGACY_TEXT_KEYS[number])[][] = [
+  ["general_summary"],
+  [
+    "medical_causes",
+    "subconscious_causes",
+    "temperament_causes",
+    "other_causes",
+    "iridology_match",
+    "hand_analysis_match",
+  ],
+  ["cupping_leech", "reflexology", "diet_recommendations", "herbal_methods"],
+  ["stone_recommendations"],
+  ["aromatherapy"],
+  [
+    "meditation",
+    "breathwork",
+    "bioenergy",
+    "massage",
+    "daily_routine",
+    "sleep_routine",
+    "supportive_alternative_methods",
+  ],
+  ["islamic_recommendations"],
+];
+
 function textValue(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (value == null) return "";
@@ -280,15 +321,17 @@ function sectionSnippet(section: HealingGuideSectionRow): string {
 }
 
 export function listRowPreview(row: HealingGuideListRow, limit = 140): string {
+  const clamp = (s: string) => (s.length > limit ? `${s.slice(0, limit)}…` : s);
+
   const fromSymptoms = row.symptoms?.trim();
-  if (fromSymptoms) {
-    return fromSymptoms.length > limit ? `${fromSymptoms.slice(0, limit)}…` : fromSymptoms;
-  }
+  if (fromSymptoms) return clamp(fromSymptoms);
+
+  // Manuel kayıt: düz-kolon özeti (öncelik general_summary)
+  const fromLegacy = row.legacyPreview?.trim();
+  if (fromLegacy) return clamp(fromLegacy);
 
   const fromSection = row.sectionSnippets.find((s) => s.length > 0);
-  if (fromSection) {
-    return fromSection.length > limit ? `${fromSection.slice(0, limit)}…` : fromSection;
-  }
+  if (fromSection) return clamp(fromSection);
 
   if (row.sectionCount > 0) {
     return `${row.sectionCount} alt içerik kaydı mevcut.`;
@@ -299,7 +342,8 @@ export function listRowPreview(row: HealingGuideListRow, limit = 140): string {
 
 export function countListFilledSections(row: HealingGuideListRow): number {
   if (row.sectionCount > 0) return row.sectionCount;
-  return 0;
+  // Manuel kayıt: dolu düz-kolon grubu (bölüm) sayısı
+  return row.legacyGroupCount ?? 0;
 }
 
 export function matchesListSearch(row: HealingGuideListRow, query: string): boolean {
@@ -310,6 +354,7 @@ export function matchesListSearch(row: HealingGuideListRow, query: string): bool
     row.name,
     row.category ?? "",
     row.symptoms ?? "",
+    row.legacyText ?? "",
     ...row.sectionSnippets,
   ]
     .join(" ")
@@ -336,6 +381,18 @@ function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
     ...new Set(sections.map((section) => section.section_type)),
   ] as HealingGuideSectionType[];
 
+  // Düz-kolon (manuel kayıt) içeriğinden türetilen alanlar
+  const legacyValues: Record<string, string> = {};
+  for (const key of LEGACY_TEXT_KEYS) {
+    legacyValues[key] = textValue(row[key]);
+  }
+  const legacyGroupCount = LEGACY_FIELD_GROUPS.filter((group) =>
+    group.some((key) => legacyValues[key]),
+  ).length;
+  // LEGACY_TEXT_KEYS general_summary ile başladığı için find öncelikle onu döner
+  const legacyPreview = LEGACY_TEXT_KEYS.map((key) => legacyValues[key]).find(Boolean) || null;
+  const legacyText = LEGACY_TEXT_KEYS.map((key) => legacyValues[key]).filter(Boolean).join(" ");
+
   return {
     id,
     tenant_id: tenantId,
@@ -347,6 +404,9 @@ function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
     sectionCount: sections.length,
     sectionTypes,
     sectionSnippets: sections.map(sectionSnippet).filter(Boolean),
+    legacyGroupCount,
+    legacyPreview,
+    legacyText,
   };
 }
 
