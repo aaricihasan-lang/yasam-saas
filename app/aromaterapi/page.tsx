@@ -250,13 +250,13 @@ export default function AromaTerapiHubPage() {
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-200/80 bg-white/80 text-3xl shadow-sm ring-1 ring-white/90">📚</div>
                 <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Bilgi Bankası</h2>
                 <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
-                  Temel bileşenler, elde etme yöntemleri ve etki mekanizmaları — referans makaleler.
+                  Uzman notları ve referans içerikleri — boş başlayabilir, içerikleri uzman kendisi ekler.
                 </p>
               </div>
               <div className="shrink-0 space-y-2">
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
-                  <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">Kimya</span>
-                  <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">Yöntemler</span>
+                  <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">Uzman notları</span>
+                  <span className="rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800">Referans</span>
                 </div>
                 <span className="block w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
                   Bilgi Bankasını Aç →
@@ -294,7 +294,7 @@ export default function AromaTerapiHubPage() {
         <footer className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-100/60 bg-white/60 px-4 py-3 backdrop-blur-sm">
           <span className="text-lg">🌿</span>
           <p className="text-xs font-medium text-slate-500">
-            Aromaterapi Merkezi — Uçucu yağ, sabit yağ ve maserasyon yağı kütüphanesi. Bilgi bankası ve karışım oluşturucu yakında.
+            Aromaterapi Merkezi — Uçucu yağ, sabit yağ ve maserasyon yağı kütüphanesi. Bilgi bankasını kendi notlarınızla doldurabilirsiniz; karışım oluşturucu yakında.
           </p>
         </footer>
       </div>

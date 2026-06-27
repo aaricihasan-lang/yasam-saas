@@ -264,7 +264,7 @@ export default function BilgiBankasiPage() {
                 Bilgi Bankası
               </h1>
               <p className="mt-1.5 text-[11px] font-medium text-slate-400">
-                🔒 Paylaşımlı referans içeriği — salt okunur
+                Uzman notları ve referans içerikleri — boş başlar, içerikleri siz eklersiniz
               </p>
             </div>
             <Link
@@ -288,9 +288,12 @@ export default function BilgiBankasiPage() {
             <p className="text-sm font-bold text-slate-500">Yükleniyor…</p>
           </div>
         ) : sheets.length === 0 ? (
-          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[20px] bg-white/80 p-8 text-center shadow-sm">
-            <div className="text-4xl">📚</div>
-            <h2 className="mt-3 text-lg font-black text-slate-900">İçerik bulunamadı</h2>
+          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[20px] border border-amber-100/70 bg-white/85 p-8 text-center shadow-sm sm:p-10">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/60 text-3xl shadow-sm">📚</div>
+            <h2 className="mt-4 text-xl font-black text-slate-900">Henüz bilgi bankası içeriği eklenmedi</h2>
+            <p className="mt-2 max-w-md text-sm font-medium leading-relaxed text-slate-500">
+              Kendi aromaterapi notlarınızı, referans bilgilerinizi ve kullanım protokollerinizi buradan ekleyebilirsiniz.
+            </p>
           </div>
         ) : (
           <>

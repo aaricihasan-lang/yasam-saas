@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -267,6 +268,9 @@ function NewOilForm({
   });
   const [formTab, setFormTab] = useState<FormTabId>("kimlik");
   const [saving, setSaving] = useState(false);
+  // Çift tıklamaya karşı senkron kilit — React re-render'ı beklemeden ikinci
+  // çağrıyı anında engeller, böylece mükerrer kayıt oluşmaz.
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
   const [largeKey, setLargeKey] = useState<string | null>(null);
   const [largeValue, setLargeValue] = useState("");
@@ -292,9 +296,12 @@ function NewOilForm({
   }
 
   async function handleSave() {
+    // Halihazırda bir kayıt isteği uçuyorsa ikinci tıklamayı yok say.
+    if (submittingRef.current) return;
     const nameTrim = form.name.trim();
     if (!nameTrim) { setError("Yağ adı zorunludur."); return; }
 
+    submittingRef.current = true;
     setSaving(true);
     setError("");
 
@@ -302,6 +309,7 @@ function NewOilForm({
     if (!tenantId) {
       setError(MISSING_SESSION_TENANT_MESSAGE);
       setSaving(false);
+      submittingRef.current = false;
       return;
     }
 
@@ -349,9 +357,11 @@ function NewOilForm({
 
     if (insertError) {
       setError(`Kayıt eklenemedi: ${insertError.message}`);
+      submittingRef.current = false;
       return;
     }
 
+    // Başarılıda kilit açılmaz: onSaved() listeye yönlendirip formu unmount eder.
     showToast({ title: "Başarılı", message: "Yağ kaydı oluşturuldu.", type: "success" });
     onSaved();
   }
@@ -548,7 +558,7 @@ function NewOilForm({
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60"
+                className={`inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60 ${saving ? "pointer-events-none" : ""}`}
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
@@ -679,9 +689,16 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     });
   }, []);
 
+  // Yalnızca kullanıcının kendi tenant kayıtları seçilip silinebilir.
+  // Paylaşımlı (tenant_id === null) kütüphane kayıtları seçim dışıdır.
+  const ownFilteredRows = useMemo(
+    () => filteredRows.filter((r) => r.tenant_id !== null),
+    [filteredRows],
+  );
+
   const selectAllFiltered = useCallback(() => {
-    setSelectedIds(new Set(filteredRows.map((r) => r.id)));
-  }, [filteredRows]);
+    setSelectedIds(new Set(ownFilteredRows.map((r) => r.id)));
+  }, [ownFilteredRows]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
@@ -747,7 +764,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
       <div className="pointer-events-none absolute -left-20 -top-20 h-[320px] w-[320px] rounded-full bg-amber-200/20 blur-[120px]" />
       <div className="pointer-events-none absolute -right-20 top-40 h-[280px] w-[280px] rounded-full bg-violet-200/18 blur-[100px]" />
 
-      <div className="relative z-10 w-full space-y-3 px-3 py-3 sm:px-5 xl:px-7">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-5 xl:px-7">
         {isDemo && (
           <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz." />
         )}
@@ -847,6 +864,8 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             selectedCount={selectedIds.size}
             totalCount={rows.length}
             filteredCount={filteredRows.length}
+            selectAllLabel="Kendi Kayıtlarımı Seç"
+            selectAllCount={ownFilteredRows.length}
             hasActiveFilter={Boolean(search.trim() || (!fixedOilType && typeFilter !== "all"))}
             onSelectAll={selectAllFiltered}
             onClearSelection={clearSelection}
@@ -888,7 +907,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                 const isSelected = selectedIds.has(row.id);
                 return (
                 <article key={row.id} className={`${oilCard} ${isSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""}`}>
-                  {!isDemo && (
+                  {!isDemo && row.tenant_id !== null && (
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <input
                         type="checkbox"
@@ -962,7 +981,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     return (
                     <div key={row.id} className={`grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-amber-50/30 ${isSelected ? "bg-amber-50/60" : ""}`}>
                       <div className="flex items-center">
-                        {isDemo ? null : (
+                        {isDemo || row.tenant_id === null ? null : (
                           <input
                             type="checkbox"
                             checked={isSelected}
