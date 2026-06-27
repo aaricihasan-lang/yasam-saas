@@ -4,7 +4,8 @@
  *
  * Güneş   : astronomy-engine GeoVector+Ecliptic (FAZ 5B) — dakika hassasiyeti
  * Ay       : moon.ts → getMoonSign() kullanılır (sidereal hesaplama)
- * Diğerleri: tarih aralığı tablosu, 2025-2030 kapsam.
+ * Diğerleri: astronomy-engine GeoVector+Ecliptic birincil (FAZ 1A) — tarih sınırı yok;
+ *            hardcoded tablolar yalnızca AE-hata fallback'i + getPlanetSignPeriod için tutulur.
  *
  * Kaynak: in-the-sky.org, prokerala.com, astroseek.com
  * Retrograde tarihleri retro.ts ile çakıştırıldı (2026-2030).
@@ -542,7 +543,8 @@ function getSunSignBoundaries(date: Date): { from: string; to: string } {
  * Verilen tarih için Güneş + 8 gezegen burç konumlarını döner.
  * Ay bu listede yer almaz; çağıran kod moon.ts → getMoonSign() kullanmalıdır.
  * Güneş/Merkür/Venüs/Mars: AE GeoVector+Ecliptic (FAZ 5B-5C) — tarih sınırı yok.
- * Jüpiter–Plüton: tarih aralığı tablosu, 2025-2030 kapsam.
+ * Jüpiter–Plüton: AE GeoVector+Ecliptic birincil (FAZ 1A) — tarih sınırı yok;
+ *   tablo yalnızca AE-hata fallback'i. getPlanetSignPeriod hâlâ tabloyu kullanır.
  */
 export function getPlanetSigns(date: Date): PlanetInfo[] {
   const planets: Array<{
@@ -560,11 +562,16 @@ export function getPlanetSigns(date: Date): PlanetInfo[] {
       algo: (d) => getEclipticSignAE(AE.Body.Venus,   d, lookupSign(VENUS_PERIODS,   d, "Kova")) },
     { key: "Mars",    symbol: "♂", periods: MARS_PERIODS,     fallback: "Koç",
       algo: (d) => getEclipticSignAE(AE.Body.Mars,    d, lookupSign(MARS_PERIODS,    d, "Koç")) },
-    { key: "Jüpiter", symbol: "♃", periods: JUPITER_PERIODS,  fallback: "Yay"      },
-    { key: "Satürn",  symbol: "♄", periods: SATURN_PERIODS,   fallback: "Boğa"     },
-    { key: "Uranüs",  symbol: "♅", periods: URANUS_PERIODS,   fallback: "İkizler"  },
-    { key: "Neptün",  symbol: "♆", periods: NEPTUNE_PERIODS,  fallback: "Koç"      },
-    { key: "Plüton",  symbol: "♇", periods: PLUTO_PERIODS,    fallback: "Kova"     },
+    { key: "Jüpiter", symbol: "♃", periods: JUPITER_PERIODS,  fallback: "Yay",
+      algo: (d) => getEclipticSignAE(AE.Body.Jupiter, d, lookupSign(JUPITER_PERIODS, d, "Yay")) },
+    { key: "Satürn",  symbol: "♄", periods: SATURN_PERIODS,   fallback: "Boğa",
+      algo: (d) => getEclipticSignAE(AE.Body.Saturn,  d, lookupSign(SATURN_PERIODS,  d, "Boğa")) },
+    { key: "Uranüs",  symbol: "♅", periods: URANUS_PERIODS,   fallback: "İkizler",
+      algo: (d) => getEclipticSignAE(AE.Body.Uranus,  d, lookupSign(URANUS_PERIODS,  d, "İkizler")) },
+    { key: "Neptün",  symbol: "♆", periods: NEPTUNE_PERIODS,  fallback: "Koç",
+      algo: (d) => getEclipticSignAE(AE.Body.Neptune, d, lookupSign(NEPTUNE_PERIODS, d, "Koç")) },
+    { key: "Plüton",  symbol: "♇", periods: PLUTO_PERIODS,    fallback: "Kova",
+      algo: (d) => getEclipticSignAE(AE.Body.Pluto,   d, lookupSign(PLUTO_PERIODS,   d, "Kova")) },
   ];
 
   return planets.map(({ key, symbol, periods, fallback, algo }) => {
