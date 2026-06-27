@@ -30,8 +30,10 @@ import {
   unitCostAndCurrency,
 } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
+  deleteDogaltasInventoryItems,
   loadDogaltasInventoryForTenant,
   syncDogaltasInventoryToDb,
+  upsertDogaltasInventoryItem,
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -275,10 +277,11 @@ export default function DogaltasUrunStokPage() {
     [diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, stokIn],
   );
 
-  function handleAddStock() {
+  async function handleAddStock() {
     setStockMsg(null);
+    const targetName = turkishUpper(name.trim());
     const result = addOrUpdateInventoryItem(inventory, {
-      name: turkishUpper(name.trim()),
+      name: targetName,
       type: stoneType,
       stokIn: toFloat(stokIn, 0),
       diziTlIn: toFloat(diziTl, 0),
@@ -296,6 +299,7 @@ export default function DogaltasUrunStokPage() {
     let items = result.items;
     const norm = normalizeDiziInventory(items);
     items = norm.items;
+    // localStorage: anında geri bildirim + çevrimdışı yedek (DB öncelikli kaynağın önbelleği)
     const saved = saveInventory(items);
     setInventory(items);
     if (!saved) {
@@ -304,6 +308,30 @@ export default function DogaltasUrunStokPage() {
       );
       return;
     }
+
+    // K-1: Demo değilse kaydı kalıcı olarak Supabase'e yaz. Böylece sayfa
+    // yenilenince kaybolmaz ve cihazlar arası senkron olur.
+    if (!isDemo && activeTenantId) {
+      const targetKey = `${targetName.trim().toLowerCase()}|${stoneType.trim().toLowerCase()}`;
+      const target = items.find((it) => itemKeyFrom(it) === targetKey);
+      if (target) {
+        const res = await upsertDogaltasInventoryItem(activeTenantId, target);
+        if (!res.ok) {
+          setStockMsg(
+            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+          );
+          return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
+        }
+        // DB'den taze çek: kanonik durum + yeni id; önbelleğin DB'yi ezme riski kalmaz.
+        await reloadInventory();
+        setStockMsg(
+          res.created
+            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
+            : "Kayıt güncellendi ve buluta kaydedildi.",
+        );
+      }
+    }
+
     setName("");
     setStokIn("");
     setDiziTl("");
@@ -323,11 +351,24 @@ export default function DogaltasUrunStokPage() {
       message: `Seçili ${selectedKeys.size} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
     });
     if (!ok) return;
+    const removed = inventory.filter((it) => selectedKeys.has(`${itemKeyFrom(it)}`));
     const next = inventory.filter((it) => !selectedKeys.has(`${itemKeyFrom(it)}`));
     saveInventory(next);
     setInventory(next);
+    const count = selectedKeys.size;
     setSelectedKeys(new Set());
-    setStockMsg(`${selectedKeys.size} kayıt silindi.`);
+    // K-1: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
+    if (!isDemo && activeTenantId && removed.length > 0) {
+      const res = await deleteDogaltasInventoryItems(activeTenantId, removed);
+      await reloadInventory();
+      if (!res.ok) {
+        setStockMsg(
+          `${count} kayıt cihazınızdan silindi ancak buluttan silmede hata: ${res.error}`,
+        );
+        return;
+      }
+    }
+    setStockMsg(`${count} kayıt silindi.`);
   }
 
   function itemKeyFrom(it: InvItem) {

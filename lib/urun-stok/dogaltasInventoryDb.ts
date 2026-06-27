@@ -401,3 +401,94 @@ export async function syncDogaltasInventoryToDb(
 
   return { ok: !firstError, error: firstError };
 }
+
+/**
+ * Manuel "Yeni Kayıt Ekle" — tek bir stok kalemini güvenli server API'ye yazar.
+ * name+type ile mevcut DB satırı varsa TÜM alanları günceller; yoksa yeni satır
+ * oluşturur (create path). Böylece manuel eklenen kayıt yenilemede kaybolmaz ve
+ * cihazlar arası senkron olur. Demo hesaplarda server no-op (demo:true) — çağıran
+ * yalnızca localStorage'a düşer.
+ */
+export async function upsertDogaltasInventoryItem(
+  tenantId: string,
+  item: InvItem,
+): Promise<{
+  ok: boolean;
+  id?: string;
+  created: boolean;
+  error: string | null;
+  demo?: boolean;
+}> {
+  const tid = tenantId.trim();
+  if (!tid) return { ok: false, created: false, error: "tenant_id boş." };
+  if (!item.name?.trim()) {
+    return { ok: false, created: false, error: "Taş adı boş olamaz." };
+  }
+
+  const { rows, error: rawError } = await fetchInventoryRawRows(tid);
+  if (rawError) return { ok: false, created: false, error: rawError };
+
+  const idByKey = new Map<string, string>();
+  for (const row of rows) {
+    const k = itemKey(String(row.name ?? ""), String(row.type ?? ""));
+    const id = String(row.id ?? "").trim();
+    if (id) idByKey.set(k, id);
+  }
+
+  const payload = invItemToDbPayload(tid, item);
+  const foundId = idByKey.get(itemKey(item.name, item.type));
+
+  if (foundId) {
+    const { ok, error, demo } = await updateInventoryRow(foundId, payload);
+    return {
+      ok,
+      id: foundId,
+      created: false,
+      error: ok ? null : error ?? "Güncelleme hatası",
+      demo,
+    };
+  }
+
+  const { ok, id, error, demo } = await createInventoryRow(payload);
+  return {
+    ok,
+    id,
+    created: true,
+    error: ok ? null : error ?? "Ekleme hatası",
+    demo,
+  };
+}
+
+/**
+ * Seçili stok kalemlerini güvenli server API'den siler (name+type → id eşlemesiyle).
+ * DB'de bulunmayan (yalnız localStorage) kalemler sessizce atlanır.
+ */
+export async function deleteDogaltasInventoryItems(
+  tenantId: string,
+  items: InvItem[],
+): Promise<{ ok: boolean; deleted: number; error: string | null }> {
+  const tid = tenantId.trim();
+  if (!tid || !items.length) return { ok: true, deleted: 0, error: null };
+
+  const { rows, error: rawError } = await fetchInventoryRawRows(tid);
+  if (rawError) return { ok: false, deleted: 0, error: rawError };
+
+  const idByKey = new Map<string, string>();
+  for (const row of rows) {
+    const k = itemKey(String(row.name ?? ""), String(row.type ?? ""));
+    const id = String(row.id ?? "").trim();
+    if (id) idByKey.set(k, id);
+  }
+
+  let deleted = 0;
+  let firstError: string | null = null;
+  for (const it of items) {
+    const id = idByKey.get(itemKey(it.name, it.type));
+    if (!id) continue; // DB'de yok (eski localStorage-only kalem)
+    const { ok, error } = await deleteInventoryRow(id);
+    if (ok) deleted += 1;
+    else if (!firstError) firstError = error ?? "Silme hatası";
+  }
+
+  return { ok: !firstError, deleted, error: firstError };
+}
