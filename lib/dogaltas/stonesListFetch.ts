@@ -1,6 +1,9 @@
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { dogaltasApiGet, dogaltasApiSend } from "@/lib/dogaltas/dogaltasApi";
+
+// NOT (Faz 1-B): Bu modül artık tarayıcıdan doğrudan supabase.from("stones")
+// ÇAĞIRMAZ. Tüm liste/sayım/arama/exclusion erişimi /api/dogaltas/* güvenli
+// route'larına gider; tenant_id sunucuda oturumdan belirlenir. Demo showcase
+// (kütüphane dahil) ve K-1 pagination mantığı SUNUCU TARAFINA taşındı (route).
 
 // ─── Select ──────────────────────────────────────────────────────────────────
 
@@ -234,81 +237,35 @@ export function getStoneImageUrls(
   return out;
 }
 
-// ─── Tenant yardımcısı ───────────────────────────────────────────────────────
+// ─── Sorgu fonksiyonları (artık /api/dogaltas/stones üzerinden) ──────────────
+// İmzalar KORUNDU (tenantId parametresi geriye-uyum için kalır ama kullanılmaz;
+// tenant sunucuda oturumdan gelir). Demo/exclusion/pagination/arama SUNUCUDA.
 
-/**
- * Liste/sayım/arama sorgularının hangi tenant'ları kapsayacağını döner.
- *
- * MİMARİ KARAR: Admin/kütüphane (ADMIN_LIBRARY_TENANT_ID) taşları gerçek
- * uzmanlara OTOMATİK GÖRÜNMEZ. Her uzman yalnızca kendi tenant'ındaki taşları
- * görür/sayar/arar; yeni hesap tamamen boş başlar. Kütüphane admin'in ana bilgi
- * deposudur ve uzmana ancak "seçili uzmana kopyala/aktar" ile gönderilir
- * (kopyalama → uzman tenant'ında yeni kayıt; canlı bağlantı değil).
- *
- * Tek istisna: DEMO (showcase) hesaplar örnek içeriği göstermek için kütüphaneyi
- * de görür. Demo tespiti localStorage'daki yasam_user kaydından yapılır
- * (SSR'de null → güvenli şekilde tenant-only).
- */
-function tenantFilterIds(tenantId: string): string[] {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
-  const isDemo = readYasamUser()?.is_demo_account === true;
-  return isDemo ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
+function buildStonesQuery(
+  mode: string,
+  opts: { offset?: number; limit?: number; search?: string; searchMode?: SearchMode } = {},
+): string {
+  const p = new URLSearchParams({ mode });
+  if (opts.offset != null) p.set("offset", String(opts.offset));
+  if (opts.limit != null) p.set("limit", String(opts.limit));
+  const q = opts.search?.trim();
+  if (q) { p.set("q", q); p.set("searchMode", opts.searchMode ?? "name"); }
+  return `/api/dogaltas/stones?${p.toString()}`;
 }
-
-/**
- * Bu tenant'ın gizlediği (kaldırdığı) taş ID'lerini dizi olarak döner.
- * Liste sorgularında `.not("id","in",...)` ile SUNUCU TARAFINDA elenir;
- * böylece sayfalama (range) zaten-filtrelenmiş satırlar üzerinde çalışır ve
- * ilk sayfa hariç tutulan taşlarla dolup boş kalmaz.
- * Kütüphane tenant'ı kendi kütüphanesini gizleyemez → exclusion uygulanmaz.
- */
-async function fetchExclusionIdArray(tenantId: string): Promise<string[]> {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [];
-  const { data } = await supabase
-    .from("stone_exclusions")
-    .select("stone_id")
-    .eq("tenant_id", tenantId);
-  return (data ?? []).map((r) => String(r.stone_id));
-}
-
-/** PostgREST in-list dizesi: (uuid1,uuid2,...) — UUID değerleri tırnak gerektirmez. */
-function exclusionInList(excludedIds: string[]): string {
-  return `(${excludedIds.join(",")})`;
-}
-
-// ─── Sorgu fonksiyonları ─────────────────────────────────────────────────────
 
 export async function fetchStonesListCount(
-  tenantId: string,
+  _tenantId: string,
   search?: string,
   searchMode?: SearchMode,
 ): Promise<{ count: number; error: string | null }> {
-  const ids = tenantFilterIds(tenantId);
-  const excluded = await fetchExclusionIdArray(tenantId);
-  const q = search?.trim();
-  let query = supabase
-    .from("stones")
-    .select("id", { count: "exact", head: true })
-    .in("tenant_id", ids);
-
-  if (excluded.length > 0) {
-    query = query.not("id", "in", exclusionInList(excluded));
-  }
-
-  const searchOr = q
-    ? buildStonesListSearchOrFilter(q, searchMode ?? "name")
-    : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { count, error } = await query;
-  if (error) return { count: 0, error: error.message };
-  return { count: count ?? 0, error: null };
+  const r = await dogaltasApiGet<{ count?: number }>(
+    buildStonesQuery("count", { search, searchMode }));
+  if (!r.ok) return { count: 0, error: r.error ?? "Okuma hatası" };
+  return { count: r.data?.count ?? 0, error: null };
 }
 
 export async function fetchStonesListPage(
-  tenantId: string,
+  _tenantId: string,
   options: {
     offset?: number;
     search?: string;
@@ -316,37 +273,10 @@ export async function fetchStonesListPage(
     searchMode?: SearchMode;
   } = {},
 ): Promise<{ rows: StoneListItem[]; error: string | null }> {
-  const limit = options.limit ?? STONES_LIST_PAGE_SIZE;
-  const from = options.offset ?? 0;
-  const to = from + limit - 1;
-  const ids = tenantFilterIds(tenantId);
-  const excluded = await fetchExclusionIdArray(tenantId);
-  const q = options.search?.trim();
-
-  let query = supabase
-    .from("stones")
-    .select(STONES_LIST_SELECT)
-    .in("tenant_id", ids)
-    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
-    .range(from, to);
-
-  if (excluded.length > 0) {
-    query = query.not("id", "in", exclusionInList(excluded));
-  }
-
-  const searchOr = q
-    ? buildStonesListSearchOrFilter(q, options.searchMode ?? "name")
-    : null;
-  if (searchOr) {
-    query = query.or(searchOr);
-  }
-
-  const { data, error } = await query;
-  if (error) return { rows: [], error: error.message };
-
-  const rows = (data ?? []).map((row) =>
-    mapStoneListRow(row as Record<string, unknown>),
-  );
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
+    buildStonesQuery("list", options));
+  if (!r.ok) return { rows: [], error: r.error ?? "Okuma hatası" };
+  const rows = (r.data?.rows ?? []).map(mapStoneListRow);
   return { rows: sortStonesByNameTr(rows), error: null };
 }
 
@@ -355,19 +285,12 @@ export async function fetchStonesListPage(
  * Pagination yok — client-side filtre için tam set gerekli.
  */
 export async function fetchAllStonesExtended(
-  tenantId: string,
+  _tenantId: string,
 ): Promise<{ rows: StoneListItemExtended[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from("stones")
-    .select(STONES_LIST_EXTENDED_SELECT)
-    .in("tenant_id", tenantFilterIds(tenantId))
-    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS);
-
-  if (error) return { rows: [], error: error.message };
-
-  const rows = (data ?? []).map((row) =>
-    mapStoneExtendedRow(row as Record<string, unknown>),
-  );
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
+    buildStonesQuery("extended"));
+  if (!r.ok) return { rows: [], error: r.error ?? "Okuma hatası" };
+  const rows = (r.data?.rows ?? []).map(mapStoneExtendedRow);
   return { rows: sortStonesByNameTr(rows), error: null };
 }
 
@@ -377,65 +300,35 @@ export async function fetchAllStonesExtended(
  * Bu tenant için gizlenmiş (kaldırılmış) taş ID'lerini döner.
  * Kütüphane taşı "soft-delete" mantığı için kullanılır.
  */
-export async function fetchStoneExclusions(tenantId: string): Promise<Set<string>> {
-  const { data } = await supabase
-    .from("stone_exclusions")
-    .select("stone_id")
-    .eq("tenant_id", tenantId);
-  return new Set((data ?? []).map((r) => String(r.stone_id)));
+export async function fetchStoneExclusions(_tenantId: string): Promise<Set<string>> {
+  const r = await dogaltasApiGet<{ stoneIds?: string[] }>("/api/dogaltas/stone-exclusions");
+  if (!r.ok) return new Set();
+  return new Set((r.data?.stoneIds ?? []).map((s) => String(s)));
 }
 
 /**
- * Demo hesapta referans taş ID'sini döner.
- *
- * Liste sayfasıyla birebir aynı mantık kullanır:
- *   - tenantFilterIds  → kullanıcı + admin kütüphanesi
- *   - ORDER BY stone_name ASC   → liste sıralamasıyla senkron (alfabetik)
- *   - stone_exclusions  → gizlenmiş taşlar atlanır
- *   - search/searchMode  → ?q= parametresi varsa aynı filtre uygulanır
- *
- * Sıralama ileride değişirse bu fonksiyonu da güncelle;
- * her ikisi aynı kaynak kullandığından bozulma olmaz.
+ * Demo hesapta referans taş ID'sini döner — liste sıralamasındaki ilk görünen taş.
+ * Liste route'uyla AYNI kaynak (mode=list, limit=1): tenant/exclusion/arama sunucuda.
  */
 export async function getDemoReferenceStoneId(
-  tenantId: string,
+  _tenantId: string,
   options: { search?: string; searchMode?: SearchMode } = {},
 ): Promise<string | null> {
-  const ids = tenantFilterIds(tenantId);
-  const excludedSet = await fetchStoneExclusions(tenantId);
-
-  let query = supabase
-    .from("stones")
-    .select("id")
-    .in("tenant_id", ids)
-    .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
-    .limit(1);
-
-  if (excludedSet.size > 0) {
-    query = query.not("id", "in", `(${Array.from(excludedSet).join(",")})`);
-  }
-
-  const q = options.search?.trim();
-  if (q) {
-    const searchOr = buildStonesListSearchOrFilter(q, options.searchMode ?? "name");
-    if (searchOr) query = query.or(searchOr);
-  }
-
-  const { data } = await query.maybeSingle();
-  return typeof data?.id === "string" ? data.id : null;
+  const r = await dogaltasApiGet<{ rows?: { id?: unknown }[] }>(
+    buildStonesQuery("list", { limit: 1, search: options.search, searchMode: options.searchMode }));
+  if (!r.ok) return null;
+  const first = r.data?.rows?.[0]?.id;
+  return typeof first === "string" ? first : null;
 }
 
 /**
- * Kütüphane taşlarını bu tenant için gizler (upsert — tekrar ekleme hata vermesin).
+ * Kütüphane taşlarını bu tenant için gizler (server: upsert, tenant oturumdan).
  */
 export async function excludeStonesForTenant(
-  tenantId: string,
+  _tenantId: string,
   stoneIds: string[],
 ): Promise<{ error: string | null }> {
   if (stoneIds.length === 0) return { error: null };
-  const rows = stoneIds.map((id) => ({ tenant_id: tenantId, stone_id: id }));
-  const { error } = await supabase
-    .from("stone_exclusions")
-    .upsert(rows, { onConflict: "tenant_id,stone_id", ignoreDuplicates: true });
-  return { error: error?.message ?? null };
+  const r = await dogaltasApiSend("/api/dogaltas/stone-exclusions", "POST", { stoneIds });
+  return { error: r.ok ? null : (r.error ?? "Gizlenemedi") };
 }

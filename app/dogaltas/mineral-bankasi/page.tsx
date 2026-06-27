@@ -7,7 +7,7 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { supabase } from "@/lib/supabase";
+import { createMineral } from "@/lib/dogaltas/dogaltasApi";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type MineralForm = {
@@ -193,13 +193,13 @@ export default function MineralBankasiPage() {
       kategori: form.kategori.trim() || "",
     };
 
-    const { error } = await supabase.from("minerals").insert(payload);
+    const { ok, error } = await createMineral(payload);
 
     setSaving(false);
 
-    if (error) {
+    if (!ok) {
       // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      setErrorMessage(`Mineral kaydedilemedi: ${error.message}`);
+      setErrorMessage(`Mineral kaydedilemedi: ${error ?? "Bilinmeyen hata"}`);
       showToast({
         type: "error",
         title: "Kayıt başarısız",

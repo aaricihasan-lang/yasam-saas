@@ -1,5 +1,8 @@
-import { supabase } from "@/lib/supabase";
 import { sanitizeOrSearchTerm } from "@/lib/dogaltas/stonesListFetch";
+import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
+
+// NOT (Faz 1-B): Mineral liste/sayım/arama artık /api/dogaltas/minerals üzerinden;
+// tarayıcı doğrudan supabase.from("minerals") ÇAĞIRMAZ. tenant sunucudan.
 
 /** Liste kartı — hafif kolonlar */
 export const MINERALS_LIST_SELECT =
@@ -107,17 +110,6 @@ export function mineralRowMatchesSearch(row: MineralSearchRow, term: string): bo
   return Boolean(needle) && haystack.includes(needle);
 }
 
-function mineralMatchesCategory(
-  kategori: string | null | undefined,
-  category?: string,
-): boolean {
-  if (!category) return true;
-  if (category === MINERALS_UNCATEGORIZED_FILTER) {
-    return !kategori?.trim();
-  }
-  return (kategori?.trim() || "") === category;
-}
-
 export function mapMineralListRow(row: Record<string, unknown>): MineralListItem {
   return {
     id: String(row.id ?? ""),
@@ -130,78 +122,32 @@ export function mapMineralListRow(row: Record<string, unknown>): MineralListItem
   };
 }
 
-function mapSearchRow(row: Record<string, unknown>): MineralSearchRow {
-  return {
-    ...mapMineralListRow(row),
-    fiziksel: row.fiziksel,
-    zihinsel: row.zihinsel,
-    fizyoloji: row.fizyoloji,
-    eksiklik_belirtileri: row.eksiklik_belirtileri,
-    fazlalik_belirtileri: row.fazlalik_belirtileri,
-    doz_asimi: row.doz_asimi,
-    iceren_taslar: row.iceren_taslar,
-    organ_etkileri: row.organ_etkileri,
-    cakralar: row.cakralar,
-  };
+function buildMineralsQuery(
+  mode: string,
+  opts: { offset?: number; limit?: number; search?: string; category?: string } = {},
+): string {
+  const p = new URLSearchParams({ mode });
+  if (opts.offset != null) p.set("offset", String(opts.offset));
+  if (opts.limit != null) p.set("limit", String(opts.limit));
+  const q = opts.search?.trim();
+  if (q) p.set("q", q);
+  const c = opts.category?.trim();
+  if (c) p.set("category", c);
+  return `/api/dogaltas/minerals?${p.toString()}`;
 }
 
 export async function fetchMineralsListCount(
-  tenantId: string,
+  _tenantId: string,
   search?: string,
   category?: string,
 ): Promise<{ count: number; error: string | null }> {
-  const q = search?.trim();
-  const categoryTrim = category?.trim();
-
-  if (!q) {
-    let query = supabase
-      .from("minerals")
-      .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId);
-
-    if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
-      query = query.or("kategori.is.null,kategori.eq.");
-    } else if (categoryTrim) {
-      query = query.eq("kategori", categoryTrim);
-    }
-
-    const { count, error } = await query;
-    if (error) return { count: 0, error: error.message };
-    return { count: count ?? 0, error: null };
-  }
-
-  const { rows, error } = await fetchAllMineralsForSearch(tenantId, q, categoryTrim);
-  if (error) return { count: 0, error };
-  return { count: rows.length, error: null };
-}
-
-async function fetchAllMineralsForSearch(
-  tenantId: string,
-  term: string,
-  category?: string,
-): Promise<{ rows: MineralListItem[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from("minerals")
-    .select(MINERALS_LIST_SEARCH_SELECT)
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false, nullsFirst: false });
-
-  if (error) return { rows: [], error: error.message };
-
-  const categoryTrim = category?.trim();
-  const filtered = (data ?? [])
-    .map((row) => mapSearchRow(row as Record<string, unknown>))
-    .filter((row) => {
-      if (!mineralMatchesCategory(row.kategori, categoryTrim)) return false;
-      return mineralRowMatchesSearch(row, term);
-    })
-    .map(mapMineralListRow);
-
-  return { rows: filtered, error: null };
+  const r = await dogaltasApiGet<{ count?: number }>(buildMineralsQuery("count", { search, category }));
+  if (!r.ok) return { count: 0, error: r.error ?? "Okuma hatası" };
+  return { count: r.data?.count ?? 0, error: null };
 }
 
 export async function fetchMineralsListPage(
-  tenantId: string,
+  _tenantId: string,
   options: {
     offset?: number;
     search?: string;
@@ -209,75 +155,21 @@ export async function fetchMineralsListPage(
     limit?: number;
   } = {},
 ): Promise<{ rows: MineralListItem[]; error: string | null }> {
-  const limit = options.limit ?? MINERALS_LIST_PAGE_SIZE;
-  const from = options.offset ?? 0;
-  const q = options.search?.trim();
-  const categoryTrim = options.category?.trim();
-
-  if (!q) {
-    let query = supabase
-      .from("minerals")
-      .select(MINERALS_LIST_SELECT)
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false, nullsFirst: false })
-      .range(from, from + limit - 1);
-
-    if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
-      query = query.or("kategori.is.null,kategori.eq.");
-    } else if (categoryTrim) {
-      query = query.eq("kategori", categoryTrim);
-    }
-
-    const { data, error } = await query;
-    if (error) return { rows: [], error: error.message };
-
-    const rows = (data ?? []).map((row) =>
-      mapMineralListRow(row as Record<string, unknown>),
-    );
-    return { rows, error: null };
-  }
-
-  const { rows: allMatches, error } = await fetchAllMineralsForSearch(
-    tenantId,
-    q,
-    categoryTrim,
-  );
-  if (error) return { rows: [], error };
-
-  return {
-    rows: allMatches.slice(from, from + limit),
-    error: null,
-  };
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(buildMineralsQuery("list", options));
+  if (!r.ok) return { rows: [], error: r.error ?? "Okuma hatası" };
+  return { rows: (r.data?.rows ?? []).map(mapMineralListRow), error: null };
 }
 
 /**
- * Demo referans mineral — liste sıralamasındaki ilk görünen kayıt.
- * Sıralama (created_at DESC) ve filtreler fetchMineralsListPage ile eşleşir.
+ * Demo referans mineral — liste sıralamasındaki ilk görünen kayıt (server: limit=1).
  */
 export async function getDemoReferenceMineralId(
-  tenantId: string,
+  _tenantId: string,
   options: { search?: string; category?: string } = {},
 ): Promise<string | null> {
-  let query = supabase
-    .from("minerals")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(1);
-
-  const categoryTrim = options.category?.trim();
-  if (categoryTrim === MINERALS_UNCATEGORIZED_FILTER) {
-    query = query.or("kategori.is.null,kategori.eq.");
-  } else if (categoryTrim) {
-    query = query.eq("kategori", categoryTrim);
-  }
-
-  const q = options.search?.trim();
-  if (q) {
-    const orFilter = buildMineralsListSearchOrFilter(q);
-    if (orFilter) query = query.or(orFilter);
-  }
-
-  const { data } = await query.maybeSingle();
-  return typeof data?.id === "string" ? data.id : null;
+  const r = await dogaltasApiGet<{ rows?: { id?: unknown }[] }>(
+    buildMineralsQuery("list", { limit: 1, search: options.search, category: options.category }));
+  if (!r.ok) return null;
+  const first = r.data?.rows?.[0]?.id;
+  return typeof first === "string" ? first : null;
 }

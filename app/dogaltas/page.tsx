@@ -19,12 +19,10 @@ import {
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
-import { supabase } from "@/lib/supabase";
+import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
+import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
-
-const STONES_SEARCH_SELECT =
-  "id, stone_name, short_description, general_info, physical_effects, spiritual_effects, other_effects, warning_text, warning_tags, chakras, assignments";
 
 type StoneSearchRecord = {
   id: string;
@@ -356,17 +354,10 @@ function formatTry(amount: number): string {
   }).format(amount);
 }
 
-async function fetchTableCount(
-  table: string,
-  tenantId: string,
-): Promise<number | null> {
-  const { count, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
-
-  if (error) return null;
-  return count ?? 0;
+/** Aylık trend + stok değeri için ham taş satırları (server API, kullanıcı tenant'ı). */
+async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; error: string | null }> {
+  const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>("/api/dogaltas/stones?mode=raw");
+  return { data: r.data?.rows ?? [], error: r.ok ? null : (r.error ?? "Okuma hatası") };
 }
 
 function DogaltasPageContent() {
@@ -417,17 +408,15 @@ function DogaltasPageContent() {
       return;
     }
 
-    const [stonesCountRes, stonesRowsRes, mineralsCount, combinationsRes] =
+    const [stonesCountRes, stonesRowsRes, mineralsCountRes, combinationsRes] =
       await Promise.all([
-        // Toplam Taş Kaydı — /dogaltas/dogaltas-listesi ile AYNI kaynak:
-        // kullanıcı tenant'ı + admin kütüphanesi (ADMIN_LIBRARY_TENANT_ID).
-        // Demo'da taşlar kütüphanede olduğundan eq(ownTenant) yanlış 0 üretir.
+        // Toplam Taş Kaydı — server API (oturum tenant'ı + demo'da kütüphane).
         fetchStonesListCount(tenantId),
-        // Aylık trend + stok değeri için ham satırlar (kullanıcı tenant'ı).
-        supabase.from("stones").select("*").eq("tenant_id", tenantId),
-        fetchTableCount("minerals", tenantId),
-        // Aktif Kombinasyonlar — combinations artık anon SELECT'e kapalı.
-        // /dogaltas/kombinasyonlar ile AYNI kaynak: güvenli server API (oturum tenant'ı).
+        // Aylık trend + stok değeri için ham satırlar (server API, kullanıcı tenant'ı).
+        fetchStonesRaw(),
+        // Mineral Bankası sayacı — server API (tenant-only).
+        fetchMineralsListCount(tenantId),
+        // Aktif Kombinasyonlar — güvenli server API (oturum tenant'ı).
         fetchCombinationsViaApi(),
       ]);
 
@@ -452,8 +441,14 @@ function DogaltasPageContent() {
       setCombinationsCount(combinationsRes.rows.length);
     }
 
-    // Mineral Bankası — /dogaltas/mineral-listesi ile aynı (yalnız kullanıcı tenant'ı).
-    setMineralsCount(mineralsCount);
+    // Mineral Bankası — server API (tenant-only). Hata olursa null (→ "—"), 0 yazma yok.
+    if (mineralsCountRes.error) {
+      console.error("[dogaltas/dashboard] Mineral sayımı hatası:", mineralsCountRes.error);
+      setMineralsCount(null);
+      failed.push("mineral");
+    } else {
+      setMineralsCount(mineralsCountRes.count);
+    }
 
     // Aylık trend + stok değeri — kullanıcı tenant'ı ham satırları (mevcut davranış).
     const rows = (stonesRowsRes.data ?? []) as Record<string, unknown>[];
@@ -507,16 +502,14 @@ function DogaltasPageContent() {
       throw new Error(MISSING_SESSION_TENANT_MESSAGE);
     }
 
-    const { data, error } = await supabase
-      .from("stones")
-      .select(STONES_SEARCH_SELECT)
-      .eq("tenant_id", tenantId);
-
-    if (error) {
-      throw new Error(error.message);
+    // Server API (mode=extended) — assignments dahil tüm arama alanlarını döndürür.
+    const r = await dogaltasApiGet<{ rows?: Record<string, unknown>[] }>(
+      "/api/dogaltas/stones?mode=extended");
+    if (!r.ok) {
+      throw new Error(r.error ?? "Arama verisi okunamadı.");
     }
 
-    const mapped = (data ?? []).map((row) =>
+    const mapped = (r.data?.rows ?? []).map((row) =>
       mapStoneSearchRecord(row as Record<string, unknown>),
     );
     setStonesForSearch(mapped);

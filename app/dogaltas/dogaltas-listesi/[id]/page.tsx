@@ -26,6 +26,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
+import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
 
 const STONE_BUCKET = "stone-photos";
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
@@ -674,11 +675,6 @@ function StoneDetailPage() {
         return;
       }
 
-      const tenantIds =
-        tenantId === ADMIN_LIBRARY_TENANT_ID
-          ? [tenantId]
-          : [tenantId, ADMIN_LIBRARY_TENANT_ID];
-
       // Demo: liste sıralamasındaki ilk görünen taş → referans kayıt, tüm içerikler açık
       // getDemoReferenceStoneId: tenantFilter + updated_at DESC + exclusions + ?q= arama
       if (readYasamUser()?.is_demo_account) {
@@ -689,18 +685,13 @@ function StoneDetailPage() {
         setIsDemoReference(refId === id);
       }
 
-      const { data, error } = await supabase
-        .from("stones")
-        .select("*")
-        .in("tenant_id", tenantIds)
-        .eq("id", id)
-        .maybeSingle();
+      const { ok, row: data, error } = await getStone(id);
 
       setLoading(false);
 
-      if (error) {
+      if (!ok) {
         setStone(null);
-        setErrorMessage(`Kayıt okunurken hata oluştu\n${error.message}`);
+        setErrorMessage(`Kayıt okunurken hata oluştu\n${error ?? ""}`);
         return;
       }
 
@@ -839,23 +830,12 @@ function StoneDetailPage() {
       payload.assignments = valuesToAssignments(activeEditor.values);
     }
 
-    const { data, error } = await supabase
-      .from("stones")
-      .update(payload)
-      .eq("tenant_id", tenantId)
-      .eq("id", stone.id)
-      .select("*")
-      .maybeSingle();
+    const { ok, row: data, error } = await updateStone(stone.id, payload);
 
     setSaving(false);
 
-    if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!data) {
-      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+    if (!ok || !data) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
       return;
     }
 
@@ -919,16 +899,12 @@ function StoneDetailPage() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const { error } = await supabase
-      .from("stones")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("id", stone.id);
+    const { ok, error } = await apiDeleteStone(stone.id);
 
     setDeleteLoading(false);
 
-    if (error) {
-      setErrorMessage(`Kayıt silinemedi: ${error.message}`);
+    if (!ok) {
+      setErrorMessage(`Kayıt silinemedi: ${error ?? "Lütfen tekrar deneyin."}`);
       return;
     }
 
@@ -986,26 +962,12 @@ function StoneDetailPage() {
 
     const nextImages = [...baseImages, ...additions];
 
-    const { data, error } = await supabase
-      .from("stones")
-      .update({
-        images: nextImages,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("tenant_id", tenantId)
-      .eq("id", currentStone.id)
-      .select("*")
-      .maybeSingle();
+    const { ok, row: data, error } = await updateStone(currentStone.id, { images: nextImages });
 
     setImageBusy(false);
 
-    if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!data) {
-      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+    if (!ok || !data) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
       return;
     }
 
@@ -1051,26 +1013,14 @@ function StoneDetailPage() {
 
     const nextImages = (currentStone.images || []).filter((img) => img.id !== image.id);
 
-    const { data, error } = await supabase
-      .from("stones")
-      .update({
-        images: nextImages.length > 0 ? nextImages : [],
-        updated_at: new Date().toISOString(),
-      })
-      .eq("tenant_id", tenantId)
-      .eq("id", currentStone.id)
-      .select("*")
-      .maybeSingle();
+    const { ok, row: data, error } = await updateStone(currentStone.id, {
+      images: nextImages.length > 0 ? nextImages : [],
+    });
 
     setImageBusy(false);
 
-    if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
-      return;
-    }
-
-    if (!data) {
-      setErrorMessage("Kayıt güncellenemedi: kayıt bulunamadı.");
+    if (!ok || !data) {
+      setErrorMessage(`Kayıt güncellenemedi: ${error ?? "kayıt bulunamadı."}`);
       return;
     }
 

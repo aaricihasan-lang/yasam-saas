@@ -40,7 +40,7 @@ import {
   stoneMatchesMineral,
   stoneMatchesZodiac,
 } from "@/lib/dogaltas/stoneSearchUtils";
-import { supabase } from "@/lib/supabase";
+import { deleteStone as apiDeleteStone, deleteStones } from "@/lib/dogaltas/dogaltasApi";
 
 const DEMO_ACTION_MESSAGE =
   "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
@@ -421,23 +421,13 @@ function DogaltasListesiPageContent() {
       }
       setExcludedStoneIds((prev) => new Set([...prev, stoneId]));
     } else {
-      // Kendi taşı → gerçek DELETE
-      const { data: deletedRows, error } = await supabase
-        .from("stones")
-        .delete()
-        .eq("tenant_id", tenantId)
-        .eq("id", stoneId)
-        .select("id");
+      // Kendi taşı → gerçek DELETE (server API, tenant guard)
+      const { ok, error } = await apiDeleteStone(stoneId);
 
       setDeleteLoading(false);
 
-      if (error) {
-        setErrorMessage(`Kayıt silinemedi: ${error.message}`);
-        return;
-      }
-
-      if (!deletedRows?.length) {
-        setErrorMessage("Kayıt silinemedi. Lütfen tekrar deneyin.");
+      if (!ok) {
+        setErrorMessage(`Kayıt silinemedi: ${error ?? "Lütfen tekrar deneyin."}`);
         return;
       }
 
@@ -739,20 +729,13 @@ function DogaltasListesiPageContent() {
     let ownError: string | null = null;
     let libError: string | null = null;
 
-    // Kendi taşları → gerçek DELETE
+    // Kendi taşları → gerçek DELETE (server API, tenant guard'lı tekil DELETE'ler)
     if (ownIds.length > 0) {
-      const { data: deletedRows, error } = await supabase
-        .from("stones")
-        .delete()
-        .eq("tenant_id", tenantId)
-        .in("id", ownIds)
-        .select("id");
-
-      if (error) {
-        ownError = error.message;
-      } else {
-        deletedCount = deletedRows?.length ?? 0;
-        const deletedIdSet = new Set((deletedRows ?? []).map((r) => r.id as string));
+      const { deletedIds, error } = await deleteStones(ownIds);
+      if (error) ownError = error;
+      deletedCount += deletedIds.length;
+      if (deletedIds.length > 0) {
+        const deletedIdSet = new Set(deletedIds);
         setDetailData((prev) => (prev ? prev.filter((s) => !deletedIdSet.has(s.id)) : null));
       }
     }

@@ -28,7 +28,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
-import { supabase } from "@/lib/supabase";
+import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -402,14 +402,10 @@ function MineralListesiPageContent() {
 
     setBulkDeleteBusy(true);
     try {
-      const { error } = await supabase
-        .from("minerals")
-        .delete()
-        .eq("tenant_id", tid)
-        .in("id", ids);
+      const { ok, error } = await bulkDeleteMinerals(ids);
 
-      if (error) {
-        showToast({ type: "error", message: `Silme başarısız: ${error.message}` });
+      if (!ok) {
+        showToast({ type: "error", message: `Silme başarısız: ${error ?? "Bilinmeyen hata"}` });
         return;
       }
 

@@ -8,6 +8,7 @@ import {
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
 import { supabase } from "@/lib/supabase";
+import { createStone } from "@/lib/dogaltas/dogaltasApi";
 import { useToast } from "@/components/ui/ToastProvider";
 const STONE_BUCKET = "stone-photos";
 
@@ -453,13 +454,13 @@ export default function DogaltasKayitPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("stones").insert(payload);
+    const { ok, error } = await createStone(payload);
 
     setIsSaving(false);
 
-    if (error) {
+    if (!ok) {
       // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      showError(`Kayıt yapılamadı: ${error.message}`);
+      showError(`Kayıt yapılamadı: ${error ?? "Bilinmeyen hata"}`);
       showToast({
         type: "error",
         title: "Kayıt başarısız",

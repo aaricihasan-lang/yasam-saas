@@ -7,9 +7,7 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 import {
-  ADMIN_LIBRARY_TENANT_ID,
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
@@ -18,6 +16,7 @@ import {
   getFirstStoneImageUrl,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
@@ -186,16 +185,11 @@ export default function KombinasyonOlusturPage() {
       );
 
       // Mineral adı önerileri (Mineral Bankası) — başarısız olursa serbest metin yine çalışır.
-      // Kütüphane mineralleri gerçek uzmana otomatik görünmez; yalnız demo showcase görür.
-      const isDemoUser = readYasamUser()?.is_demo_account === true;
-      const tenantIds =
-        isDemoUser && tid !== ADMIN_LIBRARY_TENANT_ID
-          ? [tid, ADMIN_LIBRARY_TENANT_ID]
-          : [tid];
-      const { data: minRows } = await supabase
-        .from("minerals")
-        .select("name")
-        .in("tenant_id", tenantIds);
+      // Kütüphane mineralleri gerçek uzmana otomatik görünmez; yalnız demo showcase görür
+      // (server mode=all is_demo'ya göre kütüphaneyi ekler).
+      const minRes = await dogaltasApiGet<{ rows?: { name?: unknown }[] }>(
+        "/api/dogaltas/minerals?mode=all");
+      const minRows = minRes.data?.rows ?? [];
       if (!cancelled) {
         const seen = new Set<string>();
         const names: string[] = [];

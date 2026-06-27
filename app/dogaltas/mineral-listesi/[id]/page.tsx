@@ -24,10 +24,7 @@ import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontS
 import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
-import { supabase } from "@/lib/supabase";
-
-const MINERALS_DETAIL_SELECT =
-  "id,source_id,name,aciklama,fiziksel,zihinsel,fizyoloji,eksiklik_belirtileri,fazlalik_belirtileri,doz_asimi,iceren_taslar,organ_etkileri,cakralar,kategori,created_at";
+import { getMineral } from "@/lib/dogaltas/dogaltasApi";
 
 const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
 const SEARCH_MATCH_BADGE_CLASS =
@@ -451,17 +448,12 @@ function MineralDetailPageContent() {
       }
     }
 
-    const { data, error } = await supabase
-      .from("minerals")
-      .select(MINERALS_DETAIL_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("id", id)
-      .maybeSingle();
+    const { ok, row: data, error } = await getMineral(id);
 
     setLoading(false);
 
-    if (error) {
-      setErrorMessage(`Mineral kayıtları okunamadı: ${error.message}`);
+    if (!ok) {
+      setErrorMessage(`Mineral kayıtları okunamadı: ${error ?? ""}`);
       setMineral(null);
       return;
     }
