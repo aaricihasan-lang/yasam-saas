@@ -11,6 +11,8 @@ import {
   DOGALTAS_INVENTORY_TABLE,
   type LiveStockCategory,
   type LiveStockRow,
+  type StockDeltaResult,
+  applyStockDelta,
   filterLiveStock,
   fmtMoney,
   formatStockTotals,
@@ -61,48 +63,158 @@ function LetterPlaceholder({ letter }: { letter: string }) {
   );
 }
 
-function StockCard({ row }: { row: LiveStockRow }) {
+function StockCard({
+  row,
+  onAdjust,
+}: {
+  row: LiveStockRow;
+  onAdjust: (row: LiveStockRow, delta: number) => Promise<StockDeltaResult>;
+}) {
+  const [mode, setMode] = useState<null | "add" | "sell">(null);
+  const [qty, setQty] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function open(next: "add" | "sell") {
+    setMode(next);
+    setQty("");
+    setErr(null);
+  }
+  function close() {
+    setMode(null);
+    setQty("");
+    setErr(null);
+  }
+  async function confirm() {
+    const n = parseFloat(qty.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      setErr("Geçerli bir miktar girin.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    const res = await onAdjust(row, mode === "sell" ? -n : n);
+    setBusy(false);
+    if (!res.ok) {
+      setErr(res.error);
+      return;
+    }
+    close();
+  }
+
   return (
     <article
-      className={`flex flex-col gap-3 rounded-[16px] border-2 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+      className={`flex flex-col gap-3 rounded-[16px] border-2 bg-white p-3 shadow-sm sm:p-4 ${
         row.isCritical ? "border-rose-300 ring-2 ring-rose-100" : "border-violet-100"
       }`}
     >
-      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 border-violet-100 sm:h-20 sm:w-20">
-        <ProductThumb photos={row.photos} name={row.name} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 border-violet-100 sm:h-20 sm:w-20">
+          <ProductThumb photos={row.photos} name={row.name} />
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-start gap-2">
+            <span className="rounded-xl bg-violet-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-violet-800">
+              {row.categoryLabel}
+            </span>
+            {row.isCritical ? (
+              <span className="rounded-xl bg-rose-100 px-3 py-1 text-xs font-black text-rose-800">Kritik stok</span>
+            ) : null}
+          </div>
+          <h2 className="text-base font-black leading-tight text-slate-900 sm:text-lg">{row.name}</h2>
+          <p className="text-sm font-semibold text-slate-600">{row.groupLabel}</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-slate-700">
+            <span>Maliyet: {row.costPerUnitLabel}</span>
+            <span className="text-emerald-800">Satış: {row.salePerUnitLabel}</span>
+            {row.marginPct != null ? (
+              <span className="rounded-lg bg-emerald-50 px-2 font-black text-emerald-800">Kâr %{row.marginPct}</span>
+            ) : null}
+            <span className="text-slate-500">Değer: {fmtMoney(row.stockValue)}</span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-stretch sm:items-end">
+          <p className="mb-1 text-center text-xs font-black uppercase tracking-wider text-slate-500 sm:text-right">
+            Mevcut stok
+          </p>
+          <div
+            className={`rounded-xl border-2 px-4 py-3 text-center sm:min-w-[110px] ${
+              row.isCritical
+                ? "border-rose-400 bg-gradient-to-br from-rose-50 to-orange-50"
+                : "border-violet-300 bg-gradient-to-br from-violet-50 to-indigo-50"
+            }`}
+          >
+            <p className="text-xl font-black leading-none text-slate-900 sm:text-2xl">{row.stockDisplay}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">birim: {row.unitLabel}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex flex-wrap items-start gap-2">
-          <span className="rounded-xl bg-violet-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-violet-800">
-            {row.categoryLabel}
-          </span>
-          {row.isCritical ? (
-            <span className="rounded-xl bg-rose-100 px-3 py-1 text-xs font-black text-rose-800">Kritik stok</span>
-          ) : null}
-        </div>
-        <h2 className="text-base font-black leading-tight text-slate-900 sm:text-lg">{row.name}</h2>
-        <p className="text-sm font-semibold text-slate-600">{row.groupLabel}</p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-slate-700">
-          <span>Birim maliyet: {row.costPerUnitLabel}</span>
-          <span>Tahmini değer: {fmtMoney(row.stockValue)}</span>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 flex-col items-stretch sm:items-end">
-        <p className="mb-1 text-center text-xs font-black uppercase tracking-wider text-slate-500 sm:text-right">
-          Mevcut stok
-        </p>
-        <div
-          className={`rounded-xl border-2 px-4 py-3 text-center sm:min-w-[110px] ${
-            row.isCritical
-              ? "border-rose-400 bg-gradient-to-br from-rose-50 to-orange-50"
-              : "border-violet-300 bg-gradient-to-br from-violet-50 to-indigo-50"
-          }`}
-        >
-          <p className="text-xl font-black leading-none text-slate-900 sm:text-2xl">{row.stockDisplay}</p>
-          <p className="mt-1 text-xs font-bold text-slate-500">birim: {row.unitLabel}</p>
-        </div>
+      {/* Hızlı stok aksiyonu — sat (düş) / ekle (artır). Fiş yok, sadece sayı. */}
+      <div className="border-t border-violet-100 pt-3">
+        {mode === null ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => open("sell")}
+              className="inline-flex h-10 min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-800 transition hover:bg-rose-100 sm:flex-none"
+            >
+              − Sat (stok düş)
+            </button>
+            <button
+              type="button"
+              onClick={() => open("add")}
+              className="inline-flex h-10 min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-800 transition hover:bg-emerald-100 sm:flex-none"
+            >
+              + Stok ekle
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-black text-slate-700">
+                {mode === "sell" ? "Kaç adet satıldı?" : "Kaç adet eklenecek?"}
+              </span>
+              <input
+                autoFocus
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void confirm();
+                  if (e.key === "Escape") close();
+                }}
+                placeholder={`kaç ${row.unitLabel}?`}
+                className="h-10 w-28 rounded-xl border-2 border-violet-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500"
+              />
+              <span className="text-sm font-semibold text-slate-500">{row.unitLabel}</span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void confirm()}
+                className={`inline-flex h-10 min-h-[40px] items-center justify-center rounded-xl border-2 px-5 text-sm font-black text-white transition disabled:opacity-50 ${
+                  mode === "sell"
+                    ? "border-rose-500 bg-rose-600 hover:bg-rose-700"
+                    : "border-emerald-500 bg-emerald-600 hover:bg-emerald-700"
+                }`}
+              >
+                {busy ? "…" : mode === "sell" ? "Sat" : "Ekle"}
+              </button>
+              <button
+                type="button"
+                onClick={close}
+                className="inline-flex h-10 min-h-[40px] items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+              >
+                İptal
+              </button>
+            </div>
+            {err ? <p className="text-sm font-bold text-rose-700">{err}</p> : null}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -150,6 +262,17 @@ export default function CanliStokMerkeziPage() {
     setIsDemo(demo);
     void reload().then(() => setHydrated(true));
   }, [reload]);
+
+  // Hızlı sat/ekle: kart üzerinden stok düş/artır → localStorage + DB sync → tazele
+  const handleAdjust = useCallback(
+    async (row: LiveStockRow, delta: number): Promise<StockDeltaResult> => {
+      const demo = readYasamUser()?.is_demo_account === true;
+      const res = await applyStockDelta(row, delta, tenantId, demo);
+      if (res.ok) await reload();
+      return res;
+    },
+    [tenantId, reload],
+  );
 
   useEffect(() => {
     const onRefresh = () => void reload();
@@ -230,7 +353,7 @@ export default function CanliStokMerkeziPage() {
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-700">Canlı depo</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">Canlı Stok Merkezi</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Tüm modüllerdeki gerçek stoklar tek ekranda — salt okunur. Stoklar ilgili modül envanterinden anlık okunur.
+            Tüm modüllerdeki gerçek stoklar tek ekranda. Ara, satış/maliyet/kâr marjını gör, karttan hızlıca sat (stok düş) veya stok ekle — değişiklik tüm cihazlarda anında.
           </p>
         </header>
 
@@ -386,7 +509,7 @@ export default function CanliStokMerkeziPage() {
         ) : (
           <div className="space-y-4">
             {filtered.map((row) => (
-              <StockCard key={row.id} row={row} />
+              <StockCard key={row.id} row={row} onAdjust={handleAdjust} />
             ))}
           </div>
         )}

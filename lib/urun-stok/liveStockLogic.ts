@@ -4,17 +4,26 @@ import {
   formatStockDisplay as formatAccessoryStock,
   formatVariantLabel as formatAccessoryVariant,
   loadAccessoryInventory,
+  saveAccessoryInventory,
   type AccessoryItem,
 } from "@/lib/urun-stok/accessoryStockLogic";
-import { loadAccessoryInventoryForTenant } from "@/lib/urun-stok/accessoryInventoryDb";
+import {
+  loadAccessoryInventoryForTenant,
+  syncAccessoryInventoryToDb,
+} from "@/lib/urun-stok/accessoryInventoryDb";
 import {
   DOGALTAS_INVENTORY_TABLE,
   loadDogaltasInventoryForTenant,
+  syncDogaltasInventoryToDb,
   type DogaltasInventoryLoadDebug,
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
+  applyItemCostTotals,
   fmtMoney,
+  isDizi,
   itemKey,
+  loadInventory as loadDogaltasInventory,
+  saveInventory as saveDogaltasInventory,
   unitCostAndCurrency,
   type InvItem,
 } from "@/lib/urun-stok/dogaltasStockLogic";
@@ -26,25 +35,37 @@ import {
   formatStockDisplay as formatOilStock,
   fmtUnitCost as fmtOilUnitCost,
   loadOilInventory,
+  saveOilInventory,
   unitLabel as oilUnitLabel,
   type OilItem,
 } from "@/lib/urun-stok/oilStockLogic";
-import { loadOilInventoryForTenant } from "@/lib/urun-stok/oilInventoryDb";
+import {
+  loadOilInventoryForTenant,
+  syncOilInventoryToDb,
+} from "@/lib/urun-stok/oilInventoryDb";
 import {
   formatVariantLabel as formatOtherVariant,
   formatStockDisplay as formatOtherStock,
   fmtUnitCost as fmtOtherUnitCost,
   loadOtherInventory,
+  saveOtherInventory,
   type OtherItem,
 } from "@/lib/urun-stok/otherStockLogic";
-import { loadOtherInventoryForTenant } from "@/lib/urun-stok/otherInventoryDb";
+import {
+  loadOtherInventoryForTenant,
+  syncOtherInventoryToDb,
+} from "@/lib/urun-stok/otherInventoryDb";
 import {
   formatStockDisplay as formatSoapStock,
   fmtUnitCost as fmtSoapUnitCost,
   loadSoapCreamInventory,
+  saveSoapCreamInventory,
   type SoapCreamItem,
 } from "@/lib/urun-stok/soapCreamStockLogic";
-import { loadSoapCreamInventoryForTenant } from "@/lib/urun-stok/soapCreamInventoryDb";
+import {
+  loadSoapCreamInventoryForTenant,
+  syncSoapCreamInventoryToDb,
+} from "@/lib/urun-stok/soapCreamInventoryDb";
 
 export type LiveStockCategory = ProductCategory;
 
@@ -59,10 +80,21 @@ export type LiveStockRow = {
   unitLabel: string;
   costPerUnit: number;
   costPerUnitLabel: string;
+  /** Birim satış fiyatı — modülde tanımlıysa; doğaltaşta kombinasyonla kurulur (null). */
+  salePerUnit: number | null;
+  salePerUnitLabel: string;
+  /** Kâr marjı % (maliyet üzerine markup) — hesaplanabiliyorsa. */
+  marginPct: number | null;
   stockValue: number;
   isCritical: boolean;
   photos: string[];
 };
+
+/** Maliyet üzerine kâr (markup) % — telefon başında "kâr marjı?" sorusu için. */
+function marginOf(cost: number, sale: number | null): number | null {
+  if (sale == null || cost <= 0 || sale <= 0) return null;
+  return Math.round(((sale - cost) / cost) * 100);
+}
 
 export type LiveStockSummary = {
   totalVarieties: number;
@@ -109,6 +141,10 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
         : costPerUnit > 0
           ? `${fmtMoney(costPerUnit)} / adet`
           : "—",
+      // Doğaltaşta per-taş satış fiyatı yok (satış kombinasyonla kurulur).
+      salePerUnit: null,
+      salePerUnitLabel: "—",
+      marginPct: null,
       stockValue: warning ? 0 : costPerUnit * qty,
       isCritical: isCriticalStock(qty, "adet"),
       photos: it.photos ?? [],
@@ -122,6 +158,7 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
 function oilItemToRow(it: OilItem): LiveStockRow | null {
   if (it.stockBase <= 0) return null;
   const u = it.baseUnit;
+  const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
     id: `oil:${it.id}`,
     category: "oil",
@@ -133,6 +170,9 @@ function oilItemToRow(it: OilItem): LiveStockRow | null {
     unitLabel: oilUnitLabel(u),
     costPerUnit: it.costPerBase,
     costPerUnitLabel: fmtOilUnitCost(it.costPerBase, u),
+    salePerUnit: sale,
+    salePerUnitLabel: sale != null ? fmtOilUnitCost(sale, u) : "—",
+    marginPct: marginOf(it.costPerBase, sale),
     stockValue: it.costPerBase * it.stockBase,
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
@@ -142,6 +182,7 @@ function oilItemToRow(it: OilItem): LiveStockRow | null {
 function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
   if (it.stockBase <= 0) return null;
   const u = it.baseUnit;
+  const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
     id: `soap_cream:${it.id}`,
     category: "soap_cream",
@@ -153,6 +194,9 @@ function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
     unitLabel: oilUnitLabel(u),
     costPerUnit: it.costPerBase,
     costPerUnitLabel: fmtSoapUnitCost(it.costPerBase, u),
+    salePerUnit: sale,
+    salePerUnitLabel: sale != null ? fmtSoapUnitCost(sale, u) : "—",
+    marginPct: marginOf(it.costPerBase, sale),
     stockValue: it.costPerBase * it.stockBase,
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
@@ -161,6 +205,7 @@ function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
 
 function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
   if (it.stockQty <= 0) return null;
+  const sale = it.salePerUnit > 0 ? it.salePerUnit : null;
   return {
     id: `accessory:${it.id}`,
     category: "accessory",
@@ -172,6 +217,9 @@ function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
     unitLabel: "adet",
     costPerUnit: it.costPerUnit,
     costPerUnitLabel: `${fmtMoney(it.costPerUnit)} / adet`,
+    salePerUnit: sale,
+    salePerUnitLabel: sale != null ? `${fmtMoney(sale)} / adet` : "—",
+    marginPct: marginOf(it.costPerUnit, sale),
     stockValue: it.costPerUnit * it.stockQty,
     isCritical: isCriticalStock(it.stockQty, "adet"),
     photos: it.photos ?? [],
@@ -181,6 +229,7 @@ function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
 function otherItemToRow(it: OtherItem): LiveStockRow | null {
   if (it.stockBase <= 0) return null;
   const u = it.baseUnit;
+  const sale = it.salePerBase > 0 ? it.salePerBase : null;
   return {
     id: `other:${it.id}`,
     category: "other",
@@ -192,6 +241,9 @@ function otherItemToRow(it: OtherItem): LiveStockRow | null {
     unitLabel: oilUnitLabel(u),
     costPerUnit: it.costPerBase,
     costPerUnitLabel: fmtOtherUnitCost(it.costPerBase, u),
+    salePerUnit: sale,
+    salePerUnitLabel: sale != null ? fmtOtherUnitCost(sale, u) : "—",
+    marginPct: marginOf(it.costPerBase, sale),
     stockValue: it.costPerBase * it.stockBase,
     isCritical: isCriticalStock(it.stockBase, u),
     photos: it.photos ?? [],
@@ -365,6 +417,120 @@ export function sortLiveStock(
     next.sort((a, b) => k(a.name).localeCompare(k(b.name), "tr"));
   }
   return next;
+}
+
+export type StockDeltaResult = {
+  ok: boolean;
+  error: string | null;
+  newAmount: number | null;
+};
+
+/**
+ * Canlı Stok kartından hızlı "− Sat" / "+ Ekle".
+ * Tek ürünün stoğunu deltaBase (ürünün taban biriminde; satış için NEGATİF)
+ * kadar değiştirir, localStorage'a yazar ve (demo değilse) ilgili modülün DB
+ * sync'ini çağırır. Maliyet/satış fiyatı DEĞİŞMEZ — yalnız stok miktarı.
+ * Fiş/satış geçmişi YAZILMAZ (vizyon: basit stok defteri).
+ */
+export async function applyStockDelta(
+  row: LiveStockRow,
+  deltaBase: number,
+  tenantId: string | null,
+  isDemo: boolean,
+): Promise<StockDeltaResult> {
+  if (!Number.isFinite(deltaBase) || deltaBase === 0) {
+    return { ok: false, error: "Geçerli bir miktar girin.", newAmount: null };
+  }
+  const clientId = row.id.slice(row.category.length + 1); // "oil:xyz" → "xyz"
+  const guard = (current: number): { ok: true; next: number } | { ok: false; error: string } => {
+    const next = current + deltaBase;
+    if (next < 0) return { ok: false, error: `Stokta sadece ${fmtQty(current)} ${row.unitLabel} var.` };
+    return { ok: true, next };
+  };
+
+  if (row.category === "oil") {
+    const items = loadOilInventory();
+    const idx = items.findIndex((it) => it.id === clientId);
+    if (idx < 0) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    const g = guard(items[idx].stockBase);
+    if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+    items[idx] = { ...items[idx], stockBase: g.next };
+    saveOilInventory(items);
+    if (!isDemo && tenantId) {
+      const r = await syncOilInventoryToDb(tenantId, [items[idx]]);
+      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    }
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  if (row.category === "soap_cream") {
+    const items = loadSoapCreamInventory();
+    const idx = items.findIndex((it) => it.id === clientId);
+    if (idx < 0) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    const g = guard(items[idx].stockBase);
+    if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+    items[idx] = { ...items[idx], stockBase: g.next };
+    saveSoapCreamInventory(items);
+    if (!isDemo && tenantId) {
+      const r = await syncSoapCreamInventoryToDb(tenantId, [items[idx]]);
+      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    }
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  if (row.category === "accessory") {
+    const items = loadAccessoryInventory();
+    const idx = items.findIndex((it) => it.id === clientId);
+    if (idx < 0) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    const g = guard(items[idx].stockQty);
+    if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+    items[idx] = { ...items[idx], stockQty: g.next };
+    saveAccessoryInventory(items);
+    if (!isDemo && tenantId) {
+      const r = await syncAccessoryInventoryToDb(tenantId, [items[idx]]);
+      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    }
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  if (row.category === "other") {
+    const items = loadOtherInventory();
+    const idx = items.findIndex((it) => it.id === clientId);
+    if (idx < 0) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    const g = guard(items[idx].stockBase);
+    if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+    items[idx] = { ...items[idx], stockBase: g.next };
+    saveOtherInventory(items);
+    if (!isDemo && tenantId) {
+      const r = await syncOtherInventoryToDb(tenantId, [items[idx]]);
+      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    }
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  if (row.category === "dogaltas") {
+    const items = loadDogaltasInventory();
+    const idx = items.findIndex((it) => itemKey(it.name, it.type) === clientId);
+    if (idx < 0) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    const g = guard(items[idx].adet);
+    if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+    // Modülün kendi yeniden-hesabı: dizi ise dizi_price = adet_price × adet,
+    // sonra total/unit maliyet alanları (kâr modelini bozmadan).
+    let it: InvItem = { ...items[idx], adet: g.next, photos: [...(items[idx].photos || [])] };
+    if (isDizi(it.type) && (it.adet_price || 0) > 0) {
+      it.dizi_price = Math.round((it.adet_price || 0) * it.adet * 100) / 100;
+    }
+    it = applyItemCostTotals(it);
+    items[idx] = it;
+    saveDogaltasInventory(items);
+    if (!isDemo && tenantId) {
+      const r = await syncDogaltasInventoryToDb(tenantId, [it]);
+      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    }
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  return { ok: false, error: "Bilinmeyen kategori.", newAmount: null };
 }
 
 export { CATEGORY_LABELS, fmtMoney };
