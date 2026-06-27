@@ -5,7 +5,8 @@
  * Güneş   : astronomy-engine GeoVector+Ecliptic (FAZ 5B) — dakika hassasiyeti
  * Ay       : moon.ts → getMoonSign() kullanılır (sidereal hesaplama)
  * Diğerleri: astronomy-engine GeoVector+Ecliptic birincil (FAZ 1A) — tarih sınırı yok;
- *            hardcoded tablolar yalnızca AE-hata fallback'i + getPlanetSignPeriod için tutulur.
+ *            hardcoded tablolar yalnızca getPlanetSigns AE-hata fallback'i için tutulur.
+ * getPlanetSignPeriod: AE ingress (FAZ 1D) — kesin bitişik kalış aralığı, tarih sınırı yok.
  *
  * Kaynak: in-the-sky.org, prokerala.com, astroseek.com
  * Retrograde tarihleri retro.ts ile çakıştırıldı (2026-2030).
@@ -494,47 +495,41 @@ const PLUTO_PERIODS: ReadonlyArray<SignPeriod> = [
   { from: "2024-11-19", to: "2044-01-18", sign: "Kova"     }, // ← bugün ✓
 ];
 
-// ─── Güneş burç sınırları (yıl bağımsız) ────────────────────────────────────
+// ─── AE ingress dönem motoru (FAZ 1D) ────────────────────────────────────────
+// getPlanetSignPeriod için: gezegenin SEÇİLİ TARİHTEKİ burcunda KESİN BİTİŞİK kalış
+// aralığı (from = bu burca son giriş, to = sonraki çıkış; Türkiye saati). Retro
+// kaynaklı kısa wobble'lar bitişik kalışı doğal olarak böler. AE → tarih sınırı yok.
+// (Eski SUN_BOUNDARIES tablosu ve getSunSignBoundaries kaldırıldı; Güneş de AE ile.)
 
-type SunBoundary = { sign: string; sm: number; sd: number; em: number; ed: number };
+const SIGN_PERIOD_BODY: Record<PlanetKey, AE.Body> = {
+  "Güneş":   AE.Body.Sun,     "Merkür": AE.Body.Mercury, "Venüs":  AE.Body.Venus,
+  "Mars":    AE.Body.Mars,    "Jüpiter": AE.Body.Jupiter, "Satürn": AE.Body.Saturn,
+  "Uranüs":  AE.Body.Uranus,  "Neptün": AE.Body.Neptune,  "Plüton": AE.Body.Pluto,
+};
+// Adım, en kısa olası bitişik kalıştan küçük olmalı (hızlı gezegen 1g, yavaş 3g güvenli).
+const SIGN_PERIOD_STEP_DAYS: Record<PlanetKey, number> = {
+  "Güneş": 1, "Merkür": 1, "Venüs": 1, "Mars": 1,
+  "Jüpiter": 3, "Satürn": 3, "Uranüs": 3, "Neptün": 3, "Plüton": 3,
+};
+const SIGN_PERIOD_TR_OFFSET = 3 * 3_600_000;          // Türkiye UTC+3 sabit
+const SIGN_PERIOD_CAP_MS = 40 * 365 * 86_400_000;     // arama tavanı (Plüton ~20y/burç)
 
-const SUN_BOUNDARIES: ReadonlyArray<SunBoundary> = [
-  { sign: "Oğlak",   sm: 12, sd: 22, em: 1,  ed: 19 },
-  { sign: "Kova",    sm: 1,  sd: 20, em: 2,  ed: 18 },
-  { sign: "Balık",   sm: 2,  sd: 19, em: 3,  ed: 19 },
-  { sign: "Koç",     sm: 3,  sd: 20, em: 4,  ed: 19 },
-  { sign: "Boğa",    sm: 4,  sd: 20, em: 5,  ed: 20 },
-  { sign: "İkizler", sm: 5,  sd: 21, em: 6,  ed: 20 },
-  { sign: "Yengeç",  sm: 6,  sd: 21, em: 7,  ed: 22 },
-  { sign: "Aslan",   sm: 7,  sd: 23, em: 8,  ed: 22 },
-  { sign: "Başak",   sm: 8,  sd: 23, em: 9,  ed: 22 },
-  { sign: "Terazi",  sm: 9,  sd: 23, em: 10, ed: 22 },
-  { sign: "Akrep",   sm: 10, sd: 23, em: 11, ed: 21 },
-  { sign: "Yay",     sm: 11, sd: 22, em: 12, ed: 21 },
-];
-
-function getSunSignBoundaries(date: Date): { from: string; to: string } {
-  const y   = date.getFullYear();
-  const m   = date.getMonth() + 1;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const currentSign = getSunSign(date);
-  const b = SUN_BOUNDARIES.find(x => x.sign === currentSign);
-  if (!b) return { from: `${y}-01-01`, to: `${y}-12-31` };
-
-  let fromYear = y;
-  let toYear   = y;
-
-  if (b.sign === "Oğlak") {
-    if (m === 1) { fromYear = y - 1; toYear = y; }
-    else         { fromYear = y;     toYear = y + 1; }
-  } else {
-    if (m < b.sm) fromYear = y - 1;
+function aeSignIndexAt(body: AE.Body, ms: number): number {
+  const elon = AE.Ecliptic(AE.GeoVector(body, new Date(ms), true)).elon;
+  return Math.floor((((elon % 360) + 360) % 360) / 30);
+}
+function aeSignPeriodTrDate(ms: number): string {
+  const d = new Date(ms + SIGN_PERIOD_TR_OFFSET);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+/** inT s0 burcunda, outT farklı burçta → sınır anını ikili aramayla bulur (~dakika). */
+function aeSignBoundary(body: AE.Body, inT: number, outT: number, s0: number): number {
+  let i = inT, o = outT;
+  for (let k = 0; k < 44; k++) {
+    const mid = (i + o) / 2;
+    if (aeSignIndexAt(body, mid) === s0) i = mid; else o = mid;
   }
-
-  return {
-    from: `${fromYear}-${pad(b.sm)}-${pad(b.sd)}`,
-    to:   `${toYear}-${pad(b.em)}-${pad(b.ed)}`,
-  };
+  return i;
 }
 
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
@@ -544,7 +539,7 @@ function getSunSignBoundaries(date: Date): { from: string; to: string } {
  * Ay bu listede yer almaz; çağıran kod moon.ts → getMoonSign() kullanmalıdır.
  * Güneş/Merkür/Venüs/Mars: AE GeoVector+Ecliptic (FAZ 5B-5C) — tarih sınırı yok.
  * Jüpiter–Plüton: AE GeoVector+Ecliptic birincil (FAZ 1A) — tarih sınırı yok;
- *   tablo yalnızca AE-hata fallback'i. getPlanetSignPeriod hâlâ tabloyu kullanır.
+ *   tablo yalnızca AE-hata fallback'i.
  */
 export function getPlanetSigns(date: Date): PlanetInfo[] {
   const planets: Array<{
@@ -585,35 +580,37 @@ export function getPlanetSigns(date: Date): PlanetInfo[] {
 }
 
 /**
- * Verilen gezegen ve tarih için mevcut burç geçiş aralığını döner.
- * Güneş için algoritmik hesaplama, diğerleri için tarih tablosu kullanılır.
- * Tablo kapsamı dışındaysa null döner.
+ * Verilen gezegen ve tarih için, gezegenin o tarihte bulunduğu burçta KESİN BİTİŞİK
+ * kalış aralığını döner (from = bu burca son giriş, to = sonraki çıkış; Türkiye saati).
+ * astronomy-engine ingress hesabı (FAZ 1D) — tarih sınırı yok; retro wobble'lar
+ * bitişik kalışı doğal olarak böler. AE başarısız olursa null.
  */
 export function getPlanetSignPeriod(
   key: PlanetKey,
   date: Date,
 ): { from: string; to: string } | null {
-  if (key === "Güneş") return getSunSignBoundaries(date);
+  try {
+    const body = SIGN_PERIOD_BODY[key];
+    const step = SIGN_PERIOD_STEP_DAYS[key] * 86_400_000;
+    const t0   = date.getTime();
+    const s0   = aeSignIndexAt(body, t0);
 
-  const periodsMap: Partial<Record<PlanetKey, ReadonlyArray<SignPeriod>>> = {
-    "Merkür":  MERCURY_PERIODS,
-    "Venüs":   VENUS_PERIODS,
-    "Mars":    MARS_PERIODS,
-    "Jüpiter": JUPITER_PERIODS,
-    "Satürn":  SATURN_PERIODS,
-    "Uranüs":  URANUS_PERIODS,
-    "Neptün":  NEPTUNE_PERIODS,
-    "Plüton":  PLUTO_PERIODS,
-  };
+    // from: geriye doğru bu burca giriş anı
+    let prev = t0, cur = t0 - step;
+    const backCap = t0 - SIGN_PERIOD_CAP_MS;
+    while (cur > backCap && aeSignIndexAt(body, cur) === s0) { prev = cur; cur -= step; }
+    const fromMs = aeSignIndexAt(body, cur) === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
 
-  const periods = periodsMap[key];
-  if (!periods) return null;
+    // to: ileriye doğru bu burçtan çıkış anı
+    prev = t0; cur = t0 + step;
+    const fwdCap = t0 + SIGN_PERIOD_CAP_MS;
+    while (cur < fwdCap && aeSignIndexAt(body, cur) === s0) { prev = cur; cur += step; }
+    const toMs = aeSignIndexAt(body, cur) === s0 ? cur : aeSignBoundary(body, prev, cur, s0);
 
-  const iso = toTRDateKey(date);
-  for (const p of periods) {
-    if (iso >= p.from && iso <= p.to) return { from: p.from, to: p.to };
+    return { from: aeSignPeriodTrDate(fromMs), to: aeSignPeriodTrDate(toMs) };
+  } catch {
+    return null;
   }
-  return null;
 }
 
 // ─── Legacy tablo lookup — audit/karşılaştırma için (FAZ 5C) ─────────────────
