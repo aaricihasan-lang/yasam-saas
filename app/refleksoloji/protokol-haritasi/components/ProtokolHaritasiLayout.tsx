@@ -18,7 +18,7 @@ import { ProtocolRegistrationForm } from "./ProtocolRegistrationForm";
 import { ProtocolSummaryPanel } from "./ProtocolSummaryPanel";
 
 const panelClass =
-  "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md";
+  "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_8px_28px_-10px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/70 backdrop-blur-md";
 
 export function ProtokolHaritasiLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -87,13 +87,13 @@ export function ProtokolHaritasiLayout() {
   }
 
   return (
-    <main className="relative flex h-screen w-full max-w-none flex-col overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
+    <main className="relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased xl:h-screen xl:overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl" />
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full flex-col px-3 py-2 md:px-5 xl:px-7">
+      <div className="relative z-10 flex w-full flex-col px-3 py-2 md:px-5 xl:h-full xl:px-7">
         {isDemo && (
           <DemoModuleBanner
             className="shrink-0"
@@ -114,8 +114,8 @@ export function ProtokolHaritasiLayout() {
           </p>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[300px_1fr_1fr] xl:gap-4">
-          <aside className={`${panelClass} p-4`}>
+        <div className="grid min-h-0 grid-cols-1 gap-3 xl:flex-1 xl:grid-cols-[300px_1fr_1fr] xl:gap-4">
+          <aside className={`${panelClass} p-4 xl:h-full`}>
             <ProtocolRegistrationForm
               draft={draft}
               onDraftChange={setDraft}
@@ -125,12 +125,12 @@ export function ProtokolHaritasiLayout() {
             />
           </aside>
 
-          <section className={`${panelClass} p-4`}>
+          <section className={`${panelClass} p-4 xl:h-full`}>
             <h2 className="mb-3 shrink-0 text-base font-bold text-violet-900">Protokol Özeti</h2>
             <ProtocolSummaryPanel draft={draft} statuses={statuses} />
           </section>
 
-          <div className={`${panelClass} min-w-0`}>
+          <div className={`${panelClass} h-[68vh] min-h-[460px] min-w-0 xl:h-full xl:min-h-0`}>
             <ProtocolFootMap
               regions={regions}
               footView={footView}

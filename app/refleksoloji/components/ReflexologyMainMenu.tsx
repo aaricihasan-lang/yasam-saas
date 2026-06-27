@@ -168,7 +168,7 @@ function ReflexologyHubCard({
 
 function ReflexologyMainMenu() {
   return (
-    <main className="relative h-screen overflow-hidden text-slate-900 antialiased">
+    <main className="relative min-h-screen overflow-x-hidden text-slate-900 antialiased lg:h-screen lg:overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -184,7 +184,7 @@ function ReflexologyMainMenu() {
         <div className="absolute left-[48%] top-[38%] h-48 w-48 -translate-x-1/2 rounded-full bg-indigo-300/15 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full flex-col px-3 py-2 sm:px-5 xl:px-8">
+      <div className="relative z-10 flex w-full flex-col px-3 py-2 sm:px-5 lg:h-full xl:px-8">
         <div className="flex shrink-0 items-start justify-between gap-4">
           <header className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-violet-700/90 sm:text-[11px]">
@@ -203,7 +203,7 @@ function ReflexologyMainMenu() {
 
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center pt-2 pb-3 lg:pt-3 lg:pb-4">
+        <div className="flex min-h-0 flex-1 flex-col justify-start pt-2 pb-3 lg:justify-center lg:pt-3 lg:pb-4">
           <section className="w-full shrink-0 rounded-2xl border border-white/70 bg-white/40 px-3 py-3 shadow-[0_12px_36px_-16px_rgba(91,33,182,0.22)] ring-1 ring-white/50 backdrop-blur-xl sm:px-4 sm:py-4">
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-3">

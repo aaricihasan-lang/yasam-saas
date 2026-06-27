@@ -52,13 +52,13 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   }
 
   return (
-    <main className="relative flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
+    <main className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased lg:h-screen lg:w-screen lg:overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl" />
         <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full w-full max-w-none flex-col px-2 py-1 sm:px-3">
+      <div className="relative z-10 flex w-full max-w-none flex-col px-2 py-1 sm:px-3 lg:h-full">
         {isDemo && (
           <DemoModuleBanner
             className="shrink-0"
@@ -76,8 +76,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
           </header>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-          <div className="flex min-h-0 flex-1 gap-2 lg:flex-row lg:gap-3">
+        <div className="flex min-h-0 flex-col gap-1.5 lg:flex-1">
+          <div className="flex min-h-0 flex-col gap-2 lg:flex-1 lg:flex-row lg:gap-3">
             <OrganListPanel
               organs={workspace.organs}
               selectedOrgans={workspace.selectedOrgans}
@@ -87,19 +87,21 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               onAddOrgan={workspace.handleAddOrgan}
               onDeleteDrawing={workspace.handleDeleteSelectedDrawing}
             />
-            <FootCanvas
-              activeOrgan={workspace.activeOrgan}
-              selectedOrgans={workspace.selectedOrgans}
-              selectedFoot={workspace.selectedFoot}
-              selectedView={workspace.selectedView}
-              toolMode={toolMode}
-              drawShape={drawShape}
-              regions={workspace.displayRegions}
-              onUpsertRegion={workspace.handleUpsertRegion}
-              selectedRegionId={workspace.selectedRegionId}
-              onSelectRegion={workspace.setSelectedRegionId}
-              onDrawComplete={() => setToolMode("select")}
-            />
+            <div className="flex h-[58vh] min-h-[420px] min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <FootCanvas
+                activeOrgan={workspace.activeOrgan}
+                selectedOrgans={workspace.selectedOrgans}
+                selectedFoot={workspace.selectedFoot}
+                selectedView={workspace.selectedView}
+                toolMode={toolMode}
+                drawShape={drawShape}
+                regions={workspace.displayRegions}
+                onUpsertRegion={workspace.handleUpsertRegion}
+                selectedRegionId={workspace.selectedRegionId}
+                onSelectRegion={workspace.setSelectedRegionId}
+                onDrawComplete={() => setToolMode("select")}
+              />
+            </div>
             <RegionNotesPanel selectedOrgan={workspace.activeOrgan} />
           </div>
 
