@@ -196,6 +196,26 @@ function getMonthNumeroDays(year: number, month: number): Map<number, number> {
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
 
+/**
+ * Güvenli Türkçe normalize — arama eşleştirmesi için.
+ * Büyük/küçük + diakritik bağımsız hâle getirir:
+ *   "İlk Dördün" / "ilk dördün" / "ILK DORDUN" / "İLK DÖRDÜN" → hepsi "ilk dordun".
+ * (Varsayılan toLowerCase, "İ" → "i̇" (i + U+0307) ürettiği için doğrudan eşleşme bozuluyordu.)
+ */
+function foldTR(s: string): string {
+  return s
+    .toLowerCase()                       // İ→i̇ (U+0307), I→i, diğerleri normal
+    .replace(/ı/g, "i")                  // noktasız ı → i
+    .normalize("NFD")                    // ö→o+combining, ş→s+combining, İ kalıntısı i+U+0307 ...
+    .replace(/[̀-ͯ]/g, "")     // tüm birleşik işaretleri (U+0307 dahil) at
+    .trim();
+}
+
+// Diakritiksiz ay adı → index (foldTR ile eşleşmesi için önceden katlanmış)
+const MONTH_NAME_FOLDED: Record<string, number> = Object.fromEntries(
+  Object.entries(MONTH_NAME_MAP).map(([name, idx]) => [foldTR(name), idx]),
+);
+
 // AE tabanlı arama — gerçek TR tarihiyle sonuç döner
 function findNextPhase(from: Date, phaseName: string, maxDays = 120): SearchResultPhase | null {
   const found = getUpcomingPhaseEvents(from, maxDays).find(e => e.name === phaseName);
@@ -213,7 +233,8 @@ function findPhaseInMonth(year: number, month: number, phaseName: string, from: 
 }
 
 function parseSearchQuery(query: string, from: Date): SearchResult {
-  const q = query.trim().toLowerCase();
+  // Türkçe-güvenli normalize: büyük/küçük + diakritik bağımsız eşleşme (bkz. foldTR)
+  const q = foldTR(query);
   if (!q) return null;
 
   // "Retro" sorguları — önce kontrol et
@@ -225,7 +246,7 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
     }
     // "Merkür retrosu" gibi gezegen + retro
     for (const [key, planet] of Object.entries(RETRO_PLANET_KEYWORDS)) {
-      if (q.includes(key)) {
+      if (q.includes(foldTR(key))) {
         // Önce aktif mi?
         const active = getActiveRetros(from).find(r => r.planet === planet);
         if (active) return { kind: "retro", period: active, daysUntilStart: -1 };
@@ -247,8 +268,8 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
     return { kind: "retroList", periods: upcoming.slice(0, 5), label: "Yaklaşan Retrolar" };
   }
 
-  // "42 gün sonra"
-  const daysMatch = q.match(/^(\d+)\s*gün\s*sonra$/);
+  // "42 gün sonra" (q diakritiksiz olduğundan "gun")
+  const daysMatch = q.match(/^(\d+)\s*gun\s*sonra$/);
   if (daysMatch) {
     const n    = parseInt(daysMatch[1]!);
     const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
@@ -258,8 +279,8 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   // "15 Ağustos 2026"
   const trDate = q.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
   if (trDate) {
-    const d = parseInt(trDate[1]!), mName = trDate[2]!.toLowerCase(), y = parseInt(trDate[3]!);
-    const mIdx = MONTH_NAME_MAP[mName];
+    const d = parseInt(trDate[1]!), mName = trDate[2]!, y = parseInt(trDate[3]!);
+    const mIdx = MONTH_NAME_FOLDED[mName];
     if (mIdx !== undefined && d >= 1 && d <= 31)
       return { kind: "day", date: new Date(y, mIdx, Math.min(d, new Date(y, mIdx + 1, 0).getDate())) };
   }
@@ -277,8 +298,8 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   let monthIdx:  number | null = null;
   let yearVal:   number | null = null;
 
-  for (const key of Object.keys(PHASE_KEYWORDS))    { if (q.includes(key)) { phaseKey  = key;      break; } }
-  for (const [name, idx] of Object.entries(MONTH_NAME_MAP)) { if (q.includes(name)) { monthIdx = idx; break; } }
+  for (const key of Object.keys(PHASE_KEYWORDS))    { if (q.includes(foldTR(key))) { phaseKey  = key; break; } }
+  for (const [name, idx] of Object.entries(MONTH_NAME_FOLDED)) { if (q.includes(name)) { monthIdx = idx; break; } }
   const yearMatch = q.match(/\b(20\d\d)\b/);
   if (yearMatch) yearVal = parseInt(yearMatch[1]!);
 
@@ -348,6 +369,17 @@ export default function CosmicCalendarPage() {
   );
   // ── Seçili güne ait veriler ───────────────────────────────────────────────
   const moonPhase   = useMemo(() => getMoonPhase(selectedDate),          [selectedDate]);
+  // Seçili gün bir ana faz günüyse (Yeni Ay/İlk Dördün/Dolunay/Son Dördün), o günün
+  // ayrık faz adını göster — takvim işareti (🌕/🌑…) ile gün kartı çelişmesin.
+  // (Faz saati 00:00'dan farklı olsa bile kullanıcı için o gün "Dolunay günü" sayılır.)
+  const selectedMainPhase = useMemo(() => {
+    const main = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son Dördün"]);
+    const hit = getMonthPhaseEvents(selectedDate.getFullYear(), selectedDate.getMonth())
+      .find(e => e.day === selectedDate.getDate() && main.has(e.name));
+    return hit ? { name: hit.name, emoji: hit.emoji } : null;
+  }, [selectedDate]);
+  // Gün kartı/özet için görüntülenecek faz: ana faz günüyse ayrık ad, değilse sürekli faz.
+  const displayPhase = selectedMainPhase ?? moonPhase;
   const moonSign    = useMemo(() => getMoonSign(selectedDate),           [selectedDate]);
   const energy      = useMemo(() => getDailyEnergySummary(selectedDate), [selectedDate]);
   const hijriDate   = useMemo(() => getHijriDate(selectedDate),          [selectedDate]);
@@ -543,7 +575,7 @@ export default function CosmicCalendarPage() {
   const cosmicSummary = [
     { icon: "📅",            label: "Miladi",         value: miladiDate },
     { icon: "🌙",            label: "Hicri",          value: hijriDate },
-    { icon: moonPhase.emoji, label: "Ay Fazı",        value: moonPhase.name },
+    { icon: displayPhase.emoji, label: "Ay Fazı",        value: displayPhase.name },
     { icon: moonSign.emoji,  label: "Ay Burcu",       value: moonSign.name },
     { icon: "🔢",            label: "Numeroloji",     value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}` },
     { icon: dayRuler.symbol, label: "Gün Yöneticisi", value: dayRuler.name },
@@ -605,7 +637,7 @@ export default function CosmicCalendarPage() {
       <div className="pointer-events-none absolute -right-32 top-[20%] h-80 w-80 rounded-full bg-violet-300/[0.12] blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" aria-hidden />
 
-      <div className="relative z-10 w-full px-4 pt-4 pb-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 pt-4 pb-4 sm:px-6 lg:px-8 xl:px-10">
 
         {isDemo && (
           <DemoModuleBanner message="Kozmik takvim hesaplamaları anlık ve gerçek verilerle çalışır. Tüm içerikler demo hesabında görüntülenebilir." />
@@ -1057,7 +1089,7 @@ export default function CosmicCalendarPage() {
                 {[
                   { icon: "📅",            label: "Miladi",     value: miladiDate,                               color: "text-slate-800" },
                   { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
-                  { icon: moonPhase.emoji, label: "Ay Fazı",    value: moonPhase.name,                           color: "text-violet-700" },
+                  { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
                   { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
                   { icon: "🔢",            label: "Numeroloji", value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}`, color: "text-slate-800" },
                   { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
