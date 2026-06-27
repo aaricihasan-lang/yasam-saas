@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   DEMO_SEED_PROTOCOLS,
   DEMO_USER_LOCAL_PREFIX,
@@ -14,12 +13,20 @@ import {
   loadProtocolsFromStorage,
   saveProtocolsToStorage,
 } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
-import { supabase } from "@/lib/supabase";
 import type { ReflexologyProtocolRecord } from "../types";
 
 function buildDemoProtocolList(): ReflexologyProtocolRecord[] {
   const local = loadProtocolsFromStorage().map(savedProtocolToRecord);
   return [...local, ...DEMO_SEED_PROTOCOLS];
+}
+
+function userHeaders(): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return {
+    "x-user-id": uid ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+  };
 }
 
 export function useProtocolList() {
@@ -28,7 +35,6 @@ export function useProtocolList() {
   const [protocols, setProtocols] = useState<ReflexologyProtocolRecord[]>([]);
   const [loading, setLoading] = useState(!isDemo);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
-  const [tenantId, setTenantId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (isDemo) {
@@ -40,32 +46,38 @@ export function useProtocolList() {
     setLoading(true);
     setLoadErrorMessage(null);
 
-    const tid = await getSyncedTenantId();
-    if (!tid) {
-      setLoadErrorMessage("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
-      setProtocols([]);
+    // GÜVENLİK (anon kilidi): tenant_id sunucuda oturumdan belirlenir.
+    try {
+      const res = await fetch("/api/refleksoloji/protocols", {
+        headers: userHeaders(),
+        cache: "no-store",
+      });
       setLoading(false);
-      return;
-    }
 
-    setTenantId(tid);
+      if (res.status === 401 || res.status === 403) {
+        setLoadErrorMessage("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+        setProtocols([]);
+        return;
+      }
 
-    // GÜVENLIK: tenant_id filtresi zorunlu — yalnızca aktif kullanıcının protokolleri
-    const { data, error } = await supabase
-      .from("reflexology_protocols")
-      .select("*")
-      .eq("tenant_id", tid)
-      .order("title");
+      const json = (await res.json().catch(() => null)) as
+        | { ok?: boolean; protocols?: ReflexologyProtocolRecord[]; error?: string }
+        | null;
 
-    setLoading(false);
+      if (!res.ok || !json?.ok) {
+        setLoadErrorMessage(`Protokoller okunamadı: ${json?.error ?? res.statusText}`);
+        setProtocols([]);
+        return;
+      }
 
-    if (error) {
-      setLoadErrorMessage(`Protokoller okunamadı: ${error.message}`);
+      setProtocols((json.protocols ?? []) as ReflexologyProtocolRecord[]);
+    } catch (err) {
+      setLoading(false);
+      setLoadErrorMessage(
+        `Protokoller okunamadı: ${err instanceof Error ? err.message : "Bağlantı hatası"}`,
+      );
       setProtocols([]);
-      return;
     }
-
-    setProtocols((data || []) as ReflexologyProtocolRecord[]);
   }, [isDemo]);
 
   useEffect(() => {
@@ -88,19 +100,23 @@ export function useProtocolList() {
         return true;
       }
 
-      const tid = tenantId ?? (await getSyncedTenantId());
-      if (!tid) return false;
-      // GÜVENLIK: hem id hem tenant_id filtresi
-      const { error } = await supabase
-        .from("reflexology_protocols")
-        .delete()
-        .eq("id", id)
-        .eq("tenant_id", tid);
-      if (error) return false;
-      await refresh();
-      return true;
+      // GÜVENLİK (anon kilidi): silme güvenli route üzerinden; id+tenant_id eşleşmesi
+      // sunucuda zorlanır (IDOR engellenir).
+      try {
+        const res = await fetch(
+          `/api/refleksoloji/protocols/${encodeURIComponent(id)}`,
+          { method: "DELETE", headers: userHeaders() },
+        );
+        if (!res.ok) return false;
+        const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+        if (!json?.ok) return false;
+        await refresh();
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [isDemo, refresh, tenantId],
+    [isDemo, refresh],
   );
 
   return { protocols, loading, loadErrorMessage, refresh, deleteProtocol, isDemo };

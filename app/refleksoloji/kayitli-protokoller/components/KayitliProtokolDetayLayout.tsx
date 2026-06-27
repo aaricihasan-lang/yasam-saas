@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
@@ -21,7 +21,6 @@ import {
   savedProtocolToRecord,
 } from "@/lib/demo/demoRefleksoloji";
 import { loadProtocolsFromStorage } from "@/app/refleksoloji/protokol-haritasi/lib/protocolStorage";
-import { supabase } from "@/lib/supabase";
 import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
   buildProtocolClinicalContent,
@@ -34,6 +33,15 @@ import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
 };
+
+function userHeaders(): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return {
+    "x-user-id": uid ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+  };
+}
 
 const navBtnBackToList =
   "inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-300/70 bg-violet-50 px-3 text-[12px] font-semibold text-violet-900 transition hover:bg-violet-100";
@@ -214,16 +222,40 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         return;
       }
 
-      const { data, error } = await supabase
-        .from("reflexology_protocols")
-        .select("*")
-        .eq("id", protocolId)
-        .maybeSingle();
+      // GÜVENLİK (anon kilidi): tek protokol güvenli route'tan; id+tenant_id
+      // eşleşmesi sunucuda zorlanır (IDOR engellenir).
+      try {
+        const res = await fetch(
+          `/api/refleksoloji/protocols/${encodeURIComponent(protocolId)}`,
+          { headers: userHeaders(), cache: "no-store" },
+        );
+        if (cancelled) return;
+        setLoading(false);
 
-      if (cancelled) return;
-      setLoading(false);
-      if (error) { setLoadErrorMessage(`Protokoller okunamadı: ${error.message}`); setProtocol(null); return; }
-      setProtocol((data as ReflexologyProtocolRecord | null) ?? null);
+        if (res.status === 404) {
+          setProtocol(null);
+          return;
+        }
+
+        const json = (await res.json().catch(() => null)) as
+          | { ok?: boolean; protocol?: ReflexologyProtocolRecord | null; error?: string }
+          | null;
+
+        if (!res.ok || !json?.ok) {
+          setLoadErrorMessage(`Protokoller okunamadı: ${json?.error ?? res.statusText}`);
+          setProtocol(null);
+          return;
+        }
+
+        setProtocol((json.protocol as ReflexologyProtocolRecord | null) ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        setLoading(false);
+        setLoadErrorMessage(
+          `Protokoller okunamadı: ${err instanceof Error ? err.message : "Bağlantı hatası"}`,
+        );
+        setProtocol(null);
+      }
     }
 
     void loadProtocol();

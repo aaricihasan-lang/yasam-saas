@@ -354,14 +354,21 @@ export default function AdminWorkspaceArchiveDetailPage() {
       return;
     }
 
-    const { data: archiveRow, error: archiveError } = await supabase
-      .from("personal_archives")
-      .select("*")
-      .eq("id", archiveId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+    let archiveRow: Record<string, unknown> | null = null;
+    {
+      const adminId = readYasamUser()?.id;
+      const res = await fetch(
+        `/api/admin/users/${expertUserId}/archive?archiveId=${encodeURIComponent(archiveId)}`,
+        { headers: adminHeaders(adminId) },
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        row?: Record<string, unknown>;
+      };
+      if (res.ok && json.ok) archiveRow = json.row ?? null;
+    }
 
-    if (archiveError || !archiveRow) {
+    if (!archiveRow) {
       setNotFound(true);
       setLoading(false);
       return;

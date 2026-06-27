@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
-  loadTenantMetricSummary,
+  buildTenantCounts,
   LoadingScreen,
   SistemSagligiDetailShell,
   SummaryStatCard,
@@ -12,6 +12,46 @@ import {
   useSistemSagligiAdminGate,
   type TenantIdCount,
 } from "../detail-shared";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+
+/** numerology_analyses tenant metrikleri — admin service_role API üzerinden okunur. */
+async function loadNumerolojiTenantMetricSummary(): Promise<{
+  total: number;
+  tenantRows: TenantIdCount[];
+  distinctTenants: number;
+  error: string | null;
+}> {
+  try {
+    const adminId = readYasamUser()?.id;
+    const token = readSessionToken();
+    const headers: Record<string, string> = { "x-admin-id": adminId ?? "" };
+    if (token) headers["x-session-token"] = token;
+
+    const res = await fetch("/api/admin/numeroloji/tenant-metrics", { headers });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      return { total: 0, tenantRows: [], distinctTenants: 0, error: j.error ?? `HTTP ${res.status}` };
+    }
+    const json = (await res.json().catch(() => ({}))) as {
+      total?: number;
+      ids?: (string | null)[];
+    };
+    const tenantRows = buildTenantCounts(json.ids ?? []);
+    return {
+      total: json.total ?? 0,
+      tenantRows,
+      distinctTenants: tenantRows.length,
+      error: null,
+    };
+  } catch (err) {
+    return {
+      total: 0,
+      tenantRows: [],
+      distinctTenants: 0,
+      error: err instanceof Error ? err.message : "Numeroloji metrikleri alınamadı.",
+    };
+  }
+}
 
 export default function SistemSagligiNumerolojiPage() {
   useBfcacheRefresh();
@@ -25,7 +65,7 @@ export default function SistemSagligiNumerolojiPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
-    const result = await loadTenantMetricSummary("numerology_analyses");
+    const result = await loadNumerolojiTenantMetricSummary();
     if (result.error) {
       setLoadError(result.error);
       setTotal(0);

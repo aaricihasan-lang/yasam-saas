@@ -1,10 +1,18 @@
 /**
- * Ürün stoku — Supabase public.dogaltas_inventory (öncelikli)
+ * Ürün stoku — güvenli server API: /api/dogaltas/inventory (öncelikli)
  * localStorage dogaltas_inventory_v1 yalnızca yedek (aynı tenant önbelleği)
+ *
+ * NOT (Faz 1): Bu modül artık tarayıcıdan doğrudan supabase.from("dogaltas_inventory")
+ * ÇAĞIRMAZ. Tüm liste/ekle/güncelle/sil erişimi /api/dogaltas/inventory güvenli
+ * route'una gider; tenant_id sunucuda oturumdan belirlenir (istemciden gönderilmez).
  */
 
-import { createClient } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import {
+  createInventoryRow,
+  deleteInventoryRow,
+  fetchInventoryRows,
+  updateInventoryRow,
+} from "@/lib/urun-stok/dogaltasInventoryApi";
 import {
   INVENTORY_STORAGE_KEY,
   itemKey,
@@ -19,9 +27,6 @@ import {
 export const DOGALTAS_INVENTORY_TABLE = "dogaltas_inventory";
 
 const ACTIVE_TENANT_CACHE_KEY = "dogaltas_inventory_active_tenant_v1";
-
-const SELECT_COLUMNS =
-  "id, tenant_id, name, type, adet, dizi_icerik, dizi_price, adet_price, dizi_price_usd, dizi_price_eur, photos, usd_rate, eur_rate, total_cost_try, unit_cost_try";
 
 export type DogaltasInventoryLoadDebug = {
   tableName: string;
@@ -104,7 +109,27 @@ export function countAdetPositive(items: InvItem[]): number {
   return items.filter((it) => (it.adet ?? 0) > 0).length;
 }
 
-/** public.dogaltas_inventory — tenant_id ile filtre */
+/**
+ * Güvenli server API'den ham satırları (id dahil) çeker.
+ * tenant sunucuda oturumdan; tenantId parametresi geriye-uyum için tutulur.
+ */
+async function fetchInventoryRawRows(
+  tenantId: string,
+): Promise<{ rows: Record<string, unknown>[]; error: string | null }> {
+  const tid = tenantId.trim();
+  if (!tid) {
+    return { rows: [], error: "tenant_id boş — sorgu atlanmadı." };
+  }
+
+  const { rows, error } = await fetchInventoryRows();
+  if (error) {
+    console.warn("[dogaltas_inventory] API liste hata:", error, "tenant_id=", tid);
+    return { rows: [], error };
+  }
+  return { rows, error: null };
+}
+
+/** Güvenli server API üzerinden bu tenant'ın stok kalemleri (tenant sunucuda). */
 export async function fetchDogaltasInventoryFromDb(
   tenantId: string,
 ): Promise<{ items: InvItem[]; error: string | null; count: number }> {
@@ -113,21 +138,12 @@ export async function fetchDogaltasInventoryFromDb(
     return { items: [], error: "tenant_id boş — sorgu atlanmadı.", count: 0 };
   }
 
-  const { data, error } = await supabase
-    .from(DOGALTAS_INVENTORY_TABLE)
-    .select(SELECT_COLUMNS)
-    .eq("tenant_id", tid);
+  const { rows, error } = await fetchInventoryRawRows(tid);
+  if (error) return { items: [], error, count: 0 };
 
-  if (error) {
-    console.warn("[dogaltas_inventory] SELECT hata:", error.message, "tenant_id=", tid);
-    return { items: [], error: error.message, count: 0 };
-  }
+  const items = rows.map((row) => dbRowToInvItem(row));
 
-  const items = (data ?? []).map((row) =>
-    dbRowToInvItem(row as Record<string, unknown>),
-  );
-
-  console.log("[dogaltas_inventory] SELECT ok", {
+  console.log("[dogaltas_inventory] API liste ok", {
     tenant_id: tid,
     count: items.length,
   });
@@ -271,38 +287,34 @@ export async function upsertDogaltasInventoryFromJson(
     else inserted += 1;
   }
 
+  // Mevcut kayıtların name+type → id eşlemesi (güvenli API listesinden).
+  const { rows: existingRows, error: rawError } = await fetchInventoryRawRows(tid);
+  if (rawError) {
+    return { ok: false, error: `${DOGALTAS_INVENTORY_TABLE}: ${rawError}` };
+  }
+  const idByKey = new Map<string, string>();
+  for (const row of existingRows) {
+    const k = itemKey(String(row.name ?? ""), String(row.type ?? ""));
+    const id = String(row.id ?? "").trim();
+    if (id) idByKey.set(k, id);
+  }
+
   let dbWriteError: string | null = null;
 
   for (const item of items) {
     const payload = invItemToDbPayload(tid, item);
-    const { data: found, error: findError } = await supabase
-      .from(DOGALTAS_INVENTORY_TABLE)
-      .select("id")
-      .eq("tenant_id", tid)
-      .eq("name", item.name)
-      .eq("type", item.type)
-      .maybeSingle();
+    const foundId = idByKey.get(itemKey(item.name, item.type));
 
-    if (findError) {
-      dbWriteError = findError.message;
-      break;
-    }
-
-    if (found?.id) {
-      const { error: updateError } = await supabase
-        .from(DOGALTAS_INVENTORY_TABLE)
-        .update(payload)
-        .eq("id", found.id);
-      if (updateError) {
-        dbWriteError = updateError.message;
+    if (foundId) {
+      const { ok, error: updateError } = await updateInventoryRow(foundId, payload);
+      if (!ok) {
+        dbWriteError = updateError ?? "Güncelleme hatası";
         break;
       }
     } else {
-      const { error: insertError } = await supabase
-        .from(DOGALTAS_INVENTORY_TABLE)
-        .insert(payload);
-      if (insertError) {
-        dbWriteError = insertError.message;
+      const { ok, error: insertError } = await createInventoryRow(payload);
+      if (!ok) {
+        dbWriteError = insertError ?? "Ekleme hatası";
         break;
       }
     }
@@ -358,29 +370,33 @@ export async function syncDogaltasInventoryToDb(
   const tid = tenantId.trim();
   if (!tid || !items.length) return { ok: true, error: null };
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey) return { ok: false, error: "Supabase yapılandırması eksik." };
+  // name+type → id eşlemesi (güvenli API listesinden; tenant sunucuda).
+  const { rows, error: rawError } = await fetchInventoryRawRows(tid);
+  if (rawError) return { ok: false, error: rawError };
 
-  const db = createClient(supabaseUrl, supabaseKey);
+  const idByKey = new Map<string, string>();
+  for (const row of rows) {
+    const k = itemKey(String(row.name ?? ""), String(row.type ?? ""));
+    const id = String(row.id ?? "").trim();
+    if (id) idByKey.set(k, id);
+  }
 
   let firstError: string | null = null;
 
   for (const item of items) {
-    const { error } = await db
-      .from(DOGALTAS_INVENTORY_TABLE)
-      .update({
-        adet: item.adet ?? 0,
-        dizi_price: item.dizi_price ?? 0,
-        adet_price: item.adet_price ?? 0,
-        total_cost_try: item.total_cost_try ?? 0,
-        unit_cost_try: item.unit_cost_try ?? 0,
-      })
-      .eq("tenant_id", tid)
-      .eq("name", item.name)
-      .eq("type", item.type);
+    // Sadece mevcut (server'da kayıtlı) kalemleri günceller; yeni kalemler atlanır.
+    const foundId = idByKey.get(itemKey(item.name, item.type));
+    if (!foundId) continue;
 
-    if (error && !firstError) firstError = error.message;
+    const { ok, error } = await updateInventoryRow(foundId, {
+      adet: item.adet ?? 0,
+      dizi_price: item.dizi_price ?? 0,
+      adet_price: item.adet_price ?? 0,
+      total_cost_try: item.total_cost_try ?? 0,
+      unit_cost_try: item.unit_cost_try ?? 0,
+    });
+
+    if (!ok && !firstError) firstError = error ?? "Güncelleme hatası";
   }
 
   return { ok: !firstError, error: firstError };

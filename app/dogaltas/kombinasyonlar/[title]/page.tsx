@@ -16,7 +16,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
-import { supabase } from "@/lib/supabase";
+import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 
@@ -1200,34 +1200,27 @@ function KombinasyonDetayPageContent() {
   const loadStockNames = useCallback(async () => {
     setStockLoading(true);
     try {
-      const tenantId = await getSyncedTenantId();
-      if (!tenantId) return;
+      // Stok kaynağı güvenli server API'dir (tenant sunucuda; istemci tenant göndermez).
+      const { rows, error } = await fetchInventoryRows();
+      if (error) return;
 
-      const { data } = await supabase
-        .from("dogaltas_inventory")
-        .select("name, adet, unit_cost_try")
-        .eq("tenant_id", tenantId)
-        .gt("adet", 0)
-        .order("adet", { ascending: false });
-
-      if (data) {
-        type StockRow = { name: string; adet: number; unit_cost_try: number };
-        const tempMap = new Map<string, StockEntry>();
-        for (const row of data as StockRow[]) {
-          const key = normalizeForMatch(row.name);
-          const existing = tempMap.get(key);
-          if (!existing) {
-            tempMap.set(key, {
-              adet: row.adet,
-              unitCostTry: row.unit_cost_try ?? 0,
-              displayName: row.name,
-            });
-          } else {
-            tempMap.set(key, { ...existing, adet: existing.adet + row.adet });
-          }
+      type StockRow = { name?: unknown; adet?: unknown; unit_cost_try?: unknown };
+      const tempMap = new Map<string, StockEntry>();
+      for (const raw of rows as StockRow[]) {
+        const name = String(raw.name ?? "").trim();
+        const adet = Number(raw.adet) || 0;
+        // Önceki sorgu .gt("adet", 0) yapıyordu — aynı davranış istemcide korunur.
+        if (!name || adet <= 0) continue;
+        const unitCostTry = Number(raw.unit_cost_try) || 0;
+        const key = normalizeForMatch(name);
+        const existing = tempMap.get(key);
+        if (!existing) {
+          tempMap.set(key, { adet, unitCostTry, displayName: name });
+        } else {
+          tempMap.set(key, { ...existing, adet: existing.adet + adet });
         }
-        setStockMap(tempMap);
       }
+      setStockMap(tempMap);
     } finally {
       setStockLoading(false);
     }

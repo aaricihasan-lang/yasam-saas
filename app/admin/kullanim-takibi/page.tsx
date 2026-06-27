@@ -286,6 +286,32 @@ async function loadModuleMetrics(table: string): Promise<ModuleMetrics> {
   };
 }
 
+/** numerology_analyses metrikleri — anon yerine admin service_role API üzerinden. */
+async function loadNumerolojiModuleMetrics(): Promise<ModuleMetrics> {
+  try {
+    const adminId = readYasamUser()?.id;
+    const token = readSessionToken();
+    const headers: Record<string, string> = { "x-admin-id": adminId ?? "" };
+    if (token) headers["x-session-token"] = token;
+
+    const res = await fetch("/api/admin/numeroloji/tenant-metrics", { headers });
+    if (!res.ok) return { total: 0, tenantRows: [], distinctTenants: 0 };
+
+    const json = (await res.json().catch(() => ({}))) as {
+      total?: number;
+      ids?: (string | null)[];
+    };
+    const tenantRows = buildTenantCounts(json.ids ?? []);
+    return {
+      total: json.total ?? 0,
+      tenantRows,
+      distinctTenants: tenantRows.length,
+    };
+  } catch {
+    return { total: 0, tenantRows: [], distinctTenants: 0 };
+  }
+}
+
 function mapUserRow(row: Record<string, unknown>): UserRow {
   const approval = normalizeApprovalStatus(row.approval_status);
   return {
@@ -418,7 +444,7 @@ export default function KullanimTakibiPage() {
       await Promise.all([
         fetchUsersForMetrics(),
         loadModuleMetrics("clients"),
-        loadModuleMetrics("numerology_analyses"),
+        loadNumerolojiModuleMetrics(),
         loadModuleMetrics("stones"),
         loadModuleMetrics("personal_archives"),
         checkSupabaseConnection(),

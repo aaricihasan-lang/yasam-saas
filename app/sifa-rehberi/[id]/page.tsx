@@ -9,11 +9,13 @@ import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
+  deleteHealingGuide,
   fetchHealingGuideDetail,
   firstSectionTabWithContent,
   getHealingGuideSectionDisplayTitle,
   groupSectionsByType,
   HEALING_SECTION_DISPLAY,
+  updateHealingGuide,
   type HealingGuideDetail,
   type HealingGuideSectionRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
@@ -509,15 +511,10 @@ export default function SifaRehberiDetailPage() {
   }
 
   async function persistImages(nextImages: GuideImage[]) {
-    if (!id || !queryTenantId) return { error: new Error("id yok") as unknown as Error };
-    const { error } = await supabase
-      .from("healing_guides")
-      .update({
-        images: nextImages.length > 0 ? nextImages : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("tenant_id", queryTenantId)
-      .eq("id", id);
+    if (!id || !queryTenantId) return { error: "id yok" };
+    const { error } = await updateHealingGuide(id, {
+      images: nextImages.length > 0 ? nextImages : null,
+    });
     return { error };
   }
 
@@ -574,7 +571,7 @@ export default function SifaRehberiDetailPage() {
 
     const { error: dbErr } = await persistImages(nextImages);
     if (dbErr) {
-      setErrorMessage(`Görsel kaydedilemedi: ${dbErr.message}`);
+      setErrorMessage(`Görsel kaydedilemedi: ${dbErr}`);
       try {
         await supabase.storage.from("stone-photos").remove([file_path]);
       } catch {
@@ -609,7 +606,7 @@ export default function SifaRehberiDetailPage() {
 
     const { error: dbErr } = await persistImages(nextImages);
     if (dbErr) {
-      setErrorMessage(`Veritabanı güncellenemedi: ${dbErr.message}`);
+      setErrorMessage(`Veritabanı güncellenemedi: ${dbErr}`);
       await loadRecord();
       return;
     }
@@ -631,50 +628,43 @@ export default function SifaRehberiDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const now = new Date().toISOString();
-
     if (!queryTenantId) {
       setSaving(false);
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       return;
     }
 
-    const { error } = await supabase
-      .from("healing_guides")
-      .update({
-        name: nameTrim,
-        category: trimOrNull(draft.category),
-        general_summary: trimOrNull(draft.general_summary),
-        medical_causes: trimOrNull(draft.medical_causes),
-        subconscious_causes: trimOrNull(draft.subconscious_causes),
-        temperament_causes: trimOrNull(draft.temperament_causes),
-        other_causes: trimOrNull(draft.other_causes),
-        iridology_match: trimOrNull(draft.iridology_match),
-        hand_analysis_match: trimOrNull(draft.hand_analysis_match),
-        cupping_leech: trimOrNull(draft.cupping_leech),
-        reflexology: trimOrNull(draft.reflexology),
-        diet_recommendations: trimOrNull(draft.diet_recommendations),
-        herbal_methods: trimOrNull(draft.herbal_methods),
-        stone_recommendations: trimOrNull(draft.stone_recommendations),
-        aromatherapy: trimOrNull(draft.aromatherapy),
-        meditation: trimOrNull(draft.meditation),
-        breathwork: trimOrNull(draft.breathwork),
-        bioenergy: trimOrNull(draft.bioenergy),
-        massage: trimOrNull(draft.massage),
-        daily_routine: trimOrNull(draft.daily_routine),
-        sleep_routine: trimOrNull(draft.sleep_routine),
-        supportive_alternative_methods: trimOrNull(draft.supportive_alternative_methods),
-        islamic_recommendations: trimOrNull(draft.islamic_recommendations),
-        images: draft.images.length > 0 ? draft.images : null,
-        updated_at: now,
-      })
-      .eq("tenant_id", queryTenantId)
-      .eq("id", id);
+    const { error } = await updateHealingGuide(id, {
+      name: nameTrim,
+      category: trimOrNull(draft.category),
+      general_summary: trimOrNull(draft.general_summary),
+      medical_causes: trimOrNull(draft.medical_causes),
+      subconscious_causes: trimOrNull(draft.subconscious_causes),
+      temperament_causes: trimOrNull(draft.temperament_causes),
+      other_causes: trimOrNull(draft.other_causes),
+      iridology_match: trimOrNull(draft.iridology_match),
+      hand_analysis_match: trimOrNull(draft.hand_analysis_match),
+      cupping_leech: trimOrNull(draft.cupping_leech),
+      reflexology: trimOrNull(draft.reflexology),
+      diet_recommendations: trimOrNull(draft.diet_recommendations),
+      herbal_methods: trimOrNull(draft.herbal_methods),
+      stone_recommendations: trimOrNull(draft.stone_recommendations),
+      aromatherapy: trimOrNull(draft.aromatherapy),
+      meditation: trimOrNull(draft.meditation),
+      breathwork: trimOrNull(draft.breathwork),
+      bioenergy: trimOrNull(draft.bioenergy),
+      massage: trimOrNull(draft.massage),
+      daily_routine: trimOrNull(draft.daily_routine),
+      sleep_routine: trimOrNull(draft.sleep_routine),
+      supportive_alternative_methods: trimOrNull(draft.supportive_alternative_methods),
+      islamic_recommendations: trimOrNull(draft.islamic_recommendations),
+      images: draft.images.length > 0 ? draft.images : null,
+    });
 
     setSaving(false);
 
     if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error.message}`);
+      setErrorMessage(`Kayıt güncellenemedi: ${error}`);
       return;
     }
 
@@ -736,14 +726,10 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("healing_guides")
-      .delete()
-      .eq("tenant_id", queryTenantId)
-      .eq("id", id);
+    const { error } = await deleteHealingGuide(id);
     setDeleting(false);
     if (error) {
-      setErrorMessage(`Silinemedi: ${error.message}`);
+      setErrorMessage(`Silinemedi: ${error}`);
       return;
     }
     setDeleteConfirmOpen(false);

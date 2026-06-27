@@ -9,8 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
-import { ADMIN_LIBRARY_TENANT_ID, getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -242,6 +242,16 @@ function trSort(a: string, b: string) {
   return normalizeTr(a).localeCompare(normalizeTr(b), "tr");
 }
 
+// ─── Güvenli API auth header'ları ───────────────────────────────────────────────
+function userHeaders(json = false): Record<string, string> {
+  const token = readSessionToken();
+  return {
+    ...(json ? { "Content-Type": "application/json" } : {}),
+    "x-user-id": readYasamUser()?.id ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+  };
+}
+
 // ─── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function TasBilgiKutuphanesiPage() {
@@ -335,22 +345,19 @@ export default function TasBilgiKutuphanesiPage() {
 
   async function loadArticles() {
     setLoading(true);
-    // Paylaşımlı kütüphane (ADMIN_LIBRARY_TENANT_ID) + kullanıcının kendi ekleri
-    const tenantIds: string[] = [ADMIN_LIBRARY_TENANT_ID];
-    if (tenantId && tenantId !== ADMIN_LIBRARY_TENANT_ID) {
-      tenantIds.push(tenantId);
-    }
-
-    const { data, error } = await supabase
-      .from("stone_knowledge_articles")
-      .select("id, tenant_id, title, content, category, sub_category, tags, related_stones, related_minerals, source, source_section, keyword, notes, is_active")
-      .in("tenant_id", tenantIds)
-      .eq("is_active", true)
-      .order("title", { ascending: true });
-
-    if (!error && data) {
-      const sorted = [...(data as Article[])].sort((a, b) => trSort(a.title, b.title));
-      setArticles(sorted);
+    // Veri kaynağı: güvenli sunucu API (paylaşımlı kütüphane + kendi ekleri sunucuda birleştirilir)
+    try {
+      const res = await fetch("/api/dogaltas/knowledge", {
+        headers: userHeaders(),
+        cache: "no-store",
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; articles?: Article[] };
+      if (res.ok && json.ok && json.articles) {
+        const sorted = [...json.articles].sort((a, b) => trSort(a.title, b.title));
+        setArticles(sorted);
+      }
+    } catch {
+      /* sessiz — liste boş kalır */
     }
     setLoading(false);
   }
@@ -557,19 +564,25 @@ export default function TasBilgiKutuphanesiPage() {
     }
     setSaving(true);
     setSaveError("");
-    const { error } = await supabase.from("stone_knowledge_articles").insert({
-      tenant_id:      tenantId,
-      title:          form.title.trim(),
-      content:        form.content.trim(),
-      category:       form.category.trim(),
-      sub_category:   form.sub_category.trim(),
-      source:         form.source.trim(),
-      is_active:      true,
-    });
-    setSaving(false);
-    if (error) {
-      setSaveError("Kayıt hatası: " + error.message);
-      return;
+    try {
+      const res = await fetch("/api/dogaltas/knowledge", {
+        method: "POST",
+        headers: userHeaders(true),
+        body: JSON.stringify({
+          title:        form.title.trim(),
+          content:      form.content.trim(),
+          category:     form.category.trim(),
+          sub_category: form.sub_category.trim(),
+          source:       form.source.trim(),
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setSaveError("Kayıt hatası: " + (json.error ?? "Bilinmeyen hata"));
+        return;
+      }
+    } finally {
+      setSaving(false);
     }
     setForm(EMPTY_FORM);
     setShowForm(false);
@@ -587,21 +600,25 @@ export default function TasBilgiKutuphanesiPage() {
     setEditSaving(true);
     setEditError("");
 
-    const { error } = await supabase
-      .from("stone_knowledge_articles")
-      .update({
-        title:        editForm.title.trim(),
-        category:     editForm.category.trim(),
-        sub_category: editForm.sub_category.trim(),
-        content:      editForm.content.trim(),
-      })
-      .eq("id", selectedArticle.id);
-
-    setEditSaving(false);
-
-    if (error) {
-      setEditError("Güncelleme hatası: " + error.message);
-      return;
+    try {
+      const res = await fetch("/api/dogaltas/knowledge", {
+        method: "PATCH",
+        headers: userHeaders(true),
+        body: JSON.stringify({
+          id:           selectedArticle.id,
+          title:        editForm.title.trim(),
+          category:     editForm.category.trim(),
+          sub_category: editForm.sub_category.trim(),
+          content:      editForm.content.trim(),
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setEditError("Güncelleme hatası: " + (json.error ?? "Bilinmeyen hata"));
+        return;
+      }
+    } finally {
+      setEditSaving(false);
     }
 
     setArticles((prev) =>
@@ -644,19 +661,19 @@ export default function TasBilgiKutuphanesiPage() {
 
     setBulkDeleteBusy(true);
     try {
-      const { data: deleted, error } = await supabase
-        .from("stone_knowledge_articles")
-        .delete()
-        .eq("tenant_id", tenantId)
-        .in("id", ids)
-        .select("id");
+      const res = await fetch("/api/dogaltas/knowledge", {
+        method: "DELETE",
+        headers: userHeaders(true),
+        body: JSON.stringify({ ids }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; rows?: { id: string }[] };
 
-      if (error) {
-        showToast({ type: "error", message: `Silme başarısız: ${error.message}` });
+      if (!res.ok || !json.ok) {
+        showToast({ type: "error", message: `Silme başarısız: ${json.error ?? "Bilinmeyen hata"}` });
         return;
       }
 
-      const deletedSet = new Set((deleted ?? []).map((r: { id: string }) => r.id));
+      const deletedSet = new Set((json.rows ?? []).map((r) => r.id));
       setArticles((prev) => prev.filter((a) => !deletedSet.has(a.id)));
       clearSelection();
 
@@ -706,18 +723,23 @@ export default function TasBilgiKutuphanesiPage() {
     setBulkUpdateBusy(true);
     setBulkUpdateError("");
     try {
-      const { data: updated, error } = await supabase
-        .from("stone_knowledge_articles")
-        .update(updates)
-        .eq("tenant_id", tenantId)
-        .in("id", ids)
-        .select("id, title, content, category, sub_category");
+      const res = await fetch("/api/dogaltas/knowledge", {
+        method: "PATCH",
+        headers: userHeaders(true),
+        body: JSON.stringify({ ids, ...updates }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        rows?: { id: string; title: string; content: string; category: string; sub_category: string }[];
+      };
 
-      if (error) {
-        setBulkUpdateError("Güncelleme hatası: " + error.message);
+      if (!res.ok || !json.ok) {
+        setBulkUpdateError("Güncelleme hatası: " + (json.error ?? "Bilinmeyen hata"));
         return;
       }
 
+      const updated = json.rows;
       if (updated?.length) {
         const uMap = new Map(
           (updated as { id: string; title: string; content: string; category: string; sub_category: string }[]).map((r) => [r.id, r])

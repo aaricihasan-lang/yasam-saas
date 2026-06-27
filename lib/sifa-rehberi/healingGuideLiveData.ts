@@ -1,5 +1,23 @@
-import { supabase } from "@/lib/supabase";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
+
+/**
+ * healing_guides tablosuna tarayıcıdan doğrudan (anon/publishable) erişim
+ * KALDIRILDI. Tüm okuma/yazma /api/sifa-rehberi/guides güvenli sunucu API'si
+ * üzerinden gider (verifyUserRequest + service_role + tenant binding).
+ *
+ * fetchHealingGuideList/Detail imzalarındaki tenantId parametresi geriye-uyum
+ * için korunur; gerçek tenant_id sunucuda session/user kaydından alınır.
+ */
+function authHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
+}
 
 export type HealingGuideListRow = {
   id: string;
@@ -332,112 +350,74 @@ function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
   };
 }
 
-const GUIDE_LIST_SELECT = `
-  id,
-  tenant_id,
-  name,
-  category,
-  symptoms,
-  created_at,
-  updated_at,
-  healing_guide_sections (
-    id,
-    guide_id,
-    section_type,
-    mode,
-    title,
-    note,
-    source,
-    images,
-    created_at
-  )
-`;
-
-const GUIDE_DETAIL_SELECT = `
-  id,
-  tenant_id,
-  name,
-  category,
-  symptoms,
-  created_at,
-  updated_at,
-  related_stones,
-  related_reflexology,
-  images,
-  general_summary,
-  medical_causes,
-  subconscious_causes,
-  temperament_causes,
-  other_causes,
-  iridology_match,
-  hand_analysis_match,
-  cupping_leech,
-  reflexology,
-  diet_recommendations,
-  herbal_methods,
-  stone_recommendations,
-  aromatherapy,
-  meditation,
-  breathwork,
-  bioenergy,
-  massage,
-  daily_routine,
-  sleep_routine,
-  supportive_alternative_methods,
-  islamic_recommendations,
-  healing_guide_sections (
-    id,
-    guide_id,
-    section_type,
-    mode,
-    title,
-    note,
-    source,
-    images,
-    created_at
-  )
-`;
-
+/**
+ * Liste — /api/sifa-rehberi/guides (GET). tenantId parametresi geriye-uyum için
+ * korunur; sunucu gerçek tenant'ı session'dan zorlar.
+ */
 export async function fetchHealingGuideList(
-  tenantId: string,
+  _tenantId: string,
 ): Promise<{ rows: HealingGuideListRow[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from("healing_guides")
-    .select(GUIDE_LIST_SELECT)
-    .eq("tenant_id", tenantId)
-    .order("name", { ascending: true });
-
-  if (error) {
-    return { rows: [], error: error.message };
+  let res: Response;
+  try {
+    res = await fetch("/api/sifa-rehberi/guides", { headers: authHeaders() });
+  } catch {
+    return { rows: [], error: "Sunucuya ulaşılamadı." };
   }
 
-  const rows = ((data ?? []) as RawGuideRow[])
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    rows?: unknown;
+    error?: string;
+  };
+
+  if (!res.ok || json.ok !== true) {
+    return { rows: [], error: json.error ?? `Kayıtlar alınamadı (HTTP ${res.status}).` };
+  }
+
+  const rows = ((json.rows ?? []) as RawGuideRow[])
     .map((row) => mapListRow(row))
     .filter((row): row is HealingGuideListRow => Boolean(row));
 
   return { rows, error: null };
 }
 
+/**
+ * Detay — /api/sifa-rehberi/guides/[id] (GET). tenantId parametresi geriye-uyum
+ * için korunur; sunucu gerçek tenant'ı session'dan zorlar.
+ */
 export async function fetchHealingGuideDetail(
-  tenantId: string,
+  _tenantId: string,
   guideId: string,
 ): Promise<{ detail: HealingGuideDetail | null; error: string | null; notFound: boolean }> {
-  const { data, error } = await supabase
-    .from("healing_guides")
-    .select(GUIDE_DETAIL_SELECT)
-    .eq("tenant_id", tenantId)
-    .eq("id", guideId)
-    .maybeSingle();
-
-  if (error) {
-    return { detail: null, error: error.message, notFound: false };
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}`, {
+      headers: authHeaders(),
+    });
+  } catch {
+    return { detail: null, error: "Sunucuya ulaşılamadı.", notFound: false };
   }
 
-  if (!data) {
+  if (res.status === 404) {
     return { detail: null, error: null, notFound: true };
   }
 
-  const row = data as RawGuideRow;
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    row?: unknown;
+    notFound?: boolean;
+    error?: string;
+  };
+
+  if (json.notFound === true) {
+    return { detail: null, error: null, notFound: true };
+  }
+
+  if (!res.ok || json.ok !== true || !json.row) {
+    return { detail: null, error: json.error ?? `Kayıt yüklenemedi (HTTP ${res.status}).`, notFound: false };
+  }
+
+  const row = json.row as RawGuideRow;
   const rawSections = Array.isArray(row.healing_guide_sections)
     ? row.healing_guide_sections
     : [];
@@ -465,6 +445,100 @@ export async function fetchHealingGuideDetail(
   };
 
   return { detail, error: null, notFound: false };
+}
+
+// ── Mutasyon yardımcıları — hepsi güvenli API üzerinden gider ────────────────────
+
+/** Yeni healing_guides kaydı oluşturur → POST /api/sifa-rehberi/guides. */
+export async function createHealingGuide(
+  fields: Record<string, unknown>,
+): Promise<{ id: string | null; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/sifa-rehberi/guides", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(fields),
+    });
+  } catch {
+    return { id: null, error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    guide?: { id?: string } | null;
+    error?: string;
+  };
+  if (!res.ok || json.ok !== true) {
+    return { id: null, error: json.error ?? `Kayıt eklenemedi (HTTP ${res.status}).` };
+  }
+  return { id: json.guide?.id ?? null, error: null };
+}
+
+/** healing_guides kaydını günceller → PATCH /api/sifa-rehberi/guides/[id]. */
+export async function updateHealingGuide(
+  guideId: string,
+  fields: Record<string, unknown>,
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}`, {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(fields),
+    });
+  } catch {
+    return { error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || json.ok !== true) {
+    return { error: json.error ?? `Kayıt güncellenemedi (HTTP ${res.status}).` };
+  }
+  return { error: null };
+}
+
+/** Tek healing_guides kaydını siler → DELETE /api/sifa-rehberi/guides/[id]. */
+export async function deleteHealingGuide(
+  guideId: string,
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  } catch {
+    return { error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || json.ok !== true) {
+    return { error: json.error ?? `Kayıt silinemedi (HTTP ${res.status}).` };
+  }
+  return { error: null };
+}
+
+/** Toplu healing_guides silme → DELETE /api/sifa-rehberi/guides (ids body). */
+export async function deleteHealingGuides(
+  ids: string[],
+): Promise<{ deletedIds: string[]; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/sifa-rehberi/guides", {
+      method: "DELETE",
+      headers: authHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+  } catch {
+    return { deletedIds: [], error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    deletedIds?: string[];
+    error?: string;
+  };
+  if (!res.ok || json.ok !== true) {
+    return { deletedIds: [], error: json.error ?? `Kayıtlar silinemedi (HTTP ${res.status}).` };
+  }
+  return { deletedIds: json.deletedIds ?? [], error: null };
 }
 
 export function groupSectionsByType(

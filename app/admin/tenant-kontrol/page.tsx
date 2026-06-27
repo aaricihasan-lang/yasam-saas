@@ -132,11 +132,48 @@ async function fetchUsersTenantIds(): Promise<{ ids: (string | null)[]; error: s
   }
 }
 
+/**
+ * numerology_analyses sayım + tenant_id listesi — güvenli admin API.
+ * Tarayıcıdan publishable ile çapraz-tenant okuma YOK; service_role + admin doğrulaması.
+ */
+async function fetchNumerolojiTenantMetrics(): Promise<{
+  total: number;
+  ids: (string | null)[];
+  error: string | null;
+}> {
+  const adminId = readYasamUser()?.id;
+  try {
+    const res = await fetch("/api/admin/numeroloji/tenant-metrics", {
+      headers: adminHeaders(adminId),
+    });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      return { total: 0, ids: [], error: j.error ?? `HTTP ${res.status}` };
+    }
+    const json = (await res.json().catch(() => ({}))) as {
+      total?: number;
+      ids?: (string | null)[];
+    };
+    return { total: json.total ?? 0, ids: json.ids ?? [], error: null };
+  } catch (err) {
+    return {
+      total: 0,
+      ids: [],
+      error: err instanceof Error ? err.message : "numeroloji metrikleri alınamadı",
+    };
+  }
+}
+
 async function fetchAllTenantIds(
   table: string,
 ): Promise<{ ids: (string | null)[]; error: string | null }> {
   // users tablosu tarayıcıdan publishable ile okunmaz — güvenli admin API'ye yönlendir.
   if (table === "users") return fetchUsersTenantIds();
+  // numerology_analyses de güvenli admin API üzerinden okunur.
+  if (table === "numerology_analyses") {
+    const { ids, error } = await fetchNumerolojiTenantMetrics();
+    return { ids, error };
+  }
 
   const ids: (string | null)[] = [];
   const pageSize = 1000;
@@ -164,6 +201,37 @@ async function fetchAllTenantIds(
 }
 
 async function auditTable(table: AuditTableName): Promise<TableAudit> {
+  // numerology_analyses: sayım + tenant_id'ler güvenli admin API'den tek seferde.
+  if (table === "numerology_analyses") {
+    const { total, ids, error } = await fetchNumerolojiTenantMetrics();
+    if (error) {
+      return {
+        table,
+        total: 0,
+        hasTenantField: false,
+        distinctTenants: 0,
+        nullTenantRows: 0,
+        legacyTenantRows: 0,
+        tenantList: [],
+        risk: "Kontrol Gerekli",
+        error,
+      };
+    }
+    const tenantList = buildTenantCounts(ids);
+    const nullTenantRows = ids.filter((id) => id == null || String(id).trim() === "").length;
+    const legacyTenantRows = tenantList.find((t) => t.id === LEGACY_TENANT_ID)?.count ?? 0;
+    return {
+      table,
+      total,
+      hasTenantField: true,
+      distinctTenants: tenantList.length,
+      nullTenantRows,
+      legacyTenantRows,
+      tenantList,
+      risk: computeTableRisk(total, true, nullTenantRows, legacyTenantRows),
+    };
+  }
+
   const { count, error: countError } = await supabase
     .from(table)
     .select("*", { count: "exact", head: true });

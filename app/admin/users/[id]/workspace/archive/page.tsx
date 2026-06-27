@@ -192,21 +192,26 @@ export default function AdminWorkspaceArchivePage() {
       return;
     }
 
-    const { data: archivesRaw, error: archErr } = await supabase
-      .from("personal_archives")
-      .select("*")
-      .eq("tenant_id", activeTenantId)
-      .order("created_at", { ascending: false });
-
-    if (archErr) {
-      console.error("Kişisel arşiv listesi hatası:", archErr);
-      setArchives([]);
-      setArchivesError(archErr.message);
-      setLoading(false);
-      return;
+    let archiveRows: Record<string, unknown>[];
+    {
+      const adminId = readYasamUser()?.id;
+      const res = await fetch(`/api/admin/users/${userId}/archive`, {
+        headers: adminHeaders(adminId),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        rows?: Record<string, unknown>[];
+        error?: string;
+      };
+      if (!res.ok || !json.ok) {
+        console.error("Kişisel arşiv listesi hatası:", json.error ?? `HTTP ${res.status}`);
+        setArchives([]);
+        setArchivesError(json.error ?? "Arşiv kayıtları yüklenemedi.");
+        setLoading(false);
+        return;
+      }
+      archiveRows = json.rows ?? [];
     }
-
-    const archiveRows = (archivesRaw ?? []) as Record<string, unknown>[];
     const archiveIds = archiveRows.map((a) => String(a.id ?? ""));
     const allFiles: ArchiveFileRow[] = [];
 

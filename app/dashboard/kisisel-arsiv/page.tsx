@@ -14,8 +14,17 @@ import {
   type ReactNode,
 } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+
+/** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
+function userHeaders(json = false): Record<string, string> {
+  const token = readSessionToken();
+  const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
+  if (token) h["x-session-token"] = token;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   DIGITAL_CONTENT_DEMO_BANNER,
@@ -689,13 +698,16 @@ export default function KisiselArsivPage() {
 
     setLoadingList(true);
 
-    const { data: archivesRaw, error: archErr } = await supabase
-      .from("personal_archives")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
-
-    if (archErr) {
+    let archives: ArchiveRowWithoutFiles[];
+    try {
+      const res = await fetch("/api/kisisel-arsiv", { headers: userHeaders() });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        rows?: ArchiveRowWithoutFiles[];
+      };
+      if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+      archives = json.rows ?? [];
+    } catch (archErr) {
       console.error("[kisisel-arsiv] personal_archives list", archErr);
       setLoadingList(false);
       setInfo({
@@ -704,8 +716,6 @@ export default function KisiselArsivPage() {
       });
       return;
     }
-
-    const archives = (archivesRaw ?? []) as ArchiveRowWithoutFiles[];
     const archiveIds = archives.map((a) => a.id);
     const allFiles: ArchiveFileRow[] = [];
 
@@ -832,19 +842,21 @@ export default function KisiselArsivPage() {
       const tagsToSave = detailEditTags.trim() || null;
       const noteToSave = detailEditNote.trim() || null;
 
-      const { error: updErr } = await supabase
-        .from("personal_archives")
-        .update({
-          title: titleToSave,
-          category: categoryToSave,
-          tags: tagsToSave,
-          note: noteToSave,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", archiveId)
-        .eq("tenant_id", tenantId);
-
-      if (updErr) {
+      try {
+        const res = await fetch("/api/kisisel-arsiv", {
+          method: "PATCH",
+          headers: userHeaders(true),
+          body: JSON.stringify({
+            id: archiveId,
+            title: titleToSave,
+            category: categoryToSave,
+            tags: tagsToSave,
+            note: noteToSave,
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
+        if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (updErr) {
         console.error("[kisisel-arsiv] personal_archives update", updErr);
         showToast("Kayıt güncellenemedi.", "error", 2000);
         return;
@@ -925,13 +937,13 @@ export default function KisiselArsivPage() {
         throw delFilesErr;
       }
 
-      const { error: delArcErr } = await supabase
-        .from("personal_archives")
-        .delete()
-        .eq("id", row.id)
-        .eq("tenant_id", tenantId);
-
-      if (delArcErr) {
+      const delRes = await fetch(
+        `/api/kisisel-arsiv?id=${encodeURIComponent(row.id)}`,
+        { method: "DELETE", headers: userHeaders() },
+      );
+      const delJson = (await delRes.json().catch(() => ({}))) as { ok?: boolean };
+      if (!delRes.ok || !delJson.ok) {
+        const delArcErr = new Error(`HTTP ${delRes.status}`);
         console.error("[kisisel-arsiv] personal_archives delete", delArcErr);
         throw delArcErr;
       }
@@ -967,18 +979,25 @@ export default function KisiselArsivPage() {
     setSaving(true);
     setInfo(null);
 
-    const { data: insertedRows, error: insErr } = await supabase
-      .from("personal_archives")
-      .insert({
-        tenant_id: tenantId,
-        title: titleToSave,
-        category: categoryToSave,
-        tags: tagsToSave,
-        note: noteToSave,
-      })
-      .select("id");
-
-    const archiveId = insertedRows?.[0]?.id as string | undefined;
+    let archiveId: string | undefined;
+    let insErr: unknown = null;
+    try {
+      const res = await fetch("/api/kisisel-arsiv", {
+        method: "POST",
+        headers: userHeaders(true),
+        body: JSON.stringify({
+          title: titleToSave,
+          category: categoryToSave,
+          tags: tagsToSave,
+          note: noteToSave,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; id?: string };
+      if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
+      archiveId = json.id ?? undefined;
+    } catch (e) {
+      insErr = e;
+    }
 
     if (insErr || !archiveId) {
       console.error(

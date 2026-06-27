@@ -3870,11 +3870,30 @@ function flattenReflexologyProtocolItemsToRows(
   return rows;
 }
 
-function reflexologyProtocolInsertSucceeded(
-  data: { id: string }[] | null,
-  expectedCount: number,
-): boolean {
-  return Boolean(data && data.length === expectedCount);
+/** Güvenli admin import API'sine batch gönderir (publishable insert yerine service_role). */
+async function insertReflexologyProtocolsViaApi(
+  rows: ReflexologyProtocolInsertRow[],
+): Promise<{ ok: boolean; error?: string }> {
+  const adminId = readYasamUser()?.id ?? "";
+  const sessionToken = readSessionToken();
+  try {
+    const res = await fetch("/api/admin/refleksoloji/protocols/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-id": adminId,
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ rows }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) {
+      return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Ağ hatası" };
+  }
 }
 
 async function importReflexologyProtocolRows(
@@ -3897,28 +3916,22 @@ async function importReflexologyProtocolRows(
 
   for (let offset = 0; offset < rows.length; offset += REFLEXOLOGY_PROTOCOL_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + REFLEXOLOGY_PROTOCOL_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("reflexology_protocols")
-      .insert(batch)
-      .select("id");
+    const result = await insertReflexologyProtocolsViaApi(batch);
 
-    if (!error && reflexologyProtocolInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (result.ok) {
+      successCount += batch.length;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      result.error ??
       "Toplu ekleme tamamlanamadı (public.reflexology_protocols tablosuna kayıt doğrulanamadı).";
 
+    // Batch başarısızsa tek tek dene (mevcut fallback davranışı korunur).
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("reflexology_protocols")
-        .insert(row)
-        .select("id");
-
-      if (singleError || !reflexologyProtocolInsertSucceeded(rowData, 1)) {
-        recordFailure(row.title, row.source_uid, singleError?.message ?? batchMessage);
+      const single = await insertReflexologyProtocolsViaApi([row]);
+      if (!single.ok) {
+        recordFailure(row.title, row.source_uid, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }

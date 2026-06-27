@@ -18,6 +18,8 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   countListFilledSections,
+  createHealingGuide,
+  deleteHealingGuides,
   fetchHealingGuideList,
   listRowPreview,
   matchesListSearch,
@@ -680,27 +682,22 @@ function SifaRehberiContent() {
     setDeleteLoading(true);
     setErrorMessage("");
 
-    const { data: deletedRows, error } = await supabase
-      .from("healing_guides")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ids)
-      .select("id");
+    const { deletedIds, error } = await deleteHealingGuides(ids);
 
     setDeleteLoading(false);
 
     if (error) {
-      setErrorMessage(`Seçili kayıtlar silinemedi: ${error.message}`);
+      setErrorMessage(`Seçili kayıtlar silinemedi: ${error}`);
       return;
     }
 
-    const deletedCount = deletedRows?.length ?? 0;
+    const deletedCount = deletedIds.length;
     if (deletedCount === 0) {
       setErrorMessage("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
       return;
     }
 
-    const deletedIdSet = new Set(deletedRows.map((r) => r.id as string));
+    const deletedIdSet = new Set(deletedIds);
     setRows((prev) => prev.filter((r) => !deletedIdSet.has(r.id)));
     setSelectedForExport(new Set());
     showToast({ title: "Başarılı", message: `${deletedCount} kayıt başarıyla silindi.`, type: "success" });
@@ -862,16 +859,13 @@ function SifaRehberiContent() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const now = new Date().toISOString();
-
     if (!queryTenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
       setSaving(false);
       return;
     }
 
-    const { error: insertError } = await supabase.from("healing_guides").insert({
-      tenant_id: queryTenantId,
+    const { error: insertError } = await createHealingGuide({
       name: nameTrim,
       category: trimOrNull(form.category),
       general_summary: trimOrNull(form.general_summary),
@@ -896,13 +890,12 @@ function SifaRehberiContent() {
       supportive_alternative_methods: trimOrNull(form.supportive_alternative_methods),
       islamic_recommendations: trimOrNull(form.islamic_recommendations),
       images: formImages.length > 0 ? formImages : null,
-      updated_at: now,
     });
 
     setSaving(false);
 
     if (insertError) {
-      setErrorMessage(`Kayıt eklenemedi: ${insertError.message}`);
+      setErrorMessage(`Kayıt eklenemedi: ${insertError}`);
       return;
     }
 

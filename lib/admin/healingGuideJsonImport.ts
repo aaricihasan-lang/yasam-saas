@@ -1,4 +1,41 @@
-import { supabase } from "@/lib/supabase";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+
+/**
+ * healing_guides / healing_guide_sections yazımı tarayıcıdan (anon/publishable)
+ * KALDIRILDI. Admin JSON import yalnızca admin-guard'lı sunucu rotası üzerinden
+ * gider: /api/admin/sifa-rehberi/guides/import (verifyAdminRequest + service_role).
+ */
+const ADMIN_IMPORT_ENDPOINT = "/api/admin/sifa-rehberi/guides/import";
+
+function adminAuthHeaders(): Record<string, string> {
+  const u = readYasamUser();
+  const t = readSessionToken();
+  return {
+    "Content-Type": "application/json",
+    "x-admin-id": u?.id ?? "",
+    ...(t ? { "x-session-token": t } : {}),
+  };
+}
+
+async function adminImportRequest(
+  payload: Record<string, unknown>,
+): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(ADMIN_IMPORT_ENDPOINT, {
+      method: "POST",
+      headers: adminAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return { data: null, error: "Sunucuya ulaşılamadı." };
+  }
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || json.ok !== true) {
+    return { data: null, error: String(json.error ?? `HTTP ${res.status}`) };
+  }
+  return { data: json, error: null };
+}
 
 export const HEALING_GUIDE_SECTION_TYPES = [
   "reasons",
@@ -639,26 +676,14 @@ export async function buildHealingGuideImportPlan(
 
 export async function fetchExistingHealingGuideNameKeys(tenantId: string): Promise<Set<string>> {
   const keys = new Set<string>();
-  const pageSize = 500;
-  let from = 0;
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("healing_guides")
-      .select("name")
-      .eq("tenant_id", tenantId)
-      .range(from, from + pageSize - 1);
+  const { data, error } = await adminImportRequest({ action: "existing-keys", tenantId });
+  if (error || !data) return keys;
 
-    if (error) break;
-
-    const rows = data ?? [];
-    for (const row of rows) {
-      const name = textValue((row as { name?: unknown }).name);
-      if (name) keys.add(normalizeHealingGuideKey(name));
-    }
-
-    if (rows.length < pageSize) break;
-    from += pageSize;
+  const names = Array.isArray(data.names) ? (data.names as unknown[]) : [];
+  for (const entry of names) {
+    const name = textValue(entry);
+    if (name) keys.add(normalizeHealingGuideKey(name));
   }
 
   return keys;
@@ -678,6 +703,34 @@ function guideInsertRow(
     related_reflexology: draft.related_reflexology,
     updated_at: updatedAt,
   };
+}
+
+/** Admin API üzerinden guide satırlarını ekler, eklenen {id,name} listesini döner. */
+async function insertGuidesViaApi(
+  rows: (HealingGuideInsert & { updated_at: string })[],
+  tenantId: string,
+): Promise<{ guides: { id: string; name: string }[]; error: string | null }> {
+  const { data, error } = await adminImportRequest({
+    action: "insert-guides",
+    tenantId,
+    guides: rows,
+  });
+  if (error || !data) return { guides: [], error: error ?? "Kayıt eklenemedi." };
+  const guides = Array.isArray(data.guides)
+    ? (data.guides as { id: string; name: string }[])
+    : [];
+  return { guides, error: null };
+}
+
+/** Admin API üzerinden section satırlarını ekler. */
+async function insertSectionsViaApi(
+  rows: HealingGuideSectionInsert[],
+): Promise<{ error: string | null }> {
+  const { error } = await adminImportRequest({
+    action: "insert-sections",
+    sections: rows,
+  });
+  return { error };
 }
 
 export async function importHealingGuideDrafts(
@@ -714,21 +767,21 @@ export async function importHealingGuideDrafts(
       phase: `Hastalık kayıtları (${offset + 1}-${Math.min(offset + batch.length, total)})`,
     });
 
-    const { data: insertedGuides, error: guideError } = await supabase
-      .from("healing_guides")
-      .insert(guidePayload)
-      .select("id, name");
+    const { guides: insertedGuides, error: guideError } = await insertGuidesViaApi(
+      guidePayload,
+      tenantId,
+    );
 
-    if (guideError || !insertedGuides?.length) {
+    if (guideError || !insertedGuides.length) {
       for (const draft of batch) {
-        const { data: singleGuide, error: singleGuideError } = await supabase
-          .from("healing_guides")
-          .insert(guideInsertRow(draft, tenantId, now))
-          .select("id, name")
-          .maybeSingle();
+        const { guides: singleGuides, error: singleGuideError } = await insertGuidesViaApi(
+          [guideInsertRow(draft, tenantId, now)],
+          tenantId,
+        );
+        const singleGuide = singleGuides[0];
 
         if (singleGuideError || !singleGuide?.id) {
-          reportFailure(draft.name, singleGuideError?.message ?? guideError?.message ?? "Kayıt eklenemedi.");
+          reportFailure(draft.name, singleGuideError ?? guideError ?? "Kayıt eklenemedi.");
           continue;
         }
 
@@ -743,12 +796,10 @@ export async function importHealingGuideDrafts(
           continue;
         }
 
-        const { error: sectionError } = await supabase
-          .from("healing_guide_sections")
-          .insert(sectionRows);
+        const { error: sectionError } = await insertSectionsViaApi(sectionRows);
 
         if (sectionError) {
-          reportFailure(draft.name, sectionError.message);
+          reportFailure(draft.name, sectionError);
         } else {
           successCount += 1;
           existingNameKeys.add(normalizeHealingGuideKey(draft.name));
@@ -781,12 +832,10 @@ export async function importHealingGuideDrafts(
       let sectionsOk = true;
       for (let s = 0; s < sectionRows.length; s += SECTION_INSERT_BATCH) {
         const sectionBatch = sectionRows.slice(s, s + SECTION_INSERT_BATCH);
-        const { error: sectionError } = await supabase
-          .from("healing_guide_sections")
-          .insert(sectionBatch);
+        const { error: sectionError } = await insertSectionsViaApi(sectionBatch);
         if (sectionError) {
           sectionsOk = false;
-          reportFailure(draft.name, sectionError.message);
+          reportFailure(draft.name, sectionError);
           break;
         }
       }

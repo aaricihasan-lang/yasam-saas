@@ -857,6 +857,13 @@ export default function Home() {
           const json = (await res.json()) as { clients?: unknown[] };
           return { key, count: json.clients?.length ?? null };
         }
+        // numerology_analyses anon ile sayılmaz → güvenli sunucu kapısı.
+        if (table === "numerology_analyses") {
+          const res = await fetch("/api/numeroloji/analyses?count=1", { headers: authHeaders });
+          if (!res.ok) return { key, count: null };
+          const json = (await res.json()) as { count?: number };
+          return { key, count: typeof json.count === "number" ? json.count : null };
+        }
         const { count, error } = await supabase
           .from(table)
           .select("*", { count: "exact", head: true })
@@ -892,7 +899,6 @@ export default function Home() {
     const directSources: { table: string; icon: string; col: string }[] = [
       { table: "stones",              icon: "💎", col: "stone_name" },
       { table: "personal_archives",   icon: "📚", col: "title" },
-      { table: "numerology_analyses", icon: "🧠", col: "full_name" },
     ];
 
     const clientsSource = (async (): Promise<RawItem[]> => {
@@ -908,8 +914,23 @@ export default function Home() {
       }));
     })();
 
+    // numerology_analyses anon ile okunmaz → güvenli sunucu kapısı.
+    const numerologySource = (async (): Promise<RawItem[]> => {
+      const res = await fetch("/api/numeroloji/analyses?recent=3", { headers: authHeaders });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        rows?: { full_name?: string | null; created_at?: string | null }[];
+      };
+      return (json.rows ?? []).map((r) => ({
+        icon: "🧠",
+        label: String(r.full_name ?? "Yeni kayıt").trim() || "Yeni kayıt",
+        rawDate: String(r.created_at ?? ""),
+      }));
+    })();
+
     void Promise.allSettled([
       clientsSource,
+      numerologySource,
       ...directSources.map(async ({ table, icon, col }): Promise<RawItem[]> => {
         const { data } = await supabase
           .from(table)

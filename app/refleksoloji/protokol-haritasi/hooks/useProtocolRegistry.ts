@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
-import { supabase } from "@/lib/supabase";
 import type { ProtocolFormDraft, SavedProtocol } from "../types";
 import {
   draftToSavedProtocol,
@@ -16,24 +14,37 @@ export type SaveProtocolResult =
   | { saved: SavedProtocol; storageOk: boolean }
   | { saved: null; storageOk: true };
 
+function userHeaders(): Record<string, string> {
+  const uid = readYasamUser()?.id;
+  const token = readSessionToken();
+  return {
+    "x-user-id": uid ?? "",
+    ...(token ? { "x-session-token": token } : {}),
+  };
+}
+
+// GÜVENLİK (anon kilidi): reflexology_protocols artık tarayıcıdan doğrudan
+// supabase ile yazılmaz. Yazma güvenli /api/refleksoloji/protocols POST üzerinden
+// gider; tenant_id sunucuda oturumdan belirlenir.
 async function syncProtocolToSupabase(saved: SavedProtocol): Promise<string | null> {
   try {
-    const tid = await getSyncedTenantId();
-    if (!tid) return "Bulut eşitleme için oturum bulunamadı.";
-
-    const { error } = await supabase.from("reflexology_protocols").insert({
-      id: crypto.randomUUID(),
-      tenant_id: tid,
-      source_uid: saved.id,
-      title: saved.title,
-      target_problem: saved.description || null,
-      organs: saved.organs.length > 0 ? saved.organs.join(" | ") : null,
-      application_notes: saved.notes || null,
-      raw_json: saved as Record<string, unknown>,
-      created_at: saved.createdAt,
+    const res = await fetch("/api/refleksoloji/protocols", {
+      method: "POST",
+      headers: { ...userHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: crypto.randomUUID(),
+        source_uid: saved.id,
+        title: saved.title,
+        target_problem: saved.description || null,
+        organs: saved.organs.length > 0 ? saved.organs.join(" | ") : null,
+        application_notes: saved.notes || null,
+        raw_json: saved as Record<string, unknown>,
+        created_at: saved.createdAt,
+      }),
     });
-
-    if (error) return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+    if (!res.ok) return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
+    const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+    if (!json?.ok) return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
     return null;
   } catch {
     return "Protokol buluta eşitlenemedi. Kayıt cihazınızda mevcut.";
