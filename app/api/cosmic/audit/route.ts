@@ -28,10 +28,6 @@ import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 import {
   getSunSignInfo,
   getSunSignLegacy,
-  getPlanetSigns,
-  getMercurySignLegacy,
-  getVenusSignLegacy,
-  getMarsSignLegacy,
 } from "@/lib/cosmic/planets";
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
@@ -248,33 +244,8 @@ export async function GET() {
       : "⚠️ Legacy gün taraması kullanıldı (fallback)",
   }));
 
-  // ── FAZ 5C: Merkür / Venüs / Mars AE vs tablo ───────────────────────────────
-
-  const FAZ5C_TEST_DATES = [
-    { label: "Bugün",                   date: now },
-    { label: "2026-07-10 (Merkür retro dibe)", date: new Date("2026-07-10T12:00:00Z") },
-    { label: "2026-07-24 (Merkür direct)", date: new Date("2026-07-24T12:00:00Z") },
-    { label: "2031-01-01 (tablo kapsamı dışı)", date: new Date("2031-01-01T12:00:00Z") },
-  ] as const;
-
-  const faz5c_gezegenKarsilastirma = FAZ5C_TEST_DATES.map(({ label, date }) => {
-    const signs = getPlanetSigns(date);
-    const mercAE  = signs.find(p => p.key === "Merkür")?.sign ?? "?";
-    const venAE   = signs.find(p => p.key === "Venüs")?.sign  ?? "?";
-    const marsAE  = signs.find(p => p.key === "Mars")?.sign   ?? "?";
-    const mercLeg = getMercurySignLegacy(date);
-    const venLeg  = getVenusSignLegacy(date);
-    const marsLeg = getMarsSignLegacy(date);
-    const outRng  = signs.find(p => p.key === "Merkür")?.outOfRange ?? false;
-    return {
-      tarih:   label,
-      utc:     date.toISOString().slice(0, 10),
-      merkur:  { ae: mercAE, tablo: mercLeg, eslesme: mercAE === mercLeg ? "AYNI ✓" : "FARK ⚠️" },
-      venus:   { ae: venAE,  tablo: venLeg,  eslesme: venAE  === venLeg  ? "AYNI ✓" : "FARK ⚠️" },
-      mars:    { ae: marsAE, tablo: marsLeg, eslesme: marsAE === marsLeg ? "AYNI ✓" : "FARK ⚠️" },
-      outOfRange_merkur: outRng,
-    };
-  });
+  // (FAZ 1E: Merkür/Venüs/Mars AE-vs-tablo karşılaştırması kaldırıldı — period
+  //  tabloları silindi; production zaten AE-only. Yalnız Güneş cusp ve Ay legacy kaldı.)
 
   // ── FAZ 5B: Güneş burcu cusp tarihleri ──────────────────────────────────────
   const CUSP_DATES = [
@@ -301,11 +272,10 @@ export async function GET() {
 
   return Response.json({
     ok:        true,
-    modul:     "FAZ 5C — Merkür/Venüs/Mars AE tabanlı anlık burç",
-    aciklama:  "production=Güneş/Merkür/Venüs/Mars AE + Ay AE + Faz AE; Jüpiter-Plüton tablo; legacy=eski formüller",
+    modul:     "Kozmik motor denetimi — AE vs legacy",
+    aciklama:  "production=tüm gezegenler+Ay+faz AE (tablo yok, FAZ 1E); legacy=eski formüller (yalnız Güneş cusp ve Ay)",
     ozet,
     kritikTarihler,
-    faz5c_gezegenKarsilastirma,
     faz5b_sunSignCuspKarsilastirma: sunSignCuspKarsilastirma,
     faz4_eventKarsilastirma: eventKarsilastirma,
     fazGecisleri,
