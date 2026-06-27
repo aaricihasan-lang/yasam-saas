@@ -4,7 +4,9 @@ import {
   formatStockDisplay as formatAccessoryStock,
   formatVariantLabel as formatAccessoryVariant,
   loadAccessoryInventory,
+  type AccessoryItem,
 } from "@/lib/urun-stok/accessoryStockLogic";
+import { loadAccessoryInventoryForTenant } from "@/lib/urun-stok/accessoryInventoryDb";
 import {
   DOGALTAS_INVENTORY_TABLE,
   loadDogaltasInventoryForTenant,
@@ -25,18 +27,24 @@ import {
   fmtUnitCost as fmtOilUnitCost,
   loadOilInventory,
   unitLabel as oilUnitLabel,
+  type OilItem,
 } from "@/lib/urun-stok/oilStockLogic";
+import { loadOilInventoryForTenant } from "@/lib/urun-stok/oilInventoryDb";
 import {
   formatVariantLabel as formatOtherVariant,
   formatStockDisplay as formatOtherStock,
   fmtUnitCost as fmtOtherUnitCost,
   loadOtherInventory,
+  type OtherItem,
 } from "@/lib/urun-stok/otherStockLogic";
+import { loadOtherInventoryForTenant } from "@/lib/urun-stok/otherInventoryDb";
 import {
   formatStockDisplay as formatSoapStock,
   fmtUnitCost as fmtSoapUnitCost,
   loadSoapCreamInventory,
+  type SoapCreamItem,
 } from "@/lib/urun-stok/soapCreamStockLogic";
+import { loadSoapCreamInventoryForTenant } from "@/lib/urun-stok/soapCreamInventoryDb";
 
 export type LiveStockCategory = ProductCategory;
 
@@ -109,85 +117,119 @@ function dogaltasItemsToLiveRows(items: InvItem[], usdRate: number): LiveStockRo
   return rows;
 }
 
+// ——— Tekil item → LiveStockRow eşleyiciler (sync ve async yolu paylaşır) ———
+
+function oilItemToRow(it: OilItem): LiveStockRow | null {
+  if (it.stockBase <= 0) return null;
+  const u = it.baseUnit;
+  return {
+    id: `oil:${it.id}`,
+    category: "oil",
+    categoryLabel: CATEGORY_LABELS.oil,
+    name: it.name,
+    groupLabel: `${it.oilType} · ${it.measureType}`,
+    stockDisplay: formatOilStock(it),
+    stockAmount: it.stockBase,
+    unitLabel: oilUnitLabel(u),
+    costPerUnit: it.costPerBase,
+    costPerUnitLabel: fmtOilUnitCost(it.costPerBase, u),
+    stockValue: it.costPerBase * it.stockBase,
+    isCritical: isCriticalStock(it.stockBase, u),
+    photos: it.photos ?? [],
+  };
+}
+
+function soapItemToRow(it: SoapCreamItem): LiveStockRow | null {
+  if (it.stockBase <= 0) return null;
+  const u = it.baseUnit;
+  return {
+    id: `soap_cream:${it.id}`,
+    category: "soap_cream",
+    categoryLabel: CATEGORY_LABELS.soap_cream,
+    name: it.name,
+    groupLabel: `${it.productGroup} · ${it.measureType}`,
+    stockDisplay: formatSoapStock(it),
+    stockAmount: it.stockBase,
+    unitLabel: oilUnitLabel(u),
+    costPerUnit: it.costPerBase,
+    costPerUnitLabel: fmtSoapUnitCost(it.costPerBase, u),
+    stockValue: it.costPerBase * it.stockBase,
+    isCritical: isCriticalStock(it.stockBase, u),
+    photos: it.photos ?? [],
+  };
+}
+
+function accessoryItemToRow(it: AccessoryItem): LiveStockRow | null {
+  if (it.stockQty <= 0) return null;
+  return {
+    id: `accessory:${it.id}`,
+    category: "accessory",
+    categoryLabel: CATEGORY_LABELS.accessory,
+    name: it.name,
+    groupLabel: formatAccessoryVariant(it),
+    stockDisplay: formatAccessoryStock(it),
+    stockAmount: it.stockQty,
+    unitLabel: "adet",
+    costPerUnit: it.costPerUnit,
+    costPerUnitLabel: `${fmtMoney(it.costPerUnit)} / adet`,
+    stockValue: it.costPerUnit * it.stockQty,
+    isCritical: isCriticalStock(it.stockQty, "adet"),
+    photos: it.photos ?? [],
+  };
+}
+
+function otherItemToRow(it: OtherItem): LiveStockRow | null {
+  if (it.stockBase <= 0) return null;
+  const u = it.baseUnit;
+  return {
+    id: `other:${it.id}`,
+    category: "other",
+    categoryLabel: CATEGORY_LABELS.other,
+    name: it.name,
+    groupLabel: formatOtherVariant(it),
+    stockDisplay: formatOtherStock(it),
+    stockAmount: it.stockBase,
+    unitLabel: oilUnitLabel(u),
+    costPerUnit: it.costPerBase,
+    costPerUnitLabel: fmtOtherUnitCost(it.costPerBase, u),
+    stockValue: it.costPerBase * it.stockBase,
+    isCritical: isCriticalStock(it.stockBase, u),
+    photos: it.photos ?? [],
+  };
+}
+
+function pushNonNull(rows: LiveStockRow[], built: (LiveStockRow | null)[]): void {
+  for (const r of built) if (r) rows.push(r);
+}
+
+/** Sync (localStorage) — demo modu ve çevrimdışı yedek için. */
 function appendOtherModuleStockRows(rows: LiveStockRow[]): void {
-  for (const it of loadOilInventory()) {
-    if (it.stockBase <= 0) continue;
-    const u = it.baseUnit;
-    rows.push({
-      id: `oil:${it.id}`,
-      category: "oil",
-      categoryLabel: CATEGORY_LABELS.oil,
-      name: it.name,
-      groupLabel: `${it.oilType} · ${it.measureType}`,
-      stockDisplay: formatOilStock(it),
-      stockAmount: it.stockBase,
-      unitLabel: oilUnitLabel(u),
-      costPerUnit: it.costPerBase,
-      costPerUnitLabel: fmtOilUnitCost(it.costPerBase, u),
-      stockValue: it.costPerBase * it.stockBase,
-      isCritical: isCriticalStock(it.stockBase, u),
-      photos: it.photos ?? [],
-    });
-  }
+  pushNonNull(rows, loadOilInventory().map(oilItemToRow));
+  pushNonNull(rows, loadSoapCreamInventory().map(soapItemToRow));
+  pushNonNull(rows, loadAccessoryInventory().map(accessoryItemToRow));
+  pushNonNull(rows, loadOtherInventory().map(otherItemToRow));
+}
 
-  for (const it of loadSoapCreamInventory()) {
-    if (it.stockBase <= 0) continue;
-    const u = it.baseUnit;
-    rows.push({
-      id: `soap_cream:${it.id}`,
-      category: "soap_cream",
-      categoryLabel: CATEGORY_LABELS.soap_cream,
-      name: it.name,
-      groupLabel: `${it.productGroup} · ${it.measureType}`,
-      stockDisplay: formatSoapStock(it),
-      stockAmount: it.stockBase,
-      unitLabel: oilUnitLabel(u),
-      costPerUnit: it.costPerBase,
-      costPerUnitLabel: fmtSoapUnitCost(it.costPerBase, u),
-      stockValue: it.costPerBase * it.stockBase,
-      isCritical: isCriticalStock(it.stockBase, u),
-      photos: it.photos ?? [],
-    });
-  }
-
-  for (const it of loadAccessoryInventory()) {
-    if (it.stockQty <= 0) continue;
-    rows.push({
-      id: `accessory:${it.id}`,
-      category: "accessory",
-      categoryLabel: CATEGORY_LABELS.accessory,
-      name: it.name,
-      groupLabel: formatAccessoryVariant(it),
-      stockDisplay: formatAccessoryStock(it),
-      stockAmount: it.stockQty,
-      unitLabel: "adet",
-      costPerUnit: it.costPerUnit,
-      costPerUnitLabel: `${fmtMoney(it.costPerUnit)} / adet`,
-      stockValue: it.costPerUnit * it.stockQty,
-      isCritical: isCriticalStock(it.stockQty, "adet"),
-      photos: it.photos ?? [],
-    });
-  }
-
-  for (const it of loadOtherInventory()) {
-    if (it.stockBase <= 0) continue;
-    const u = it.baseUnit;
-    rows.push({
-      id: `other:${it.id}`,
-      category: "other",
-      categoryLabel: CATEGORY_LABELS.other,
-      name: it.name,
-      groupLabel: formatOtherVariant(it),
-      stockDisplay: formatOtherStock(it),
-      stockAmount: it.stockBase,
-      unitLabel: oilUnitLabel(u),
-      costPerUnit: it.costPerBase,
-      costPerUnitLabel: fmtOtherUnitCost(it.costPerBase, u),
-      stockValue: it.costPerBase * it.stockBase,
-      isCritical: isCriticalStock(it.stockBase, u),
-      photos: it.photos ?? [],
-    });
-  }
+/**
+ * Async (Supabase öncelikli) — yağ/sabun-krem/aksesuar/diğer modüllerini DB'den
+ * yükler (her biri localStorage yedekli + eski kayıt migrasyonlu). Böylece taze
+ * cihaz/oturumda (cache boşken) tüm modüller görünür — mobil "elinde var mı?"
+ * hızlı kontrolü her cihazda çalışır.
+ */
+async function appendOtherModuleStockRowsAsync(
+  rows: LiveStockRow[],
+  tenantId: string | null,
+): Promise<void> {
+  const [oil, soap, accessory, other] = await Promise.all([
+    loadOilInventoryForTenant(tenantId),
+    loadSoapCreamInventoryForTenant(tenantId),
+    loadAccessoryInventoryForTenant(tenantId),
+    loadOtherInventoryForTenant(tenantId),
+  ]);
+  pushNonNull(rows, oil.items.map(oilItemToRow));
+  pushNonNull(rows, soap.items.map(soapItemToRow));
+  pushNonNull(rows, accessory.items.map(accessoryItemToRow));
+  pushNonNull(rows, other.items.map(otherItemToRow));
 }
 
 export type LiveStockLoadResult = {
@@ -207,7 +249,9 @@ export async function loadLiveStockRowsAsync(
   const inv = await loadDogaltasInventoryForTenant(tenantId);
   const dogaltasRows = dogaltasItemsToLiveRows(inv.items, usdRate);
   rows.push(...dogaltasRows);
-  appendOtherModuleStockRows(rows);
+  // K-3: yağ/sabun-krem/aksesuar/diğer modülleri de DB öncelikli yüklenir
+  // (önceden yalnız localStorage idi → taze cihazda görünmüyordu).
+  await appendOtherModuleStockRowsAsync(rows, tenantId);
   return {
     rows,
     dogaltasSource: inv.source,
