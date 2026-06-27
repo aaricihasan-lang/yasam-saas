@@ -19,6 +19,45 @@ const cardDesc =
 const cardCta =
   "relative mt-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 lg:mt-3";
 
+/** Numeroloji — 8 köşeli yıldız / kutsal-sayı sembolü */
+function IconAnaliz() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7 text-amber-200" fill="none" aria-hidden>
+      <path
+        d="M12 2.2l1.9 4.6 4.6 1.9-4.6 1.9L12 15.2l-1.9-4.6L5.5 8.7l4.6-1.9L12 2.2z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+        fill="currentColor"
+        fillOpacity="0.18"
+      />
+      <circle cx="12" cy="19.4" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M12 13.5v4.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Kayıtlı Analizler — arşiv / katmanlı liste sembolü */
+function IconArsiv() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7 text-violet-100" fill="none" aria-hidden>
+      <rect x="3.5" y="4" width="17" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="currentColor" fillOpacity="0.12" />
+      <path d="M5 9v9.5A1.5 1.5 0 006.5 20h11a1.5 1.5 0 001.5-1.5V9" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M9.5 13h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Bilgi Bankası — açık kitap sembolü */
+function IconBilgi() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7 text-sky-100" fill="none" aria-hidden>
+      <path d="M12 6.5C10.4 5.2 8.2 4.8 5.5 5v12c2.7-.2 4.9.2 6.5 1.5 1.6-1.3 3.8-1.7 6.5-1.5V5c-2.7-.2-4.9.2-6.5 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.1" />
+      <path d="M12 6.5v12" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 export default function NumerolojiHubPage() {
   return (
     <div className="relative min-h-screen overflow-y-auto bg-[#040210] text-white antialiased">
@@ -59,18 +98,24 @@ export default function NumerolojiHubPage() {
 
         <div className="mt-4 flex flex-1 flex-col lg:justify-center lg:mt-4">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-4">
-            <Link href="/numeroloji/analiz" className={`${cardGlass} ${cardHover} no-underline`}>
+            <Link
+              href="/numeroloji/analiz"
+              className={`${cardGlass} ${cardHover} no-underline border-amber-300/45 ring-amber-300/20 shadow-[0_0_50px_-14px_rgba(251,191,36,0.30),0_8px_40px_-12px_rgba(0,0,0,0.65)]`}
+            >
+              <span className="absolute right-3 top-3 z-[2] rounded-full border border-amber-300/60 bg-amber-400/15 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100 shadow-sm backdrop-blur-md">
+                Buradan başlayın
+              </span>
               <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-600/20 via-transparent to-sky-600/10 opacity-50 transition-all duration-300 group-hover:opacity-100"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/14 via-violet-600/12 to-sky-600/10 opacity-60 transition-all duration-300 group-hover:opacity-100"
                 aria-hidden
               />
               <div
-                className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl transition-all duration-300 group-hover:bg-violet-400/35"
+                className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-500/18 blur-3xl transition-all duration-300 group-hover:bg-amber-400/28"
                 aria-hidden
               />
               <div className="relative flex flex-1 flex-col">
-                <div className={cardIcon}>
-                  <span aria-hidden>🔢</span>
+                <div className={`${cardIcon} border-amber-300/40 from-amber-900/40`}>
+                  <IconAnaliz />
                 </div>
                 <h2 className={cardTitle}>Numeroloji Analizi</h2>
                 <p className={cardDesc}>
@@ -96,7 +141,7 @@ export default function NumerolojiHubPage() {
               />
               <div className="relative flex flex-1 flex-col">
                 <div className={`${cardIcon} from-indigo-950/80`}>
-                  <span aria-hidden>📋</span>
+                  <IconArsiv />
                 </div>
                 <h2 className={cardTitle}>Kayıtlı Analizler</h2>
                 <p className={cardDesc}>
@@ -122,7 +167,7 @@ export default function NumerolojiHubPage() {
               />
               <div className="relative flex flex-1 flex-col">
                 <div className={`${cardIcon} from-teal-950/70`}>
-                  <span aria-hidden>📚</span>
+                  <IconBilgi />
                 </div>
                 <h2 className={cardTitle}>Bilgi Bankası</h2>
                 <p className={cardDesc}>

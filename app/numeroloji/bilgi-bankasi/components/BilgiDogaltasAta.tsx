@@ -248,7 +248,7 @@ export function BilgiDogaltasAta() {
           type="button"
           disabled={kaydediliyor}
           onClick={() => void handleKaydet()}
-          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(16,185,129,0.4)] ring-2 ring-emerald-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-400/70 bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-3 text-base font-black uppercase tracking-wide text-white shadow-[0_12px_32px_-8px_rgba(91,33,182,0.4)] ring-2 ring-violet-300/40 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
         </button>

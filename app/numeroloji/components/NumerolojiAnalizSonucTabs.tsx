@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
 import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
@@ -224,25 +225,38 @@ function OzetPremiumKart({
   value,
   icon,
   tint,
+  gold = false,
 }: {
   title: string;
   value: string;
   icon: ReactNode;
   tint: string;
+  gold?: boolean;
 }) {
   return (
     <div
-      className={`relative min-w-0 overflow-hidden rounded-[12px] border border-violet-200/70 bg-white/85 p-3 shadow-[0_0_10px_rgba(139,92,246,0.06)] transition-all duration-200 hover:-translate-y-0.5 ${tint}`}
+      className={`relative min-w-0 overflow-hidden rounded-[12px] border p-3 shadow-[0_0_10px_rgba(139,92,246,0.06)] transition-all duration-200 hover:-translate-y-0.5 ${
+        gold
+          ? "border-amber-300/80 ring-1 ring-amber-200/60 shadow-[0_4px_18px_-6px_rgba(217,119,6,0.28)]"
+          : "border-violet-200/70"
+      } ${tint}`}
     >
-      <div className="pointer-events-none absolute -right-3 -top-3 h-10 w-10 rounded-full bg-violet-400/8 blur-lg" aria-hidden />
+      <div
+        className={`pointer-events-none absolute -right-3 -top-3 h-10 w-10 rounded-full blur-lg ${gold ? "bg-amber-400/15" : "bg-violet-400/8"}`}
+        aria-hidden
+      />
       <div className="relative flex min-w-0 items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">{title}</p>
-          <p className="mt-0.5 w-full whitespace-normal break-words text-2xl font-black leading-tight text-slate-950">
+          <p className={`text-[9px] font-black uppercase tracking-wider ${gold ? "text-amber-700/90" : "text-slate-500"}`}>{title}</p>
+          <p className={`mt-0.5 w-full whitespace-normal break-words text-2xl font-black leading-tight ${gold ? "text-amber-700" : "text-slate-950"}`}>
             {value}
           </p>
         </div>
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/80 text-[10px] text-violet-600 shadow-sm ring-1 ring-violet-100/60">
+        <div
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] shadow-sm ring-1 ${
+            gold ? "bg-amber-50 text-amber-600 ring-amber-200/70" : "bg-white/80 text-violet-600 ring-violet-100/60"
+          }`}
+        >
           {icon}
         </div>
       </div>
@@ -266,10 +280,10 @@ function TabSonucOzetiPremium({
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
 
   const ustKartlar = [
-    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "from-violet-50/80", icon: "♔" },
-    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "from-indigo-50/80", icon: "⚖" },
-    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "from-fuchsia-50/80", icon: "✦" },
-    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "from-amber-50/80", icon: "☤" },
+    { title: "Ana Kulvar", value: nrDisplay(out.anaKulvar), tint: "bg-gradient-to-br from-violet-50/80 to-white/90", icon: "♔", gold: false },
+    { title: "Yan Kulvar", value: nrDisplay(out.yanKulvar), tint: "bg-gradient-to-br from-indigo-50/80 to-white/90", icon: "⚖", gold: false },
+    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "bg-gradient-to-br from-fuchsia-50/80 to-white/90", icon: "✦", gold: false },
+    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "bg-gradient-to-br from-amber-50/90 to-white/90", icon: "☤", gold: true },
   ];
 
   return (
@@ -290,7 +304,7 @@ function TabSonucOzetiPremium({
 
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         {ustKartlar.map((k) => (
-          <OzetPremiumKart key={k.title} title={k.title} value={k.value} tint={`bg-gradient-to-br ${k.tint} to-white/90`} icon={<span className="text-sm">{k.icon}</span>} />
+          <OzetPremiumKart key={k.title} title={k.title} value={k.value} tint={k.tint} gold={k.gold} icon={<span className="text-sm">{k.icon}</span>} />
         ))}
       </div>
 
@@ -611,11 +625,16 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
 
 export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     void getStoneAssignmentsForAnalysis(out).then((items) => {
-      if (!cancelled) setStoneAssignments(items);
+      if (!cancelled) {
+        setStoneAssignments(items);
+        setLoaded(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -625,7 +644,32 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   const cakraItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_CAKRA);
   const elementItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
 
-  if (!cakraItems.length && !elementItems.length) return null;
+  if (!cakraItems.length && !elementItems.length) {
+    if (!loaded) {
+      return (
+        <div className="py-12 text-center text-sm font-medium text-slate-400">Taş notlarınız yükleniyor…</div>
+      );
+    }
+    return (
+      <div className="rounded-2xl border border-dashed border-violet-300/70 bg-gradient-to-br from-violet-50/55 via-white to-amber-50/40 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/55">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/60 bg-gradient-to-br from-violet-100/70 to-amber-50/80 text-2xl text-violet-700 shadow-inner" aria-hidden>
+          ◈
+        </div>
+        <h3 className="mt-4 text-base font-black text-violet-950">Bu analiz için henüz taş notunuz yok</h3>
+        <p className="mx-auto mt-1.5 max-w-md text-sm font-medium leading-relaxed text-slate-600">
+          Taş önerileriniz kendi sisteminize aittir. Sayı ve değerlere kendi taş notlarınızı tanımladığınızda
+          bu sayfada otomatik olarak görünür.
+        </p>
+        <Link
+          href="/numeroloji/bilgi-bankasi"
+          className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/70 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white no-underline shadow-[0_8px_22px_-8px_rgba(91,33,182,0.45)] ring-1 ring-amber-300/30 transition hover:brightness-110"
+        >
+          Bilgi Bankası › Doğaltaş Ata
+          <span aria-hidden>→</span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">

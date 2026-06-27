@@ -97,9 +97,9 @@ function isoBirthDateToDisplay(iso: string): string {
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "Sonuç Özeti" },
-  { id: "plain", label: "Analiz (Hesap Özetsiz)" },
-  { id: "detailed", label: "Analiz (Hesap Özetli)" },
-  { id: "tas", label: "Taş Açıklamaları" },
+  { id: "plain", label: "Numerolojik Analiz" },
+  { id: "detailed", label: "Sayısal Hesaplama" },
+  { id: "tas", label: "Taş Notlarım" },
   { id: "gorsel", label: "Görsel Rapor" },
 ];
 
@@ -110,6 +110,8 @@ export default function NumerolojiAnalizPage() {
   const [error, setError] = useState<string | null>(null);
   const [out, setOut] = useState<NumerolojiMotorOut | null>(null);
   const [tab, setTab] = useState<TabId>("summary");
+  const [formAcik, setFormAcik] = useState(true);
+  const sonucRef = useRef<HTMLDivElement>(null);
   const [gorselTema, setGorselTema] = useState<GorselTemaId>("kozmikMor");
   const [gorselTamEkran, setGorselTamEkran] = useState(false);
   const [gorselPortalHazir, setGorselPortalHazir] = useState(false);
@@ -332,6 +334,13 @@ export default function NumerolojiAnalizPage() {
     }
 
     computeAndShow(fn, ln, bd);
+    // Hesap sonrası: giriş formunu katla ve odağı sonuca kaydır (danışan akışı)
+    setFormAcik(false);
+    runInEffect(() => {
+      setTimeout(() => {
+        sonucRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    });
   }
 
   const isimGoster = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();
@@ -385,6 +394,31 @@ export default function NumerolojiAnalizPage() {
           </div>
         </header>
 
+        {out && !formAcik ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-100/70 via-white/80 to-amber-50/60 px-4 py-3 shadow-[0_8px_24px_-12px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-xl">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Aktif analiz</p>
+              <p className="mt-0.5 truncate text-base font-black text-slate-900">{isimGoster || "—"}</p>
+              <p className="text-xs font-medium text-slate-500">Doğum: {dogumGoster || "—"}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <SaveAnalysisButton
+                firstName={firstName}
+                lastName={lastName}
+                birthDateDisplay={birthDate.trim()}
+                motorOutput={out}
+                variant="premium"
+              />
+              <button
+                type="button"
+                onClick={() => setFormAcik(true)}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-violet-300/80 bg-white/90 px-4 text-xs font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-400 hover:bg-white"
+              >
+                ✎ Bilgileri Düzenle
+              </button>
+            </div>
+          </div>
+        ) : (
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl border border-white/85 bg-white/75 p-4 shadow-[0_8px_24px_-10px_rgba(91,33,182,0.15)] ring-1 ring-violet-100/50 backdrop-blur-xl sm:p-5"
@@ -451,6 +485,7 @@ export default function NumerolojiAnalizPage() {
             />
           </div>
         </form>
+        )}
 
         {error ? (
           <div
@@ -472,7 +507,10 @@ export default function NumerolojiAnalizPage() {
         ) : null}
 
         {out ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-md">
+          <div
+            ref={sonucRef}
+            className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 shadow-[0_12px_36px_-14px_rgba(91,33,182,0.18)] ring-1 ring-violet-100/55 backdrop-blur-md"
+          >
             <div className="border-b border-slate-200/80 bg-gradient-to-r from-violet-100/70 via-white/50 to-amber-50/60 p-3">
               <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
                 <NumerolojiFontSizeControl value={contentFontSize} onChange={setContentFontSize} />
@@ -485,10 +523,15 @@ export default function NumerolojiAnalizPage() {
                   onClick={() => setTab(t.id)}
                   className={`shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-left text-sm font-black uppercase tracking-wide transition ${
                     tab === t.id
-                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_6px_18px_-4px_rgba(91,33,182,0.5)] ring-2 ring-violet-300/45"
-                      : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800"
+                      ? t.id === "gorsel"
+                        ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-[0_6px_18px_-4px_rgba(217,119,6,0.5)] ring-2 ring-amber-300/55"
+                        : "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_6px_18px_-4px_rgba(91,33,182,0.5)] ring-2 ring-violet-300/45"
+                      : t.id === "gorsel"
+                        ? "border border-amber-300/60 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
+                        : "bg-white/60 text-slate-600 hover:bg-white hover:text-violet-800"
                   }`}
                 >
+                  {t.id === "gorsel" ? <span className="mr-1" aria-hidden>✦</span> : null}
                   {t.label}
                 </button>
               ))}

@@ -140,9 +140,9 @@ export function GorselRaporKontrolCubugu({
         type="button"
         onClick={onGorselPngIndir}
         disabled={gorselIndirmeKilitli}
-        className="shrink-0 self-end rounded-full border-2 border-emerald-400/75 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.28)] backdrop-blur-md transition hover:border-emerald-300 hover:bg-zinc-900 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em]"
+        className="shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.30)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em]"
       >
-        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
+        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
       </button>
       {!gorselTamEkran ? (
         <button
@@ -198,9 +198,9 @@ export function GorselRaporTamEkranKontrolCubugu({
         type="button"
         onClick={onGorselPngIndir}
         disabled={gorselIndirmeKilitli}
-        className="rounded-full border-2 border-emerald-400/75 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-emerald-50 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-emerald-300 hover:bg-zinc-900 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
+        className="rounded-full border-2 border-amber-400/80 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-amber-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
       >
-        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
+        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
       </button>
     </div>
   );

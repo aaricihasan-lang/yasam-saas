@@ -365,9 +365,17 @@ export function BilgiKayitListesi() {
           <p className="text-lg font-medium text-slate-600">Kayıtlar yükleniyor…</p>
         </div>
       ) : hicKayitYok ? (
-        <div className="rounded-[32px] border-2 border-dashed border-violet-300/80 bg-white/95 px-10 py-24 text-center shadow-xl ring-1 ring-purple-200 backdrop-blur-md sm:py-28">
-          <p className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-slate-600 sm:text-xl">
-            Henüz kayıtlı bilgi bankası kaydı yok.
+        <div className="rounded-[32px] border-2 border-dashed border-violet-300/80 bg-gradient-to-br from-violet-50/50 to-white/95 px-10 py-20 text-center shadow-xl ring-1 ring-purple-200 backdrop-blur-md sm:py-24">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-violet-200/80 bg-violet-100/70 text-3xl text-violet-700 shadow-inner" aria-hidden>
+            ✦
+          </div>
+          <h3 className="mt-5 text-2xl font-black text-violet-950">Kendi bilgi arşiviniz burada başlıyor</h3>
+          <p className="mx-auto mt-3 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+            Bu alan tamamen size aittir. Kendi eğitiminize ve yorum sisteminize göre numeroloji notlarınızı,
+            açıklamalarınızı ve taş atamalarınızı buradan oluşturun; eklediğiniz her kayıt bu listede görünür.
+          </p>
+          <p className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-white/80 px-5 py-2 text-sm font-bold text-violet-800 shadow-sm">
+            Başlamak için yukarıdaki <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-900">Kayıt Ekle / Düzenle</span> sekmesini açın
           </p>
         </div>
       ) : filtreBos ? (
