@@ -24,6 +24,7 @@ import {
   bioApiDeleteMany,
   bioApiLastCreated,
 } from "@/lib/biyoenerji/secureApi";
+import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { badgeFieldWrapClass, bioSaveBtnClass, bioSearchInputClass, bioSelectClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
@@ -142,6 +143,8 @@ export default function Imajinasyonlar() {
   useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
   useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
+  useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -201,58 +204,82 @@ export default function Imajinasyonlar() {
         return;
       }
 
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
+      const cacheKey = bioListKey("imaginations", { search, category, offset: 0 });
+
       if (opts.reset) {
-        setListLoading(true);
         setLoadErrorMessage("");
+        // Cache'ten anında göster (stale-while-revalidate); yoksa yükleniyor
+        const cached = bioListGet(cacheKey);
+        if (cached) {
+          setRows(cached.rows as ImaginationListItem[]);
+          setTotalInDb(cached.total);
+          setSearchResultCount(cached.searchCount);
+          setLastCreatedAt(cached.lastCreatedAt);
+          setListLoading(false);
+        } else {
+          setListLoading(true);
+        }
       } else {
         setLoadingMore(true);
       }
 
-      const offset = opts.offset ?? 0;
-      const search = debouncedSearch.trim() || undefined;
-      const category = categoryFilter || undefined;
-
-      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-        fetchImaginationsPage(tenantId, { offset, search, category }),
-        opts.reset
-          ? fetchImaginationsCount(tenantId)
-          : Promise.resolve({ count: totalInDbRef.current, error: null }),
-        opts.reset
-          ? fetchImaginationsCount(tenantId, search, category)
-          : Promise.resolve({ count: searchResultCountRef.current, error: null }),
-        opts.reset
-          ? bioApiLastCreated("imaginations")
-          : Promise.resolve({ lastCreatedAt: null, error: null }),
-      ]);
-
+      // 1) ÖNCE sayfa (grid) — istatistik beklenmez
+      const pageRes = await fetchImaginationsPage(tenantId, { offset, search, category });
       if (opts.reset) setListLoading(false);
       setLoadingMore(false);
 
       if (pageRes.error) {
         setLoadErrorMessage(`İmajinasyonlar okunamadı: ${pageRes.error}`);
-        if (opts.reset) setRows([]);
+        if (opts.reset && !bioListGet(cacheKey)) setRows([]);
         return;
-      }
-
-      if (opts.reset) {
-        if (totalRes.error) {
-          setLoadErrorMessage(`Kayıt sayısı alınamadı: ${totalRes.error}`);
-        } else {
-          setTotalInDb(totalRes.count);
-        }
-        if (searchCountRes.error) {
-          setSearchResultCount(0);
-        } else {
-          setSearchResultCount(searchCountRes.count);
-        }
-        setLastCreatedAt(
-          (lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null,
-        );
       }
 
       setRows((current) =>
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
+
+      // 2) İstatistikler ARKA PLANDA (grid'i bloklamaz) — yalnız reset
+      if (opts.reset) {
+        void (async () => {
+          const totalP = fetchImaginationsCount(tenantId);
+          // dedupe: arama+kategori boşken total == searchCount → tek sorgu
+          const searchP =
+            !search && !category ? totalP : fetchImaginationsCount(tenantId, search, category);
+          const [totalRes, searchCountRes, lastRes] = await Promise.all([
+            totalP,
+            searchP,
+            bioApiLastCreated("imaginations"),
+          ]);
+          let total = totalInDbRef.current;
+          if (totalRes.error) {
+            setLoadErrorMessage(`Kayıt sayısı alınamadı: ${totalRes.error}`);
+          } else {
+            total = totalRes.count;
+            setTotalInDb(total);
+          }
+          let searchCount = 0;
+          if (searchCountRes.error) {
+            setSearchResultCount(0);
+          } else {
+            searchCount = searchCountRes.count;
+            setSearchResultCount(searchCount);
+          }
+          const lastAt = lastRes.error
+            ? lastCreatedAtRef.current
+            : ((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+          setLastCreatedAt(lastAt);
+          bioListSet(cacheKey, {
+            rows: pageRes.rows,
+            total,
+            searchCount,
+            lastCreatedAt: lastAt,
+            categories: null,
+          });
+        })();
+      }
     },
     [categoryFilter, debouncedSearch, queryTenantId],
   );

@@ -32,6 +32,7 @@ import {
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
 import { chakraDisplayOrder } from "@/lib/bioenergy/chakraStoneMatch";
+import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -149,6 +150,8 @@ export default function Cakralar() {
   useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
   useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
+  useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -206,30 +209,32 @@ export default function Cakralar() {
         return;
       }
 
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const cacheKey = bioListKey("chakras", { search, offset: 0 });
+
       if (opts.reset) {
-        setListLoading(true);
         setLoadErrorMessage("");
+        // Cache'ten anında göster (stale-while-revalidate); yoksa yükleniyor
+        const cached = bioListGet(cacheKey);
+        if (cached) {
+          const cachedRows = cached.rows as ChakraListItem[];
+          lastGoodRowsRef.current = cachedRows;
+          setRows(cachedRows);
+          setTotalInDb(cached.total);
+          setSearchResultCount(cached.searchCount);
+          setLastCreatedAt(cached.lastCreatedAt);
+          setListLoading(false);
+        } else {
+          setListLoading(true);
+        }
       } else {
         setLoadingMore(true);
       }
 
-      const offset = opts.offset ?? 0;
-      const search = debouncedSearch.trim() || undefined;
-
       try {
-        const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-          fetchChakrasPage(tenantId, { offset, search }),
-          opts.reset
-            ? fetchChakrasCount(tenantId)
-            : Promise.resolve({ data: totalInDbRef.current, error: null, usedFallback: false }),
-          opts.reset
-            ? fetchChakrasCount(tenantId, search)
-            : Promise.resolve({ data: searchResultCountRef.current, error: null, usedFallback: false }),
-          opts.reset
-            ? bioApiLastCreated("chakras")
-            : Promise.resolve({ lastCreatedAt: null, error: null }),
-        ]);
-
+        // 1) ÖNCE sayfa (grid) — istatistik beklenmez
+        const pageRes = await fetchChakrasPage(tenantId, { offset, search });
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
 
@@ -259,13 +264,33 @@ export default function Cakralar() {
           setRows(merged);
         }
 
-        if (opts.reset) {
-          if (!totalRes.error) setTotalInDb(totalRes.data);
-          if (!searchCountRes.error) setSearchResultCount(searchCountRes.data);
-          if (!lastRes.error)
-            setLastCreatedAt(
-              (lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null,
-            );
+        // 2) İstatistikler ARKA PLANDA (grid'i bloklamaz) — yalnız reset
+        if (opts.reset && !hadPageError) {
+          void (async () => {
+            const totalP = fetchChakrasCount(tenantId);
+            // dedupe: arama boşken total == searchCount → tek sorgu
+            const searchP = search ? fetchChakrasCount(tenantId, search) : totalP;
+            const [totalRes, searchCountRes, lastRes] = await Promise.all([
+              totalP,
+              searchP,
+              bioApiLastCreated("chakras"),
+            ]);
+            const total = totalRes.error ? totalInDbRef.current : totalRes.data;
+            const searchCount = searchCountRes.error ? searchResultCountRef.current : searchCountRes.data;
+            const lastAt = lastRes.error
+              ? lastCreatedAtRef.current
+              : ((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+            if (!totalRes.error) setTotalInDb(total);
+            if (!searchCountRes.error) setSearchResultCount(searchCount);
+            if (!lastRes.error) setLastCreatedAt(lastAt);
+            bioListSet(cacheKey, {
+              rows: lastGoodRowsRef.current,
+              total,
+              searchCount,
+              lastCreatedAt: lastAt,
+              categories: null,
+            });
+          })();
         }
       } catch (err) {
         if (opts.reset) setListLoading(false);

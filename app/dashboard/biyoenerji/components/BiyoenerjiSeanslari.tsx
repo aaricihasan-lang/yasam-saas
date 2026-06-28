@@ -16,6 +16,7 @@ import {
   bioApiList,
   bioApiUpdate,
 } from "@/lib/biyoenerji/secureApi";
+import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
   bioSaveBtnClass,
@@ -110,6 +111,8 @@ export default function BiyoenerjiSeanslari() {
   useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
   useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
+  useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SessionForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -156,45 +159,70 @@ export default function BiyoenerjiSeanslari() {
         return;
       }
 
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
+      const cacheKey = bioListKey("sessions", { search, category, offset: 0 });
+
       if (opts.reset) {
-        setLoading(true);
         setInfoError("");
+        // Cache'ten anında göster (stale-while-revalidate); yoksa yükleniyor
+        const cached = bioListGet(cacheKey);
+        if (cached) {
+          setRows(cached.rows as BioenergySession[]);
+          setTotalInDb(cached.total);
+          setSearchResultCount(cached.searchCount);
+          setLastCreatedAt(cached.lastCreatedAt);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
       } else {
         setLoadingMore(true);
       }
 
-      const offset = opts.offset ?? 0;
-      const search = debouncedSearch.trim() || undefined;
-      const category = categoryFilter || undefined;
-
-      const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-        bioApiList("sessions", { offset, limit: SESSIONS_PAGE_SIZE, search, category }),
-        opts.reset ? bioApiCount("sessions") : Promise.resolve({ count: totalInDbRef.current, error: null }),
-        opts.reset
-          ? bioApiCount("sessions", search, category)
-          : Promise.resolve({ count: searchResultCountRef.current, error: null }),
-        opts.reset
-          ? bioApiLastCreated("sessions")
-          : Promise.resolve({ lastCreatedAt: null, error: null }),
-      ]);
-
+      // 1) ÖNCE sayfa (grid) — istatistik beklenmez
+      const pageRes = await bioApiList("sessions", { offset, limit: SESSIONS_PAGE_SIZE, search, category });
       if (opts.reset) setLoading(false);
       setLoadingMore(false);
 
       if (pageRes.error) {
         showSoft("err", `Kayıtlar yüklenemedi: ${pageRes.error}`);
-        if (opts.reset) setRows([]);
+        if (opts.reset && !bioListGet(cacheKey)) setRows([]);
         return;
-      }
-
-      if (opts.reset) {
-        if (!totalRes.error) setTotalInDb(totalRes.count);
-        if (!searchCountRes.error) setSearchResultCount(searchCountRes.count);
-        setLastCreatedAt((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
       }
 
       const pageRows = pageRes.rows as unknown as BioenergySession[];
       setRows((current) => (opts.append ? [...current, ...pageRows] : pageRows));
+
+      // 2) İstatistikler ARKA PLANDA (grid'i bloklamaz) — yalnız reset
+      if (opts.reset) {
+        void (async () => {
+          const totalP = bioApiCount("sessions");
+          // dedupe: arama+kategori boşken total == searchCount → tek sorgu
+          const searchP = !search && !category ? totalP : bioApiCount("sessions", search, category);
+          const [totalRes, searchCountRes, lastRes] = await Promise.all([
+            totalP,
+            searchP,
+            bioApiLastCreated("sessions"),
+          ]);
+          const total = totalRes.error ? totalInDbRef.current : totalRes.count;
+          const searchCount = searchCountRes.error ? searchResultCountRef.current : searchCountRes.count;
+          const lastAt = lastRes.error
+            ? lastCreatedAtRef.current
+            : ((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+          if (!totalRes.error) setTotalInDb(total);
+          if (!searchCountRes.error) setSearchResultCount(searchCount);
+          if (!lastRes.error) setLastCreatedAt(lastAt);
+          bioListSet(cacheKey, {
+            rows: pageRows,
+            total,
+            searchCount,
+            lastCreatedAt: lastAt,
+            categories: null,
+          });
+        })();
+      }
     },
     [tenantId, debouncedSearch, categoryFilter, showSoft],
   );

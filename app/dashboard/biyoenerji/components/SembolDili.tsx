@@ -25,6 +25,7 @@ import {
   bioApiDeleteMany,
   bioApiLastCreated,
 } from "@/lib/biyoenerji/secureApi";
+import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { badgeFieldWrapClass, bioSaveBtnClass, bioSearchInputClass, bioSelectClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
@@ -127,6 +128,8 @@ export default function SembolDili() {
   useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
   useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
+  useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -186,30 +189,33 @@ export default function SembolDili() {
         return;
       }
 
+      const offset = opts.offset ?? 0;
+      const search = debouncedSearch.trim() || undefined;
+      const category = categoryFilter || undefined;
+      const cacheKey = bioListKey("symbols", { search, category, offset: 0 });
+
       if (opts.reset) {
-        setListLoading(true);
         setLoadErrorMessage("");
+        // Cache'ten anında göster (stale-while-revalidate); yoksa yükleniyor
+        const cached = bioListGet(cacheKey);
+        if (cached) {
+          const cachedRows = cached.rows as SymbolLanguageListItem[];
+          lastGoodRowsRef.current = cachedRows;
+          setRows(cachedRows);
+          setTotalInDb(cached.total);
+          setSearchResultCount(cached.searchCount);
+          setLastCreatedAt(cached.lastCreatedAt);
+          setListLoading(false);
+        } else {
+          setListLoading(true);
+        }
       } else {
         setLoadingMore(true);
       }
 
-      const offset = opts.offset ?? 0;
-      const search = debouncedSearch.trim() || undefined;
-      const category = categoryFilter || undefined;
-
       try {
-        const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
-          fetchSymbolLanguagePage(tenantId, { offset, search, category }),
-          opts.reset
-            ? fetchSymbolLanguageCount(tenantId)
-            : Promise.resolve({ data: totalInDbRef.current, error: null, usedFallback: false }),
-          opts.reset
-            ? fetchSymbolLanguageCount(tenantId, search, category)
-            : Promise.resolve({ data: searchResultCountRef.current, error: null, usedFallback: false }),
-          opts.reset
-            ? bioApiLastCreated("symbols")
-            : Promise.resolve({ lastCreatedAt: null, error: null }),
-        ]);
+        // 1) ÖNCE sayfa (grid) — istatistik beklenmez
+        const pageRes = await fetchSymbolLanguagePage(tenantId, { offset, search, category });
 
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
@@ -241,28 +247,51 @@ export default function SembolDili() {
           setRows(merged);
         }
 
+        // 2) İstatistikler ARKA PLANDA (grid'i bloklamaz) — yalnız reset
         if (opts.reset) {
-          if (totalRes.error) {
-            setLoadErrorMessage((prev) =>
-              prev
-                ? `${prev} · Kayıt sayısı alınamadı: ${totalRes.error}`
-                : `Kayıt sayısı alınamadı: ${totalRes.error}`,
-            );
-          } else if (!hadPageError || totalRes.data > 0) {
-            setTotalInDb(totalRes.data);
-          }
-
-          if (searchCountRes.error) {
-            if (!search?.trim()) setSearchResultCount(0);
-          } else {
-            setSearchResultCount(searchCountRes.data);
-          }
-
-          if (!lastRes.error) {
-            setLastCreatedAt(
-              (lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null,
-            );
-          }
+          void (async () => {
+            const totalP = fetchSymbolLanguageCount(tenantId);
+            // dedupe: arama+kategori boşken total == searchCount → tek sorgu
+            const searchP =
+              !search && !category ? totalP : fetchSymbolLanguageCount(tenantId, search, category);
+            const [totalRes, searchCountRes, lastRes] = await Promise.all([
+              totalP,
+              searchP,
+              bioApiLastCreated("symbols"),
+            ]);
+            let total = totalInDbRef.current;
+            if (totalRes.error) {
+              setLoadErrorMessage((prev) =>
+                prev
+                  ? `${prev} · Kayıt sayısı alınamadı: ${totalRes.error}`
+                  : `Kayıt sayısı alınamadı: ${totalRes.error}`,
+              );
+            } else if (!hadPageError || totalRes.data > 0) {
+              total = totalRes.data;
+              setTotalInDb(total);
+            }
+            let searchCount = searchResultCountRef.current;
+            if (searchCountRes.error) {
+              if (!search?.trim()) {
+                searchCount = 0;
+                setSearchResultCount(0);
+              }
+            } else {
+              searchCount = searchCountRes.data;
+              setSearchResultCount(searchCount);
+            }
+            const lastAt = lastRes.error
+              ? lastCreatedAtRef.current
+              : ((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
+            if (!lastRes.error) setLastCreatedAt(lastAt);
+            bioListSet(cacheKey, {
+              rows: lastGoodRowsRef.current,
+              total,
+              searchCount,
+              lastCreatedAt: lastAt,
+              categories: null,
+            });
+          })();
         }
       } catch (err) {
         if (opts.reset) setListLoading(false);
