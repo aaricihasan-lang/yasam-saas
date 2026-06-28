@@ -24,6 +24,7 @@ import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
 import { getPlanetSlug } from "@/lib/cosmic/planet-meta";
 import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/events";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
+import { getDailyAspects, type AspectEvent } from "@/lib/cosmic/aspects";
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
 
@@ -412,6 +413,15 @@ export default function CosmicCalendarPage() {
 
   const topTransits    = useMemo(() => getTopTransits(gokyuzuRows.filter(r => !r.outOfRange), 4), [gokyuzuRows]);
   const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
+
+  // ── Gökyüzü Açıları — seçili güne göre majör aspect'ler (FAZ 2B) ──────────────
+  // Ay açıları (includesMoon) ve background gizli; yalnız very-strong/strong, maks 5.
+  const skyAspects = useMemo<AspectEvent[]>(
+    () => getDailyAspects(selectedDate)
+      .filter(a => !a.includesMoon && a.strength !== "background")
+      .slice(0, 5),
+    [selectedDate],
+  );
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
@@ -814,6 +824,63 @@ export default function CosmicCalendarPage() {
             </div>
           </div>
 
+        </section>
+
+        {/* ── Gökyüzü Açıları (FAZ 2B) ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Gökyüzü Açıları</p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+          </div>
+
+          {skyAspects.length === 0 ? (
+            <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
+              Seçili gün için öne çıkan majör açı görünmüyor.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2">
+              {skyAspects.map((a) => {
+                const dirTR = a.direction === "applying" ? "Yaklaşıyor" : a.direction === "separating" ? "Ayrılıyor" : "Tam";
+                const strongest = a.strength === "very-strong";
+                return (
+                  <div
+                    key={a.id}
+                    className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3 py-2 backdrop-blur-sm ${
+                      strongest
+                        ? "border-violet-200/80 bg-white/80"
+                        : "border-indigo-100/70 bg-white/60"
+                    }`}
+                  >
+                    {/* Açı: bodyA ⚹ bodyB */}
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-900">
+                      <span className="text-indigo-500">{a.bodyASymbol}</span>
+                      <span className="truncate">{a.bodyA}</span>
+                      <span className="shrink-0 px-0.5 text-base text-indigo-400">{a.aspectSymbol}</span>
+                      <span className="text-indigo-500">{a.bodyBSymbol}</span>
+                      <span className="truncate">{a.bodyB}</span>
+                    </span>
+                    {/* Orb · yön · güç */}
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold text-slate-500">
+                      <span className="text-slate-400">·</span>
+                      <span className="tabular-nums">{a.orbText}</span>
+                      <span className="text-slate-300">·</span>
+                      <span className="text-indigo-600">{dirTR}</span>
+                      <span className="text-slate-300">·</span>
+                      <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
+                        strongest ? "bg-violet-100 text-violet-700" : "bg-indigo-50 text-indigo-600"
+                      }`}>
+                        {strongest ? "Çok güçlü" : "Güçlü"}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
+            Bu bölüm gezegenlerin gökyüzündeki açısal konumlarını gösterir. Astronomik veriye dayanır; yorum içermez.
+          </p>
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}
