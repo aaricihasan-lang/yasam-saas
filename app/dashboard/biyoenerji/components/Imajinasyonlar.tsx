@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Eye } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -135,6 +135,12 @@ export default function Imajinasyonlar() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalInDb, setTotalInDb] = useState(0);
   const [searchResultCount, setSearchResultCount] = useState(0);
+  // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
+  // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
+  const totalInDbRef = useRef(0);
+  const searchResultCountRef = useRef(0);
+  useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
+  useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -210,10 +216,10 @@ export default function Imajinasyonlar() {
         fetchImaginationsPage(tenantId, { offset, search, category }),
         opts.reset
           ? fetchImaginationsCount(tenantId)
-          : Promise.resolve({ count: totalInDb, error: null }),
+          : Promise.resolve({ count: totalInDbRef.current, error: null }),
         opts.reset
           ? fetchImaginationsCount(tenantId, search, category)
-          : Promise.resolve({ count: searchResultCount, error: null }),
+          : Promise.resolve({ count: searchResultCountRef.current, error: null }),
         opts.reset
           ? bioApiLastCreated("imaginations")
           : Promise.resolve({ lastCreatedAt: null, error: null }),
@@ -248,7 +254,7 @@ export default function Imajinasyonlar() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
     },
-    [categoryFilter, debouncedSearch, queryTenantId, searchResultCount, totalInDb],
+    [categoryFilter, debouncedSearch, queryTenantId],
   );
 
   const refreshCategories = useCallback(async () => {

@@ -120,6 +120,12 @@ export default function SembolDili() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalInDb, setTotalInDb] = useState(0);
   const [searchResultCount, setSearchResultCount] = useState(0);
+  // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
+  // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
+  const totalInDbRef = useRef(0);
+  const searchResultCountRef = useRef(0);
+  useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
+  useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -196,10 +202,10 @@ export default function SembolDili() {
           fetchSymbolLanguagePage(tenantId, { offset, search, category }),
           opts.reset
             ? fetchSymbolLanguageCount(tenantId)
-            : Promise.resolve({ data: totalInDb, error: null, usedFallback: false }),
+            : Promise.resolve({ data: totalInDbRef.current, error: null, usedFallback: false }),
           opts.reset
             ? fetchSymbolLanguageCount(tenantId, search, category)
-            : Promise.resolve({ data: searchResultCount, error: null, usedFallback: false }),
+            : Promise.resolve({ data: searchResultCountRef.current, error: null, usedFallback: false }),
           opts.reset
             ? bioApiLastCreated("symbols")
             : Promise.resolve({ lastCreatedAt: null, error: null }),
@@ -269,7 +275,7 @@ export default function SembolDili() {
         }
       }
     },
-    [categoryFilter, debouncedSearch, queryTenantId, searchResultCount, totalInDb],
+    [categoryFilter, debouncedSearch, queryTenantId],
   );
 
   const refreshCategories = useCallback(async () => {

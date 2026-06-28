@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { Layers } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -209,6 +209,12 @@ export default function EnerjiBedenleri() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);
   const [searchResultCount, setSearchResultCount] = useState(0);
+  // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
+  // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
+  const totalInDbRef = useRef(0);
+  const searchResultCountRef = useRef(0);
+  useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
+  useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
@@ -269,10 +275,10 @@ export default function EnerjiBedenleri() {
 
       const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
         bioApiList("energy-bodies", { offset, limit: ENERGY_BODIES_PAGE_SIZE, search }),
-        opts.reset ? bioApiCount("energy-bodies") : Promise.resolve({ count: totalInDb, error: null }),
+        opts.reset ? bioApiCount("energy-bodies") : Promise.resolve({ count: totalInDbRef.current, error: null }),
         opts.reset
           ? bioApiCount("energy-bodies", search)
-          : Promise.resolve({ count: searchResultCount, error: null }),
+          : Promise.resolve({ count: searchResultCountRef.current, error: null }),
         opts.reset
           ? bioApiLastCreated("energy-bodies")
           : Promise.resolve({ lastCreatedAt: null, error: null }),
@@ -296,7 +302,7 @@ export default function EnerjiBedenleri() {
       const pageRows = pageRes.rows as unknown as BioenergyEnergyBodyRecord[];
       setRows((current) => (opts.append ? [...current, ...pageRows] : pageRows));
     },
-    [tenantId, debouncedSearch, totalInDb, searchResultCount],
+    [tenantId, debouncedSearch],
   );
 
   useEffect(() => {

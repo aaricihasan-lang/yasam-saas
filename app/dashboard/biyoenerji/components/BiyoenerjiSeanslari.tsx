@@ -2,7 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { Activity } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -103,6 +103,12 @@ export default function BiyoenerjiSeanslari() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);
   const [searchResultCount, setSearchResultCount] = useState(0);
+  // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
+  // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
+  const totalInDbRef = useRef(0);
+  const searchResultCountRef = useRef(0);
+  useEffect(() => { totalInDbRef.current = totalInDb; }, [totalInDb]);
+  useEffect(() => { searchResultCountRef.current = searchResultCount; }, [searchResultCount]);
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SessionForm>({ ...emptyForm });
@@ -163,10 +169,10 @@ export default function BiyoenerjiSeanslari() {
 
       const [pageRes, totalRes, searchCountRes, lastRes] = await Promise.all([
         bioApiList("sessions", { offset, limit: SESSIONS_PAGE_SIZE, search, category }),
-        opts.reset ? bioApiCount("sessions") : Promise.resolve({ count: totalInDb, error: null }),
+        opts.reset ? bioApiCount("sessions") : Promise.resolve({ count: totalInDbRef.current, error: null }),
         opts.reset
           ? bioApiCount("sessions", search, category)
-          : Promise.resolve({ count: searchResultCount, error: null }),
+          : Promise.resolve({ count: searchResultCountRef.current, error: null }),
         opts.reset
           ? bioApiLastCreated("sessions")
           : Promise.resolve({ lastCreatedAt: null, error: null }),
@@ -190,7 +196,7 @@ export default function BiyoenerjiSeanslari() {
       const pageRows = pageRes.rows as unknown as BioenergySession[];
       setRows((current) => (opts.append ? [...current, ...pageRows] : pageRows));
     },
-    [tenantId, debouncedSearch, categoryFilter, totalInDb, searchResultCount, showSoft],
+    [tenantId, debouncedSearch, categoryFilter, showSoft],
   );
 
   const refreshCategories = useCallback(async () => {
