@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft, Activity } from "lucide-react";
 import BiyoenerjiFolderCards from "./components/BiyoenerjiFolderCards";
 
 export default function BiyoenerjiFolderPage() {
@@ -17,27 +18,30 @@ export default function BiyoenerjiFolderPage() {
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Link
             href="/enerji-beden"
-            className="inline-flex min-h-[40px] items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300/60 hover:bg-slate-50 hover:text-violet-700 lg:min-h-0"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300/60 hover:bg-slate-50 hover:text-violet-700 lg:min-h-0"
           >
-            <span aria-hidden>←</span>
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
             Enerji &amp; Beden
           </Link>
         </div>
 
-        <header className="mb-4 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-violet-600/80">
-            ENERJİ &amp; BEDEN
-          </p>
-          <h1 className="mt-1 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl xl:text-3xl">
-            Biyoenerji
-          </h1>
-          <p className="mx-auto mt-1 max-w-lg text-[11px] font-medium text-slate-500 sm:text-xs">
-            Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir
-          </p>
-          <div
-            className="mx-auto mt-2.5 h-px w-full max-w-[200px] rounded-full bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
+        <header className="relative mb-5 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-lg sm:px-7 sm:py-5">
+          <Activity
+            className="pointer-events-none absolute right-5 top-1/2 h-20 w-20 -translate-y-1/2 text-violet-400 opacity-10"
+            strokeWidth={1.25}
             aria-hidden
           />
+          <div className="relative z-10">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700/85">
+              Enerji &amp; Beden
+            </p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              Biyoenerji
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
+              Çalışma klasörünü seçin — veriler yalnızca ilgili alana girince yüklenir.
+            </p>
+          </div>
         </header>
 
         <BiyoenerjiFolderCards />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, Brain } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@/lib/biyoenerji/secureApi";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
-import { badgeFieldWrapClass, CrudEmptyState } from "./BiyoenerjiUi";
+import { badgeFieldWrapClass, bioSaveBtnClass, bioSearchInputClass, bioSelectClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
@@ -114,9 +115,6 @@ function formatDate(iso: string | null) {
     return "—";
   }
 }
-
-const newRecordBtnPremium =
-  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 const loadMoreBtnClass =
   "rounded-lg border border-fuchsia-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-fuchsia-50 disabled:opacity-60";
@@ -367,7 +365,7 @@ export default function BilincaltiSebepleri() {
       <div className="mb-4 flex flex-col gap-3 border-b border-fuchsia-100/60 pb-4">
         <div className="flex flex-wrap items-end gap-2">
           <label className="block w-full xl:max-w-sm">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
               Başlık, kategori, içerik ve not içinde ara
             </span>
             <input
@@ -375,25 +373,25 @@ export default function BilincaltiSebepleri() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Örn. travma, duygusal, hastalık, sebep…"
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-fuchsia-300 focus:ring-2 focus:ring-fuchsia-200/40"
+              className={bioSearchInputClass}
             />
             {listBusy ? (
-              <p className="mt-1 text-[10px] font-semibold text-fuchsia-600">Aranıyor…</p>
+              <p className="mt-1 text-[10px] font-semibold text-violet-600">Aranıyor…</p>
             ) : isSearchActive ? (
-              <p className="mt-1 text-[10px] font-semibold text-fuchsia-600">
+              <p className="mt-1 text-[10px] font-semibold text-violet-600">
                 "{debouncedSearch}" · {searchResultCount} eşleşme
               </p>
             ) : null}
           </label>
           {categories.length > 0 && (
             <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-fuchsia-600/75">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
                 Kategori
               </span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-fuchsia-300 focus:ring-2 focus:ring-fuchsia-200/40"
+                className={bioSelectClass}
               >
                 <option value="">Tümü</option>
                 {categories.map((c) => (
@@ -403,7 +401,7 @@ export default function BilincaltiSebepleri() {
             </label>
           )}
           {!isDemo && (
-            <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
+            <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnClass}>
               + Yeni Kayıt
             </button>
           )}
@@ -412,7 +410,7 @@ export default function BilincaltiSebepleri() {
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
-            <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-fuchsia-700">
+            <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
               {totalInDb}
             </p>
           </div>
@@ -458,7 +456,7 @@ export default function BilincaltiSebepleri() {
         <p className="py-8 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
-          icon="◐"
+          Icon={Brain}
           title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
           subtitle={
             isSearchActive
@@ -542,7 +540,10 @@ export default function BilincaltiSebepleri() {
                     </p>
                   </DemoBlur>
 
-                  <span className={detailOpenBtnClass}>Detayı Aç →</span>
+                  <span className={detailOpenBtnClass}>
+                    Detayı Aç
+                    <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  </span>
                 </Link>
                 </div>
               );
@@ -595,7 +596,7 @@ export default function BilincaltiSebepleri() {
               type="button"
               disabled={saving}
               onClick={() => void handleKaydet()}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
+              className={bioSaveBtnClass}
             >
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>

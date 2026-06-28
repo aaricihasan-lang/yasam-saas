@@ -5,6 +5,7 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 export default function BiyoenerjiSeanslarPage() {
   return (
     <BiyoenerjiSectionShell
+      headerVariant="premium"
       badge="BİYOENERJİ · SEANS"
       title="Biyoenerji Seansları"
       subtitle="Enerji analizleri, seans kayıtları ve çalışma notları"

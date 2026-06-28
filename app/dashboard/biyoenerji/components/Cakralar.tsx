@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { ArrowRight, Flower2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
@@ -29,7 +30,7 @@ import {
   bioApiLastCreated,
 } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
-import { CrudEmptyState } from "./BiyoenerjiUi";
+import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -124,9 +125,6 @@ function formatDate(iso: string | null) {
     return "—";
   }
 }
-
-const newRecordBtnPremium =
-  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 const loadMoreBtnClass =
   "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
@@ -383,7 +381,7 @@ export default function Cakralar() {
       )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         {!isDemo && (
-          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnPremium}>
+          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnClass}>
             + Yeni Kayıt
           </button>
         )}
@@ -392,7 +390,7 @@ export default function Cakralar() {
       <div className="mb-4 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
-          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-fuchsia-700">
+          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
             {totalInDb}
           </p>
         </div>
@@ -419,12 +417,12 @@ export default function Cakralar() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Çakra adı, organ, renk, neden veya not içinde ara..."
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-fuchsia-300 focus:ring-2 focus:ring-fuchsia-200/40"
+          className={bioSearchInputClass}
         />
         {listBusy ? (
-          <p className="mt-1 text-[10px] font-semibold text-fuchsia-600">Aranıyor…</p>
+          <p className="mt-1 text-[10px] font-semibold text-violet-600">Aranıyor…</p>
         ) : isSearchActive ? (
-          <p className="mt-1 text-[10px] font-semibold text-fuchsia-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+          <p className="mt-1 text-[10px] font-semibold text-violet-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
           </p>
         ) : null}
       </label>
@@ -454,7 +452,7 @@ export default function Cakralar() {
         <p className="py-8 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
-          icon="⬡"
+          Icon={Flower2}
           title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
           subtitle={
             isSearchActive
@@ -547,7 +545,10 @@ export default function Cakralar() {
                     </p>
                   </DemoBlur>
 
-                  <span className={detailOpenBtnClass}>Detayı Aç →</span>
+                  <span className={detailOpenBtnClass}>
+                    Detayı Aç
+                    <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  </span>
                 </Link>
                 </div>
               );
@@ -600,7 +601,7 @@ export default function Cakralar() {
               type="button"
               disabled={saving}
               onClick={() => void handleKaydet()}
-              className="rounded-xl bg-fuchsia-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(192,38,211,0.35)] transition hover:bg-fuchsia-700 disabled:opacity-55"
+              className={bioSaveBtnClass}
             >
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>

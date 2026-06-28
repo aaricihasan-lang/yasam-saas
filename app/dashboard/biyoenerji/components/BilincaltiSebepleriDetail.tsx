@@ -20,6 +20,7 @@ import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
+import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { LongTextareaField } from "./LargeTextModal";
 
 type BioenergySubconsciousRecord = {
@@ -481,41 +482,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         </div>
       </BiyoenerjiCrudFormModal>
 
-      {deleteConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
-          role="presentation"
-          onClick={() => !saving && setDeleteConfirmOpen(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-xl border border-slate-200/80 bg-white p-5 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-base font-semibold text-slate-900">Bu kaydı silmek istediğinizden emin misiniz?</h3>
-            <p className="mt-1 text-[13px] text-slate-500">Bu işlem geri alınamaz.</p>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="h-8 flex-1 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void executeDelete()}
-                className="h-8 flex-1 rounded-md bg-rose-600 text-[12px] font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
-              >
-                {saving ? "Siliniyor..." : "Evet, sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <BiyoenerjiConfirmModal
+        open={deleteConfirmOpen}
+        title="Bu kaydı silmek istediğinizden emin misiniz?"
+        message="Bu işlem geri alınamaz."
+        busy={saving}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void executeDelete()}
+      />
     </div>
   );
 }

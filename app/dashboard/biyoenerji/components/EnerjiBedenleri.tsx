@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import { Layers } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -22,8 +23,9 @@ import {
 } from "@/lib/bioenergy/energyBodiesFontSize";
 import { useEnergyBodiesFontSize } from "@/lib/bioenergy/useEnergyBodiesFontSize";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { CrudEmptyState } from "./BiyoenerjiUi";
+import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
+import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -182,9 +184,6 @@ const listPanelClass =
 
 const detailPanelClass =
   "flex min-h-[240px] min-w-0 flex-1 flex-col rounded-2xl border border-cyan-200/50 bg-gradient-to-br from-cyan-50/70 via-white/94 to-violet-50/40 p-4 shadow-[0_0_20px_rgba(34,211,238,0.08)]";
-
-const newRecordBtnPremium =
-  "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 export default function EnerjiBedenleri() {
   const {
@@ -551,7 +550,7 @@ export default function EnerjiBedenleri() {
       <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
         <div className="flex flex-wrap items-end gap-2">
           <label className="block w-full xl:max-w-sm">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-cyan-600/75">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
               Tanım, görev, bozulma, taşlar, not içinde ara
             </span>
             <input
@@ -559,10 +558,10 @@ export default function EnerjiBedenleri() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Örn. eterik, aura, görev, bozulma…"
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/40"
+              className={bioSearchInputClass}
             />
             {isSearchActive ? (
-              <p className="mt-1 text-[10px] font-semibold text-cyan-600">
+              <p className="mt-1 text-[10px] font-semibold text-violet-600">
                 “{debouncedSearch}” · {searchResultCount} eşleşme
               </p>
             ) : null}
@@ -608,7 +607,7 @@ export default function EnerjiBedenleri() {
               ) : null}
               {/* Demo modda yeni kayıt butonu gizli */}
               {!isDemo && (
-                <button type="button" onClick={openCreateModal} className={newRecordBtnPremium}>
+                <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
                   + Yeni Kayıt
                 </button>
               )}
@@ -640,7 +639,7 @@ export default function EnerjiBedenleri() {
               <p className="py-6 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
             ) : loadErrorMessage ? null : baseRows.length === 0 ? (
               <CrudEmptyState
-                icon="◎"
+                Icon={Layers}
                 title={isSearchActive ? "Sonuç bulunamadı" : "Liste boş"}
                 subtitle={
                   isSearchActive
@@ -833,7 +832,7 @@ export default function EnerjiBedenleri() {
                 type="button"
                 disabled={saving}
                 onClick={() => void handleKaydet()}
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55"
+                className={bioSaveBtnClass}
               >
                 {saving ? "Kaydediliyor…" : "Kaydet"}
               </button>
@@ -936,49 +935,13 @@ export default function EnerjiBedenleri() {
         </div>
       </BiyoenerjiCrudFormModal>
 
-      {deleteConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950/35 px-4 py-8 backdrop-blur-md"
-          role="presentation"
-          onClick={() => !saving && setDeleteConfirmOpen(false)}
-        >
-          <div
-            className="w-full max-w-[420px] rounded-[22px] border border-white/88 bg-white/88 p-6 shadow-[0_24px_64px_-12px_rgba(15,23,42,0.12)] ring-1 ring-cyan-100/50 backdrop-blur-md"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="energy-body-delete-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-rose-700 ring-1 ring-rose-100">
-              SİLME ONAYI
-            </div>
-            <h3 id="energy-body-delete-title" className="mt-2 text-[17px] font-black leading-snug text-slate-950">
-              Bu enerji bedeni kaydını silmek istediğinizden emin misiniz?
-            </h3>
-            <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
-              İşlem geri alınamaz. Kayıt listeden kaldırılır.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void executeDelete()}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
-              >
-                {saving ? "Siliniyor…" : "Evet, sil"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <BiyoenerjiConfirmModal
+        open={deleteConfirmOpen}
+        title="Bu enerji bedeni kaydını silmek istediğinizden emin misiniz?"
+        busy={saving}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void executeDelete()}
+      />
 
       <BiyoenerjiDangerDeleteModal
         open={danger.open}

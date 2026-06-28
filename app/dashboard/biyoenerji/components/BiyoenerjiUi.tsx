@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type TextareaHTMLAttributes } from "react";
+import type { LucideIcon } from "lucide-react";
 
 export type BiyoenerjiTone = "violet" | "cyan" | "fuchsia" | "amber" | "emerald" | "orange";
 
@@ -80,12 +81,12 @@ export function ModuleStats({
 }
 
 export function CrudEmptyState({
-  icon,
+  Icon,
   title,
   subtitle,
   tone,
 }: {
-  icon: string;
+  Icon: LucideIcon;
   title: string;
   subtitle: string;
   tone: BiyoenerjiTone;
@@ -102,8 +103,8 @@ export function CrudEmptyState({
     <div
       className={`flex min-h-[160px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-violet-200 bg-white/65 px-5 py-8 text-center ${ring}`}
     >
-      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 text-2xl shadow-sm ring-1 ring-white/90">
-        {icon}
+      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-white/80 shadow-sm ring-1 ring-white/90">
+        <Icon className="h-6 w-6 text-slate-400" strokeWidth={1.75} aria-hidden />
       </div>
       <p className="text-base font-black text-slate-950">{title}</p>
       <p className="mt-1 max-w-sm text-sm font-medium text-slate-500">{subtitle}</p>
@@ -164,3 +165,15 @@ export const sectionShellClass =
 
 export const newRecordBtnClass =
   "inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
+
+/** Tek kaynaklı arama input'u — mor odak, modül geneli (referans tasarım diliyle hizalı) */
+export const bioSearchInputClass =
+  "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40 lg:h-9";
+
+/** Tek kaynaklı kategori/seçim alanı — mor odak */
+export const bioSelectClass =
+  "h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40 lg:h-9";
+
+/** Tek kaynaklı "Kaydet" (başarı) butonu */
+export const bioSaveBtnClass =
+  "rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_26px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-55";
