@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { ArrowUpRight, Gem, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -29,6 +30,8 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { LongTextareaField } from "./LargeTextModal";
+import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
+import { matchStonesForChakra, type ChakraMatchStone } from "@/lib/bioenergy/chakraStoneMatch";
 
 type ChakraForm = {
   name: string;
@@ -139,6 +142,11 @@ export default function CakralarDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [wordBusy, setWordBusy] = useState(false);
+
+  // Doğaltaş eşleşmeleri (salt-okuma) — mevcut güvenli API, veri yazma yok
+  const [dogaltasStones, setDogaltasStones] = useState<ChakraMatchStone[]>([]);
+  const [stonesLoading, setStonesLoading] = useState(true);
+  const [stonesError, setStonesError] = useState(false);
 
   const downloadWord = useCallback(async () => {
     if (!record) return;
@@ -262,6 +270,38 @@ export default function CakralarDetail({ id }: { id: string }) {
     }
     void loadRecord();
   }, [loadRecord, id]);
+
+  // Doğaltaş taşlarını bir kez çek (tenant sunucuda; salt-okuma)
+  useEffect(() => {
+    let cancelled = false;
+    setStonesLoading(true);
+    setStonesError(false);
+    void fetchAllStonesExtended("").then(({ rows, error }) => {
+      if (cancelled) return;
+      if (error) {
+        setStonesError(true);
+        setDogaltasStones([]);
+      } else {
+        setDogaltasStones(
+          rows.map((r) => ({
+            id: r.id,
+            stone_name: r.stone_name,
+            chakras: r.chakras,
+            assignments: r.assignments,
+          })),
+        );
+      }
+      setStonesLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dogaltasMatch = useMemo(
+    () => matchStonesForChakra(record?.name ?? null, dogaltasStones, record?.stones ?? null),
+    [record?.name, record?.stones, dogaltasStones],
+  );
 
   async function handleGuncelle() {
     const tenantId = await getSyncedTenantId();
@@ -426,6 +466,70 @@ export default function CakralarDetail({ id }: { id: string }) {
         )}
         </div>
       </DemoGate>
+
+      {/* Doğaltaş Eşleşmeleri — ayrı panel, salt-okuma. Manuel "Taşlar" alanı korunur. */}
+      <section className="mt-6 rounded-2xl border border-violet-100/80 bg-white/80 p-4 shadow-sm sm:p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-sm">
+            <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black tracking-tight text-slate-900">Doğaltaş Eşleşmeleri</h2>
+            <p className="text-[12px] font-medium leading-snug text-slate-500">
+              Doğaltaş modülünde bu çakraya atanmış taşlar.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          {stonesLoading ? (
+            <p className="text-[13px] font-medium text-slate-400">Yükleniyor…</p>
+          ) : stonesError ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-center text-[13px] font-medium text-slate-400">
+              Doğaltaş taşları şu an yüklenemedi.
+            </p>
+          ) : dogaltasMatch.stones.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-center text-[13px] font-medium text-slate-400">
+              Bu çakra için Doğaltaş&rsquo;ta atanmış taş bulunamadı.
+            </p>
+          ) : (
+            <>
+              {dogaltasMatch.hasOverlap && (
+                <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-[12px] font-medium leading-snug text-amber-800">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Bazı taşlar hem manuel &ldquo;Taşlar&rdquo; alanında hem Doğaltaş eşleşmelerinde bulunuyor.
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {dogaltasMatch.stones.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/dogaltas/dogaltas-listesi/${s.id}`}
+                    title={s.inManual ? "Hem manuel alanda hem Doğaltaş'ta — detayı aç" : "Doğaltaş kaydını aç"}
+                    className={`group inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold shadow-sm transition hover:-translate-y-0.5 hover:shadow ${
+                      s.inManual
+                        ? "border-amber-300/70 bg-amber-50 text-amber-900 hover:bg-amber-100/80"
+                        : "border-violet-200/70 bg-violet-50/80 text-violet-900 hover:bg-violet-100/80"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${s.inManual ? "bg-amber-500" : "bg-violet-500"}`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{s.name}</span>
+                    <ArrowUpRight
+                      className="h-3.5 w-3.5 shrink-0 opacity-60 transition group-hover:opacity-100"
+                      aria-hidden
+                    />
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
