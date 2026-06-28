@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Gem, Link2 } from "lucide-react";
+import { ArrowUpRight, FileText, Gem, Link2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -50,9 +50,9 @@ type ChakraForm = {
 };
 
 const tbBtn =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
 
 function trimOrEmpty(v: string) {
   return v.trim();
@@ -126,29 +126,31 @@ function ManualStonesSection({
           {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
         </div>
       ) : (
-        <ul className="space-y-2.5" style={typography.bodyStyle}>
-          {items.map((it, i) => (
-            <li key={`${it.key}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-              <span className="inline-flex min-w-0 items-center gap-2 text-slate-700">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
-                  aria-hidden
-                />
+        <div className="flex flex-wrap gap-2">
+          {items.map((it, i) =>
+            it.match ? (
+              <Link
+                key={`${it.key}-${i}`}
+                href={`/dogaltas/dogaltas-listesi/${it.match.id}`}
+                title="Doğaltaş kaydını aç"
+                className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3 py-1 text-[13px] font-semibold text-emerald-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100"
+              >
                 <span className="min-w-0 break-words">{it.display}</span>
-              </span>
-              {it.match && (
-                <Link
-                  href={`/dogaltas/dogaltas-listesi/${it.match.id}`}
-                  title="Doğaltaş kaydını aç"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 transition hover:-translate-y-0.5 hover:bg-emerald-100"
-                >
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200/70">
                   <Link2 className="h-3 w-3" aria-hidden />
                   Doğaltaş
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+                </span>
+              </Link>
+            ) : (
+              <span
+                key={`${it.key}-${i}`}
+                className="inline-flex max-w-full items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-700 shadow-sm"
+              >
+                <span className="min-w-0 break-words">{it.display}</span>
+              </span>
+            ),
+          )}
+        </div>
       )}
     </section>
   );
@@ -434,14 +436,17 @@ export default function CakralarDetail({ id }: { id: string }) {
   const badge = chakraCardBadge(record);
   const dotColor = chakraColorDot(record.color);
 
+  // Gösterim sırası (veri kolonları değişmez, yalnızca sıra/etiket):
+  // Renk → Blokajlı Olmasının Nedenleri → Fiziksel/Zihinsel Etkiler →
+  // Organlar → Bezler → Taşlar → Notlar. ("Ruhsal" kolonu yok, gösterilmez.)
   const sections: { title: string; text: string }[] = [];
+  if (record.color?.trim()) sections.push({ title: "Renk", text: record.color.trim() });
+  if (record.causes?.trim()) sections.push({ title: "Blokajlı Olmasının Nedenleri", text: record.causes.trim() });
+  if (record.physical?.trim()) sections.push({ title: "Fiziksel Etkiler", text: record.physical.trim() });
+  if (record.mental?.trim()) sections.push({ title: "Zihinsel Etkiler", text: record.mental.trim() });
   if (record.organs?.trim()) sections.push({ title: "Organlar", text: record.organs.trim() });
   if (record.glands?.trim()) sections.push({ title: "Bezler", text: record.glands.trim() });
-  if (record.color?.trim()) sections.push({ title: "Renk", text: record.color.trim() });
   if (record.stones?.trim()) sections.push({ title: "Taşlar", text: record.stones.trim() });
-  if (record.causes?.trim()) sections.push({ title: "Nedenler", text: record.causes.trim() });
-  if (record.physical?.trim()) sections.push({ title: "Fiziksel", text: record.physical.trim() });
-  if (record.mental?.trim()) sections.push({ title: "Zihinsel", text: record.mental.trim() });
   if (record.notes?.trim()) sections.push({ title: "Notlar", text: record.notes.trim() });
 
   return (
@@ -474,7 +479,7 @@ export default function CakralarDetail({ id }: { id: string }) {
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{displayTitle}</h1>
           <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -488,12 +493,19 @@ export default function CakralarDetail({ id }: { id: string }) {
           />
           {!isDemo && (
             <>
-              <div className="h-4 w-px bg-slate-200" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Düzenle</button>
-              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+                <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Düzenle
+              </button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
+                <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Sil
+              </button>
               {record && (
                 <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
-                  {wordBusy ? "..." : "Word"}
+                  <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  {wordBusy ? "Hazırlanıyor…" : "Word"}
                 </button>
               )}
             </>

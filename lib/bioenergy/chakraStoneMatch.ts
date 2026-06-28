@@ -192,6 +192,32 @@ export function matchStonesForChakra(
   return { stones: matched, hasOverlap };
 }
 
+// ─── Liste sıralaması (sabit anatomik sıra) ──────────────────────────────────
+
+/**
+ * Çakra liste/grid için sabit görüntüleme sırası:
+ * Kök → Sakral/Karın → Mide/Solar Pleksus → Kalp → Boğaz → 3. Göz → Tepe.
+ * Bilinmeyen adlar sona (99) gider; eşleştirme Türkçe-normalize + içerir mantığı.
+ */
+const CHAKRA_ORDER_RULES: string[][] = [
+  ["kok"],
+  ["sakral", "karin"],
+  ["mide", "solar", "pleksus"],
+  ["kalp"],
+  ["bogaz"],
+  ["ucuncu", "3. goz", "3.goz", "goz", "alin"],
+  ["tepe", "tac"],
+];
+
+export function chakraDisplayOrder(name: string | null | undefined): number {
+  const n = normalizeTr(name || "");
+  if (!n) return 99;
+  for (let i = 0; i < CHAKRA_ORDER_RULES.length; i += 1) {
+    if (CHAKRA_ORDER_RULES[i]!.some((t) => n.includes(t))) return i;
+  }
+  return 99;
+}
+
 // ─── Sunum görünümü (presentation) ───────────────────────────────────────────
 
 /** Manuel "Taşlar" metnindeki tek bir satır + Doğaltaş eşleşmesi. */

@@ -31,6 +31,7 @@ import {
 } from "@/lib/biyoenerji/secureApi";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
+import { chakraDisplayOrder } from "@/lib/bioenergy/chakraStoneMatch";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 
@@ -293,6 +294,13 @@ export default function Cakralar() {
     listLoading || (Boolean(searchTerm.trim()) && searchTerm.trim() !== debouncedSearch);
   const isSearchActive = Boolean(debouncedSearch);
 
+  // Sabit çakra sırası (yalnızca gösterim): Kök → Sakral → Mide/Solar →
+  // Kalp → Boğaz → 3. Göz → Tepe. Bilinmeyen adlar sona, ada göre.
+  const orderedRows = [...rows].sort((a, b) => {
+    const d = chakraDisplayOrder(a.name) - chakraDisplayOrder(b.name);
+    return d !== 0 ? d : (a.name ?? "").localeCompare(b.name ?? "", "tr-TR");
+  });
+
   async function handleKaydet() {
     const tenantId = queryTenantId ?? (await getSyncedTenantId());
     if (!tenantId) {
@@ -481,7 +489,7 @@ export default function Cakralar() {
             />
           </div>}
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {rows.map((row, index) => {
+            {orderedRows.map((row, index) => {
               const detailHref = chakraDetailHref(row.id);
               const preview = previewChakraText(row.organs, row.causes, row.notes);
               const theme = getChakraCardTheme(index);
