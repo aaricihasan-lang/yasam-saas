@@ -191,3 +191,67 @@ export function matchStonesForChakra(
   matched.sort((a, b) => a.name.localeCompare(b.name, "tr-TR", { sensitivity: "base" }));
   return { stones: matched, hasOverlap };
 }
+
+// ─── Sunum görünümü (presentation) ───────────────────────────────────────────
+
+/** Manuel "Taşlar" metnindeki tek bir satır + Doğaltaş eşleşmesi. */
+export type ManualStoneItem = {
+  /** Kullanıcının yazdığı orijinal segment (görüntülenir) */
+  display: string;
+  /** Normalize ad anahtarı (eşleştirme için) */
+  key: string;
+  /** Aynı isimli, bu çakraya atanmış Doğaltaş kaydı (varsa) */
+  match: MatchedStone | null;
+};
+
+export type ChakraStoneView = {
+  /** Manuel liste — her satır, Doğaltaş eşleşmesiyle işaretli */
+  manualItems: ManualStoneItem[];
+  /** Doğaltaş'ta bu çakraya atanmış ama manuelde OLMAYAN taşlar */
+  extraStones: MatchedStone[];
+  /** Manuel listede Doğaltaş ile eşleşen taş sayısı */
+  matchedCount: number;
+};
+
+/**
+ * Manuel metni GÖRÜNTÜLENECEK satırlara böler (orijinal metni korur).
+ * key = ":" öncesi normalize ad; display = orijinal segment.
+ */
+export function parseManualStoneItems(text: string | null | undefined): ManualStoneItem[] {
+  if (!text) return [];
+  const seen = new Set<string>();
+  const out: ManualStoneItem[] = [];
+  for (const raw of text.split(/[\n;,]+/)) {
+    const cleaned = raw.replace(/^\s*[-•·–—*]+\s*/, "").trim();
+    if (!cleaned) continue;
+    const head = (cleaned.split(":")[0] ?? "").trim();
+    const key = normalizeTr(head).trim();
+    if (key.length < 2 || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ display: cleaned, key, match: null });
+  }
+  return out;
+}
+
+/**
+ * Sunum görünümü kurar: manuel satırlar (eşleşme işaretli) + manuelde olmayan
+ * ek Doğaltaş taşları + eşleşen sayısı. Eşleştirme motoru aynen kullanılır.
+ */
+export function buildChakraStoneView(
+  chakraName: string | null | undefined,
+  stones: ChakraMatchStone[],
+  manualStonesText: string | null | undefined,
+): ChakraStoneView {
+  const res = matchStonesForChakra(chakraName, stones, manualStonesText);
+  const byKey = new Map<string, MatchedStone>();
+  for (const s of res.stones) byKey.set(normalizeTr(s.name).trim(), s);
+
+  const manualItems = parseManualStoneItems(manualStonesText).map((it) => ({
+    ...it,
+    match: byKey.get(it.key) ?? null,
+  }));
+  const extraStones = res.stones.filter((s) => !s.inManual);
+  const matchedCount = manualItems.filter((m) => m.match).length;
+
+  return { manualItems, extraStones, matchedCount };
+}

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Gem, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, Gem, Link2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -31,7 +31,11 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { LongTextareaField } from "./LargeTextModal";
 import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
-import { matchStonesForChakra, type ChakraMatchStone } from "@/lib/bioenergy/chakraStoneMatch";
+import {
+  buildChakraStoneView,
+  type ChakraMatchStone,
+  type ManualStoneItem,
+} from "@/lib/bioenergy/chakraStoneMatch";
 
 type ChakraForm = {
   name: string;
@@ -96,6 +100,56 @@ function DetailContentCard({
       <div className="min-w-0" style={typography.bodyStyle}>
         {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Manuel "Taşlar" bölümü — her satır kullanıcının yazdığı metni gösterir;
+ * Doğaltaş'ta aynı isimde kayıt varsa satıra tıklanabilir küçük bir badge eklenir.
+ * Manuel metin korunur (yalnızca sunum). Liste ayrıştırılamazsa ham metne döner.
+ */
+function ManualStonesSection({
+  text,
+  items,
+  typography,
+}: {
+  text: string;
+  items: ManualStoneItem[];
+  typography: ChakrasTypography;
+}) {
+  return (
+    <section className="border-t border-slate-200/60 py-5">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Taşlar</h2>
+      {items.length === 0 ? (
+        <div className="min-w-0" style={typography.bodyStyle}>
+          {formatStoneContent(text, { fontSizePx: typography.fontSizePx })}
+        </div>
+      ) : (
+        <ul className="space-y-2.5" style={typography.bodyStyle}>
+          {items.map((it, i) => (
+            <li key={`${it.key}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <span className="inline-flex min-w-0 items-center gap-2 text-slate-700">
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500"
+                  aria-hidden
+                />
+                <span className="min-w-0 break-words">{it.display}</span>
+              </span>
+              {it.match && (
+                <Link
+                  href={`/dogaltas/dogaltas-listesi/${it.match.id}`}
+                  title="Doğaltaş kaydını aç"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 transition hover:-translate-y-0.5 hover:bg-emerald-100"
+                >
+                  <Link2 className="h-3 w-3" aria-hidden />
+                  Doğaltaş
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -298,8 +352,8 @@ export default function CakralarDetail({ id }: { id: string }) {
     };
   }, []);
 
-  const dogaltasMatch = useMemo(
-    () => matchStonesForChakra(record?.name ?? null, dogaltasStones, record?.stones ?? null),
+  const stoneView = useMemo(
+    () => buildChakraStoneView(record?.name ?? null, dogaltasStones, record?.stones ?? null),
     [record?.name, record?.stones, dogaltasStones],
   );
 
@@ -447,6 +501,14 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Doğaltaş eşleşme özeti — tek satır, tekrar liste değil */}
+      {!stonesLoading && !stonesError && stoneView.matchedCount > 0 && (
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-[12px] font-bold text-emerald-800">
+          <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          {stoneView.matchedCount} taş Doğaltaş kütüphanesi ile eşleşiyor.
+        </div>
+      )}
+
       {/* Document sections */}
       <DemoGate
         isProtected={isDemo}
@@ -454,9 +516,18 @@ export default function CakralarDetail({ id }: { id: string }) {
       >
         <div>
         {sections.length > 0 ? (
-          sections.map((s) => (
-            <DetailContentCard key={s.title} title={s.title} text={s.text} typography={contentTypography} />
-          ))
+          sections.map((s) =>
+            s.title === "Taşlar" ? (
+              <ManualStonesSection
+                key="Taşlar"
+                text={s.text}
+                items={stoneView.manualItems}
+                typography={contentTypography}
+              />
+            ) : (
+              <DetailContentCard key={s.title} title={s.title} text={s.text} typography={contentTypography} />
+            ),
+          )
         ) : (
           <DetailContentCard
             title="İçerik"
@@ -467,69 +538,40 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
       </DemoGate>
 
-      {/* Doğaltaş Eşleşmeleri — ayrı panel, salt-okuma. Manuel "Taşlar" alanı korunur. */}
-      <section className="mt-6 rounded-2xl border border-violet-100/80 bg-white/80 p-4 shadow-sm sm:p-5">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-sm">
-            <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-sm font-black tracking-tight text-slate-900">Doğaltaş Eşleşmeleri</h2>
-            <p className="text-[12px] font-medium leading-snug text-slate-500">
-              Doğaltaş modülünde bu çakraya atanmış taşlar.
-            </p>
+      {/* Doğaltaşta bulunan ek taşlar — manuel listede OLMAYAN, bu çakraya atanmış taşlar */}
+      {!stonesLoading && !stonesError && stoneView.extraStones.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-violet-100/80 bg-white/80 p-4 shadow-sm sm:p-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-sm">
+              <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-black tracking-tight text-slate-900">Doğaltaşta bulunan ek taşlar</h2>
+              <p className="text-[12px] font-medium leading-snug text-slate-500">
+                Bu çakraya Doğaltaş&rsquo;ta atanmış olup manuel listede olmayan taşlar.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4">
-          {stonesLoading ? (
-            <p className="text-[13px] font-medium text-slate-400">Yükleniyor…</p>
-          ) : stonesError ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-center text-[13px] font-medium text-slate-400">
-              Doğaltaş taşları şu an yüklenemedi.
-            </p>
-          ) : dogaltasMatch.stones.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-center text-[13px] font-medium text-slate-400">
-              Bu çakra için Doğaltaş&rsquo;ta atanmış taş bulunamadı.
-            </p>
-          ) : (
-            <>
-              {dogaltasMatch.hasOverlap && (
-                <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-[12px] font-medium leading-snug text-amber-800">
-                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span>
-                    Bazı taşlar hem manuel &ldquo;Taşlar&rdquo; alanında hem Doğaltaş eşleşmelerinde bulunuyor.
-                  </span>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {dogaltasMatch.stones.map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/dogaltas/dogaltas-listesi/${s.id}`}
-                    title={s.inManual ? "Hem manuel alanda hem Doğaltaş'ta — detayı aç" : "Doğaltaş kaydını aç"}
-                    className={`group inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold shadow-sm transition hover:-translate-y-0.5 hover:shadow ${
-                      s.inManual
-                        ? "border-amber-300/70 bg-amber-50 text-amber-900 hover:bg-amber-100/80"
-                        : "border-violet-200/70 bg-violet-50/80 text-violet-900 hover:bg-violet-100/80"
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${s.inManual ? "bg-amber-500" : "bg-violet-500"}`}
-                      aria-hidden
-                    />
-                    <span className="truncate">{s.name}</span>
-                    <ArrowUpRight
-                      className="h-3.5 w-3.5 shrink-0 opacity-60 transition group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {stoneView.extraStones.map((s) => (
+              <Link
+                key={s.id}
+                href={`/dogaltas/dogaltas-listesi/${s.id}`}
+                title="Doğaltaş kaydını aç"
+                className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-[12px] font-bold text-violet-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-100/80 hover:shadow"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
+                <span className="truncate">{s.name}</span>
+                <ArrowUpRight
+                  className="h-3.5 w-3.5 shrink-0 opacity-60 transition group-hover:opacity-100"
+                  aria-hidden
+                />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <BiyoenerjiCrudFormModal
         open={formModalOpen}
