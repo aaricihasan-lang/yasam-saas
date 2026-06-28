@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
-import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { getSessionTenantId, getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { chakraColorDot } from "@/lib/bioenergy/chakraColorUtils";
 import {
@@ -36,6 +36,10 @@ import {
   type ChakraMatchStone,
   type ManualStoneItem,
 } from "@/lib/bioenergy/chakraStoneMatch";
+import {
+  getCachedDogaltasStones,
+  setCachedDogaltasStones,
+} from "@/lib/biyoenerji/dogaltasStoneCache";
 
 type ChakraForm = {
   name: string;
@@ -327,9 +331,22 @@ export default function CakralarDetail({ id }: { id: string }) {
     void loadRecord();
   }, [loadRecord, id]);
 
-  // Doğaltaş taşlarını bir kez çek (tenant sunucuda; salt-okuma)
+  // Doğaltaş taşları — oturum-içi tenant cache (her detayda yeniden çekme)
   useEffect(() => {
     let cancelled = false;
+    const tenantId = getSessionTenantId();
+
+    // Cache hit → anında kullan; mode=extended çağrısı yapma
+    const cached = getCachedDogaltasStones(tenantId);
+    if (cached) {
+      setDogaltasStones(cached);
+      setStonesError(false);
+      setStonesLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setStonesLoading(true);
     setStonesError(false);
     void fetchAllStonesExtended("").then(({ rows, error }) => {
@@ -338,14 +355,14 @@ export default function CakralarDetail({ id }: { id: string }) {
         setStonesError(true);
         setDogaltasStones([]);
       } else {
-        setDogaltasStones(
-          rows.map((r) => ({
-            id: r.id,
-            stone_name: r.stone_name,
-            chakras: r.chakras,
-            assignments: r.assignments,
-          })),
-        );
+        const mapped = rows.map((r) => ({
+          id: r.id,
+          stone_name: r.stone_name,
+          chakras: r.chakras,
+          assignments: r.assignments,
+        }));
+        setDogaltasStones(mapped);
+        setCachedDogaltasStones(tenantId, mapped);
       }
       setStonesLoading(false);
     });
