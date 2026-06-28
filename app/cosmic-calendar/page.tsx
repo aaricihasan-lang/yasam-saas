@@ -26,6 +26,10 @@ import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/even
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
+import {
+  getAllEclipses, getSolarCityVisibility, getLunarCityVisibility, TR_CITIES,
+  type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType,
+} from "@/lib/cosmic/eclipses";
 
 // ─── Uzman Modu aspect yardımcıları (FAZ 2C Adım 3) ────────────────────────────
 
@@ -52,6 +56,149 @@ function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: stri
 
 const motionDirTR = (d: AspectMotionState["direction"]): string =>
   d === "applying" ? "Yaklaşıyor" : d === "separating" ? "Ayrılıyor" : "Tam";
+
+// ─── Tutulmalar (FAZ 3A — normal + uzman) ──────────────────────────────────────
+// Yalnız doğrulanmış production engine verisi. Saros/magnitude null iken gizlenir;
+// obscuration "örtülme oranı" olarak gösterilir (magnitude DEĞİL); “Türkiye geneli” YOK.
+
+type EclipsePeriod = "upcoming" | "past";
+type EclipseCityVis = SolarCityVisibility | LunarCityVisibility;
+type EclipseRow = { e: AnyEclipse; period: EclipsePeriod; vis: EclipseCityVis[]; visibleCount: number; totalCities: number };
+type EclipseFilterState = {
+  kind: "all" | "solar" | "lunar";
+  visibility: "all" | "visible" | "invisible";
+  type: "all" | EclipseType;
+  period: "all" | EclipsePeriod;
+};
+const DEFAULT_ECLIPSE_FILTERS: EclipseFilterState = { kind: "all", visibility: "all", type: "all", period: "all" };
+const ECLIPSE_CITY_NAMES: ReadonlyArray<string> = TR_CITIES.map(c => c.name);
+
+const ECLIPSE_TYPE_TR: Record<string, string> = {
+  total: "Tam", partial: "Parçalı", annular: "Halkalı", penumbral: "Yarıgölge", hybrid: "Hibrit",
+};
+const eclipseTitleTR = (e: AnyEclipse): string =>
+  `${ECLIPSE_TYPE_TR[e.eclipseType] ?? e.eclipseType} ${e.kind === "solar" ? "Güneş" : "Ay"} Tutulması`;
+const eclipseTimeTR = (peakTR: string): string => peakTR.slice(11, 16); // "HH:mm"
+const hhmm = (tr: string | null): string | null => (tr ? tr.slice(11, 16) : null);
+
+/** Seçili şehir için kısa görünürlük rozeti (genelleme yok). */
+function cityVisBadge(vis: EclipseCityVis[], city: string): { text: string; visible: boolean } {
+  const v = vis.find(x => x.city === city);
+  if (!v) return { text: `${city}'dan görülmez`, visible: false };
+  if (v.visible) {
+    const near = v.visibilityStatus.includes("ufuk yakını");
+    return { text: near ? `${city}'dan ufuk yakını` : `${city}'dan görülür`, visible: true };
+  }
+  return { text: `${city}'dan görülmez`, visible: false };
+}
+
+function EclipseCard({ e, statusText, visible, coverage, onClick }: {
+  e: AnyEclipse; statusText: string; visible: boolean; coverage?: string | null; onClick?: () => void;
+}) {
+  const solar = e.kind === "solar";
+  const obsc = e.obscuration;
+  const clickable = Boolean(onClick);
+  return (
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={clickable ? (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onClick!(); } } : undefined}
+      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm ${
+        clickable ? "cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300" : ""
+      } ${solar ? "border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-orange-50/60" : "border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-fuchsia-50/60"}`}
+    >
+      <span className="shrink-0 text-2xl leading-none">{solar ? "☀️" : "🌙"}</span>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate text-sm font-black ${solar ? "text-amber-700" : "text-violet-700"}`}>{eclipseTitleTR(e)}</p>
+        <p className="text-[11px] font-semibold text-slate-500">
+          {e.dateTR} · {eclipseTimeTR(e.peakTR)} (TR){obsc != null ? ` · Örtülme oranı %${Math.round(obsc * 100)}` : ""}
+          {coverage ? <span className="text-slate-400"> · {coverage}</span> : null}
+        </p>
+      </div>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+        visible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+      }`}>
+        {statusText}
+      </span>
+    </div>
+  );
+}
+
+/** Uzman detay paneli — yalnız doğrulanmış alanlar. Saros/magnitude null ise GÖSTERİLMEZ. */
+function EclipseDetail({ row, city, onClose }: { row: EclipseRow; city: string; onClose: () => void }) {
+  const e = row.e;
+  const solar = e.kind === "solar";
+  const sel = row.vis.find(v => v.city === city);
+  const fields: [string, string][] = [
+    ["Tür", eclipseTitleTR(e)],
+    ["Tarih", e.dateTR],
+    ["Peak (TR)", e.peakTR.slice(0, 16).replace("T", " ")],
+    ["Peak (UTC)", e.peakUTC.slice(0, 16).replace("T", " ")],
+  ];
+  if (e.obscuration != null) fields.push(["Örtülme oranı", `%${Math.round(e.obscuration * 100)}`]);
+  if (solar && sel) {
+    const sv = sel as SolarCityVisibility;
+    fields.push([`${city} görünürlük`, sv.visibilityStatus]);
+    if (sv.altitudeAtPeak != null) fields.push([`${city} Güneş yüks.`, `${sv.altitudeAtPeak}°`]);
+    if (hhmm(sv.partialBeginTR)) fields.push(["Parçalı başl. (TR)", hhmm(sv.partialBeginTR)!]);
+    if (hhmm(sv.totalBeginTR)) fields.push(["Tam başl. (TR)", hhmm(sv.totalBeginTR)!]);
+    if (hhmm(sv.peakTR)) fields.push([`${city} peak (TR)`, hhmm(sv.peakTR)!]);
+    if (hhmm(sv.totalEndTR)) fields.push(["Tam bitiş (TR)", hhmm(sv.totalEndTR)!]);
+    if (hhmm(sv.partialEndTR)) fields.push(["Parçalı bitiş (TR)", hhmm(sv.partialEndTR)!]);
+  }
+  if (!solar) {
+    const le = e as LunarEclipse;
+    if (hhmm(le.penumbralBeginTR)) fields.push(["Yarıgölge başl. (TR)", hhmm(le.penumbralBeginTR)!]);
+    if (hhmm(le.partialBeginTR)) fields.push(["Parçalı başl. (TR)", hhmm(le.partialBeginTR)!]);
+    if (hhmm(le.totalBeginTR)) fields.push(["Tam başl. (TR)", hhmm(le.totalBeginTR)!]);
+    if (hhmm(le.totalEndTR)) fields.push(["Tam bitiş (TR)", hhmm(le.totalEndTR)!]);
+    if (hhmm(le.partialEndTR)) fields.push(["Parçalı bitiş (TR)", hhmm(le.partialEndTR)!]);
+    if (hhmm(le.penumbralEndTR)) fields.push(["Yarıgölge bitiş (TR)", hhmm(le.penumbralEndTR)!]);
+    if (le.durTotalMin) fields.push(["Tam süre", `${le.durTotalMin} dk`]);
+    if (le.durPartialMin) fields.push(["Parçalı süre", `${le.durPartialMin} dk`]);
+    if (le.durPenumMin) fields.push(["Yarıgölge süre", `${le.durPenumMin} dk`]);
+    if (sel) fields.push([`${city} Ay yüks.`, `${(sel as LunarCityVisibility).moonAltitudeAtPeak}°`]);
+  }
+  if (e.eclipseType === "hybrid") fields.push(["Hibrit", "katalog doğrulamalı"]);
+  fields.push(["Doğrulama", e.validationStatus === "catalog-verified" ? "katalog-doğrulanmış" : "motor-doğrulanmış"]);
+  if (e.saros != null) fields.push(["Saros", String(e.saros)]);
+  if (e.magnitude != null) fields.push(["Magnitude", String(e.magnitude)]);
+
+  const solarCov = solar ? `${row.visibleCount}/${row.totalCities} referans şehirde görülür` : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose} role="dialog" aria-modal="true">
+      <div onClick={ev => ev.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-amber-100 bg-white p-4 shadow-xl sm:rounded-2xl">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className={`text-base font-black ${solar ? "text-amber-700" : "text-violet-700"}`}>{solar ? "☀️" : "🌙"} {eclipseTitleTR(e)}</p>
+          <button type="button" onClick={onClose} aria-label="Kapat" className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-bold text-slate-500 hover:bg-slate-50">✕</button>
+        </div>
+        {solarCov && <p className="mb-2 text-[11px] font-semibold text-slate-500">{solarCov}</p>}
+        <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {fields.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-50/70 px-2.5 py-1.5">
+              <dt className="text-[11px] font-semibold text-slate-500">{k}</dt>
+              <dd className="text-right text-[11px] font-bold tabular-nums text-slate-800">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {/* 8 şehir görünürlük listesi — şehir bazlı, genelleme yok */}
+        <p className="mb-1 mt-3 text-[10px] font-bold uppercase tracking-wide text-slate-400">Referans şehir görünürlüğü</p>
+        <div className="grid grid-cols-2 gap-1">
+          {row.vis.map(v => (
+            <div key={v.city} className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-[11px] ${v.visible ? "bg-emerald-50" : "bg-slate-50"}`}>
+              <span className="font-semibold text-slate-600">{v.city}</span>
+              <span className={`font-bold ${v.visible ? "text-emerald-700" : "text-slate-400"}`}>{v.visible ? "görülür" : "görülmez"}</span>
+            </div>
+          ))}
+        </div>
+        {e.notes.length > 0 && <p className="mt-2 rounded-lg bg-amber-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700">{e.notes.join(" ")}</p>}
+        <p className="mt-2 text-[10px] leading-snug text-slate-400">Yalnız doğrulanmış astronomik veri. Görünürlük şehir bazlıdır; “Türkiye geneli” iddiası içermez. Yorum/kehanet içermez.</p>
+      </div>
+    </div>
+  );
+}
 
 // Uzman filtre paneli için tüm cisimler ve açı türleri
 const ALL_BODIES: ReadonlyArray<AspectBody> = [
@@ -424,6 +571,10 @@ export default function CosmicCalendarPage() {
   const [showFilters,      setShowFilters]      = useState(false);  // filtre paneli aç/kapa
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
+  const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
+  const [eclipseCity,      setEclipseCity]      = useState("Ankara");
+  const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
+  const [eclipseDetail,    setEclipseDetail]    = useState<EclipseRow | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -535,6 +686,35 @@ export default function CosmicCalendarPage() {
   const filtersActive =
     filters.bodies.length > 0 || filters.aspects.length > 0 || filters.orbMax !== DEFAULT_FILTERS.orbMax ||
     !filters.applying || !filters.separating || filters.onlyExact || filters.stationOnly || filters.tripleOnly;
+
+  // ── Tutulmalar (FAZ 3A) — yalnız production engine; şehir bağımsız zenginleştirme ──
+  const eclipseData = useMemo<EclipseRow[]>(() => {
+    const now = realNow.getTime();
+    const all = getAllEclipses();
+    const upcoming = all.filter(e => Date.parse(e.peakUTC) >= now).slice(0, 10);
+    const past = all.filter(e => Date.parse(e.peakUTC) < now).slice(-6).reverse();
+    const enrich = (e: AnyEclipse, period: EclipsePeriod): EclipseRow => {
+      const vis = e.kind === "solar" ? getSolarCityVisibility(e.id) : getLunarCityVisibility(e.id);
+      return { e, period, vis, visibleCount: vis.filter(v => v.visible).length, totalCities: vis.length };
+    };
+    return [...upcoming.map(e => enrich(e, "upcoming")), ...past.map(e => enrich(e, "past"))];
+  }, [realNow]);
+
+  // Uzman filtreleri — yalnız mevcut listeyi süzer (yeni hesap yok)
+  const eclipseFiltered = useMemo<EclipseRow[]>(() => {
+    return eclipseData.filter(row => {
+      if (eclipseFilters.kind !== "all" && row.e.kind !== eclipseFilters.kind) return false;
+      if (eclipseFilters.period !== "all" && row.period !== eclipseFilters.period) return false;
+      if (eclipseFilters.type !== "all" && row.e.eclipseType !== eclipseFilters.type) return false;
+      const selVisible = Boolean(row.vis.find(v => v.city === eclipseCity)?.visible);
+      if (eclipseFilters.visibility === "visible" && !selVisible) return false;
+      if (eclipseFilters.visibility === "invisible" && selVisible) return false;
+      return true;
+    });
+  }, [eclipseData, eclipseFilters, eclipseCity]);
+  const eclipseFiltersActive =
+    eclipseFilters.kind !== "all" || eclipseFilters.visibility !== "all" ||
+    eclipseFilters.type !== "all" || eclipseFilters.period !== "all";
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
@@ -1216,6 +1396,119 @@ export default function CosmicCalendarPage() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* ── Tutulmalar (FAZ 3A Adım 3+4) ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-amber-100/80 bg-gradient-to-br from-amber-50/70 via-white/55 to-violet-50/70 p-4 shadow-sm backdrop-blur-md">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-amber-700">🌑 Tutulmalar</p>
+            <button
+              type="button"
+              onClick={() => setEclipseExpert(v => !v)}
+              aria-pressed={eclipseExpert}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                eclipseExpert ? "border-amber-300 bg-amber-600 text-white" : "border-amber-200/70 bg-white/70 text-amber-600 hover:bg-white"
+              }`}
+            >
+              {eclipseExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
+            </button>
+          </div>
+          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Yaklaşan ve geçmiş doğrulanmış Güneş ve Ay tutulmaları.</p>
+
+          {!eclipseExpert ? (
+            <>
+              {eclipseData.filter(r => r.period === "upcoming").length > 0 && (
+                <>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan</p>
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {eclipseData.filter(r => r.period === "upcoming").map(row => {
+                      const b = cityVisBadge(row.vis, "Ankara");
+                      return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} />;
+                    })}
+                  </div>
+                </>
+              )}
+              {eclipseData.filter(r => r.period === "past").length > 0 && (
+                <>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Geçmiş</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {eclipseData.filter(r => r.period === "past").map(row => {
+                      const b = cityVisBadge(row.vis, "Ankara");
+                      return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} />;
+                    })}
+                  </div>
+                </>
+              )}
+              <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
+                Astronomik veriye dayanır; yorum içermez. Görünürlük Ankara referans alınarak gösterilir.
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Şehir seçici + filtreler */}
+              <div className="mb-3 space-y-2 rounded-xl border border-amber-100 bg-white/60 px-3 py-2.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-600">Referans şehir:</label>
+                  <select
+                    value={eclipseCity}
+                    onChange={ev => setEclipseCity(ev.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700"
+                  >
+                    {ECLIPSE_CITY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <span className="text-[10px] text-slate-400">Görünürlük seçili şehre göredir; “Türkiye geneli” iddiası değildir.</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setEclipseFilters(f => ({ ...f, kind: k }))}
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${eclipseFilters.kind === k ? "border-amber-400 bg-amber-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                  ))}
+                  <span className="mx-1 text-slate-300">|</span>
+                  {([["all", "Hepsi"], ["visible", "Görülebilen"], ["invisible", "Görülemeyen"]] as const).map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setEclipseFilters(f => ({ ...f, visibility: k }))}
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${eclipseFilters.visibility === k ? "border-emerald-400 bg-emerald-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                  ))}
+                  <span className="mx-1 text-slate-300">|</span>
+                  {([["all", "Tümü"], ["upcoming", "Yaklaşan"], ["past", "Geçmiş"]] as const).map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setEclipseFilters(f => ({ ...f, period: k }))}
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${eclipseFilters.period === k ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                  ))}
+                  <span className="mx-1 text-slate-300">|</span>
+                  <select value={eclipseFilters.type}
+                    onChange={ev => setEclipseFilters(f => ({ ...f, type: ev.target.value as EclipseFilterState["type"] }))}
+                    className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                    <option value="all">Tüm türler</option>
+                    <option value="total">Tam</option>
+                    <option value="partial">Parçalı</option>
+                    <option value="annular">Halkalı</option>
+                    <option value="hybrid">Hibrit</option>
+                    <option value="penumbral">Yarıgölge</option>
+                  </select>
+                  {eclipseFiltersActive && (
+                    <button type="button" onClick={() => setEclipseFilters(DEFAULT_ECLIPSE_FILTERS)}
+                      className="ml-auto rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">Temizle</button>
+                  )}
+                </div>
+              </div>
+
+              {eclipseFiltered.length === 0 ? (
+                <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Filtrelerle eşleşen tutulma yok.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {eclipseFiltered.map(row => {
+                    const b = cityVisBadge(row.vis, eclipseCity);
+                    const coverage = `${row.visibleCount}/${row.totalCities} ref. şehir`;
+                    return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} coverage={coverage} onClick={() => setEclipseDetail(row)} />;
+                  })}
+                </div>
+              )}
+              <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
+                Şehir bazlı görünürlük; “Türkiye geneli” iddiası içermez. Karta tıklayarak detay açabilirsiniz.
+              </p>
+            </>
+          )}
+
+          {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} onClose={() => setEclipseDetail(null)} />}
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}

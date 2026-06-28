@@ -1,0 +1,15 @@
+{
+  "_comment": "FAZ 3A Adım 1 — Eclipse doğrulama test seti. Hem swe_eclipses.py hem ae_eclipses.mjs okur. Production'a dahil DEĞİLDİR.",
+  "startYear": 2026,
+  "endYear": 2050,
+  "cities": [
+    { "name": "Ankara",     "lat": 39.9334, "lon": 32.8597, "elev": 938 },
+    { "name": "İstanbul",   "lat": 41.0082, "lon": 28.9784, "elev": 40 },
+    { "name": "İzmir",      "lat": 38.4237, "lon": 27.1428, "elev": 25 },
+    { "name": "Erzurum",    "lat": 39.9043, "lon": 41.2679, "elev": 1890 },
+    { "name": "Antalya",    "lat": 36.8969, "lon": 30.7133, "elev": 30 },
+    { "name": "Diyarbakır", "lat": 37.9144, "lon": 40.2306, "elev": 675 },
+    { "name": "Trabzon",    "lat": 41.0027, "lon": 39.7168, "elev": 39 },
+    { "name": "Van",        "lat": 38.4942, "lon": 43.3800, "elev": 1727 }
+  ]
+}

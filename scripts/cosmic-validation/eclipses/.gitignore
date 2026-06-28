@@ -1,0 +1,8 @@
+# Üretilen eclipse doğrulama artefaktları — commit edilmez
+swe-eclipses.json
+ae-eclipses.json
+ae-prod-eclipses.json
+eclipse-report.json
+.spot.mts
+*.png
+*.log
