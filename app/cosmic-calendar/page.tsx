@@ -24,7 +24,72 @@ import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
 import { getPlanetSlug } from "@/lib/cosmic/planet-meta";
 import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/events";
 import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
-import { getDailyAspects, type AspectEvent } from "@/lib/cosmic/aspects";
+import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
+import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
+
+// ─── Uzman Modu aspect yardımcıları (FAZ 2C Adım 3) ────────────────────────────
+
+type ExpertAspectRow = { a: AspectEvent; motion: AspectMotionState | null; pass: AspectPass | null };
+
+const TR_TZ = "Europe/Istanbul";
+const fmtAspectTime    = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, hour: "2-digit", minute: "2-digit" });
+const fmtAspectDay     = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "short" });
+const fmtAspectDayYear = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "long", year: "numeric" });
+
+/** Exact saat etiketi — hassasiyet politikasına göre. Yavaş çiftlerde ASLA saat göstermez. */
+function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: string; precision: string } {
+  if (!pass) return { text: "Exact doğrulanamadı", precision: "" };
+  if (pass.displayPrecision === "date") {
+    return { text: `Tam tarih: ${fmtAspectDayYear.format(pass.exactAt)}`, precision: "Tarih hassasiyetinde" };
+  }
+  const sameDay = fmtAspectDayYear.format(pass.exactAt) === fmtAspectDayYear.format(selected);
+  const t = fmtAspectTime.format(pass.exactAt);
+  return {
+    text: sameDay ? `Tam: ${t}` : `Tam: ${fmtAspectDay.format(pass.exactAt)} ${t}`,
+    precision: "Dakika hassasiyetinde",
+  };
+}
+
+const motionDirTR = (d: AspectMotionState["direction"]): string =>
+  d === "applying" ? "Yaklaşıyor" : d === "separating" ? "Ayrılıyor" : "Tam";
+
+// Uzman filtre paneli için tüm cisimler ve açı türleri
+const ALL_BODIES: ReadonlyArray<AspectBody> = [
+  "Güneş", "Ay", "Merkür", "Venüs", "Mars", "Jüpiter", "Satürn", "Uranüs", "Neptün", "Plüton",
+];
+const ALL_ASPECTS: ReadonlyArray<{ name: AspectName; symbol: string }> = [
+  { name: "Kavuşum", symbol: "☌" }, { name: "Sekstil", symbol: "⚹" }, { name: "Kare", symbol: "□" },
+  { name: "Üçgen", symbol: "△" }, { name: "Karşıt", symbol: "☍" },
+];
+
+type AspectFilters = {
+  bodies: AspectBody[];        // boş = tümü
+  aspects: AspectName[];       // boş = tümü
+  orbMax: number;              // derece (üst sınır)
+  applying: boolean;
+  separating: boolean;
+  onlyExact: boolean;          // yalnız exact saati doğrulanmış (pass var)
+  stationOnly: boolean;        // yalnız istasyon yakını
+  tripleOnly: boolean;         // yalnız çoklu geçiş (totalPassCount > 1)
+};
+const DEFAULT_FILTERS: AspectFilters = {
+  bodies: [], aspects: [], orbMax: 8,
+  applying: true, separating: true,
+  onlyExact: false, stationOnly: false, tripleOnly: false,
+};
+
+const ZODIAC_TR: ReadonlyArray<string> = [
+  "Koç", "Boğa", "İkizler", "Yengeç", "Aslan", "Başak",
+  "Terazi", "Akrep", "Yay", "Oğlak", "Kova", "Balık",
+];
+/** Ekliptik boylamdan burç + burç-içi derece (yalnız konum; yorum yok). */
+function signDegreeTR(lon: number): string {
+  if (Number.isNaN(lon)) return "—";
+  const n = ((lon % 360) + 360) % 360;
+  const sign = ZODIAC_TR[Math.floor(n / 30) % 12];
+  const deg = n % 30;
+  return `${sign} ${deg.toFixed(2)}°`;
+}
 
 // ─── Sabit veriler ────────────────────────────────────────────────────────────
 
@@ -354,6 +419,11 @@ export default function CosmicCalendarPage() {
   const [searchQuery,      setSearchQuery]      = useState("");
   const [searchResult,     setSearchResult]     = useState<SearchResult>(null);
   const [showAllEvents,    setShowAllEvents]    = useState(false);
+  const [expertMode,       setExpertMode]       = useState(false);  // Uzman Modu (FAZ 2C)
+  const [includeMoonAsp,   setIncludeMoonAsp]   = useState(false);  // Ay açılarını dahil et (yalnız uzman)
+  const [showFilters,      setShowFilters]      = useState(false);  // filtre paneli aç/kapa
+  const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
+  const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -422,6 +492,49 @@ export default function CosmicCalendarPage() {
       .slice(0, 5),
     [selectedDate],
   );
+
+  // Normal kart yönü artık türev-tabanlı motordan gelir (eski heuristic UI'da kullanılmaz).
+  const skyAspectsView = useMemo(
+    () => skyAspects.map(a => ({
+      a,
+      dir: getAspectMotion(a.bodyA, a.bodyB, a.aspect, selectedDate)?.direction ?? a.direction,
+    })),
+    [skyAspects, selectedDate],
+  );
+
+  // ── Uzman Modu: exact saat + aspectMotion (FAZ 2C Adım 3) ──────────────────────
+  // Yalnız expertMode açıkken hesaplanır. Ay açıları yalnız includeMoonAsp ile dahil.
+  const expertAspects = useMemo<ExpertAspectRow[]>(() => {
+    if (!expertMode) return [];
+    return getDailyAspects(selectedDate)
+      .filter(a => a.strength !== "background")
+      .filter(a => includeMoonAsp || !a.includesMoon)
+      .map(a => ({
+        a,
+        motion: getAspectMotion(a.bodyA, a.bodyB, a.aspect, selectedDate),
+        pass:   getNearestPass(a.bodyA, a.bodyB, a.aspect, selectedDate),
+      }));
+  }, [expertMode, includeMoonAsp, selectedDate]);
+
+  // Filtreler yalnız mevcut listeyi süzer — yeni hesap YAPMAZ.
+  const filteredExpert = useMemo<ExpertAspectRow[]>(() => {
+    return expertAspects.filter(({ a, motion, pass }) => {
+      if (filters.bodies.length && !filters.bodies.includes(a.bodyA) && !filters.bodies.includes(a.bodyB)) return false;
+      if (filters.aspects.length && !filters.aspects.includes(a.aspect)) return false;
+      if (a.orbDeg > filters.orbMax) return false;
+      const dir = motion?.direction ?? a.direction;
+      if (dir === "applying" && !filters.applying) return false;
+      if (dir === "separating" && !filters.separating) return false;
+      if (filters.onlyExact && pass == null) return false;
+      if (filters.stationOnly && !(motion?.isStationNearby || pass?.isStationNearby)) return false;
+      if (filters.tripleOnly && !(pass != null && pass.totalPassCount > 1)) return false;
+      return true;
+    });
+  }, [expertAspects, filters]);
+
+  const filtersActive =
+    filters.bodies.length > 0 || filters.aspects.length > 0 || filters.orbMax !== DEFAULT_FILTERS.orbMax ||
+    !filters.applying || !filters.separating || filters.onlyExact || filters.stationOnly || filters.tripleOnly;
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
@@ -826,61 +939,283 @@ export default function CosmicCalendarPage() {
 
         </section>
 
-        {/* ── Gökyüzü Açıları (FAZ 2B) ── */}
+        {/* ── Gökyüzü Açıları (FAZ 2B + 2C Uzman Modu) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Gökyüzü Açıları</p>
-            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setExpertMode(v => !v)}
+                aria-pressed={expertMode}
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                  expertMode
+                    ? "border-violet-300 bg-violet-600 text-white"
+                    : "border-indigo-200/70 bg-white/70 text-indigo-500 hover:bg-white"
+                }`}
+              >
+                {expertMode ? "Uzman Modu: Açık" : "Uzman Modu"}
+              </button>
+              <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+            </div>
           </div>
 
-          {skyAspects.length === 0 ? (
-            <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
-              Seçili gün için öne çıkan majör açı görünmüyor.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              {skyAspects.map((a) => {
-                const dirTR = a.direction === "applying" ? "Yaklaşıyor" : a.direction === "separating" ? "Ayrılıyor" : "Tam";
-                const strongest = a.strength === "very-strong";
-                return (
-                  <div
-                    key={a.id}
-                    className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3 py-2 backdrop-blur-sm ${
-                      strongest
-                        ? "border-violet-200/80 bg-white/80"
-                        : "border-indigo-100/70 bg-white/60"
-                    }`}
-                  >
-                    {/* Açı: bodyA ⚹ bodyB */}
-                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-900">
-                      <span className="text-indigo-500">{a.bodyASymbol}</span>
-                      <span className="truncate">{a.bodyA}</span>
-                      <span className="shrink-0 px-0.5 text-base text-indigo-400">{a.aspectSymbol}</span>
-                      <span className="text-indigo-500">{a.bodyBSymbol}</span>
-                      <span className="truncate">{a.bodyB}</span>
-                    </span>
-                    {/* Orb · yön · güç */}
-                    <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold text-slate-500">
-                      <span className="text-slate-400">·</span>
-                      <span className="tabular-nums">{a.orbText}</span>
-                      <span className="text-slate-300">·</span>
-                      <span className="text-indigo-600">{dirTR}</span>
-                      <span className="text-slate-300">·</span>
-                      <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
-                        strongest ? "bg-violet-100 text-violet-700" : "bg-indigo-50 text-indigo-600"
-                      }`}>
-                        {strongest ? "Çok güçlü" : "Güçlü"}
-                      </span>
-                    </span>
+          {expertMode && (
+            <div className="mb-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-violet-100 bg-white/60 px-3 py-2">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={includeMoonAsp}
+                    onChange={e => setIncludeMoonAsp(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-violet-600"
+                  />
+                  Ay açılarını dahil et
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(v => !v)}
+                  aria-pressed={showFilters}
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                    showFilters ? "border-violet-300 bg-violet-100 text-violet-700" : "border-slate-200 bg-white/70 text-slate-500 hover:bg-white"
+                  }`}
+                >
+                  ⚙ Filtreler{filtersActive ? " •" : ""}
+                </button>
+                <span className="ml-auto text-[10px] font-semibold text-slate-400">{filteredExpert.length}/{expertAspects.length} açı</span>
+              </div>
+
+              {showFilters && (
+                <div className="space-y-2.5 rounded-xl border border-violet-100 bg-white/70 px-3 py-2.5">
+                  <div>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Cisim</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ALL_BODIES.map(b => {
+                        const on = filters.bodies.includes(b);
+                        return (
+                          <button key={b} type="button"
+                            onClick={() => setFilters(f => ({ ...f, bodies: on ? f.bodies.filter(x => x !== b) : [...f.bodies, b] }))}
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${on ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>
+                            {b}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
+                  <div>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Açı türü</p>
+                    <div className="flex flex-wrap gap-1">
+                      {ALL_ASPECTS.map(asp => {
+                        const on = filters.aspects.includes(asp.name);
+                        return (
+                          <button key={asp.name} type="button"
+                            onClick={() => setFilters(f => ({ ...f, aspects: on ? f.aspects.filter(x => x !== asp.name) : [...f.aspects, asp.name] }))}
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${on ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>
+                            {asp.symbol} {asp.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                      Orb ≤
+                      <input type="range" min={0} max={8} step={0.5} value={filters.orbMax}
+                        onChange={e => setFilters(f => ({ ...f, orbMax: Number(e.target.value) }))}
+                        className="accent-violet-600" />
+                      <span className="w-8 tabular-nums">{filters.orbMax}°</span>
+                    </label>
+                    {([
+                      ["applying", "Applying"], ["separating", "Separating"],
+                      ["onlyExact", "Yalnız exact"], ["stationOnly", "İstasyon yakını"], ["tripleOnly", "Çoklu geçiş"],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                        <input type="checkbox" checked={filters[key]} onChange={e => setFilters(f => ({ ...f, [key]: e.target.checked }))} className="h-3.5 w-3.5 accent-violet-600" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] leading-snug text-slate-400">Yalnız doğrulanmış majör açılar; filtre yeni hesap yapmaz.</span>
+                    <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} disabled={!filtersActive}
+                      className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${filtersActive ? "border-slate-300 bg-white text-slate-600 hover:bg-slate-50" : "border-slate-100 bg-slate-50 text-slate-300"}`}>
+                      Filtreleri temizle
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+
+          {!expertMode ? (
+            skyAspectsView.length === 0 ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
+                Seçili gün için öne çıkan majör açı görünmüyor.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {skyAspectsView.map(({ a, dir }) => {
+                  const dirTR = motionDirTR(dir);
+                  const strongest = a.strength === "very-strong";
+                  return (
+                    <div
+                      key={a.id}
+                      className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3 py-2 backdrop-blur-sm ${
+                        strongest ? "border-violet-200/80 bg-white/80" : "border-indigo-100/70 bg-white/60"
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-900">
+                        <span className="text-indigo-500">{a.bodyASymbol}</span>
+                        <span className="truncate">{a.bodyA}</span>
+                        <span className="shrink-0 px-0.5 text-base text-indigo-400">{a.aspectSymbol}</span>
+                        <span className="text-indigo-500">{a.bodyBSymbol}</span>
+                        <span className="truncate">{a.bodyB}</span>
+                      </span>
+                      <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold text-slate-500">
+                        <span className="text-slate-400">·</span>
+                        <span className="tabular-nums">{a.orbText}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-indigo-600">{dirTR}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
+                          strongest ? "bg-violet-100 text-violet-700" : "bg-indigo-50 text-indigo-600"
+                        }`}>
+                          {strongest ? "Çok güçlü" : "Güçlü"}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            filteredExpert.length === 0 ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
+                {expertAspects.length === 0
+                  ? `Seçili gün için majör açı görünmüyor${includeMoonAsp ? "" : " (Ay açıları kapalı)"}.`
+                  : "Filtrelerle eşleşen açı yok — filtreleri gevşetin veya temizleyin."}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {filteredExpert.map((row) => {
+                  const { a, motion, pass } = row;
+                  const dirTR = motionDirTR(motion?.direction ?? a.direction);
+                  const strongest = a.strength === "very-strong";
+                  const exact = exactAspectLabel(pass, selectedDate);
+                  const rel = motion ? `${motion.relativeAngularSpeed.toFixed(2)}°/gün` : null;
+                  const station = Boolean(motion?.isStationNearby || pass?.isStationNearby);
+                  const triple = pass != null && pass.totalPassCount > 1;
+                  return (
+                    <div
+                      key={a.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setDetailRow(row)}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailRow(row); } }}
+                      className={`cursor-pointer rounded-xl border px-3 py-2 backdrop-blur-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-300 ${
+                        strongest ? "border-violet-200/80 bg-white/85" : "border-indigo-100/70 bg-white/65"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-900">
+                          <span className="text-indigo-500">{a.bodyASymbol}</span>
+                          <span className="truncate">{a.bodyA}</span>
+                          <span className="shrink-0 px-0.5 text-base text-indigo-400">{a.aspectSymbol}</span>
+                          <span className="text-indigo-500">{a.bodyBSymbol}</span>
+                          <span className="truncate">{a.bodyB}</span>
+                        </span>
+                        {a.includesMoon && <span className="rounded-full bg-cyan-50 px-1.5 py-px text-[10px] font-bold text-cyan-600">☽ Ay</span>}
+                        {station && <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold text-amber-700">⚠ İstasyon yakını</span>}
+                        {triple && <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-bold text-violet-700">{pass!.passNumber}/{pass!.totalPassCount} geçiş</span>}
+                        <span className="ml-auto shrink-0 text-[10px] font-bold text-violet-400">Detay →</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-500">
+                        <span className="font-bold text-slate-700">{exact.text}</span>
+                        {exact.precision && (<><span className="text-slate-300">·</span><span className="text-slate-400">{exact.precision}</span></>)}
+                        <span className="text-slate-300">·</span>
+                        <span className="text-indigo-600">{dirTR}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="tabular-nums">orb {a.orbText}</span>
+                        {rel && (<><span className="text-slate-300">·</span><span className="tabular-nums">{rel}</span></>)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
 
           <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
             Bu bölüm gezegenlerin gökyüzündeki açısal konumlarını gösterir. Astronomik veriye dayanır; yorum içermez.
           </p>
+
+          {/* ── Aspect Detay Penceresi (yalnız doğrulanmış astronomik alanlar) ── */}
+          {detailRow && (
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
+              onClick={() => setDetailRow(null)}
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-violet-100 bg-white p-4 shadow-xl sm:rounded-2xl"
+              >
+                {(() => {
+                  const { a, motion, pass } = detailRow;
+                  const exact = exactAspectLabel(pass, selectedDate);
+                  const confTR = pass ? (pass.confidence === "high" ? "Yüksek" : pass.confidence === "medium" ? "Orta" : "Yalnız konum") : "—";
+                  const stationOn = Boolean(motion?.isStationNearby || pass?.isStationNearby);
+                  const stationBody = pass?.stationBody ?? motion?.stationBody ?? null;
+                  const rows: [string, string][] = [
+                    ["Açı türü", `${a.aspect} (${a.aspectAngle}°) ${a.aspectSymbol}`],
+                    [exact.text.startsWith("Tam tarih") ? "Exact tarih" : "Exact", exact.text.replace(/^Tam(\s*tarih)?:\s*/, "")],
+                    ["Hassasiyet", pass ? (pass.displayPrecision === "minute" ? "Dakika düzeyi" : "Tarih düzeyi") : "Doğrulanamadı"],
+                    ["Güven", confTR],
+                    ["Orb", a.orbText],
+                    ["Yön", motionDirTR(motion?.direction ?? a.direction)],
+                    ["Göreli hız", motion ? `${motion.relativeAngularSpeed.toFixed(3)}°/gün` : "—"],
+                    ["İşaretli hız", motion ? `${motion.signedSpeed.toFixed(3)}°/gün (${motion.relativeMotion === "retrograde" ? "retro" : "direkt"})` : "—"],
+                    ["Orb türevi", motion ? `${motion.orbDerivative.toFixed(3)}°/gün` : "—"],
+                    ["Geçiş", pass ? `${pass.passNumber}/${pass.totalPassCount}` : "—"],
+                    ["İstasyon yakını", stationOn ? `Evet${stationBody ? ` (${stationBody})` : ""}` : "Hayır"],
+                    [`${a.bodyA} retro`, motion ? (motion.retroA ? "Evet" : "Hayır") : "—"],
+                    [`${a.bodyB} retro`, motion ? (motion.retroB ? "Evet" : "Hayır") : "—"],
+                    [`${a.bodyA} konum`, signDegreeTR(getPlanetLongitude(a.bodyA, selectedDate))],
+                    [`${a.bodyB} konum`, signDegreeTR(getPlanetLongitude(a.bodyB, selectedDate))],
+                  ];
+                  if (pass) rows.push(["Artık (residual)", `${pass.residualArcsec}″`]);
+                  return (
+                    <>
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <p className="flex flex-wrap items-center gap-1.5 text-base font-black text-slate-900">
+                          <span className="text-indigo-500">{a.bodyASymbol}</span>{a.bodyA}
+                          <span className="px-0.5 text-indigo-400">{a.aspectSymbol}</span>
+                          <span className="text-indigo-500">{a.bodyBSymbol}</span>{a.bodyB}
+                        </p>
+                        <button type="button" onClick={() => setDetailRow(null)} aria-label="Kapat"
+                          className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-bold text-slate-500 hover:bg-slate-50">✕</button>
+                      </div>
+                      <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                        {rows.map(([k, v]) => (
+                          <div key={k} className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-50/70 px-2.5 py-1.5">
+                            <dt className="text-[11px] font-semibold text-slate-500">{k}</dt>
+                            <dd className="text-right text-[11px] font-bold tabular-nums text-slate-800">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      {pass ? (
+                        <p className="mt-2 rounded-lg bg-violet-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-violet-600">{pass.precisionPolicy}</p>
+                      ) : (
+                        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700">Bu açı için exact an doğrulanamadı; yalnız anlık konum bilgisi gösterilir.</p>
+                      )}
+                      <p className="mt-2 text-[10px] leading-snug text-slate-400">Yalnız doğrulanmış astronomik veri. Yorum, ev sistemi veya kişisel transit içermez.</p>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}

@@ -1,0 +1,10 @@
+# Üretilen doğrulama artefaktları — commit edilmez (yeniden üretilebilir)
+swe-reference.json
+ae-exact.json
+ae-prod.json
+ae-passes.json
+report.json
+# Ekran görüntüleri ve loglar
+*.png
+*.log
+.*.log

@@ -1,0 +1,77 @@
+{
+  "_comment": "FAZ 2C Adim 0 — bagimsiz exact-aspect dogrulama test seti. Tek dogruluk kaynagi: hem swe_reference.py hem ae_exact.mjs bu dosyayi okur. Production'a dahil DEGILDIR.",
+  "bodyOrder": ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"],
+  "aspects": [
+    { "name": "Kavusum", "angle": 0 },
+    { "name": "Sekstil", "angle": 60 },
+    { "name": "Kare", "angle": 90 },
+    { "name": "Ucgen", "angle": 120 },
+    { "name": "Karsit", "angle": 180 }
+  ],
+  "cases": [
+    {
+      "id": "moon-sun-2026",
+      "label": "Ay-Gunes acilari (yeni ay/dolunay/dordun + 0-360 sinir)",
+      "bodies": ["Sun", "Moon"],
+      "start": "2026-01-01",
+      "end": "2026-03-01"
+    },
+    {
+      "id": "moon-fast-2026",
+      "label": "Ay-ic gezegen hizli acilar (sekstil/ucgen dahil)",
+      "bodies": ["Moon", "Mercury", "Venus", "Mars"],
+      "start": "2026-01-01",
+      "end": "2026-01-20"
+    },
+    {
+      "id": "mercury-retro-2026",
+      "label": "Merkur retro donemleri — uclu gecis testi",
+      "bodies": ["Sun", "Mercury"],
+      "start": "2026-01-01",
+      "end": "2026-12-31"
+    },
+    {
+      "id": "venus-retro",
+      "label": "Venus retro donemi",
+      "bodies": ["Sun", "Venus"],
+      "start": "2026-06-01",
+      "end": "2027-12-31"
+    },
+    {
+      "id": "mars-retro-2035",
+      "label": "Mars retro donemi",
+      "bodies": ["Sun", "Mars"],
+      "start": "2035-01-01",
+      "end": "2036-12-31"
+    },
+    {
+      "id": "inner-2030",
+      "label": "Ic gezegen karisik acilar (2030)",
+      "bodies": ["Sun", "Mercury", "Venus", "Mars"],
+      "start": "2030-01-01",
+      "end": "2030-04-30"
+    },
+    {
+      "id": "outer-slow-2040",
+      "label": "Jupiter-Saturn ve yavas dis cift acilari",
+      "bodies": ["Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"],
+      "start": "2038-01-01",
+      "end": "2043-12-31",
+      "stepDays": 1.0
+    },
+    {
+      "id": "year-2040",
+      "label": "2040 genel kontrol (Ay/Gunes/ic)",
+      "bodies": ["Sun", "Moon", "Mercury", "Venus", "Mars"],
+      "start": "2040-06-01",
+      "end": "2040-07-15"
+    },
+    {
+      "id": "year-2050",
+      "label": "2050 uzak tarih sinir kontrolu",
+      "bodies": ["Sun", "Moon", "Mercury", "Venus", "Mars"],
+      "start": "2050-06-01",
+      "end": "2050-07-15"
+    }
+  ]
+}

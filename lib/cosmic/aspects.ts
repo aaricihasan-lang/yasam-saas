@@ -42,17 +42,17 @@ export type AspectEvent = {
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
-const BODY_ORDER: ReadonlyArray<AspectBody> = [
+export const BODY_ORDER: ReadonlyArray<AspectBody> = [
   "Güneş", "Ay", "Merkür", "Venüs", "Mars",
   "Jüpiter", "Satürn", "Uranüs", "Neptün", "Plüton",
 ];
 
-const BODY_SYMBOL: Record<AspectBody, string> = {
+export const BODY_SYMBOL: Record<AspectBody, string> = {
   "Güneş": "☉", "Ay": "☽", "Merkür": "☿", "Venüs": "♀", "Mars": "♂",
   "Jüpiter": "♃", "Satürn": "♄", "Uranüs": "♅", "Neptün": "♆", "Plüton": "♇",
 };
 
-const BODY_SLUG: Record<AspectBody, string> = {
+export const BODY_SLUG: Record<AspectBody, string> = {
   "Güneş": "gunes", "Ay": "ay", "Merkür": "merkur", "Venüs": "venus", "Mars": "mars",
   "Jüpiter": "jupiter", "Satürn": "saturn", "Uranüs": "uranus", "Neptün": "neptun", "Plüton": "pluton",
 };
@@ -67,8 +67,8 @@ const BODY_AE: Record<Exclude<AspectBody, "Ay">, AE.Body> = {
 const INNER = new Set<AspectBody>(["Merkür", "Venüs", "Mars"]);
 const LUMINARY = new Set<AspectBody>(["Güneş", "Ay"]);
 
-type AspectDef = { name: AspectName; angle: number; symbol: string; slug: string };
-const ASPECTS: ReadonlyArray<AspectDef> = [
+export type AspectDef = { name: AspectName; angle: number; symbol: string; slug: string };
+export const ASPECTS: ReadonlyArray<AspectDef> = [
   { name: "Kavuşum", angle: 0,   symbol: "☌", slug: "kavusum" },
   { name: "Sekstil", angle: 60,  symbol: "⚹", slug: "sekstil" },
   { name: "Kare",    angle: 90,  symbol: "□", slug: "kare"    },
@@ -81,18 +81,18 @@ const EXACT_ORB_DEG = 0.1;   // < 6′ → "exact" (tam açıya çok yakın)
 
 // ─── İç yardımcılar ───────────────────────────────────────────────────────────
 
-function normalizeAngle(deg: number): number {
+export function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
 /** İki ekliptik boylam arası açısal uzaklık (0–180°), 0/360 sınırı güvenli. */
-function angularDistance(a: number, b: number): number {
+export function angularDistance(a: number, b: number): number {
   const d = Math.abs(normalizeAngle(a) - normalizeAngle(b)) % 360;
   return d > 180 ? 360 - d : d;
 }
 
 /** Gezegen/Ay ekliptik boylamı (tropikal, derece). AE hatasında NaN. */
-function getPlanetLongitude(body: AspectBody, date: Date): number {
+export function getPlanetLongitude(body: AspectBody, date: Date): number {
   try {
     if (body === "Ay") return normalizeAngle(AE.EclipticGeoMoon(date).lon);
     return normalizeAngle(AE.Ecliptic(AE.GeoVector(BODY_AE[body], date, true)).elon);
