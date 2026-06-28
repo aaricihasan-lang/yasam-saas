@@ -18,6 +18,7 @@ import {
 } from "@/lib/dogaltas/stonesListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
   makeStockMatcher,
@@ -45,9 +46,7 @@ import {
 import { saveClientCombination } from "@/lib/dogaltas/clientCombinationsApi";
 
 // ─── Stil sabitleri (Doğaltaş modülü diliyle uyumlu) ─────────────────────────
-const pageBg =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-4 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
+const pageContent = "relative z-10 w-full space-y-4";
 const uiHeaderCard =
   "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 px-4 py-3 shadow-lg";
 const uiFilterCard =
@@ -464,51 +463,37 @@ export default function KombinasyonOlusturPage() {
   const showResults = searched && activeConditions.length > 0;
 
   return (
-    <main className={pageBg}>
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · KOMBİNASYON OLUŞTUR"
+      title="Taş Kombinasyonu"
+      subtitle="Mineral, çakra, astroloji, etkili organ veya taş ismine göre koşul ekleyin; tüm koşulları (VE) sağlayan taşlar listelenir. Stokta olan taşlar belirgin gösterilir."
+      icon="⚗️"
+      actions={
+        <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-slate-950">{stones.length}</div>
+            <div className="text-xs font-bold text-slate-500">Taş</div>
+          </div>
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-slate-950">
+              {showResults ? results.length : "—"}
+            </div>
+            <div className="text-xs font-bold text-slate-500">Eşleşen</div>
+          </div>
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-emerald-600">
+              {showResults ? inStockMatched : "—"}
+            </div>
+            <div className="text-xs font-bold text-slate-500">Stokta</div>
+          </div>
+        </div>
+      }
+    >
       <BfcacheRefreshHandler />
-      <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-300/15 blur-3xl" />
-
       <div className={pageContent}>
         {isDemo && (
           <DemoModuleBanner message="Kombinasyon Oluştur'u inceleyebilirsiniz. Sonuçlar kütüphane taşları üzerinden gösterilir." />
         )}
-
-        {/* ── Başlık ─────────────────────────────────────────────────────── */}
-        <header className={`${uiHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-1 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
-              ⚗️ KOMBİNASYON OLUŞTUR
-            </div>
-            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-              Taş Kombinasyonu
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
-              Mineral, çakra, astroloji, etkili organ veya taş ismine göre koşul
-              ekleyin; tüm koşulları (VE) sağlayan taşlar listelenir. Stokta olan
-              taşlar belirgin gösterilir.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{stones.length}</div>
-              <div className="text-xs font-bold text-slate-500">Taş</div>
-            </div>
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">
-                {showResults ? results.length : "—"}
-              </div>
-              <div className="text-xs font-bold text-slate-500">Eşleşen</div>
-            </div>
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-emerald-600">
-                {showResults ? inStockMatched : "—"}
-              </div>
-              <div className="text-xs font-bold text-slate-500">Stokta</div>
-            </div>
-          </div>
-        </header>
 
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
@@ -1049,6 +1034,6 @@ export default function KombinasyonOlusturPage() {
         onSaveGeneral={handleSaveGeneral}
         onSaveToClient={(client) => void saveCombinationToClient(client)}
       />
-    </main>
+    </DogaltasSectionShell>
   );
 }

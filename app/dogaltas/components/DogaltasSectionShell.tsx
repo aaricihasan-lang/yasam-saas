@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ChevronRight, Home } from "lucide-react";
 import type { ReactNode } from "react";
+import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
 import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 import {
   DOGALTAS_HOME,
@@ -61,47 +60,7 @@ export function DogaltasSectionShell({
       <div
         className={`relative z-10 mx-auto w-full ${maxWidthClass} px-3 py-3 sm:px-5 sm:py-4 xl:px-8 2xl:px-10`}
       >
-        {/* Breadcrumb + geri-dön */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <nav
-            aria-label="Sayfa konumu"
-            className="flex min-w-0 items-center gap-1.5 text-[12px] font-bold text-slate-500"
-          >
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 transition hover:bg-white/70 hover:text-emerald-700"
-            >
-              <Home className="h-3.5 w-3.5" aria-hidden />
-              <span className="hidden sm:inline">Ana Sayfa</span>
-            </Link>
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
-            <Link
-              href={DOGALTAS_HOME.href}
-              className="rounded-lg px-1.5 py-1 transition hover:bg-white/70 hover:text-emerald-700"
-            >
-              {DOGALTAS_HOME.title}
-            </Link>
-            {current ? (
-              <>
-                <ChevronRight
-                  className="h-3.5 w-3.5 shrink-0 text-slate-300"
-                  aria-hidden
-                />
-                <span className="truncate text-slate-900" aria-current="page">
-                  {current.title}
-                </span>
-              </>
-            ) : null}
-          </nav>
-
-          <Link
-            href={DOGALTAS_HOME.href}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200/70 bg-white/80 px-3 py-2 text-[12px] font-black text-emerald-700 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Doğaltaş Paneli
-          </Link>
-        </div>
+        <DogaltasBreadcrumb />
 
         {/* Hero başlık kartı */}
         <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-5 py-5 shadow-[0_10px_34px_-14px_rgba(15,23,42,0.22)] ring-1 ring-white/90 backdrop-blur-md sm:px-7 sm:py-6">

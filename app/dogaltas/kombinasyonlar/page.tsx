@@ -47,6 +47,7 @@ import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_COMPACT_CLASS as SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
 
@@ -217,10 +218,7 @@ function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
-const pageBg =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] text-slate-950";
-const pageContent =
-  "relative z-10 mx-auto w-full max-w-[1720px] space-y-2 px-4 py-3 sm:px-5 lg:px-8 2xl:px-10";
+const pageContent = "relative z-10 w-full space-y-2";
 const uiHeaderCard =
   "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiFilterCard =
@@ -538,40 +536,28 @@ export default function KombinasyonlarPage() {
   }, [confirm, showToast]);
 
   return (
-    <main className={pageBg}>
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · TAŞ KOMBİNASYONLARI"
+      title="Taş Kombinasyonları"
+      subtitle={
+        loading
+          ? "Yükleniyor..."
+          : `${uniqueIssues} başlık · ${rows.length} variant · ${visibleGroups.length}/${groups.length} gösterilen`
+      }
+      icon="🧩"
+      maxWidthClass="max-w-[1720px]"
+      actions={
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
+        >
+          Yenile
+        </button>
+      }
+    >
       <BfcacheRefreshHandler />
-      <div className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-cyan-300/15 blur-[120px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-violet-300/15 blur-[120px]" />
-
       <div className={pageContent}>
-
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <header className={`${uiHeaderCard} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-violet-700">
-                TAŞ KOMBİNASYONLARI
-              </span>
-            </div>
-            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-              Taş Kombinasyonları
-            </h1>
-            <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {loading
-                ? "Yükleniyor..."
-                : `${uniqueIssues} başlık · ${rows.length} variant · ${visibleGroups.length}/${groups.length} gösterilen`}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
-            >
-              Yenile
-            </button>
-          </div>
-        </header>
 
         {/* ── Filter bar ─────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
@@ -958,6 +944,6 @@ export default function KombinasyonlarPage() {
         )}
 
       </div>
-    </main>
+    </DogaltasSectionShell>
   );
 }

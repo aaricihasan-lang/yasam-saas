@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoGate } from "@/components/demo/DemoGate";
+import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -772,11 +773,12 @@ export default function TasBilgiKutuphanesiPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-950">
+    <main className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950">
       <BfcacheRefreshHandler />
 
       {/* Header */}
-      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
+      <header className="shrink-0 border-b border-emerald-200/60 bg-white/85 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
+        <DogaltasBreadcrumb className="mb-2" />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="mb-0.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-emerald-700">

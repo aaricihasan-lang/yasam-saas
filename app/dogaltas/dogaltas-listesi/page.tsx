@@ -44,6 +44,7 @@ import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 
 const DEMO_ACTION_MESSAGE =
   "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
@@ -193,8 +194,8 @@ function ListSkeletonRows({ count = 6 }: { count?: number }) {
 }
 
 const pageBg =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-4 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
+  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950";
+const pageContent = "relative z-10 w-full space-y-4";
 const uiHeaderCard =
   "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg";
 const uiFilterCard =
@@ -749,52 +750,40 @@ function DogaltasListesiPageContent() {
   }, [queryTenantId, selectedIds, filteredStones, showToast, isDemo]);
 
   return (
-    <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-300/15 blur-3xl" />
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · DOĞALTAŞ KÜTÜPHANESİ"
+      title="Doğaltaş Listesi"
+      subtitle="Kayıtları arayın, filtreleyin ve detay sayfasında okuyun."
+      icon="💎"
+      actions={
+        <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-slate-950">
+              {totalAllStones || totalCount}
+            </div>
+            <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
+          </div>
 
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-slate-950">
+              {filteredStones.length}
+            </div>
+            <div className="text-xs font-bold text-slate-500">
+              {isDetailFilterActive ? "Eşleşen" : "Yüklü"}
+            </div>
+          </div>
+
+          <div className={uiStatCard}>
+            <div className="text-lg font-black text-slate-950">{loadedImages}</div>
+            <div className="text-xs font-bold text-slate-500">Görsel</div>
+          </div>
+        </div>
+      }
+    >
       <div className={pageContent}>
         {isDemo && (
           <DemoModuleBanner message="Doğaltaş listesini inceleyebilirsiniz. Yeni kayıt, düzenleme, silme ve Word/PDF dışa aktarma demo hesabında kapalıdır." />
         )}
-        <header className={`${uiHeaderCard} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-1.5 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-cyan-700">
-              💎 DOĞALTAŞ KÜTÜPHANESİ
-            </div>
-
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">
-              Doğaltaş Listesi
-            </h1>
-
-            <p className="mt-1 text-sm font-medium text-slate-600">
-              Kayıtları arayın, filtreleyin ve detay sayfasında okuyun.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">
-                {totalAllStones || totalCount}
-              </div>
-              <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
-            </div>
-
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">
-                {filteredStones.length}
-              </div>
-              <div className="text-xs font-bold text-slate-500">
-                {isDetailFilterActive ? "Eşleşen" : "Yüklü"}
-              </div>
-            </div>
-
-            <div className={uiStatCard}>
-              <div className="text-lg font-black text-slate-950">{loadedImages}</div>
-              <div className="text-xs font-bold text-slate-500">Görsel</div>
-            </div>
-          </div>
-        </header>
 
         <section className={uiFilterCard}>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -1806,7 +1795,7 @@ function DogaltasListesiPageContent() {
           </div>
         </div>
       )}
-    </main>
+    </DogaltasSectionShell>
   );
 }
 

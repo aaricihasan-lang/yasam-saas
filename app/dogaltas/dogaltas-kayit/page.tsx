@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { createStone } from "@/lib/dogaltas/dogaltasApi";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 const STONE_BUCKET = "stone-photos";
 
 const chakraOptions = [
@@ -501,54 +502,41 @@ export default function DogaltasKayitPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dbeafe_0%,#eef2ff_35%,#f8fafc_100%)] pb-20 text-slate-950">
-      <BfcacheRefreshHandler />
-      <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-cyan-300/20 blur-[150px]" />
-      <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-violet-300/20 blur-[150px]" />
-
-      <div className="relative w-full px-5 py-4 xl:px-8 2xl:px-10">
-        <header className="mb-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="mb-1.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700">
-                💎 DOĞALTAŞ MODÜLÜ
-              </div>
-
-              <h1 className="text-2xl font-black tracking-tight text-slate-950">
-                Doğaltaş Kayıt
-              </h1>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {(savedMessage || errorMessage) && (
-              <span
-                className={`rounded-2xl px-5 py-3 text-base font-black ring-1 ${
-                  errorMessage
-                    ? "bg-rose-50 text-rose-700 ring-rose-100"
-                    : "bg-emerald-50 text-emerald-700 ring-emerald-100"
-                }`}
-              >
-                {errorMessage || savedMessage}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowForm((v) => !v)}
-              className={`rounded-xl px-5 py-2.5 text-sm font-black shadow-md transition hover:brightness-110 ${
-                showForm
-                  ? "border border-slate-200 bg-white text-slate-700"
-                  : "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · DOĞALTAŞ MODÜLÜ"
+      title="Doğaltaş Kayıt"
+      subtitle="Taş bilgilerini, etkilerini, kullanım alanlarını, uyarılarını ve atamalarını tek ekranda yönetin."
+      icon="💎"
+      contentClassName="mt-4 pb-20"
+      actions={
+        <>
+          {(savedMessage || errorMessage) && (
+            <span
+              className={`rounded-2xl px-5 py-3 text-base font-black ring-1 ${
+                errorMessage
+                  ? "bg-rose-50 text-rose-700 ring-rose-100"
+                  : "bg-emerald-50 text-emerald-700 ring-emerald-100"
               }`}
             >
-              {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
-            </button>
-          </div>
-        </header>
+              {errorMessage || savedMessage}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className={`rounded-xl px-5 py-2.5 text-sm font-black shadow-md transition hover:brightness-110 ${
+              showForm
+                ? "border border-slate-200 bg-white text-slate-700"
+                : "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
+            }`}
+          >
+            {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
+          </button>
+        </>
+      }
+    >
+      <BfcacheRefreshHandler />
+      <div className="relative w-full">
 
         {!showForm && (
           <div className="rounded-[24px] border-[3px] border-cyan-300/40 bg-white/65 shadow-[0_0_40px_rgba(6,182,212,0.10)] backdrop-blur-xl flex flex-col items-center gap-4 py-14 text-center">
@@ -1058,6 +1046,6 @@ export default function DogaltasKayitPage() {
           />
         </div>
       )}
-    </main>
+    </DogaltasSectionShell>
   );
 }
