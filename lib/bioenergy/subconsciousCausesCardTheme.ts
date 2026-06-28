@@ -1,4 +1,4 @@
-/** Bilinçaltı kütüphanesi liste kartı pastel varyasyonları */
+/** Bilinçaltı kütüphanesi liste kartı — yumuşak pastel (referans tasarım diliyle hizalı) */
 export type SubconsciousCardTheme = {
   card: string;
   badge: string;
@@ -9,65 +9,46 @@ export type SubconsciousCardTheme = {
 
 export const SUBCONSCIOUS_CARD_THEMES: SubconsciousCardTheme[] = [
   {
-    card:
-      "border-violet-400/70 bg-gradient-to-br from-violet-200/90 via-violet-100/85 to-purple-100/80",
-    badge:
-      "bg-violet-600/15 text-violet-950 ring-2 ring-violet-400/50",
-    badgeMuted: "bg-violet-100/80 text-violet-700 ring-1 ring-violet-300/60",
-    button:
-      "bg-violet-800 text-white shadow-[0_8px_24px_rgba(109,40,217,0.45)] hover:bg-violet-900",
-    hover:
-      "hover:scale-[1.02] hover:border-violet-500 hover:shadow-[0_22px_48px_-10px_rgba(139,92,246,0.45)]",
+    card: "border-violet-300/70 bg-gradient-to-br from-violet-100 via-white to-purple-50",
+    badge: "bg-violet-100/80 text-violet-800 ring-1 ring-violet-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-violet-700 text-white shadow-sm hover:bg-violet-800",
+    hover: "hover:-translate-y-1 hover:border-violet-300 hover:shadow-lg",
   },
   {
-    card:
-      "border-blue-400/70 bg-gradient-to-br from-blue-200/90 via-sky-100/85 to-cyan-100/75",
-    badge: "bg-blue-600/15 text-blue-950 ring-2 ring-blue-400/50",
-    badgeMuted: "bg-blue-100/80 text-blue-800 ring-1 ring-blue-300/60",
-    button:
-      "bg-blue-800 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] hover:bg-blue-900",
-    hover:
-      "hover:scale-[1.02] hover:border-blue-500 hover:shadow-[0_22px_48px_-10px_rgba(59,130,246,0.42)]",
+    card: "border-sky-300/70 bg-gradient-to-br from-blue-100 via-white to-cyan-50",
+    badge: "bg-blue-100/80 text-blue-800 ring-1 ring-blue-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-blue-700 text-white shadow-sm hover:bg-blue-800",
+    hover: "hover:-translate-y-1 hover:border-sky-300 hover:shadow-lg",
   },
   {
-    card:
-      "border-emerald-400/70 bg-gradient-to-br from-emerald-200/90 via-green-100/85 to-teal-100/75",
-    badge: "bg-emerald-600/15 text-emerald-950 ring-2 ring-emerald-400/50",
-    badgeMuted: "bg-emerald-100/80 text-emerald-800 ring-1 ring-emerald-300/60",
-    button:
-      "bg-emerald-800 text-white shadow-[0_8px_24px_rgba(5,150,105,0.4)] hover:bg-emerald-900",
-    hover:
-      "hover:scale-[1.02] hover:border-emerald-500 hover:shadow-[0_22px_48px_-10px_rgba(16,185,129,0.4)]",
+    card: "border-emerald-300/70 bg-gradient-to-br from-emerald-100 via-white to-teal-50",
+    badge: "bg-emerald-100/80 text-emerald-800 ring-1 ring-emerald-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-emerald-700 text-white shadow-sm hover:bg-emerald-800",
+    hover: "hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg",
   },
   {
-    card:
-      "border-amber-400/70 bg-gradient-to-br from-amber-200/90 via-yellow-100/85 to-orange-100/75",
-    badge: "bg-amber-600/15 text-amber-950 ring-2 ring-amber-400/50",
-    badgeMuted: "bg-amber-100/80 text-amber-900 ring-1 ring-amber-300/60",
-    button:
-      "bg-amber-900 text-white shadow-[0_8px_24px_rgba(217,119,6,0.4)] hover:bg-amber-950",
-    hover:
-      "hover:scale-[1.02] hover:border-amber-500 hover:shadow-[0_22px_48px_-10px_rgba(245,158,11,0.42)]",
+    card: "border-amber-300/70 bg-gradient-to-br from-amber-100 via-white to-orange-50",
+    badge: "bg-amber-100/80 text-amber-900 ring-1 ring-amber-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-amber-700 text-white shadow-sm hover:bg-amber-800",
+    hover: "hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg",
   },
   {
-    card:
-      "border-pink-400/70 bg-gradient-to-br from-pink-200/90 via-rose-100/85 to-fuchsia-100/75",
-    badge: "bg-pink-600/15 text-pink-950 ring-2 ring-pink-400/50",
-    badgeMuted: "bg-pink-100/80 text-pink-900 ring-1 ring-pink-300/60",
-    button:
-      "bg-pink-800 text-white shadow-[0_8px_24px_rgba(219,39,119,0.4)] hover:bg-pink-900",
-    hover:
-      "hover:scale-[1.02] hover:border-pink-500 hover:shadow-[0_22px_48px_-10px_rgba(236,72,153,0.42)]",
+    card: "border-pink-300/70 bg-gradient-to-br from-pink-100 via-white to-rose-50",
+    badge: "bg-pink-100/80 text-pink-900 ring-1 ring-pink-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-pink-700 text-white shadow-sm hover:bg-pink-800",
+    hover: "hover:-translate-y-1 hover:border-pink-300 hover:shadow-lg",
   },
   {
-    card:
-      "border-cyan-400/70 bg-gradient-to-br from-cyan-200/90 via-teal-100/85 to-sky-100/75",
-    badge: "bg-cyan-600/15 text-cyan-950 ring-2 ring-cyan-400/50",
-    badgeMuted: "bg-cyan-100/80 text-cyan-900 ring-1 ring-cyan-300/60",
-    button:
-      "bg-cyan-800 text-white shadow-[0_8px_24px_rgba(8,145,178,0.4)] hover:bg-cyan-900",
-    hover:
-      "hover:scale-[1.02] hover:border-cyan-500 hover:shadow-[0_22px_48px_-10px_rgba(6,182,212,0.42)]",
+    card: "border-cyan-300/70 bg-gradient-to-br from-cyan-100 via-white to-sky-50",
+    badge: "bg-cyan-100/80 text-cyan-900 ring-1 ring-cyan-300/50",
+    badgeMuted: "bg-white/70 text-slate-500 ring-1 ring-slate-200/70",
+    button: "bg-cyan-700 text-white shadow-sm hover:bg-cyan-800",
+    hover: "hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg",
   },
 ];
 
