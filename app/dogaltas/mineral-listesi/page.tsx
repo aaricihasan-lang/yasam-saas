@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import {
-  Fragment,
   Suspense,
   useCallback,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -29,6 +27,11 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
+import {
+  renderHighlightedText,
+  SEARCH_MATCH_BADGE_CLASS,
+} from "@/lib/dogaltas/searchHighlight";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -65,80 +68,6 @@ function stripUrlSearchQuery() {
 
 const SEARCH_DEBOUNCE_MS = 300;
 const UNCATEGORIZED_LABEL = "Kategorisiz";
-
-const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
-const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
-
-function normalizeTrSearch(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
-  let norm = "";
-  const indexMap: number[] = [];
-
-  for (let i = 0; i < text.length; i += 1) {
-    const charNorm = normalizeTrSearch(text[i] ?? "");
-    for (let j = 0; j < charNorm.length; j += 1) {
-      norm += charNorm[j];
-      indexMap.push(i);
-    }
-  }
-
-  return { norm, indexMap };
-}
-
-function renderHighlightedText(text: string, query: string): ReactNode {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) return text;
-
-  const queryNorm = normalizeTrSearch(trimmedQuery);
-  if (!queryNorm) return text;
-
-  const { norm, indexMap } = buildNormIndexMap(text);
-  const nodes: ReactNode[] = [];
-  let lastEnd = 0;
-  let searchFrom = 0;
-
-  while (searchFrom <= norm.length - queryNorm.length) {
-    const idx = norm.indexOf(queryNorm, searchFrom);
-    if (idx < 0) break;
-
-    const startOrig = indexMap[idx] ?? 0;
-    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
-
-    if (startOrig > lastEnd) {
-      nodes.push(
-        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
-      );
-    }
-
-    nodes.push(
-      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
-        {text.slice(startOrig, endOrig)}
-      </mark>,
-    );
-
-    lastEnd = endOrig;
-    searchFrom = idx + queryNorm.length;
-  }
-
-  if (lastEnd < text.length) {
-    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
-  }
-
-  return nodes.length > 0 ? nodes : text;
-}
 
 function getCategoryLabel(kategori: string | null | undefined) {
   const trimmed = kategori?.trim();
@@ -525,39 +454,27 @@ function MineralListesiPageContent() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-amber-300/20 blur-[150px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
-
-      <div className="relative z-10 w-full px-5 py-4 xl:px-8 2xl:px-10">
-        <header className={`${uiHeaderCard} mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
-                ⚗️ MİNERAL LİSTESİ
-              </span>
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">
-              Mineral Listesi
-            </h1>
-            <p className="mt-1 text-sm font-medium text-slate-600">
-              public.minerals tablosundan mineral kayıtları.
-            </p>
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · MİNERAL LİSTESİ"
+      title="Mineral Listesi"
+      subtitle="public.minerals tablosundan mineral kayıtları."
+      icon="⚗️"
+      actions={
+        <div className="grid grid-cols-2 gap-2 lg:min-w-[220px]">
+          <div className={uiStatCard}>
+            <div className="text-xl font-black text-slate-950">{totalCount}</div>
+            <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 lg:min-w-[200px]">
-            <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950">{totalCount}</div>
-              <div className="text-xs font-bold text-slate-500">Toplam kayıt</div>
-            </div>
-            <div className={uiStatCard}>
-              <div className="text-xl font-black text-slate-950">{filteredMinerals.length}</div>
-              <div className="text-xs font-bold text-slate-500">
-                {hasMore ? "Yüklü / toplam" : "Görünen sonuç"}
-              </div>
+          <div className={uiStatCard}>
+            <div className="text-xl font-black text-slate-950">{filteredMinerals.length}</div>
+            <div className="text-xs font-bold text-slate-500">
+              {hasMore ? "Yüklü / toplam" : "Görünen sonuç"}
             </div>
           </div>
-        </header>
+        </div>
+      }
+    >
+      <div className="relative z-10 w-full">
 
         <section className={`${uiFilterCard} mb-3`}>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -937,7 +854,7 @@ function MineralListesiPageContent() {
           </div>
         </div>
       )}
-    </main>
+    </DogaltasSectionShell>
   );
 }
 

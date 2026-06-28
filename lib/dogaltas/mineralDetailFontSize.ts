@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { createFontSizeStore } from "@/lib/dogaltas/createFontSizeStore";
 
 export const MINERAL_DETAIL_FONT_SIZE_KEY = "mineral-detail-font-size";
 export const MINERAL_DETAIL_FONT_DEFAULT = 17;
@@ -7,6 +8,15 @@ export const MINERAL_DETAIL_FONT_MAX = 23;
 export const MINERAL_DETAIL_FONT_STEP = 1;
 export const MINERAL_DETAIL_LINE_HEIGHT = 1.75;
 
+export const mineralDetailFontStore = createFontSizeStore({
+  storageKey: MINERAL_DETAIL_FONT_SIZE_KEY,
+  defaultPx: MINERAL_DETAIL_FONT_DEFAULT,
+  minPx: MINERAL_DETAIL_FONT_MIN,
+  maxPx: MINERAL_DETAIL_FONT_MAX,
+  stepPx: MINERAL_DETAIL_FONT_STEP,
+  lineHeight: MINERAL_DETAIL_LINE_HEIGHT,
+});
+
 export type MineralContentTypography = {
   fontSizePx: number;
   lineHeight: number;
@@ -14,28 +24,15 @@ export type MineralContentTypography = {
 };
 
 export function clampMineralDetailFontSize(px: number): number {
-  return Math.min(
-    MINERAL_DETAIL_FONT_MAX,
-    Math.max(MINERAL_DETAIL_FONT_MIN, Math.round(px)),
-  );
+  return mineralDetailFontStore.clamp(px);
 }
 
 export function readStoredMineralDetailFontSize(): number {
-  if (typeof window === "undefined") return MINERAL_DETAIL_FONT_DEFAULT;
-  const raw = localStorage.getItem(MINERAL_DETAIL_FONT_SIZE_KEY);
-  if (!raw) return MINERAL_DETAIL_FONT_DEFAULT;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed)
-    ? clampMineralDetailFontSize(parsed)
-    : MINERAL_DETAIL_FONT_DEFAULT;
+  return mineralDetailFontStore.read();
 }
 
 export function writeStoredMineralDetailFontSize(px: number): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    MINERAL_DETAIL_FONT_SIZE_KEY,
-    String(clampMineralDetailFontSize(px)),
-  );
+  mineralDetailFontStore.write(px);
 }
 
 export function mineralContentTypography(

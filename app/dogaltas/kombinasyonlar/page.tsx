@@ -3,7 +3,7 @@
 import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -42,6 +42,11 @@ async function deleteCombinationsViaApi(
 }
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
+import {
+  normalizeTrSearch,
+  renderHighlightedText,
+  SEARCH_MATCH_BADGE_COMPACT_CLASS as SEARCH_MATCH_BADGE_CLASS,
+} from "@/lib/dogaltas/searchHighlight";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
 
@@ -53,79 +58,6 @@ const COMBINATIONS_SEARCH_STORAGE_KEYS = [
   "q",
 ] as const;
 
-const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
-const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700";
-
-function normalizeTrSearch(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-}
-
-function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
-  let norm = "";
-  const indexMap: number[] = [];
-
-  for (let i = 0; i < text.length; i += 1) {
-    const charNorm = normalizeTrSearch(text[i] ?? "");
-    for (let j = 0; j < charNorm.length; j += 1) {
-      norm += charNorm[j];
-      indexMap.push(i);
-    }
-  }
-
-  return { norm, indexMap };
-}
-
-function renderHighlightedText(text: string, query: string): ReactNode {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) return text;
-
-  const queryNorm = normalizeTrSearch(trimmedQuery);
-  if (!queryNorm) return text;
-
-  const { norm, indexMap } = buildNormIndexMap(text);
-  const nodes: ReactNode[] = [];
-  let lastEnd = 0;
-  let searchFrom = 0;
-
-  while (searchFrom <= norm.length - queryNorm.length) {
-    const idx = norm.indexOf(queryNorm, searchFrom);
-    if (idx < 0) break;
-
-    const startOrig = indexMap[idx] ?? 0;
-    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
-
-    if (startOrig > lastEnd) {
-      nodes.push(
-        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
-      );
-    }
-
-    nodes.push(
-      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
-        {text.slice(startOrig, endOrig)}
-      </mark>,
-    );
-
-    lastEnd = endOrig;
-    searchFrom = idx + queryNorm.length;
-  }
-
-  if (lastEnd < text.length) {
-    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
-  }
-
-  return nodes.length > 0 ? nodes : text;
-}
 
 function clearCombinationsSearchStorage() {
   if (typeof window === "undefined") return;

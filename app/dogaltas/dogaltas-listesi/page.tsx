@@ -9,7 +9,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -41,6 +40,10 @@ import {
   stoneMatchesZodiac,
 } from "@/lib/dogaltas/stoneSearchUtils";
 import { deleteStone as apiDeleteStone, deleteStones } from "@/lib/dogaltas/dogaltasApi";
+import {
+  renderHighlightedText,
+  SEARCH_MATCH_BADGE_CLASS,
+} from "@/lib/dogaltas/searchHighlight";
 
 const DEMO_ACTION_MESSAGE =
   "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
@@ -58,9 +61,6 @@ const DOGALTAS_LIST_SEARCH_STORAGE_KEYS = [
   "q",
 ] as const;
 
-const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
-const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
@@ -82,77 +82,6 @@ const EMPTY_DETAIL_FILTERS: DetailFilters = {
   mineral: "",
   chakra: "",
 };
-
-function normalizeTrSearch(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/İ/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
-  let norm = "";
-  const indexMap: number[] = [];
-
-  for (let i = 0; i < text.length; i += 1) {
-    const charNorm = normalizeTrSearch(text[i] ?? "");
-    for (let j = 0; j < charNorm.length; j += 1) {
-      norm += charNorm[j];
-      indexMap.push(i);
-    }
-  }
-
-  return { norm, indexMap };
-}
-
-function renderHighlightedText(text: string, query: string): ReactNode {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) return text;
-
-  const queryNorm = normalizeTrSearch(trimmedQuery);
-  if (!queryNorm) return text;
-
-  const { norm, indexMap } = buildNormIndexMap(text);
-  const nodes: ReactNode[] = [];
-  let lastEnd = 0;
-  let searchFrom = 0;
-
-  while (searchFrom <= norm.length - queryNorm.length) {
-    const idx = norm.indexOf(queryNorm, searchFrom);
-    if (idx < 0) break;
-
-    const startOrig = indexMap[idx] ?? 0;
-    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
-
-    if (startOrig > lastEnd) {
-      nodes.push(
-        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
-      );
-    }
-
-    nodes.push(
-      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
-        {text.slice(startOrig, endOrig)}
-      </mark>,
-    );
-
-    lastEnd = endOrig;
-    searchFrom = idx + queryNorm.length;
-  }
-
-  if (lastEnd < text.length) {
-    nodes.push(<Fragment key="p-end">{text.slice(lastEnd)}</Fragment>);
-  }
-
-  return nodes.length > 0 ? nodes : text;
-}
 
 /** Dizi/obje/null değerleri aranabilir string'e çevirir (recursive). */
 function safeTextExtract(value: unknown): string {

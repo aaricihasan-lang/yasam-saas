@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -21,6 +21,9 @@ import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
 import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
+import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
+import { DOGALTAS_MODULES } from "@/lib/dogaltas/dogaltasModules";
+import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
 
@@ -50,19 +53,6 @@ type StoneSearchResult = {
   matchedField: string;
   snippet: string;
 };
-
-function normalizeTrSearch(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
 
 function readViewedStoneIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -198,64 +188,6 @@ function mapStoneSearchRecord(row: Record<string, unknown>): StoneSearchRecord {
   };
 }
 
-const modules = [
-  {
-    title: "Doğaltaş Kayıt",
-    subtitle: "Yeni taş kaydı oluştur.",
-    icon: "💎",
-    href: "/dogaltas/dogaltas-kayit",
-    dot: "bg-emerald-500",
-    iconBg: "bg-cyan-50",
-  },
-  {
-    title: "Mineral Bankası",
-    subtitle: "Mineral veri kayıtları.",
-    icon: "🧪",
-    href: "/dogaltas/mineral-bankasi",
-    dot: "bg-violet-500",
-    iconBg: "bg-violet-50",
-  },
-  {
-    title: "Mineral Listesi",
-    subtitle: "Filtrele ve düzenle.",
-    icon: "📋",
-    href: "/dogaltas/mineral-listesi",
-    dot: "bg-sky-500",
-    iconBg: "bg-sky-50",
-  },
-  {
-    title: "Doğaltaş Listesi",
-    subtitle: "Kayıtlı taşlar.",
-    icon: "🗂️",
-    href: "/dogaltas/dogaltas-listesi",
-    dot: "bg-blue-500",
-    iconBg: "bg-blue-50",
-  },
-  {
-    title: "Kombinasyonlar",
-    subtitle: "Taş kombinasyonları.",
-    icon: "🧩",
-    href: "/dogaltas/kombinasyonlar",
-    dot: "bg-orange-500",
-    iconBg: "bg-orange-50",
-  },
-  {
-    title: "Kombinasyon Oluştur",
-    subtitle: "Minerale göre taş bul.",
-    icon: "⚗️",
-    href: "/dogaltas/kombinasyon-olustur",
-    dot: "bg-teal-500",
-    iconBg: "bg-teal-50",
-  },
-  {
-    title: "Taş Bilgi Kütüphanesi",
-    subtitle: "Eğitim ve referans.",
-    icon: "📚",
-    href: "/dogaltas/tas-bilgi-kutuphanesi",
-    dot: "bg-pink-500",
-    iconBg: "bg-pink-50",
-  },
-];
 
 type MonthTrendBucket = {
   label: string;
@@ -653,7 +585,7 @@ function DogaltasPageContent() {
   }
 
   return (
-    <main className="w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)] text-slate-950 lg:h-screen lg:overflow-hidden">
+    <main className="w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(251,191,36,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(16,185,129,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(132,204,22,0.12),transparent_35%),linear-gradient(135deg,#fffaf0_0%,#fef9e7_45%,#f2fff7_100%)] text-slate-950 lg:h-screen lg:overflow-hidden">
       <div className="flex flex-col lg:grid lg:h-full lg:grid-cols-[300px_1fr] lg:overflow-x-hidden">
         <aside className="flex flex-col border-b border-white/80 bg-white/88 px-4 py-4 shadow-[0_4px_18px_rgba(15,23,42,0.06)] backdrop-blur-xl lg:h-screen lg:w-[300px] lg:min-w-[300px] lg:max-w-[300px] lg:shrink-0 lg:overflow-hidden lg:border-b-0 lg:border-r lg:shadow-[14px_0_35px_rgba(15,23,42,0.04)]">
           <div className="mb-3 flex h-11 items-center gap-3">
@@ -673,21 +605,22 @@ function DogaltasPageContent() {
           </div>
 
           <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-            {modules.map((item, index) => {
+            {DOGALTAS_MODULES.map((item, index) => {
               const isFeatured = index === 0;
+              const accent = DOGALTAS_ACCENT[item.accent];
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex w-full cursor-pointer items-center gap-3 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-cyan-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(79,70,229,0.14)] lg:h-[64px] lg:shrink-0 lg:px-4 ${
+                  className={`group flex w-full cursor-pointer items-center gap-3 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-emerald-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(16,185,129,0.16)] lg:h-[64px] lg:shrink-0 lg:px-4 ${
                     isFeatured
-                      ? "border-cyan-300 bg-gradient-to-r from-cyan-50 via-white to-blue-50 shadow-[0_10px_28px_rgba(14,165,233,0.14)]"
+                      ? "border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-amber-50 shadow-[0_10px_28px_rgba(16,185,129,0.16)]"
                       : "border-white/80 bg-white/70"
                   }`}
                 >
                   <span
-                    className={`flex h-8 w-8 min-w-[32px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 ring-white/80 lg:h-9 lg:w-9 lg:min-w-[36px] ${item.iconBg}`}
+                    className={`flex h-8 w-8 min-w-[32px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 lg:h-9 lg:w-9 lg:min-w-[36px] ${accent.iconBox}`}
                   >
                     <span className="flex h-5 w-5 items-center justify-center text-base leading-none">
                       {item.icon}
@@ -714,9 +647,9 @@ function DogaltasPageContent() {
 
         <section className="relative min-w-0 px-4 py-4 sm:px-5 lg:h-screen lg:overflow-hidden">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
-            <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-violet-200/25 blur-3xl" />
-            <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-emerald-200/20 blur-3xl" />
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-200/30 blur-3xl" />
+            <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-emerald-200/25 blur-3xl" />
+            <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-lime-200/20 blur-3xl" />
           </div>
 
           <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-2.5 lg:h-full lg:overflow-y-auto">
@@ -726,7 +659,7 @@ function DogaltasPageContent() {
               </div>
               <div className="min-w-0">
                 <h1 className="text-2xl font-black tracking-tight text-slate-950">
-                  <span className="bg-[linear-gradient(90deg,#a855f7_0%,#38bdf8_45%,#34d399_100%)] bg-clip-text text-transparent">
+                  <span className="bg-[linear-gradient(90deg,#d97706_0%,#10b981_55%,#84cc16_100%)] bg-clip-text text-transparent">
                     Doğaltaş
                   </span>{" "}
                   Yönetimi

@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -27,98 +26,21 @@ import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
+import {
+  mergeMatchCardClass,
+  renderHighlightedText,
+  SEARCH_MATCH_BADGE_CLASS,
+  textMatchesQuery,
+} from "@/lib/dogaltas/searchHighlight";
+import { useOverlay } from "@/lib/dogaltas/useOverlay";
 
 const STONE_BUCKET = "stone-photos";
-const HIGHLIGHT_MARK_CLASS = "rounded bg-yellow-200 px-1 font-bold text-slate-950";
-const SEARCH_MATCH_BADGE_CLASS =
-  "inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700";
-const SEARCH_MATCH_CARD_CLASS = "border-rose-300 ring-2 ring-rose-100";
 
-function normalizeTrSearch(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function buildNormIndexMap(text: string): { norm: string; indexMap: number[] } {
-  let norm = "";
-  const indexMap: number[] = [];
-
-  for (let i = 0; i < text.length; i += 1) {
-    const charNorm = normalizeTrSearch(text[i] ?? "");
-    for (let j = 0; j < charNorm.length; j += 1) {
-      norm += charNorm[j];
-      indexMap.push(i);
-    }
-  }
-
-  return { norm, indexMap };
-}
-
-function renderHighlightedText(text: string, query: string): ReactNode {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) return text;
-
-  const queryNorm = normalizeTrSearch(trimmedQuery);
-  if (!queryNorm) return text;
-
-  const { norm, indexMap } = buildNormIndexMap(text);
-  const nodes: ReactNode[] = [];
-  let lastEnd = 0;
-  let searchFrom = 0;
-
-  while (searchFrom <= norm.length - queryNorm.length) {
-    const idx = norm.indexOf(queryNorm, searchFrom);
-    if (idx < 0) break;
-
-    const startOrig = indexMap[idx] ?? 0;
-    const endOrig = (indexMap[idx + queryNorm.length - 1] ?? startOrig) + 1;
-
-    if (startOrig > lastEnd) {
-      nodes.push(
-        <Fragment key={`p-${lastEnd}`}>{text.slice(lastEnd, startOrig)}</Fragment>,
-      );
-    }
-
-    nodes.push(
-      <mark key={`m-${startOrig}-${idx}`} className={HIGHLIGHT_MARK_CLASS}>
-        {text.slice(startOrig, endOrig)}
-      </mark>,
-    );
-
-    lastEnd = endOrig;
-    searchFrom = idx + queryNorm.length;
-  }
-
-  if (lastEnd < text.length) {
-    nodes.push(<Fragment key={`p-end`}>{text.slice(lastEnd)}</Fragment>);
-  }
-
-  return nodes.length > 0 ? nodes : text;
-}
-
-function textMatchesQuery(text: string | null | undefined, query: string): boolean {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) return false;
-  const haystack = normalizeTrSearch(String(text ?? ""));
-  const needle = normalizeTrSearch(trimmedQuery);
-  return Boolean(needle) && haystack.includes(needle);
-}
 
 function SearchMatchBadge() {
   return <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>;
 }
 
-function mergeMatchCardClass(baseClass: string, hasSearchMatch: boolean) {
-  return hasSearchMatch ? `${baseClass} ${SEARCH_MATCH_CARD_CLASS}` : baseClass;
-}
 
 function assignmentsSearchText(assignments: Record<string, string[][]> | null): string {
   if (!assignments) return "";
@@ -632,6 +554,14 @@ function StoneDetailPage() {
   const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
   const isContentProtected = isDemo && !isDemoReference;
+
+  // Düzenleme modalı: scroll-lock + Esc + focus tuzağı (P0-3/P0-4).
+  const editorOverlay = useOverlay<HTMLDivElement>({
+    open: Boolean(activeEditor),
+    onClose: () => {
+      if (!saving) setActiveEditor(null);
+    },
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -1779,15 +1709,33 @@ function StoneDetailPage() {
       />
 
       {activeEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm">
-          <div className="w-full max-w-[920px] rounded-[30px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.26)] ring-1 ring-white">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-5 py-5 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) {
+              setActiveEditor(null);
+            }
+          }}
+        >
+          <div
+            ref={editorOverlay.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dogaltas-editor-title"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-[920px] overflow-y-auto rounded-[30px] bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.26)] ring-1 ring-white"
+          >
             <header className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="mb-1 inline-flex rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-cyan-700 ring-1 ring-cyan-100">
                   {activeEditor.badge}
                 </div>
 
-                <h2 className="text-[24px] font-black text-slate-950">
+                <h2
+                  id="dogaltas-editor-title"
+                  className="text-[24px] font-black text-slate-950"
+                >
                   {activeEditor.title}
                 </h2>
 

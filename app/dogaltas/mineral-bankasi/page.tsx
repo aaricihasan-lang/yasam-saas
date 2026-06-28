@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import { createMineral } from "@/lib/dogaltas/dogaltasApi";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 
 type MineralForm = {
   name: string;
@@ -221,66 +222,51 @@ export default function MineralBankasiPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)] text-slate-950">
-      <BfcacheRefreshHandler />
-      <div className="absolute left-0 top-0 h-[500px] w-[500px] bg-amber-300/20 blur-[150px]" />
-      <div className="absolute right-0 top-0 h-[500px] w-[500px] bg-emerald-300/20 blur-[150px]" />
+    <DogaltasSectionShell
+      eyebrow="DOĞALTAŞ · MİNERAL BANKASI"
+      title="Mineral Kayıt Ekranı"
+      subtitle="Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır."
+      icon="⚗️"
+      actions={
+        <>
+          <Link
+            href="/dogaltas/mineral-listesi"
+            className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
+          >
+            Mineral Listesi
+          </Link>
 
-      <div className="relative w-full px-5 py-2 xl:px-8 2xl:px-10">
-        <header className={`${uiCard} mb-2 flex flex-col gap-2 p-3 lg:flex-row lg:items-center lg:justify-between`}>
-          <div>
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full border border-amber-200/80 bg-amber-50/90 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-amber-800 ring-1 ring-amber-100">
-                ⚗️ MİNERAL BANKASI
-              </span>
-            </div>
-
-            <h1 className="bg-gradient-to-r from-emerald-700 to-amber-600 bg-clip-text text-xl font-black text-transparent">
-              Mineral Kayıt Ekranı
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-600">
-              Yeni mineral kaydı minerals tablosuna eklenir. Liste alanları satır satır yazılır.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/dogaltas/mineral-listesi"
-              className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
-            >
-              Mineral Listesi
-            </Link>
-
-            {showForm ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { resetForm(); setShowForm(false); }}
-                  className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
-                >
-                  Formu Kapat
-                </button>
-                <button
-                  type="button"
-                  onClick={saveMineral}
-                  disabled={saving}
-                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
-                >
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
-                </button>
-              </>
-            ) : (
+          {showForm ? (
+            <>
               <button
                 type="button"
-                onClick={() => setShowForm(true)}
-                className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+                onClick={() => { resetForm(); setShowForm(false); }}
+                className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
               >
-                + Yeni Kayıt
+                Formu Kapat
               </button>
-            )}
-          </div>
-        </header>
+              <button
+                type="button"
+                onClick={saveMineral}
+                disabled={saving}
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+              >
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+            >
+              + Yeni Kayıt
+            </button>
+          )}
+        </>
+      }
+    >
+      <BfcacheRefreshHandler />
 
         {(message || errorMessage) && (
           <div
@@ -415,7 +401,6 @@ export default function MineralBankasiPage() {
             </button>
           </section>
         </section>}
-      </div>
 
       {expandedEditor ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 px-5 py-5 backdrop-blur-sm">
@@ -454,6 +439,6 @@ export default function MineralBankasiPage() {
           </div>
         </div>
       ) : null}
-    </main>
+    </DogaltasSectionShell>
   );
 }

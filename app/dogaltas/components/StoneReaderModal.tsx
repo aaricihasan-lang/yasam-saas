@@ -4,7 +4,8 @@ import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontS
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { DOGALTAS_MODAL_LINE_HEIGHT } from "@/lib/dogaltas/dogaltasModalFontSize";
 import { useDogaltasModalFontSize } from "@/lib/dogaltas/useDogaltasModalFontSize";
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import { useCallback, type ReactNode } from "react";
 
 export type StoneReaderModalProps = {
   open: boolean;
@@ -53,22 +54,7 @@ export function StoneReaderModal({
     [highlightQuery, renderHighlight],
   );
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, onClose]);
+  const { containerRef } = useOverlay<HTMLDivElement>({ open, onClose });
 
   if (!open) return null;
 
@@ -81,9 +67,11 @@ export function StoneReaderModal({
       }}
     >
       <div
+        ref={containerRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="stone-reader-title"
+        tabIndex={-1}
         className="flex h-[min(90vh,940px)] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:rounded-[28px]"
         onMouseDown={(event) => event.stopPropagation()}
       >

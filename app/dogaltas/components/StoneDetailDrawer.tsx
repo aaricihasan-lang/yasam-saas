@@ -5,6 +5,7 @@ import {
   getStoneImageUrls,
   type StoneListItemExtended,
 } from "@/lib/dogaltas/stonesListFetch";
+import { useOverlay } from "@/lib/dogaltas/useOverlay";
 
 type StoneDetailDrawerProps = {
   open: boolean;
@@ -101,22 +102,15 @@ export function StoneDetailDrawer({
 }: StoneDetailDrawerProps) {
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
-  // ESC kapatma + body scroll kilidi.
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+  // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
+  // Esc önce açık görseli kapatır, sonra drawer'ı.
+  const { containerRef } = useOverlay<HTMLDivElement>({
+    open,
+    onClose: () => {
       if (preview) setPreview(null);
       else onClose();
-    };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, preview, onClose]);
+    },
+  });
 
   // Taş değişince görsel önizlemeyi sıfırla.
   useEffect(() => {
@@ -161,7 +155,11 @@ export function StoneDetailDrawer({
       />
 
       {/* Panel: mobil tam ekran (bottom sheet hissi), tablet/desktop sağ drawer */}
-      <div className="animate-drawer-in relative flex h-full w-full flex-col bg-white shadow-2xl sm:w-[440px] md:w-[480px] lg:w-[520px]">
+      <div
+        ref={containerRef}
+        tabIndex={-1}
+        className="animate-drawer-in relative flex h-full w-full flex-col bg-white shadow-2xl sm:w-[440px] md:w-[480px] lg:w-[520px]"
+      >
         {/* Başlık */}
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 bg-white/95 px-4 py-3">
           <div className="min-w-0 flex-1">
