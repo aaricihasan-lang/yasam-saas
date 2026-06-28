@@ -114,7 +114,7 @@ export function StoneReaderModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition duration-200 hover:bg-slate-800"
+                className="btn-soft !px-5 !py-3"
               >
                 <span aria-hidden>×</span>
                 Kapat

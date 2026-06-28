@@ -231,7 +231,7 @@ export default function MineralBankasiPage() {
         <>
           <Link
             href="/dogaltas/mineral-listesi"
-            className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
+            className="btn-soft"
           >
             Mineral Listesi
           </Link>
@@ -241,7 +241,7 @@ export default function MineralBankasiPage() {
               <button
                 type="button"
                 onClick={() => { resetForm(); setShowForm(false); }}
-                className="rounded-xl border border-white/40 bg-white/60 px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:translate-x-0.5 hover:border-amber-400/60"
+                className="btn-soft"
               >
                 Formu Kapat
               </button>
@@ -249,7 +249,7 @@ export default function MineralBankasiPage() {
                 type="button"
                 onClick={saveMineral}
                 disabled={saving}
-                className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+                className="btn-primary"
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
@@ -258,7 +258,7 @@ export default function MineralBankasiPage() {
             <button
               type="button"
               onClick={() => setShowForm(true)}
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-5 py-2 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+              className="btn-primary"
             >
               + Yeni Kayıt
             </button>
@@ -293,7 +293,7 @@ export default function MineralBankasiPage() {
             <button
               type="button"
               onClick={() => setShowForm(true)}
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+              className="btn-primary"
             >
               + Yeni Kayıt Oluştur
             </button>
@@ -416,14 +416,14 @@ export default function MineralBankasiPage() {
                 <button
                   type="button"
                   onClick={() => setExpandedEditor(false)}
-                  className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200"
+                  className="btn-soft"
                 >
                   Kapat
                 </button>
                 <button
                   type="button"
                   onClick={closeSectionEditor}
-                  className="rounded-2xl bg-gradient-to-r from-emerald-500 to-amber-500 px-6 py-3 text-[13px] font-black text-white shadow-lg transition hover:brightness-110"
+                  className="btn-primary"
                 >
                   Bu Alanı Kaydet
                 </button>

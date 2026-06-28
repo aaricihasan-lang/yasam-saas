@@ -1037,7 +1037,7 @@ function StoneDetailPage() {
 
           <Link
             href={listBackHref}
-            className="mt-6 inline-flex rounded-2xl border-2 border-cyan-200 bg-white px-6 py-4 font-black text-slate-800 shadow-md hover:bg-cyan-50"
+            className="btn-soft mt-6"
           >
             {hasFilterContext ? "Aramaya Dön" : "Taş Listesine Dön"}
           </Link>
@@ -1117,7 +1117,7 @@ function StoneDetailPage() {
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link
               href={listBackHref}
-              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
+              className="btn-soft"
             >
               {hasFilterContext ? "← Aramaya Dön" : "← Taş Listesi"}
             </Link>
@@ -1136,11 +1136,7 @@ function StoneDetailPage() {
                     setSuccessMessage("");
                   }
                 }}
-                className={
-                  editEnabled
-                    ? "rounded-xl bg-emerald-600 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-emerald-700"
-                    : "rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-violet-700"
-                }
+                className={editEnabled ? "btn-primary" : "btn-soft"}
               >
                 {editEnabled ? "Kaydet" : "Düzenle"}
               </button>
@@ -1151,7 +1147,7 @@ function StoneDetailPage() {
                 type="button"
                 onClick={() => void downloadWordReport()}
                 disabled={wordBusy}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+                className="btn-soft"
               >
                 {wordBusy ? "⏳..." : "📄 Word"}
               </button>
@@ -1161,7 +1157,7 @@ function StoneDetailPage() {
               <button
                 type="button"
                 onClick={() => void handleDeleteStoneTrigger()}
-                className="rounded-xl bg-red-500 px-3 py-2 text-sm font-black text-white shadow-sm hover:bg-red-600"
+                className="btn-danger"
               >
                 Sil
               </button>
@@ -1231,7 +1227,7 @@ function StoneDetailPage() {
                           event.stopPropagation();
                           void handleDeleteImage(imagesWithUrl[0]);
                         }}
-                        className="absolute right-2 top-2 z-10 rounded-lg bg-rose-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                        className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg"
                       >
                         Sil
                       </button>
@@ -1269,7 +1265,7 @@ function StoneDetailPage() {
                                 event.stopPropagation();
                                 void handleDeleteImage(img);
                               }}
-                              className="absolute -right-1 -top-1 z-10 rounded-md bg-rose-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm ring-1 ring-rose-700 hover:bg-rose-700 disabled:opacity-50"
+                              className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md"
                             >
                               Sil
                             </button>
@@ -1316,7 +1312,7 @@ function StoneDetailPage() {
                             event.stopPropagation();
                             void handleDeleteImage(image);
                           }}
-                          className="mt-2 shrink-0 rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-black text-white ring-1 ring-rose-700 transition hover:bg-rose-700 disabled:opacity-50"
+                          className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg"
                         >
                           Sil
                         </button>
@@ -1345,7 +1341,7 @@ function StoneDetailPage() {
                       event.stopPropagation();
                       photoInputRef.current?.click();
                     }}
-                    className="w-full rounded-xl bg-cyan-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(8,145,178,0.22)] ring-1 ring-cyan-700 transition hover:bg-cyan-700 disabled:opacity-50"
+                    className="btn-primary w-full"
                   >
                     Fotoğraf Ekle
                   </button>
@@ -1749,7 +1745,7 @@ function StoneDetailPage() {
                   type="button"
                   onClick={() => setActiveEditor(null)}
                   disabled={saving}
-                  className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                  className="btn-soft"
                 >
                   Vazgeç
                 </button>
@@ -1758,7 +1754,7 @@ function StoneDetailPage() {
                   type="button"
                   onClick={saveEditor}
                   disabled={saving}
-                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="btn-primary"
                 >
                   {saving ? "Kaydediliyor..." : "Kaydet / Güncelle"}
                 </button>

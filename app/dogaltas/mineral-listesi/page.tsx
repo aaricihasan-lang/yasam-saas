@@ -109,20 +109,14 @@ const uiContentCard =
   "w-full min-h-[360px] rounded-[22px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
 const uiField =
   "h-10 rounded-xl border-2 border-emerald-200 bg-white/90 px-4 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
-const uiActionBtn =
-  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
   "rounded-xl border-2 border-amber-300/40 bg-white/80 px-5 py-3 text-center shadow-md";
 const uiMineralCard =
   "relative flex h-full flex-col overflow-hidden rounded-[18px] border-[3px] border-emerald-300/45 bg-white/80 p-4 shadow-[0_0_28px_rgba(34,211,238,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-400 hover:shadow-[0_0_38px_rgba(245,158,11,0.16)]";
 const uiCategoryPill =
   "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
-const uiComboBtn =
-  "mt-3 inline-flex w-fit items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-md transition hover:bg-emerald-700";
-const uiLoadMoreBtn =
-  "rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-amber-50 px-5 py-2.5 text-sm font-black text-slate-800 shadow-md transition hover:from-emerald-100 hover:to-amber-100 disabled:opacity-60";
-const uiBackToDogaltasBtn =
-  "inline-flex shrink-0 items-center gap-2.5 rounded-2xl border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-7 py-4 text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(16,185,129,0.5)] ring-2 ring-white/45 transition duration-200 hover:scale-[1.04] hover:border-emerald-300/80 hover:shadow-[0_18px_44px_-8px_rgba(34,211,238,0.55)] hover:shadow-cyan-400/25";
+const uiComboBtn = "btn-soft mt-3 w-fit";
+const uiLoadMoreBtn = "btn-soft";
 
 function MineralListesiPageContent() {
   const router = useRouter();
@@ -502,7 +496,7 @@ function MineralListesiPageContent() {
               <button
                 type="button"
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className={`${uiActionBtn} border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-800 shadow-sm hover:shadow-md`}
+                className="btn-soft"
               >
                 📄 Word Raporu
               </button>
@@ -510,7 +504,7 @@ function MineralListesiPageContent() {
             {!isDemo && (
               <Link
                 href="/dogaltas/mineral-bankasi"
-                className={`${uiActionBtn} bg-gradient-to-r from-emerald-500 to-amber-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.25)] hover:brightness-110`}
+                className="btn-primary"
               >
                 + Yeni Mineral
               </Link>
@@ -576,7 +570,7 @@ function MineralListesiPageContent() {
                   type="button"
                   onClick={() => void handleBulkDelete()}
                   disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+                  className="btn-danger !rounded-lg !px-2.5 !py-1 !text-xs"
                 >
                   {bulkDeleteBusy ? "Siliniyor…" : `Seçili Sil (${selectedMineralIds.size})`}
                 </button>
@@ -838,7 +832,7 @@ function MineralListesiPageContent() {
                 type="button"
                 onClick={() => setShowWordModal(false)}
                 disabled={wordReportLoading}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="btn-soft flex-1"
               >
                 Kapat
               </button>
@@ -846,7 +840,7 @@ function MineralListesiPageContent() {
                 type="button"
                 onClick={() => void downloadMineralReport()}
                 disabled={wordReportLoading}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+                className="btn-primary flex-1"
               >
                 {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
               </button>

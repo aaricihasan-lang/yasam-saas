@@ -292,7 +292,7 @@ export function SaveCombinationModal({
               type="button"
               onClick={() => setStep("choose")}
               disabled={savingClient}
-              className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-100 disabled:opacity-60"
+              className="btn-soft !px-4 !py-2 !text-xs"
             >
               ← Geri
             </button>
@@ -300,7 +300,7 @@ export function SaveCombinationModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-100"
+              className="btn-soft !px-4 !py-2 !text-xs"
             >
               İptal
             </button>
@@ -311,7 +311,7 @@ export function SaveCombinationModal({
               type="button"
               onClick={() => selected && onSaveToClient(selected)}
               disabled={!selected || savingClient}
-              className="rounded-xl border-2 border-cyan-400 bg-cyan-600 px-5 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary !px-5 !py-2"
             >
               {savingClient ? "Kaydediliyor..." : "💾 Danışana Kaydet"}
             </button>

@@ -212,8 +212,6 @@ const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm"
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
-const uiDeleteBtn =
-  "min-h-[32px] rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100";
 const uiSelectActionBtn =
   "min-h-[32px] rounded-xl px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
@@ -950,7 +948,7 @@ function DogaltasListesiPageContent() {
               {!isDemo && (
                 <Link
                   href="/dogaltas/dogaltas-kayit"
-                  className={`${uiViewBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.25)] hover:from-cyan-600 hover:to-violet-700`}
+                  className="btn-primary"
                 >
                   + Yeni Kayıt
                 </Link>
@@ -1003,7 +1001,7 @@ function DogaltasListesiPageContent() {
                 type="button"
                 disabled={deleteLoading || selectedCount === 0}
                 onClick={() => void deleteSelectedStones()}
-                className={`${uiSelectActionBtn} border-2 border-rose-200 bg-gradient-to-r from-rose-50 to-rose-100 text-rose-800 hover:from-rose-100 hover:to-rose-200`}
+                className="btn-danger !min-h-[32px] !rounded-xl !px-4 !py-1.5 !text-xs"
               >
                 {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
               </button>
@@ -1106,7 +1104,7 @@ function DogaltasListesiPageContent() {
                   </p>
                   <Link
                     href="/dogaltas/dogaltas-kayit"
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-cyan-600 hover:to-violet-700"
+                    className="btn-primary mt-5"
                   >
                     + Yeni Kayıt Ekle
                   </Link>
@@ -1211,7 +1209,7 @@ function DogaltasListesiPageContent() {
                               event.stopPropagation();
                               setStoneToDelete(stone);
                             }}
-                            className="min-h-[44px] shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-black text-red-600 transition hover:bg-red-100"
+                            className="btn-danger shrink-0 !min-h-[44px] !rounded-lg !px-2.5 !text-xs"
                           >
                             Sil
                           </button>
@@ -1366,7 +1364,7 @@ function DogaltasListesiPageContent() {
                                 event.stopPropagation();
                                 setStoneToDelete(stone);
                               }}
-                              className={uiDeleteBtn}
+                              className="btn-danger !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
                             >
                               Sil
                             </button>
@@ -1524,7 +1522,7 @@ function DogaltasListesiPageContent() {
                             event.stopPropagation();
                             setStoneToDelete(stone);
                           }}
-                          className={`shrink-0 ${uiDeleteBtn}`}
+                          className="btn-danger shrink-0 !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
                         >
                           Sil
                         </button>
@@ -1688,7 +1686,7 @@ function DogaltasListesiPageContent() {
               <button
                 type="button"
                 onClick={() => setIsDetailPanelOpen(false)}
-                className="btn-secondary px-4 py-2 text-sm"
+                className="btn-primary"
               >
                 Uygula
               </button>
@@ -1716,7 +1714,7 @@ function DogaltasListesiPageContent() {
                     type="button"
                     onClick={() => setStoneToDelete(null)}
                     disabled={deleteLoading}
-                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                    className="btn-soft !min-h-[44px]"
                   >
                     Vazgeç
                   </button>
@@ -1724,7 +1722,7 @@ function DogaltasListesiPageContent() {
                     type="button"
                     onClick={deleteStone}
                     disabled={deleteLoading}
-                    className="min-h-[44px] rounded-2xl bg-rose-700 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-800 disabled:opacity-60"
+                    className="btn-danger !min-h-[44px]"
                   >
                     {deleteLoading ? "Siliniyor..." : "Evet, Kalıcı Sil"}
                   </button>
@@ -1745,14 +1743,14 @@ function DogaltasListesiPageContent() {
                   <button
                     type="button"
                     onClick={() => setStoneToDelete(null)}
-                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200"
+                    className="btn-soft !min-h-[44px]"
                   >
                     Hayır
                   </button>
                   <button
                     type="button"
                     onClick={() => setMobileDeleteStep(2)}
-                    className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
+                    className="btn-danger !min-h-[44px]"
                   >
                     Evet
                   </button>
@@ -1777,7 +1775,7 @@ function DogaltasListesiPageContent() {
                     type="button"
                     onClick={() => setStoneToDelete(null)}
                     disabled={deleteLoading}
-                    className="min-h-[44px] rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                    className="btn-soft !min-h-[44px]"
                   >
                     Vazgeç
                   </button>
@@ -1785,7 +1783,7 @@ function DogaltasListesiPageContent() {
                     type="button"
                     onClick={deleteStone}
                     disabled={deleteLoading}
-                    className="min-h-[44px] rounded-2xl bg-rose-600 px-5 py-3 text-[13px] font-black text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
+                    className="btn-danger !min-h-[44px]"
                   >
                     {deleteLoading ? "Siliniyor..." : "Evet, Sil"}
                   </button>

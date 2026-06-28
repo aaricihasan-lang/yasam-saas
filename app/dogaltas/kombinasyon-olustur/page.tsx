@@ -554,7 +554,7 @@ export default function KombinasyonOlusturPage() {
                     type="button"
                     onClick={() => removeCondition(cond.id)}
                     aria-label="Koşulu kaldır"
-                    className="h-10 shrink-0 rounded-xl border-2 border-rose-200 bg-rose-50 px-3 text-sm font-black text-rose-600 shadow-sm transition hover:bg-rose-100"
+                    className="btn-danger h-10 shrink-0 !px-3"
                   >
                     Sil
                   </button>
@@ -567,7 +567,7 @@ export default function KombinasyonOlusturPage() {
             <button
               type="button"
               onClick={addCondition}
-              className="rounded-xl border-2 border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 shadow-sm transition hover:bg-cyan-100"
+              className="btn-soft !px-3 !py-1.5 !text-xs"
             >
               + Koşul Ekle
             </button>
@@ -576,7 +576,7 @@ export default function KombinasyonOlusturPage() {
               type="button"
               onClick={() => setSearched(true)}
               disabled={loading || activeConditions.length === 0}
-              className="rounded-xl border-2 border-violet-400 bg-violet-600 px-4 py-1.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary"
             >
               {loading ? "Yükleniyor..." : "Taşları Tara"}
             </button>
@@ -706,7 +706,7 @@ export default function KombinasyonOlusturPage() {
                         <button
                           type="button"
                           onClick={() => setDetail({ stone, inStock })}
-                          className="rounded-xl border-2 border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 shadow-sm transition hover:bg-cyan-100"
+                          className="btn-soft w-full !px-3 !py-1.5 !text-xs"
                         >
                           🔍 Detay
                         </button>
@@ -721,10 +721,8 @@ export default function KombinasyonOlusturPage() {
                                   inStock,
                                 })
                           }
-                          className={`rounded-xl border-2 px-3 py-1.5 text-xs font-black shadow-sm transition ${
-                            cartIds.has(stone.id)
-                              ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              : "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
+                          className={`w-full !px-3 !py-1.5 !text-xs ${
+                            cartIds.has(stone.id) ? "btn-danger" : "btn-primary"
                           }`}
                         >
                           {cartIds.has(stone.id) ? "Çıkar" : "+ Ekle"}
@@ -776,7 +774,7 @@ export default function KombinasyonOlusturPage() {
                           type="button"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`${item.name} sepetten çıkar`}
-                          className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-black text-rose-600 transition hover:bg-rose-100"
+                          className="btn-danger shrink-0 !rounded-lg !px-2 !py-0.5 !text-[11px]"
                         >
                           Çıkar
                         </button>
@@ -791,7 +789,7 @@ export default function KombinasyonOlusturPage() {
                     <button
                       type="button"
                       onClick={clearCart}
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100"
+                      className="btn-soft !rounded-lg !px-2 !py-0.5 !text-[11px]"
                     >
                       Temizle
                     </button>
@@ -933,14 +931,14 @@ export default function KombinasyonOlusturPage() {
                     clearCart();
                     resetSaveForm();
                   }}
-                  className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 sm:flex-1"
+                  className="btn-soft sm:flex-1"
                 >
                   Sepeti Temizle
                 </button>
                 <button
                   type="button"
                   onClick={() => setSavedInfo(null)}
-                  className="rounded-xl border-2 border-violet-300 bg-violet-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 sm:flex-1"
+                  className="btn-primary sm:flex-1"
                 >
                   Devam Et
                 </button>
@@ -987,7 +985,7 @@ export default function KombinasyonOlusturPage() {
                   type="button"
                   onClick={handleSaveClick}
                   disabled={cart.length === 0 || saveName.trim() === "" || saving || savingClient}
-                  className="rounded-xl border-2 border-violet-400 bg-violet-600 px-5 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  className="btn-primary sm:w-auto"
                 >
                   {saving || savingClient
                     ? "Kaydediliyor..."

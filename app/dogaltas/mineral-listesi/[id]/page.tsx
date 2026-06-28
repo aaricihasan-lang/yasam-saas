@@ -554,7 +554,7 @@ function MineralDetailPageContent() {
                 type="button"
                 onClick={() => void downloadWordReport()}
                 disabled={wordBusy}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+                className="btn-soft"
               >
                 {wordBusy ? "⏳..." : "📄 Word"}
               </button>
@@ -562,7 +562,7 @@ function MineralDetailPageContent() {
             <button
               type="button"
               onClick={() => void loadMineral()}
-              className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-emerald-50"
+              className="btn-soft"
             >
               Yenile
             </button>

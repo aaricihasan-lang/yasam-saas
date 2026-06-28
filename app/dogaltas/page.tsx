@@ -671,7 +671,7 @@ function DogaltasPageContent() {
               <button
                 type="button"
                 onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
-                className="ml-auto shrink-0 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-2 text-sm font-black text-violet-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+                className="btn-soft ml-auto shrink-0 !px-4 !py-2"
               >
                 📄 Profesyonel Rapor
               </button>
@@ -697,7 +697,7 @@ function DogaltasPageContent() {
                 <button
                   type="submit"
                   disabled={searchLoading}
-                  className="h-10 shrink-0 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 px-5 text-sm font-black text-white shadow-md transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-primary h-10 shrink-0 !px-5"
                 >
                   {searchLoading ? "Aranıyor..." : "Ara"}
                 </button>
@@ -970,7 +970,7 @@ function DogaltasPageContent() {
                 type="button"
                 onClick={() => setReportSections({ stones: false, minerals: false, combinations: false, knowledge: false, analytics: false })}
                 disabled={reportLoading}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="btn-soft flex-1 !px-4 !py-2.5"
               >
                 Seçimi Temizle
               </button>
@@ -978,7 +978,7 @@ function DogaltasPageContent() {
                 type="button"
                 onClick={() => void downloadReport()}
                 disabled={reportLoading}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+                className="btn-primary flex-1 !px-4 !py-2.5"
               >
                 {reportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
               </button>

@@ -524,11 +524,7 @@ export default function DogaltasKayitPage() {
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
-            className={`rounded-xl px-5 py-2.5 text-sm font-black shadow-md transition hover:brightness-110 ${
-              showForm
-                ? "border border-slate-200 bg-white text-slate-700"
-                : "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
-            }`}
+            className={showForm ? "btn-soft" : "btn-primary"}
           >
             {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
           </button>
@@ -552,13 +548,13 @@ export default function DogaltasKayitPage() {
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+                className="btn-primary"
               >
                 + Yeni Kayıt Oluştur
               </button>
               <a
                 href="/dogaltas/dogaltas-listesi"
-                className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="btn-soft"
               >
                 Taş Listesi
               </a>
@@ -894,11 +890,11 @@ export default function DogaltasKayitPage() {
           </p>
 
           <div className="flex items-center gap-3">
-            <button type="button" onClick={handleClear} className={`${uiBtn} bg-slate-100 text-slate-800 ring-1 ring-slate-200 hover:bg-slate-200`}>
+            <button type="button" onClick={handleClear} className="btn-soft">
               Temizle
             </button>
 
-            <button type="button" onClick={handleCancel} className={`${uiBtn} border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 text-slate-800 hover:brightness-[1.02]`}>
+            <button type="button" onClick={handleCancel} className="btn-soft">
               İptal
             </button>
 
@@ -906,7 +902,7 @@ export default function DogaltasKayitPage() {
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className={`${uiBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60`}
+              className="btn-primary"
             >
               {isSaving ? "Kaydediliyor..." : "Kaydet"}
             </button>
@@ -940,11 +936,11 @@ export default function DogaltasKayitPage() {
             />
 
             <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={closeLargeEditor} className="rounded-2xl bg-white px-5 py-3 text-[13px] font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50">
+              <button type="button" onClick={closeLargeEditor} className="btn-soft">
                 İptal
               </button>
 
-              <button type="button" onClick={saveLargeEditor} className={`${uiBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
+              <button type="button" onClick={saveLargeEditor} className="btn-primary">
                 Kaydet
               </button>
             </div>
@@ -985,7 +981,7 @@ export default function DogaltasKayitPage() {
                 ))}
               </div>
 
-              <button type="button" onClick={addAssignmentRow} className={`${uiBtn} self-end bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
+              <button type="button" onClick={addAssignmentRow} className="btn-primary self-end">
                 Satır Ekle
               </button>
             </div>
@@ -1010,7 +1006,7 @@ export default function DogaltasKayitPage() {
                     >
                       <span>{row[0]}</span>
                       {activeAssignment.fields.length === 2 && <span>{row[1]}</span>}
-                      <button type="button" onClick={() => deleteAssignmentRow(activeAssignment.title, rowIndex)} className="justify-self-end rounded-xl bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100">
+                      <button type="button" onClick={() => deleteAssignmentRow(activeAssignment.title, rowIndex)} className="btn-danger justify-self-end !rounded-xl !px-3 !py-1.5 !text-[11px]">
                         Sil
                       </button>
                     </div>
@@ -1020,11 +1016,11 @@ export default function DogaltasKayitPage() {
             </div>
 
             <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={closeAssignment} className="rounded-2xl bg-white px-5 py-3 text-[13px] font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50">
+              <button type="button" onClick={closeAssignment} className="btn-soft">
                 İptal
               </button>
 
-              <button type="button" onClick={closeAssignment} className={`${uiBtn} bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg hover:brightness-110`}>
+              <button type="button" onClick={closeAssignment} className="btn-primary">
                 Kaydet
               </button>
             </div>

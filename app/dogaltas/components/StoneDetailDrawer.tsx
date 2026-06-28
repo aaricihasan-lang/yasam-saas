@@ -247,11 +247,7 @@ export function StoneDetailDrawer({
           <button
             type="button"
             onClick={onToggleCart}
-            className={`w-full rounded-xl border-2 px-3 py-2.5 text-sm font-black shadow-sm transition ${
-              inCart
-                ? "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                : "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
-            }`}
+            className={`w-full ${inCart ? "btn-danger" : "btn-primary"}`}
           >
             {inCart ? "Sepetten Çıkar" : "+ Kombinasyona Ekle"}
           </button>

@@ -240,9 +240,9 @@ const uiComboBadge =
 const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-900";
 const uiComboBtn =
-  "inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50";
+  "btn-soft !px-3 !py-1.5 !text-[11px] !rounded-lg";
 const uiSelectActionBtn =
-  "h-7 rounded-lg border px-3 text-[11px] font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50";
+  "!h-7 !px-3 !text-[11px] !rounded-lg";
 const uiRowCheckbox =
   "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-violet-600 focus:ring-2 focus:ring-violet-200/40";
 
@@ -550,7 +550,7 @@ export default function KombinasyonlarPage() {
         <button
           type="button"
           onClick={handleRefresh}
-          className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
+          className="btn-soft"
         >
           Yenile
         </button>
@@ -620,7 +620,7 @@ export default function KombinasyonlarPage() {
                   type="button"
                   disabled={deleteLoading}
                   onClick={selectAllFiltered}
-                  className={`${uiSelectActionBtn} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
+                  className={`btn-soft ${uiSelectActionBtn}`}
                 >
                   Tümünü Seç
                 </button>
@@ -628,7 +628,7 @@ export default function KombinasyonlarPage() {
                   type="button"
                   disabled={deleteLoading || selectedCount === 0}
                   onClick={clearSelection}
-                  className={`${uiSelectActionBtn} border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
+                  className={`btn-soft ${uiSelectActionBtn}`}
                 >
                   Temizle
                 </button>
@@ -636,7 +636,7 @@ export default function KombinasyonlarPage() {
                   type="button"
                   disabled={deleteLoading || selectedCount === 0}
                   onClick={() => void deleteSelectedCombinations()}
-                  className={`${uiSelectActionBtn} border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100`}
+                  className={`btn-danger ${uiSelectActionBtn}`}
                 >
                   {deleteLoading ? "Siliniyor..." : "Sil"}
                 </button>
@@ -645,7 +645,7 @@ export default function KombinasyonlarPage() {
                   type="button"
                   disabled={wordBusy || selectedCount === 0}
                   onClick={() => void exportCombosWord("selected")}
-                  className={`${uiSelectActionBtn} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+                  className={`btn-soft ${uiSelectActionBtn}`}
                 >
                   {wordBusy ? "⏳..." : `📄 Seçili Word (${selectedCount})`}
                 </button>
@@ -654,7 +654,7 @@ export default function KombinasyonlarPage() {
                     type="button"
                     disabled={wordBusy}
                     onClick={() => void exportCombosWord("filtered")}
-                    className={`${uiSelectActionBtn} border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100`}
+                    className={`btn-soft ${uiSelectActionBtn}`}
                   >
                     {wordBusy ? "⏳..." : `📄 Filtreli Word (${groups.length})`}
                   </button>
@@ -663,7 +663,7 @@ export default function KombinasyonlarPage() {
                   type="button"
                   disabled={wordBusy}
                   onClick={() => void exportCombosWord("all")}
-                  className={`${uiSelectActionBtn} border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100`}
+                  className={`btn-soft ${uiSelectActionBtn}`}
                 >
                   {wordBusy ? "⏳..." : "📄 Tümünü Word"}
                 </button>
@@ -751,7 +751,7 @@ export default function KombinasyonlarPage() {
                         <button
                           type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleMobileDeleteGroup(issue); }}
-                          className="min-h-[36px] shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2 text-xs font-black text-rose-600 hover:bg-rose-100"
+                          className="btn-danger shrink-0 !px-2 !py-1 !text-xs !rounded-lg min-h-[36px]"
                         >
                           Sil
                         </button>
@@ -916,7 +916,7 @@ export default function KombinasyonlarPage() {
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); void handleMobileDeleteGroup(issue); }}
-                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-600 hover:bg-rose-100"
+                        className="btn-danger !px-2.5 !py-1.5 !text-[11px] !rounded-lg"
                       >
                         Sil
                       </button>

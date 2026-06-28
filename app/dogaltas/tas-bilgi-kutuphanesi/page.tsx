@@ -815,7 +815,7 @@ export default function TasBilgiKutuphanesiPage() {
               <button
                 type="button"
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-sm font-black text-indigo-800 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+                className="btn-soft"
               >
                 📄 Word Raporu
               </button>
@@ -826,11 +826,7 @@ export default function TasBilgiKutuphanesiPage() {
               <button
                 type="button"
                 onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
-                className={`rounded-xl px-4 py-2 text-sm font-black shadow-sm transition hover:brightness-105 ${
-                  showForm
-                    ? "border border-slate-200 bg-white text-slate-700"
-                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                }`}
+                className={showForm ? "btn-soft" : "btn-primary"}
               >
                 {showForm ? "Formu Kapat" : "+ Yeni Kayıt"}
               </button>
@@ -877,11 +873,7 @@ export default function TasBilgiKutuphanesiPage() {
                   <button
                     type="button"
                     onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
-                    className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-black transition ${
-                      showCatForm
-                        ? "border-slate-200 bg-white text-slate-500"
-                        : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    }`}
+                    className="btn-soft !px-3 !py-2 !text-xs shrink-0"
                   >
                     {showCatForm ? "Vazgeç" : "+ Yeni Kategori"}
                   </button>
@@ -925,7 +917,7 @@ export default function TasBilgiKutuphanesiPage() {
                       <button
                         type="button"
                         onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50"
+                        className="btn-soft !px-3 !py-1.5 !text-xs !rounded-lg"
                       >
                         Vazgeç
                       </button>
@@ -933,7 +925,7 @@ export default function TasBilgiKutuphanesiPage() {
                         type="button"
                         onClick={saveCategory}
                         disabled={savingCat}
-                        className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-60"
+                        className="btn-primary !px-3 !py-1.5 !text-xs !rounded-lg"
                       >
                         {savingCat ? "Kaydediliyor..." : "Kategoriyi Kaydet"}
                       </button>
@@ -965,7 +957,7 @@ export default function TasBilgiKutuphanesiPage() {
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSaveError(""); }}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50"
+                className="btn-soft"
               >
                 Vazgeç
               </button>
@@ -973,7 +965,7 @@ export default function TasBilgiKutuphanesiPage() {
                 type="button"
                 onClick={saveArticle}
                 disabled={saving}
-                className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-black text-white shadow-md disabled:opacity-60 hover:brightness-105"
+                className="btn-primary"
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
@@ -1064,7 +1056,7 @@ export default function TasBilgiKutuphanesiPage() {
                   type="button"
                   onClick={selectedIds.size >= filtered.length ? clearSelection : selectAll}
                   disabled={bulkDeleteBusy || bulkUpdateBusy || filtered.length === 0}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg disabled:cursor-not-allowed"
                 >
                   {selectedIds.size > 0 && selectedIds.size >= filtered.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
                 </button>
@@ -1072,7 +1064,7 @@ export default function TasBilgiKutuphanesiPage() {
                   type="button"
                   onClick={clearSelection}
                   disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg disabled:cursor-not-allowed"
                 >
                   Seçimi Kaldır
                 </button>
@@ -1080,7 +1072,7 @@ export default function TasBilgiKutuphanesiPage() {
                   type="button"
                   onClick={() => void handleBulkDelete()}
                   disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg disabled:cursor-not-allowed"
                 >
                   {bulkDeleteBusy ? "Siliniyor…" : "Seçili Sil"}
                 </button>
@@ -1096,7 +1088,7 @@ export default function TasBilgiKutuphanesiPage() {
                     setShowBulkUpdateModal(true);
                   }}
                   disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-soft !px-2 !py-1 !text-[11px] !rounded-lg disabled:cursor-not-allowed"
                 >
                   Seçili Güncelle
                 </button>
@@ -1198,7 +1190,7 @@ export default function TasBilgiKutuphanesiPage() {
               <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <button type="button" onClick={() => setMobileView("list")}
-                    className="mt-0.5 shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 md:hidden">
+                    className="btn-soft !px-2.5 !py-1.5 !text-xs !rounded-lg mt-0.5 shrink-0 md:hidden">
                     ← Geri
                   </button>
                   <div className="min-w-0 flex-1">
@@ -1232,7 +1224,7 @@ export default function TasBilgiKutuphanesiPage() {
                               type="button"
                               onClick={() => { setIsEditing(false); setEditError(""); }}
                               disabled={editSaving}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                              className="btn-soft !px-3 !py-1.5 !text-xs !rounded-xl"
                             >
                               Vazgeç
                             </button>
@@ -1240,7 +1232,7 @@ export default function TasBilgiKutuphanesiPage() {
                               type="button"
                               onClick={() => void updateArticle()}
                               disabled={editSaving}
-                              className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-60 hover:brightness-105"
+                              className="btn-primary !px-4 !py-1.5 !text-xs !rounded-xl"
                             >
                               {editSaving ? "Kaydediliyor..." : "Kaydet"}
                             </button>
@@ -1258,7 +1250,7 @@ export default function TasBilgiKutuphanesiPage() {
                               setEditError("");
                               setIsEditing(true);
                             }}
-                            className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-100"
+                            className="btn-soft !px-3 !py-1.5 !text-xs !rounded-xl shrink-0"
                           >
                             ✏️ Düzenle
                           </button>
@@ -1373,7 +1365,7 @@ export default function TasBilgiKutuphanesiPage() {
                           type="button"
                           onClick={() => { setIsEditing(false); setEditError(""); }}
                           disabled={editSaving}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                          className="btn-soft"
                         >
                           Vazgeç
                         </button>
@@ -1381,7 +1373,7 @@ export default function TasBilgiKutuphanesiPage() {
                           type="button"
                           onClick={() => void updateArticle()}
                           disabled={editSaving}
-                          className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-black text-white shadow-md disabled:opacity-60 hover:brightness-105"
+                          className="btn-primary"
                         >
                           {editSaving ? "Kaydediliyor..." : "Kaydet"}
                         </button>
@@ -1503,7 +1495,7 @@ export default function TasBilgiKutuphanesiPage() {
                 type="button"
                 onClick={() => setShowWordModal(false)}
                 disabled={wordReportLoading}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="btn-soft flex-1"
               >
                 Kapat
               </button>
@@ -1511,7 +1503,7 @@ export default function TasBilgiKutuphanesiPage() {
                 type="button"
                 onClick={() => void downloadKnowledgeReport()}
                 disabled={wordReportLoading}
-                className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+                className="btn-primary flex-1"
               >
                 {wordReportLoading ? "Hazırlanıyor..." : "Rapor Oluştur"}
               </button>
@@ -1637,7 +1629,7 @@ export default function TasBilgiKutuphanesiPage() {
                   type="button"
                   onClick={() => { setShowBulkUpdateModal(false); setBulkUpdateError(""); setBulkUpdateTextEdit(false); }}
                   disabled={bulkUpdateBusy}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  className="btn-soft flex-1"
                 >
                   İptal
                 </button>
@@ -1645,7 +1637,7 @@ export default function TasBilgiKutuphanesiPage() {
                   type="button"
                   onClick={() => void handleBulkUpdate()}
                   disabled={bulkUpdateBusy}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
+                  className="btn-primary flex-1"
                 >
                   {bulkUpdateBusy ? "Güncelleniyor…" : "Güncelle"}
                 </button>
