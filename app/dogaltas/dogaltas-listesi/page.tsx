@@ -45,6 +45,7 @@ import {
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 
 const DEMO_ACTION_MESSAGE =
   "Demo hesabında bu işlem kullanılamaz. Tam sürümde tüm özellikler açıktır.";
@@ -212,8 +213,6 @@ const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm"
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
-const uiSelectActionBtn =
-  "min-h-[32px] rounded-xl px-4 py-1.5 text-xs font-black shadow-sm transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
 
@@ -977,65 +976,24 @@ function DogaltasListesiPageContent() {
           </div>
 
           {!listLoading && filteredStones.length > 0 && !isDemo ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800 shadow-sm">
-                Seçili: {selectedCount}
-              </span>
-              <button
-                type="button"
-                disabled={deleteLoading}
-                onClick={selectAllFiltered}
-                className={`${uiSelectActionBtn} border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-950 hover:from-cyan-100 hover:to-cyan-200`}
-              >
-                Tümünü Seç
-              </button>
-              <button
-                type="button"
-                disabled={deleteLoading || selectedCount === 0}
-                onClick={clearSelection}
-                className={`${uiSelectActionBtn} border-2 border-violet-200 bg-gradient-to-r from-violet-50 to-violet-100 text-violet-950 hover:from-violet-100 hover:to-violet-200`}
-              >
-                Seçimi Temizle
-              </button>
-              <button
-                type="button"
-                disabled={deleteLoading || selectedCount === 0}
-                onClick={() => void deleteSelectedStones()}
-                className="btn-danger !min-h-[32px] !rounded-xl !px-4 !py-1.5 !text-xs"
-              >
-                {deleteLoading ? "Siliniyor..." : "Seçilenleri Sil"}
-              </button>
-
-              <div className="h-4 w-px bg-slate-200" aria-hidden />
-
-              <button
-                type="button"
-                disabled={wordBusy || selectedCount === 0}
-                onClick={() => void exportStonesWord("selected")}
-                className={`${uiSelectActionBtn} border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200`}
-              >
-                {wordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedCount})`}
-              </button>
-
-              {(isSearchActive || isDetailFilterActive) && (
-                <button
-                  type="button"
-                  disabled={wordBusy}
-                  onClick={() => void exportStonesWord("filtered")}
-                  className={`${uiSelectActionBtn} border-2 border-violet-200 bg-gradient-to-r from-violet-50 to-violet-100 text-violet-800 hover:from-violet-100 hover:to-violet-200`}
-                >
-                  {wordBusy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredStones.length})`}
-                </button>
-              )}
-
-              <button
-                type="button"
-                disabled={wordBusy}
-                onClick={() => void exportStonesWord("all")}
-                className={`${uiSelectActionBtn} border-2 border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 hover:from-slate-100 hover:to-slate-200`}
-              >
-                {wordBusy ? "⏳..." : "📄 Tümünü Word"}
-              </button>
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <BulkExportBar
+                compact
+                selectedCount={selectedCount}
+                totalCount={totalAllStones || totalCount}
+                filteredCount={filteredStones.length}
+                hasActiveFilter={isSearchActive || isDetailFilterActive}
+                selectAllLabel="Görünenleri Seç"
+                selectAllCount={filteredStones.length}
+                onSelectAll={selectAllFiltered}
+                onClearSelection={clearSelection}
+                onExportSelected={() => void exportStonesWord("selected")}
+                onExportFiltered={() => void exportStonesWord("filtered")}
+                onExportAll={() => void exportStonesWord("all")}
+                onDeleteSelected={() => void deleteSelectedStones()}
+                isExporting={wordBusy}
+                isDeleting={deleteLoading}
+              />
             </div>
           ) : null}
         </section>

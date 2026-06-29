@@ -32,6 +32,7 @@ import {
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
@@ -530,60 +531,20 @@ function MineralListesiPageContent() {
 
         {/* Toplu işlem çubuğu */}
         {!isDemo && !listLoading && filteredMinerals.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 shadow-sm">
-            {selectedMineralIds.size === 0 ? (
-              <>
-                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">
-                  Seçim yok
-                </span>
-                <button
-                  type="button"
-                  onClick={selectAllMinerals}
-                  disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Tümünü Seç ({totalCount})
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="shrink-0 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">
-                  ✓ {selectedMineralIds.size} mineral seçildi
-                </span>
-                <button
-                  type="button"
-                  onClick={selectedMineralIds.size >= minerals.length ? clearMineralSelection : selectAllMinerals}
-                  disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {selectedMineralIds.size >= minerals.length ? "Tümünün Seçimini Kaldır" : "Tümünü Seç"}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearMineralSelection}
-                  disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Seçimi Kaldır
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleBulkDelete()}
-                  disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="btn-danger !rounded-lg !px-2.5 !py-1 !text-xs"
-                >
-                  {bulkDeleteBusy ? "Siliniyor…" : `Seçili Sil (${selectedMineralIds.size})`}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void exportSelectedMineralsWord()}
-                  disabled={bulkDeleteBusy || mineralWordBusy}
-                  className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
-                >
-                  {mineralWordBusy ? "Hazırlanıyor…" : `Seçili Word Raporu (${selectedMineralIds.size})`}
-                </button>
-              </>
-            )}
+          <div className="mb-3">
+            <BulkExportBar
+              compact
+              selectedCount={selectedMineralIds.size}
+              totalCount={totalCount}
+              selectAllLabel="Görünenleri Seç"
+              selectAllCount={minerals.length}
+              onSelectAll={selectAllMinerals}
+              onClearSelection={clearMineralSelection}
+              onExportSelected={() => void exportSelectedMineralsWord()}
+              onDeleteSelected={() => void handleBulkDelete()}
+              isExporting={mineralWordBusy}
+              isDeleting={bulkDeleteBusy}
+            />
           </div>
         )}
 

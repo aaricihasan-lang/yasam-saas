@@ -48,6 +48,7 @@ import {
   SEARCH_MATCH_BADGE_COMPACT_CLASS as SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { BulkExportBar } from "@/components/common/BulkExportBar";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
 
@@ -241,8 +242,6 @@ const uiCategoryPill =
   "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-900";
 const uiComboBtn =
   "btn-soft !px-3 !py-1.5 !text-[11px] !rounded-lg";
-const uiSelectActionBtn =
-  "!h-7 !px-3 !text-[11px] !rounded-lg";
 const uiRowCheckbox =
   "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-violet-600 focus:ring-2 focus:ring-violet-200/40";
 
@@ -612,62 +611,22 @@ export default function KombinasyonlarPage() {
             </p>
 
             {!isDemo && !loading && groups.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-slate-500">
-                  Seçili: <span className="font-black text-violet-700">{selectedCount}</span>
-                </span>
-                <button
-                  type="button"
-                  disabled={deleteLoading}
-                  onClick={selectAllFiltered}
-                  className={`btn-soft ${uiSelectActionBtn}`}
-                >
-                  Tümünü Seç
-                </button>
-                <button
-                  type="button"
-                  disabled={deleteLoading || selectedCount === 0}
-                  onClick={clearSelection}
-                  className={`btn-soft ${uiSelectActionBtn}`}
-                >
-                  Temizle
-                </button>
-                <button
-                  type="button"
-                  disabled={deleteLoading || selectedCount === 0}
-                  onClick={() => void deleteSelectedCombinations()}
-                  className={`btn-danger ${uiSelectActionBtn}`}
-                >
-                  {deleteLoading ? "Siliniyor..." : "Sil"}
-                </button>
-                <span className="h-4 w-px bg-slate-200 hidden sm:block" aria-hidden />
-                <button
-                  type="button"
-                  disabled={wordBusy || selectedCount === 0}
-                  onClick={() => void exportCombosWord("selected")}
-                  className={`btn-soft ${uiSelectActionBtn}`}
-                >
-                  {wordBusy ? "⏳..." : `📄 Seçili Word (${selectedCount})`}
-                </button>
-                {hasFilters && (
-                  <button
-                    type="button"
-                    disabled={wordBusy}
-                    onClick={() => void exportCombosWord("filtered")}
-                    className={`btn-soft ${uiSelectActionBtn}`}
-                  >
-                    {wordBusy ? "⏳..." : `📄 Filtreli Word (${groups.length})`}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={wordBusy}
-                  onClick={() => void exportCombosWord("all")}
-                  className={`btn-soft ${uiSelectActionBtn}`}
-                >
-                  {wordBusy ? "⏳..." : "📄 Tümünü Word"}
-                </button>
-              </div>
+              <BulkExportBar
+                compact
+                selectedCount={selectedCount}
+                totalCount={uniqueIssues}
+                filteredCount={groups.length}
+                hasActiveFilter={hasFilters}
+                selectAllCount={groups.length}
+                onSelectAll={selectAllFiltered}
+                onClearSelection={clearSelection}
+                onExportSelected={() => void exportCombosWord("selected")}
+                onExportFiltered={() => void exportCombosWord("filtered")}
+                onExportAll={() => void exportCombosWord("all")}
+                onDeleteSelected={() => void deleteSelectedCombinations()}
+                isExporting={wordBusy}
+                isDeleting={deleteLoading}
+              />
             )}
           </div>
         </section>
