@@ -1,0 +1,18 @@
+{
+  "_comment": "FAZ 3B Adım 1 — Void of Course Moon doğrulama test seti. Klasik tanım: Ay'ın klasik 6 cisme (Güneş…Satürn) yaptığı son exact MAJÖR aspekt → sonraki burç girişi. Dış gezegen/minör HARİÇ. Production'a dahil DEĞİLDİR.",
+  "classicalBodies": ["Güneş", "Merkür", "Venüs", "Mars", "Jüpiter", "Satürn"],
+  "majorAspects": [
+    { "name": "Kavuşum", "angle": 0 },
+    { "name": "Sekstil", "angle": 60 },
+    { "name": "Kare", "angle": 90 },
+    { "name": "Üçgen", "angle": 120 },
+    { "name": "Karşıt", "angle": 180 }
+  ],
+  "windows": [
+    { "id": "2026-full", "start": "2026-01-01", "end": "2027-01-01" },
+    { "id": "2030-spot", "start": "2030-03-01", "end": "2030-04-01" },
+    { "id": "2035-spot", "start": "2035-06-01", "end": "2035-07-01" },
+    { "id": "2040-spot", "start": "2040-09-01", "end": "2040-10-01" },
+    { "id": "2050-spot", "start": "2050-01-01", "end": "2050-02-01" }
+  ]
+}

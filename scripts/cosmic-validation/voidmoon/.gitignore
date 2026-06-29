@@ -1,0 +1,7 @@
+# Üretilen VOC doğrulama artefaktları — commit edilmez
+swe-voc.json
+ae-voc.json
+ae-prod-voc.json
+voc-report.json
+*.png
+*.log

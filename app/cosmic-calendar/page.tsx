@@ -30,6 +30,7 @@ import {
   getAllEclipses, getSolarCityVisibility, getLunarCityVisibility, TR_CITIES,
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType,
 } from "@/lib/cosmic/eclipses";
+import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 
 // ─── Uzman Modu aspect yardımcıları (FAZ 2C Adım 3) ────────────────────────────
 
@@ -56,6 +57,116 @@ function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: stri
 
 const motionDirTR = (d: AspectMotionState["direction"]): string =>
   d === "applying" ? "Yaklaşıyor" : d === "separating" ? "Ayrılıyor" : "Tam";
+
+// ─── Void of Course Moon (FAZ 3B Adım 3 — normal kullanıcı) ────────────────────
+// Yalnız production voidMoon engine verisi. Teknik alanlar (source/validation/id) gizli.
+
+const VOC_MONTHS_SHORT: ReadonlyArray<string> = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+/** TR ISO ("2026-06-29T16:43:29+03:00") → "29 Haz · 16:43" (yerel duvar saati). */
+function vocDateTime(tr: string): string {
+  const [, mo, d] = tr.slice(0, 10).split("-").map(Number);
+  return `${d} ${VOC_MONTHS_SHORT[(mo ?? 1) - 1]} · ${tr.slice(11, 16)}`;
+}
+/** Dakika → kısa süre etiketi ("2 gün 3 sa", "5 sa 59 dk", "12 dk"). */
+function vocDuration(min: number): string {
+  const m = Math.max(0, Math.round(min));
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  const parts: string[] = [];
+  if (d) parts.push(`${d} gün`);
+  if (h) parts.push(`${h} sa`);
+  if (mm || parts.length === 0) parts.push(`${mm} dk`);
+  return parts.join(" ");
+}
+
+const VOC_CLASSICAL_BODIES = ["Güneş", "Merkür", "Venüs", "Mars", "Jüpiter", "Satürn"] as const;
+const VOC_ASPECT_NAMES = ["Kavuşum", "Sekstil", "Kare", "Üçgen", "Karşıt"] as const;
+
+type VocFilterState = {
+  scope: "all" | "ongoing" | "upcoming";
+  duration: "all" | "short" | "long";   // kısa <3sa, uzun ≥3sa
+  noAspectOnly: boolean;
+  moonSign: string;   // "all" | burç
+  planet: string;     // "all" | klasik cisim
+  aspect: string;     // "all" | aspect türü
+};
+const DEFAULT_VOC_FILTERS: VocFilterState = { scope: "all", duration: "all", noAspectOnly: false, moonSign: "all", planet: "all", aspect: "all" };
+
+function VocCard({ period, onClick }: { period: VoidMoonPeriod; onClick?: () => void }) {
+  const p = period;
+  const clickable = Boolean(onClick);
+  return (
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick!(); } } : undefined}
+      className={`rounded-xl border border-violet-100/70 bg-white/65 px-3 py-2.5 backdrop-blur-sm ${
+        clickable ? "cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-300" : ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-black text-violet-700">{p.moonSign} → {p.nextMoonSign}</p>
+        <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600">{p.durationLabel}</span>
+      </div>
+      <p className="mt-1 text-[11px] font-semibold text-slate-500">
+        {vocDateTime(p.voidStartTR)} → {vocDateTime(p.voidEndTR)} (TR)
+      </p>
+      <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span className="min-w-0 truncate">
+          {p.noAspectInSign
+            ? "Bu burç periyodunda klasik kapsamda majör aspect bulunmadı."
+            : <>Son aspect: <span className="font-semibold text-slate-700">Ay {p.lastAspect!.aspect} {p.lastAspect!.planet}</span></>}
+        </span>
+        {clickable && <span className="shrink-0 text-[10px] font-bold text-violet-400">Detay →</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Uzman VOC detay paneli — tüm doğrulanmış alanlar (teknik dahil). */
+function VocDetail({ period, onClose }: { period: VoidMoonPeriod; onClose: () => void }) {
+  const p = period;
+  const fields: [string, string][] = [
+    ["Ay burcu → sonraki", `${p.moonSign} → ${p.nextMoonSign}`],
+    ["Burç başlangıcı (TR)", vocDateTime(p.signStartTR)],
+    ["Burç bitişi (TR)", vocDateTime(p.signEndTR)],
+    ["VOC başlangıcı (TR)", vocDateTime(p.voidStartTR)],
+    ["VOC bitişi (TR)", vocDateTime(p.voidEndTR)],
+    ["Süre", `${p.durationLabel} (${p.durationMinutes} dk)`],
+    ["Son aspect", p.lastAspect ? `Ay ${p.lastAspect.aspect} ${p.lastAspect.planet}` : "—"],
+    ["Son aspect (TR)", p.lastAspect ? vocDateTime(p.lastAspect.exactTR) : "—"],
+    ["Aspectsiz burç", p.noAspectInSign ? "Evet" : "Hayır"],
+    ["Doğrulama", p.validationStatus === "harness-verified" ? "harness-doğrulanmış" : p.validationStatus],
+    ["Güven", p.confidence],
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose} role="dialog" aria-modal="true">
+      <div onClick={e => e.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-violet-100 bg-white p-4 shadow-xl sm:rounded-2xl">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="text-base font-black text-violet-700">🌙 {p.moonSign} → {p.nextMoonSign} · Void</p>
+          <button type="button" onClick={onClose} aria-label="Kapat" className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-bold text-slate-500 hover:bg-slate-50">✕</button>
+        </div>
+        <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {fields.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-50/70 px-2.5 py-1.5">
+              <dt className="text-[11px] font-semibold text-slate-500">{k}</dt>
+              <dd className="text-right text-[11px] font-bold text-slate-800">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mb-1 mt-3 text-[10px] font-bold uppercase tracking-wide text-slate-400">Kapsam (klasik tanım)</p>
+        <div className="space-y-1 text-[11px]">
+          <p><span className="font-semibold text-slate-500">Dahil cisimler:</span> {p.includedBodies.join(", ")}</p>
+          <p><span className="font-semibold text-slate-500">Dahil aspektler:</span> {p.includedAspects.join(", ")}</p>
+          <p><span className="font-semibold text-slate-500">Hariç:</span> {p.excludedBodies.join(", ")}, minör aspektler</p>
+        </div>
+        {p.notes.length > 0 && <p className="mt-2 rounded-lg bg-amber-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700">{p.notes.join(" ")}</p>}
+        <p className="mt-2 rounded-lg bg-violet-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-violet-600">{p.definition}</p>
+        <p className="mt-1 text-[10px] leading-snug text-slate-400">Kaynak: {p.source}. Yalnız doğrulanmış astronomik veri; yorum/kehanet içermez.</p>
+      </div>
+    </div>
+  );
+}
 
 // ─── Tutulmalar (FAZ 3A — normal + uzman) ──────────────────────────────────────
 // Yalnız doğrulanmış production engine verisi. Saros/magnitude null iken gizlenir;
@@ -575,6 +686,9 @@ export default function CosmicCalendarPage() {
   const [eclipseCity,      setEclipseCity]      = useState("Ankara");
   const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
   const [eclipseDetail,    setEclipseDetail]    = useState<EclipseRow | null>(null);
+  const [vocExpert,        setVocExpert]        = useState(false);   // VOC uzman modu
+  const [vocFilters,       setVocFilters]       = useState<VocFilterState>(DEFAULT_VOC_FILTERS);
+  const [vocDetail,        setVocDetail]        = useState<VoidMoonPeriod | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -715,6 +829,46 @@ export default function CosmicCalendarPage() {
   const eclipseFiltersActive =
     eclipseFilters.kind !== "all" || eclipseFilters.visibility !== "all" ||
     eclipseFilters.type !== "all" || eclipseFilters.period !== "all";
+
+  // ── Void of Course Moon (FAZ 3B) — yalnız production engine ──
+  const vocData = useMemo(() => {
+    const nowMs = realNow.getTime();
+    const cur = getCurrentVoidMoon(realNow);
+    const voidStartMs = cur ? Date.parse(cur.voidStartUTC) : 0;
+    const voidEndMs = cur ? Date.parse(cur.voidEndUTC) : 0;
+    const isVoidNow = cur ? nowMs >= voidStartMs && nowMs < voidEndMs : false;
+    const upcoming = getUpcomingVoidMoonPeriods(realNow, 6);
+    return { cur, isVoidNow, nowMs, voidStartMs, voidEndMs, upcoming };
+  }, [realNow]);
+
+  // Uzman: ~60 günlük VOC listesi (filtrelenir; yeni hesap yok — engine'den)
+  const vocExpertList = useMemo<VoidMoonPeriod[]>(() => {
+    if (!vocExpert) return [];
+    const from = new Date(realNow.getTime() - 86_400_000);
+    const end = new Date(realNow.getTime() + 60 * 86_400_000);
+    return getVoidMoonPeriods(from, end).filter(p => Date.parse(p.voidEndUTC) >= realNow.getTime());
+  }, [vocExpert, realNow]);
+
+  const vocFiltered = useMemo<VoidMoonPeriod[]>(() => {
+    const now = realNow.getTime();
+    return vocExpertList.filter(p => {
+      const sMs = Date.parse(p.voidStartUTC), eMs = Date.parse(p.voidEndUTC);
+      const ongoing = now >= sMs && now < eMs;
+      if (vocFilters.scope === "ongoing" && !ongoing) return false;
+      if (vocFilters.scope === "upcoming" && !(sMs > now)) return false;
+      if (vocFilters.duration === "short" && p.durationMinutes >= 180) return false;
+      if (vocFilters.duration === "long" && p.durationMinutes < 180) return false;
+      if (vocFilters.noAspectOnly && !p.noAspectInSign) return false;
+      if (vocFilters.moonSign !== "all" && p.moonSign !== vocFilters.moonSign) return false;
+      if (vocFilters.planet !== "all" && p.lastAspect?.planet !== vocFilters.planet) return false;
+      if (vocFilters.aspect !== "all" && p.lastAspect?.aspect !== vocFilters.aspect) return false;
+      return true;
+    });
+  }, [vocExpertList, vocFilters, realNow]);
+  const vocSignsPresent = useMemo(() => Array.from(new Set(vocExpertList.map(p => p.moonSign))), [vocExpertList]);
+  const vocFiltersActive =
+    vocFilters.scope !== "all" || vocFilters.duration !== "all" || vocFilters.noAspectOnly ||
+    vocFilters.moonSign !== "all" || vocFilters.planet !== "all" || vocFilters.aspect !== "all";
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
@@ -1509,6 +1663,115 @@ export default function CosmicCalendarPage() {
           )}
 
           {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} onClose={() => setEclipseDetail(null)} />}
+        </section>
+
+        {/* ── Ay Boşlukta mı? (FAZ 3B Adım 3) ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-indigo-50/55 to-white/60 p-4 shadow-sm backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-violet-700">🌙 Ay Boşlukta mı?</p>
+            <button
+              type="button"
+              onClick={() => setVocExpert(v => !v)}
+              aria-pressed={vocExpert}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                vocExpert ? "border-violet-300 bg-violet-600 text-white" : "border-violet-200/70 bg-white/70 text-violet-600 hover:bg-white"
+              }`}
+            >
+              {vocExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
+            </button>
+          </div>
+          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Klasik Void of Course Moon hesabına göre Ay&apos;ın boşlukta olduğu zaman aralıkları.</p>
+
+          {/* Şu an durumu */}
+          {vocData.cur && (
+            <div className={`mb-3 rounded-xl border px-3 py-2.5 ${
+              vocData.isVoidNow ? "border-amber-200/80 bg-amber-50/70" : "border-violet-200/70 bg-white/70"
+            }`}>
+              {vocData.isVoidNow ? (
+                <>
+                  <p className="text-sm font-black text-amber-700">🌙 Ay şu an boşlukta</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">{vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Kalan: {vocDuration((vocData.voidEndMs - vocData.nowMs) / 60000)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-black text-violet-700">Ay şu an boşlukta değil</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-slate-600">Sonraki boşluk: {vocData.cur.moonSign} → {vocData.cur.nextMoonSign}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    {vocDateTime(vocData.cur.voidStartTR)} → {vocDateTime(vocData.cur.voidEndTR)} (TR) · Süre: {vocData.cur.durationLabel}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {!vocExpert ? (
+            /* Normal: yaklaşan kartlar (tıklanmaz) */
+            vocData.upcoming.length > 0 && (
+              <>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {vocData.upcoming.map(p => <VocCard key={p.id} period={p} />)}
+                </div>
+              </>
+            )
+          ) : (
+            /* Uzman: filtreler + tıklanabilir kartlar */
+            <>
+              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-violet-100 bg-white/60 px-3 py-2.5">
+                {([["all", "Tümü"], ["ongoing", "Şu an"], ["upcoming", "Yaklaşan"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, scope: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.scope === k ? "border-violet-400 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                <span className="mx-0.5 text-slate-300">|</span>
+                {([["all", "Süre"], ["short", "Kısa <3sa"], ["long", "Uzun ≥3sa"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setVocFilters(f => ({ ...f, duration: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${vocFilters.duration === k ? "border-indigo-400 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600">
+                  <input type="checkbox" checked={vocFilters.noAspectOnly} onChange={e => setVocFilters(f => ({ ...f, noAspectOnly: e.target.checked }))} className="h-3 w-3 accent-violet-600" />
+                  Aspectsiz
+                </label>
+                <select value={vocFilters.moonSign} onChange={e => setVocFilters(f => ({ ...f, moonSign: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm burçlar</option>
+                  {vocSignsPresent.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={vocFilters.planet} onChange={e => setVocFilters(f => ({ ...f, planet: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm gezegenler</option>
+                  {VOC_CLASSICAL_BODIES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <select value={vocFilters.aspect} onChange={e => setVocFilters(f => ({ ...f, aspect: e.target.value }))}
+                  className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <option value="all">Tüm aspektler</option>
+                  {VOC_ASPECT_NAMES.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                {vocFiltersActive && (
+                  <button type="button" onClick={() => setVocFilters(DEFAULT_VOC_FILTERS)}
+                    className="ml-auto rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">Temizle</button>
+                )}
+              </div>
+
+              {vocFiltered.length === 0 ? (
+                <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Filtrelerle eşleşen VOC penceresi yok.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {vocFiltered.map(p => <VocCard key={p.id} period={p} onClick={() => setVocDetail(p)} />)}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Tanım etiketi */}
+          <p className="mt-3 text-[10px] leading-snug text-slate-400">
+            Hesap tanımı: klasik VOC — Ay&apos;ın Güneş, Merkür, Venüs, Mars, Jüpiter ve Satürn ile yaptığı son majör aspectten sonraki burç girişine kadar olan süre.
+            Uranüs, Neptün, Plüton, Chiron, asteroidler ve minör aspectler varsayılan hesaba dahil değildir.
+          </p>
+
+          {vocDetail && <VocDetail period={vocDetail} onClose={() => setVocDetail(null)} />}
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}
