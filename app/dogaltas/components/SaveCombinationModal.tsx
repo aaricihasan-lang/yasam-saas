@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
+import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
 
 /** Danışan autocomplete için hafif danışan tipi. */
 export type PickerClient = {
@@ -218,7 +219,7 @@ export function SaveCombinationModal({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="İsim, telefon veya danışan no…"
-                  className="h-10 w-full rounded-xl border-2 border-cyan-300/50 bg-white px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                  className={DOGALTAS_INPUT_CLASS}
                 />
               </div>
 

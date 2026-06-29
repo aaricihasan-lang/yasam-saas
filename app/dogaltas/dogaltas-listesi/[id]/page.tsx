@@ -1812,7 +1812,7 @@ function StoneDetailPage() {
                           },
                         })
                       }
-                      className="mt-3 h-[105px] w-full resize-none rounded-2xl border border-cyan-100 bg-white p-3 text-[12px] leading-6 text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/70"
+                      className="mt-3 h-[105px] w-full resize-none rounded-2xl border border-emerald-100 bg-white p-3 text-[12px] leading-6 text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
                       placeholder="Her satıra bir kayıt yazın. Örn: Demir / 20"
                     />
                   </div>
@@ -1827,7 +1827,7 @@ function StoneDetailPage() {
                   onChange={(event) =>
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
-                  className="h-[430px] max-h-[62vh] w-full resize-none rounded-[24px] border border-cyan-100 bg-white p-5 text-[15px] leading-8 text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/70"
+                  className="h-[430px] max-h-[62vh] w-full resize-none rounded-[24px] border border-emerald-100 bg-white p-5 text-[15px] leading-8 text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
                   placeholder={`${activeEditor.title} yazın...`}
                   autoFocus
                 />
@@ -1837,7 +1837,7 @@ function StoneDetailPage() {
                   onChange={(event) =>
                     setActiveEditor({ ...activeEditor, value: event.target.value })
                   }
-                  className="h-16 w-full rounded-2xl border border-cyan-100 bg-white px-5 text-[24px] font-black text-slate-950 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100/70"
+                  className="h-16 w-full rounded-2xl border border-emerald-100 bg-white px-5 text-[24px] font-black text-slate-950 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/70"
                   placeholder={`${activeEditor.title} yazın...`}
                   autoFocus
                 />

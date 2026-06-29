@@ -32,6 +32,7 @@ import {
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
@@ -107,8 +108,7 @@ const uiFilterCard =
   "rounded-[18px] border-[3px] border-amber-300/40 bg-white/70 p-3 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
 const uiContentCard =
   "w-full min-h-[360px] rounded-[22px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
-const uiField =
-  "h-10 rounded-xl border-2 border-emerald-200 bg-white/90 px-4 font-semibold shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
+const uiField = DOGALTAS_INPUT_CLASS;
 const uiStatCard =
   "rounded-xl border-2 border-amber-300/40 bg-white/80 px-5 py-3 text-center shadow-md";
 const uiMineralCard =

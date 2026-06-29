@@ -19,6 +19,10 @@ import {
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { loadDogaltasInventoryForTenant } from "@/lib/urun-stok/dogaltasInventoryDb";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import {
+  DOGALTAS_INPUT_CLASS,
+  DOGALTAS_TEXTAREA_CLASS,
+} from "@/lib/dogaltas/formStyles";
 import { normalizeTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import {
   makeStockMatcher,
@@ -53,8 +57,7 @@ const uiFilterCard =
   "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md sm:p-4";
 const uiStatCard =
   "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
-const uiInput =
-  "h-10 w-full rounded-xl border-2 border-cyan-300/50 bg-white/90 px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+const uiInput = DOGALTAS_INPUT_CLASS;
 
 // Sonuç kartı eşleşme etiketi tonları (arama türüne göre).
 const CHIP_TONE: Record<SearchType, string> = {
@@ -511,7 +514,7 @@ export default function KombinasyonOlusturPage() {
                 <select
                   value={cond.type}
                   onChange={(e) => updateType(cond.id, e.target.value as SearchType)}
-                  className="h-10 shrink-0 rounded-xl border-2 border-cyan-300/50 bg-white px-2 text-sm font-bold text-slate-800 shadow-inner outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30 sm:w-[150px]"
+                  className="h-10 shrink-0 rounded-xl border-2 border-emerald-200 bg-white px-2 text-sm font-bold text-slate-800 shadow-inner outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30 sm:w-[150px]"
                 >
                   {SEARCH_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -953,7 +956,7 @@ export default function KombinasyonOlusturPage() {
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder="Kombinasyon adı (zorunlu)"
                   maxLength={200}
-                  className="h-10 w-full rounded-xl border-2 border-cyan-300/50 bg-white px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                  className={DOGALTAS_INPUT_CLASS}
                 />
                 <input
                   type="text"
@@ -961,7 +964,7 @@ export default function KombinasyonOlusturPage() {
                   onChange={(e) => setSaveDescription(e.target.value)}
                   placeholder="Açıklama / amaç (opsiyonel)"
                   maxLength={200}
-                  className="h-10 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                  className={DOGALTAS_INPUT_CLASS}
                 />
               </div>
               <textarea
@@ -969,7 +972,7 @@ export default function KombinasyonOlusturPage() {
                 onChange={(e) => setSaveNote(e.target.value)}
                 placeholder="Serbest not (opsiyonel)"
                 rows={2}
-                className="w-full resize-y rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-300/30"
+                className={`${DOGALTAS_TEXTAREA_CLASS} !resize-y`}
               />
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 {cart.length === 0 ? (

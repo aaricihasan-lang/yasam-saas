@@ -691,7 +691,7 @@ function DogaltasPageContent() {
                     value={searchInput}
                     onChange={(event) => handleSearchInputChange(event.target.value)}
                     placeholder="Taş adı veya içerikte ara (ör. mide, şifa)..."
-                    className="h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+                    className="h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
                 <button

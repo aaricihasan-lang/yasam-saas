@@ -203,7 +203,7 @@ const uiFilterCard =
 const uiTableCard =
   "w-full min-h-[360px] overflow-hidden rounded-[22px] border-[3px] border-cyan-400/45 bg-white/92 shadow-lg";
 const uiSearchInput =
-  "h-10 w-full rounded-xl border-2 border-cyan-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
+  "h-10 w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 const uiViewBtn =
   "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =

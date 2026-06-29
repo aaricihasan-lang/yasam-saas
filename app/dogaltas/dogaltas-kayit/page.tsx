@@ -11,6 +11,11 @@ import { supabase } from "@/lib/supabase";
 import { createStone } from "@/lib/dogaltas/dogaltasApi";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import {
+  DOGALTAS_INPUT_CLASS,
+  DOGALTAS_LABEL_CLASS,
+  DOGALTAS_TEXTAREA_CLASS,
+} from "@/lib/dogaltas/formStyles";
 const STONE_BUCKET = "stone-photos";
 
 const chakraOptions = [
@@ -146,11 +151,9 @@ const emptyAssignmentInputs: AssignmentInputs = {
 
 const uiCard =
   "rounded-[32px] border-[3px] border-cyan-400/70 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 bg-white/55 shadow-[0_0_35px_rgba(34,211,238,0.25)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01]";
-const uiInput =
-  "w-full h-10 rounded-xl border-2 border-cyan-300/50 bg-white/90 px-4 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
-const uiTextarea =
-  "w-full min-h-[100px] resize-none rounded-xl border-2 border-cyan-300/50 bg-white/90 px-4 py-3 text-sm leading-relaxed text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30";
-const uiLabel = "mb-1.5 block text-[13px] font-bold text-slate-700";
+const uiInput = DOGALTAS_INPUT_CLASS;
+const uiTextarea = DOGALTAS_TEXTAREA_CLASS;
+const uiLabel = DOGALTAS_LABEL_CLASS;
 const uiPanel =
   "rounded-3xl border-2 border-cyan-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 shadow-md transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1";
 const uiBtn =
@@ -314,6 +317,16 @@ export default function DogaltasKayitPage() {
 
   function closeAssignment() {
     setAssignmentTitle(null);
+  }
+
+  /**
+   * "Kaydet": input'ta bekleyen değeri (varsa) gerçekten satır olarak ekler,
+   * sonra modalı kapatır. addAssignmentRow boş input'ta no-op olduğu için
+   * bekleyen değer yoksa yalnızca kapatır. (İptal/× yalnızca kapatır.)
+   */
+  function saveAssignmentAndClose() {
+    addAssignmentRow();
+    closeAssignment();
   }
 
   function updateAssignmentInput(sectionTitle: string, index: number, value: string) {
@@ -931,7 +944,7 @@ export default function DogaltasKayitPage() {
               value={largeEditorValue}
               onChange={(event) => setLargeEditorValue(event.target.value)}
               placeholder="Notunuzu geniş ekranda yazın..."
-              className="min-h-0 flex-1 resize-none rounded-[24px] border-2 border-cyan-300/50 bg-white/90 p-5 text-[15px] font-medium leading-7 text-slate-700 shadow-inner outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30"
+              className="min-h-0 flex-1 resize-none rounded-[24px] border-2 border-emerald-200 bg-white/90 p-5 text-[15px] font-medium leading-7 text-slate-700 shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
               autoFocus
             />
 
@@ -975,7 +988,7 @@ export default function DogaltasKayitPage() {
                       value={(assignmentInputs[activeAssignment.title] || [])[index] || ""}
                       onChange={(event) => updateAssignmentInput(activeAssignment.title, index, event.target.value)}
                       placeholder={`${field} yaz...`}
-                      className="h-12 w-full rounded-2xl border-2 border-cyan-300/50 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-300/30"
+                      className="h-12 w-full rounded-2xl border-2 border-emerald-200 bg-white/90 px-4 text-[14px] font-medium shadow-inner outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30"
                     />
                   </div>
                 ))}
@@ -1020,7 +1033,7 @@ export default function DogaltasKayitPage() {
                 İptal
               </button>
 
-              <button type="button" onClick={closeAssignment} className="btn-primary">
+              <button type="button" onClick={saveAssignmentAndClose} className="btn-primary">
                 Kaydet
               </button>
             </div>
