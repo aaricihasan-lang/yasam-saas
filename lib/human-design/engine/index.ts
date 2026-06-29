@@ -92,3 +92,16 @@ export type {
   ActivationSide,
   BuildChartActivationsParams,
 } from "./chart-activations";
+export {
+  CHANNELS,
+  CENTERS,
+  GATE_CENTER,
+  getActiveGates,
+  getDefinedChannels,
+  getDefinedCenters,
+} from "./channels";
+export type { Channel, CenterName } from "./channels";
+export { computeDefinition } from "./definition";
+export type { DefinitionKind, DefinitionResult } from "./definition";
+export { buildChartGraph } from "./chart-graph";
+export type { ChartGraph } from "./chart-graph";
