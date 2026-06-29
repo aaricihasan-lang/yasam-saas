@@ -188,14 +188,14 @@ const uiInfoCard =
   "w-full rounded-xl border border-emerald-200/60 bg-white/80 p-3 text-left shadow-sm backdrop-blur-xl transition-colors duration-200 hover:border-amber-300 hover:bg-white";
 const uiEmptyText = "text-slate-400 italic text-xs";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs font-black text-cyan-900";
+  "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-900";
 
 function toneClass(
   tone: "emerald" | "cyan" | "violet" | "amber" | "rose" | "sky" | "purple" | "red"
 ) {
   const map = {
     emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    cyan: "border-emerald-200 bg-emerald-50 text-emerald-700",
     violet: "border-violet-200 bg-violet-50 text-violet-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
     rose: "border-red-200 bg-red-50 text-red-600",
@@ -690,7 +690,7 @@ function MineralDetailPageContent() {
 function MineralDetailPageFallback() {
   return (
     <main className={`flex min-h-screen items-center justify-center ${pageBg} text-slate-500`}>
-      <p className="text-sm font-black text-slate-600">Yükleniyor…</p>
+      <p className="text-sm font-semibold text-slate-600">Yükleniyor…</p>
     </main>
   );
 }

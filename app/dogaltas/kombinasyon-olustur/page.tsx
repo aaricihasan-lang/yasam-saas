@@ -52,11 +52,11 @@ import { saveClientCombination } from "@/lib/dogaltas/clientCombinationsApi";
 // ─── Stil sabitleri (Doğaltaş modülü diliyle uyumlu) ─────────────────────────
 const pageContent = "relative z-10 w-full space-y-4";
 const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 px-4 py-3 shadow-lg";
+  "rounded-[24px] border-[3px] border-emerald-400/45 bg-white/90 px-4 py-3 shadow-lg";
 const uiFilterCard =
   "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md sm:p-4";
 const uiStatCard =
-  "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
+  "rounded-xl border-2 border-emerald-200 bg-white/85 px-3 py-2 text-center shadow-md";
 const uiInput = DOGALTAS_INPUT_CLASS;
 
 // Sonuç kartı eşleşme etiketi tonları (arama türüne göre).
@@ -605,7 +605,7 @@ export default function KombinasyonOlusturPage() {
             {!error && (
           <section>
             {!showResults ? (
-              <div className="rounded-[18px] border-[3px] border-dashed border-cyan-300/50 bg-white/70 p-6 text-center">
+              <div className="rounded-[18px] border-[3px] border-dashed border-emerald-300/50 bg-white/70 p-6 text-center">
                 <div className="text-base font-black text-slate-800">
                   Koşul ekleyip "Taşları Tara"ya basın
                 </div>

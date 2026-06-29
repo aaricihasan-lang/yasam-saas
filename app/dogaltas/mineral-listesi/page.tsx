@@ -512,7 +512,7 @@ function MineralListesiPageContent() {
             )}
           </div>
           {isSearchActive || listBusy ? (
-            <p className="mt-3 text-sm font-bold text-cyan-800">
+            <p className="mt-3 text-sm font-bold text-emerald-800">
               {listBusy
                 ? "Aranıyor..."
                 : `Arama: “${activeSearch}” · ${totalCount} sonuç`}
@@ -746,7 +746,7 @@ function MineralListesiPageContent() {
                     checked={wordExportMode === mode}
                     onChange={() => setWordExportMode(mode)}
                     disabled={mode === "viewed" && viewedMineralIds.size === 0}
-                    className="mt-0.5 h-4 w-4 accent-violet-600"
+                    className="mt-0.5 h-4 w-4 accent-emerald-600"
                   />
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-semibold text-slate-800">{label}</span>
@@ -816,7 +816,7 @@ function MineralListesiPageContent() {
 function MineralListesiPageFallback() {
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)]">
-      <p className="text-base font-black text-emerald-800">Yükleniyor…</p>
+      <p className="text-base font-semibold text-emerald-800">Yükleniyor…</p>
     </main>
   );
 }

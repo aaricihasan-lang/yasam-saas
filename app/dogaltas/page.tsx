@@ -705,7 +705,7 @@ function DogaltasPageContent() {
             </form>
 
             {activeQuery.trim() ? (
-              <section className="shrink-0 rounded-[26px] border border-cyan-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <section className="shrink-0 rounded-[26px] border border-emerald-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-black text-slate-900">
                     Arama Sonuçları
@@ -714,7 +714,7 @@ function DogaltasPageContent() {
                       : ""}
                   </h2>
                   {activeQuery ? (
-                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800 ring-1 ring-cyan-200">
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
                       "{activeQuery}"
                     </span>
                   ) : null}
@@ -785,7 +785,7 @@ function DogaltasPageContent() {
                             <Link
                               href={detailHref}
                               onClick={() => handleResultNavigate(result.id)}
-                              className="mt-3 inline-flex rounded-xl border border-cyan-300/80 bg-cyan-50 px-4 py-2 text-sm font-black text-cyan-950 transition hover:bg-cyan-100"
+                              className="mt-3 inline-flex rounded-xl border border-emerald-300/80 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-950 transition hover:bg-emerald-100"
                             >
                               Detaya Git
                             </Link>
@@ -874,7 +874,7 @@ function DogaltasPageContent() {
               </div>
 
               <div className="mt-2.5 grid shrink-0 grid-cols-3 gap-2.5">
-                <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-3.5 shadow-md">
+                <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-emerald-50 p-3.5 shadow-md">
                   <p className="text-xs font-black text-teal-700">Toplam Taş Kaydı</p>
                   <p className="mt-0.5 text-xl font-black text-slate-950">
                     {formatCount(stonesCount, loading)}
@@ -923,7 +923,7 @@ function DogaltasPageContent() {
                   type="checkbox"
                   checked={allReportSelected}
                   onChange={toggleAllReport}
-                  className="h-4 w-4 rounded accent-violet-600"
+                  className="h-4 w-4 rounded accent-emerald-600"
                 />
                 <span className="text-sm font-black text-violet-800">Tümünü Seç</span>
               </label>
@@ -942,7 +942,7 @@ function DogaltasPageContent() {
                     type="checkbox"
                     checked={reportSections[key]}
                     onChange={() => setReportSections(prev => ({ ...prev, [key]: !prev[key] }))}
-                    className="h-4 w-4 rounded accent-violet-600"
+                    className="h-4 w-4 rounded accent-emerald-600"
                   />
                   <span className="text-sm font-semibold text-slate-700">{icon} {label}</span>
                 </label>

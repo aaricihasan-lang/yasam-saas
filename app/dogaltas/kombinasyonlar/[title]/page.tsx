@@ -291,19 +291,19 @@ const pageContent =
 const uiHeaderCard =
   "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
 const uiVariantCard =
-  "w-full rounded-xl border border-cyan-200/60 bg-white/80 p-3 shadow-sm backdrop-blur-xl";
+  "w-full rounded-xl border border-emerald-200/60 bg-white/80 p-3 shadow-sm backdrop-blur-xl";
 const uiInfoCard =
   "rounded-xl border border-violet-100/60 bg-white/70 p-3 shadow-sm";
 const uiEmptyText = "text-slate-400 italic text-xs";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs font-black text-cyan-900";
+  "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-900";
 
 type ToneKey = "violet" | "cyan" | "slate" | "amber";
 
 function badgeClass(tone: ToneKey): string {
   const map: Record<ToneKey, string> = {
     violet: "border-violet-200 bg-violet-50 text-violet-700",
-    cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    cyan: "border-emerald-200 bg-emerald-50 text-emerald-700",
     slate: "border-slate-200 bg-slate-50 text-slate-600",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
   };
@@ -1214,7 +1214,7 @@ function KombinasyonDetayPageContent() {
   return (
     <main className={pageBg}>
       <div className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-violet-300/15 blur-[120px]" />
-      <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-cyan-300/15 blur-[120px]" />
+      <div className="pointer-events-none absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-emerald-300/15 blur-[120px]" />
 
       <div className={pageContent}>
         <header
@@ -1254,7 +1254,7 @@ function KombinasyonDetayPageContent() {
                   ? "Henüz variant kaydı yok."
                   : `${rows.length} kombinasyon variant`}
               {hasHighlight && sectionMatches?.description ? (
-                <span className="ml-2 font-black text-cyan-700">· Açıklama eşleşmesi</span>
+                <span className="ml-2 font-black text-emerald-700">· Açıklama eşleşmesi</span>
               ) : null}
             </p>
           </div>
@@ -1273,7 +1273,7 @@ function KombinasyonDetayPageContent() {
             <button
               type="button"
               onClick={() => void handleRefresh()}
-              className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-cyan-50"
+              className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-slate-800 shadow-sm hover:bg-emerald-50"
             >
               Yenile
             </button>
@@ -1301,7 +1301,7 @@ function KombinasyonDetayPageContent() {
         ) : rows.length === 0 && !errorMessage ? (
           <div className={`${uiVariantCard} text-center py-8`}>
             <div className="text-3xl">✶</div>
-            <p className="mt-2 text-base font-black text-slate-800">Henüz kombinasyon kaydı yok</p>
+            <p className="mt-2 text-base font-semibold text-slate-800">Henüz kombinasyon kaydı yok</p>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Bu başlık için henüz variant aktarılmamış olabilir.
             </p>

@@ -1452,7 +1452,7 @@ export default function TasBilgiKutuphanesiPage() {
                     checked={wordExportMode === mode}
                     onChange={() => setWordExportMode(mode)}
                     disabled={mode === "viewed" && viewed.size === 0}
-                    className="mt-0.5 h-4 w-4 accent-indigo-600"
+                    className="mt-0.5 h-4 w-4 accent-emerald-600"
                   />
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-semibold text-slate-800">{label}</span>

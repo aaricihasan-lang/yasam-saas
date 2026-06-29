@@ -193,7 +193,7 @@ export function SaveCombinationModal({
                 type="button"
                 onClick={() => setStep("client")}
                 disabled={saving}
-                className="w-full rounded-2xl border-2 border-cyan-200 bg-cyan-50/70 p-3.5 text-left transition hover:border-cyan-300 hover:bg-cyan-50 disabled:opacity-60"
+                className="w-full rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 p-3.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-60"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">👤</span>
@@ -249,7 +249,7 @@ export function SaveCombinationModal({
                             type="button"
                             onClick={() => setSelected(c)}
                             className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition ${
-                              isSel ? "bg-cyan-50" : "bg-white hover:bg-slate-50"
+                              isSel ? "bg-emerald-50" : "bg-white hover:bg-slate-50"
                             }`}
                           >
                             <span className="min-w-0">
@@ -263,7 +263,7 @@ export function SaveCombinationModal({
                               )}
                             </span>
                             {isSel && (
-                              <span className="shrink-0 text-sm font-black text-cyan-600">
+                              <span className="shrink-0 text-sm font-black text-emerald-600">
                                 ✓
                               </span>
                             )}
@@ -276,7 +276,7 @@ export function SaveCombinationModal({
               </div>
 
               {selected && (
-                <div className="rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 ring-1 ring-cyan-200">
+                <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
                   Seçili: {clientFullName(selected)} · &quot;
                   {combinationName.trim() || "Kombinasyon"}&quot; ({cartCount} taş)
                   bu danışana kaydedilecek.

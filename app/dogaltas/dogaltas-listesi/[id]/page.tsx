@@ -303,26 +303,26 @@ const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_42%,#f8fafc_100%)] text-slate-950";
 const pageContent = "relative z-10 w-full space-y-3 px-4 py-4 sm:px-5 xl:px-8 2xl:px-10";
 const uiHeaderCard =
-  "rounded-2xl border-[2px] border-cyan-300/50 bg-white/80 p-4 shadow-md backdrop-blur-xl";
+  "rounded-2xl border-[2px] border-emerald-300/50 bg-white/80 p-4 shadow-md backdrop-blur-xl";
 const uiProfileCard =
-  "rounded-2xl border-[2px] border-violet-200/50 bg-gradient-to-br from-white/85 via-cyan-50/60 to-violet-50/60 p-3 shadow-md backdrop-blur-xl";
+  "rounded-2xl border-[2px] border-violet-200/50 bg-gradient-to-br from-white/85 via-emerald-50/60 to-violet-50/60 p-3 shadow-md backdrop-blur-xl";
 const uiImageArea =
-  "flex min-h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-cyan-200 bg-white/70 shadow-inner";
+  "flex min-h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-200 bg-white/70 shadow-inner";
 const uiStatBox =
-  "rounded-xl border border-cyan-200 bg-white/85 p-3 text-center shadow-sm";
+  "rounded-xl border border-emerald-200 bg-white/85 p-3 text-center shadow-sm";
 const uiInfoCard =
-  "w-full rounded-xl border border-cyan-200/60 bg-white/80 p-3 text-left shadow-sm transition-colors duration-200 hover:border-violet-300 hover:bg-white";
+  "w-full rounded-xl border border-emerald-200/60 bg-white/80 p-3 text-left shadow-sm transition-colors duration-200 hover:border-violet-300 hover:bg-white";
 const uiContentBox =
   "mt-2 min-h-[60px] rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm leading-6 text-slate-700 shadow-inner";
 const uiEmptyText = "text-slate-400 italic font-medium";
 const uiThumb =
-  "overflow-hidden rounded-xl border border-cyan-200 shadow-sm transition-all duration-200 hover:scale-[1.03]";
+  "overflow-hidden rounded-xl border border-emerald-200 shadow-sm transition-all duration-200 hover:scale-[1.03]";
 
 function toneClass(tone: "slate" | "cyan" | "violet" | "emerald" | "rose" | "sky" | "amber") {
   const toneMap = {
     slate:
       "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black tracking-wide text-slate-700",
-    cyan: "inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-black tracking-wide text-cyan-700",
+    cyan: "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black tracking-wide text-emerald-700",
     violet:
       "inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black tracking-wide text-violet-700",
     emerald:
@@ -463,7 +463,7 @@ function TextBlock({
               {shortPreview(text, 80)}
             </p>
           </div>
-          <span className="shrink-0 rounded-lg border border-cyan-200 bg-white px-2 py-0.5 text-[10px] font-black text-cyan-700 shadow-sm">
+          <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
             Düzenle
           </span>
         </div>
@@ -493,7 +493,7 @@ function TextBlock({
         </p>
       </div>
 
-      <p className="mt-2 text-[11px] font-black text-cyan-700">
+      <p className="mt-2 text-[11px] font-black text-emerald-700">
         Tam okumak için tıklayın →
       </p>
     </button>
@@ -1069,14 +1069,14 @@ function StoneDetailPage() {
 
   return (
     <main className={pageBg}>
-      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-cyan-300/20 blur-[150px]" />
+      <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
 
       <div className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-cyan-700">
+              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.15em] text-emerald-700">
                 💎 DOĞALTAŞ DETAY
               </span>
               {isLibraryStone && (
@@ -1095,7 +1095,7 @@ function StoneDetailPage() {
               <button
                 type="button"
                 onClick={() => openTextEditor("stone_name", "Taş Adı", "BAŞLIK", false)}
-                className="block w-full rounded-xl border border-cyan-200 bg-white/90 px-3 py-1.5 text-left text-xl font-black tracking-tight text-slate-950 shadow-sm transition hover:border-violet-300 sm:text-2xl"
+                className="block w-full rounded-xl border border-emerald-200 bg-white/90 px-3 py-1.5 text-left text-xl font-black tracking-tight text-slate-950 shadow-sm transition hover:border-violet-300 sm:text-2xl"
               >
                 {safeStone.stone_name}
               </button>
@@ -1232,7 +1232,7 @@ function StoneDetailPage() {
                         Sil
                       </button>
                     )}
-                    <h2 className="border-t border-cyan-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
+                    <h2 className="border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
                       {renderHighlightedText(safeStone.stone_name, highlightQuery)}
                     </h2>
                   </div>
@@ -1361,7 +1361,7 @@ function StoneDetailPage() {
                   {sectionMatches?.chakras ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
                     Seç
                   </span>
                 )}
@@ -1403,7 +1403,7 @@ function StoneDetailPage() {
                   {sectionMatches?.warningTags ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
                     Seç
                   </span>
                 )}
@@ -1445,7 +1445,7 @@ function StoneDetailPage() {
                   {sectionMatches?.assignments ? <SearchMatchBadge /> : null}
                 </div>
                 {editEnabled && (
-                  <span className="rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
                     Düzenle
                   </span>
                 )}
@@ -1643,7 +1643,7 @@ function StoneDetailPage() {
                           : openReader(String(title), "KULLANIM ALANI", String(text || ""))
                     }
                     className={mergeMatchCardClass(
-                      "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner transition hover:border-cyan-300 hover:bg-white",
+                      "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner transition hover:border-emerald-300 hover:bg-white",
                       usageHasMatch,
                     )}
                   >
@@ -1653,7 +1653,7 @@ function StoneDetailPage() {
                         {usageHasMatch ? <SearchMatchBadge /> : null}
                       </div>
                       {!isContentProtected && (editEnabled ? (
-                        <span className="rounded-md bg-cyan-50 px-1.5 py-0.5 text-[9px] font-black text-cyan-700 ring-1 ring-cyan-100">
+                        <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">
                           Düzenle
                         </span>
                       ) : (
@@ -1724,7 +1724,7 @@ function StoneDetailPage() {
           >
             <header className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="mb-1 inline-flex rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-cyan-700 ring-1 ring-cyan-100">
+                <div className="mb-1 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
                   {activeEditor.badge}
                 </div>
 
@@ -1773,7 +1773,7 @@ function StoneDetailPage() {
                       onClick={() => toggleSelected(option)}
                       className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left text-[13px] font-black ring-1 transition ${
                         checked
-                          ? "bg-cyan-50 text-cyan-800 ring-cyan-200"
+                          ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
                           : "bg-slate-50 text-slate-600 ring-slate-100 hover:bg-white"
                       }`}
                     >
@@ -1781,7 +1781,7 @@ function StoneDetailPage() {
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-lg text-[13px] ${
                           checked
-                            ? "bg-cyan-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : "bg-white text-slate-300 ring-1 ring-slate-200"
                         }`}
                       >
@@ -1876,7 +1876,7 @@ function StoneDetailPage() {
 function StoneDetailPageFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#eef2ff_40%,#f8fafc_100%)] text-slate-500">
-      <p className="text-sm font-black text-slate-600">Kayıt yükleniyor...</p>
+      <p className="text-sm font-semibold text-slate-600">Kayıt yükleniyor...</p>
     </main>
   );
 }

@@ -239,11 +239,11 @@ const uiComboCard =
 const uiComboBadge =
   "inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black text-violet-700";
 const uiCategoryPill =
-  "inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black text-cyan-900";
+  "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-900";
 const uiComboBtn =
   "btn-soft !px-3 !py-1.5 !text-[11px] !rounded-lg";
 const uiRowCheckbox =
-  "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-violet-600 focus:ring-2 focus:ring-violet-200/40";
+  "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-emerald-600 focus:ring-2 focus:ring-emerald-200/40";
 
 /**
  * İlk render'da gösterilecek başlık (grup) sayısı; kalanı "Daha Fazla Göster"
@@ -607,7 +607,7 @@ export default function KombinasyonlarPage() {
                 : hasFilters
                   ? `${filteredRows.length} variant · ${groups.length} başlık`
                   : `${rows.length} variant · ${groups.length} başlık`}
-              {loading && <span className="ml-2 text-cyan-600">yükleniyor...</span>}
+              {loading && <span className="ml-2 text-emerald-600">yükleniyor...</span>}
             </p>
 
             {!isDemo && !loading && groups.length > 0 && (

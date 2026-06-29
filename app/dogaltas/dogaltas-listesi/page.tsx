@@ -169,7 +169,7 @@ function listSummaryLabel(stone: StoneListItem): string {
 
 function ListSkeletonRows({ count = 6 }: { count?: number }) {
   return (
-    <div className="divide-y divide-cyan-100">
+    <div className="divide-y divide-emerald-100">
       {Array.from({ length: count }, (_, i) => (
         <div
           key={`sk-${i}`}
@@ -198,23 +198,23 @@ const pageBg =
   "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950";
 const pageContent = "relative z-10 w-full space-y-4";
 const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-cyan-400/45 bg-white/90 p-4 shadow-lg";
+  "rounded-[24px] border-[3px] border-emerald-400/45 bg-white/90 p-4 shadow-lg";
 const uiFilterCard =
   "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md";
 const uiTableCard =
-  "w-full min-h-[360px] overflow-hidden rounded-[22px] border-[3px] border-cyan-400/45 bg-white/92 shadow-lg";
+  "w-full min-h-[360px] overflow-hidden rounded-[22px] border-[3px] border-emerald-400/45 bg-white/92 shadow-lg";
 const uiSearchInput =
   "h-10 w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 const uiViewBtn =
   "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
 const uiStatCard =
-  "rounded-xl border-2 border-cyan-200 bg-white/85 px-3 py-2 text-center shadow-md";
+  "rounded-xl border-2 border-emerald-200 bg-white/85 px-3 py-2 text-center shadow-md";
 const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
 const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
-const uiBadgeImage = `${uiBadgeBase} border-cyan-200 bg-cyan-50 text-cyan-700`;
+const uiBadgeImage = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiRowCheckbox =
-  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-cyan-300 text-cyan-600 shadow-sm accent-cyan-600 focus:ring-2 focus:ring-cyan-300/40";
+  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-emerald-300 text-emerald-600 shadow-sm accent-emerald-600 focus:ring-2 focus:ring-emerald-300/40";
 
 function DogaltasListesiPageContent() {
   const deleteConfirm = useDeleteConfirm();
@@ -896,12 +896,12 @@ function DogaltasListesiPageContent() {
                     </span>
                   )}
                   {detailFilters.mineral && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-black text-cyan-800">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
                       💎 Mineral: {detailFilters.mineral}
                       <button
                         type="button"
                         onClick={() => setDetailFilters((f) => ({ ...f, mineral: "" }))}
-                        className="ml-0.5 text-cyan-400 hover:text-cyan-900"
+                        className="ml-0.5 text-emerald-400 hover:text-emerald-900"
                         aria-label="Mineral filtresini kaldır"
                       >
                         ×
@@ -965,7 +965,7 @@ function DogaltasListesiPageContent() {
             </p>
 
             {listBusy && (
-              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700 ring-1 ring-cyan-100">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
                 {detailLoading
                   ? "Filtre yükleniyor..."
                   : isSearchActive && searchTerm.trim() !== debouncedSearch
@@ -1014,7 +1014,7 @@ function DogaltasListesiPageContent() {
           ) : filteredStones.length === 0 ? (
             <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
               {/* İkon */}
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 to-violet-100 text-4xl shadow-sm ring-1 ring-cyan-200/60">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-violet-100 text-4xl shadow-sm ring-1 ring-emerald-200/60">
                 💎
               </div>
 
@@ -1072,7 +1072,7 @@ function DogaltasListesiPageContent() {
           ) : viewMode === "list" ? (
             <div>
               {/* Column headers — desktop only */}
-              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-violet-50 to-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
+              <div className="hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-violet-50 to-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:grid">
                 <div className="w-8" aria-hidden />
                 <div>Taş</div>
                 <div>Açıklama</div>
@@ -1099,7 +1099,7 @@ function DogaltasListesiPageContent() {
                     <Fragment key={stone.id}>
                       {/* Mobile row: slim list style */}
                       <div
-                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-cyan-50/50 md:hidden ${
+                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-emerald-50/50 md:hidden ${
                           isSelected ? "bg-violet-50/40" : isLastViewed ? "bg-rose-50/60" : ""
                         } ${
                           isViewedInSearch
@@ -1129,7 +1129,7 @@ function DogaltasListesiPageContent() {
                           }}
                           className="flex min-w-0 flex-1 items-center gap-2"
                         >
-                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-cyan-50 ring-1 ring-cyan-100">
+                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
                             {coverImageUrl ? (
                               <img
                                 src={coverImageUrl}
@@ -1155,7 +1155,7 @@ function DogaltasListesiPageContent() {
                           onClick={() => {
                             handleStoneNavigate(stone.id);
                           }}
-                          className="shrink-0 text-xs font-bold text-cyan-600 hover:text-violet-700"
+                          className="shrink-0 text-xs font-bold text-emerald-600 hover:text-violet-700"
                         >
                           Detay→
                         </Link>
@@ -1176,7 +1176,7 @@ function DogaltasListesiPageContent() {
 
                       {/* Desktop row: all 7 columns */}
                       <div
-                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-cyan-100 px-4 py-3 transition-colors hover:bg-cyan-50/70 md:grid ${
+                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-emerald-100 px-4 py-3 transition-colors hover:bg-emerald-50/70 md:grid ${
                           isSelected ? "bg-violet-50/60" : isLastViewed ? "bg-rose-50/50" : ""
                         } ${
                           isViewedInSearch
@@ -1211,7 +1211,7 @@ function DogaltasListesiPageContent() {
                           }}
                           className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
                         >
-                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-cyan-50 ring-1 ring-cyan-100">
+                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-emerald-50 ring-1 ring-emerald-100">
                             {coverImageUrl ? (
                               <img
                                 src={coverImageUrl}
@@ -1244,7 +1244,7 @@ function DogaltasListesiPageContent() {
                                 : displayName}
                             </div>
 
-                            <div className="mt-0.5 text-xs font-bold text-cyan-700 hover:text-violet-700 xl:text-sm">
+                            <div className="mt-0.5 text-xs font-bold text-emerald-700 hover:text-violet-700 xl:text-sm">
                               Detayı aç →
                             </div>
                           </div>
@@ -1356,7 +1356,7 @@ function DogaltasListesiPageContent() {
                         ? "border-violet-400/70 bg-violet-50/50"
                         : isLastViewed
                           ? "border-rose-200 bg-rose-50/50 ring-1 ring-rose-100"
-                          : "border-cyan-300/40 hover:border-violet-300/50"
+                          : "border-emerald-300/40 hover:border-violet-300/50"
                     } ${
                       isViewedInSearch
                         ? "border-l-4 border-rose-600"
@@ -1404,7 +1404,7 @@ function DogaltasListesiPageContent() {
                         </div>
                       ) : null}
                       <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                        <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
                           {coverImageUrl ? (
                             <img
                               src={coverImageUrl}
@@ -1467,7 +1467,7 @@ function DogaltasListesiPageContent() {
                         onClick={() => {
                           handleStoneNavigate(stone.id);
                         }}
-                        className="text-xs font-bold text-cyan-700 transition hover:text-violet-700 xl:text-sm"
+                        className="text-xs font-bold text-emerald-700 transition hover:text-violet-700 xl:text-sm"
                       >
                         Detay sayfasında oku →
                       </Link>
@@ -1493,12 +1493,12 @@ function DogaltasListesiPageContent() {
           )}
 
           {hasMore && filteredStones.length > 0 ? (
-            <div className="flex justify-center border-t border-cyan-100 bg-white/80 px-5 py-4">
+            <div className="flex justify-center border-t border-emerald-100 bg-white/80 px-5 py-4">
               <button
                 type="button"
                 disabled={loadingMore || listLoading}
                 onClick={handleLoadMore}
-                className={`${uiViewBtn} border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-violet-50 text-slate-800 hover:from-cyan-100 hover:to-violet-100 disabled:opacity-60`}
+                className={`${uiViewBtn} border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-violet-50 text-slate-800 hover:from-emerald-100 hover:to-violet-100 disabled:opacity-60`}
               >
                 {loadingMore
                   ? "Yükleniyor..."

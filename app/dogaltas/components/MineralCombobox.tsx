@@ -115,7 +115,7 @@ export function MineralCombobox({
         <ul
           ref={listRef}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-xl border-2 border-cyan-300/60 bg-white py-1 shadow-xl"
+          className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-xl border-2 border-emerald-300/60 bg-white py-1 shadow-xl"
         >
           {ranked.map((item, index) => (
             <li
@@ -129,14 +129,14 @@ export function MineralCombobox({
                 commit(item.name);
               }}
               className={`flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-sm transition ${
-                index === highlight ? "bg-cyan-50" : "bg-white"
+                index === highlight ? "bg-emerald-50" : "bg-white"
               }`}
             >
               <span className="flex min-w-0 items-center gap-1.5">
                 <span aria-hidden className="shrink-0">{icon}</span>
                 <span
                   className={`truncate font-bold ${
-                    item.isPrefix ? "text-cyan-800" : "text-slate-700"
+                    item.isPrefix ? "text-emerald-800" : "text-slate-700"
                   }`}
                 >
                   {item.name}
