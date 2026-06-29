@@ -1,0 +1,55 @@
+{
+  "caseId": "HD-GOLD-0001",
+  "status": "real",
+  "compareEligible": true,
+  "provenance": {
+    "referenceSource": "Genetic Matrix",
+    "referenceCapturedAt": "2026-06-29",
+    "ephemerisBasis": "Swiss Ephemeris / True Node",
+    "boundaryFlag": false
+  },
+  "input": {
+    "date": "1987-02-14",
+    "time": "21:00",
+    "timezone": "Europe/Istanbul",
+    "location": {
+      "city": "Konya",
+      "country": "TR",
+      "lat": 37.871399,
+      "lon": 32.484699
+    }
+  },
+  "reference": {
+    "personality": {
+      "Sun":       { "gate": 30, "line": 2 },
+      "Earth":     { "gate": 29, "line": 2 },
+      "NorthNode": { "gate": 21, "line": 3 },
+      "SouthNode": { "gate": 48, "line": 3 },
+      "Moon":      { "gate": 40, "line": 1 },
+      "Mercury":   { "gate": 63, "line": 2 },
+      "Venus":     { "gate": 38, "line": 2 },
+      "Mars":      { "gate": 42, "line": 6 },
+      "Jupiter":   { "gate": 36, "line": 4 },
+      "Saturn":    { "gate": 26, "line": 3 },
+      "Uranus":    { "gate": 11, "line": 4 },
+      "Neptune":   { "gate": 58, "line": 4 },
+      "Pluto":     { "gate": 44, "line": 3 }
+    },
+    "design": {
+      "Sun":       { "gate": 14, "line": 4 },
+      "Earth":     { "gate": 8,  "line": 4 },
+      "NorthNode": { "gate": 51, "line": 6 },
+      "SouthNode": { "gate": 57, "line": 6 },
+      "Moon":      { "gate": 52, "line": 5 },
+      "Mercury":   { "gate": 1,  "line": 1 },
+      "Venus":     { "gate": 28, "line": 4 },
+      "Mars":      { "gate": 30, "line": 2 },
+      "Jupiter":   { "gate": 63, "line": 2 },
+      "Saturn":    { "gate": 9,  "line": 6 },
+      "Uranus":    { "gate": 26, "line": 5 },
+      "Neptune":   { "gate": 58, "line": 1 },
+      "Pluto":     { "gate": 44, "line": 1 }
+    }
+  },
+  "tolerance": { "longitudeArcsec": 30, "exactGateLine": true }
+}

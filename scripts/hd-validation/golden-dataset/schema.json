@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://yasam-saas/hd-validation/golden-case.schema.json",
+  "title": "HD Golden Validation Case",
+  "description": "FAZ 1.5 golden vaka sözleşmesi. Bir vaka = bir doğum girdisi + MyBodyGraph (Jovian lineage) referans çıktısı. Yalnız olgusal veri; yorum metni içermez.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["caseId", "provenance", "input", "reference", "tolerance"],
+  "properties": {
+    "caseId": {
+      "type": "string",
+      "pattern": "^HD-GOLD-[0-9]{4}$",
+      "description": "Benzersiz vaka kimliği, örn. HD-GOLD-0001."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["real", "example"],
+      "description": "real = gerçek MyBodyGraph referansı; example = yalnız format örneği (compare dışı). Belirtilmezse 'real' varsayılır."
+    },
+    "compareEligible": {
+      "type": "boolean",
+      "description": "true ise karşılaştırmaya dahil edilir. example vakalar false olmalıdır. Belirtilmezse status='real' için true varsayılır."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["referenceSource", "referenceCapturedAt", "ephemerisBasis", "boundaryFlag"],
+      "properties": {
+        "referenceSource": {
+          "type": "string",
+          "description": "Referansın alındığı araç, örn. 'MyBodyGraph'."
+        },
+        "referenceCapturedAt": {
+          "type": "string",
+          "format": "date",
+          "description": "Referansın elle yakalandığı tarih (YYYY-MM-DD)."
+        },
+        "ephemerisBasis": {
+          "type": "string",
+          "description": "Referansın astronomik temeli, örn. 'Swiss Ephemeris / True Node'."
+        },
+        "boundaryFlag": {
+          "type": "boolean",
+          "description": "Aktivasyonlardan biri gate/line sınırına yakın mı? true → BOUNDARY (soft) bölgesi."
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "time", "timezone", "location"],
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Yerel doğum tarihi (YYYY-MM-DD)."
+        },
+        "time": {
+          "type": "string",
+          "pattern": "^[0-9]{2}:[0-9]{2}$",
+          "description": "Yerel doğum saati (HH:mm, 24 saat)."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone kimliği, örn. 'Europe/Istanbul'."
+        },
+        "location": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lat", "lon"],
+          "properties": {
+            "city": { "type": "string" },
+            "country": { "type": "string" },
+            "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+            "lon": { "type": "number", "minimum": -180, "maximum": 180 }
+          }
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "personality", "design", "type", "authority",
+        "profile", "definition", "centers", "channels", "incarnationCross"
+      ],
+      "properties": {
+        "personality": { "$ref": "#/$defs/activationMap" },
+        "design": { "$ref": "#/$defs/activationMap" },
+        "type": {
+          "type": "string",
+          "enum": ["Generator", "Manifesting Generator", "Manifestor", "Projector", "Reflector"]
+        },
+        "authority": {
+          "type": "string",
+          "enum": ["Emotional", "Sacral", "Splenic", "Ego", "Self-Projected", "Mental", "Lunar"]
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[1-6]/[1-6]$",
+          "description": "Personality Sun line / Design Sun line, örn. '4/2'."
+        },
+        "definition": {
+          "type": "string",
+          "enum": ["Single", "Split", "Triple Split", "Quadruple Split", "No Definition"]
+        },
+        "centers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "Head", "Ajna", "Throat", "G", "Heart",
+            "Spleen", "SolarPlexus", "Sacral", "Root"
+          ],
+          "description": "Her merkez tanımlı (true) / açık (false).",
+          "properties": {
+            "Head": { "type": "boolean" },
+            "Ajna": { "type": "boolean" },
+            "Throat": { "type": "boolean" },
+            "G": { "type": "boolean" },
+            "Heart": { "type": "boolean" },
+            "Spleen": { "type": "boolean" },
+            "SolarPlexus": { "type": "boolean" },
+            "Sacral": { "type": "boolean" },
+            "Root": { "type": "boolean" }
+          }
+        },
+        "channels": {
+          "type": "array",
+          "description": "Tanımlı kanallar, gate-çifti gösterimi (örn. '34-20'). Küme olarak karşılaştırılır.",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{1,2}-[0-9]{1,2}$"
+          }
+        },
+        "incarnationCross": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "gates"],
+          "properties": {
+            "name": { "type": "string" },
+            "gates": {
+              "type": "array",
+              "description": "[Personality-Sun, Personality-Earth, Design-Sun, Design-Earth] gate'leri.",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": { "type": "integer", "minimum": 1, "maximum": 64 }
+            }
+          }
+        }
+      }
+    },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["longitudeArcsec", "exactGateLine"],
+      "properties": {
+        "longitudeArcsec": {
+          "type": "number",
+          "description": "Katman A boylam toleransı (yay-saniye). Varsayılan 30."
+        },
+        "exactGateLine": {
+          "type": "boolean",
+          "description": "Katman B gate/line birebir eşleşme zorunluluğu."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "activationMap": {
+      "type": "object",
+      "description": "13 cisim: Sun, Earth, Moon, NorthNode, SouthNode, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto.",
+      "additionalProperties": false,
+      "required": [
+        "Sun", "Earth", "Moon", "NorthNode", "SouthNode",
+        "Mercury", "Venus", "Mars", "Jupiter", "Saturn",
+        "Uranus", "Neptune", "Pluto"
+      ],
+      "properties": {
+        "Sun": { "$ref": "#/$defs/activation" },
+        "Earth": { "$ref": "#/$defs/activation" },
+        "Moon": { "$ref": "#/$defs/activation" },
+        "NorthNode": { "$ref": "#/$defs/activation" },
+        "SouthNode": { "$ref": "#/$defs/activation" },
+        "Mercury": { "$ref": "#/$defs/activation" },
+        "Venus": { "$ref": "#/$defs/activation" },
+        "Mars": { "$ref": "#/$defs/activation" },
+        "Jupiter": { "$ref": "#/$defs/activation" },
+        "Saturn": { "$ref": "#/$defs/activation" },
+        "Uranus": { "$ref": "#/$defs/activation" },
+        "Neptune": { "$ref": "#/$defs/activation" },
+        "Pluto": { "$ref": "#/$defs/activation" }
+      }
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "line"],
+      "properties": {
+        "gate": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "line": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "longitude": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360,
+          "description": "Opsiyonel: tropikal ekliptik boylam (derece). Sapmayı katmana izole etmek için önerilir."
+        }
+      }
+    }
+  }
+}

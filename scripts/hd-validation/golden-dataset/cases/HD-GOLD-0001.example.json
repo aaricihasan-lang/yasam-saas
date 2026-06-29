@@ -1,0 +1,68 @@
+{
+  "caseId": "HD-GOLD-0001",
+  "status": "example",
+  "compareEligible": false,
+  "_warning": "ORNEK / EXAMPLE — Bu dosya GERCEK MyBodyGraph verisi DEGILDIR. reference.personality/design icindeki gate/line degerleri yalnizca FORMAT gostermek icindir; dogrulanmis referans DEGILDIR ve compare'e dahil EDILMEZ (compareEligible=false). Gercek bir vaka eklemek icin: bu dosyayi kopyala, MyBodyGraph'tan ELLE olgusal gate/line gir, status='real', compareEligible=true yap, dosya adini HD-GOLD-NNNN.json yap, INDEX.md'ye satir ekle. MyBodyGraph yorum/anlam metni KOPYALANMAZ.",
+  "provenance": {
+    "referenceSource": "EXAMPLE — gercek kaynak yok",
+    "referenceCapturedAt": "1970-01-01",
+    "ephemerisBasis": "Swiss Ephemeris / True Node (gercek vakada)",
+    "boundaryFlag": false,
+    "notes": "Format ornegi. Gercek referans girilene kadar compare disi."
+  },
+  "input": {
+    "date": "1990-05-15",
+    "time": "14:30",
+    "timezone": "Europe/Istanbul",
+    "location": {
+      "city": "Istanbul",
+      "country": "TR",
+      "lat": 41.0082,
+      "lon": 28.9784
+    }
+  },
+  "reference": {
+    "personality": {
+      "Sun": { "gate": 0, "line": 0 },
+      "Earth": { "gate": 0, "line": 0 },
+      "Moon": { "gate": 0, "line": 0 },
+      "NorthNode": { "gate": 0, "line": 0 },
+      "SouthNode": { "gate": 0, "line": 0 },
+      "Mercury": { "gate": 0, "line": 0 },
+      "Venus": { "gate": 0, "line": 0 },
+      "Mars": { "gate": 0, "line": 0 },
+      "Jupiter": { "gate": 0, "line": 0 },
+      "Saturn": { "gate": 0, "line": 0 },
+      "Uranus": { "gate": 0, "line": 0 },
+      "Neptune": { "gate": 0, "line": 0 },
+      "Pluto": { "gate": 0, "line": 0 }
+    },
+    "design": {
+      "Sun": { "gate": 0, "line": 0 },
+      "Earth": { "gate": 0, "line": 0 },
+      "Moon": { "gate": 0, "line": 0 },
+      "NorthNode": { "gate": 0, "line": 0 },
+      "SouthNode": { "gate": 0, "line": 0 },
+      "Mercury": { "gate": 0, "line": 0 },
+      "Venus": { "gate": 0, "line": 0 },
+      "Mars": { "gate": 0, "line": 0 },
+      "Jupiter": { "gate": 0, "line": 0 },
+      "Saturn": { "gate": 0, "line": 0 },
+      "Uranus": { "gate": 0, "line": 0 },
+      "Neptune": { "gate": 0, "line": 0 },
+      "Pluto": { "gate": 0, "line": 0 }
+    },
+    "type": "EXAMPLE",
+    "authority": "EXAMPLE",
+    "profile": "1/3",
+    "definition": "Single",
+    "centers": {
+      "Head": false, "Ajna": false, "Throat": false, "G": false,
+      "Heart": false, "Spleen": false, "SolarPlexus": false,
+      "Sacral": false, "Root": false
+    },
+    "channels": [],
+    "incarnationCross": { "name": "EXAMPLE", "gates": [1, 2, 3, 4] }
+  },
+  "tolerance": { "longitudeArcsec": 30, "exactGateLine": true }
+}

@@ -1,0 +1,18 @@
+# HD Validation — üretilen artefaktlar (yeniden üretilir, commit edilmez)
+
+# Oracle çıktıları
+oracle/*.json
+
+# Engine-runner çıktıları
+engine-runner/*.json
+
+# Compare raporları
+compare/report.json
+compare/report.md
+
+# Loglar
+*.log
+
+# ─── Versiyonlanan istisnalar (artefakt DEĞİL — sözleşme dosyaları) ───
+!golden-dataset/schema.json
+!golden-dataset/cases/*.json
