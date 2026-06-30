@@ -25,6 +25,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0001": { profile: "2/4", crossGates: [30, 29, 14, 8], angle: "Right Angle", gmName: "RAX Contagion 1" },
   "HD-GOLD-0002": { profile: "2/4", crossGates: [56, 60, 3, 50], angle: "Right Angle", gmName: "RAX Laws 2" },
   "HD-GOLD-0003": { profile: "3/5", crossGates: [45, 26, 22, 47], angle: "Right Angle", gmName: "RAX Rulership 2" },
+  "HD-GOLD-0004": { profile: "1/4", crossGates: [36, 6, 11, 12], angle: "Right Angle", gmName: "RAX Eden 1" },
+  "HD-GOLD-0005": { profile: "5/1", crossGates: [3, 50, 41, 31], angle: "Left Angle", gmName: "LAX Wishes 1" },
 };
 
 function arrEq(a: number[], b: number[]): boolean {
@@ -76,7 +78,7 @@ function main(): void {
     for (const e of errors) console.error("  - " + e);
     process.exit(1);
   }
-  console.log("CHECK: 3/3 profile + cross gates + angle OK. (Cross tema adı: tablo yok → doğrulanmadı.)");
+  console.log(`CHECK: ${Object.keys(EXPECTED).length}/${Object.keys(EXPECTED).length} profile + cross gates + angle OK. (Cross tema adı: tablo yok → doğrulanmadı.)`);
 }
 
 main();

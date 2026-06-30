@@ -1,0 +1,56 @@
+{
+  "caseId": "HD-GOLD-0005",
+  "status": "real",
+  "compareEligible": true,
+  "provenance": {
+    "referenceSource": "Genetic Matrix",
+    "referenceCapturedAt": "2026-06-30",
+    "ephemerisBasis": "Swiss Ephemeris / True Node",
+    "boundaryFlag": false,
+    "notes": "Adolf Hitler. Left Angle cross (profile 5/1), Splenic Manifestor. LMT-donemi (UTC+01:06); engine dakikaya yuvarlar (Delta 21s) ama gate/line degismiyor. Bkz. technical debt notu."
+  },
+  "input": {
+    "date": "1889-04-20",
+    "time": "18:30",
+    "timezone": "Europe/Vienna",
+    "location": {
+      "city": "Braunau am Inn",
+      "country": "AT",
+      "lat": 48.258301,
+      "lon": 13.0333
+    }
+  },
+  "reference": {
+    "personality": {
+      "Sun":       { "gate": 3,  "line": 5 },
+      "Earth":     { "gate": 50, "line": 5 },
+      "NorthNode": { "gate": 39, "line": 6 },
+      "SouthNode": { "gate": 38, "line": 6 },
+      "Moon":      { "gate": 58, "line": 3 },
+      "Mercury":   { "gate": 42, "line": 6 },
+      "Venus":     { "gate": 2,  "line": 4 },
+      "Mars":      { "gate": 2,  "line": 4 },
+      "Jupiter":   { "gate": 58, "line": 5 },
+      "Saturn":    { "gate": 7,  "line": 1 },
+      "Uranus":    { "gate": 57, "line": 5 },
+      "Neptune":   { "gate": 20, "line": 1 },
+      "Pluto":     { "gate": 20, "line": 5 }
+    },
+    "design": {
+      "Sun":       { "gate": 41, "line": 1 },
+      "Earth":     { "gate": 31, "line": 1 },
+      "NorthNode": { "gate": 62, "line": 1 },
+      "SouthNode": { "gate": 61, "line": 1 },
+      "Moon":      { "gate": 18, "line": 3 },
+      "Mercury":   { "gate": 13, "line": 6 },
+      "Venus":     { "gate": 22, "line": 1 },
+      "Mars":      { "gate": 37, "line": 5 },
+      "Jupiter":   { "gate": 11, "line": 5 },
+      "Saturn":    { "gate": 7,  "line": 6 },
+      "Uranus":    { "gate": 32, "line": 2 },
+      "Neptune":   { "gate": 8,  "line": 6 },
+      "Pluto":     { "gate": 20, "line": 5 }
+    }
+  },
+  "tolerance": { "longitudeArcsec": 30, "exactGateLine": true }
+}

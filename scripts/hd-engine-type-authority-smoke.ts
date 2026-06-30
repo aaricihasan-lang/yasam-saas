@@ -23,6 +23,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0001": { type: "Generator", authority: "Sacral",    gmLabel: "Pure Generator / Sacral" },
   "HD-GOLD-0002": { type: "Generator", authority: "Sacral",    gmLabel: "Pure Generator / Sacral" },
   "HD-GOLD-0003": { type: "Manifestor", authority: "Emotional", gmLabel: "Emotional Manifestor / Solar Plexus" },
+  "HD-GOLD-0004": { type: "Generator", authority: "Emotional", gmLabel: "Emotional Generator / Solar Plexus" },
+  "HD-GOLD-0005": { type: "Manifestor", authority: "Splenic", gmLabel: "Splenic Manifestor / Splenic" },
 };
 
 function main(): void {
@@ -65,7 +67,7 @@ function main(): void {
     for (const e of errors) console.error("  - " + e);
     process.exit(1);
   }
-  console.log("CHECK: 3/3 golden case type + authority OK.");
+  console.log(`CHECK: ${Object.keys(EXPECTED).length}/${Object.keys(EXPECTED).length} golden case type + authority OK.`);
 }
 
 main();

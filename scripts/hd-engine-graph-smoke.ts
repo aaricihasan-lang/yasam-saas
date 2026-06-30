@@ -23,6 +23,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0001": { channels: ["1-8", "9-52", "26-44", "28-38"], definition: "split-small" },
   "HD-GOLD-0002": { channels: ["3-60", "4-63", "23-43", "27-50"], definition: "split-large" },
   "HD-GOLD-0003": { channels: ["21-45", "39-55"], definition: "split-small" },
+  "HD-GOLD-0004": { channels: ["6-59", "25-51", "30-41"], definition: "split-small" },
+  "HD-GOLD-0005": { channels: ["7-31", "18-58", "20-57"], definition: "single" },
 };
 
 function norm(ids: string[]): string {
@@ -72,7 +74,7 @@ function main(): void {
     for (const e of errors) console.error("  - " + e);
     process.exit(1);
   }
-  console.log("CHECK: 3/3 golden case channels + definition OK. (Type/Authority hesaplanmadı.)");
+  console.log(`CHECK: ${Object.keys(EXPECTED).length}/${Object.keys(EXPECTED).length} golden case channels + definition OK. (Type/Authority hesaplanmadı.)`);
 }
 
 main();
