@@ -105,5 +105,7 @@ export { computeDefinition } from "./definition";
 export type { DefinitionKind, DefinitionResult } from "./definition";
 export { computeTypeAndAuthority } from "./type-authority";
 export type { HdType, HdAuthority, TypeAuthorityResult } from "./type-authority";
+export { computeProfile, computeIncarnationCross } from "./profile-cross";
+export type { ProfileResult, IncarnationCross, CrossAngle } from "./profile-cross";
 export { buildChartGraph } from "./chart-graph";
 export type { ChartGraph } from "./chart-graph";
