@@ -1,8 +1,8 @@
-// FAZ 3A — Human Design Engine. Chart graf birleştirici.
+// FAZ 3A/3B — Human Design Engine. Chart graf birleştirici.
 //
 // Doğrulanmış aktivasyonlardan deterministik HD grafiği üretir:
-//   activeGates → definedChannels → definedCenters → definition
-// Type/Authority YOK (FAZ 3B).
+//   activeGates → definedChannels → definedCenters → definition (FAZ 3A)
+//   → type + authority (FAZ 3B)
 
 import {
   getActiveGates,
@@ -12,12 +12,21 @@ import {
   type Channel,
 } from "./channels";
 import { computeDefinition, type DefinitionResult } from "./definition";
+import {
+  computeTypeAndAuthority,
+  type HdAuthority,
+  type HdType,
+} from "./type-authority";
 
 export type ChartGraph = {
   activeGates: number[];
   definedChannels: Channel[];
   definedCenters: CenterName[];
   definition: DefinitionResult;
+  // FAZ 3B
+  type: HdType;
+  authority: HdAuthority;
+  motorToThroat: boolean;
 };
 
 /**
@@ -31,6 +40,15 @@ export function buildChartGraph(
   const definedChannels = getDefinedChannels(activeGates);
   const definedCenters = getDefinedCenters(definedChannels);
   const definition = computeDefinition(definedCenters, definedChannels, activeGates);
+  const ta = computeTypeAndAuthority(definedCenters, definition.components);
 
-  return { activeGates, definedChannels, definedCenters, definition };
+  return {
+    activeGates,
+    definedChannels,
+    definedCenters,
+    definition,
+    type: ta.type,
+    authority: ta.authority,
+    motorToThroat: ta.motorToThroat,
+  };
 }

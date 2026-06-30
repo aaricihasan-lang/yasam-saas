@@ -103,5 +103,7 @@ export {
 export type { Channel, CenterName } from "./channels";
 export { computeDefinition } from "./definition";
 export type { DefinitionKind, DefinitionResult } from "./definition";
+export { computeTypeAndAuthority } from "./type-authority";
+export type { HdType, HdAuthority, TypeAuthorityResult } from "./type-authority";
 export { buildChartGraph } from "./chart-graph";
 export type { ChartGraph } from "./chart-graph";
