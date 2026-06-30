@@ -31,6 +31,11 @@ import {
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType,
 } from "@/lib/cosmic/eclipses";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
+import {
+  getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
+  getLunarApsisEvents, getLunarSyzygyEvents,
+  type LunarApsisEvent, type LunarSyzygyEvent,
+} from "@/lib/cosmic/lunarOrbit";
 
 // ─── Uzman Modu aspect yardımcıları (FAZ 2C Adım 3) ────────────────────────────
 
@@ -90,6 +95,150 @@ type VocFilterState = {
   aspect: string;     // "all" | aspect türü
 };
 const DEFAULT_VOC_FILTERS: VocFilterState = { scope: "all", duration: "all", noAspectOnly: false, moonSign: "all", planet: "all", aspect: "all" };
+
+// ─── Ay Yörüngesi (FAZ 3C Adım 3 — normal kullanıcı) ───────────────────────────
+// Yalnız production lunarOrbit engine. Teknik alanlar (source/validation/id) gizli.
+
+const fmtKm = (n: number): string => `${Math.round(n).toLocaleString("tr-TR")} km`;
+
+function LunarApsisCard({ ev }: { ev: LunarApsisEvent }) {
+  const perigee = ev.kind === "perigee";
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 backdrop-blur-sm ${perigee ? "border-indigo-200/80 bg-indigo-50/60" : "border-slate-200/80 bg-slate-50/60"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className={`text-sm font-black ${perigee ? "text-indigo-700" : "text-slate-600"}`}>
+          {perigee ? "Sonraki Perigee (en yakın Ay)" : "Sonraki Apogee (en uzak Ay)"}
+        </p>
+        <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500 tabular-nums">{fmtKm(ev.distanceKm)}</span>
+      </div>
+      <p className="mt-1 text-[11px] font-semibold text-slate-500">{vocDateTime(ev.timeTR)} (TR)</p>
+      <p className="mt-0.5 text-[11px] text-slate-500">Görünen çap: {ev.apparentDiameterDeg}° · <span className="text-slate-400">Zaman hassasiyeti: dakika düzeyi</span></p>
+    </div>
+  );
+}
+
+function LunarSyzygyCard({ ev, label }: { ev: LunarSyzygyEvent; label: string }) {
+  const phase = ev.kind === "new-moon" ? "Yeniay" : "Dolunay";
+  const super_ = ev.isSupermoon;
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 backdrop-blur-sm ${super_ ? "border-amber-200/80 bg-amber-50/55" : "border-sky-200/80 bg-sky-50/55"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className={`text-sm font-black ${super_ ? "text-amber-700" : "text-sky-700"}`}>{label}</p>
+        <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500 tabular-nums">{fmtKm(ev.distanceKm)}</span>
+      </div>
+      <p className="mt-1 text-[11px] font-semibold text-slate-500">{phase} · {vocDateTime(ev.timeTR)} (TR)</p>
+      <p className="mt-0.5 text-[11px] text-slate-400">Nolle/Espenak %90 yaklaşımı</p>
+    </div>
+  );
+}
+
+type LunarItem =
+  | { type: "apsis"; ev: LunarApsisEvent; timeMs: number }
+  | { type: "syzygy"; ev: LunarSyzygyEvent; timeMs: number };
+type LunarFilterState = {
+  kind: "all" | "perigee" | "apogee" | "supermoon" | "micromoon" | "new-moon" | "full-moon";
+  period: "all" | "upcoming" | "past";
+};
+const DEFAULT_LUNAR_FILTERS: LunarFilterState = { kind: "all", period: "all" };
+
+function LunarExpertCard({ item, onClick }: { item: LunarItem; onClick: () => void }) {
+  const click = { role: "button" as const, tabIndex: 0, onClick,
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } };
+  const base = "cursor-pointer rounded-xl border px-3 py-2.5 backdrop-blur-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-300";
+  if (item.type === "apsis") {
+    const ev = item.ev; const perigee = ev.kind === "perigee";
+    return (
+      <div {...click} className={`${base} ${perigee ? "border-indigo-200/80 bg-indigo-50/55" : "border-slate-200/80 bg-slate-50/55"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`truncate text-sm font-black ${perigee ? "text-indigo-700" : "text-slate-600"}`}>{perigee ? "Perigee (en yakın Ay)" : "Apogee (en uzak Ay)"}</p>
+          <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500 tabular-nums">{fmtKm(ev.distanceKm)}</span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+          <span className="min-w-0 truncate">{vocDateTime(ev.timeTR)} (TR) · çap {ev.apparentDiameterDeg}°</span>
+          <span className="shrink-0 text-[10px] font-bold text-indigo-400">Detay →</span>
+        </div>
+      </div>
+    );
+  }
+  const ev = item.ev; const phase = ev.kind === "new-moon" ? "Yeniay" : "Dolunay";
+  return (
+    <div {...click} className={`${base} ${ev.isSupermoon ? "border-amber-200/80 bg-amber-50/50" : ev.isMicromoon ? "border-sky-200/80 bg-sky-50/50" : "border-violet-100/70 bg-white/60"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-black text-slate-700">{phase}{ev.isSupermoon ? " · Supermoon" : ev.isMicromoon ? " · Micromoon" : ""}</p>
+        <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500 tabular-nums">{fmtKm(ev.distanceKm)}</span>
+      </div>
+      <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span className="min-w-0 truncate">{vocDateTime(ev.timeTR)} (TR) · nolle %{ev.nollePercent}</span>
+        <span className="shrink-0 text-[10px] font-bold text-indigo-400">Detay →</span>
+      </div>
+    </div>
+  );
+}
+
+/** Uzman lunar detay paneli — tüm doğrulanmış alanlar. */
+function LunarDetail({ item, onClose }: { item: LunarItem; onClose: () => void }) {
+  const utc = (s: string) => s.slice(0, 16).replace("T", " ");
+  let title: string; let fields: [string, string][]; let notes: string[]; let definition: string | null = null; let source: string;
+  if (item.type === "apsis") {
+    const ev = item.ev;
+    title = `🌕 ${ev.kind === "perigee" ? "Perigee (en yakın Ay)" : "Apogee (en uzak Ay)"}`;
+    fields = [
+      ["Tür", ev.kind === "perigee" ? "Perigee" : "Apogee"],
+      ["Tarih (TR)", vocDateTime(ev.timeTR)],
+      ["UTC", utc(ev.timeUTC)],
+      ["Mesafe", fmtKm(ev.distanceKm)],
+      ["Mesafe (AU)", String(ev.distanceAu)],
+      ["Görünen çap", `${ev.apparentDiameterDeg}°`],
+      ["Zaman hassasiyeti", "dakika düzeyi"],
+      ["Doğrulama", "harness-doğrulanmış"],
+      ["Güven", ev.confidence],
+    ];
+    notes = ev.notes; source = ev.source;
+  } else {
+    const ev = item.ev;
+    title = `🌕 ${ev.kind === "new-moon" ? "Yeniay" : "Dolunay"}${ev.isSupermoon ? " · Supermoon" : ev.isMicromoon ? " · Micromoon" : ""}`;
+    fields = [
+      ["Tür", ev.kind === "new-moon" ? "Yeniay" : "Dolunay"],
+      ["Tarih (TR)", vocDateTime(ev.timeTR)],
+      ["UTC", utc(ev.timeUTC)],
+      ["Mesafe", fmtKm(ev.distanceKm)],
+      ["Mesafe (AU)", String(ev.distanceAu)],
+      ["Görünen çap", `${ev.apparentDiameterDeg}°`],
+      ["Nolle %", String(ev.nollePercent)],
+      ["Supermoon", ev.isSupermoon ? "Evet" : "Hayır"],
+      ["Micromoon", ev.isMicromoon ? "Evet" : "Hayır"],
+      ["Sabit ≤360k (yardımcı)", ev.fixedThresholdSuperCheck ? "Evet" : "Hayır"],
+      ["Sabit ≥405k (yardımcı)", ev.fixedThresholdMicroCheck ? "Evet" : "Hayır"],
+      ["En yakın perigee", ev.nearestPerigee ? fmtKm(ev.nearestPerigee.distanceKm) : "—"],
+      ["En yakın apogee", ev.nearestApogee ? fmtKm(ev.nearestApogee.distanceKm) : "—"],
+      ["Mesafe tipi", "geocentric merkez-merkez"],
+      ["Doğrulama", "harness-doğrulanmış"],
+      ["Güven", ev.confidence],
+    ];
+    notes = ev.notes; definition = ev.definition; source = ev.source;
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose} role="dialog" aria-modal="true">
+      <div onClick={e => e.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-indigo-100 bg-white p-4 shadow-xl sm:rounded-2xl">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="text-base font-black text-indigo-700">{title}</p>
+          <button type="button" onClick={onClose} aria-label="Kapat" className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-bold text-slate-500 hover:bg-slate-50">✕</button>
+        </div>
+        <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {fields.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-2 rounded-lg bg-slate-50/70 px-2.5 py-1.5">
+              <dt className="text-[11px] font-semibold text-slate-500">{k}</dt>
+              <dd className="text-right text-[11px] font-bold tabular-nums text-slate-800">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {notes.length > 0 && <p className="mt-2 rounded-lg bg-amber-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700">{notes.join(" ")}</p>}
+        {definition && <p className="mt-2 rounded-lg bg-indigo-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-indigo-600">{definition}</p>}
+        <p className="mt-1 text-[10px] leading-snug text-slate-400">Kaynak: {source}. Yalnız doğrulanmış astronomik veri; yorum/kehanet içermez.</p>
+      </div>
+    </div>
+  );
+}
 
 function VocCard({ period, onClick }: { period: VoidMoonPeriod; onClick?: () => void }) {
   const p = period;
@@ -689,6 +838,9 @@ export default function CosmicCalendarPage() {
   const [vocExpert,        setVocExpert]        = useState(false);   // VOC uzman modu
   const [vocFilters,       setVocFilters]       = useState<VocFilterState>(DEFAULT_VOC_FILTERS);
   const [vocDetail,        setVocDetail]        = useState<VoidMoonPeriod | null>(null);
+  const [lunarExpert,      setLunarExpert]      = useState(false);   // Ay Yörüngesi uzman modu
+  const [lunarFilters,     setLunarFilters]     = useState<LunarFilterState>(DEFAULT_LUNAR_FILTERS);
+  const [lunarDetail,      setLunarDetail]      = useState<LunarItem | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const searchRef    = useRef<HTMLInputElement>(null);
 
@@ -840,6 +992,44 @@ export default function CosmicCalendarPage() {
     const upcoming = getUpcomingVoidMoonPeriods(realNow, 6);
     return { cur, isVoidNow, nowMs, voidStartMs, voidEndMs, upcoming };
   }, [realNow]);
+
+  // ── Ay Yörüngesi (FAZ 3C) — yalnız production engine ──
+  const lunarData = useMemo(() => {
+    const snap = getLunarDistanceSnapshot(realNow);
+    const apsides = getUpcomingLunarApsisEvents(realNow, 4);
+    const nextPerigee = apsides.find(a => a.kind === "perigee") ?? null;
+    const nextApogee = apsides.find(a => a.kind === "apogee") ?? null;
+    const horizon = new Date(realNow.getTime() + 400 * 86_400_000);
+    const nextSuper = getSupermoonEvents(realNow, horizon)[0] ?? null;
+    const nextMicro = getMicromoonEvents(realNow, horizon)[0] ?? null;
+    return { snap, nextPerigee, nextApogee, nextSuper, nextMicro };
+  }, [realNow]);
+
+  // Uzman: ~230 günlük apsis + syzygy listesi (filtrelenir; yeni hesap yok)
+  const lunarExpertList = useMemo<LunarItem[]>(() => {
+    if (!lunarExpert) return [];
+    const from = new Date(realNow.getTime() - 30 * 86_400_000);
+    const end = new Date(realNow.getTime() + 200 * 86_400_000);
+    const apsides: LunarItem[] = getLunarApsisEvents(from, end).map(a => ({ type: "apsis", ev: a, timeMs: Date.parse(a.timeUTC) }));
+    const syzygies: LunarItem[] = getLunarSyzygyEvents(from, end).map(s => ({ type: "syzygy", ev: s, timeMs: Date.parse(s.timeUTC) }));
+    return [...apsides, ...syzygies].sort((a, b) => a.timeMs - b.timeMs);
+  }, [lunarExpert, realNow]);
+
+  const lunarFiltered = useMemo<LunarItem[]>(() => {
+    const now = realNow.getTime();
+    return lunarExpertList.filter(it => {
+      const future = it.timeMs >= now;
+      if (lunarFilters.period === "upcoming" && !future) return false;
+      if (lunarFilters.period === "past" && future) return false;
+      const k = lunarFilters.kind;
+      if (k === "all") return true;
+      if (it.type === "apsis") return k === it.ev.kind;
+      if (k === "supermoon") return it.ev.isSupermoon;
+      if (k === "micromoon") return it.ev.isMicromoon;
+      return k === it.ev.kind;
+    });
+  }, [lunarExpertList, lunarFilters, realNow]);
+  const lunarFiltersActive = lunarFilters.kind !== "all" || lunarFilters.period !== "all";
 
   // Uzman: ~60 günlük VOC listesi (filtrelenir; yeni hesap yok — engine'den)
   const vocExpertList = useMemo<VoidMoonPeriod[]>(() => {
@@ -1772,6 +1962,94 @@ export default function CosmicCalendarPage() {
           </p>
 
           {vocDetail && <VocDetail period={vocDetail} onClose={() => setVocDetail(null)} />}
+        </section>
+
+        {/* ── Ay Yörüngesi (FAZ 3C Adım 3) ── */}
+        <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/70 via-slate-50/55 to-sky-50/70 p-4 shadow-sm backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-700">🌕 Ay Yörüngesi</p>
+            <button
+              type="button"
+              onClick={() => setLunarExpert(v => !v)}
+              aria-pressed={lunarExpert}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                lunarExpert ? "border-indigo-300 bg-indigo-600 text-white" : "border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-white"
+              }`}
+            >
+              {lunarExpert ? "Uzman Modu: Açık" : "Uzman Modu"}
+            </button>
+          </div>
+          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">Ay-Dünya mesafesi, perigee/apogee ve Supermoon/Micromoon olayları.</p>
+
+          {/* 1. Şu anki mesafe */}
+          <div className="mb-3 rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5">
+            <p className="text-[12px] font-semibold text-slate-600">Ay-Dünya mesafesi: <span className="text-base font-black text-indigo-700 tabular-nums">{fmtKm(lunarData.snap.distanceKm)}</span></p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Görünen çap: {lunarData.snap.apparentDiameterDeg}° · Mesafe tipi: Dünya merkezi ↔ Ay merkezi (geocentric)</p>
+          </div>
+
+          {!lunarExpert ? (
+            <>
+              {/* 2. Yaklaşan perigee/apogee */}
+              {(lunarData.nextPerigee || lunarData.nextApogee) && (
+                <>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan en yakın / en uzak Ay</p>
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {lunarData.nextPerigee && <LunarApsisCard ev={lunarData.nextPerigee} />}
+                    {lunarData.nextApogee && <LunarApsisCard ev={lunarData.nextApogee} />}
+                  </div>
+                </>
+              )}
+              {/* 3. Yaklaşan supermoon/micromoon */}
+              {(lunarData.nextSuper || lunarData.nextMicro) && (
+                <>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Yaklaşan Supermoon / Micromoon</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {lunarData.nextSuper && <LunarSyzygyCard ev={lunarData.nextSuper} label="Yaklaşan Supermoon" />}
+                    {lunarData.nextMicro && <LunarSyzygyCard ev={lunarData.nextMicro} label="Yaklaşan Micromoon" />}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Kapsam / tanım paneli */}
+              <div className="mb-2 rounded-xl border border-indigo-100 bg-white/60 px-3 py-2 text-[10px] leading-snug text-slate-500">
+                Mesafe tipi: <b>geocentric merkez-merkez</b> · Supermoon/Micromoon: <b>Nolle/Espenak %90</b> · Sabit eşikler: yalnız yardımcı · Topocentric: varsayılan değil · Apsis zamanı: dakika düzeyi.
+              </div>
+              {/* Filtreler */}
+              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-indigo-100 bg-white/60 px-3 py-2.5">
+                {([["all", "Tümü"], ["perigee", "Perigee"], ["apogee", "Apogee"], ["supermoon", "Supermoon"], ["micromoon", "Micromoon"], ["new-moon", "Yeniay"], ["full-moon", "Dolunay"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setLunarFilters(f => ({ ...f, kind: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${lunarFilters.kind === k ? "border-indigo-400 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                <span className="mx-0.5 text-slate-300">|</span>
+                {([["all", "Hepsi"], ["upcoming", "Yaklaşan"], ["past", "Geçmiş"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setLunarFilters(f => ({ ...f, period: k }))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${lunarFilters.period === k ? "border-sky-400 bg-sky-600 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{l}</button>
+                ))}
+                {lunarFiltersActive && (
+                  <button type="button" onClick={() => setLunarFilters(DEFAULT_LUNAR_FILTERS)}
+                    className="ml-auto rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">Temizle</button>
+                )}
+              </div>
+              {lunarFiltered.length === 0 ? (
+                <p className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">Filtrelerle eşleşen olay yok.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {lunarFiltered.map(it => <LunarExpertCard key={it.ev.id} item={it} onClick={() => setLunarDetail(it)} />)}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Tanım etiketi */}
+          <p className="mt-3 text-[10px] leading-snug text-slate-400">
+            Mesafe: geocentric merkez-merkez Ay-Dünya mesafesidir (Dünya merkezi ↔ Ay merkezi).
+            Supermoon/Micromoon etiketi Nolle/Espenak %90 perigee-apogee yaklaşımına göre hesaplanır; ham mesafe (km) her zaman gösterilir.
+            Sabit km eşikleri (≤360.000 / ≥405.000 km) yalnız yardımcı çapraz kontroldür; birincil tanım değildir.
+          </p>
+
+          {lunarDetail && <LunarDetail item={lunarDetail} onClose={() => setLunarDetail(null)} />}
         </section>
 
         {/* ── Ana 2-Kolon Grid ── */}

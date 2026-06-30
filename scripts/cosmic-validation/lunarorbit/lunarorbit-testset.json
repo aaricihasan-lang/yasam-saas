@@ -1,0 +1,14 @@
+{
+  "_comment": "FAZ 3C Adim 1 — Lunar Orbit dogrulama test seti. Mesafe=geocentric merkez-merkez. Supermoon/Micromoon=Nolle/Espenak %90 perigee-apogee yaklasimi (ham distance_km her zaman saklanir). Sabit esik (<=360000 / >=405000 km) yalniz capraz kontrol. Production'a dahil DEGILDIR.",
+  "auKm": 149597870.7,
+  "nollePct": 0.10,
+  "fixedSuperKm": 360000,
+  "fixedMicroKm": 405000,
+  "windows": [
+    { "id": "2026-full", "start": "2026-01-01", "end": "2027-01-01", "distanceSamples": 24 },
+    { "id": "2030-spot", "start": "2030-01-01", "end": "2030-04-01", "distanceSamples": 8 },
+    { "id": "2035-spot", "start": "2035-06-01", "end": "2035-09-01", "distanceSamples": 8 },
+    { "id": "2040-spot", "start": "2040-09-01", "end": "2040-12-01", "distanceSamples": 8 },
+    { "id": "2050-spot", "start": "2050-01-01", "end": "2050-04-01", "distanceSamples": 8 }
+  ]
+}

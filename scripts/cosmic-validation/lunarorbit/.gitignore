@@ -1,0 +1,7 @@
+# Uretilen lunar orbit dogrulama artefaktlari — commit edilmez
+swe-lunarorbit.json
+ae-lunarorbit.json
+ae-prod-lunarorbit.json
+lunarorbit-report.json
+*.png
+*.log
