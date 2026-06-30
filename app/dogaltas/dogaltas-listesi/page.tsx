@@ -5,6 +5,7 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   Fragment,
   Suspense,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -215,6 +216,442 @@ const uiBadgeImage = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emera
 const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
 const uiRowCheckbox =
   "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-emerald-300 text-emerald-600 shadow-sm accent-emerald-600 focus:ring-2 focus:ring-emerald-300/40";
+
+// ─── Memoize edilmiş satır bileşenleri ──────────────────────────────────────
+// Satırlar React.memo ile sarılır; yalnızca prop'ları değişen satır yeniden
+// render olur (seçim/tuş = tüm-liste re-render fırtınası biter). Davranış ve
+// markup birebir korunur; çift DOM (mobil+masaüstü) bilinçli olarak değişmedi.
+type StoneRowSharedProps = {
+  stone: StoneListItem;
+  isSelected: boolean;
+  isViewedInSearch: boolean;
+  isLastViewed: boolean;
+  isSearchActive: boolean;
+  activeSearch: string;
+  filterQueryString: string;
+  isDemo: boolean;
+  onToggleSelect: (id: string) => void;
+  onNavigate: (id: string) => void;
+  onDelete: (stone: StoneListItem) => void;
+};
+
+const StoneListRow = memo(function StoneListRow({
+  stone,
+  isSelected,
+  isViewedInSearch,
+  isLastViewed,
+  isSearchActive,
+  activeSearch,
+  filterQueryString,
+  isDemo,
+  onToggleSelect,
+  onNavigate,
+  onDelete,
+}: StoneRowSharedProps) {
+  const imageCount = stoneListImageCount(stone.images);
+  const coverImageUrl = getFirstStoneImageUrl(stone.images);
+  const detailHref = stoneDetailHref(stone.id, filterQueryString);
+  const displayName = stone.stone_name || "İsimsiz taş";
+  const displayDescription = safeText(stone.short_description);
+
+  return (
+    <Fragment>
+      {/* Mobile row: slim list style */}
+      <div
+        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-emerald-50/50 md:hidden ${
+          isSelected ? "bg-violet-50/40" : isLastViewed ? "bg-rose-50/60" : ""
+        } ${
+          isViewedInSearch
+            ? "border-l-4 border-rose-500"
+            : isSearchActive
+              ? "border-l-4 border-amber-400"
+              : ""
+        }`}
+      >
+        {isViewedInSearch ? (
+          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
+        ) : null}
+        {!isDemo && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(stone.id)}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`${displayName} seç`}
+            className={uiRowCheckbox}
+          />
+        )}
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className="flex min-w-0 flex-1 items-center gap-2"
+        >
+          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
+            {coverImageUrl ? (
+              <img
+                src={coverImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-base">
+                💎
+              </span>
+            )}
+          </div>
+          <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
+            {isSearchActive
+              ? renderHighlightedText(displayName, activeSearch)
+              : displayName}
+          </span>
+        </Link>
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className="shrink-0 text-xs font-bold text-emerald-600 hover:text-violet-700"
+        >
+          Detay→
+        </Link>
+        {!isDemo && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onDelete(stone);
+            }}
+            className="btn-danger shrink-0 !min-h-[44px] !rounded-lg !px-2.5 !text-xs"
+          >
+            Sil
+          </button>
+        )}
+      </div>
+
+      {/* Desktop row: all 7 columns */}
+      <div
+        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-emerald-100 px-4 py-3 transition-colors hover:bg-emerald-50/70 md:grid ${
+          isSelected ? "bg-violet-50/60" : isLastViewed ? "bg-rose-50/50" : ""
+        } ${
+          isViewedInSearch
+            ? "border-l-4 border-rose-600"
+            : isSearchActive
+              ? "border-l-4 border-amber-400"
+              : ""
+        }`}
+      >
+        {isViewedInSearch ? (
+          <span
+            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+            aria-hidden
+          />
+        ) : null}
+        <div className="flex items-center">
+          {!isDemo && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(stone.id)}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+              className={uiRowCheckbox}
+            />
+          )}
+        </div>
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
+        >
+          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-emerald-50 ring-1 ring-emerald-100">
+            {coverImageUrl ? (
+              <img
+                src={coverImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-[20px]">
+                💎
+              </span>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            {isSearchActive ? (
+              <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+                {isViewedInSearch ? (
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                    Bakıldı
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="truncate text-sm font-black text-slate-950 xl:text-base">
+              {isSearchActive
+                ? renderHighlightedText(displayName, activeSearch)
+                : displayName}
+            </div>
+
+            <div className="mt-0.5 text-xs font-bold text-emerald-700 hover:text-violet-700 xl:text-sm">
+              Detayı aç →
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
+        >
+          {isSearchActive
+            ? renderHighlightedText(displayDescription, activeSearch)
+            : displayDescription}
+        </Link>
+
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {(stone.chakras || []).slice(0, 2).map((chakra) => (
+              <span
+                key={chakra}
+                className={uiBadgeChakra}
+              >
+                {chakra}
+              </span>
+            ))}
+
+            {(stone.chakras || []).length === 0 && (
+              <span className="text-[11px] font-bold text-slate-300">
+                -
+              </span>
+            )}
+          </div>
+        </Link>
+
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
+        >
+          <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
+
+          {imageCount > 0 && (
+            <span className={uiBadgeImage}>
+              {imageCount} görsel
+            </span>
+          )}
+        </Link>
+
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
+        >
+          {formatDate(stone.updated_at)}
+        </Link>
+
+        <div className="flex flex-col items-end justify-center">
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onDelete(stone);
+              }}
+              className="btn-danger !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
+            >
+              Sil
+            </button>
+          )}
+        </div>
+      </div>
+    </Fragment>
+  );
+});
+
+const StoneCard = memo(function StoneCard({
+  stone,
+  isSelected,
+  isViewedInSearch,
+  isLastViewed,
+  isSearchActive,
+  activeSearch,
+  filterQueryString,
+  isDemo,
+  onToggleSelect,
+  onNavigate,
+  onDelete,
+}: StoneRowSharedProps) {
+  const imageCount = stoneListImageCount(stone.images);
+  const coverImageUrl = getFirstStoneImageUrl(stone.images);
+  const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
+  const detailHref = stoneDetailHref(stone.id, filterQueryString);
+  const displayName = stone.stone_name || "İsimsiz taş";
+  const displayDescription = safeText(stone.short_description, 120);
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[18px] border-[3px] bg-white/85 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.10)] transition-all duration-300 hover:-translate-y-0.5 ${
+        isSelected
+          ? "border-violet-400/70 bg-violet-50/50"
+          : isLastViewed
+            ? "border-rose-200 bg-rose-50/50 ring-1 ring-rose-100"
+            : "border-emerald-300/40 hover:border-violet-300/50"
+      } ${
+        isViewedInSearch
+          ? "border-l-4 border-rose-600"
+          : isSearchActive
+            ? "border-l-4 border-amber-400"
+            : ""
+      }`}
+    >
+      {isViewedInSearch ? (
+        <span
+          className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+          aria-hidden
+        />
+      ) : null}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        {!isDemo ? (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(stone.id)}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
+            className={uiRowCheckbox}
+          />
+        ) : <span />}
+        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+          {isLibraryStone ? "Kütüphane" : isDemo ? "" : "Seç"}
+        </span>
+      </div>
+      <Link
+        href={detailHref}
+        onClick={() => {
+          if (isSearchActive) onNavigate(stone.id);
+        }}
+        className={`group block ${isViewedInSearch ? "pl-2" : ""}`}
+      >
+        {isSearchActive ? (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
+            {isViewedInSearch ? (
+              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+                Bakıldı
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
+            {coverImageUrl ? (
+              <img
+                src={coverImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-[22px]">
+                💎
+              </span>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="truncate text-base font-black text-slate-950 xl:text-lg">
+                {isSearchActive
+                  ? renderHighlightedText(displayName, activeSearch)
+                  : displayName}
+              </h3>
+
+              <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
+                {formatDate(stone.updated_at)}
+              </span>
+            </div>
+
+            <p className="mt-2 min-h-[42px] text-[12px] leading-5 text-slate-500">
+              {isSearchActive
+                ? renderHighlightedText(displayDescription, activeSearch)
+                : displayDescription}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {(stone.chakras || []).slice(0, 3).map((chakra) => (
+                <span
+                  key={chakra}
+                  className={uiBadgeChakra}
+                >
+                  {chakra}
+                </span>
+              ))}
+
+              <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
+
+              {imageCount > 0 && (
+                <span className={uiBadgeImage}>
+                  {imageCount} görsel
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+        <Link
+          href={detailHref}
+          onClick={() => {
+            onNavigate(stone.id);
+          }}
+          className="text-xs font-bold text-emerald-700 transition hover:text-violet-700 xl:text-sm"
+        >
+          Detay sayfasında oku →
+        </Link>
+
+        {!isDemo && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onDelete(stone);
+            }}
+            className="btn-danger shrink-0 !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
+          >
+            Sil
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
 
 function DogaltasListesiPageContent() {
   const deleteConfirm = useDeleteConfirm();
@@ -690,9 +1127,13 @@ function DogaltasListesiPageContent() {
     if (ownIds.length > 0) await fetchList({ reset: true });
   }, [deleteConfirm, detailData, fetchList, queryTenantId, selectedIds, showToast, stones, isDemo]);
 
-  const loadedImages = filteredStones.reduce(
-    (total, stone) => total + stoneListImageCount(stone.images),
-    0,
+  const loadedImages = useMemo(
+    () =>
+      filteredStones.reduce(
+        (total, stone) => total + stoneListImageCount(stone.images),
+        0,
+      ),
+    [filteredStones],
   );
 
   const exportStonesWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
@@ -1083,412 +1524,42 @@ function DogaltasListesiPageContent() {
               </div>
 
               <div>
-                {filteredStones.map((stone) => {
-                  const imageCount = stoneListImageCount(stone.images);
-                  const coverImageUrl = getFirstStoneImageUrl(stone.images);
-                  const isSelected = selectedIds.has(stone.id);
-                  const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
-                  const isViewedInSearch =
-                    isSearchActive && viewedStoneIds.has(stone.id);
-                  const isLastViewed = stone.id === lastViewedStoneId;
-                  const detailHref = stoneDetailHref(stone.id, filterQueryString);
-                  const displayName = stone.stone_name || "İsimsiz taş";
-                  const displayDescription = safeText(stone.short_description);
-
-                  return (
-                    <Fragment key={stone.id}>
-                      {/* Mobile row: slim list style */}
-                      <div
-                        className={`relative flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 transition-colors hover:bg-emerald-50/50 md:hidden ${
-                          isSelected ? "bg-violet-50/40" : isLastViewed ? "bg-rose-50/60" : ""
-                        } ${
-                          isViewedInSearch
-                            ? "border-l-4 border-rose-500"
-                            : isSearchActive
-                              ? "border-l-4 border-amber-400"
-                              : ""
-                        }`}
-                      >
-                        {isViewedInSearch ? (
-                          <span className="absolute bottom-0 left-0 top-0 w-1 bg-rose-500" aria-hidden />
-                        ) : null}
-                        {!isDemo && (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleStoneSelection(stone.id)}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`${displayName} seç`}
-                            className={uiRowCheckbox}
-                          />
-                        )}
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className="flex min-w-0 flex-1 items-center gap-2"
-                        >
-                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
-                            {coverImageUrl ? (
-                              <img
-                                src={coverImageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center text-base">
-                                💎
-                              </span>
-                            )}
-                          </div>
-                          <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
-                            {isSearchActive
-                              ? renderHighlightedText(displayName, activeSearch)
-                              : displayName}
-                          </span>
-                        </Link>
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className="shrink-0 text-xs font-bold text-emerald-600 hover:text-violet-700"
-                        >
-                          Detay→
-                        </Link>
-                        {!isDemo && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setStoneToDelete(stone);
-                            }}
-                            className="btn-danger shrink-0 !min-h-[44px] !rounded-lg !px-2.5 !text-xs"
-                          >
-                            Sil
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Desktop row: all 7 columns */}
-                      <div
-                        className={`relative hidden grid-cols-[auto_1.2fr_1.7fr_0.75fr_0.6fr_0.55fr_0.45fr] gap-3 overflow-hidden border-b border-emerald-100 px-4 py-3 transition-colors hover:bg-emerald-50/70 md:grid ${
-                          isSelected ? "bg-violet-50/60" : isLastViewed ? "bg-rose-50/50" : ""
-                        } ${
-                          isViewedInSearch
-                            ? "border-l-4 border-rose-600"
-                            : isSearchActive
-                              ? "border-l-4 border-amber-400"
-                              : ""
-                        }`}
-                      >
-                        {isViewedInSearch ? (
-                          <span
-                            className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-                            aria-hidden
-                          />
-                        ) : null}
-                        <div className="flex items-center">
-                          {!isDemo && (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleStoneSelection(stone.id)}
-                              onClick={(event) => event.stopPropagation()}
-                              aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                              className={uiRowCheckbox}
-                            />
-                          )}
-                        </div>
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className={`flex min-w-0 items-center gap-3 ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-emerald-50 ring-1 ring-emerald-100">
-                            {coverImageUrl ? (
-                              <img
-                                src={coverImageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center text-[20px]">
-                                💎
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            {isSearchActive ? (
-                              <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                                <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                                {isViewedInSearch ? (
-                                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                    Bakıldı
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            <div className="truncate text-sm font-black text-slate-950 xl:text-base">
-                              {isSearchActive
-                                ? renderHighlightedText(displayName, activeSearch)
-                                : displayName}
-                            </div>
-
-                            <div className="mt-0.5 text-xs font-bold text-emerald-700 hover:text-violet-700 xl:text-sm">
-                              Detayı aç →
-                            </div>
-                          </div>
-                        </Link>
-
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className={`flex items-center text-sm font-medium leading-6 text-slate-600 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          {isSearchActive
-                            ? renderHighlightedText(displayDescription, activeSearch)
-                            : displayDescription}
-                        </Link>
-
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className={`flex items-center ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          <div className="flex flex-wrap gap-1.5">
-                            {(stone.chakras || []).slice(0, 2).map((chakra) => (
-                              <span
-                                key={chakra}
-                                className={uiBadgeChakra}
-                              >
-                                {chakra}
-                              </span>
-                            ))}
-
-                            {(stone.chakras || []).length === 0 && (
-                              <span className="text-[11px] font-bold text-slate-300">
-                                -
-                              </span>
-                            )}
-                          </div>
-                        </Link>
-
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className={`flex items-center gap-1.5 ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
-
-                          {imageCount > 0 && (
-                            <span className={uiBadgeImage}>
-                              {imageCount} görsel
-                            </span>
-                          )}
-                        </Link>
-
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            handleStoneNavigate(stone.id);
-                          }}
-                          className={`flex items-center text-sm font-black text-slate-500 xl:text-base ${isViewedInSearch ? "pl-2" : ""}`}
-                        >
-                          {formatDate(stone.updated_at)}
-                        </Link>
-
-                        <div className="flex flex-col items-end justify-center">
-                          {!isDemo && (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setStoneToDelete(stone);
-                              }}
-                              className="btn-danger !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
-                            >
-                              Sil
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </Fragment>
-                  );
-                })}
+                {filteredStones.map((stone) => (
+                  <StoneListRow
+                    key={stone.id}
+                    stone={stone}
+                    isSelected={selectedIds.has(stone.id)}
+                    isViewedInSearch={isSearchActive && viewedStoneIds.has(stone.id)}
+                    isLastViewed={stone.id === lastViewedStoneId}
+                    isSearchActive={isSearchActive}
+                    activeSearch={activeSearch}
+                    filterQueryString={filterQueryString}
+                    isDemo={isDemo}
+                    onToggleSelect={toggleStoneSelection}
+                    onNavigate={handleStoneNavigate}
+                    onDelete={setStoneToDelete}
+                  />
+                ))}
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredStones.map((stone) => {
-                const imageCount = stoneListImageCount(stone.images);
-                const coverImageUrl = getFirstStoneImageUrl(stone.images);
-                const isSelected = selectedIds.has(stone.id);
-                const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
-                const isViewedInSearch =
-                  isSearchActive && viewedStoneIds.has(stone.id);
-                const isLastViewed = stone.id === lastViewedStoneId;
-                const detailHref = stoneDetailHref(stone.id, filterQueryString);
-                const displayName = stone.stone_name || "İsimsiz taş";
-                const displayDescription = safeText(stone.short_description, 120);
-
-                return (
-                  <div
-                    key={stone.id}
-                    className={`relative overflow-hidden rounded-[18px] border-[3px] bg-white/85 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.10)] transition-all duration-300 hover:-translate-y-0.5 ${
-                      isSelected
-                        ? "border-violet-400/70 bg-violet-50/50"
-                        : isLastViewed
-                          ? "border-rose-200 bg-rose-50/50 ring-1 ring-rose-100"
-                          : "border-emerald-300/40 hover:border-violet-300/50"
-                    } ${
-                      isViewedInSearch
-                        ? "border-l-4 border-rose-600"
-                        : isSearchActive
-                          ? "border-l-4 border-amber-400"
-                          : ""
-                    }`}
-                  >
-                    {isViewedInSearch ? (
-                      <span
-                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
-                        aria-hidden
-                      />
-                    ) : null}
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      {!isDemo ? (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleStoneSelection(stone.id)}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`${stone.stone_name || "İsimsiz taş"} seç`}
-                          className={uiRowCheckbox}
-                        />
-                      ) : <span />}
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        {isLibraryStone ? "Kütüphane" : isDemo ? "" : "Seç"}
-                      </span>
-                    </div>
-                    <Link
-                      href={detailHref}
-                      onClick={() => {
-                        if (isSearchActive) handleStoneNavigate(stone.id);
-                      }}
-                      className={`group block ${isViewedInSearch ? "pl-2" : ""}`}
-                    >
-                      {isSearchActive ? (
-                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                          <span className={SEARCH_MATCH_BADGE_CLASS}>🔎 Eşleşme Var</span>
-                          {isViewedInSearch ? (
-                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                              Bakıldı
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
-                          {coverImageUrl ? (
-                            <img
-                              src={coverImageUrl}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[22px]">
-                              💎
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="truncate text-base font-black text-slate-950 xl:text-lg">
-                              {isSearchActive
-                                ? renderHighlightedText(displayName, activeSearch)
-                                : displayName}
-                            </h3>
-
-                            <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
-                              {formatDate(stone.updated_at)}
-                            </span>
-                          </div>
-
-                          <p className="mt-2 min-h-[42px] text-[12px] leading-5 text-slate-500">
-                            {isSearchActive
-                              ? renderHighlightedText(displayDescription, activeSearch)
-                              : displayDescription}
-                          </p>
-
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {(stone.chakras || []).slice(0, 3).map((chakra) => (
-                              <span
-                                key={chakra}
-                                className={uiBadgeChakra}
-                              >
-                                {chakra}
-                              </span>
-                            ))}
-
-                            <span className={uiBadgeSection}>{listSummaryLabel(stone)}</span>
-
-                            {imageCount > 0 && (
-                              <span className={uiBadgeImage}>
-                                {imageCount} görsel
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-
-                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                      <Link
-                        href={detailHref}
-                        onClick={() => {
-                          handleStoneNavigate(stone.id);
-                        }}
-                        className="text-xs font-bold text-emerald-700 transition hover:text-violet-700 xl:text-sm"
-                      >
-                        Detay sayfasında oku →
-                      </Link>
-
-                      {!isDemo && (
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setStoneToDelete(stone);
-                          }}
-                          className="btn-danger shrink-0 !min-h-[32px] !rounded-lg !px-3 !py-1.5 !text-xs"
-                        >
-                          Sil
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredStones.map((stone) => (
+                <StoneCard
+                  key={stone.id}
+                  stone={stone}
+                  isSelected={selectedIds.has(stone.id)}
+                  isViewedInSearch={isSearchActive && viewedStoneIds.has(stone.id)}
+                  isLastViewed={stone.id === lastViewedStoneId}
+                  isSearchActive={isSearchActive}
+                  activeSearch={activeSearch}
+                  filterQueryString={filterQueryString}
+                  isDemo={isDemo}
+                  onToggleSelect={toggleStoneSelection}
+                  onNavigate={handleStoneNavigate}
+                  onDelete={setStoneToDelete}
+                />
+              ))}
             </div>
           )}
 
