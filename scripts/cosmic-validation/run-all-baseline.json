@@ -1,0 +1,37 @@
+{
+  "note": "Kozmik Ajanda kilitli doğrulama baseline'ı — run-all.mjs sinyalleri. Sapma = regresyon. Yalnız --update-baseline ile bilinçli güncellenir.",
+  "harnesses": {
+    "2c": {
+      "setTotal": "208|208",
+      "matched": "208|0|0",
+      "konum": "GECTI",
+      "zaman": "GECTI",
+      "kume": "TAM|208/208",
+      "motSigned": "208/208|0",
+      "motTotal": "208/208|0",
+      "motPass": "208/208|0",
+      "motGenel": "GEÇTİ"
+    },
+    "3a": {
+      "solarSet": "56|56|56|0",
+      "solarType": "56/56",
+      "lunarSet": "57|57|57|0",
+      "lunarType": "57/57",
+      "peak": "GEÇTİ",
+      "tur": "GEÇTİ"
+    },
+    "3b": {
+      "aspectsiz": "1|1|0",
+      "ingress": "GEÇTİ",
+      "voc": "GEÇTİ",
+      "tr": "GEÇTİ"
+    },
+    "3c": {
+      "supermoon": "15|0",
+      "mesafe": "GECTI",
+      "apsis": "GECTI",
+      "syzygy": "GECTI",
+      "cls": "GECTI"
+    }
+  }
+}
