@@ -109,3 +109,14 @@ export { computeProfile, computeIncarnationCross } from "./profile-cross";
 export type { ProfileResult, IncarnationCross, CrossAngle } from "./profile-cross";
 export { buildChartGraph } from "./chart-graph";
 export type { ChartGraph } from "./chart-graph";
+// FAZ 5 / ADIM 1 — üretim giriş noktası + sözleşme + doğrulama durumu
+export { computeHumanDesignChart } from "./compute";
+export { annotateValidationStatus } from "./validation-status";
+export type { ValidationStatus } from "./validation-status";
+export type {
+  HdChartResult,
+  ChartMeta,
+  ChannelSummary,
+  DefinitionSummary,
+  CentersState,
+} from "./contract";
