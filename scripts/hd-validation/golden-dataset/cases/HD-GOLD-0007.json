@@ -1,0 +1,56 @@
+{
+  "caseId": "HD-GOLD-0007",
+  "status": "real",
+  "compareEligible": true,
+  "provenance": {
+    "referenceSource": "Genetic Matrix",
+    "referenceCapturedAt": "2026-06-30",
+    "ephemerisBasis": "Swiss Ephemeris / True Node",
+    "boundaryFlag": false,
+    "notes": "Agatha Christie (chart 1980 tarihli). Emotional Manifestor, Triple Split, profil 6/2 (Left Angle). UK BST (UTC+01:00); tz donusumu Delta=0s."
+  },
+  "input": {
+    "date": "1980-09-15",
+    "time": "02:14",
+    "timezone": "Europe/London",
+    "location": {
+      "city": "England",
+      "country": "GB",
+      "lat": 52.5310214,
+      "lon": -1.2649062
+    }
+  },
+  "reference": {
+    "personality": {
+      "Sun":       { "gate": 47, "line": 6 },
+      "Earth":     { "gate": 22, "line": 6 },
+      "NorthNode": { "gate": 4,  "line": 1 },
+      "SouthNode": { "gate": 49, "line": 1 },
+      "Moon":      { "gate": 43, "line": 6 },
+      "Mercury":   { "gate": 18, "line": 5 },
+      "Venus":     { "gate": 33, "line": 1 },
+      "Mars":      { "gate": 44, "line": 4 },
+      "Jupiter":   { "gate": 47, "line": 5 },
+      "Saturn":    { "gate": 46, "line": 2 },
+      "Uranus":    { "gate": 43, "line": 4 },
+      "Neptune":   { "gate": 26, "line": 4 },
+      "Pluto":     { "gate": 57, "line": 6 }
+    },
+    "design": {
+      "Sun":       { "gate": 12, "line": 2 },
+      "Earth":     { "gate": 11, "line": 2 },
+      "NorthNode": { "gate": 4,  "line": 3 },
+      "SouthNode": { "gate": 49, "line": 3 },
+      "Moon":      { "gate": 62, "line": 5 },
+      "Mercury":   { "gate": 53, "line": 4 },
+      "Venus":     { "gate": 12, "line": 2 },
+      "Mars":      { "gate": 64, "line": 6 },
+      "Jupiter":   { "gate": 59, "line": 4 },
+      "Saturn":    { "gate": 47, "line": 4 },
+      "Uranus":    { "gate": 43, "line": 4 },
+      "Neptune":   { "gate": 26, "line": 5 },
+      "Pluto":     { "gate": 57, "line": 5 }
+    }
+  },
+  "tolerance": { "longitudeArcsec": 30, "exactGateLine": true }
+}

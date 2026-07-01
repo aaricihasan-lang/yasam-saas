@@ -27,6 +27,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0003": { profile: "3/5", crossGates: [45, 26, 22, 47], angle: "Right Angle", gmName: "RAX Rulership 2" },
   "HD-GOLD-0004": { profile: "1/4", crossGates: [36, 6, 11, 12], angle: "Right Angle", gmName: "RAX Eden 1" },
   "HD-GOLD-0005": { profile: "5/1", crossGates: [3, 50, 41, 31], angle: "Left Angle", gmName: "LAX Wishes 1" },
+  "HD-GOLD-0006": { profile: "1/3", crossGates: [12, 11, 36, 6], angle: "Right Angle", gmName: "RAX Eden 2" },
+  "HD-GOLD-0007": { profile: "6/2", crossGates: [47, 22, 12, 11], angle: "Left Angle", gmName: "LAX Informing 2" },
 };
 
 function arrEq(a: number[], b: number[]): boolean {

@@ -1,0 +1,56 @@
+{
+  "caseId": "HD-GOLD-0006",
+  "status": "real",
+  "compareEligible": true,
+  "provenance": {
+    "referenceSource": "Genetic Matrix",
+    "referenceCapturedAt": "2026-06-30",
+    "ephemerisBasis": "Swiss Ephemeris / True Node",
+    "boundaryFlag": false,
+    "notes": "Donald Trump. Manifesting Generator (Emotional). ABD 1946 DST (UTC-04:00); tz donusumu Delta=0s."
+  },
+  "input": {
+    "date": "1946-06-14",
+    "time": "10:54",
+    "timezone": "America/New_York",
+    "location": {
+      "city": "New York Mills",
+      "country": "US",
+      "lat": 43.1007,
+      "lon": -75.293198
+    }
+  },
+  "reference": {
+    "personality": {
+      "Sun":       { "gate": 12, "line": 1 },
+      "Earth":     { "gate": 11, "line": 1 },
+      "NorthNode": { "gate": 45, "line": 5 },
+      "SouthNode": { "gate": 26, "line": 5 },
+      "Moon":      { "gate": 26, "line": 5 },
+      "Mercury":   { "gate": 52, "line": 6 },
+      "Venus":     { "gate": 62, "line": 6 },
+      "Mars":      { "gate": 29, "line": 3 },
+      "Jupiter":   { "gate": 57, "line": 3 },
+      "Saturn":    { "gate": 62, "line": 4 },
+      "Uranus":    { "gate": 45, "line": 1 },
+      "Neptune":   { "gate": 18, "line": 3 },
+      "Pluto":     { "gate": 33, "line": 3 }
+    },
+    "design": {
+      "Sun":       { "gate": 36, "line": 3 },
+      "Earth":     { "gate": 6,  "line": 3 },
+      "NorthNode": { "gate": 12, "line": 4 },
+      "SouthNode": { "gate": 11, "line": 4 },
+      "Moon":      { "gate": 59, "line": 6 },
+      "Mercury":   { "gate": 21, "line": 1 },
+      "Venus":     { "gate": 17, "line": 2 },
+      "Mars":      { "gate": 53, "line": 2 },
+      "Jupiter":   { "gate": 32, "line": 6 },
+      "Saturn":    { "gate": 53, "line": 4 },
+      "Uranus":    { "gate": 35, "line": 3 },
+      "Neptune":   { "gate": 18, "line": 4 },
+      "Pluto":     { "gate": 33, "line": 3 }
+    }
+  },
+  "tolerance": { "longitudeArcsec": 30, "exactGateLine": true }
+}

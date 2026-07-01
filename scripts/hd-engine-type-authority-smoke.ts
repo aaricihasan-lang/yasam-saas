@@ -25,6 +25,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0003": { type: "Manifestor", authority: "Emotional", gmLabel: "Emotional Manifestor / Solar Plexus" },
   "HD-GOLD-0004": { type: "Generator", authority: "Emotional", gmLabel: "Emotional Generator / Solar Plexus" },
   "HD-GOLD-0005": { type: "Manifestor", authority: "Splenic", gmLabel: "Splenic Manifestor / Splenic" },
+  "HD-GOLD-0006": { type: "Manifesting Generator", authority: "Emotional", gmLabel: "Emotional Manifesting Generator / Solar Plexus" },
+  "HD-GOLD-0007": { type: "Manifestor", authority: "Emotional", gmLabel: "Emotional Manifestor / Solar Plexus" },
 };
 
 function main(): void {

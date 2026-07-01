@@ -4,12 +4,44 @@ Golden set "rastgele birkaç doğum" değildir; **kasıtlı kenar-durum matrisi*
 Her satır, hangi vakanın hangi riski sınadığını ve beklenen sonucu belgeler.
 Vakalar FAZ 2'de eklenecek; bu dosya **hedef kapsamı** sabitler.
 
-> **FAZ 4.1 durumu (5 gerçek golden case — hepsi PASS):**
-> 0001 Hasan (Gen/Sacral, RAX), 0002 Alperen (Gen/Sacral, RAX, split-large),
-> 0003 Ali Kaan (Manifestor/Emotional, RAX), 0004 Einstein (Gen/Emotional, RAX,
-> 1879 LMT), 0005 Hitler (Manifestor/**Splenic**, **LAX 5/1**, Single, 1889 LMT).
-> compare **5/5 PASS, 0 FAIL, 0 BOUNDARY**; type/authority/profile/cross-gates
-> türetim smoke'ları **5/5**. Cross tema adı `gates-only` (tablo yok).
+> **FAZ 4.2 durumu (7 gerçek golden case — hepsi PASS):**
+>
+> | # | Kişi | Type | Authority | Profile/Angle | Definition | TZ/tarih |
+> |---|---|---|---|---|---|---|
+> | 0001 | Hasan | Generator | Sacral | 2/4 RAX | Split-Small | TR 1987 |
+> | 0002 | Alperen | Generator | Sacral | 2/4 RAX | Split-Large | TR 2018 |
+> | 0003 | Ali Kaan | Manifestor | Emotional | 3/5 RAX | Split-Small | TR 2014 |
+> | 0004 | Einstein | Generator | Emotional | 1/4 RAX | Split-Small | DE 1879 **LMT** |
+> | 0005 | Hitler | Manifestor | **Splenic** | **5/1 LAX** | Single | AT 1889 **LMT** |
+> | 0006 | Trump | **Manifesting Generator** | Emotional | 1/3 RAX | Single | US 1946 **DST** |
+> | 0007 | Agatha | Manifestor | Emotional | **6/2 LAX** | **Triple Split** | GB 1980 **BST** |
+>
+> compare **7/7 PASS, 0 FAIL, 0 BOUNDARY**; type/authority/profile/cross-gates
+> türetim smoke'ları **7/7**. Cross tema adı `gates-only` (tablo yok).
+>
+> **Kapsanan type'lar:** Generator, Manifesting Generator, Manifestor (Emotional+Splenic auth).
+
+### NOT_YET_VALIDATED — açık kapsamlar (FAZ 4.3)
+Bu kapsamlar **henüz gerçek referansla doğrulanmadı**. İlke: yalnız güvenilir bir
+dış HD kaynağı (Genetic Matrix/MyBodyGraph görseli) sağlandığında eklenir; **asla
+uydurma veriyle "tamamlandı" gösterilmez**. Bulunamayan her dal burada açıkça
+NOT_YET_VALIDATED kalır.
+
+| Kapsam | Durum | Sağlanması gereken kaynak |
+|---|---|---|
+| **Projector** type | `NOT_YET_VALIDATED` | Type=Projector bir chart |
+| **Reflector** type | `NOT_YET_VALIDATED` | Type=Reflector (nadir ~%1) bir chart |
+| **Juxtaposition** cross | `NOT_YET_VALIDATED` | Profile **4/1** bir chart |
+| **Güney yarımküre** | `NOT_YET_VALIDATED` | Doğum enlemi < 0 bir chart |
+| **Half-hour timezone** | `NOT_YET_VALIDATED` | Örn. India (+5:30) / Adelaide (+9:30) / Newfoundland (-3:30) doğumu |
+| **Boundary vakası** | `NOT_YET_VALIDATED` | Bir aktivasyonu gate/line sınırına ≲30″ olan chart (engine `boundaryFlag` ile teyit) |
+
+> **Kapsanan authority'ler:** Emotional, Sacral, Splenic. **NOT_YET_VALIDATED:**
+> Splenic-Projector ayrımı dışındaki Ego / Self-Projected / Mental / Lunar authority'ler
+> (Lunar yalnız Reflector'da görülür → Reflector vakasıyla birlikte gelir).
+>
+> **Kapsanan definition'lar:** Single, Split-Small, Split-Large, Triple-Split.
+> **NOT_YET_VALIDATED:** No-Definition (Reflector) ve Quadruple-Split.
 >
 > ### ⚠️ Bilinen sınırlama / technical debt — LMT dakika yuvarlaması
 > `localDateTimeToUtc` (`lib/human-design/engine/time.ts`) timezone ofsetini

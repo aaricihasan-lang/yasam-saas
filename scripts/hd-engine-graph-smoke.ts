@@ -25,6 +25,8 @@ const EXPECTED: Record<string, Expected> = {
   "HD-GOLD-0003": { channels: ["21-45", "39-55"], definition: "split-small" },
   "HD-GOLD-0004": { channels: ["6-59", "25-51", "30-41"], definition: "split-small" },
   "HD-GOLD-0005": { channels: ["7-31", "18-58", "20-57"], definition: "single" },
+  "HD-GOLD-0006": { channels: ["6-59", "17-62", "21-45", "35-36"], definition: "single" },
+  "HD-GOLD-0007": { channels: ["12-22", "26-44", "47-64"], definition: "triple-split" },
 };
 
 function norm(ids: string[]): string {
