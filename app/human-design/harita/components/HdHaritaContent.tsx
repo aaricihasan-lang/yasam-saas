@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { computeHdChart } from "@/lib/human-design/api/computeClient";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
+import { BodyGraph } from "./BodyGraph";
 
 // IANA timezone listesi (yeni paket yok). supportedValuesOf yoksa yaygın liste.
 const TIMEZONES: string[] = (() => {
@@ -117,7 +118,14 @@ export function HdHaritaContent() {
             Harita sonucu burada görünecek.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
+            {/* BodyGraph — mobil/tablet üstte, xl'de solda */}
+            <div className={`${cardCls} flex items-start justify-center`}>
+              <BodyGraph result={result} />
+            </div>
+
+            {/* Veri kartları */}
+            <div className="space-y-3">
             {/* Üst şerit */}
             <div className={cardCls}>
               <div className="flex flex-wrap gap-2">
@@ -216,6 +224,7 @@ export function HdHaritaContent() {
             <p className="px-1 text-[11px] leading-4 text-slate-400">
               {result.meta.disclaimer} Bu ekran yorum içermez; yalnız hesaplanmış değerleri gösterir.
             </p>
+            </div>
           </div>
         )}
       </div>
