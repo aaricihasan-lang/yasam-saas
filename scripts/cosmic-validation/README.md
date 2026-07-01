@@ -7,6 +7,40 @@ karşılaştırılabileceği güvenilir bir test zemini kurmak.
 > Felsefe: *"Ya en doğru hesap ve en doğru takvim olacak, ya da hiç olmayacak."*
 > Bu klasör **doğruluk kanıtı** altyapısıdır — özellik geliştirme değil.
 
+## Tek komut ile doğrulama — `run-all` (tüm harness regression)
+
+`run-all.mjs`, dört astronomik doğrulama harness'ini (FAZ 2C/3A/3B/3C) tek komutla
+`python (referans) → prod_runner (PRODUCTION engine) → compare` zinciriyle sırayla
+çalıştırır, her `compare` çıktısından kararlı sinyalleri çıkarır ve kilitli
+`run-all-baseline.json` ile karşılaştırır. **En küçük sapmada `exit 1`** döner.
+
+```bash
+# Tam doğrulama (Swiss Ephemeris referansını yeniden üretir + production engine + compare)
+npm run validate:cosmic
+
+# Hızlı: python referans üretimini atlar; mevcut swe-*.json'a karşı yalnız
+# production engine + compare (yerel iterasyon için)
+npm run validate:cosmic:fast
+
+# Yalnız seçili harness(ler)
+npm run validate:cosmic -- --faz=3c
+npm run validate:cosmic -- --faz=2c,3a
+
+# Makine-okunur özet (CI)
+npm run validate:cosmic -- --json
+```
+
+**Baseline güncelleme yalnız bilinçli kilitlemede kullanılır** — engine/testset kasıtlı
+değiştirildiğinde ve yeni doğrulanmış değerler kilitleneceğinde:
+
+```bash
+node scripts/cosmic-validation/run-all.mjs --update-baseline
+```
+
+`run-all-baseline.json` **commit edilir** (kilitli referans). `--update-baseline` gündelik
+akışta çalıştırılmaz; sapma görülürse önce **regresyon araştırılır**, baseline körlemesine
+güncellenmez.
+
 ## Bu harness PRODUCTION'A DOKUNMAZ
 - `app/`, `lib/cosmic/aspects.ts` ve hiçbir UI dosyası değiştirilmez / import edilmez.
 - `scripts/` Next.js tarafından asla import edilmez → **bundle'a girmez**.

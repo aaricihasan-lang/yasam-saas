@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts"
+    "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",
+    "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
+    "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
