@@ -338,19 +338,19 @@ export default function KombinasyonlarPage() {
   const isSearchActive = Boolean(searchTerm.trim());
   const activeSearch = searchTerm.trim();
 
+  // UAT #3: kategori dropdown'ı kısa başlıklardan (issue) türer — uzun "amaç"
+  // açıklaması (description) DEĞİL. Grup anahtarıyla aynı ("İsimsiz" fallback),
+  // eski veri kırılmaz (issue tüm satırlarda var).
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const row of rows) {
-      const desc = row.description?.trim();
-      if (desc) set.add(desc);
-    }
+    for (const row of rows) set.add(row.issue?.trim() || "İsimsiz");
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     const category = categoryFilter.trim();
     return rows.filter((row) => {
-      if (category && (row.description?.trim() || "") !== category) return false;
+      if (category && (row.issue?.trim() || "İsimsiz") !== category) return false;
       return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
     });
   }, [rows, searchTerm, isSearchActive, categoryFilter]);
@@ -589,7 +589,9 @@ export default function KombinasyonlarPage() {
               >
                 <option value="">Tüm kategoriler</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {cat.length > 40 ? `${cat.slice(0, 40)}…` : cat}
+                  </option>
                 ))}
               </select>
             )}
@@ -617,6 +619,7 @@ export default function KombinasyonlarPage() {
                 totalCount={uniqueIssues}
                 filteredCount={groups.length}
                 hasActiveFilter={hasFilters}
+                selectAllLabel="Tümünü Seç"
                 selectAllCount={groups.length}
                 onSelectAll={selectAllFiltered}
                 onClearSelection={clearSelection}
@@ -629,6 +632,14 @@ export default function KombinasyonlarPage() {
               />
             )}
           </div>
+
+          {/* UAT #2: "Tümünü Seç" tüm veri yüklü olduğu için filtrelenmiş TÜM
+              başlıkları seçer (yalnız ekranda görüneni değil). */}
+          {!isDemo && !loading && groups.length > 0 && (
+            <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+              “Tümünü Seç” yalnızca şu an filtrelenmiş {groups.length} başlığı seçer.
+            </p>
+          )}
         </section>
 
         {/* ── Error ──────────────────────────────────────────────────── */}

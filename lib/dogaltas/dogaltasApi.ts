@@ -81,18 +81,20 @@ export async function deleteStone(
   return { ok: r.ok, error: r.error, demo: r.demo };
 }
 
-/** Liste toplu silme — kendi taşları (her biri tenant guard'lı tekil DELETE). */
+/**
+ * Liste toplu silme — kendi taşları TEK istekte (batch, tenant guard'lı).
+ * Sıralı tekil DELETE yerine `/api/dogaltas/stones/bulk-delete` → hızlı + atomik;
+ * sayfadan çıkınca kısmi silme riski yok. Dönüş şekli değişmedi ({deletedIds, error}).
+ */
 export async function deleteStones(
   ids: string[],
 ): Promise<{ deletedIds: string[]; error: string | null }> {
-  const deletedIds: string[] = [];
-  let error: string | null = null;
-  for (const id of ids) {
-    const r = await deleteStone(id);
-    if (r.ok) deletedIds.push(id);
-    else if (!error) error = r.error ?? "Silinemedi";
-  }
-  return { deletedIds, error };
+  if (ids.length === 0) return { deletedIds: [], error: null };
+  const r = await dogaltasApiSend<{ deletedIds?: string[] }>(
+    "/api/dogaltas/stones/bulk-delete", "POST", { ids });
+  if (!r.ok) return { deletedIds: [], error: r.error ?? "Silinemedi" };
+  // Demo hesapta server deletedIds:[] döner; gerçek silme yapılmaz.
+  return { deletedIds: r.data?.deletedIds ?? [], error: null };
 }
 
 export async function getStone(
