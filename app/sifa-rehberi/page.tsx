@@ -275,7 +275,7 @@ const uiContentCard =
   "w-full rounded-[34px] border-[3px] border-emerald-300/45 bg-white/80 p-6 shadow-[0_0_50px_rgba(16,185,129,0.14)] backdrop-blur-xl xl:p-8";
 const uiEmptyCard = `${uiContentCard} min-h-[420px]`;
 
-const listPageContent = "relative z-10 w-full space-y-3 px-3 py-3 sm:px-5 xl:px-7";
+const listPageContent = "relative z-10 mx-auto w-full max-w-[1400px] space-y-3 px-3 py-3 sm:px-5 xl:px-7";
 const listHeaderCard =
   "shrink-0 overflow-hidden rounded-2xl border border-emerald-200/50 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const listStatCard =
@@ -422,7 +422,7 @@ function MenuChoiceCard({
 const menuPageShell =
   "relative flex h-screen flex-col overflow-hidden max-lg:min-h-screen max-lg:h-auto max-lg:overflow-y-auto";
 const menuPageContent =
-  "relative z-10 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden px-3 py-3 sm:px-5 lg:gap-3 lg:px-8 lg:py-3";
+  "relative z-10 mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-3 overflow-hidden px-3 py-3 sm:px-5 lg:gap-3 lg:px-8 lg:py-3";
 const menuHeaderCard =
   "shrink-0 rounded-2xl border border-emerald-200/50 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const menuStatCard =
@@ -900,10 +900,16 @@ function SifaRehberiContent() {
     }
 
     resetForm();
-    setSuccessMessage("Şifa rehberi kaydı oluşturuldu.");
     await loadGuides(queryTenantId);
     setPageView("list");
     router.push("/sifa-rehberi?view=list");
+    // Başarı geri bildirimi toast ile verilir; loadGuides successMessage'ı
+    // temizlediği için state banner yerine kalıcı toast kullanılır (K2 fix).
+    showToast({
+      title: "Başarılı",
+      message: "Şifa rehberi kaydı oluşturuldu.",
+      type: "success",
+    });
   }
 
   const isMenuView = pageView === "menu";
@@ -968,7 +974,7 @@ function SifaRehberiContent() {
     return (
       <>
         <div className="flex min-h-dvh flex-col bg-gradient-to-br from-emerald-50 via-cyan-50 to-white p-3 text-slate-950 sm:p-4 lg:h-dvh lg:overflow-hidden">
-          <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
+          <header className="mx-auto mb-4 flex h-16 w-full max-w-[1400px] shrink-0 items-center justify-between rounded-3xl border border-emerald-100/70 bg-white/80 px-5 shadow sm:px-6">
             <SifaRehberiToolbarMenuButton onClick={goToMainMenu} />
             <div className="min-w-0 pl-4 text-right">
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Yeni Kayıt</p>
@@ -977,7 +983,7 @@ function SifaRehberiContent() {
           </header>
 
           {(errorMessage || successMessage) ? (
-            <div className="mb-3 shrink-0 space-y-1">
+            <div className="mx-auto mb-3 w-full max-w-[1400px] shrink-0 space-y-1">
               {errorMessage ? (
                 <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">
                   {errorMessage}
@@ -991,7 +997,7 @@ function SifaRehberiContent() {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[260px_1fr] lg:gap-5">
+          <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[260px_1fr] lg:gap-5">
             <input
               ref={imageFileInputRef}
               type="file"
