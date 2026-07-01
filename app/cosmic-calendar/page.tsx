@@ -11,19 +11,14 @@ import {
   getMonthPhaseEvents, getUpcomingPhaseEvents,
   type UpcomingPhaseEvent,
 } from "@/lib/cosmic/moon";
-import { getDailyEnergySummary } from "@/lib/cosmic/energy";
 import { getPlanetaryHour, getDayRuler, CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
-import { getDailyGuidance } from "@/lib/cosmic/guidance";
 import {
   getActiveRetros, getUpcomingRetros, getNextRetro, parseRetroDate,
   RETRO_PERIODS,
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
 import { getPlanetSigns } from "@/lib/cosmic/planets";
-import { getTopTransits } from "@/lib/cosmic/transit-interpretations";
-import { getPlanetSlug } from "@/lib/cosmic/planet-meta";
 import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/events";
-import { getHacamatMonthData, type CalendarDay } from "@/lib/cosmic/hacamat";
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
 import {
@@ -516,14 +511,8 @@ const LEGEND_ITEMS = [
 ] as const;
 
 const BADGES = [
-  "🌙 Hicri Takvim", "🩸 Hacamat Günleri", "🌕 Ay Fazları", "🪐 Gezegen Saatleri",
+  "🌙 Hicri Takvim", "🌕 Ay Fazları", "🪐 Gezegen Saatleri",
 ] as const;
-
-const NUM_NAMES: Record<number, string> = {
-  1: "Liderlik", 2: "Uyum", 3: "Yaratıcılık", 4: "Düzen",
-  5: "Değişim",  6: "Sevgi", 7: "Derinlik",   8: "Güç",
-  9: "Tamamlanma", 11: "Sezgi", 22: "Vizyon", 33: "Şefkat",
-};
 
 const COSMIC_EVENT_STYLE: Record<CosmicEventType, { bg: string; border: string; text: string; badge: string }> = {
   new_moon:    { bg: "bg-violet-50/70",  border: "border-violet-100/70",  text: "text-violet-800",  badge: "bg-violet-100 text-violet-700"  },
@@ -607,15 +596,6 @@ function formatShortDate(date: Date): string {
   return `${date.getDate()} ${MONTH_NAMES_TR[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function numerologicalDay(date: Date): number {
-  const digits = `${date.getDate()}${date.getMonth() + 1}${date.getFullYear()}`.split("").map(Number);
-  let n = digits.reduce((a, b) => a + b, 0);
-  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
-    n = String(n).split("").map(Number).reduce((a, b) => a + b, 0);
-  }
-  return n;
-}
-
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -660,12 +640,6 @@ function getMonthHijriDays(year: number, month: number): Map<number, number> {
   return map;
 }
 
-function getMonthNumeroDays(year: number, month: number): Map<number, number> {
-  const map = new Map<number, number>();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) map.set(d, numerologicalDay(new Date(year, month, d)));
-  return map;
-}
 
 // ─── Arama motoru ─────────────────────────────────────────────────────────────
 
@@ -820,7 +794,6 @@ export default function CosmicCalendarPage() {
   const [viewMonth,        setViewMonth]        = useState(todayMonth);
   const [showMoonPhases,   setShowMoonPhases]   = useState(true);
   const [showHicriDays,    setShowHicriDays]    = useState(false);
-  const [showNumeroloji,   setShowNumeroloji]   = useState(false);
   const [showOnemliGunler, setShowOnemliGunler] = useState(true);
   const [dateInput,        setDateInput]        = useState("");
   const [searchQuery,      setSearchQuery]      = useState("");
@@ -853,10 +826,6 @@ export default function CosmicCalendarPage() {
     () => showHicriDays  ? getMonthHijriDays(viewYear, viewMonth)  : new Map<number, number>(),
     [viewYear, viewMonth, showHicriDays],
   );
-  const numeroDayNumbers = useMemo(
-    () => showNumeroloji ? getMonthNumeroDays(viewYear, viewMonth) : new Map<number, number>(),
-    [viewYear, viewMonth, showNumeroloji],
-  );
   // ── Seçili güne ait veriler ───────────────────────────────────────────────
   const moonPhase   = useMemo(() => getMoonPhase(selectedDate),          [selectedDate]);
   // Seçili gün bir ana faz günüyse (Yeni Ay/İlk Dördün/Dolunay/Son Dördün), o günün
@@ -871,12 +840,10 @@ export default function CosmicCalendarPage() {
   // Gün kartı/özet için görüntülenecek faz: ana faz günüyse ayrık ad, değilse sürekli faz.
   const displayPhase = selectedMainPhase ?? moonPhase;
   const moonSign    = useMemo(() => getMoonSign(selectedDate),           [selectedDate]);
-  const energy      = useMemo(() => getDailyEnergySummary(selectedDate), [selectedDate]);
+  const lunarSnap   = useMemo(() => getLunarDistanceSnapshot(selectedDate), [selectedDate]); // factual hero (doğrulanmış mesafe)
   const hijriDate   = useMemo(() => getHijriDate(selectedDate),          [selectedDate]);
   const miladiDate  = useMemo(() => formatMiladiDate(selectedDate),      [selectedDate]);
-  const numDay      = useMemo(() => numerologicalDay(selectedDate),       [selectedDate]);
   const dayRuler    = useMemo(() => getDayRuler(selectedDate),           [selectedDate]);
-  const guidance    = useMemo(() => getDailyGuidance(selectedDate),      [selectedDate]);
   const activeRetros = useMemo(() => getActiveRetros(selectedDate),      [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const ph          = useMemo(() => getPlanetaryHour(realNow),           [realNow]);
@@ -898,7 +865,6 @@ export default function CosmicCalendarPage() {
     ];
   }, [todayPlanets, todayMoonSign]);
 
-  const topTransits    = useMemo(() => getTopTransits(gokyuzuRows.filter(r => !r.outOfRange), 4), [gokyuzuRows]);
   const cosmicEvents   = useMemo(() => getUpcomingCosmicEvents(realNow, 10), [realNow]);
 
   // ── Gökyüzü Açıları — seçili güne göre majör aspect'ler (FAZ 2B) ──────────────
@@ -1062,26 +1028,6 @@ export default function CosmicCalendarPage() {
 
   // ── Yaklaşan bilgi blokları ───────────────────────────────────────────────
 
-  // Yaklaşan Güçlü Günler — numeroloji 1/8/9/11/22/33 (sonraki 60 gün)
-  // Ay fazları ayrıca upcomingMoonPhases üzerinden gösterilir; burada noon-scan kullanılmaz.
-  const upcomingPowerDays = useMemo(() => {
-    const result: { date: Date; label: string; numDay: number }[] = [];
-    const base = new Date(todayYear, todayMonth, todayDay);
-    const POWER_NUMS = new Set([1, 8, 9, 11, 22, 33]);
-    for (let i = 1; i <= 60 && result.length < 6; i++) {
-      const d   = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 12);
-      const num = numerologicalDay(d);
-      if (POWER_NUMS.has(num)) {
-        result.push({
-          date: d,
-          label: `🔢 Numeroloji ${num} · ${NUM_NAMES[num] ?? ""}`,
-          numDay: num,
-        });
-      }
-    }
-    return result.slice(0, 5);
-  }, [todayYear, todayMonth, todayDay]);
-
   // Yaklaşan Retro Dönemleri — sonraki 180 gün
   const upcomingRetrosList = useMemo(() => getUpcomingRetros(realNow, 180).slice(0, 4), [realNow]);
 
@@ -1099,40 +1045,11 @@ export default function CosmicCalendarPage() {
     return result;
   }, [todayYear, todayMonth, todayDay]);
 
-  // Yaklaşan Hacamat Günleri — bu ve sonraki ay içinden altin+sunnet (bugünden sonra, maks 6)
-  const upcomingHacamatDays = useMemo(() => {
-    const today = new Date(todayYear, todayMonth, todayDay);
-    const result: CalendarDay[] = [];
-    const monthsToCheck = [
-      { year: todayYear, month: todayMonth },
-      { year: todayMonth === 11 ? todayYear + 1 : todayYear, month: (todayMonth + 1) % 12 },
-    ];
-    for (const { year, month } of monthsToCheck) {
-      const data = getHacamatMonthData(year, month);
-      for (const day of data.days) {
-        if ((day.status === "altin" || day.status === "sunnet" || day.status === "uygun") && day.miladi >= today) {
-          result.push(day);
-        }
-      }
-      if (result.length >= 6) break;
-    }
-    return result.slice(0, 6);
-  }, [todayYear, todayMonth, todayDay]);
-
   // ── Kozmik Merkez kartları — mini özet ───────────────────────────────────────
   const cosmicCenterCards = useMemo(() => {
-    const pd = upcomingPowerDays[0];
     const rt = upcomingRetrosList[0];
     const mp = upcomingMoonPhases[0];
-    const hd = upcomingHacamatDays[0];
     return [
-      {
-        emoji: "⭐", title: "Güçlü Günler", href: "/cosmic-calendar/power-days",
-        color: "from-amber-50/90 to-yellow-50/60 border-amber-200/70 hover:border-amber-300",
-        titleColor: "text-amber-700", summaryColor: "text-amber-600",
-        s1: pd ? pd.label.replace(/^🔢 Numeroloji /, "🔢 ").slice(0, 20) : "—",
-        s2: pd ? pd.date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", weekday: "short" }) : "Hesaplanıyor",
-      },
       {
         emoji: "☿", title: "Retro Takvimi", href: "/cosmic-calendar/retro-calendar",
         color: "from-rose-50/80 to-pink-50/60 border-rose-100/70 hover:border-rose-200",
@@ -1147,15 +1064,8 @@ export default function CosmicCalendarPage() {
         s1: mp ? `${mp.emoji} ${mp.name}` : "—",
         s2: mp ? (mp.daysFromNow === 1 ? "Yarın" : `${mp.daysFromNow} gün sonra`) : "",
       },
-      {
-        emoji: "🩸", title: "Hacamat Takvimi", href: "/cosmic-calendar/hacamat",
-        color: "from-teal-50/80 to-cyan-50/60 border-teal-100/70 hover:border-teal-200",
-        titleColor: "text-teal-700", summaryColor: "text-teal-600",
-        s1: hd ? (hd.status === "altin" ? "⭐ Altın Gün" : hd.status === "sunnet" ? "Sünnet Günü" : "Uygun Gün") : "Bu ay yok",
-        s2: hd ? hd.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", weekday: "short" }) : "—",
-      },
     ];
-  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, realNow]);
+  }, [upcomingRetrosList, upcomingMoonPhases, realNow]);
 
   // ── Bugün Gökyüzünde — özet hesapları ────────────────────────────────────────
   const todaySummary = useMemo(() => {
@@ -1185,10 +1095,6 @@ export default function CosmicCalendarPage() {
     const today = new Date(todayYear, todayMonth, todayDay);
     const events: EventItem[] = [];
 
-    for (const { date, label } of upcomingPowerDays) {
-      const d = Math.round((date.getTime() - today.getTime()) / 86_400_000);
-      events.push({ date, daysFromNow: d, icon: "⭐", label, detail: date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-amber-100 text-amber-700" });
-    }
     for (const r of upcomingRetrosList) {
       const sd = parseRetroDate(r.start);
       const d = Math.ceil((sd.getTime() - today.getTime()) / 86_400_000);
@@ -1199,13 +1105,8 @@ export default function CosmicCalendarPage() {
       const dateLbl = date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
       events.push({ date, daysFromNow, icon: emoji, label: name, detail: timeTR ? `${dateLbl} ${timeTR}` : dateLbl, badgeClass: "bg-violet-100 text-violet-700" });
     }
-    for (const day of upcomingHacamatDays) {
-      const d = Math.round((day.miladi.getTime() - today.getTime()) / 86_400_000);
-      const statusLabel = day.status === "altin" ? "⭐ Altın" : day.status === "sunnet" ? "Sünnet" : "Uygun";
-      events.push({ date: day.miladi, daysFromNow: d, icon: "🩸", label: `Hacamat · ${statusLabel}`, detail: day.miladi.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }), badgeClass: "bg-teal-100 text-teal-700" });
-    }
     return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
-  }, [upcomingPowerDays, upcomingRetrosList, upcomingMoonPhases, upcomingHacamatDays, todayYear, todayMonth, todayDay]);
+  }, [upcomingRetrosList, upcomingMoonPhases, todayYear, todayMonth, todayDay]);
 
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
@@ -1216,8 +1117,6 @@ export default function CosmicCalendarPage() {
       hicri:       getHijriDate(d),
       phase:       getMoonPhase(d),
       sign:        getMoonSign(d),
-      num:         numerologicalDay(d),
-      energyTitle: getDailyEnergySummary(d).title,
     };
   }, [searchResult]);
 
@@ -1226,11 +1125,10 @@ export default function CosmicCalendarPage() {
     { icon: "🌙",            label: "Hicri",          value: hijriDate },
     { icon: displayPhase.emoji, label: "Ay Fazı",        value: displayPhase.name },
     { icon: moonSign.emoji,  label: "Ay Burcu",       value: moonSign.name },
-    { icon: "🔢",            label: "Numeroloji",     value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}` },
     { icon: dayRuler.symbol, label: "Gün Yöneticisi", value: dayRuler.name },
   ];
 
-  const cellHeight = (showHicriDays || showNumeroloji) ? "h-10" : "h-8";
+  const cellHeight = showHicriDays ? "h-10" : "h-8";
 
   // ── Navigasyon ────────────────────────────────────────────────────────────
   function prevMonth() {
@@ -1310,6 +1208,10 @@ export default function CosmicCalendarPage() {
                   <span key={b} className="rounded-full border border-indigo-200/80 bg-white/70 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 backdrop-blur-sm">{b}</span>
                 ))}
               </div>
+              <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+                <span className="mt-px shrink-0 text-indigo-400" aria-hidden>🔭</span>
+                <span>Kozmik Ajanda yalnız doğrulanmış astronomik veri sunar; yorum, kehanet veya kişisel tavsiye içermez.</span>
+              </p>
             </div>
           </div>
         </section>
@@ -1402,63 +1304,6 @@ export default function CosmicCalendarPage() {
                 }
               </div>
             ))}
-          </div>
-
-          {/* Ayırıcı + Transit temaları */}
-          <div className="mt-3 border-t border-indigo-100/70 pt-3">
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-500">🌌 Bugünün Transit Temaları</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {topTransits.map(({ planet, sign, symbol, title, summary, tags, caution }) => {
-                const slug = getPlanetSlug(planet);
-                const Inner = (
-                  <>
-                    {/* Planet + title */}
-                    <div className="mb-1 flex items-start gap-1.5">
-                      <span className="mt-px shrink-0 text-[15px] leading-none text-indigo-400">{symbol}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black leading-tight text-indigo-700">{title}</p>
-                        <p className="text-[10px] font-semibold text-slate-400">{planet} · {sign}</p>
-                      </div>
-                      {slug && <span className="mt-0.5 shrink-0 text-[10px] font-bold text-indigo-400">→</span>}
-                    </div>
-                    {/* Summary */}
-                    <p className="mb-1.5 line-clamp-2 text-xs leading-snug text-slate-600">{summary}</p>
-                    {/* Tags */}
-                    {tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {tags.map(tag => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-indigo-200/70 bg-indigo-50/80 px-1.5 py-px text-[10px] font-semibold text-indigo-600"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Caution */}
-                    {caution && (
-                      <p className="mt-1.5 flex items-start gap-1 text-xs leading-snug text-amber-600">
-                        <span className="mt-px shrink-0">⚠</span>
-                        <span>{caution}</span>
-                      </p>
-                    )}
-                  </>
-                );
-                const baseClass = "overflow-hidden rounded-xl border border-indigo-100/70 bg-white/65 px-2.5 py-2 backdrop-blur-sm transition";
-                return slug ? (
-                  <Link
-                    key={planet}
-                    href={`/cosmic-calendar/transits/${slug}`}
-                    className={`${baseClass} no-underline hover:border-indigo-200 hover:bg-white/80 hover:shadow-sm`}
-                  >
-                    {Inner}
-                  </Link>
-                ) : (
-                  <div key={planet} className={baseClass}>{Inner}</div>
-                );
-              })}
-            </div>
           </div>
 
         </section>
@@ -2120,7 +1965,7 @@ export default function CosmicCalendarPage() {
                   <input
                     ref={searchRef}
                     type="text"
-                    placeholder="Dolunay, Retro, Hacamat, Altın Gün veya tarih ara..."
+                    placeholder="Dolunay, Retro veya tarih ara..."
                     value={searchQuery}
                     onChange={e => { setSearchQuery(e.target.value); setSearchResult(null); }}
                     onKeyDown={e => e.key === "Enter" && handleSearch()}
@@ -2165,8 +2010,6 @@ export default function CosmicCalendarPage() {
                           { icon: "🕋", label: "Hicri", val: searchDayData.hicri },
                           { icon: searchDayData.phase.emoji, label: "Ay Fazı", val: searchDayData.phase.name },
                           { icon: searchDayData.sign.emoji, label: "Ay Burcu", val: searchDayData.sign.name },
-                          { icon: "🔢", label: "Numeroloji", val: `${searchDayData.num} · ${NUM_NAMES[searchDayData.num] ?? ""}` },
-                          { icon: "💫", label: "Gün Yorumu", val: searchDayData.energyTitle },
                         ].map(({ icon, label, val }) => (
                           <div key={label} className="rounded-xl border border-white/80 bg-white/70 px-2 py-1.5">
                             <p className="text-[8px] font-semibold text-slate-400">{icon} {label}</p>
@@ -2243,7 +2086,6 @@ export default function CosmicCalendarPage() {
                 {([
                   { label: "Ay Fazları", emoji: "🌕", active: showMoonPhases,   toggle: () => setShowMoonPhases(v => !v) },
                   { label: "Hicri",      emoji: "🌙", active: showHicriDays,    toggle: () => setShowHicriDays(v => !v) },
-                  { label: "Numeroloji", emoji: "🔢", active: showNumeroloji,   toggle: () => setShowNumeroloji(v => !v) },
                   { label: "Önemli",     emoji: "⭐", active: showOnemliGunler, toggle: () => setShowOnemliGunler(v => !v) },
                 ] as const).map(({ label, emoji, active, toggle }) => (
                   <button key={label} onClick={toggle} className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors ${active ? "border border-indigo-200 bg-indigo-100 text-indigo-700" : "border border-slate-200 bg-slate-100 text-slate-400"}`}>
@@ -2268,8 +2110,7 @@ export default function CosmicCalendarPage() {
                   const hasMoonBg  = showOnemliGunler && !!moonMarkers.get(day);
                   const retroList  = retroMarkers.get(day);
                   const hijriNum   = hijriDayNumbers.get(day);
-                  const numeroNum  = numeroDayNumbers.get(day);
-                  const showSub    = (showHicriDays && hijriNum) || (showNumeroloji && numeroNum);
+                  const showSub    = showHicriDays && hijriNum;
                   return (
                     <button key={day} onClick={() => selectDay(day)}
                       className={`group/day relative flex ${cellHeight} flex-col items-center justify-start gap-0 rounded-lg p-0.5 transition-colors ${
@@ -2294,7 +2135,6 @@ export default function CosmicCalendarPage() {
                       {showSub && (
                         <div className="mt-auto flex items-center gap-0.5">
                           {showHicriDays && hijriNum && <span className={`text-[5px] font-bold leading-none ${isToday ? "text-white/60" : "text-slate-300"}`}>H{hijriNum}</span>}
-                          {showNumeroloji && numeroNum && <span className={`text-[5px] font-bold leading-none ${isToday ? "text-white/60" : "text-indigo-300"}`}>N{numeroNum}</span>}
                         </div>
                       )}
                       {retroList && retroList.length > 0 && (
@@ -2329,7 +2169,6 @@ export default function CosmicCalendarPage() {
                   { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
                   { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
                   { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
-                  { icon: "🔢",            label: "Numeroloji", value: `${numDay} · ${NUM_NAMES[numDay] ?? ""}`, color: "text-slate-800" },
                   { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
                 ].map(({ icon, label, value, color }) => (
                   <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
@@ -2365,41 +2204,6 @@ export default function CosmicCalendarPage() {
 
           {/* ── Sağ Kolon ── */}
           <div className="flex flex-col gap-3">
-
-            {/* Günlük Rehber */}
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🔮 Günlük Rehber</p>
-              <div className="space-y-1.5">
-                <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-2.5 py-2">
-                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-violet-600">✨ Potansiyel</p>
-                  <p className="line-clamp-3 text-xs leading-snug text-slate-700">{guidance.potential}</p>
-                </div>
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700">✓ Uygun</p>
-                  <ul className="space-y-0.5">
-                    {guidance.activities.slice(0, 3).map((a, i) => (
-                      <li key={i} className="flex items-start gap-1 text-xs leading-snug text-slate-700">
-                        <span className="mt-0.5 shrink-0 font-black text-emerald-500">✓</span>{a}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-amber-700">⚠ Dikkat</p>
-                  <ul className="space-y-0.5">
-                    {guidance.cautions.slice(0, 3).map((c, i) => (
-                      <li key={i} className="flex items-start gap-1 text-xs leading-snug text-slate-700">
-                        <span className="mt-0.5 shrink-0 font-black text-amber-500">⚠</span>{c}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-2 py-1.5">
-                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-700">🧘 Ruhsal</p>
-                  <p className="line-clamp-2 text-xs leading-snug text-slate-600">{guidance.spiritualSuggestion}</p>
-                </div>
-              </div>
-            </div>
 
             {/* Yaklaşan Olaylar — max 8 */}
             <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
@@ -2445,6 +2249,9 @@ export default function CosmicCalendarPage() {
                   </div>
                 </div>
                 <p className="mt-2 text-[10px] text-indigo-400/70">📍 İstanbul koordinatlarına göre hesaplanmaktadır</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                  Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
+                </p>
               </div>
             )}
 
@@ -2495,15 +2302,15 @@ export default function CosmicCalendarPage() {
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
           <div className="relative">
             <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300/70">
-              🌙 {isSelectedToday ? "Bugünün Enerjisi" : `${miladiDate} Enerjisi`}
+              🌙 {isSelectedToday ? "Bugün Gökyüzünde" : `${miladiDate} Gökyüzünde`}
             </p>
-            <h2 className="text-lg font-black tracking-tight text-white">{energy.title}</h2>
-            <p className="mt-0.5 line-clamp-2 text-xs font-medium leading-relaxed text-indigo-100/75">{energy.mainTheme}</p>
+            <h2 className="text-lg font-black tracking-tight text-white">{displayPhase.emoji} {displayPhase.name}</h2>
+            <p className="mt-0.5 text-xs font-medium leading-relaxed text-indigo-100/75">Ay {moonSign.emoji} {moonSign.name} burcunda</p>
             <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               {[
-                { lbl: "🎯 Odak", val: energy.focus },
-                { lbl: "⚡ Tema", val: energy.theme },
-                { lbl: "💡 Öneri", val: energy.recommendation },
+                { lbl: "🌙 Ay Burcu", val: `${moonSign.emoji} ${moonSign.name}` },
+                { lbl: "📏 Ay Mesafesi", val: fmtKm(lunarSnap.distanceKm) },
+                { lbl: "☿ Aktif Retro", val: activeRetros.length ? activeRetros.map(r => `${r.symbol} ${r.planet}`).join(", ") : "Yok" },
               ].map(({ lbl, val }) => (
                 <div key={lbl} className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
                   <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-indigo-300/60">{lbl}</p>
@@ -2511,6 +2318,7 @@ export default function CosmicCalendarPage() {
                 </div>
               ))}
             </div>
+            <p className="mt-2 text-[9px] leading-snug text-indigo-300/50">Yalnız doğrulanmış astronomik veri · yorum/kehanet içermez</p>
           </div>
         </section>
 

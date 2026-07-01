@@ -28,9 +28,14 @@ function ReportView() {
       <div className="px-4 pt-4 pb-8 sm:px-6 lg:px-8">
 
         {/* Başlık satırı */}
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <h1 className="truncate text-sm font-black text-slate-800">{monthLabel} Hacamat Raporu</h1>
         </div>
+
+        {/* ── Kapsam Uyarısı ── */}
+        <p className="mb-4 rounded-[12px] border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-[10px] leading-relaxed text-amber-800" role="note">
+          ⚠ <strong>Geleneksel bilgi / takvimsel yardımcıdır; sağlık veya dini uygunluk iddiası değildir.</strong>
+        </p>
 
         {/* İndirme / Açma linkleri — md ve üzerinde görünür */}
         <div className="mb-4 hidden gap-2 md:flex md:justify-end">

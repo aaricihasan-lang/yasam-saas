@@ -479,11 +479,11 @@ export default function HacamatPage() {
           </div>
         </section>
 
-        {/* ── Tıbbi Uyarı ── */}
+        {/* ── Tıbbi / Kapsam Uyarısı ── */}
         <div className="mb-4 flex items-start gap-2.5 rounded-[14px] border border-amber-200/70 bg-amber-50/70 px-3.5 py-2.5" role="note">
           <span className="mt-0.5 shrink-0 text-[14px] leading-none text-amber-600" aria-hidden>⚠</span>
           <p className="text-[10px] leading-relaxed text-amber-800">
-            Bu takvim, geleneksel İslami tıp geleneğine dayanan <strong>bilgi amaçlı</strong> içerik sunmaktadır. Hacamat uygulaması için mutlaka uzman bir sağlık profesyoneliyle görüşün. Bu bilgiler tıbbi tavsiye niteliği taşımaz.
+            <strong>Geleneksel bilgi / takvimsel yardımcıdır; sağlık veya dini uygunluk iddiası değildir.</strong> Bu takvim, geleneksel İslami tıp geleneğine dayanan bilgi amaçlı içerik sunmaktadır. Hacamat uygulaması için mutlaka uzman bir sağlık profesyoneliyle görüşün. Bu bilgiler tıbbi tavsiye niteliği taşımaz.
           </p>
         </div>
 

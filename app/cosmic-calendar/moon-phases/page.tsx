@@ -28,13 +28,9 @@ const MAIN_PHASE_NAMES = new Set(["Yeni Ay", "İlk Dördün", "Dolunay", "Son D�
 
 type UpcomingFilter = "all" | "main";
 
-// ─── Faz rehberi içeriği ─────────────────────────────────────────────────────
+// ─── Faz renk paleti (yalnız stil — yorum/öneri içermez) ─────────────────────
 
 const PHASE_GUIDE: Record<string, {
-  energy: string;
-  activities: string[];
-  caution: string;
-  insight: string;
   textColor: string;
   bgFrom: string;
   bgTo: string;
@@ -42,70 +38,14 @@ const PHASE_GUIDE: Record<string, {
   badge: string;
   badgeText: string;
 }> = {
-  "Yeni Ay": {
-    energy: "Başlangıç · Niyet · Temizlenme",
-    activities: ["Yeni niyet ve hedef belirleme", "Meditasyon ve içe çekilme", "Kişisel temizlik ritüelleri"],
-    caution: "Büyük kararları aceleleştirmekten kaçının",
-    insight: "Karanlığın içinde saklı olan potansiyelin çağrısıdır. İçe bakın, nereye gitmek istediğinizi hissedin.",
-    textColor: "text-slate-200", bgFrom: "from-slate-800", bgTo: "to-slate-900",
-    border: "border-slate-600", badge: "bg-slate-700", badgeText: "text-slate-200",
-  },
-  "Büyüyen Hilal": {
-    energy: "Adım Atma · Momentum · Başlangıç",
-    activities: ["İlk adımı cesurca atmak", "Plan ve strateji oluşturma", "Destek ve kaynak toplama"],
-    caution: "Şüpheye kapılmadan ilerleyin",
-    insight: "Hilal, büyüyen umudun sembolüdür. Her küçük adım bu ışığı artırır.",
-    textColor: "text-slate-700", bgFrom: "from-slate-50", bgTo: "to-white",
-    border: "border-slate-200", badge: "bg-slate-100", badgeText: "text-slate-600",
-  },
-  "İlk Dördün": {
-    energy: "Kararlılık · Eylem · Aşma",
-    activities: ["Büyük ve önemli kararlar almak", "Engelleri ve zorlukları aşmak", "Yoğun çalışma ve üretim"],
-    caution: "Tereddüt ve kararsızlıktan uzak durun",
-    insight: "Gökyüzü iki eşit parçaya bölünür: gölge ve ışık. Siz hangisini seçiyorsunuz?",
-    textColor: "text-indigo-800", bgFrom: "from-indigo-50", bgTo: "to-indigo-100/60",
-    border: "border-indigo-200", badge: "bg-indigo-100", badgeText: "text-indigo-700",
-  },
-  "Şişen Ay": {
-    energy: "Büyüme · Birikim · Yoğunlaşma",
-    activities: ["Momentum ve ivme oluşturma", "İlişkileri ve bağları güçlendirme", "Enerjiyi hedefe odaklama"],
-    caution: "Aşırı yayılmaktan ve odak kaybından kaçının",
-    insight: "Ay dolmaya yaklaştıkça her şey yoğunlaşır. Enerjinizi hedefinize kanalize edin.",
-    textColor: "text-violet-800", bgFrom: "from-violet-50", bgTo: "to-purple-50/60",
-    border: "border-violet-200", badge: "bg-violet-100", badgeText: "text-violet-700",
-  },
-  "Dolunay": {
-    energy: "Zirve · Netlik · Serbest Bırakma",
-    activities: ["Kutlama ve minnettarlık", "Kristal ve taşları şarj etme", "Duygusal arınma ve serbest bırakma"],
-    caution: "Önemli tartışmalar ve dürtüsel kararlardan kaçının",
-    insight: "Dolunay'da gizli olan her şey ortaya çıkar. Netlik acı verse de iyileşmenin kapısıdır.",
-    textColor: "text-amber-800", bgFrom: "from-amber-50", bgTo: "to-yellow-50/80",
-    border: "border-amber-200", badge: "bg-amber-100", badgeText: "text-amber-700",
-  },
-  "Azalan Ay": {
-    energy: "Değerlendirme · Şükran · Paylaşım",
-    activities: ["Minnettarlık ve şükran pratikleri", "Başarıları ve kazanımları kutlama", "Paylaşmak ve vermek"],
-    caution: "Yeni projeler başlatmaktan ve acele kararlardan kaçının",
-    insight: "Parlak ayın ışığında neyin bittiğini görün. Hasat zamanıdır.",
-    textColor: "text-orange-800", bgFrom: "from-orange-50", bgTo: "to-amber-50/60",
-    border: "border-orange-200", badge: "bg-orange-100", badgeText: "text-orange-700",
-  },
-  "Son Dördün": {
-    energy: "Bırakma · Arınma · Temizlik",
-    activities: ["Fiziksel ve dijital temizlik", "Detoks ve arınma pratikleri", "Eski alışkanlıkları ve kalıpları bırakma"],
-    caution: "Yeni taahhütlerden ve önemli başlangıçlardan kaçının",
-    insight: "Her son bir başlangıca hazırlık olarak görüldüğünde hayat daha akışkan hissettiriyor.",
-    textColor: "text-rose-800", bgFrom: "from-rose-50", bgTo: "to-pink-50/60",
-    border: "border-rose-200", badge: "bg-rose-100", badgeText: "text-rose-700",
-  },
-  "Balsamik": {
-    energy: "Dinlenme · İçe Çekilme · Enerji Toplama",
-    activities: ["Derin uyku ve dinlenme", "Meditasyon ve sessizlik", "Günlük tutma ve öz yansıma"],
-    caution: "Aşırı sosyallik ve enerji harcamaktan kaçının",
-    insight: "Balsamik dönem bir sonraki döngü için alan açma zamanıdır. Doğanın da dinlenmeye ihtiyacı var.",
-    textColor: "text-purple-800", bgFrom: "from-purple-50", bgTo: "to-violet-50/60",
-    border: "border-purple-200", badge: "bg-purple-100", badgeText: "text-purple-700",
-  },
+  "Yeni Ay":       { textColor: "text-slate-200", bgFrom: "from-slate-800", bgTo: "to-slate-900",     border: "border-slate-600",  badge: "bg-slate-700",  badgeText: "text-slate-200"  },
+  "Büyüyen Hilal": { textColor: "text-slate-700", bgFrom: "from-slate-50",  bgTo: "to-white",          border: "border-slate-200",  badge: "bg-slate-100",  badgeText: "text-slate-600"  },
+  "İlk Dördün":    { textColor: "text-indigo-800", bgFrom: "from-indigo-50", bgTo: "to-indigo-100/60",  border: "border-indigo-200", badge: "bg-indigo-100", badgeText: "text-indigo-700" },
+  "Şişen Ay":      { textColor: "text-violet-800", bgFrom: "from-violet-50", bgTo: "to-purple-50/60",   border: "border-violet-200", badge: "bg-violet-100", badgeText: "text-violet-700" },
+  "Dolunay":       { textColor: "text-amber-800",  bgFrom: "from-amber-50",  bgTo: "to-yellow-50/80",   border: "border-amber-200",  badge: "bg-amber-100",  badgeText: "text-amber-700"  },
+  "Azalan Ay":     { textColor: "text-orange-800", bgFrom: "from-orange-50", bgTo: "to-amber-50/60",    border: "border-orange-200", badge: "bg-orange-100", badgeText: "text-orange-700" },
+  "Son Dördün":    { textColor: "text-rose-800",   bgFrom: "from-rose-50",   bgTo: "to-pink-50/60",     border: "border-rose-200",   badge: "bg-rose-100",   badgeText: "text-rose-700"   },
+  "Balsamik":      { textColor: "text-purple-800", bgFrom: "from-purple-50", bgTo: "to-violet-50/60",   border: "border-purple-200", badge: "bg-purple-100", badgeText: "text-purple-700" },
 };
 
 // ─── Tip tanımları ─────────────────────────────────────────────────────────────
@@ -547,7 +487,6 @@ export default function MoonPhasesPage() {
                     <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 min-w-max max-w-[160px] rounded-lg bg-slate-800 px-2 py-1.5 shadow-xl group-hover/cell:block">
                       <p className="text-[9px] font-black text-white">{data.phaseEmoji} {data.phaseName}</p>
                       <p className="text-[8px] text-slate-300">{day} {MONTH_NAMES_TR[viewMonth]} {viewYear}</p>
-                      <p className="text-[8px] text-indigo-300">{PHASE_GUIDE[data.phaseName]?.energy}</p>
                       <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
                     </div>
                   )}
@@ -638,10 +577,10 @@ export default function MoonPhasesPage() {
           )}
         </section>
 
-        {/* ── Faz Rehberi ── */}
+        {/* ── 8 Ay Fazı — Astronomik Referans ── */}
         <section>
           <p className="mb-3 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">
-            📖 Faz Rehberi — 8 Fazın Enerjisi
+            📖 8 Ay Fazı — Astronomik Referans
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {MOON_PHASE_BOUNDS.map(bound => {
@@ -669,31 +608,29 @@ export default function MoonPhasesPage() {
                       </span>
                     )}
                   </div>
-                  <h3 className={`mb-0.5 text-[12px] font-black ${guide.textColor}`}>{bound.name}</h3>
-                  <p className={`mb-1.5 text-[9px] font-semibold leading-snug ${guide.textColor} opacity-80`}>
-                    {guide.energy}
-                  </p>
-                  <ul className="space-y-0.5 mb-1.5">
-                    {guide.activities.map((a, i) => (
-                      <li key={i} className="flex items-start gap-1 text-[9px] text-slate-600">
-                        <span className="mt-0.5 shrink-0 font-black text-emerald-400">✓</span>
-                        {a}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="rounded-lg bg-white/40 px-2 py-1">
-                    <p className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">⚠ Dikkat</p>
-                    <p className="text-[9px] text-slate-600">{guide.caution}</p>
-                  </div>
-                  <div className="mt-1.5 border-t border-white/40 pt-1.5">
-                    <p className={`text-[9px] italic leading-snug ${guide.textColor} opacity-70`}>
-                      "{guide.insight}"
-                    </p>
+                  <h3 className={`mb-1.5 text-[12px] font-black ${guide.textColor}`}>{bound.name}</h3>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between rounded-lg bg-white/40 px-2 py-1">
+                      <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">Ay yaşı</span>
+                      <span className="tabular-nums text-[10px] font-semibold text-slate-600">
+                        {bound.ageMin.toFixed(1)}–{bound.ageMax.toFixed(1)} gün
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-white/40 px-2 py-1">
+                      <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">Tür</span>
+                      <span className="text-[10px] font-semibold text-slate-600">
+                        {isMainPhase ? "Ana faz" : "İkincil faz"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+          <p className="mt-3 text-[10px] leading-relaxed text-slate-400">
+            Faz sınırları sinodik ay yaşına (0–{SYNODIC_MONTH_DAYS.toFixed(1)} gün) göre astronomy-engine ile hesaplanır.
+            Bu sayfa yalnız doğrulanmış astronomik faz verisini gösterir; yorum, öneri veya tavsiye içermez.
+          </p>
         </section>
 
       </div>
