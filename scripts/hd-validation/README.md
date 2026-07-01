@@ -69,3 +69,40 @@ node   scripts/hd-validation/compare/compare_longitudes.mjs     # AE vs SWE arcs
 ## Üretilen artefaktlar
 `*.json` çıktıları, `*.log`, `report.*` → artefakttır (`.gitignore`'da); yeniden
 üretilir, commit edilmez. Yalnız `cases/*.json`, `schema.json` ve `*.md` versiyonlanır.
+
+---
+
+## Continuous Golden Validation Policy (ZORUNLU)
+
+Bu bölüm, Human Design engine'in kapsam (coverage) genişletmesini yöneten kalıcı
+süreç sözleşmesidir. Bundan sonraki **tüm** coverage genişletmeleri bu süreci izler.
+
+### 1. Golden dataset tek doğruluk kaynağıdır
+`golden-dataset/cases/*.json` (status `real`) engine'in doğruluğunun **tek referans
+kaynağıdır**. Engine bu vakalara karşı doğrulanır; vakalar engine'e göre ayarlanmaz.
+
+### 2. Production kullanıcı verisi ASLA doğrudan golden'a eklenmez
+Gerçek kullanıcı chart'ı **hiçbir zaman** doğrudan dataset'e girmez. Önce doğrulanır,
+**yalnızca PASS olursa** dataset'e alınır. Ham production verisi golden değildir.
+
+### 3. Her yeni gerçek chart şu akışı izler
+1. **Kaynak doğrulama** — güvenilir dış HD kaynağı (Genetic Matrix / MyBodyGraph görseli).
+2. **OCR doğrulama** — emin olunmayan her değer `OCR_UNCERTAIN` işaretlenir; **tahmin yok**.
+3. **UTC doğrulama** — `localDateTimeToUtc` çıktısı kaynağın UTC'siyle karşılaştırılır (LMT/DST/half-hour Δ raporu).
+4. **Gate/Line doğrulama** — pyswisseph iç-tutarlılık + tahmini eşleşme ön-kontrolü.
+5. **Golden validation** — okunan veriler tablo halinde **onaya sunulur**; onaysız dataset oluşturulmaz.
+6. **PASS ise `HD-GOLD-000X` oluşturma** — status `real`, `compareEligible: true`.
+7. **Runner + compare + smoke + regression** — tüm mevcut vakalarla birlikte (N→N+1) koşulur; hepsi PASS olmalı.
+8. **Ayrı coverage commit** — her genişletme kendi commit'inde izlenir.
+
+### 4. NOT_YET_VALIDATED dürüstçe korunur
+Doğrulanamayan kapsamlar (`COVERAGE.md` → NOT_YET_VALIDATED) **uydurma veriyle
+kapatılmaz**. Gerçek referans gelene kadar açıkça NOT_YET_VALIDATED kalır.
+
+### 5. Cross Name gates-only kalır
+Incarnation cross **tema adı** (Contagion/Laws/…), güvenilir bir 192-cross referans
+tablosu sağlanana kadar `status: "gates-only"` olarak kalır; ad **uydurulmaz**.
+
+### 6. Bu süreç zorunludur
+Continuous Golden Validation, bundan sonraki tüm coverage genişletmelerinde
+**zorunlu süreçtir**. Kestirme yok, doğrulanmamış veri yok, uydurma yok.
