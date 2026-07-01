@@ -3,6 +3,17 @@ import { HumanDesignShell } from "./components/HumanDesignShell";
 
 const HD_MODULES = [
   {
+    title: "Human Design Haritası",
+    desc: "Doğum tarihi, saat ve saat dilimi bilgileriyle doğrulanmış Human Design motoru üzerinden harita oluştur.",
+    href: "/human-design/harita",
+    icon: "🧬",
+    badge: "Harita",
+    accent: "from-indigo-600 to-fuchsia-600",
+    cardBorder: "border-indigo-300/70",
+    cardBg: "from-indigo-50/90 via-fuchsia-50/60 to-white",
+    badgeCls: "bg-indigo-100 text-indigo-800",
+  },
+  {
     title: "Danışanlar",
     desc: "Yeni danışan ekle, ad, doğum bilgisi ve harita görselini kaydet.",
     href: "/human-design/danisanlar",
@@ -79,8 +90,8 @@ export default function HumanDesignHubPage() {
           Human Design
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          Danışan yönetimi, harita kaydı, yorum eşleştirme ve rapor oluşturma merkezi.
-          Hesaplama yapılmaz — uzman dış sitede chart oluşturur, sonuçlar buraya girilir.
+          Danışan yönetimi, harita kaydı, doğrulanmış motorla harita oluşturma ve
+          rapor hazırlama merkezi.
         </p>
       </div>
 
