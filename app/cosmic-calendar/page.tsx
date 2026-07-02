@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import Link from "next/link";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/cosmic/eclipses";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { searchLocations, type Location } from "@/lib/location";
+import { getUserLocationPref } from "@/lib/location/userLocationPref";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -957,6 +958,25 @@ export default function CosmicCalendarPage() {
     () => searchLocations(eclipseCityQuery, { dataset: TR_LOCATIONS, limit: 8 }),
     [eclipseCityQuery],
   );
+
+  // Açılışta kullanıcının kayıtlı varsayılan konumunu yansıt. İlk render Ankara kalır
+  // (hydration mismatch yok); fetch yalnız client'ta mount sonrası. Kayıt yoksa veya
+  // TR_LOCATIONS'ta eşleşmezse (global konum) sessizce Ankara'da kalınır. Kullanıcının
+  // geçici seçimini EZMEZ — yalnız açılışta bir kez çalışır.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const pref = await getUserLocationPref();
+      if (!alive || !pref) return;
+      const loc = TR_LOCATIONS.find(l => l.id === pref.location_id)
+        ?? TR_LOCATIONS.find(l => l.name === pref.name);
+      if (loc) {
+        setEclipseCity(loc.name);
+        setEclipseCityQuery(loc.name);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Uzman filtreleri — yalnız mevcut listeyi süzer; görünürlük YALNIZ seçili il için hesaplanır
   const eclipseFiltered = useMemo<EclipseRow[]>(() => {
