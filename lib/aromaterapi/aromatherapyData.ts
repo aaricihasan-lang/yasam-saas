@@ -150,22 +150,44 @@ const LIST_SELECT =
 // Sorgular
 // -------------------------------------------------------
 
+// PostgREST tek istekte en fazla ~1000 satır döndürür (varsayılan max-rows).
+// Kütüphane 1000 kaydı geçtiğinde kayıtların sessizce kaybolmaması için
+// tüm sayfalar .range() ile döngüyle çekilir. Böylece sayaç, arama ve filtre
+// TÜM kayıtlar üzerinde doğru çalışır.
+const OIL_PAGE_SIZE = 1000;
+
 export async function fetchOilList(
   tenantId: string,
   oilType?: string,
 ): Promise<{ rows: OilListRow[]; error: string | null }> {
-  const base = supabase
-    .from("aromatherapy_oils")
-    .select(LIST_SELECT)
-    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-    .eq("is_active", true);
+  const all: OilListRow[] = [];
 
-  const { data, error } = await (oilType
-    ? base.eq("oil_type", oilType).order("name", { ascending: true })
-    : base.order("name", { ascending: true }));
+  for (let from = 0; ; from += OIL_PAGE_SIZE) {
+    let query = supabase
+      .from("aromatherapy_oils")
+      .select(LIST_SELECT)
+      .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+      .eq("is_active", true);
 
-  if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as unknown as OilListRow[], error: null };
+    if (oilType) query = query.eq("oil_type", oilType);
+
+    // İkincil "id" sıralaması, aynı ada sahip kayıtlarda sayfa sınırında
+    // atlama/tekrarı önleyen kararlı bir sıralama sağlar.
+    const { data, error } = await query
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + OIL_PAGE_SIZE - 1);
+
+    if (error) return { rows: [], error: error.message };
+
+    const page = (data ?? []) as unknown as OilListRow[];
+    all.push(...page);
+
+    // Tam sayfadan az geldiyse son sayfadayız; döngüyü bitir.
+    if (page.length < OIL_PAGE_SIZE) break;
+  }
+
+  return { rows: all, error: null };
 }
 
 export async function fetchOilDetail(

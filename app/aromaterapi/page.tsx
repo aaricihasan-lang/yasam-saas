@@ -82,24 +82,38 @@ export default function AromaTerapiHubPage() {
         const tenantId = await getSyncedTenantId();
         if (!tenantId) { setLoading(false); setErrorMsg("Oturum açmanız gerekiyor. Lütfen sayfayı yenileyin."); return; }
 
-        const { data, error } = await supabase
-          .from("aromatherapy_oils")
-          .select("oil_type")
-          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-          .eq("is_active", true);
+        // Satırları çekip uzunluk saymak yerine `count` sorgusu kullanılır:
+        // PostgREST 1000 satır tavanından bağımsız olarak GERÇEK toplamı verir.
+        const countOils = async (oilType?: string) => {
+          let q = supabase
+            .from("aromatherapy_oils")
+            .select("id", { count: "exact", head: true })
+            .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+            .eq("is_active", true);
+          if (oilType) q = q.eq("oil_type", oilType);
+          return q;
+        };
+
+        const [totalRes, essRes, carRes, macRes] = await Promise.all([
+          countOils(),
+          countOils("essential"),
+          countOils("carrier"),
+          countOils("maceration"),
+        ]);
 
         setLoading(false);
 
-        if (error) { setErrorMsg("İstatistikler yüklenemedi."); return; }
-
-        if (data) {
-          const total      = data.length;
-          const essential  = data.filter((r) => r.oil_type === "essential").length;
-          const carrier    = data.filter((r) => r.oil_type === "carrier").length;
-          const maceration = data.filter((r) => r.oil_type === "maceration").length;
-          const other      = total - essential - carrier - maceration;
-          setStats({ total, essential, carrier, maceration, other });
+        if (totalRes.error || essRes.error || carRes.error || macRes.error) {
+          setErrorMsg("İstatistikler yüklenemedi.");
+          return;
         }
+
+        const total      = totalRes.count ?? 0;
+        const essential  = essRes.count ?? 0;
+        const carrier    = carRes.count ?? 0;
+        const maceration = macRes.count ?? 0;
+        const other      = Math.max(0, total - essential - carrier - maceration);
+        setStats({ total, essential, carrier, maceration, other });
       })();
     });
   }, [isDemo]);

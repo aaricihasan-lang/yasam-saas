@@ -640,6 +640,12 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
   const [errorMessage, setErrorMessage] = useState("");
+  // Sonsuz kaydırma: tüm veri bellekte tutulur (arama/sayaç doğru kalsın diye),
+  // ama DOM'a bir seferde yalnızca `visibleCount` kadar kart basılır. Böylece
+  // 1500+ kayıtta bile mobil render performansı korunur.
+  const RENDER_PAGE = 60;
+  const [visibleCount, setVisibleCount] = useState(RENDER_PAGE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadOils = useCallback(async (tid: string) => {
     if (isDemo) {
@@ -674,6 +680,35 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
       .filter((r) => matchesOilSearch(r, search))
       .sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
   }, [rows, search, typeFilter]);
+
+  // Görünen (DOM'a basılan) alt küme. filteredRows.length her zaman gerçek toplamı verir.
+  const visibleRows = useMemo(
+    () => filteredRows.slice(0, visibleCount),
+    [filteredRows, visibleCount],
+  );
+  const hasMore = visibleCount < filteredRows.length;
+
+  // Arama/filtre/görünüm değişince pencereyi başa sar.
+  useEffect(() => {
+    setVisibleCount(RENDER_PAGE);
+  }, [search, typeFilter, viewMode, rows]);
+
+  // Sentinel görünür olunca bir sonraki grubu yükle (sonsuz kaydırma).
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length));
+        }
+      },
+      { rootMargin: "800px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, filteredRows.length, visibleCount]);
 
   const typeCounts = useMemo(() => {
     const map: Record<string, number> = { all: rows.length };
@@ -903,7 +938,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             </div>
           ) : viewMode === "card" ? (
             <div className={oilCardGrid}>
-              {filteredRows.map((row) => {
+              {visibleRows.map((row) => {
                 const isSelected = selectedIds.has(row.id);
                 return (
                 <article key={row.id} className={`${oilCard} ${isSelected ? "ring-2 ring-amber-400/60 ring-offset-1" : ""}`}>
@@ -976,7 +1011,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                   <div className="text-right">İşlem</div>
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {filteredRows.map((row) => {
+                  {visibleRows.map((row) => {
                     const isSelected = selectedIds.has(row.id);
                     return (
                     <div key={row.id} className={`grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 px-4 py-3 text-[12px] transition hover:bg-amber-50/30 ${isSelected ? "bg-amber-50/60" : ""}`}>
@@ -1032,6 +1067,25 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             </div>
           )}
         </section>
+
+        {/* Sonsuz kaydırma sentinel'i + manuel fallback buton */}
+        {!loading && filteredRows.length > 0 && hasMore ? (
+          <div ref={sentinelRef} className="flex flex-col items-center gap-1 py-3">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((c) => Math.min(c + RENDER_PAGE, filteredRows.length))}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-5 py-2 text-[12px] font-black text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
+            >
+              Daha Fazla Göster
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
+                {filteredRows.length - visibleCount} kayıt daha
+              </span>
+            </button>
+            <p className="text-[10px] font-bold text-slate-400">
+              {visibleCount} / {filteredRows.length} gösteriliyor
+            </p>
+          </div>
+        ) : null}
       </div>
     </main>
   );
