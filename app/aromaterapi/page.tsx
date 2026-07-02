@@ -264,7 +264,7 @@ export default function AromaTerapiHubPage() {
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-200/80 bg-white/80 text-3xl shadow-sm ring-1 ring-white/90">📚</div>
                 <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Bilgi Bankası</h2>
                 <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
-                  Uzman notları ve referans içerikleri — boş başlayabilir, içerikleri uzman kendisi ekler.
+                  Uzman referans içerikleri ve notları — hazırlandıkça burada görünür.
                 </p>
               </div>
               <div className="shrink-0 space-y-2">

@@ -212,9 +212,24 @@ export async function fetchOilDetail(
 // Yardımcılar
 // -------------------------------------------------------
 
+// Türkçe İ/ı/I/i arama eşleştirmesi.
+// JS'in `toLowerCase()`'i "İ" harfini "i" + birleşik nokta (U+0307) yapar ve
+// noktasız "ı" ile noktalı "i" ayrık kalır; bu yüzden "BİBERİYE" araması
+// "Biberiye" kaydını kaçırır. Bu fonksiyon dört I türevini de tek "i"ye indirger.
+// Sonuç: "BİBERİYE" = "Biberiye" = "biberiye", "İNCELE" = "İncele" = "incele".
+const COMBINING_DOT_ABOVE = String.fromCharCode(0x0307);
+
+export function foldForSearch(value: string): string {
+  return value
+    .replace(/[İIıi]/g, "i") // dört I türevi → i (toLowerCase'in noktalı-i sorununu atlar)
+    .toLowerCase() // kalan harfleri küçült (ş, ğ, ü, ö, ç...)
+    .split(COMBINING_DOT_ABOVE)
+    .join(""); // olası birleşik nokta (U+0307) temizlenir
+}
+
 export function matchesOilSearch(row: OilListRow, search: string): boolean {
   if (!search.trim()) return true;
-  const q = search.trim().toLowerCase();
+  const q = foldForSearch(search.trim());
   const fields = [
     row.name,
     row.latin_name,
@@ -237,9 +252,9 @@ export function matchesOilSearch(row: OilListRow, search: string): boolean {
     row.element_connection,
   ];
   return (
-    fields.some((f) => f?.toLowerCase().includes(q)) ||
-    (row.therapeutic_properties ?? []).some((p) => p.toLowerCase().includes(q)) ||
-    (row.target_systems ?? []).some((s) => s.toLowerCase().includes(q))
+    fields.some((f) => (f ? foldForSearch(f).includes(q) : false)) ||
+    (row.therapeutic_properties ?? []).some((p) => foldForSearch(p).includes(q)) ||
+    (row.target_systems ?? []).some((s) => foldForSearch(s).includes(q))
   );
 }
 
