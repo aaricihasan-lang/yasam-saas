@@ -54,4 +54,9 @@ export interface LocationSearchOptions {
   limit?: number;
   /** ISO alpha-2 ülke koduyla filtre (ör. "TR"). */
   countryCode?: string;
+  /**
+   * Aranacak konum kümesi. Verilmezse paketli tohum (SEED_LOCATIONS) kullanılır.
+   * P3 → TR_LOCATIONS (81 il); P5 → global dataset. Motorlar bu katmandan bağımsızdır.
+   */
+  dataset?: ReadonlyArray<Location>;
 }

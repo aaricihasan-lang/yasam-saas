@@ -52,9 +52,10 @@ function matchScore(loc: Location, q: string): number {
  */
 export function searchLocations(query: string, options: LocationSearchOptions = {}): Location[] {
   const limit = options.limit ?? 10;
+  const base = options.dataset ?? SEED_LOCATIONS;
   const pool: ReadonlyArray<Location> = options.countryCode
-    ? SEED_LOCATIONS.filter(l => l.countryCode === options.countryCode)
-    : SEED_LOCATIONS;
+    ? base.filter(l => l.countryCode === options.countryCode)
+    : base;
 
   const q = normalizeLocationQuery(query);
   if (!q) return pool.slice(0, limit);

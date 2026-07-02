@@ -26,7 +26,7 @@ import {
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
 } from "@/lib/cosmic/eclipses";
 import { TR_LOCATIONS } from "@/lib/location/tr";
-import type { Location } from "@/lib/location";
+import { searchLocations, type Location } from "@/lib/location";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -821,6 +821,8 @@ export default function CosmicCalendarPage() {
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
   const [eclipseCity,      setEclipseCity]      = useState("Ankara");
+  const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
+  const [eclipseCityOpen,  setEclipseCityOpen]  = useState(false);    // typeahead açık mı
   const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
   const [eclipseDetail,    setEclipseDetail]    = useState<EclipseRow | null>(null);
   const [vocExpert,        setVocExpert]        = useState(false);   // VOC uzman modu
@@ -949,6 +951,12 @@ export default function CosmicCalendarPage() {
 
   // Seçili il (81 il datasetinden) — ada göre çözümlenir. Yalnız bu ilin görünürlüğü hesaplanır.
   const selEclipseLoc = useMemo(() => TR_LOCATIONS.find(l => l.name === eclipseCity), [eclipseCity]);
+
+  // Typeahead sonuçları — TR_LOCATIONS üzerinde Türkçe/diakritik-toleranslı arama (yalnız listeler; hesap yapmaz)
+  const eclipseCityResults = useMemo(
+    () => searchLocations(eclipseCityQuery, { dataset: TR_LOCATIONS, limit: 8 }),
+    [eclipseCityQuery],
+  );
 
   // Uzman filtreleri — yalnız mevcut listeyi süzer; görünürlük YALNIZ seçili il için hesaplanır
   const eclipseFiltered = useMemo<EclipseRow[]>(() => {
@@ -1655,15 +1663,39 @@ export default function CosmicCalendarPage() {
               {/* Şehir seçici + filtreler */}
               <div className="mb-3 space-y-2 rounded-xl border border-amber-100 bg-white/60 px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-600">Şehir (81 il):</label>
-                  <select
-                    value={eclipseCity}
-                    onChange={ev => setEclipseCity(ev.target.value)}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700"
-                  >
-                    {TR_LOCATIONS.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
-                  </select>
-                  <span className="text-[10px] text-slate-400">Görünürlük seçili ile göredir; “Türkiye geneli” iddiası değildir.</span>
+                  <label className="text-[11px] font-bold text-slate-600" htmlFor="eclipse-city-search">Şehir ara (81 il):</label>
+                  <div className="relative">
+                    <input
+                      id="eclipse-city-search"
+                      type="text"
+                      value={eclipseCityQuery}
+                      onChange={ev => { setEclipseCityQuery(ev.target.value); setEclipseCityOpen(true); }}
+                      onFocus={() => setEclipseCityOpen(true)}
+                      onBlur={() => setTimeout(() => setEclipseCityOpen(false), 150)}
+                      placeholder="Örn. Manisa, İzmir…"
+                      autoComplete="off"
+                      aria-label="Tutulma için şehir ara"
+                      className="w-44 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 focus:border-amber-300 focus:outline-none"
+                    />
+                    {eclipseCityOpen && eclipseCityResults.length > 0 && (
+                      <ul className="absolute left-0 top-full z-20 mt-1 max-h-56 w-52 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                        {eclipseCityResults.map(loc => (
+                          <li key={loc.id}>
+                            <button
+                              type="button"
+                              onMouseDown={ev => ev.preventDefault()}
+                              onClick={() => { setEclipseCity(loc.name); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); }}
+                              className={`flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] hover:bg-amber-50 ${loc.name === eclipseCity ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700"}`}
+                            >
+                              <span className="truncate">{loc.name}</span>
+                              <span className="shrink-0 text-[9px] text-slate-400">{loc.country}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
