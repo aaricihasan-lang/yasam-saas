@@ -42,21 +42,19 @@ const menuCardRose =
 const menuCardViolet =
   "border-violet-300/55 bg-gradient-to-br from-violet-50 via-purple-50/80 to-fuchsia-50/70 hover:border-violet-400/65";
 
-const menuCardDisabled =
-  "border-slate-200/50 bg-gradient-to-br from-slate-50 via-slate-50/80 to-white/70 cursor-not-allowed opacity-70";
-
 function AromaBadge({
   label,
   tone,
 }: {
   label: string;
-  tone: "amber" | "emerald" | "rose" | "violet" | "slate";
+  tone: "amber" | "emerald" | "rose" | "violet" | "sky" | "slate";
 }) {
   const cls =
     tone === "amber"   ? "border-amber-200/80 text-amber-800"
     : tone === "emerald" ? "border-emerald-200/80 text-emerald-800"
     : tone === "rose"    ? "border-rose-200/80 text-rose-800"
     : tone === "violet"  ? "border-violet-200/80 text-violet-800"
+    : tone === "sky"     ? "border-sky-200/80 text-sky-800"
     :                      "border-slate-200/80 text-slate-600";
   return (
     <span className={`inline-flex rounded-full border bg-white/85 px-3 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm ${cls}`}>
@@ -279,28 +277,29 @@ export default function AromaTerapiHubPage() {
             </div>
           </Link>
 
-          {/* Karışım Oluşturucu — Yakında */}
-          <div className={`${menuCard} ${menuCardDisabled} sm:col-span-2 lg:col-span-1`}>
+          {/* Karışım Oluşturucu */}
+          <Link href="/aromaterapi/karisim-olusturucu" className={`${menuCard} border-sky-300/55 bg-gradient-to-br from-sky-50 via-cyan-50/80 to-blue-50/70 hover:border-sky-400/65 sm:col-span-2 lg:col-span-1`}>
+            <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-sky-300/20 blur-2xl transition group-hover:bg-sky-300/30" />
             <div className="relative flex h-full flex-col justify-between">
-              <div className="shrink-0"><AromaBadge label="Yakında" tone="slate" /></div>
+              <div className="shrink-0"><AromaBadge label="Karışım Oluşturucu" tone="sky" /></div>
               <div className="flex flex-1 flex-col items-center justify-center px-2 py-4 text-center">
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 text-3xl shadow-sm ring-1 ring-white/90">⚗️</div>
-                <h2 className="text-lg font-black leading-tight tracking-tight text-slate-700">Karışım Oluşturucu</h2>
-                <p className="mt-1.5 text-xs font-medium leading-snug text-slate-500">
-                  Uçucu + sabit yağ kombinasyonları oluşturun, blend reçeteleri kaydedin ve danışan protokollerine ekleyin.
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200/80 bg-white/80 text-3xl shadow-sm ring-1 ring-white/90">⚗️</div>
+                <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Karışım Oluşturucu</h2>
+                <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
+                  Uçucu + sabit yağ kombinasyonlarını siz seçin; sistem damla hesabını yapar ve bilinen uyarıları gösterir.
                 </p>
               </div>
               <div className="shrink-0 space-y-2">
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
-                  <span className="rounded-full border border-slate-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-slate-600">Blend reçetesi</span>
-                  <span className="rounded-full border border-slate-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-slate-600">Danışan entegrasyonu</span>
+                  <span className="rounded-full border border-sky-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-sky-800">Damla hesabı</span>
+                  <span className="rounded-full border border-sky-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-sky-800">Güvenlik uyarısı</span>
                 </div>
-                <span className="block w-full rounded-xl bg-slate-200 py-2 text-center text-[13px] font-black text-slate-500 shadow-sm">
-                  Yakında Geliyor
+                <span className="block w-full rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
+                  Karışım Oluşturucuyu Aç →
                 </span>
               </div>
             </div>
-          </div>
+          </Link>
 
         </section>
 
