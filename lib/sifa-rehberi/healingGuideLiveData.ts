@@ -410,6 +410,58 @@ function mapListRow(row: RawGuideRow): HealingGuideListRow | null {
   };
 }
 
+/** Ham guide satırını (liste veya detay select'i) HealingGuideDetail'e çevirir. */
+export function mapRawRowToDetail(row: RawGuideRow): HealingGuideDetail {
+  const rawSections = Array.isArray(row.healing_guide_sections)
+    ? row.healing_guide_sections
+    : [];
+  const sections = rawSections
+    .map((entry) => mapSectionRow(entry))
+    .filter((entry): entry is HealingGuideSectionRow => Boolean(entry))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  return {
+    guide: {
+      id: textValue(row.id),
+      tenant_id: textValue(row.tenant_id),
+      name: textValue(row.name),
+      category: textValue(row.category) || null,
+      symptoms: textValue(row.symptoms) || null,
+      created_at: textValue(row.created_at) || new Date().toISOString(),
+      updated_at: textValue(row.updated_at) || null,
+      related_stones: row.related_stones ?? null,
+      related_reflexology: row.related_reflexology ?? null,
+      legacy: legacyFieldsFromRow(row),
+      images: normalizeImages(row.images),
+    },
+    sections,
+  };
+}
+
+/**
+ * Client-side stale-while-revalidate önbelleği (yalnız Şifa Rehberi).
+ *
+ * Güvenlik: önbellek yalnızca client'ın zaten güvenli API'den (tenant-bağlı)
+ * çektiği kendi verisini tutar; yeni bir erişim yüzeyi açmaz. Detay/liste her
+ * açılışta arka planda yine güvenli API ile revalidate edilir (verifyUserRequest
+ * + tenant guard aynen çalışır). Her mutasyonda ilgili önbellek düşürülür.
+ */
+type DetailCacheEntry = { detail: HealingGuideDetail; ts: number };
+const detailCache = new Map<string, DetailCacheEntry>();
+let listCache: { rows: HealingGuideListRow[]; ts: number } | null = null;
+
+export function peekCachedDetail(id: string): HealingGuideDetail | null {
+  return detailCache.get(id)?.detail ?? null;
+}
+export function peekCachedList(): HealingGuideListRow[] | null {
+  return listCache?.rows ?? null;
+}
+export function invalidateHealingGuideCache(id?: string): void {
+  listCache = null;
+  if (id) detailCache.delete(id);
+  else detailCache.clear();
+}
+
 /**
  * Liste — /api/sifa-rehberi/guides (GET). tenantId parametresi geriye-uyum için
  * korunur; sunucu gerçek tenant'ı session'dan zorlar.
@@ -434,9 +486,21 @@ export async function fetchHealingGuideList(
     return { rows: [], error: json.error ?? `Kayıtlar alınamadı (HTTP ${res.status}).` };
   }
 
-  const rows = ((json.rows ?? []) as RawGuideRow[])
+  const rawRows = (json.rows ?? []) as RawGuideRow[];
+  const rows = rawRows
     .map((row) => mapListRow(row))
     .filter((row): row is HealingGuideListRow => Boolean(row));
+
+  // SWR: listeyi ve (henüz önbellekte yoksa) her kaydın detayını seed et.
+  // Liste select'i tüm içerik kolonlarını + sections'ı zaten getirdiği için
+  // liste→detay ilk tıklaması anında açılır; detay yine arka planda revalidate olur.
+  listCache = { rows, ts: Date.now() };
+  for (const raw of rawRows) {
+    const d = mapRawRowToDetail(raw);
+    if (d.guide.id && !detailCache.has(d.guide.id)) {
+      detailCache.set(d.guide.id, { detail: d, ts: Date.now() });
+    }
+  }
 
   return { rows, error: null };
 }
@@ -478,31 +542,10 @@ export async function fetchHealingGuideDetail(
   }
 
   const row = json.row as RawGuideRow;
-  const rawSections = Array.isArray(row.healing_guide_sections)
-    ? row.healing_guide_sections
-    : [];
+  const detail = mapRawRowToDetail(row);
 
-  const sections = rawSections
-    .map((entry) => mapSectionRow(entry))
-    .filter((entry): entry is HealingGuideSectionRow => Boolean(entry))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
-
-  const detail: HealingGuideDetail = {
-    guide: {
-      id: textValue(row.id),
-      tenant_id: textValue(row.tenant_id),
-      name: textValue(row.name),
-      category: textValue(row.category) || null,
-      symptoms: textValue(row.symptoms) || null,
-      created_at: textValue(row.created_at) || new Date().toISOString(),
-      updated_at: textValue(row.updated_at) || null,
-      related_stones: row.related_stones ?? null,
-      related_reflexology: row.related_reflexology ?? null,
-      legacy: legacyFieldsFromRow(row),
-      images: normalizeImages(row.images),
-    },
-    sections,
-  };
+  // SWR: taze (görselli) detayı önbelleğe yaz.
+  if (detail.guide.id) detailCache.set(detail.guide.id, { detail, ts: Date.now() });
 
   return { detail, error: null, notFound: false };
 }
@@ -531,6 +574,7 @@ export async function createHealingGuide(
   if (!res.ok || json.ok !== true) {
     return { id: null, error: json.error ?? `Kayıt eklenemedi (HTTP ${res.status}).` };
   }
+  listCache = null; // yeni kayıt → liste önbelleğini düşür
   return { id: json.guide?.id ?? null, error: null };
 }
 
@@ -553,6 +597,8 @@ export async function updateHealingGuide(
   if (!res.ok || json.ok !== true) {
     return { error: json.error ?? `Kayıt güncellenemedi (HTTP ${res.status}).` };
   }
+  detailCache.delete(guideId); // güncellenen kaydın önbelleğini düşür
+  listCache = null;
   return { error: null };
 }
 
@@ -573,6 +619,8 @@ export async function deleteHealingGuide(
   if (!res.ok || json.ok !== true) {
     return { error: json.error ?? `Kayıt silinemedi (HTTP ${res.status}).` };
   }
+  detailCache.delete(guideId); // silinen kaydın önbelleğini düşür
+  listCache = null;
   return { error: null };
 }
 
@@ -598,7 +646,10 @@ export async function deleteHealingGuides(
   if (!res.ok || json.ok !== true) {
     return { deletedIds: [], error: json.error ?? `Kayıtlar silinemedi (HTTP ${res.status}).` };
   }
-  return { deletedIds: json.deletedIds ?? [], error: null };
+  const deletedIds = json.deletedIds ?? [];
+  for (const gid of deletedIds) detailCache.delete(gid); // silinenlerin önbelleğini düşür
+  listCache = null;
+  return { deletedIds, error: null };
 }
 
 export function groupSectionsByType(

@@ -23,6 +23,7 @@ import {
   fetchHealingGuideList,
   listRowPreview,
   matchesListSearch,
+  peekCachedList,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -541,7 +542,6 @@ function SifaRehberiContent() {
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadGuides(tenantId: string) {
-    setLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
 
@@ -552,12 +552,21 @@ function SifaRehberiContent() {
       return;
     }
 
+    // SWR: önbellekte liste varsa anında göster (spinner yok), sonra revalidate et.
+    const cached = peekCachedList();
+    if (cached) {
+      setRows(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const { rows: nextRows, error } = await fetchHealingGuideList(tenantId);
 
-    setLoading(false);
+    if (!cached) setLoading(false);
 
     if (error) {
-      setErrorMessage(`Kayıtlar alınamadı: ${error}`);
+      if (!cached) setErrorMessage(`Kayıtlar alınamadı: ${error}`);
       return;
     }
 

@@ -15,6 +15,7 @@ import {
   getHealingGuideSectionDisplayTitle,
   groupSectionsByType,
   HEALING_SECTION_DISPLAY,
+  peekCachedDetail,
   updateHealingGuide,
   type HealingGuideDetail,
   type HealingGuideSectionRow,
@@ -393,6 +394,11 @@ export default function SifaRehberiDetailPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadTargetSection, setUploadTargetSection] = useState<DetailTabId | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+  // Arka plan revalidate'in aktif düzenlemeyi ezmemesi için editEnabled aynası.
+  const editEnabledRef = useRef(false);
+  useEffect(() => {
+    editEnabledRef.current = editEnabled;
+  }, [editEnabled]);
 
   const activeTab = useMemo(
     () => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0],
@@ -426,12 +432,12 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
-    setLoading(true);
     setErrorMessage("");
-    setNotFound(false);
 
     // Demo fixture rahatsızlık — Supabase atlanır, zengin korumalı içerik gösterilir.
     if (isDemo && isDemoFixtureGuide(id)) {
+      setLoading(true);
+      setNotFound(false);
       const detail = getDemoGuideDetail(id);
       setLoading(false);
       if (!detail) {
@@ -452,14 +458,35 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
+    // SWR: önbellekte varsa anında boya (spinner yok), sonra arka planda revalidate et.
+    const cached = peekCachedDetail(id);
+    const hasCache = Boolean(cached);
+    if (cached) {
+      const cachedRow = detailToRecord(cached);
+      setRecord(cachedRow);
+      if (!editEnabledRef.current) setDraft(recordToDraft(cachedRow));
+      setSymptoms(cached.guide.symptoms);
+      setSections(cached.sections);
+      if (cached.sections.length > 0) {
+        setSectionTab(firstSectionTabWithContent(groupSectionsByType(cached.sections)));
+      }
+      setNotFound(false);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setNotFound(false);
+    }
+
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
-      setLoading(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      setRecord(null);
-      setDraft(null);
-      setSections([]);
-      setNotFound(false);
+      if (!hasCache) {
+        setLoading(false);
+        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        setRecord(null);
+        setDraft(null);
+        setSections([]);
+        setNotFound(false);
+      }
       return;
     }
 
@@ -467,18 +494,22 @@ export default function SifaRehberiDetailPage() {
 
     const { detail, error, notFound: missing } = await fetchHealingGuideDetail(tenantId, id);
 
-    setLoading(false);
+    if (!hasCache) setLoading(false);
 
     if (error) {
-      setErrorMessage(`Kayıt yüklenemedi: ${error}`);
-      setRecord(null);
-      setDraft(null);
-      setSections([]);
-      setNotFound(false);
+      // Revalidate hatası: önbellek gösterimi varsa koru, yoksa hata göster.
+      if (!hasCache) {
+        setErrorMessage(`Kayıt yüklenemedi: ${error}`);
+        setRecord(null);
+        setDraft(null);
+        setSections([]);
+        setNotFound(false);
+      }
       return;
     }
 
     if (missing || !detail) {
+      // Sunucuda silinmiş → önbellek olsa bile "bulunamadı" göster.
       setNotFound(true);
       setRecord(null);
       setDraft(null);
@@ -489,10 +520,10 @@ export default function SifaRehberiDetailPage() {
 
     const row = detailToRecord(detail);
     setRecord(row);
-    setDraft(recordToDraft(row));
+    if (!editEnabledRef.current) setDraft(recordToDraft(row));
     setSymptoms(detail.guide.symptoms);
     setSections(detail.sections);
-    if (detail.sections.length > 0) {
+    if (!hasCache && detail.sections.length > 0) {
       setSectionTab(firstSectionTabWithContent(groupSectionsByType(detail.sections)));
     }
     setNotFound(false);
