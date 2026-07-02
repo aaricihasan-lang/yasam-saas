@@ -105,6 +105,20 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           <stop offset="50%" stopColor={RED} />
           <stop offset="100%" stopColor="#991b1b" />
         </linearGradient>
+
+        {/* FAZ 7D — tanımlı merkez premium katmanı (ek <polygon> YOK; sadece filter/gradient) */}
+        {/* Yumuşak, ölçülü derinlik gölgesi — tanımlı polygon'a uygulanır, eleman eklemez */}
+        <filter id="hd-center-shadow" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0.6" stdDeviation="0.9" floodColor="#0f172a" floodOpacity="0.22" />
+        </filter>
+        {/* Her tanımlı merkez için hue-korumalı üst-sol highlight (küresel cam hissi) */}
+        {CENTERS.map((c) => (
+          <radialGradient key={c} id={`hd-center-${c}`} cx="34%" cy="26%" r="82%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.5} />
+            <stop offset="36%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
+            <stop offset="100%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
+          </radialGradient>
+        ))}
       </defs>
 
       {/* Kanallar (arka planda) — round cap/join tüm çizgilere miras kalır */}
@@ -137,8 +151,8 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
         })}
       </g>
 
-      {/* Merkezler */}
-      <g>
+      {/* Merkezler — her merkez TAM 1 <polygon> (toplam 9; round join premium köşe) */}
+      <g strokeLinejoin="round">
         {CENTERS.map((c) => {
           const shape = CENTER_SHAPES[c];
           const on = definedCenterSet.has(c);
@@ -147,10 +161,12 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             <polygon
               key={c}
               points={pts}
-              fill={on ? CENTER_FILL[c] : "#ffffff"}
-              fillOpacity={on ? 0.92 : 1}
-              stroke={on ? "#334155" : "#cbd5e1"}
-              strokeWidth={1.5}
+              fill={on ? `url(#hd-center-${c})` : "#fbfcfe"}
+              fillOpacity={1}
+              stroke={on ? "#1e293b" : "#d5dce6"}
+              strokeWidth={on ? 1.6 : 1.3}
+              strokeOpacity={on ? 0.9 : 1}
+              filter={on ? "url(#hd-center-shadow)" : undefined}
             />
           );
         })}
