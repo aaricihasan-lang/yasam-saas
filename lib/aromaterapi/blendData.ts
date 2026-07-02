@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
 // =======================================================
 // Aromaterapi FAZ B1 — Blend / Karışım Oluşturucu veri katmanı
@@ -7,7 +7,9 @@ import { supabase } from "@/lib/supabase";
 //  - AI önerisi YOK. Sistem yağ önermez; uzman yağları kendi seçer.
 //  - Tedavi iddiası YOK. Sistem yalnızca hesaplar + bilinen veriyi gösterir.
 //  - "Güvenlidir" denmez; uyarı yoksa "bilinen uyarı bulunamadı" denir.
-//  - Tüm okuma/yazma tenant_id ile izole edilir (blend'ler kullanıcıya özeldir).
+//  - GÜVENLİK: İstemci aromatherapy_blends tablosuna DOĞRUDAN erişmez.
+//    Tüm okuma/yazma /api/aromaterapi/blends (service_role + verifyUserRequest)
+//    üzerinden gider. tenant_id oturumdan belirlenir; buradan GÖNDERİLMEZ (IDOR kapalı).
 // =======================================================
 
 // -------------------------------------------------------
@@ -216,36 +218,46 @@ export function validateBlendInput(input: BlendInput): string | null {
 }
 
 // -------------------------------------------------------
-// Sorgular (tenant_id filtresi ZORUNLU — IDOR koruması)
+// Sorgular — yalnız /api/aromaterapi/blends üzerinden (service_role sunucuda)
+// tenant_id oturumdan; istemci göndermez.
 // -------------------------------------------------------
 
-export async function fetchBlends(
-  tenantId: string,
-): Promise<{ blends: Blend[]; error: string | null }> {
-  if (!tenantId) return { blends: [], error: "Oturum bulunamadı." };
+const BLENDS_API = "/api/aromaterapi/blends";
+export const BLEND_MISSING_AUTH = "Oturum bulunamadı. Lütfen tekrar giriş yapın.";
 
-  const { data, error } = await supabase
-    .from("aromatherapy_blends")
-    .select("*")
-    .eq("tenant_id", tenantId) // zorunlu tenant izolasyonu
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+function authHeaders(json = false): Record<string, string> | null {
+  const userId = readYasamUser()?.id;
+  const token = readSessionToken();
+  if (!userId || !token) return null;
+  const h: Record<string, string> = { "x-user-id": userId, "x-session-token": token };
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
 
-  if (error) return { blends: [], error: error.message };
-  return { blends: (data ?? []) as Blend[], error: null };
+export async function fetchBlends(): Promise<{ blends: Blend[]; error: string | null }> {
+  const headers = authHeaders();
+  if (!headers) return { blends: [], error: BLEND_MISSING_AUTH };
+  try {
+    const res = await fetch(BLENDS_API, { headers, cache: "no-store" });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; rows?: Blend[] };
+    if (!res.ok || !json.ok) return { blends: [], error: json.error ?? `HTTP ${res.status}` };
+    return { blends: json.rows ?? [], error: null };
+  } catch (e) {
+    return { blends: [], error: e instanceof Error ? e.message : "Ağ hatası" };
+  }
 }
 
 export async function saveBlend(
-  tenantId: string,
   input: BlendInput,
-): Promise<{ blend: Blend | null; error: string | null }> {
-  if (!tenantId) return { blend: null, error: "Oturum bulunamadı." };
-
+): Promise<{ blend: Blend | null; error: string | null; demo?: boolean }> {
   const validationError = validateBlendInput(input);
   if (validationError) return { blend: null, error: validationError };
 
+  const headers = authHeaders(true);
+  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
+
+  // tenant_id GÖNDERİLMEZ — sunucu oturumdan belirler.
   const payload = {
-    tenant_id: tenantId, // her zaman kullanıcının kendi tenant'ı
     name: input.name.trim(),
     notes: input.notes ?? "",
     carrier_oil_id: input.carrier_oil_id ?? null,
@@ -255,33 +267,29 @@ export async function saveBlend(
     drops_per_ml: input.drops_per_ml || DEFAULT_DROPS_PER_ML,
     total_drops: input.total_drops,
     items: input.items,
-    is_active: true,
   };
 
-  const { data, error } = await supabase
-    .from("aromatherapy_blends")
-    .insert(payload)
-    .select("*")
-    .single();
-
-  if (error) return { blend: null, error: error.message };
-  return { blend: data as Blend, error: null };
+  try {
+    const res = await fetch(BLENDS_API, { method: "POST", headers, body: JSON.stringify(payload) });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean };
+    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}` };
+    return { blend: json.blend ?? null, error: null, demo: json.demo };
+  } catch (e) {
+    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası" };
+  }
 }
 
 export async function deleteBlend(
-  tenantId: string,
   id: string,
-): Promise<{ deletedCount: number; error: string | null }> {
-  if (!tenantId) return { deletedCount: 0, error: "Oturum bulunamadı." };
-
-  // tenant_id + id birlikte zorunlu → başka tenant'ın kaydı silinemez (IDOR koruması).
-  const { data, error } = await supabase
-    .from("aromatherapy_blends")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("id", id)
-    .select("id");
-
-  if (error) return { deletedCount: 0, error: error.message };
-  return { deletedCount: data?.length ?? 0, error: null };
+): Promise<{ ok: boolean; error: string | null; demo?: boolean }> {
+  const headers = authHeaders();
+  if (!headers) return { ok: false, error: BLEND_MISSING_AUTH };
+  try {
+    const res = await fetch(`${BLENDS_API}/${encodeURIComponent(id)}`, { method: "DELETE", headers });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; demo?: boolean };
+    if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    return { ok: true, error: null, demo: json.demo };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası" };
+  }
 }
