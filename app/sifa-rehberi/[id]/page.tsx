@@ -217,7 +217,7 @@ const sectionNoteBody =
   "whitespace-pre-wrap rounded-lg border border-slate-100 bg-white/90 p-3 text-sm leading-6 text-slate-700 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:text-[15px] max-md:leading-7";
 
 const detailNavBtnBase =
-  "flex w-full min-h-[34px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-semibold transition lg:min-w-0 max-md:w-auto max-md:min-h-[40px] max-md:px-3.5 max-md:text-[13px] max-md:whitespace-nowrap";
+  "flex w-full min-h-[34px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-semibold transition lg:min-w-0 max-md:w-full max-md:min-h-[44px] max-md:gap-2.5 max-md:rounded-xl max-md:px-3.5 max-md:text-[13px]";
 
 type SectionBadgeTone = "emerald" | "cyan" | "violet";
 
@@ -865,8 +865,8 @@ export default function SifaRehberiDetailPage() {
         ) : null}
 
         <section className="flex max-h-[min(92vh,900px)] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-white/86 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 max-md:max-h-none max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none max-md:ring-0 lg:max-h-[min(88vh,960px)] lg:flex-row">
-          <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 max-md:-mx-3 max-md:px-3 max-md:py-2 lg:w-[240px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
-            <div className="space-y-1.5 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-2 ring-1 ring-white/90 max-md:flex max-md:gap-2 max-md:space-y-0 max-md:rounded-none max-md:bg-none max-md:p-0 max-md:ring-0">
+          <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-100/80 p-3 max-md:block max-md:overflow-visible max-md:border-b-0 max-md:p-0 max-md:pb-1 lg:w-[240px] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-slate-100/80 lg:p-4">
+            <div className="space-y-1.5 rounded-2xl bg-[linear-gradient(165deg,rgba(236,253,245,0.95)_0%,rgba(224,242,254,0.55)_48%,rgba(250,245,255,0.75)_100%)] p-2 ring-1 ring-white/90 max-md:flex max-md:w-full max-md:flex-col max-md:gap-1.5 max-md:space-y-0 max-md:rounded-none max-md:bg-none max-md:p-0 max-md:ring-0">
               {useSectionView
                 ? HEALING_SECTION_DISPLAY.map((t) => {
                     const active = sectionTab === t.type;
@@ -890,7 +890,16 @@ export default function SifaRehberiDetailPage() {
                           >
                             {count}
                           </span>
-                        ) : null}
+                        ) : (
+                          <span
+                            aria-hidden
+                            className={`hidden max-md:inline text-[13px] font-bold ${
+                              active ? "text-white/70" : "text-slate-300"
+                            }`}
+                          >
+                            —
+                          </span>
+                        )}
                       </button>
                     );
                   })
