@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { computeHdChart } from "@/lib/human-design/api/computeClient";
+import { saveComputedChart } from "@/lib/human-design/api/chartsClient";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 import { BodyGraph } from "./BodyGraph";
 import { LocationPicker } from "./LocationPicker";
@@ -53,6 +54,9 @@ export function HdHaritaContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HdChartResult | null>(null);
+  const [saveState, setSaveState] = useState<{ status: "idle" | "saving" | "done" | "error"; msg?: string }>({
+    status: "idle",
+  });
 
   const canSubmit = date !== "" && time !== "" && tz !== "" && !loading;
 
@@ -60,6 +64,7 @@ export function HdHaritaContent() {
     e.preventDefault();
     setError(null);
     setResult(null);
+    setSaveState({ status: "idle" });
     setLoading(true);
     const r = await computeHdChart({ date, time, timezone: tz });
     setLoading(false);
@@ -69,6 +74,17 @@ export function HdHaritaContent() {
       setError("Oturum gerekli. Lütfen tekrar giriş yapın.");
     } else {
       setError(r.error);
+    }
+  }
+
+  async function handleSaveChart() {
+    if (!result || saveState.status === "saving") return;
+    setSaveState({ status: "saving" });
+    const r = await saveComputedChart({ date, time, timezone: tz }, { birthPlace: place });
+    if (r.ok) {
+      setSaveState({ status: "done", msg: "Kaydedildi ✓" });
+    } else {
+      setSaveState({ status: "error", msg: r.error });
     }
   }
 
@@ -139,16 +155,35 @@ export function HdHaritaContent() {
             <div className="space-y-3">
             {/* Üst şerit */}
             <div className={cardCls}>
-              <div className="flex flex-wrap gap-2">
-                <Badge label="Type" value={result.type} tone="indigo" />
-                <Badge label="Authority" value={result.authority} tone="violet" />
-                <Badge label="Profile" value={result.profile} tone="fuchsia" />
-                <Badge
-                  label="Definition"
-                  value={`${result.definition.kind} · ${result.definition.componentCount} bileşen`}
-                  tone="sky"
-                />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge label="Type" value={result.type} tone="indigo" />
+                  <Badge label="Authority" value={result.authority} tone="violet" />
+                  <Badge label="Profile" value={result.profile} tone="fuchsia" />
+                  <Badge
+                    label="Definition"
+                    value={`${result.definition.kind} · ${result.definition.componentCount} bileşen`}
+                    tone="sky"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveChart()}
+                  disabled={saveState.status === "saving"}
+                  className="btn-primary shrink-0 disabled:opacity-60"
+                >
+                  {saveState.status === "saving" ? "Kaydediliyor…" : "Haritayı Kaydet"}
+                </button>
               </div>
+              {saveState.status === "done" ? (
+                <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                  {saveState.msg}
+                </p>
+              ) : saveState.status === "error" ? (
+                <p role="alert" className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                  {saveState.msg}
+                </p>
+              ) : null}
             </div>
 
             {/* Centers */}
