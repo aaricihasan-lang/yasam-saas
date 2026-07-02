@@ -121,6 +121,13 @@ export const TR_CITIES: ReadonlyArray<{ name: string; lat: number; lon: number; 
   { name: "Van",        lat: 38.4942, lon: 43.3800, elev: 1727 },
 ];
 
+/**
+ * Tutulma görünürlüğü gözlemcisi — TR_CITIES ile aynı yapı (additif; koordinat tabanlı).
+ * Görünürlük fonksiyonları varsayılan olarak TR_CITIES kullanır; opsiyonel olarak
+ * herhangi bir koordinat kümesi verilebilir (lib/location gibi harici katmandan).
+ */
+export type EclipseObserver = { name: string; lat: number; lon: number; elev: number };
+
 const ENGINE_SOURCE = "astronomy-engine (harness-doğrulanmış: scripts/cosmic-validation/eclipses, peak ≤22sn)";
 const CATALOG_SOURCE = "Swiss Ephemeris harness (DE431/Espenak-uyumlu) — scripts/cosmic-validation/eclipses";
 
@@ -273,15 +280,33 @@ const LUNAR_BY_ID = new Map(LUNAR_ECLIPSES.map(e => [e.id, e]));
 const solarCityCache = new Map<string, SolarCityVisibility[]>();
 const lunarCityCache = new Map<string, LunarCityVisibility[]>();
 
-/** Bir güneş tutulmasının her Türkiye şehrinden görünürlüğü. Şehir bazlı; genelleme YOK. */
-export function getSolarCityVisibility(id: string): SolarCityVisibility[] {
-  const cached = solarCityCache.get(id);
+/**
+ * Gözlemci kümesinin cache imzası. Varsayılan TR_CITIES (referans-eşit) → "tr8"
+ * — default yol için kısa/kararlı anahtar; mevcut 8-şehir davranışı birebir korunur.
+ * Özel koordinat kümeleri → ad+koordinat tam imzası (çakışma olmaz).
+ */
+function observerSignature(observers: ReadonlyArray<EclipseObserver>): string {
+  if (observers === TR_CITIES) return "tr8";
+  return observers.map(o => `${o.name}@${o.lat},${o.lon},${o.elev}`).join(";");
+}
+
+/**
+ * Bir güneş tutulmasının gözlemci noktalarından görünürlüğü. Şehir/koordinat bazlı;
+ * genelleme YOK. `observers` verilmezse varsayılan TR_CITIES (8 il) kullanılır ve
+ * sonuç mevcut davranışla birebir aynıdır.
+ */
+export function getSolarCityVisibility(
+  id: string,
+  observers: ReadonlyArray<EclipseObserver> = TR_CITIES,
+): SolarCityVisibility[] {
+  const cacheKey = `${id}|${observerSignature(observers)}`;
+  const cached = solarCityCache.get(cacheKey);
   if (cached) return cached;
   const ecl = SOLAR_BY_ID.get(id);
   if (!ecl) return [];
   const peakMs = Date.parse(ecl.peakUTC);
 
-  const result = TR_CITIES.map(city => {
+  const result = observers.map(city => {
     const obs = new AE.Observer(city.lat, city.lon, city.elev);
     let local: AE.LocalSolarEclipseInfo | null = null;
     try { local = AE.SearchLocalSolarEclipse(new Date(peakMs - 2 * DAY_MS), obs); } catch { local = null; }
@@ -317,19 +342,26 @@ export function getSolarCityVisibility(id: string): SolarCityVisibility[] {
     } satisfies SolarCityVisibility;
   });
 
-  solarCityCache.set(id, result);
+  solarCityCache.set(cacheKey, result);
   return result;
 }
 
-/** Bir ay tutulmasının her Türkiye şehrinden görünürlüğü (Ay ufuk yüksekliği). */
-export function getLunarCityVisibility(id: string): LunarCityVisibility[] {
-  const cached = lunarCityCache.get(id);
+/**
+ * Bir ay tutulmasının gözlemci noktalarından görünürlüğü (Ay ufuk yüksekliği).
+ * `observers` verilmezse varsayılan TR_CITIES kullanılır; sonuç birebir aynıdır.
+ */
+export function getLunarCityVisibility(
+  id: string,
+  observers: ReadonlyArray<EclipseObserver> = TR_CITIES,
+): LunarCityVisibility[] {
+  const cacheKey = `${id}|${observerSignature(observers)}`;
+  const cached = lunarCityCache.get(cacheKey);
   if (cached) return cached;
   const ecl = LUNAR_BY_ID.get(id);
   if (!ecl) return [];
   const peak = new Date(Date.parse(ecl.peakUTC));
 
-  const result = TR_CITIES.map(city => {
+  const result = observers.map(city => {
     const obs = new AE.Observer(city.lat, city.lon, city.elev);
     let alt = -90;
     try {
@@ -345,7 +377,7 @@ export function getLunarCityVisibility(id: string): LunarCityVisibility[] {
     } satisfies LunarCityVisibility;
   });
 
-  lunarCityCache.set(id, result);
+  lunarCityCache.set(cacheKey, result);
   return result;
 }
 
