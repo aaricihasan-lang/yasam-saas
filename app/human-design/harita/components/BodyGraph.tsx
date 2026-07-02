@@ -36,19 +36,32 @@ const CENTER_FILL: Record<CenterName, string> = {
 const RED = "#dc2626";
 const BLACK = "#111827";
 
+// FAZ 7B — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji sabit).
+const TRACK = "#e5e7eb";   // tanımsız kanal + tanımlı kanal casing (groove) tonu
+const CH_DEFINED = 3.2;    // tanımlı kanal renkli stroke
+const CH_CASING = 5.4;     // tanımlı kanalın altındaki açık casing (arka plandan ayırır)
+const CH_UNDEFINED = 2;    // tanımsız kanal
+
 function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "black" | "red" | "both" | null }) {
   if (!color) return null;
+  const common = {
+    x1: from.x,
+    y1: from.y,
+    x2: to.x,
+    y2: to.y,
+    strokeWidth: CH_DEFINED,
+    strokeLinecap: "round" as const,
+  };
   if (color === "both") {
+    // Personality (siyah) taban + Design (kırmızı) kesikli üst kat → yuvarlak dash ile premium.
     return (
       <>
-        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={BLACK} strokeWidth={3} strokeLinecap="round" />
-        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={RED} strokeWidth={3} strokeDasharray="3 3" strokeLinecap="round" />
+        <line {...common} stroke={BLACK} />
+        <line {...common} stroke={RED} strokeDasharray="5 5" />
       </>
     );
   }
-  return (
-    <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={color === "red" ? RED : BLACK} strokeWidth={3} strokeLinecap="round" />
-  );
+  return <line {...common} stroke={color === "red" ? RED : BLACK} />;
 }
 
 export function BodyGraph({ result }: { result: HdChartResult }) {
@@ -67,17 +80,29 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
     >
       <title>Human Design BodyGraph</title>
 
-      {/* Kanallar (arka planda) */}
-      <g>
+      {/* Kanallar (arka planda) — round cap/join tüm çizgilere miras kalır */}
+      <g strokeLinecap="round" strokeLinejoin="round">
         {CHANNEL_SEGMENTS.map((seg) => {
           if (!definedChannelIds.has(seg.id)) {
+            // Tanımsız: zarif, yumuşak track — round cap + hafif opaklık.
             return (
-              <line key={seg.id} x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke="#e2e8f0" strokeWidth={1.5} />
+              <line
+                key={seg.id}
+                x1={seg.a.x}
+                y1={seg.a.y}
+                x2={seg.b.x}
+                y2={seg.b.y}
+                stroke={TRACK}
+                strokeWidth={CH_UNDEFINED}
+                strokeOpacity={0.9}
+              />
             );
           }
           const mid: Point = { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 };
           return (
             <g key={seg.id}>
+              {/* Açık casing (groove): renkli kanalı arka plandan/merkezlerden ayırır */}
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING} />
               <ChannelHalf from={seg.a} to={mid} color={gateColor(seg.gateA, gateMap)} />
               <ChannelHalf from={seg.b} to={mid} color={gateColor(seg.gateB, gateMap)} />
             </g>
