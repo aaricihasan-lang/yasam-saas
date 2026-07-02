@@ -7,6 +7,14 @@ import { useState } from "react";
 import { computeHdChart } from "@/lib/human-design/api/computeClient";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 import { BodyGraph } from "./BodyGraph";
+import { LocationPicker } from "./LocationPicker";
+import { TR_LOCATIONS } from "@/lib/location/tr";
+import { SEED_LOCATIONS } from "@/lib/location/data";
+
+// FAZ 8B — HD doğum yeri arama kümesi: TR 81 il + global seed (TR olmayanlar).
+// SEED içindeki TR kayıtları (İstanbul/Ankara/İzmir/Manisa) TR_LOCATIONS'ta zaten
+// olduğundan tekrar önlemek için yalnız countryCode !== "TR" alınır.
+const HD_LOCATIONS = [...TR_LOCATIONS, ...SEED_LOCATIONS.filter((l) => l.countryCode !== "TR")];
 
 // IANA timezone listesi (yeni paket yok). supportedValuesOf yoksa yaygın liste.
 const TIMEZONES: string[] = (() => {
@@ -84,10 +92,13 @@ export function HdHaritaContent() {
           </div>
           <div>
             <label htmlFor="hd-place" className={labelCls}>Doğum Yeri</label>
-            <input id="hd-place" type="text" value={place} placeholder="Örn. Konya, Türkiye"
-              onChange={(e) => setPlace(e.target.value)} className={inputCls} />
+            <LocationPicker
+              id="hd-place"
+              dataset={HD_LOCATIONS}
+              onSelect={(loc) => { setPlace(loc.name); setTz(loc.tz); }}
+            />
             <p className="mt-1 text-[11px] leading-4 text-slate-500">
-              Yalnız bilgi amaçlıdır; hesaplama Saat Dilimi üzerinden yapılır.
+              Şehir seçtiğinizde saat dilimi otomatik dolar; bulunamazsa aşağıdan elle seçebilirsiniz.
             </p>
           </div>
           <div>
