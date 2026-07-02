@@ -22,9 +22,11 @@ import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/even
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
 import {
-  getAllEclipses, getSolarCityVisibility, getLunarCityVisibility, TR_CITIES,
-  type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType,
+  getAllEclipses, getSolarCityVisibility, getLunarCityVisibility,
+  type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
 } from "@/lib/cosmic/eclipses";
+import { TR_LOCATIONS } from "@/lib/location/tr";
+import type { Location } from "@/lib/location";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -326,7 +328,21 @@ type EclipseFilterState = {
   period: "all" | EclipsePeriod;
 };
 const DEFAULT_ECLIPSE_FILTERS: EclipseFilterState = { kind: "all", visibility: "all", type: "all", period: "all" };
-const ECLIPSE_CITY_NAMES: ReadonlyArray<string> = TR_CITIES.map(c => c.name);
+/**
+ * Seçili ilin tutulma görünürlüğü — YALNIZ o il için hesaplanır (81 il peşin
+ * hesaplanmaz). İl, 8 referans şehirden biriyse mevcut sonuçtan alınır (yeni hesap
+ * yok); değilse yalnız o ilin koordinatı observer olarak geçirilir (motor cache'ler).
+ */
+function resolveSelVis(row: EclipseRow, loc: Location | undefined): EclipseCityVis | undefined {
+  if (!loc) return undefined;
+  const inRef = row.vis.find(v => v.city === loc.name);
+  if (inRef) return inRef;
+  const observers: EclipseObserver[] = [{ name: loc.name, lat: loc.lat, lon: loc.lon, elev: loc.elev }];
+  const arr = row.e.kind === "solar"
+    ? getSolarCityVisibility(row.e.id, observers)
+    : getLunarCityVisibility(row.e.id, observers);
+  return arr[0];
+}
 
 const ECLIPSE_TYPE_TR: Record<string, string> = {
   total: "Tam", partial: "Parçalı", annular: "Halkalı", penumbral: "Yarıgölge", hybrid: "Hibrit",
@@ -381,10 +397,9 @@ function EclipseCard({ e, statusText, visible, coverage, onClick }: {
 }
 
 /** Uzman detay paneli — yalnız doğrulanmış alanlar. Saros/magnitude null ise GÖSTERİLMEZ. */
-function EclipseDetail({ row, city, onClose }: { row: EclipseRow; city: string; onClose: () => void }) {
+function EclipseDetail({ row, city, sel, onClose }: { row: EclipseRow; city: string; sel: EclipseCityVis | undefined; onClose: () => void }) {
   const e = row.e;
   const solar = e.kind === "solar";
-  const sel = row.vis.find(v => v.city === city);
   const fields: [string, string][] = [
     ["Tür", eclipseTitleTR(e)],
     ["Tarih", e.dateTR],
@@ -932,18 +947,21 @@ export default function CosmicCalendarPage() {
     return [...upcoming.map(e => enrich(e, "upcoming")), ...past.map(e => enrich(e, "past"))];
   }, [realNow]);
 
-  // Uzman filtreleri — yalnız mevcut listeyi süzer (yeni hesap yok)
+  // Seçili il (81 il datasetinden) — ada göre çözümlenir. Yalnız bu ilin görünürlüğü hesaplanır.
+  const selEclipseLoc = useMemo(() => TR_LOCATIONS.find(l => l.name === eclipseCity), [eclipseCity]);
+
+  // Uzman filtreleri — yalnız mevcut listeyi süzer; görünürlük YALNIZ seçili il için hesaplanır
   const eclipseFiltered = useMemo<EclipseRow[]>(() => {
     return eclipseData.filter(row => {
       if (eclipseFilters.kind !== "all" && row.e.kind !== eclipseFilters.kind) return false;
       if (eclipseFilters.period !== "all" && row.period !== eclipseFilters.period) return false;
       if (eclipseFilters.type !== "all" && row.e.eclipseType !== eclipseFilters.type) return false;
-      const selVisible = Boolean(row.vis.find(v => v.city === eclipseCity)?.visible);
+      const selVisible = Boolean(resolveSelVis(row, selEclipseLoc)?.visible);
       if (eclipseFilters.visibility === "visible" && !selVisible) return false;
       if (eclipseFilters.visibility === "invisible" && selVisible) return false;
       return true;
     });
-  }, [eclipseData, eclipseFilters, eclipseCity]);
+  }, [eclipseData, eclipseFilters, selEclipseLoc]);
   const eclipseFiltersActive =
     eclipseFilters.kind !== "all" || eclipseFilters.visibility !== "all" ||
     eclipseFilters.type !== "all" || eclipseFilters.period !== "all";
@@ -1637,15 +1655,15 @@ export default function CosmicCalendarPage() {
               {/* Şehir seçici + filtreler */}
               <div className="mb-3 space-y-2 rounded-xl border border-amber-100 bg-white/60 px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-600">Referans şehir:</label>
+                  <label className="text-[11px] font-bold text-slate-600">Şehir (81 il):</label>
                   <select
                     value={eclipseCity}
                     onChange={ev => setEclipseCity(ev.target.value)}
                     className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700"
                   >
-                    {ECLIPSE_CITY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {TR_LOCATIONS.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
                   </select>
-                  <span className="text-[10px] text-slate-400">Görünürlük seçili şehre göredir; “Türkiye geneli” iddiası değildir.</span>
+                  <span className="text-[10px] text-slate-400">Görünürlük seçili ile göredir; “Türkiye geneli” iddiası değildir.</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
@@ -1685,7 +1703,8 @@ export default function CosmicCalendarPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {eclipseFiltered.map(row => {
-                    const b = cityVisBadge(row.vis, eclipseCity);
+                    const selVis = resolveSelVis(row, selEclipseLoc);
+                    const b = cityVisBadge(selVis ? [selVis] : [], eclipseCity);
                     const coverage = `${row.visibleCount}/${row.totalCities} ref. şehir`;
                     return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} coverage={coverage} onClick={() => setEclipseDetail(row)} />;
                   })}
@@ -1697,7 +1716,7 @@ export default function CosmicCalendarPage() {
             </>
           )}
 
-          {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} onClose={() => setEclipseDetail(null)} />}
+          {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} sel={resolveSelVis(eclipseDetail, selEclipseLoc)} onClose={() => setEclipseDetail(null)} />}
         </section>
 
         {/* ── Ay Boşlukta mı? (FAZ 3B Adım 3) ── */}
