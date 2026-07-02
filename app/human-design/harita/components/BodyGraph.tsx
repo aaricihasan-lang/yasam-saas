@@ -75,10 +75,15 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
       viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
       className="mx-auto block h-auto w-full max-w-[360px] sm:max-w-[380px] xl:max-w-[440px]"
       role="img"
-      aria-label="Human Design BodyGraph"
+      aria-labelledby="hd-bodygraph-title hd-bodygraph-desc"
+      focusable="false"
       preserveAspectRatio="xMidYMid meet"
     >
-      <title>Human Design BodyGraph</title>
+      {/* FAZ 7F — non-interaktif görsel; SR için olgusal başlık + yapısal özet (yorum YOK) */}
+      <title id="hd-bodygraph-title">Human Design BodyGraph</title>
+      <desc id="hd-bodygraph-desc">
+        {`${definedCenters.length} tanımlı merkez, ${definedChannels.length} tanımlı kanal, ${activeGates.length} aktif kapı.`}
+      </desc>
 
       {/* FAZ 7C — aktif gate premium katmanı (ek <circle> YOK; sadece filter/gradient) */}
       <defs>
