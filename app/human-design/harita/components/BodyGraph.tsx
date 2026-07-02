@@ -73,7 +73,7 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
   return (
     <svg
       viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
-      className="mx-auto block h-auto w-full max-w-[360px]"
+      className="mx-auto block h-auto w-full max-w-[360px] sm:max-w-[380px] xl:max-w-[440px]"
       role="img"
       aria-label="Human Design BodyGraph"
       preserveAspectRatio="xMidYMid meet"

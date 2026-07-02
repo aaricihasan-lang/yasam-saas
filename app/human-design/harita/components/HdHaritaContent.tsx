@@ -118,9 +118,9 @@ export function HdHaritaContent() {
             Harita sonucu burada görünecek.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
-            {/* BodyGraph — mobil/tablet üstte, xl'de solda */}
-            <div className={`${cardCls} flex items-start justify-center`}>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(400px,470px)_minmax(0,1fr)]">
+            {/* BodyGraph — mobil/tablet üstte, xl'de solda (responsive ölçek + overflow güvenli) */}
+            <div className="flex min-w-0 items-start justify-center overflow-hidden rounded-2xl border border-indigo-200/70 bg-white/90 p-3 shadow-sm ring-1 ring-indigo-100/60 backdrop-blur sm:p-4">
               <BodyGraph result={result} />
             </div>
 
