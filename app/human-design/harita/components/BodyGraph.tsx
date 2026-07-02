@@ -80,6 +80,33 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
     >
       <title>Human Design BodyGraph</title>
 
+      {/* FAZ 7C — aktif gate premium katmanı (ek <circle> YOK; sadece filter/gradient) */}
+      <defs>
+        {/* Yumuşak derinlik gölgesi — tek circle'a uygulanır, eleman eklemez */}
+        <filter id="hd-gate-shadow" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="0.5" stdDeviation="0.7" floodColor="#0f172a" floodOpacity="0.38" />
+        </filter>
+        {/* Personality (siyah) küresel highlight */}
+        <radialGradient id="hd-gate-black" cx="35%" cy="28%" r="80%">
+          <stop offset="0%" stopColor="#4b5563" />
+          <stop offset="60%" stopColor={BLACK} />
+          <stop offset="100%" stopColor="#0b1220" />
+        </radialGradient>
+        {/* Design (kırmızı) küresel highlight */}
+        <radialGradient id="hd-gate-red" cx="35%" cy="28%" r="80%">
+          <stop offset="0%" stopColor="#f87171" />
+          <stop offset="60%" stopColor={RED} />
+          <stop offset="100%" stopColor="#991b1b" />
+        </radialGradient>
+        {/* both (P+D): üst yarı siyah / alt yarı kırmızı — tek circle içinde net ayrım */}
+        <linearGradient id="hd-gate-both" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4b5563" />
+          <stop offset="50%" stopColor={BLACK} />
+          <stop offset="50%" stopColor={RED} />
+          <stop offset="100%" stopColor="#991b1b" />
+        </linearGradient>
+      </defs>
+
       {/* Kanallar (arka planda) — round cap/join tüm çizgilere miras kalır */}
       <g strokeLinecap="round" strokeLinejoin="round">
         {CHANNEL_SEGMENTS.map((seg) => {
@@ -129,18 +156,36 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
         })}
       </g>
 
-      {/* Aktif kapı numaraları */}
-      <g>
+      {/* Aktif kapı numaraları — her aktif gate için TAM 1 <circle> (pasif render YOK) */}
+      <g fontFamily="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
         {activeGates.map((g) => {
           const a = GATE_ANCHORS[g];
           if (!a) return null;
           const col = gateColor(g, gateMap);
-          const fill = col === "red" ? RED : BLACK;
-          const both = col === "both";
+          const fillUrl =
+            col === "both" ? "url(#hd-gate-both)" : col === "red" ? "url(#hd-gate-red)" : "url(#hd-gate-black)";
           return (
             <g key={g}>
-              <circle cx={a.x} cy={a.y} r={5.6} fill={fill} stroke={both ? RED : fill} strokeWidth={both ? 2 : 0} />
-              <text x={a.x} y={a.y + 2.3} textAnchor="middle" fontSize={6} fontWeight={700} fill="#ffffff">
+              <circle
+                cx={a.x}
+                cy={a.y}
+                r={5.8}
+                fill={fillUrl}
+                stroke="#ffffff"
+                strokeWidth={0.9}
+                strokeOpacity={0.92}
+                filter="url(#hd-gate-shadow)"
+              />
+              <text
+                x={a.x}
+                y={a.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={6.2}
+                fontWeight={700}
+                letterSpacing={-0.2}
+                fill="#ffffff"
+              >
                 {g}
               </text>
             </g>
