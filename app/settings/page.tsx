@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   FileText,
   KeyRound,
   Loader2,
+  MapPin,
   MessageSquare,
   RotateCcw,
   Send,
@@ -23,10 +24,13 @@ import {
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import { searchLocations, type Location } from "@/lib/location";
+import { TR_LOCATIONS } from "@/lib/location/tr";
+import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "contact" | "export" | "backup" | "restore";
+type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore";
 
 type SupportMessage = {
   id: string;
@@ -50,6 +54,7 @@ type ExportModule = {
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
+  { id: "location",  label: "Konum",               icon: MapPin        },
   { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
   { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
@@ -759,6 +764,137 @@ function RestoreTab({ user }: { user: YasamUser }) {
   );
 }
 
+// ─── Tab: Konum ───────────────────────────────────────────────────────────────
+
+function LocationTab({ user }: { user: YasamUser }) {
+  const { showToast } = useToast();
+  const isDemo = user.is_demo_account === true;
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [current,  setCurrent]  = useState<UserLocationPref | null>(null);
+  const [selected, setSelected] = useState<Location | null>(null);
+  const [query,    setQuery]    = useState("");
+  const [open,     setOpen]     = useState(false);
+
+  const results = useMemo(
+    () => searchLocations(query, { dataset: TR_LOCATIONS, limit: 8 }),
+    [query],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const pref = await getUserLocationPref();
+      if (!alive) return;
+      if (pref) {
+        setCurrent(pref);
+        setSelected(TR_LOCATIONS.find((l) => l.id === pref.location_id) ?? null);
+        setQuery(pref.name);
+      } else {
+        const ankara = TR_LOCATIONS.find((l) => l.name === "Ankara") ?? null;
+        setSelected(ankara);
+        setQuery(ankara?.name ?? "");
+      }
+      setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function handleSave() {
+    if (!selected) { showToast({ message: "Önce bir şehir seçin.", type: "warning" }); return; }
+    setSaving(true);
+    const res = await saveUserLocationPref(selected);
+    setSaving(false);
+    if (res.ok) {
+      showToast({ title: "Kaydedildi", message: `Varsayılan konum: ${selected.name}`, type: "success" });
+      setCurrent({
+        location_id: selected.id, name: selected.name, country_code: selected.countryCode,
+        lat: selected.lat, lon: selected.lon, elev: selected.elev, tz: selected.tz, source: selected.source,
+      });
+    } else {
+      showToast({ message: res.error ?? "Kaydedilemedi.", type: "error" });
+    }
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Mevcut varsayılan konum</p>
+        <p className="mt-0.5 text-sm font-black text-slate-800">
+          {current ? `${current.name} (${current.country_code})` : "Kayıtlı değil — varsayılan: Ankara"}
+        </p>
+      </div>
+
+      {isDemo && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3.5 py-2.5" role="note">
+          <span className="mt-0.5 shrink-0 text-sm leading-none" aria-hidden>⚠️</span>
+          <p className="text-[11px] font-semibold leading-relaxed text-amber-800">
+            Demo hesabında varsayılan konum kaydedilemez.
+          </p>
+        </div>
+      )}
+
+      <div>
+        <label htmlFor="loc-search" className="mb-1 block text-[11px] font-bold text-slate-600">Şehir ara (81 il)</label>
+        <div className="relative max-w-xs">
+          <input
+            id="loc-search"
+            type="text"
+            value={query}
+            autoComplete="off"
+            aria-label="Varsayılan konum için şehir ara"
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            placeholder="Örn. Manisa, İzmir…"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-violet-300 focus:outline-none"
+          />
+          {open && results.length > 0 && (
+            <ul className="absolute left-0 top-full z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              {results.map((loc) => (
+                <li key={loc.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setSelected(loc); setQuery(loc.name); setOpen(false); }}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-violet-50 ${selected?.id === loc.id ? "bg-violet-50 font-bold text-violet-700" : "text-slate-700"}`}
+                  >
+                    <span className="truncate">{loc.name}</span>
+                    <span className="shrink-0 text-[10px] text-slate-400">{loc.country}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {selected && (
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            Seçili: <span className="font-semibold text-slate-600">{selected.name}</span> · {selected.lat.toFixed(4)}, {selected.lon.toFixed(4)}
+          </p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={saving || !selected}
+        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+        Varsayılan konumu kaydet
+      </button>
+
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        Varsayılan konum, Kozmik Ajanda tutulma görünürlüğü gibi konuma bağlı hesaplarda başlangıç şehri olarak kullanılır.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -891,6 +1027,7 @@ export default function SettingsPage() {
           ) : (
             <>
               {tab === "security"  && <SecurityTab user={user} />}
+              {tab === "location"  && <LocationTab user={user} />}
               {tab === "contact"   && <ContactTab  user={user} />}
               {tab === "export"    && <ExportTab   user={user} />}
               {tab === "backup"    && <BackupTab   user={user} />}
