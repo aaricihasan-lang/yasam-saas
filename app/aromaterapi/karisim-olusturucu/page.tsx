@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { runInEffect } from "@/lib/runInEffect";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
+import { readYasamUser, getYasamUserDisplayName } from "@/lib/auth/yasamUser";
+import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecetePrint";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
@@ -78,6 +80,37 @@ export default function KarisimOlusturucuPage() {
   const [saved, setSaved] = useState<Blend[]>([]);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Yazdırılabilir reçete
+  const [printBlend, setPrintBlend] = useState<PrintableBlend | null>(null);
+  const [printDate, setPrintDate] = useState("");
+  const expertName = useMemo(() => getYasamUserDisplayName(readYasamUser()), []);
+
+  // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.
+  useEffect(() => {
+    if (!printBlend) return;
+    const clear = () => setPrintBlend(null);
+    window.addEventListener("afterprint", clear);
+    const t = window.setTimeout(() => window.print(), 120);
+    return () => { window.removeEventListener("afterprint", clear); window.clearTimeout(t); };
+  }, [printBlend]);
+
+  function printReceteFor(blend: PrintableBlend) {
+    setPrintDate(new Date().toLocaleDateString("tr-TR"));
+    setPrintBlend(blend);
+  }
+  function printActiveBlend() {
+    if (items.length === 0) { showToast({ title: "Boş karışım", message: "Reçete için en az bir yağ ekleyin.", type: "warning" }); return; }
+    printReceteFor({
+      name: name || "(Adsız karışım)",
+      notes,
+      carrier_oil_name: carrierName,
+      bottle_ml: bottleMl,
+      dilution_percent: dilution,
+      total_drops: targetDrops,
+      items,
+    });
+  }
 
   const targetDrops = useMemo(() => calcTotalDrops(bottleMl, dilution, DEFAULT_DROPS_PER_ML), [bottleMl, dilution]);
   const currentDrops = useMemo(() => sumDrops(items), [items]);
@@ -237,7 +270,8 @@ export default function KarisimOlusturucuPage() {
     : "Yağ ekleyin";
 
   return (
-    <main className={pageBg}>
+    <>
+    <main className={`${pageBg} print:hidden`}>
       <div className="relative z-10 mx-auto w-full max-w-[1500px] space-y-4 px-3 py-4 sm:px-5 lg:px-7">
         {/* Header */}
         <header className={`${panel} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
@@ -399,6 +433,13 @@ export default function KarisimOlusturucuPage() {
             >
               {saving ? "Kaydediliyor…" : editingId ? "Değişiklikleri Kaydet" : "Karışımı Kaydet"}
             </button>
+            <button
+              type="button"
+              onClick={printActiveBlend}
+              className="mt-2 w-full rounded-xl border border-amber-300 bg-white py-2 text-[12px] font-black text-amber-700 transition hover:bg-amber-50"
+            >
+              🖨 Reçete / Yazdır
+            </button>
           </section>
         </div>
 
@@ -430,6 +471,7 @@ export default function KarisimOlusturucuPage() {
                     <button type="button" onClick={() => loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
                     <button type="button" onClick={() => void copyBlend(b)} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">Kopyala</button>
                   </div>
+                  <button type="button" onClick={() => printReceteFor(b)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Reçete / Yazdır</button>
                 </div>
               ))}
             </div>
@@ -437,5 +479,12 @@ export default function KarisimOlusturucuPage() {
         </section>
       </div>
     </main>
+
+    {printBlend ? (
+      <div className="hidden print:block">
+        <BlendRecetePrint blend={printBlend} expertName={expertName} dateStr={printDate} />
+      </div>
+    ) : null}
+    </>
   );
 }
