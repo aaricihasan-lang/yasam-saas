@@ -132,6 +132,21 @@ const HARNESSES = [
       cls:       g1(t, /Supermoon\/Micromoon etiket\s*:\s*(GECTI|GEÇTİ|INCELE|İNCELE)/),
     }),
   },
+  {
+    id: "5e1",
+    name: "FAZ 5 P5e-1 — Timezone Render Smoke",
+    dir: join(HERE, "global"),
+    engine: "lib/location/tz.ts (Intl render helpers)",
+    // py→prod→compare DEĞİL: tek node scripti (SWE'siz, saf Intl). ref adımı yok →
+    // hem full hem --engine-only'de çalışır. Script fail'de exit 1 → stepFail yakalar.
+    steps: [
+      { kind: "node", file: "tz_render_smoke.mjs", capture: true },
+    ],
+    extract: (t) => ({
+      smoke:       g1(t, /SONUÇ:\s*\S+\s+(PASS|FAIL)/),
+      istMismatch: g1(t, /Istanbul regresyon uyumsuz sayısı:\s*(\d+)/),
+    }),
+  },
 ];
 
 // ── Adım çalıştırıcı (cwd-bağımsız; scriptler __file__/import.meta tabanlı) ──
@@ -154,7 +169,7 @@ function runStep(step, dir) {
 // ── Seçim doğrula ───────────────────────────────────────────────────────────
 if (SELECTED) {
   const unknown = SELECTED.filter(s => !HARNESSES.some(h => h.id === s));
-  if (unknown.length) { console.error(`Bilinmeyen faz: ${unknown.join(", ")} (geçerli: 2c,3a,3b,3c)`); process.exit(2); }
+  if (unknown.length) { console.error(`Bilinmeyen faz: ${unknown.join(", ")} (geçerli: 2c,3a,3b,3c,5e1)`); process.exit(2); }
 }
 const selectedHarnesses = HARNESSES.filter(h => !SELECTED || SELECTED.includes(h.id));
 

@@ -32,6 +32,10 @@
       "apsis": "GECTI",
       "syzygy": "GECTI",
       "cls": "GECTI"
+    },
+    "5e1": {
+      "smoke": "PASS",
+      "istMismatch": "0"
     }
   }
 }
