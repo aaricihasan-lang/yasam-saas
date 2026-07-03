@@ -1,0 +1,17 @@
+{
+  "_comment": "FAZ 5 / P5e-2 — Global tutulma doğrulama test seti. Koordinatlar lib/location/world.ts WORLD_LOCATIONS'tan BİREBİR kopyadır (elev=0 dahil, pilot). Hem swe_global_eclipses.py hem prod_global_runner.ts okur. Production'a dahil DEĞİLDİR. FAZ 3A eclipses/ harness'inden bağımsızdır.",
+  "startYear": 2026,
+  "endYear": 2050,
+  "cities": [
+    { "id": "de-berlin",      "label": "Berlin, Germany",         "lat": 52.5200,  "lon": 13.4050,  "elev": 0, "tz": "Europe/Berlin" },
+    { "id": "gb-london",      "label": "London, United Kingdom",  "lat": 51.5074,  "lon": -0.1278,  "elev": 0, "tz": "Europe/London" },
+    { "id": "fr-paris",       "label": "Paris, France",           "lat": 48.8566,  "lon": 2.3522,   "elev": 0, "tz": "Europe/Paris" },
+    { "id": "us-tx-paris",    "label": "Paris, Texas (US)",       "lat": 33.6609,  "lon": -95.5555, "elev": 0, "tz": "America/Chicago" },
+    { "id": "us-ny-new-york", "label": "New York, US",            "lat": 40.7128,  "lon": -74.0060, "elev": 0, "tz": "America/New_York" },
+    { "id": "jp-tokyo",       "label": "Tokyo, Japan",            "lat": 35.6762,  "lon": 139.6503, "elev": 0, "tz": "Asia/Tokyo" },
+    { "id": "au-sydney",      "label": "Sydney, Australia",       "lat": -33.8688, "lon": 151.2093, "elev": 0, "tz": "Australia/Sydney" },
+    { "id": "sg-singapore",   "label": "Singapore",               "lat": 1.3521,   "lon": 103.8198, "elev": 0, "tz": "Asia/Singapore" },
+    { "id": "ae-dubai",       "label": "Dubai, UAE",              "lat": 25.2048,  "lon": 55.2708,  "elev": 0, "tz": "Asia/Dubai" },
+    { "id": "ca-toronto",     "label": "Toronto, Canada",         "lat": 43.6532,  "lon": -79.3832, "elev": 0, "tz": "America/Toronto" }
+  ]
+}
