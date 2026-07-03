@@ -42,6 +42,11 @@ const CH_DEFINED = 3.2;    // tanımlı kanal renkli stroke
 const CH_CASING = 5.4;     // tanımlı kanalın altındaki açık casing (arka plandan ayırır)
 const CH_UNDEFINED = 2;    // tanımsız kanal
 
+// FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; casing hariç).
+// Kanalın kendi renginde yumuşak halo; neon değil. Koordinat/topoloji sabit.
+const CH_GLOW_STD = 0.9;      // feGaussianBlur yarıçapı (küçük = kontrollü)
+const CH_GLOW_OPACITY = 0.55; // halo alfa çarpanı (ölçülü)
+
 function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "black" | "red" | "both" | null }) {
   if (!color) return null;
   const common = {
@@ -124,6 +129,19 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             <stop offset="100%" stopColor={CENTER_FILL[c]} stopOpacity={1} />
           </radialGradient>
         ))}
+
+        {/* FAZ 10C-1 — kanal glow: renkli yarımın kendi rengini bulanıklaştırıp altına serer;
+            keskin kanal üstte kalır. Ek polygon/circle YOK; yalnız filter. */}
+        <filter id="hd-channel-glow" x="-75%" y="-75%" width="250%" height="250%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation={CH_GLOW_STD} result="blur" />
+          <feComponentTransfer in="blur" result="softGlow">
+            <feFuncA type="linear" slope={CH_GLOW_OPACITY} />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode in="softGlow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
       {/* Kanallar (arka planda) — round cap/join tüm çizgilere miras kalır */}
@@ -147,10 +165,13 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           const mid: Point = { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 };
           return (
             <g key={seg.id}>
-              {/* Açık casing (groove): renkli kanalı arka plandan/merkezlerden ayırır */}
+              {/* Açık casing (groove): renkli kanalı arka plandan/merkezlerden ayırır — glow ALMAZ */}
               <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING} />
-              <ChannelHalf from={seg.a} to={mid} color={gateColor(seg.gateA, gateMap)} />
-              <ChannelHalf from={seg.b} to={mid} color={gateColor(seg.gateB, gateMap)} />
+              {/* FAZ 10C-1 — yalnız renkli yarımlar ölçülü glow alır */}
+              <g filter="url(#hd-channel-glow)">
+                <ChannelHalf from={seg.a} to={mid} color={gateColor(seg.gateA, gateMap)} />
+                <ChannelHalf from={seg.b} to={mid} color={gateColor(seg.gateB, gateMap)} />
+              </g>
             </g>
           );
         })}
