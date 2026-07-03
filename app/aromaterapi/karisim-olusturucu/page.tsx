@@ -25,7 +25,9 @@ import {
   validateBlendInput,
   fetchBlends,
   saveBlend,
+  updateBlend,
   deleteBlend,
+  blendToInput,
   type BlendItem,
   type Blend,
 } from "@/lib/aromaterapi/blendData";
@@ -75,6 +77,7 @@ export default function KarisimOlusturucuPage() {
   // Kaydedilenler
   const [saved, setSaved] = useState<Blend[]>([]);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const targetDrops = useMemo(() => calcTotalDrops(bottleMl, dilution, DEFAULT_DROPS_PER_ML), [bottleMl, dilution]);
   const currentDrops = useMemo(() => sumDrops(items), [items]);
@@ -151,6 +154,36 @@ export default function KarisimOlusturucuPage() {
     setItems([]);
   }
 
+  // Kayıtlı blend'i builder'a yükle → düzenleme modu (editingId aktif).
+  function loadBlend(blend: Blend) {
+    setName(blend.name);
+    setNotes(blend.notes);
+    setCarrierName(blend.carrier_oil_name);
+    setCarrierId(blend.carrier_oil_id);
+    setBottleMl(blend.bottle_ml);
+    setDilution(blend.dilution_percent);
+    setItems(blend.items);
+    setEditingId(blend.id);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    showToast({ title: "Yüklendi", message: `“${blend.name}” düzenleniyor.`, type: "info" });
+  }
+
+  // Düzenleme modundan çık → yeni blend modu.
+  function cancelEdit() {
+    setEditingId(null);
+    resetForm();
+  }
+
+  // Tek tıkla kopya: "Ad (Kopya)" adıyla YENİ kayıt; orijinal değişmez.
+  async function copyBlend(blend: Blend) {
+    const input = { ...blendToInput(blend), name: `${blend.name} (Kopya)` };
+    const { blend: created, error, demo } = await saveBlend(input);
+    if (demo) { showToast({ title: "Demo", message: "Demo hesabında kayıt yapılmaz.", type: "info" }); return; }
+    if (error || !created) { showToast({ title: "Kopyalanamadı", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
+    showToast({ title: "Kopyalandı", message: `“${created.name}” oluşturuldu.`, type: "success" });
+    await loadSaved();
+  }
+
   async function handleSave() {
     if (saving) return;
     const input = {
@@ -166,11 +199,14 @@ export default function KarisimOlusturucuPage() {
     const err = validateBlendInput(input);
     if (err) { showToast({ title: "Eksik bilgi", message: err, type: "warning" }); return; }
     setSaving(true);
-    const { blend, error, demo } = await saveBlend(input);
+    const { blend, error, demo } = editingId
+      ? await updateBlend(editingId, input)
+      : await saveBlend(input);
     setSaving(false);
     if (demo) { showToast({ title: "Demo", message: "Demo hesabında kayıt yapılmaz.", type: "info" }); return; }
-    if (error || !blend) { showToast({ title: "Kaydedilemedi", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
-    showToast({ title: "Kaydedildi", message: `“${blend.name}” karışımı kaydedildi.`, type: "success" });
+    if (error || !blend) { showToast({ title: editingId ? "Güncellenemedi" : "Kaydedilemedi", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
+    showToast({ title: editingId ? "Güncellendi" : "Kaydedildi", message: `“${blend.name}” ${editingId ? "güncellendi" : "kaydedildi"}.`, type: "success" });
+    setEditingId(null);
     resetForm();
     await loadSaved();
   }
@@ -186,6 +222,7 @@ export default function KarisimOlusturucuPage() {
     if (error) { showToast({ title: "Silinemedi", message: error, type: "error" }); return; }
     showToast({ title: "Silindi", message: "Karışım silindi.", type: "success" });
     setSaved((prev) => prev.filter((b) => b.id !== blend.id));
+    if (editingId === blend.id) { setEditingId(null); resetForm(); }
   }
 
   const statusBadge =
@@ -220,6 +257,13 @@ export default function KarisimOlusturucuPage() {
 
         {errorMsg ? (
           <div className="rounded-2xl bg-rose-50 px-4 py-2 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">{errorMsg}</div>
+        ) : null}
+
+        {editingId ? (
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2 text-[12px] font-black text-amber-800">
+            <span>✏️ Düzenleme modu — kaydedince mevcut karışım güncellenecek.</span>
+            <button type="button" onClick={cancelEdit} className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1 text-[11px] font-black text-amber-700 hover:bg-amber-100">İptal</button>
+          </div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -353,7 +397,7 @@ export default function KarisimOlusturucuPage() {
               disabled={saving}
               className={`mt-3 w-full rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 py-2.5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 ${saving ? "pointer-events-none opacity-70" : ""}`}
             >
-              {saving ? "Kaydediliyor…" : "Karışımı Kaydet"}
+              {saving ? "Kaydediliyor…" : editingId ? "Değişiklikleri Kaydet" : "Karışımı Kaydet"}
             </button>
           </section>
         </div>
@@ -381,6 +425,10 @@ export default function KarisimOlusturucuPage() {
                         {it.oil_name} · {it.drops}d
                       </span>
                     ))}
+                  </div>
+                  <div className="mt-2 flex gap-1.5">
+                    <button type="button" onClick={() => loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
+                    <button type="button" onClick={() => void copyBlend(b)} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">Kopyala</button>
                   </div>
                 </div>
               ))}

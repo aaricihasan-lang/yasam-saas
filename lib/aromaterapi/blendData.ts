@@ -279,6 +279,54 @@ export async function saveBlend(
   }
 }
 
+export async function updateBlend(
+  id: string,
+  input: BlendInput,
+): Promise<{ blend: Blend | null; error: string | null; demo?: boolean }> {
+  const validationError = validateBlendInput(input);
+  if (validationError) return { blend: null, error: validationError };
+
+  const headers = authHeaders(true);
+  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
+
+  // tenant_id GÖNDERİLMEZ — sunucu oturumdan belirler; başka tenant güncellenemez.
+  const payload = {
+    name: input.name.trim(),
+    notes: input.notes ?? "",
+    carrier_oil_id: input.carrier_oil_id ?? null,
+    carrier_oil_name: input.carrier_oil_name ?? "",
+    bottle_ml: input.bottle_ml,
+    dilution_percent: input.dilution_percent,
+    drops_per_ml: input.drops_per_ml || DEFAULT_DROPS_PER_ML,
+    total_drops: input.total_drops,
+    items: input.items,
+  };
+
+  try {
+    const res = await fetch(`${BLENDS_API}/${encodeURIComponent(id)}`, { method: "PATCH", headers, body: JSON.stringify(payload) });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean };
+    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}` };
+    return { blend: json.blend ?? null, error: null, demo: json.demo };
+  } catch (e) {
+    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası" };
+  }
+}
+
+/** Kayıtlı Blend'i builder girdisine çevirir (id/meta düşer). Düzenle + Kopyala kullanır. */
+export function blendToInput(blend: Blend): BlendInput {
+  return {
+    name: blend.name,
+    notes: blend.notes,
+    carrier_oil_id: blend.carrier_oil_id,
+    carrier_oil_name: blend.carrier_oil_name,
+    bottle_ml: blend.bottle_ml,
+    dilution_percent: blend.dilution_percent,
+    drops_per_ml: blend.drops_per_ml,
+    total_drops: blend.total_drops,
+    items: blend.items,
+  };
+}
+
 export async function deleteBlend(
   id: string,
 ): Promise<{ ok: boolean; error: string | null; demo?: boolean }> {
