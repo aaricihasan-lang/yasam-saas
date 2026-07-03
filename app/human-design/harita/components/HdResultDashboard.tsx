@@ -9,6 +9,7 @@
 // Motor/compute/contract'a dokunmaz; yalnız hesaplanmış result'ı sunar.
 
 import { BodyGraph } from "./BodyGraph";
+import { PlanetColumns } from "./PlanetColumns";
 import type { HdChartResult } from "@/lib/human-design/engine/contract";
 
 const CENTER_TR: Record<string, string> = {
@@ -165,8 +166,16 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
         {/* ORTA — BodyGraph sahnesi (mobilde önce) */}
         <div className="order-1 xl:order-none">
           <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(232,200,116,0.07),transparent_70%)] p-3 sm:p-5">
-            {/* 10B: Design / Personality gezegen sütunları buraya gelecek */}
-            <BodyGraph result={result} />
+            {/* FAZ 10B — Design | BodyGraph | Personality (BodyGraph SVG'ye dokunulmaz) */}
+            <div className="flex w-full flex-col items-center gap-4 xl:flex-row xl:items-start xl:justify-center">
+              <div className="w-full max-w-[240px] xl:w-[100px] xl:shrink-0">
+                <PlanetColumns result={result} side="design" />
+              </div>
+              <BodyGraph result={result} />
+              <div className="w-full max-w-[240px] xl:w-[100px] xl:shrink-0">
+                <PlanetColumns result={result} side="personality" />
+              </div>
+            </div>
           </div>
         </div>
 
