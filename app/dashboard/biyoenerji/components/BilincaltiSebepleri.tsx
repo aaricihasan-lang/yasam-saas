@@ -130,6 +130,8 @@ export default function BilincaltiSebepleri() {
   const [listLoading, setListLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalInDb, setTotalInDb] = useState(0);
+  // K-2: sayım çözülene kadar "…" göster; ilk yüklemede yanlış "0" önlenir.
+  const [statsReady, setStatsReady] = useState(false);
   const [searchResultCount, setSearchResultCount] = useState(0);
   // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
   // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
@@ -211,6 +213,7 @@ export default function BilincaltiSebepleri() {
         if (cached) {
           setRows(cached.rows as SubconsciousCauseListItem[]);
           setTotalInDb(cached.total);
+          setStatsReady(true);
           setSearchResultCount(cached.searchCount);
           setLastCreatedAt(cached.lastCreatedAt);
           setListLoading(false);
@@ -266,6 +269,7 @@ export default function BilincaltiSebepleri() {
             ? lastCreatedAtRef.current
             : ((lastRes as { lastCreatedAt?: string | null }).lastCreatedAt ?? null);
           setLastCreatedAt(lastAt);
+          setStatsReady(true);
           bioListSet(cacheKey, {
             rows: pageRes.rows,
             total,
@@ -444,7 +448,7 @@ export default function BilincaltiSebepleri() {
           <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
             <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
-              {totalInDb}
+              {statsReady ? totalInDb : "…"}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
@@ -452,7 +456,7 @@ export default function BilincaltiSebepleri() {
               {isSearchActive ? "Arama sonucu" : "Görünen"}
             </p>
             <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
-              {searchResultCount}
+              {statsReady ? searchResultCount : "…"}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">

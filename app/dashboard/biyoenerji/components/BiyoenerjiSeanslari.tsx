@@ -103,6 +103,8 @@ export default function BiyoenerjiSeanslari() {
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);
+  // K-2: sayım (count) çözülene kadar "…" göster; ilk yüklemede yanlış "0" önlenir.
+  const [statsReady, setStatsReady] = useState(false);
   const [searchResultCount, setSearchResultCount] = useState(0);
   // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
   // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
@@ -171,6 +173,7 @@ export default function BiyoenerjiSeanslari() {
         if (cached) {
           setRows(cached.rows as BioenergySession[]);
           setTotalInDb(cached.total);
+          setStatsReady(true);
           setSearchResultCount(cached.searchCount);
           setLastCreatedAt(cached.lastCreatedAt);
           setLoading(false);
@@ -214,6 +217,7 @@ export default function BiyoenerjiSeanslari() {
           if (!totalRes.error) setTotalInDb(total);
           if (!searchCountRes.error) setSearchResultCount(searchCount);
           if (!lastRes.error) setLastCreatedAt(lastAt);
+          setStatsReady(true);
           bioListSet(cacheKey, {
             rows: pageRows,
             total,
@@ -559,6 +563,7 @@ export default function BiyoenerjiSeanslari() {
           midCount={moduleStats.cats}
           lastDate={moduleStats.last}
           tone="violet"
+          loading={!statsReady}
         />
       </div>
 

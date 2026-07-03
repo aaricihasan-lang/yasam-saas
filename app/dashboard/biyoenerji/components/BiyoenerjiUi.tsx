@@ -51,16 +51,19 @@ export function ModuleStats({
   midCount,
   lastDate,
   tone: _tone,
+  loading = false,
 }: {
   total: number;
   midLabel: string;
   midCount: number;
   lastDate: string;
   tone: BiyoenerjiTone;
+  /** K-2: sayım henüz gelmediyse 0 yerine "…" göster. */
+  loading?: boolean;
 }) {
   const items = [
-    { k: "Toplam kayıt", v: String(total) },
-    { k: midLabel, v: String(midCount) },
+    { k: "Toplam kayıt", v: loading ? "…" : String(total) },
+    { k: midLabel, v: loading ? "…" : String(midCount) },
     { k: "Son kayıt", v: lastDate },
   ];
   return (

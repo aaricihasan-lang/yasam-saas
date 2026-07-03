@@ -125,14 +125,17 @@ function EnergyBodyStats({
   total,
   uidCount,
   lastDate,
+  loading = false,
 }: {
   total: number;
   uidCount: number;
   lastDate: string;
+  /** K-2: sayım gelene kadar 0 yerine "…" göster. */
+  loading?: boolean;
 }) {
   const items = [
-    { label: "Toplam kayıt", value: String(total) },
-    { label: "Kaynak UID", value: String(uidCount) },
+    { label: "Toplam kayıt", value: loading ? "…" : String(total) },
+    { label: "Kaynak UID", value: loading ? "…" : String(uidCount) },
     { label: "Son kayıt", value: lastDate },
   ];
 
@@ -209,6 +212,8 @@ export default function EnerjiBedenleri() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);
+  // K-2: sayım çözülene kadar "…" göster; ilk yüklemede yanlış "0" önlenir.
+  const [statsReady, setStatsReady] = useState(false);
   const [searchResultCount, setSearchResultCount] = useState(0);
   // Loader callback'i stabil tutmak için (çift-fetch önlenir): append dalında
   // sayım placeholder'ları bu ref'lerden okunur; state dep zincirini kırmaz.
@@ -277,6 +282,7 @@ export default function EnerjiBedenleri() {
         if (cached) {
           setRows(cached.rows as BioenergyEnergyBodyRecord[]);
           setTotalInDb(cached.total);
+          setStatsReady(true);
           setSearchResultCount(cached.searchCount);
           setLastCreatedAt(cached.lastCreatedAt);
           setLoading(false);
@@ -320,6 +326,7 @@ export default function EnerjiBedenleri() {
           if (!totalRes.error) setTotalInDb(total);
           if (!searchCountRes.error) setSearchResultCount(searchCount);
           if (!lastRes.error) setLastCreatedAt(lastAt);
+          setStatsReady(true);
           bioListSet(cacheKey, {
             rows: pageRows,
             total,
@@ -605,6 +612,7 @@ export default function EnerjiBedenleri() {
           total={moduleStats.total}
           uidCount={moduleStats.uids}
           lastDate={moduleStats.last}
+          loading={!statsReady}
         />
       </div>
 
