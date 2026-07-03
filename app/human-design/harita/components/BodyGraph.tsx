@@ -47,6 +47,11 @@ const CH_UNDEFINED = 2;    // tanımsız kanal
 const CH_GLOW_STD = 0.9;      // feGaussianBlur yarıçapı (küçük = kontrollü)
 const CH_GLOW_OPACITY = 0.55; // halo alfa çarpanı (ölçülü)
 
+// FAZ 10C-2 — sheen highlight (glow DIŞINDA, keskin; camsı tüp hissi). both atlanır.
+const CH_SHEEN_WIDTH = 1.1;    // ince parlak çekirdek
+const CH_SHEEN_OPACITY = 0.45; // ölçülü — yıkamaz
+const SHEEN: Record<"red" | "black", string> = { red: "#fecaca", black: "#9ca3af" };
+
 function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "black" | "red" | "both" | null }) {
   if (!color) return null;
   const common = {
@@ -67,6 +72,23 @@ function ChannelHalf({ from, to, color }: { from: Point; to: Point; color: "blac
     );
   }
   return <line {...common} stroke={color === "red" ? RED : BLACK} />;
+}
+
+// FAZ 10C-2 — tek yarım için keskin sheen highlight. both/null → çizmez (composite temiz).
+function ChannelSheen({ from, to, color }: { from: Point; to: Point; color: "black" | "red" | "both" | null }) {
+  if (!color || color === "both") return null; // both'ta sheen ATLA
+  return (
+    <line
+      x1={from.x}
+      y1={from.y}
+      x2={to.x}
+      y2={to.y}
+      stroke={SHEEN[color]}
+      strokeWidth={CH_SHEEN_WIDTH}
+      strokeOpacity={CH_SHEEN_OPACITY}
+      strokeLinecap="round"
+    />
+  );
 }
 
 export function BodyGraph({ result }: { result: HdChartResult }) {
@@ -163,15 +185,20 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
             );
           }
           const mid: Point = { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 };
+          const colA = gateColor(seg.gateA, gateMap);
+          const colB = gateColor(seg.gateB, gateMap);
           return (
             <g key={seg.id}>
               {/* Açık casing (groove): renkli kanalı arka plandan/merkezlerden ayırır — glow ALMAZ */}
               <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING} />
               {/* FAZ 10C-1 — yalnız renkli yarımlar ölçülü glow alır */}
               <g filter="url(#hd-channel-glow)">
-                <ChannelHalf from={seg.a} to={mid} color={gateColor(seg.gateA, gateMap)} />
-                <ChannelHalf from={seg.b} to={mid} color={gateColor(seg.gateB, gateMap)} />
+                <ChannelHalf from={seg.a} to={mid} color={colA} />
+                <ChannelHalf from={seg.b} to={mid} color={colB} />
               </g>
+              {/* FAZ 10C-2 — sheen: glow DIŞINDA keskin highlight, en üstte; both atlanır */}
+              <ChannelSheen from={seg.a} to={mid} color={colA} />
+              <ChannelSheen from={seg.b} to={mid} color={colB} />
             </g>
           );
         })}
