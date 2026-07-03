@@ -851,6 +851,7 @@ export default function CosmicCalendarPage() {
   const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // seçili konum (id-tabanlı; aynı-isim ayrımı)
   const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
   const [eclipseCityOpen,  setEclipseCityOpen]  = useState(false);    // typeahead açık mı
+  const [eclipseCityActive, setEclipseCityActive] = useState(-1);     // klavye ile vurgulanan sonuç (aria-activedescendant)
   const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
   const [eclipseDetail,    setEclipseDetail]    = useState<EclipseRow | null>(null);
   const [vocExpert,        setVocExpert]        = useState(false);   // VOC uzman modu
@@ -986,9 +987,14 @@ export default function CosmicCalendarPage() {
   // Typeahead sonuçları — TR + global birleşik dataset üzerinde Türkçe/diakritik-toleranslı arama
   // (yalnız listeler; hesap yapmaz).
   const eclipseCityResults = useMemo(
-    () => searchLocations(eclipseCityQuery, { dataset: ECLIPSE_LOCATIONS, limit: 8 }),
+    () => searchLocations(eclipseCityQuery, { dataset: ECLIPSE_LOCATIONS, limit: 10 }),
     [eclipseCityQuery],
   );
+  // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → boş-durum).
+  const eclipseCityHasQuery = eclipseCityQuery.trim() !== "";
+  const eclipseCityShowPopup = eclipseCityOpen && (eclipseCityResults.length > 0 || eclipseCityHasQuery);
+  const eclipseActiveId = eclipseCityActive >= 0 && eclipseCityActive < eclipseCityResults.length
+    ? `eclipse-opt-${eclipseCityResults[eclipseCityActive].id}` : undefined;
 
   // Açılışta kullanıcının kayıtlı varsayılan konumunu yansıt. İlk render Ankara kalır
   // (hydration mismatch yok); fetch yalnız client'ta mount sonrası. Kayıt global konumsa ve
@@ -1719,34 +1725,71 @@ export default function CosmicCalendarPage() {
                     <input
                       id="eclipse-city-search"
                       type="text"
+                      role="combobox"
+                      aria-expanded={eclipseCityShowPopup}
+                      aria-controls="eclipse-city-listbox"
+                      aria-autocomplete="list"
+                      aria-activedescendant={eclipseActiveId}
                       value={eclipseCityQuery}
-                      onChange={ev => { setEclipseCityQuery(ev.target.value); setEclipseCityOpen(true); }}
+                      onChange={ev => { setEclipseCityQuery(ev.target.value); setEclipseCityOpen(true); setEclipseCityActive(-1); }}
                       onFocus={() => setEclipseCityOpen(true)}
                       onBlur={() => setTimeout(() => setEclipseCityOpen(false), 150)}
+                      onKeyDown={ev => {
+                        if (ev.key === "ArrowDown") {
+                          ev.preventDefault();
+                          if (!eclipseCityOpen) { setEclipseCityOpen(true); return; }
+                          setEclipseCityActive(i => Math.min(i + 1, eclipseCityResults.length - 1));
+                        } else if (ev.key === "ArrowUp") {
+                          ev.preventDefault();
+                          setEclipseCityActive(i => (i <= 0 ? 0 : i - 1));
+                        } else if (ev.key === "Enter") {
+                          if (eclipseCityOpen && eclipseCityActive >= 0 && eclipseCityActive < eclipseCityResults.length) {
+                            ev.preventDefault();
+                            const loc = eclipseCityResults[eclipseCityActive];
+                            setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); setEclipseCityActive(-1);
+                          }
+                        } else if (ev.key === "Escape") {
+                          setEclipseCityOpen(false); setEclipseCityActive(-1);
+                        }
+                      }}
                       placeholder="Örn. Manisa, Berlin, Tokyo…"
                       autoComplete="off"
                       aria-label="Tutulma için şehir ara"
                       className="w-44 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 focus:border-amber-300 focus:outline-none"
                     />
-                    {eclipseCityOpen && eclipseCityResults.length > 0 && (
-                      <ul className="absolute left-0 top-full z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                        {eclipseCityResults.map(loc => (
-                          <li key={loc.id}>
-                            <button
-                              type="button"
-                              onMouseDown={ev => ev.preventDefault()}
-                              onClick={() => { setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); }}
-                              className={`flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] hover:bg-amber-50 ${loc.id === eclipseLocId ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700"}`}
-                            >
-                              <span className="min-w-0 flex-1 truncate">{loc.name}</span>
-                              <span className="max-w-[112px] shrink-0 truncate text-[9px] text-slate-400">{locSubLabel(loc)}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                    {eclipseCityShowPopup && (
+                      eclipseCityResults.length > 0 ? (
+                        <ul id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları"
+                          className="absolute left-0 top-full z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                          {eclipseCityResults.map((loc, idx) => {
+                            const active = idx === eclipseCityActive;
+                            const current = loc.id === eclipseLocId;
+                            return (
+                              <li
+                                key={loc.id}
+                                id={`eclipse-opt-${loc.id}`}
+                                role="option"
+                                aria-selected={active}
+                                onMouseDown={ev => ev.preventDefault()}
+                                onMouseEnter={() => setEclipseCityActive(idx)}
+                                onClick={() => { setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); setEclipseCityActive(-1); }}
+                                className={`flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] ${active ? "bg-amber-100 text-amber-800" : current ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                              >
+                                <span className="min-w-0 flex-1 truncate">{loc.name}</span>
+                                <span className="max-w-[112px] shrink-0 truncate text-[9px] text-slate-400">{locSubLabel(loc)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <div id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları"
+                          className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-400 shadow-lg">
+                          Eşleşen şehir yok
+                        </div>
+                      )
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span> <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
+                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span>{selEclipseLoc ? <span className="text-slate-400"> — {locSubLabel(selEclipseLoc)}</span> : null} <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
