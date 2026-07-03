@@ -26,8 +26,10 @@ import {
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
 } from "@/lib/cosmic/eclipses";
 import { TR_LOCATIONS } from "@/lib/location/tr";
+import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, type Location } from "@/lib/location";
 import { getUserLocationPref } from "@/lib/location/userLocationPref";
+import { formatInTimeZone, formatDateTimeInTimeZone } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -40,6 +42,14 @@ import {
 type ExpertAspectRow = { a: AspectEvent; motion: AspectMotionState | null; pass: AspectPass | null };
 
 const TR_TZ = "Europe/Istanbul";
+
+// P5c — Tutulma şehir seçici veri kaynağı: TR (81 il) + pilot global şehirler.
+// Salt okunur; motor/DB'ye dokunmaz. Seçim id-tabanlıdır (aynı-isim ayrımı: Paris/FR ↔ Paris/TX).
+const ECLIPSE_LOCATIONS: ReadonlyArray<Location> = [...TR_LOCATIONS, ...WORLD_LOCATIONS];
+const DEFAULT_ECLIPSE_LOC_ID =
+  ECLIPSE_LOCATIONS.find(l => l.name === "Ankara" && l.countryCode === "TR")?.id
+  ?? ECLIPSE_LOCATIONS[0]?.id ?? "";
+
 const fmtAspectTime    = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, hour: "2-digit", minute: "2-digit" });
 const fmtAspectDay     = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "short" });
 const fmtAspectDayYear = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "long", year: "numeric" });
@@ -350,8 +360,17 @@ const ECLIPSE_TYPE_TR: Record<string, string> = {
 };
 const eclipseTitleTR = (e: AnyEclipse): string =>
   `${ECLIPSE_TYPE_TR[e.eclipseType] ?? e.eclipseType} ${e.kind === "solar" ? "Güneş" : "Ay"} Tutulması`;
-const eclipseTimeTR = (peakTR: string): string => peakTR.slice(11, 16); // "HH:mm"
-const hhmm = (tr: string | null): string | null => (tr ? tr.slice(11, 16) : null);
+// P5c — +03:00 ISO string'i (isoTR) MUTLAK UTC anına çevirip seçili tz'de gösterir.
+// Artık slice YOK; Europe/Istanbul için sonuç eski slice ile birebir aynı (P5e-1 doğruladı).
+const zonedHHMM = (iso: string | null, tz: string): string | null =>
+  iso ? formatInTimeZone(new Date(Date.parse(iso)), tz) : null;
+const zonedDateTime = (iso: string, tz: string): string =>
+  formatDateTimeInTimeZone(new Date(Date.parse(iso)), tz);
+// Seçili tz'nin kısa etiketi — Europe/Istanbul mevcut "(TR)" etiketiyle birebir kalır.
+const tzLabel = (tz: string): string => (tz === TR_TZ ? "TR" : tz);
+// Aynı-isim ayrımı için alt satır etiketi (Paris/FR "Île-de-France · France" ↔ Paris/TX "Texas · United States").
+const locSubLabel = (loc: Location): string =>
+  loc.adminRegion && loc.adminRegion !== loc.name ? `${loc.adminRegion} · ${loc.country}` : loc.country;
 
 /** Seçili şehir için kısa görünürlük rozeti (genelleme yok). */
 function cityVisBadge(vis: EclipseCityVis[], city: string): { text: string; visible: boolean } {
@@ -364,8 +383,8 @@ function cityVisBadge(vis: EclipseCityVis[], city: string): { text: string; visi
   return { text: `${city}'dan görülmez`, visible: false };
 }
 
-function EclipseCard({ e, statusText, visible, coverage, onClick }: {
-  e: AnyEclipse; statusText: string; visible: boolean; coverage?: string | null; onClick?: () => void;
+function EclipseCard({ e, tz, statusText, visible, coverage, onClick }: {
+  e: AnyEclipse; tz: string; statusText: string; visible: boolean; coverage?: string | null; onClick?: () => void;
 }) {
   const solar = e.kind === "solar";
   const obsc = e.obscuration;
@@ -384,7 +403,12 @@ function EclipseCard({ e, statusText, visible, coverage, onClick }: {
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm font-black ${solar ? "text-amber-700" : "text-violet-700"}`}>{eclipseTitleTR(e)}</p>
         <p className="text-[11px] font-semibold text-slate-500">
-          {e.dateTR} · {eclipseTimeTR(e.peakTR)} (TR){obsc != null ? ` · Örtülme oranı %${Math.round(obsc * 100)}` : ""}
+          {/* Europe/Istanbul: eski "tarih · HH:mm (TR)" birebir korunur. Diğer tz'lerde gün
+              kayması olabildiği için tam yerel tarih-saat + IANA tz etiketi gösterilir. */}
+          {tz === TR_TZ
+            ? <>{e.dateTR} · {zonedHHMM(e.peakTR, tz)} (TR)</>
+            : <>{zonedDateTime(e.peakUTC, tz)} ({tz})</>}
+          {obsc != null ? ` · Örtülme oranı %${Math.round(obsc * 100)}` : ""}
           {coverage ? <span className="text-slate-400"> · {coverage}</span> : null}
         </p>
       </div>
@@ -398,13 +422,16 @@ function EclipseCard({ e, statusText, visible, coverage, onClick }: {
 }
 
 /** Uzman detay paneli — yalnız doğrulanmış alanlar. Saros/magnitude null ise GÖSTERİLMEZ. */
-function EclipseDetail({ row, city, sel, onClose }: { row: EclipseRow; city: string; sel: EclipseCityVis | undefined; onClose: () => void }) {
+function EclipseDetail({ row, city, tz, sel, onClose }: { row: EclipseRow; city: string; tz: string; sel: EclipseCityVis | undefined; onClose: () => void }) {
   const e = row.e;
   const solar = e.kind === "solar";
+  const lbl = tzLabel(tz);
+  const zt = (iso: string | null): string | null => zonedHHMM(iso, tz); // yerel HH:mm (mutlak an → seçili tz)
   const fields: [string, string][] = [
     ["Tür", eclipseTitleTR(e)],
+    ["Saat dilimi", tz],
     ["Tarih", e.dateTR],
-    ["Peak (TR)", e.peakTR.slice(0, 16).replace("T", " ")],
+    [`Peak (${lbl})`, zonedDateTime(e.peakUTC, tz)],
     ["Peak (UTC)", e.peakUTC.slice(0, 16).replace("T", " ")],
   ];
   if (e.obscuration != null) fields.push(["Örtülme oranı", `%${Math.round(e.obscuration * 100)}`]);
@@ -412,20 +439,20 @@ function EclipseDetail({ row, city, sel, onClose }: { row: EclipseRow; city: str
     const sv = sel as SolarCityVisibility;
     fields.push([`${city} görünürlük`, sv.visibilityStatus]);
     if (sv.altitudeAtPeak != null) fields.push([`${city} Güneş yüks.`, `${sv.altitudeAtPeak}°`]);
-    if (hhmm(sv.partialBeginTR)) fields.push(["Parçalı başl. (TR)", hhmm(sv.partialBeginTR)!]);
-    if (hhmm(sv.totalBeginTR)) fields.push(["Tam başl. (TR)", hhmm(sv.totalBeginTR)!]);
-    if (hhmm(sv.peakTR)) fields.push([`${city} peak (TR)`, hhmm(sv.peakTR)!]);
-    if (hhmm(sv.totalEndTR)) fields.push(["Tam bitiş (TR)", hhmm(sv.totalEndTR)!]);
-    if (hhmm(sv.partialEndTR)) fields.push(["Parçalı bitiş (TR)", hhmm(sv.partialEndTR)!]);
+    if (zt(sv.partialBeginTR)) fields.push([`Parçalı başl. (${lbl})`, zt(sv.partialBeginTR)!]);
+    if (zt(sv.totalBeginTR)) fields.push([`Tam başl. (${lbl})`, zt(sv.totalBeginTR)!]);
+    if (zt(sv.peakTR)) fields.push([`${city} peak (${lbl})`, zt(sv.peakTR)!]);
+    if (zt(sv.totalEndTR)) fields.push([`Tam bitiş (${lbl})`, zt(sv.totalEndTR)!]);
+    if (zt(sv.partialEndTR)) fields.push([`Parçalı bitiş (${lbl})`, zt(sv.partialEndTR)!]);
   }
   if (!solar) {
     const le = e as LunarEclipse;
-    if (hhmm(le.penumbralBeginTR)) fields.push(["Yarıgölge başl. (TR)", hhmm(le.penumbralBeginTR)!]);
-    if (hhmm(le.partialBeginTR)) fields.push(["Parçalı başl. (TR)", hhmm(le.partialBeginTR)!]);
-    if (hhmm(le.totalBeginTR)) fields.push(["Tam başl. (TR)", hhmm(le.totalBeginTR)!]);
-    if (hhmm(le.totalEndTR)) fields.push(["Tam bitiş (TR)", hhmm(le.totalEndTR)!]);
-    if (hhmm(le.partialEndTR)) fields.push(["Parçalı bitiş (TR)", hhmm(le.partialEndTR)!]);
-    if (hhmm(le.penumbralEndTR)) fields.push(["Yarıgölge bitiş (TR)", hhmm(le.penumbralEndTR)!]);
+    if (zt(le.penumbralBeginTR)) fields.push([`Yarıgölge başl. (${lbl})`, zt(le.penumbralBeginTR)!]);
+    if (zt(le.partialBeginTR)) fields.push([`Parçalı başl. (${lbl})`, zt(le.partialBeginTR)!]);
+    if (zt(le.totalBeginTR)) fields.push([`Tam başl. (${lbl})`, zt(le.totalBeginTR)!]);
+    if (zt(le.totalEndTR)) fields.push([`Tam bitiş (${lbl})`, zt(le.totalEndTR)!]);
+    if (zt(le.partialEndTR)) fields.push([`Parçalı bitiş (${lbl})`, zt(le.partialEndTR)!]);
+    if (zt(le.penumbralEndTR)) fields.push([`Yarıgölge bitiş (${lbl})`, zt(le.penumbralEndTR)!]);
     if (le.durTotalMin) fields.push(["Tam süre", `${le.durTotalMin} dk`]);
     if (le.durPartialMin) fields.push(["Parçalı süre", `${le.durPartialMin} dk`]);
     if (le.durPenumMin) fields.push(["Yarıgölge süre", `${le.durPenumMin} dk`]);
@@ -821,7 +848,7 @@ export default function CosmicCalendarPage() {
   const [filters,          setFilters]          = useState<AspectFilters>(DEFAULT_FILTERS);
   const [detailRow,        setDetailRow]        = useState<ExpertAspectRow | null>(null);
   const [eclipseExpert,    setEclipseExpert]    = useState(false);   // Tutulmalar uzman modu
-  const [eclipseCity,      setEclipseCity]      = useState("Ankara");
+  const [eclipseLocId,     setEclipseLocId]     = useState<string>(DEFAULT_ECLIPSE_LOC_ID); // seçili konum (id-tabanlı; aynı-isim ayrımı)
   const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
   const [eclipseCityOpen,  setEclipseCityOpen]  = useState(false);    // typeahead açık mı
   const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
@@ -950,28 +977,32 @@ export default function CosmicCalendarPage() {
     return [...upcoming.map(e => enrich(e, "upcoming")), ...past.map(e => enrich(e, "past"))];
   }, [realNow]);
 
-  // Seçili il (81 il datasetinden) — ada göre çözümlenir. Yalnız bu ilin görünürlüğü hesaplanır.
-  const selEclipseLoc = useMemo(() => TR_LOCATIONS.find(l => l.name === eclipseCity), [eclipseCity]);
+  // Seçili konum (TR 81 il + pilot global) — id ile çözümlenir (aynı-isim ayrımı). Yalnız bu
+  // konumun görünürlüğü hesaplanır. Ad ve tz sunum için türetilir; Ankara güvenli fallback.
+  const selEclipseLoc = useMemo(() => ECLIPSE_LOCATIONS.find(l => l.id === eclipseLocId), [eclipseLocId]);
+  const eclipseCity = selEclipseLoc?.name ?? "Ankara";
+  const eclipseTz = selEclipseLoc?.tz ?? TR_TZ;
 
-  // Typeahead sonuçları — TR_LOCATIONS üzerinde Türkçe/diakritik-toleranslı arama (yalnız listeler; hesap yapmaz)
+  // Typeahead sonuçları — TR + global birleşik dataset üzerinde Türkçe/diakritik-toleranslı arama
+  // (yalnız listeler; hesap yapmaz).
   const eclipseCityResults = useMemo(
-    () => searchLocations(eclipseCityQuery, { dataset: TR_LOCATIONS, limit: 8 }),
+    () => searchLocations(eclipseCityQuery, { dataset: ECLIPSE_LOCATIONS, limit: 8 }),
     [eclipseCityQuery],
   );
 
   // Açılışta kullanıcının kayıtlı varsayılan konumunu yansıt. İlk render Ankara kalır
-  // (hydration mismatch yok); fetch yalnız client'ta mount sonrası. Kayıt yoksa veya
-  // TR_LOCATIONS'ta eşleşmezse (global konum) sessizce Ankara'da kalınır. Kullanıcının
-  // geçici seçimini EZMEZ — yalnız açılışta bir kez çalışır.
+  // (hydration mismatch yok); fetch yalnız client'ta mount sonrası. Kayıt global konumsa ve
+  // birleşik dataset'te varsa yansıtılır; bulunamazsa sessizce Ankara'da kalınır. Yalnız
+  // yerel state günceller — DB'ye YAZMAZ, geçici seçimi EZMEZ (açılışta bir kez).
   useEffect(() => {
     let alive = true;
     void (async () => {
       const pref = await getUserLocationPref();
       if (!alive || !pref) return;
-      const loc = TR_LOCATIONS.find(l => l.id === pref.location_id)
-        ?? TR_LOCATIONS.find(l => l.name === pref.name);
+      const loc = ECLIPSE_LOCATIONS.find(l => l.id === pref.location_id)
+        ?? ECLIPSE_LOCATIONS.find(l => l.name === pref.name);
       if (loc) {
-        setEclipseCity(loc.name);
+        setEclipseLocId(loc.id);
         setEclipseCityQuery(loc.name);
       }
     })();
@@ -1658,7 +1689,7 @@ export default function CosmicCalendarPage() {
                   <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {eclipseData.filter(r => r.period === "upcoming").map(row => {
                       const b = cityVisBadge(row.vis, "Ankara");
-                      return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} />;
+                      return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
                     })}
                   </div>
                 </>
@@ -1669,7 +1700,7 @@ export default function CosmicCalendarPage() {
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {eclipseData.filter(r => r.period === "past").map(row => {
                       const b = cityVisBadge(row.vis, "Ankara");
-                      return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} />;
+                      return <EclipseCard key={row.e.id} e={row.e} tz={TR_TZ} statusText={b.text} visible={b.visible} />;
                     })}
                   </div>
                 </>
@@ -1683,7 +1714,7 @@ export default function CosmicCalendarPage() {
               {/* Şehir seçici + filtreler */}
               <div className="mb-3 space-y-2 rounded-xl border border-amber-100 bg-white/60 px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-600" htmlFor="eclipse-city-search">Şehir ara (81 il):</label>
+                  <label className="text-[11px] font-bold text-slate-600" htmlFor="eclipse-city-search">Şehir ara (TR + global):</label>
                   <div className="relative">
                     <input
                       id="eclipse-city-search"
@@ -1692,30 +1723,30 @@ export default function CosmicCalendarPage() {
                       onChange={ev => { setEclipseCityQuery(ev.target.value); setEclipseCityOpen(true); }}
                       onFocus={() => setEclipseCityOpen(true)}
                       onBlur={() => setTimeout(() => setEclipseCityOpen(false), 150)}
-                      placeholder="Örn. Manisa, İzmir…"
+                      placeholder="Örn. Manisa, Berlin, Tokyo…"
                       autoComplete="off"
                       aria-label="Tutulma için şehir ara"
                       className="w-44 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 focus:border-amber-300 focus:outline-none"
                     />
                     {eclipseCityOpen && eclipseCityResults.length > 0 && (
-                      <ul className="absolute left-0 top-full z-20 mt-1 max-h-56 w-52 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                      <ul className="absolute left-0 top-full z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                         {eclipseCityResults.map(loc => (
                           <li key={loc.id}>
                             <button
                               type="button"
                               onMouseDown={ev => ev.preventDefault()}
-                              onClick={() => { setEclipseCity(loc.name); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); }}
-                              className={`flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] hover:bg-amber-50 ${loc.name === eclipseCity ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700"}`}
+                              onClick={() => { setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); }}
+                              className={`flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] hover:bg-amber-50 ${loc.id === eclipseLocId ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700"}`}
                             >
-                              <span className="truncate">{loc.name}</span>
-                              <span className="shrink-0 text-[9px] text-slate-400">{loc.country}</span>
+                              <span className="min-w-0 flex-1 truncate">{loc.name}</span>
+                              <span className="max-w-[112px] shrink-0 truncate text-[9px] text-slate-400">{locSubLabel(loc)}</span>
                             </button>
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
+                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span> <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
@@ -1758,7 +1789,7 @@ export default function CosmicCalendarPage() {
                     const selVis = resolveSelVis(row, selEclipseLoc);
                     const b = cityVisBadge(selVis ? [selVis] : [], eclipseCity);
                     const coverage = `${row.visibleCount}/${row.totalCities} ref. şehir`;
-                    return <EclipseCard key={row.e.id} e={row.e} statusText={b.text} visible={b.visible} coverage={coverage} onClick={() => setEclipseDetail(row)} />;
+                    return <EclipseCard key={row.e.id} e={row.e} tz={eclipseTz} statusText={b.text} visible={b.visible} coverage={coverage} onClick={() => setEclipseDetail(row)} />;
                   })}
                 </div>
               )}
@@ -1768,7 +1799,7 @@ export default function CosmicCalendarPage() {
             </>
           )}
 
-          {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} sel={resolveSelVis(eclipseDetail, selEclipseLoc)} onClose={() => setEclipseDetail(null)} />}
+          {eclipseDetail && <EclipseDetail row={eclipseDetail} city={eclipseCity} tz={eclipseTz} sel={resolveSelVis(eclipseDetail, selEclipseLoc)} onClose={() => setEclipseDetail(null)} />}
         </section>
 
         {/* ── Ay Boşlukta mı? (FAZ 3B Adım 3) ── */}
