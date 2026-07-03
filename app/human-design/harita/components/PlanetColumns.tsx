@@ -31,13 +31,13 @@ type SideTheme = {
 const THEME: Record<ActivationSide, SideTheme> = {
   design: {
     kicker: "Design",
-    labelCls: "text-rose-300/80",
+    labelCls: "text-rose-300",
     glyphCls: "text-rose-300",
     boxCls: "border-rose-400/30 bg-rose-500/10 text-rose-100",
   },
   personality: {
     kicker: "Personality",
-    labelCls: "text-slate-300/80",
+    labelCls: "text-slate-100",
     glyphCls: "text-slate-200",
     boxCls: "border-white/15 bg-white/[0.06] text-slate-100",
   },
@@ -68,7 +68,7 @@ export function PlanetColumns({
       aria-label={`${theme.kicker} gezegen aktivasyonları`}
     >
       <p
-        className={`mb-1 text-center text-[10px] font-black uppercase tracking-[0.18em] ${theme.labelCls}`}
+        className={`mb-2 text-center text-xs font-black uppercase tracking-[0.2em] ${theme.labelCls}`}
       >
         {theme.kicker}
       </p>
@@ -76,18 +76,18 @@ export function PlanetColumns({
         {rows.map((a) => (
           <li
             key={a.body}
-            className={`flex h-8 items-center justify-between ${mirror ? "flex-row-reverse" : ""}`}
+            className={`flex h-9 items-center justify-between ${mirror ? "flex-row-reverse" : ""}`}
             aria-label={`${PLANET_LABEL_TR[a.body]}: kapı ${a.gate}, çizgi ${a.line}`}
           >
             <span
               aria-hidden
-              className={`w-5 shrink-0 text-center text-base leading-none ${theme.glyphCls}`}
+              className={`w-6 shrink-0 text-center text-lg leading-none ${theme.glyphCls}`}
               style={{ fontFamily: SYMBOL_FONT }}
             >
               {PLANET_GLYPH[a.body]}
             </span>
             <span
-              className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-lg border px-2 py-1 text-[13px] font-black tabular-nums ${theme.boxCls}`}
+              className={`inline-flex min-w-[3.5rem] items-center justify-center rounded-lg border px-2.5 py-1.5 text-sm font-black tabular-nums ${theme.boxCls}`}
             >
               {a.gate}.{a.line}
             </span>

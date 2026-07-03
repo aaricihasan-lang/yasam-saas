@@ -170,13 +170,13 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
                 Design | Personality iki kolon; xl'de [Design] [BodyGraph] [Personality].
                 BodyGraph SVG'ye dokunulmaz (yalnız wrapper'a class verilir). */}
             <div className="flex w-full flex-wrap items-start justify-center gap-4 xl:flex-nowrap">
-              <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[100px] xl:shrink-0">
+              <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[104px] xl:shrink-0">
                 <PlanetColumns result={result} side="design" />
               </div>
-              <div className="order-1 flex w-full justify-center xl:order-2 xl:w-auto xl:flex-1">
+              <div className="order-1 flex w-full justify-center xl:order-2 xl:w-auto xl:max-w-[500px] xl:flex-1">
                 <BodyGraph result={result} />
               </div>
-              <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[100px] xl:shrink-0">
+              <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[104px] xl:shrink-0">
                 <PlanetColumns result={result} side="personality" />
               </div>
             </div>
