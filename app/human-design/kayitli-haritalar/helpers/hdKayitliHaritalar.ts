@@ -18,6 +18,9 @@ export async function listChartsWithClients(): Promise<{
       .from("human_design_charts")
       .select("*")
       .eq("tenant_id", tenantId)
+      // FAZ 9D — yalnız manuel/legacy kayıtlar; hesaplanmış (source='computed')
+      // satırlar bu manuel listede GÖSTERİLMEZ (ayrı "Hesaplanmış" tab'ında listelenir).
+      .or("source.is.null,source.eq.manual")
       .order("created_at", { ascending: false }),
     supabase
       .from("human_design_clients")
