@@ -147,6 +147,30 @@ const HARNESSES = [
       istMismatch: g1(t, /Istanbul regresyon uyumsuz sayısı:\s*(\d+)/),
     }),
   },
+  {
+    id: "5e2",
+    name: "FAZ 5 P5e-2 — Global Tutulma (10 pilot şehir)",
+    dir: join(HERE, "global"),
+    engine: "lib/cosmic/eclipses.ts (getSolarCityVisibility + WORLD_LOCATIONS)",
+    // py→prod→compare (3A ile aynı konvansiyon). --engine-only'de yalnız SWE (py) atlanır;
+    // prod+compare cache'li swe-global-eclipses.json'a karşı koşar. Kompakt sinyaller:
+    // PASS token + tam sayı sayaçlar (float maksimum YOK → pyswisseph sürümüne kırılgan değil).
+    steps: [
+      { kind: "py",   file: "swe_global_eclipses.py", ref: true },
+      { kind: "tsx",  file: "prod_global_runner.ts" },
+      { kind: "node", file: "compare_global_eclipses.mjs", capture: true },
+    ],
+    extract: (t) => ({
+      cityCount:   gj(t, /PROD (\d+)\s*\/\s*SWE (\d+)/, 2),
+      matched:     g1(t, /Eşleşen olay \/ marjinal\s*:\s*(\d+)/),
+      marginal:    g1(t, /Eşleşen olay \/ marjinal\s*:\s*\d+\s*\/\s*(\d+)/),
+      peak:        g1(t, /Peak zaman[^:]*:\s*(GEÇTİ|GECTI|İNCELE|INCELE)/),
+      altitude:    g1(t, /Altitude[^:]*:\s*(GEÇTİ|GECTI|İNCELE|INCELE)/),
+      obscuration: g1(t, /Obscuration[^:]*:\s*(GEÇTİ|GECTI|İNCELE|INCELE)/),
+      visibility:  g1(t, /Görünürlük uyumu[^:]*:\s*(GEÇTİ|GECTI|İNCELE|INCELE)/),
+      totalEvents: g1(t, /total olaylar hariç:\s*(\d+)/),
+    }),
+  },
 ];
 
 // ── Adım çalıştırıcı (cwd-bağımsız; scriptler __file__/import.meta tabanlı) ──
@@ -169,7 +193,7 @@ function runStep(step, dir) {
 // ── Seçim doğrula ───────────────────────────────────────────────────────────
 if (SELECTED) {
   const unknown = SELECTED.filter(s => !HARNESSES.some(h => h.id === s));
-  if (unknown.length) { console.error(`Bilinmeyen faz: ${unknown.join(", ")} (geçerli: 2c,3a,3b,3c,5e1)`); process.exit(2); }
+  if (unknown.length) { console.error(`Bilinmeyen faz: ${unknown.join(", ")} (geçerli: 2c,3a,3b,3c,5e1,5e2)`); process.exit(2); }
 }
 const selectedHarnesses = HARNESSES.filter(h => !SELECTED || SELECTED.includes(h.id));
 

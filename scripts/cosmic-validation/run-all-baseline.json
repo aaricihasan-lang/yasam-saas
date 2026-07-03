@@ -36,6 +36,16 @@
     "5e1": {
       "smoke": "PASS",
       "istMismatch": "0"
+    },
+    "5e2": {
+      "cityCount": "10|10",
+      "matched": "102",
+      "marginal": "7",
+      "peak": "GEÇTİ",
+      "altitude": "GEÇTİ",
+      "obscuration": "GEÇTİ",
+      "visibility": "GEÇTİ",
+      "totalEvents": "1"
     }
   }
 }
