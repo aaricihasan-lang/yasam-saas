@@ -166,13 +166,17 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
         {/* ORTA — BodyGraph sahnesi (mobilde önce) */}
         <div className="order-1 xl:order-none">
           <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(ellipse_at_center,rgba(232,200,116,0.07),transparent_70%)] p-3 sm:p-5">
-            {/* FAZ 10B — Design | BodyGraph | Personality (BodyGraph SVG'ye dokunulmaz) */}
-            <div className="flex w-full flex-col items-center gap-4 xl:flex-row xl:items-start xl:justify-center">
-              <div className="w-full max-w-[240px] xl:w-[100px] xl:shrink-0">
+            {/* FAZ 10B — tek DOM (flex-wrap + order): mobilde BodyGraph üstte, altında
+                Design | Personality iki kolon; xl'de [Design] [BodyGraph] [Personality].
+                BodyGraph SVG'ye dokunulmaz (yalnız wrapper'a class verilir). */}
+            <div className="flex w-full flex-wrap items-start justify-center gap-4 xl:flex-nowrap">
+              <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[100px] xl:shrink-0">
                 <PlanetColumns result={result} side="design" />
               </div>
-              <BodyGraph result={result} />
-              <div className="w-full max-w-[240px] xl:w-[100px] xl:shrink-0">
+              <div className="order-1 flex w-full justify-center xl:order-2 xl:w-auto xl:flex-1">
+                <BodyGraph result={result} />
+              </div>
+              <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[100px] xl:shrink-0">
                 <PlanetColumns result={result} side="personality" />
               </div>
             </div>
