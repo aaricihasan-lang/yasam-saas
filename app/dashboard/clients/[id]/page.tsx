@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -10,11 +11,6 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import NotesTab from "./components/NotesTab";
-import StonesTab from "./components/StonesTab";
-import SessionsTab from "./components/SessionsTab";
-import HomeworkTab from "./components/HomeworkTab";
-import AnalizlerTab from "./components/AnalizlerTab";
-import YolculukTab from "./components/YolculukTab";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
@@ -23,6 +19,22 @@ import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
 import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+
+// ─── Lazy sekmeler ───────────────────────────────────────────────────────────
+// Ağır sekmeler (özellikle html2canvas/jsPDF içeren Analizler ve 4 fetch yapan
+// Yolculuk) yalnızca açıldığında yüklenir → detay ilk açılışı hafifler.
+const TabSkeleton = () => (
+  <div className="animate-pulse space-y-3" aria-busy="true">
+    <div className="h-8 w-44 rounded-lg bg-slate-200" />
+    <div className="h-24 w-full rounded-xl bg-slate-100" />
+    <div className="h-24 w-full rounded-xl bg-slate-100" />
+  </div>
+);
+const StonesTab = dynamic(() => import("./components/StonesTab"), { loading: TabSkeleton, ssr: false });
+const SessionsTab = dynamic(() => import("./components/SessionsTab"), { loading: TabSkeleton, ssr: false });
+const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading: TabSkeleton, ssr: false });
+const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
+const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -122,6 +134,8 @@ export default function ClientDetailPage() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState("genel");
+  // Bir kez açılan sekme DOM'da tutulur (tekrar mount → tekrar fetch olmaz).
+  const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel"]));
   const [loading, setLoading] = useState(true);
   const [deletingClient, setDeletingClient] = useState(false);
 
@@ -151,6 +165,12 @@ export default function ClientDetailPage() {
   const [savingClientNotes, setSavingClientNotes] = useState(false);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
+
+  // Aktif sekmeyi "açılmış" kümesine ekle (Tab butonları veya Yolculuk içi
+  // onNavigate hangi yoldan gelirse gelsin). Açılan sekme mount kalır.
+  useEffect(() => {
+    setOpenedTabs((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
+  }, [activeTab]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -449,8 +469,25 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-3.5 text-slate-950">
-        <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
-          Danışan yükleniyor...
+        <div className="mx-auto w-full max-w-[1280px] animate-pulse" aria-busy="true">
+          {/* Hero iskeleti */}
+          <div className="mb-3 flex items-center gap-3.5 rounded-[22px] border border-white/80 bg-white/80 p-3.5 shadow-lg">
+            <div className="h-[68px] w-[68px] flex-shrink-0 rounded-[20px] bg-slate-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-24 rounded bg-slate-200" />
+              <div className="h-6 w-56 rounded bg-slate-200" />
+              <div className="h-3 w-full max-w-md rounded bg-slate-100" />
+            </div>
+          </div>
+          {/* Sekme + içerik iskeleti */}
+          <div className="rounded-[20px] border border-white/78 bg-white/85 p-3.5 shadow-lg">
+            <div className="mb-4 flex gap-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-9 w-24 rounded-xl bg-slate-200" />
+              ))}
+            </div>
+            <div className="h-[240px] rounded-2xl bg-slate-100" />
+          </div>
         </div>
       </main>
     );
@@ -580,15 +617,14 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        {/* Tab content area */}
-        <div
-          role="tabpanel"
-          id={`tabpanel-${activeTab}`}
-          aria-labelledby={`tab-${activeTab}`}
-          className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5"
-        >
+        {/* Tab content area — açılan sekme DOM'da kalır (tekrar fetch yok),
+            aktif olmayan `hidden` ile gizlenir → sekme geçişi anında; ağır
+            sekmeler (Taşlar/Seanslar/Ödevler/Analizler/Yolculuk) lazy yüklenir. */}
+        <div className="min-h-[240px] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
 
-          {activeTab === "genel" && (() => {
+          {openedTabs.has("genel") && (
+          <div role="tabpanel" id="tabpanel-genel" aria-labelledby="tab-genel" hidden={activeTab !== "genel"}>
+          {(() => {
               // Salt okunur mod sınıfları
               const roCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] bg-slate-50 text-slate-800 cursor-default select-text";
               const roAreaCls = "w-full min-h-[54px] rounded-xl border border-slate-200 p-2.5 text-[12px] bg-slate-50 text-slate-800 cursor-default resize-none select-text";
@@ -697,76 +733,78 @@ export default function ClientDetailPage() {
                   <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
                 </>
               );
-            })()
-          }
+            })()}
+          </div>
+          )}
 
-          {activeTab === "notlar" && (
-            <>
+          {openedTabs.has("notlar") && (
+          <div role="tabpanel" id="tabpanel-notlar" aria-labelledby="tab-notlar" hidden={activeTab !== "notlar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("notlar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Notlar Word"}
                 </button>
               </div>
               <NotesTab initialNotlar={noteText} onPersist={saveClientNotes} saving={savingClientNotes} />
-            </>
+          </div>
           )}
 
-          {activeTab === "randevular" && (
-            <>
+          {openedTabs.has("randevular") && (
+          <div role="tabpanel" id="tabpanel-randevular" aria-labelledby="tab-randevular" hidden={activeTab !== "randevular"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("randevular")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Randevu Geçmişi Word"}
                 </button>
               </div>
               <AppointmentsTab clientId={client.id} clientName={fullName || "Danışan"} tenantId={tenantId} confirm={confirm} showToast={showToast} />
-            </>
+          </div>
           )}
 
-          {activeTab === "taslar" && (
-            <>
+          {openedTabs.has("taslar") && (
+          <div role="tabpanel" id="tabpanel-taslar" aria-labelledby="tab-taslar" hidden={activeTab !== "taslar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("taslar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Taşlar Word"}
                 </button>
               </div>
               <StonesTab clientId={client.id} />
-            </>
+          </div>
           )}
 
-          {activeTab === "seanslar" && (
-            <>
+          {openedTabs.has("seanslar") && (
+          <div role="tabpanel" id="tabpanel-seanslar" aria-labelledby="tab-seanslar" hidden={activeTab !== "seanslar"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("seanslar")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Seans Geçmişi Word"}
                 </button>
               </div>
               <SessionsTab clientId={client.id} />
-            </>
+          </div>
           )}
 
-          {activeTab === "odevler" && (
-            <>
+          {openedTabs.has("odevler") && (
+          <div role="tabpanel" id="tabpanel-odevler" aria-labelledby="tab-odevler" hidden={activeTab !== "odevler"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("odevler")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Ödev Takip Word"}
                 </button>
               </div>
               <HomeworkTab clientId={client.id} />
-            </>
+          </div>
           )}
 
-          {activeTab === "analizler" && (
-            <>
+          {openedTabs.has("analizler") && (
+          <div role="tabpanel" id="tabpanel-analizler" aria-labelledby="tab-analizler" hidden={activeTab !== "analizler"}>
               <div className="mb-2.5">
                 <button onClick={() => void generateTabWordReport("analizler")} disabled={tabWordBusy} className={wordBtnCls}>
                   {tabWordBusy ? "⏳ Oluşturuluyor..." : "📄 Analiz Sonuçları Word"}
                 </button>
               </div>
               <AnalizlerTab clientId={client.id} clientName={fullName || "Danışan"} />
-            </>
+          </div>
           )}
 
-          {activeTab === "yolculuk" && (
+          {openedTabs.has("yolculuk") && (
+          <div role="tabpanel" id="tabpanel-yolculuk" aria-labelledby="tab-yolculuk" hidden={activeTab !== "yolculuk"}>
             <YolculukTab
               clientId={client.id}
               tenantId={tenantId}
@@ -778,6 +816,7 @@ export default function ClientDetailPage() {
               clientDogum={client.dogum}
               onNavigate={setActiveTab}
             />
+          </div>
           )}
         </div>
       </section>

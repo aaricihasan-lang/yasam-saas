@@ -311,7 +311,9 @@ export default function DanisanKayitPage() {
     // Duplicate kontrolü (forceSaveRef ile override edilebilir)
     if (!forceSaveRef.current) {
       const dupToken = readSessionToken();
-      const dupRes = await fetch("/api/clients", {
+      // Tüm listeyi indirme; sunucu tarafı ilike araması ile yalnızca aday satırları çek.
+      const dupQs = new URLSearchParams({ search: ad.trim(), limit: "25" });
+      const dupRes = await fetch(`/api/clients?${dupQs.toString()}`, {
         headers: {
           "x-user-id": user.id ?? "",
           ...(dupToken ? { "x-session-token": dupToken } : {}),

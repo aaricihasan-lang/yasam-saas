@@ -243,77 +243,44 @@ export default function DanisanYolculuguPage() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-      // Tüm veri güvenli service_role API'lerinden alınır; metrikler client-side hesaplanır.
-      const [clientsRes, apptsRes] = await Promise.all([
-        fetch("/api/clients", { headers }),
-        fetch("/api/appointments", { headers }),
-      ]);
-
+      // Hafif özet endpoint'i — satırları indirmeden sunucuda sayım.
+      // Ay sınırları + "şimdi" yerel saat diliminde hesaplanıp ISO gönderilir.
+      const qs = new URLSearchParams({
+        monthStart: startOfMonth.toISOString(),
+        monthEnd: startOfNextMonth.toISOString(),
+        now: now.toISOString(),
+      });
+      const res = await fetch(`/api/clients/stats?${qs.toString()}`, { headers });
       if (cancelled) return;
-
-      if (!clientsRes.ok || !apptsRes.ok) {
+      if (!res.ok) {
         setLoading(false);
         return;
       }
 
-      const clientsJson = (await clientsRes.json()) as {
-        clients?: { created_at?: string | null }[];
-      };
-      const apptsJson = (await apptsRes.json()) as {
-        appointments?: { appointment_date?: string | null; status?: string | null }[];
+      const json = (await res.json()) as {
+        stats?: {
+          totalClients: number;
+          thisMonthClients: number;
+          lastClientDate: string | null;
+          thisMonthAppts: number;
+          nextApptDate: string | null;
+          thisMonthCompleted: number;
+        };
       };
       if (cancelled) return;
-
-      const clients = clientsJson.clients ?? [];
-      const appts = apptsJson.appointments ?? [];
-
-      const ts = (iso: string | null | undefined): number =>
-        iso ? new Date(iso).getTime() : NaN;
-      const inRange = (
-        iso: string | null | undefined,
-        start: Date,
-        end: Date,
-      ): boolean => {
-        const v = ts(iso);
-        return !Number.isNaN(v) && v >= start.getTime() && v < end.getTime();
-      };
-
-      // Danışan metrikleri
-      const totalClients = clients.length;
-      const lastClientDate =
-        clients
-          .map((c) => c.created_at)
-          .filter((d): d is string => !!d)
-          .sort((a, b) => ts(b) - ts(a))[0] ?? null;
-      const thisMonthClients = clients.filter((c) =>
-        inRange(c.created_at, startOfMonth, startOfNextMonth),
-      ).length;
-
-      // Randevu metrikleri
-      const thisMonthAppts = appts.filter((a) =>
-        inRange(a.appointment_date, startOfMonth, startOfNextMonth),
-      ).length;
-      const nextApptDate =
-        appts
-          .filter(
-            (a) => a.status !== "iptal" && ts(a.appointment_date) > now.getTime(),
-          )
-          .map((a) => a.appointment_date)
-          .filter((d): d is string => !!d)
-          .sort((a, b) => ts(a) - ts(b))[0] ?? null;
-      const thisMonthCompleted = appts.filter(
-        (a) =>
-          a.status === "tamamlandi" &&
-          inRange(a.appointment_date, startOfMonth, startOfNextMonth),
-      ).length;
+      const s = json.stats;
+      if (!s) {
+        setLoading(false);
+        return;
+      }
 
       setStats([
-        fmtCount(totalClients),          // 1 Toplam Danışan
-        fmtCount(thisMonthClients),      // 2 Bu Ay Yeni
-        isoToTR(lastClientDate),         // 3 Son Kayıt
-        fmtCount(thisMonthAppts),        // 4 Bu Ay Randevu
-        isoToTR(nextApptDate),           // 5 En Yakın Randevu
-        fmtCount(thisMonthCompleted),    // 6 Bu Ay Tamamlanan
+        fmtCount(s.totalClients),          // 1 Toplam Danışan
+        fmtCount(s.thisMonthClients),      // 2 Bu Ay Yeni
+        isoToTR(s.lastClientDate),         // 3 Son Kayıt
+        fmtCount(s.thisMonthAppts),        // 4 Bu Ay Randevu
+        isoToTR(s.nextApptDate),           // 5 En Yakın Randevu
+        fmtCount(s.thisMonthCompleted),    // 6 Bu Ay Tamamlanan
       ]);
       setLoading(false);
     }

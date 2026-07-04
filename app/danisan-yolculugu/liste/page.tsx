@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -94,6 +94,114 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+// ─── Danışan kartı (memoized — re-render fırtınasını önler) ──────────────────
+// Arama yazarken / seçim değiştikçe yalnızca prop'u değişen kart yeniden çizilir.
+const ClientCard = memo(function ClientCard({
+  client,
+  isSelected,
+  expiredCount,
+  isDemo,
+  onToggle,
+  onOpen,
+  onPrefetch,
+}: {
+  client: Client;
+  isSelected: boolean;
+  expiredCount: number;
+  isDemo: boolean;
+  onToggle: (id: string) => void;
+  onOpen: (id: string) => void;
+  onPrefetch: (id: string) => void;
+}) {
+  const hasExpiredHw = expiredCount > 0;
+  const durum = DURUM_META[calcAktifDurum(client.gorusme)];
+  const initText = clientInitials(client.ad, client.soyad);
+  const gorceleSureStr = goreleSure(client.gorusme);
+
+  return (
+    <div
+      className={`group relative cursor-pointer rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
+        isSelected ? "ring-2 ring-blue-400 ring-offset-1" : ""
+      }`}
+      style={{
+        borderColor: isSelected ? "#60a5fa" : hasExpiredHw ? "#fecaca" : "#e2e8f0",
+        background: isSelected
+          ? "linear-gradient(135deg,#eff6ff,#eef2ff)"
+          : hasExpiredHw
+            ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
+            : "white",
+      }}
+      onClick={() => onOpen(client.id)}
+      onMouseEnter={() => onPrefetch(client.id)}
+      title="Danışan detayını aç"
+    >
+      {/* Checkbox — demo'da gizli */}
+      {!isDemo && (
+        <label
+          className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-6 lg:w-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggle(client.id)}
+            className="h-5 w-5 rounded border-slate-300 accent-blue-600 lg:h-4 lg:w-4"
+          />
+        </label>
+      )}
+
+      {/* Avatar + İsim + Durum */}
+      <div className="mb-3 flex items-start gap-3 pr-7">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-[13px] font-black text-white shadow-sm">
+          {initText}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start gap-1.5">
+            <span className="truncate text-[15px] font-black leading-tight text-slate-900">
+              {client.ad} {client.soyad}
+            </span>
+            {hasExpiredHw && (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                ⚠ {expiredCount} ödev
+              </span>
+            )}
+          </div>
+          {durum.label && (
+            <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durum.cls}`}>
+              {durum.label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Veri satırları */}
+      <div className="space-y-1.5 text-[12px] text-slate-500">
+        <div className="flex items-center gap-1.5">
+          <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
+          <DemoBlur isProtected={isDemo} intensity={4} className="min-w-0 flex-1">
+            <span className="block truncate">{client.telefon || "Telefon yok"}</span>
+          </DemoBlur>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
+          <span className="truncate">
+            {client.gorusme
+              ? `${formatDateTR(client.gorusme)}${gorceleSureStr ? ` · ${gorceleSureStr}` : ""}`
+              : "Görüşme tarihi yok"}
+          </span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-3 flex justify-end">
+        <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold text-sky-700 transition-all group-hover:bg-sky-200">
+          Detay →
+        </span>
+      </div>
+    </div>
+  );
+});
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DanisanListePage() {
@@ -189,6 +297,21 @@ export default function DanisanListePage() {
     setSelectedClientIds(new Set());
   }, []);
 
+  // Kart tıklaması / hover — stabil referanslar (memoized kartların gereksiz
+  // re-render'ını önler). Hover'da detay rotasını prefetch et → tıklayınca anında.
+  const openClient = useCallback(
+    (id: string) => {
+      router.push(isDemo ? `/demo/danisan/${id}` : `/dashboard/clients/${id}`);
+    },
+    [router, isDemo],
+  );
+  const prefetchClient = useCallback(
+    (id: string) => {
+      if (!isDemo) router.prefetch(`/dashboard/clients/${id}`);
+    },
+    [router, isDemo],
+  );
+
   useEffect(() => {
     setSessionUser(readYasamUser());
     setSessionChecked(true);
@@ -224,22 +347,6 @@ export default function DanisanListePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionChecked, tenantId, isDemo]);
 
-  async function loadHomeworkAlerts() {
-    // client_homeworks uyarı özeti artık güvenli API üzerinden okunur
-    // (publishable key ile doğrudan okunmaz). tenant + "bugün" sunucuda belirlenir.
-    const userId = readYasamUser()?.id;
-    const sessionToken = readSessionToken();
-    const res = await fetch("/api/clients/homeworks-alerts", {
-      headers: {
-        "x-user-id": userId ?? "",
-        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-      },
-    });
-    if (!res.ok) { console.error("Ödev uyarıları yüklenemedi:", res.status); setHomeworkAlerts({}); return; }
-    const json = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number> };
-    setHomeworkAlerts(json.alerts ?? {});
-  }
-
   async function loadClients() {
     const user = readYasamUser();
     const activeTenantId = user?.tenant_id?.trim();
@@ -247,12 +354,16 @@ export default function DanisanListePage() {
 
     setLoading(true);
     const token = readSessionToken();
-    const res = await fetch("/api/clients", {
-      headers: {
-        "x-user-id": user.id ?? "",
-        ...(token ? { "x-session-token": token } : {}),
-      },
-    });
+    const headers = {
+      "x-user-id": user.id ?? "",
+      ...(token ? { "x-session-token": token } : {}),
+    };
+
+    // Danışan listesi ve ödev uyarıları bağımsız → paralel çek (sıralı bekleme yok).
+    const [res, alertsRes] = await Promise.all([
+      fetch("/api/clients", { headers }),
+      fetch("/api/clients/homeworks-alerts", { headers }),
+    ]);
 
     if (!res.ok) {
       showToast({ title: "İşlem başarısız", message: "Listeleme hatası", type: "error" });
@@ -262,7 +373,14 @@ export default function DanisanListePage() {
 
     const json = (await res.json()) as { clients?: Client[] };
     setClients(json.clients ?? []);
-    await loadHomeworkAlerts();
+
+    if (alertsRes.ok) {
+      const aj = (await alertsRes.json().catch(() => ({}))) as { alerts?: Record<string, number> };
+      setHomeworkAlerts(aj.alerts ?? {});
+    } else {
+      console.error("Ödev uyarıları yüklenemedi:", alertsRes.status);
+      setHomeworkAlerts({});
+    }
     setLoading(false);
   }
 
@@ -527,8 +645,22 @@ export default function DanisanListePage() {
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="text-sm font-bold text-slate-500">Yükleniyor...</p>
+            <div className="grid animate-pulse grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-busy="true">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-200" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 w-3/4 rounded bg-slate-200" />
+                      <div className="h-3 w-16 rounded bg-slate-100" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-2/3 rounded bg-slate-100" />
+                    <div className="h-3 w-1/2 rounded bg-slate-100" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredClients.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center">
@@ -549,97 +681,18 @@ export default function DanisanListePage() {
           ) : (
             <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleClients.map((client) => {
-                const expiredCount   = homeworkAlerts[client.id] || 0;
-                const hasExpiredHw   = expiredCount > 0;
-                const isSelected     = selectedClientIds.has(client.id);
-                const durum          = DURUM_META[calcAktifDurum(client.gorusme)];
-                const initText       = clientInitials(client.ad, client.soyad);
-                const gorceleSureStr = goreleSure(client.gorusme);
-
-                return (
-                  <div
-                    key={client.id}
-                    className={`group relative cursor-pointer rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
-                      isSelected ? "ring-2 ring-blue-400 ring-offset-1" : ""
-                    }`}
-                    style={{
-                      borderColor: isSelected ? "#60a5fa" : hasExpiredHw ? "#fecaca" : "#e2e8f0",
-                      background: isSelected
-                        ? "linear-gradient(135deg,#eff6ff,#eef2ff)"
-                        : hasExpiredHw
-                          ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
-                          : "white",
-                    }}
-                    onClick={() => router.push(isDemo ? `/demo/danisan/${client.id}` : `/dashboard/clients/${client.id}`)}
-                    title="Danışan detayını aç"
-                  >
-                    {/* Checkbox — demo'da gizli */}
-                    {!isDemo && (
-                      <label
-                        className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-6 lg:w-6"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleClientSelection(client.id)}
-                          className="h-5 w-5 rounded border-slate-300 accent-blue-600 lg:h-4 lg:w-4"
-                        />
-                      </label>
-                    )}
-
-                    {/* Avatar + İsim + Durum */}
-                    <div className="mb-3 flex items-start gap-3 pr-7">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-[13px] font-black text-white shadow-sm">
-                        {initText}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start gap-1.5">
-                          <span className="truncate text-[15px] font-black leading-tight text-slate-900">
-                            {client.ad} {client.soyad}
-                          </span>
-                          {hasExpiredHw && (
-                            <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
-                              ⚠ {expiredCount} ödev
-                            </span>
-                          )}
-                        </div>
-                        {durum.label && (
-                          <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durum.cls}`}>
-                            {durum.label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Veri satırları */}
-                    <div className="space-y-1.5 text-[12px] text-slate-500">
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
-                        <DemoBlur isProtected={isDemo} intensity={4} className="min-w-0 flex-1">
-                          <span className="block truncate">{client.telefon || "Telefon yok"}</span>
-                        </DemoBlur>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
-                        <span className="truncate">
-                          {client.gorusme
-                            ? `${formatDateTR(client.gorusme)}${gorceleSureStr ? ` · ${gorceleSureStr}` : ""}`
-                            : "Görüşme tarihi yok"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-3 flex justify-end">
-                      <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold text-sky-700 transition-all group-hover:bg-sky-200">
-                        Detay →
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {visibleClients.map((client) => (
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  isSelected={selectedClientIds.has(client.id)}
+                  expiredCount={homeworkAlerts[client.id] || 0}
+                  isDemo={isDemo}
+                  onToggle={toggleClientSelection}
+                  onOpen={openClient}
+                  onPrefetch={prefetchClient}
+                />
+              ))}
             </div>
             {hiddenClientCount > 0 && (
               <div className="mt-4 flex justify-center">
