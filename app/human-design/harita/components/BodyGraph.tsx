@@ -43,6 +43,7 @@ const CH_DEFINED = 3.2;    // tanımlı kanal renkli stroke
 const CH_CASING_EDGE = 5.4; // FAZ 10C-3 casing OLUK KENARI (koyu, geniş) — derinlik alt
 const CH_CASING_CORE = 4.0; // FAZ 10C-3 casing OLUK ÇEKİRDEĞİ (açık, dar) — oluk tabanı
 const CH_UNDEFINED = 2;    // tanımsız kanal
+const CH_UNDEFINED_OPACITY = 0.5; // FAZ 10C-4 tanımsız kanal opaklık (hiyerarşi: geri çekilir)
 
 // FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; casing hariç).
 // Kanalın kendi renginde yumuşak halo; neon değil. Koordinat/topoloji sabit.
@@ -182,7 +183,7 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
                 y2={seg.b.y}
                 stroke={TRACK}
                 strokeWidth={CH_UNDEFINED}
-                strokeOpacity={0.9}
+                strokeOpacity={CH_UNDEFINED_OPACITY}
               />
             );
           }
