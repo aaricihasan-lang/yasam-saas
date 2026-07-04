@@ -18,7 +18,7 @@ import {
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
 import { getPlanetSigns } from "@/lib/cosmic/planets";
-import { getUpcomingCosmicEvents, type CosmicEventType } from "@/lib/cosmic/events";
+import { getUpcomingCosmicEvents } from "@/lib/cosmic/events";
 import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody, type AspectName } from "@/lib/cosmic/aspects";
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
 import {
@@ -571,22 +571,6 @@ const BADGES = [
   "🌙 Hicri Takvim", "🌕 Ay Fazları", "🪐 Gezegen Saatleri",
 ] as const;
 
-const COSMIC_EVENT_STYLE: Record<CosmicEventType, { bg: string; border: string; text: string; badge: string }> = {
-  new_moon:    { bg: "bg-violet-50/70",  border: "border-violet-100/70",  text: "text-violet-800",  badge: "bg-violet-100 text-violet-700"  },
-  full_moon:   { bg: "bg-amber-50/70",   border: "border-amber-100/70",   text: "text-amber-800",   badge: "bg-amber-100 text-amber-700"   },
-  retro_start: { bg: "bg-rose-50/70",    border: "border-rose-100/70",    text: "text-rose-800",    badge: "bg-rose-100 text-rose-700"    },
-  retro_end:   { bg: "bg-emerald-50/70", border: "border-emerald-100/70", text: "text-emerald-800", badge: "bg-emerald-100 text-emerald-700" },
-  sign_change: { bg: "bg-sky-50/70",     border: "border-sky-100/70",     text: "text-sky-800",     badge: "bg-sky-100 text-sky-700"     },
-};
-
-const COSMIC_EVENT_TYPE_LABEL: Record<CosmicEventType, string> = {
-  new_moon:    "Yeni Ay",
-  full_moon:   "Dolunay",
-  retro_start: "Retro Başlıyor",
-  retro_end:   "Retro Bitiyor",
-  sign_change: "Burç Değişimi",
-};
-
 const PHASE_TOOLTIP: Record<string, string> = {
   "🌑": "Yeni Ay — Niyetler ve yeni başlangıçlar için en güçlü an",
   "🌓": "İlk Dördün — Zorlukları aşma ve kararlı eylem zamanı",
@@ -906,6 +890,7 @@ export default function CosmicCalendarPage() {
   const lunarSnap   = useMemo(() => getLunarDistanceSnapshot(selectedDate), [selectedDate]); // factual hero (doğrulanmış mesafe)
   const hijriDate   = useMemo(() => getHijriDate(selectedDate),          [selectedDate]);
   const miladiDate  = useMemo(() => formatMiladiDate(selectedDate),      [selectedDate]);
+  const todayMiladi = useMemo(() => formatMiladiDate(realNow),           [realNow]); // "Şu An Gökyüzünde" rozeti — gerçek bugün
   const activeRetros = useMemo(() => getActiveRetros(selectedDate),      [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
   const isAfterSupportEnd = useMemo(
@@ -1270,7 +1255,7 @@ export default function CosmicCalendarPage() {
     ];
   }, [upcomingRetrosList, upcomingMoonPhases, realNow]);
 
-  // ── Bugün Gökyüzünde — özet hesapları ────────────────────────────────────────
+  // ── Şu An Gökyüzünde — özet hesapları (realNow) ──────────────────────────────
   const todaySummary = useMemo(() => {
     const rt = upcomingRetrosList[0];
     const mp = upcomingMoonPhases[0];
@@ -1308,8 +1293,22 @@ export default function CosmicCalendarPage() {
       const dateLbl = date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
       events.push({ date, daysFromNow, icon: emoji, label: name, detail: timeTR ? `${dateLbl} ${timeTR}` : dateLbl, badgeClass: "bg-violet-100 text-violet-700" });
     }
+    // B1 (FAZ 6A): burç değişimi + retro bitişi de tek listeye. Yeni/dolunay ve retro-başlangıç
+    // zaten yukarıda (upcomingMoonPhases / upcomingRetrosList) → onları tekrar ekleme (çift sayım yok).
+    for (const e of cosmicEvents) {
+      if (e.type !== "sign_change" && e.type !== "retro_end") continue;
+      const [y, m, d] = e.date.split("-");
+      const dt = new Date(parseInt(y ?? "2026"), parseInt(m ?? "1") - 1, parseInt(d ?? "1"));
+      const days = Math.ceil((dt.getTime() - today.getTime()) / 86_400_000);
+      const dateLbl = dt.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+      events.push({
+        date: dt, daysFromNow: days, icon: e.symbol, label: e.title,
+        detail: e.time ? `${dateLbl} ${e.time}` : dateLbl,
+        badgeClass: e.type === "retro_end" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700",
+      });
+    }
     return events.sort((a, b) => a.daysFromNow - b.daysFromNow).slice(0, 12);
-  }, [upcomingRetrosList, upcomingMoonPhases, todayYear, todayMonth, todayDay]);
+  }, [upcomingRetrosList, upcomingMoonPhases, cosmicEvents, todayYear, todayMonth, todayDay]);
 
   // Arama sonucu gün verisi
   const searchDayData = useMemo(() => {
@@ -1322,14 +1321,6 @@ export default function CosmicCalendarPage() {
       sign:        getMoonSign(d),
     };
   }, [searchResult]);
-
-  const cosmicSummary = [
-    { icon: "📅",            label: "Miladi",         value: miladiDate },
-    { icon: "🌙",            label: "Hicri",          value: hijriDate },
-    { icon: displayPhase.emoji, label: "Ay Fazı",        value: displayPhase.name },
-    { icon: moonSign.emoji,  label: "Ay Burcu",       value: moonSign.name },
-    { icon: dayRuler.symbol, label: "Gün Yöneticisi", value: dayRuler.name },
-  ];
 
   const cellHeight = showHicriDays ? "h-10" : "h-8";
 
@@ -1419,11 +1410,11 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
-        {/* ── Bugün Gökyüzünde ── */}
+        {/* ── Şu An Gökyüzünde (realNow) ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-200/70 bg-gradient-to-br from-indigo-600/[0.09] via-violet-500/[0.07] to-indigo-400/[0.05] p-4 shadow-[0_6px_28px_rgba(99,102,241,0.14)] backdrop-blur-md">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-700">🌙 Bugün Gökyüzünde</p>
-            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-700">🌙 Şu An Gökyüzünde</p>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{todayMiladi}</span>
           </div>
           {/* Güneş + Ay — büyük kartlar */}
           <div className="mb-2.5 grid grid-cols-2 gap-2.5">
@@ -1491,7 +1482,7 @@ export default function CosmicCalendarPage() {
           {/* Başlık */}
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Gezegenlerin Güncel Burç Konumları</p>
-            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{miladiDate}</span>
+            <span className="rounded-full border border-indigo-200/60 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-indigo-500">{todayMiladi}</span>
           </div>
 
           {/* Gezegen grid */}
@@ -2199,22 +2190,6 @@ export default function CosmicCalendarPage() {
               </div>
             </section>
 
-            {/* Kozmik Özet */}
-            <div className="overflow-hidden rounded-[18px] border border-indigo-100/60 bg-gradient-to-br from-indigo-600/[0.07] via-violet-500/[0.05] to-cyan-400/[0.07] p-3 shadow-sm backdrop-blur-md">
-              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">
-                🌙 Kozmik Özet
-                {!isSelectedToday && <span className="normal-case text-[10px] font-semibold text-slate-400">— {miladiDate}</span>}
-              </p>
-              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-6">
-                {cosmicSummary.map(({ icon, label, value }) => (
-                  <div key={label} className="rounded-xl border border-indigo-100/60 bg-white/75 px-2 py-1.5 backdrop-blur-sm">
-                    <p className="text-[10px] font-semibold text-slate-500">{icon} {label}</p>
-                    <p className="mt-0.5 truncate text-xs font-black leading-tight text-slate-900">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Veri aralığı dışı uyarısı */}
             {isAfterSupportEnd && (
               <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
@@ -2442,6 +2417,7 @@ export default function CosmicCalendarPage() {
                   { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
                   { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
                   { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
+                  { icon: "📏",            label: "Ay Mesafesi", value: fmtKm(lunarSnap.distanceKm),             color: "text-cyan-700" },
                 ].map(({ icon, label, value, color }) => (
                   <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
                     <p className="text-[10px] text-slate-400">{icon} {label}</p>
@@ -2535,69 +2511,6 @@ export default function CosmicCalendarPage() {
           </div>
         </div>
 
-        {/* ── Yaklaşan Kozmik Olaylar ── */}
-        {cosmicEvents.length > 0 && (
-          <section className="mt-4 rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-            <p className="mb-2.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🗓 Yaklaşan Kozmik Olaylar</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-2">
-              {cosmicEvents.map((evt, i) => {
-                const [evtY, evtM, evtD] = evt.date.split("-");
-                const monthShort = (MONTH_NAMES_TR[parseInt(evtM ?? "1") - 1] ?? "").slice(0, 3);
-                const dateLabel  = `${parseInt(evtD ?? "1")} ${monthShort} ${evtY}`;
-                const st = COSMIC_EVENT_STYLE[evt.type];
-                const typeLabel = COSMIC_EVENT_TYPE_LABEL[evt.type];
-                return (
-                  <div
-                    key={`${evt.date}-${i}`}
-                    className={`flex items-start gap-2.5 rounded-xl border ${st.border} ${st.bg} px-3 py-2.5`}
-                  >
-                    {/* Sembol */}
-                    <span className="mt-0.5 shrink-0 text-[18px] leading-none">{evt.symbol}</span>
-                    {/* İçerik */}
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
-                        <p className={`text-xs font-black leading-tight ${st.text}`}>{evt.title}</p>
-                        <span className={`rounded-full px-1.5 py-px text-[10px] font-semibold ${st.badge}`}>
-                          {typeLabel}
-                        </span>
-                      </div>
-                      <p className="mb-0.5 text-[10px] font-semibold text-slate-400">
-                        {dateLabel}{evt.time ? ` · ${evt.time}` : ""}
-                      </p>
-                      <p className="line-clamp-2 text-xs leading-snug text-slate-500">{evt.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* ── Bugünün Enerjisi — kompakt, tam genişlik ── */}
-        <section className="relative mt-4 overflow-hidden rounded-[20px] border border-indigo-500/20 bg-gradient-to-br from-indigo-900 via-violet-900 to-indigo-800 p-4 shadow-[0_24px_64px_rgba(109,40,217,0.30),0_8px_24px_rgba(99,102,241,0.20)]">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" aria-hidden />
-          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" aria-hidden />
-          <div className="relative">
-            <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300/70">
-              🌙 {isSelectedToday ? "Bugün Gökyüzünde" : `${miladiDate} Gökyüzünde`}
-            </p>
-            <h2 className="text-lg font-black tracking-tight text-white">{displayPhase.emoji} {displayPhase.name}</h2>
-            <p className="mt-0.5 text-xs font-medium leading-relaxed text-indigo-100/75">Ay {moonSign.emoji} {moonSign.name} burcunda</p>
-            <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-              {[
-                { lbl: "🌙 Ay Burcu", val: `${moonSign.emoji} ${moonSign.name}` },
-                { lbl: "📏 Ay Mesafesi", val: fmtKm(lunarSnap.distanceKm) },
-                { lbl: "☿ Aktif Retro", val: activeRetros.length ? activeRetros.map(r => `${r.symbol} ${r.planet}`).join(", ") : "Yok" },
-              ].map(({ lbl, val }) => (
-                <div key={lbl} className="rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2 backdrop-blur-sm">
-                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-indigo-300/60">{lbl}</p>
-                  <p className="text-xs font-bold text-white">{val}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-[9px] leading-snug text-indigo-300/50">Yalnız doğrulanmış astronomik veri · yorum/kehanet içermez</p>
-          </div>
-        </section>
 
       </div>
     </main>
