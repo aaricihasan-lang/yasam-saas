@@ -135,7 +135,7 @@ function EnergyBodyStats({
 }) {
   const items = [
     { label: "Toplam kayıt", value: loading ? "…" : String(total) },
-    { label: "Kaynak UID", value: loading ? "…" : String(uidCount) },
+    { label: "Enerji Bedeni", value: loading ? "…" : String(uidCount) },
     { label: "Son kayıt", value: lastDate },
   ];
 
@@ -440,7 +440,7 @@ export default function EnerjiBedenleri() {
 
     const uidTrim = form.source_uid.trim();
     if (!uidTrim) {
-      showSoft("err", "Kaynak uid zorunludur (ör. eterik).");
+      showSoft("err", "Enerji bedeni / katman zorunludur (ör. eterik).");
       return;
     }
 
@@ -474,7 +474,7 @@ export default function EnerjiBedenleri() {
     }
     const uidTrim = form.source_uid.trim();
     if (!uidTrim) {
-      showSoft("err", "Kaynak uid zorunludur.");
+      showSoft("err", "Enerji bedeni / katman zorunludur.");
       return;
     }
 
@@ -895,7 +895,7 @@ export default function EnerjiBedenleri() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-              Kaynak uid
+              Enerji Bedeni / Katman
             </span>
             <input
               value={form.source_uid}
