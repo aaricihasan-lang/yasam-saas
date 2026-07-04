@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FileText, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
@@ -37,9 +38,9 @@ type SymbolForm = {
 };
 
 const tbBtn =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
 
 function trimOrNull(v: string) {
   const t = v.trim();
@@ -350,10 +351,13 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               {categoryText}
             </span>
           ) : null}
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{displayTitle}</h1>
+          <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
+            <Sparkles className="h-7 w-7 shrink-0 text-indigo-500" strokeWidth={2} aria-hidden />
+            <span className="min-w-0 break-words">{displayTitle}</span>
+          </h1>
           <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -367,11 +371,18 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           />
           {!isDemo && (
             <>
-              <div className="h-4 w-px bg-slate-200" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
-              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+                <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Düzenle
+              </button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
+                <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Sil
+              </button>
               <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
-                {wordBusy ? "..." : "Word"}
+                <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
+                {wordBusy ? "Hazırlanıyor…" : "Word"}
               </button>
             </>
           )}
@@ -387,7 +398,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           {meaningContent ? <DetailContentCard title="Anlam" text={meaningContent} typography={contentTypography} /> : null}
           {sourceContent ? <DetailContentCard title="Kaynak" text={sourceContent} typography={contentTypography} /> : null}
           {!meaningContent && !sourceContent ? (
-            <DetailContentCard title="Icerik" text="Bu kayit icin henuz anlam veya kaynak girilmemis." typography={contentTypography} />
+            <DetailContentCard title="İçerik" text="Bu kayıt için henüz anlam veya kaynak girilmemiş." typography={contentTypography} />
           ) : null}
         </div>
       </DemoGate>

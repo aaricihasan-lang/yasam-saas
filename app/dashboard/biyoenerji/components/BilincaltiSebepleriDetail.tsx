@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Brain, FileText, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
@@ -43,9 +44,9 @@ type SubconsciousCauseForm = {
 };
 
 const tbBtn =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex items-center justify-center min-h-[40px] py-1.5 lg:h-7 lg:min-h-0 lg:py-0 rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-rose-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 disabled:opacity-40";
+  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
 
 function trimOrEmpty(v: string) {
   return v.trim();
@@ -343,15 +344,16 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
               {categoryText}
             </span>
           ) : null}
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-            {record.title?.trim() || "Isimsiz kayit"}
+          <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
+            <Brain className="h-7 w-7 shrink-0 text-amber-500" strokeWidth={2} aria-hidden />
+            <span className="min-w-0 break-words">{record.title?.trim() || "İsimsiz kayıt"}</span>
           </h1>
           <p className="mt-2 text-xs text-slate-500">
             {formatDate(record.created_at)}
             {sourceUidText ? ` · ${sourceUidText}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -365,11 +367,18 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           />
           {!isDemo && (
             <>
-              <div className="h-4 w-px bg-slate-200" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>Duzenle</button>
-              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>Sil</button>
+              <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
+              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+                <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Düzenle
+              </button>
+              <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
+                <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Sil
+              </button>
               <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
-                {wordBusy ? "..." : "Word"}
+                <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
+                {wordBusy ? "Hazırlanıyor…" : "Word"}
               </button>
             </>
           )}
@@ -382,10 +391,10 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
       >
         <div>
-          {contentText ? <DetailSection title="Icerik" text={contentText} typography={contentTypography} /> : null}
+          {contentText ? <DetailSection title="İçerik" text={contentText} typography={contentTypography} /> : null}
           {noteText ? <DetailSection title="Not" text={noteText} typography={contentTypography} /> : null}
           {isDemo && !contentText && !noteText ? (
-            <DetailSection title="Icerik" text="Demo içerik alanı." typography={contentTypography} />
+            <DetailSection title="İçerik" text="Demo içerik alanı." typography={contentTypography} />
           ) : null}
         </div>
       </DemoGate>

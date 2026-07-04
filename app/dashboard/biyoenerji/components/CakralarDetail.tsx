@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ArrowUpRight, FileText, Gem, Link2, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpRight, FileText, Flower2, Gem, Link2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -493,7 +493,10 @@ export default function CakralarDetail({ id }: { id: string }) {
               {badge}
             </span>
           ) : null}
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{displayTitle}</h1>
+          <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
+            <Flower2 className="h-7 w-7 shrink-0 text-emerald-500" strokeWidth={2} aria-hidden />
+            <span className="min-w-0 break-words">{displayTitle}</span>
+          </h1>
           <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
         </div>
         <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
