@@ -1476,6 +1476,333 @@ export default function CosmicCalendarPage() {
           </div>
         </section>
 
+        {/* ── Yaklaşan Olaylar (full-width) ── */}
+        <div className="mb-4 rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
+            {mergedUpcomingEvents.length > 8 && (
+              <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
+                {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
+              </button>
+            )}
+          </div>
+          {mergedUpcomingEvents.length === 0 ? (
+            <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+              {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 8)).map((ev, i) => (
+                <button key={i} type="button" onClick={() => navigateToDate(ev.date)} className="flex w-full items-center gap-1.5 border-b border-slate-100/80 py-1.5 text-left transition hover:opacity-75">
+                  <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{ev.label}</span>
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
+                  <span className="shrink-0 w-8 text-right text-[10px] text-slate-400 tabular-nums">
+                    {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Ana 2-Kolon Grid ── */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_310px] lg:items-start">
+
+          {/* ── Sol Kolon ── */}
+          <div className="flex flex-col gap-3">
+
+            {/* Kompakt Takvim */}
+            <div className="rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
+              <div className="mb-1.5 flex items-center gap-2">
+                <button onClick={prevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Önceki ay">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <div className="flex flex-1 items-center justify-between">
+                  <h2 className="text-sm font-black text-slate-800">{MONTH_NAMES_TR[viewMonth]} {viewYear}</h2>
+                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">🌙 {hijriMonthYear}</span>
+                </div>
+                <button onClick={nextMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Sonraki ay">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-300" />
+                  <input ref={dateInputRef} type="text" placeholder="GG.AA.YYYY veya 15 Ağustos 2026" value={dateInput} onChange={e => setDateInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDateJump()} className="w-full rounded-lg border border-slate-200 bg-white/80 py-0.5 pl-6 pr-2 text-[10px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none" />
+                </div>
+                <button onClick={handleDateJump} disabled={!dateInput.trim()} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-40">Git</button>
+              </div>
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {([
+                  { label: "Ay Fazları", emoji: "🌕", active: showMoonPhases,   toggle: () => setShowMoonPhases(v => !v) },
+                  { label: "Hicri",      emoji: "🌙", active: showHicriDays,    toggle: () => setShowHicriDays(v => !v) },
+                  { label: "Önemli",     emoji: "⭐", active: showOnemliGunler, toggle: () => setShowOnemliGunler(v => !v) },
+                ] as const).map(({ label, emoji, active, toggle }) => (
+                  <button key={label} onClick={toggle} className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors ${active ? "border border-indigo-200 bg-indigo-100 text-indigo-700" : "border border-slate-200 bg-slate-100 text-slate-400"}`}>
+                    {emoji} {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-1.5 mb-1.5">
+                {LEGEND_ITEMS.map(({ icon, label }) => (
+                  <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">{icon} {label}</span>
+                ))}
+              </div>
+              <div className="mb-0.5 grid grid-cols-7 gap-0.5">
+                {DAY_HEADERS.map(h => <div key={h} className="py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{h}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {cells.map((day, i) => {
+                  if (day === null) return <div key={`e-${i}`} className={`${cellHeight} rounded-lg`} />;
+                  const isToday    = day === todayDay && viewMonth === todayMonth && viewYear === todayYear;
+                  const isSelected = !isToday && day === selectedDate.getDate() && viewMonth === selectedDate.getMonth() && viewYear === selectedDate.getFullYear();
+                  const moonMarker = showMoonPhases ? moonMarkers.get(day) : undefined;
+                  const hasMoonBg  = showOnemliGunler && !!moonMarkers.get(day);
+                  const retroList  = retroMarkers.get(day);
+                  const hijriNum   = hijriDayNumbers.get(day);
+                  const showSub    = showHicriDays && hijriNum;
+                  return (
+                    <button key={day} onClick={() => selectDay(day)}
+                      className={`group/day relative flex ${cellHeight} flex-col items-center justify-start gap-0 rounded-lg p-0.5 transition-colors ${
+                        isToday    ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40" :
+                        isSelected ? "ring-2 ring-inset ring-indigo-400 bg-indigo-50" :
+                        hasMoonBg  ? "border border-violet-200/80 bg-violet-100/70 hover:bg-violet-200/70" :
+                        (retroList && retroList.length > 0) ? "border border-rose-100/80 bg-rose-50/60 hover:bg-rose-100/60" :
+                                     "bg-white/30 hover:bg-white/60"
+                      }`}
+                    >
+                      <span className={`text-[11px] font-black leading-tight ${isToday ? "text-white" : "text-slate-700"}`}>{day}</span>
+                      {isToday && <span className="text-[6px] leading-none text-white/80">bugün</span>}
+                      {!isToday && moonMarker && (
+                        <>
+                          <span className="text-[9px] leading-none">{moonMarker}</span>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-[9px] font-semibold leading-tight text-white shadow-xl group-hover/day:block">
+                            {PHASE_TOOLTIP[moonMarker] ?? "Ay fazı geçişi"}
+                            <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                          </span>
+                        </>
+                      )}
+                      {showSub && (
+                        <div className="mt-auto flex items-center gap-0.5">
+                          {showHicriDays && hijriNum && <span className={`text-[5px] font-bold leading-none ${isToday ? "text-white/60" : "text-slate-300"}`}>H{hijriNum}</span>}
+                        </div>
+                      )}
+                      {retroList && retroList.length > 0 && (
+                        <div className="group/retro absolute bottom-0.5 right-0.5 flex gap-px">
+                          {retroList.map(r => (
+                            <span key={r.planet} className={`text-[6px] leading-none ${isToday ? "text-white/70" : "text-rose-400"}`}>{r.symbol}</span>
+                          ))}
+                          <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-1 hidden whitespace-nowrap rounded-lg bg-rose-800 px-2 py-1 text-[9px] text-white shadow-xl group-hover/retro:block">
+                            {retroList.map(r => r.planet).join(", ")} Retrosu Başlangıcı
+                            <span className="absolute right-2 top-full border-4 border-transparent border-t-rose-800" />
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Kozmik Arama */}
+            <div className="rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-2 shadow-md backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1">
+                  <Search className="h-3 w-3 text-indigo-500" />
+                  <p className="whitespace-nowrap text-xs font-black uppercase tracking-[0.15em] text-indigo-600">Kozmik Arama</p>
+                </div>
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    placeholder="Dolunay, Retro veya tarih ara..."
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setSearchResult(null); }}
+                    onKeyDown={e => e.key === "Enter" && handleSearch()}
+                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-8 text-[12px] font-medium text-slate-700 placeholder:text-slate-400 shadow-inner focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300/30"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(""); setSearchResult(null); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                <button onClick={handleSearch} disabled={!searchQuery.trim()} className="shrink-0 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-[12px] font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-40">
+                  Ara
+                </button>
+              </div>
+              {searchResult && (
+                <div className="mt-2">
+                  {searchResult.kind === "error" && (
+                    <p className="rounded-xl border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-[10px] text-rose-600">⚠ {searchResult.message}</p>
+                  )}
+                  {searchResult.kind === "phase" && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl leading-none">{searchResult.emoji}</span>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.1em] text-violet-700">Sonraki {searchResult.name}</p>
+                          <p className="text-[13px] font-black text-slate-900">{formatShortDate(searchResult.date)}</p>
+                          <p className="text-[10px] text-slate-500">{searchResult.daysFromNow === 1 ? "Yarın" : `${searchResult.daysFromNow} gün sonra`}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => navigateToDate(searchResult.date)} className="shrink-0 rounded-xl border border-indigo-200 bg-white/80 px-2.5 py-1.5 text-[9px] font-bold text-indigo-700 transition hover:bg-indigo-50">Takvimde Göster →</button>
+                    </div>
+                  )}
+                  {searchResult.kind === "day" && searchDayData && (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[12px] font-black text-slate-900">{searchDayData.miladi}</p>
+                        <button onClick={() => navigateToDate(searchResult.date)} className="shrink-0 rounded-xl border border-indigo-200 bg-white/80 px-2.5 py-1 text-[9px] font-bold text-indigo-700 transition hover:bg-indigo-50">Takvimde Göster →</button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-5">
+                        {[
+                          { icon: "🕋", label: "Hicri", val: searchDayData.hicri },
+                          { icon: searchDayData.phase.emoji, label: "Ay Fazı", val: searchDayData.phase.name },
+                          { icon: searchDayData.sign.emoji, label: "Ay Burcu", val: searchDayData.sign.name },
+                        ].map(({ icon, label, val }) => (
+                          <div key={label} className="rounded-xl border border-white/80 bg-white/70 px-2 py-1.5">
+                            <p className="text-[8px] font-semibold text-slate-400">{icon} {label}</p>
+                            <p className="mt-0.5 truncate text-[10px] font-black text-slate-800">{val}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {searchResult.kind === "retro" && (
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50/60 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl leading-none">{searchResult.period.symbol}</span>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-rose-700">{searchResult.daysUntilStart < 0 ? "Aktif Dönem" : "Yaklaşan Retro"}</p>
+                            <p className="text-[13px] font-black text-slate-900">{searchResult.period.planet} Retrosu</p>
+                            <p className="text-[10px] text-slate-500">{formatShortDate(parseRetroDate(searchResult.period.start))} – {formatShortDate(parseRetroDate(searchResult.period.end))}</p>
+                            <p className="text-[9px] text-rose-500">{searchResult.daysUntilStart < 0 ? "Şu an aktif" : `${searchResult.daysUntilStart} gün sonra başlıyor`}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => navigateToDate(parseRetroDate(searchResult.period.start))} className="shrink-0 rounded-xl border border-rose-200 bg-white/80 px-2.5 py-1.5 text-[9px] font-bold text-rose-700 transition hover:bg-rose-50">Takvimde Göster →</button>
+                      </div>
+                      <p className="mt-1.5 text-[9px] text-slate-400">{searchResult.period.theme}</p>
+                    </div>
+                  )}
+                  {searchResult.kind === "retroList" && (
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50/60 px-3 py-2.5">
+                      <p className="mb-2 text-[10px] font-black text-rose-700">{searchResult.label}</p>
+                      {searchResult.periods.length === 0 ? (
+                        <p className="text-[10px] text-slate-500">Aktif retro bulunmuyor.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {searchResult.periods.map(r => (
+                            <button key={`${r.planet}-${r.start}`} onClick={() => navigateToDate(parseRetroDate(r.start))} className="flex w-full items-center gap-2 rounded-xl bg-white/60 px-2 py-1.5 text-left transition hover:bg-white/80">
+                              <span className="text-base leading-none">{r.symbol}</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-black text-slate-800">{r.planet} Retrosu</p>
+                                <p className="text-[9px] text-slate-400">{formatShortDate(parseRetroDate(r.start))} – {formatShortDate(parseRetroDate(r.end))}</p>
+                              </div>
+                              <span className="text-[9px] text-rose-500">→</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Seçili Gün Detayı */}
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
+              <div className="mb-2 flex items-center gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs text-white shadow-sm">📅</div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-700">Seçili Gün</p>
+                  {isSelectedToday && <span className="text-[10px] font-semibold text-emerald-600">● Bugün</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
+                {[
+                  { icon: "📅",            label: "Miladi",     value: miladiDate,                               color: "text-slate-800" },
+                  { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
+                  { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
+                  { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
+                  { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
+                  { icon: "📏",            label: "Ay Mesafesi", value: fmtKm(lunarSnap.distanceKm),             color: "text-cyan-700" },
+                ].map(({ icon, label, value, color }) => (
+                  <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
+                    <p className="text-[10px] text-slate-400">{icon} {label}</p>
+                    <p className={`truncate text-xs font-black leading-snug ${color}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
+
+              <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
+                <p className="text-[10px] text-slate-400">🪐 Retro Durumu</p>
+                {activeRetros.length === 0 ? (
+                  <p className="text-xs font-black text-emerald-600">Aktif Retro Yok</p>
+                ) : (
+                  <div className="mt-0.5 space-y-0.5">
+                    {activeRetros.map(r => {
+                      const endDate = parseRetroDate(r.end);
+                      const kalan   = Math.max(0, Math.ceil((endDate.getTime() - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime()) / 86_400_000));
+                      return (
+                        <div key={r.planet} className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
+                          <span className="shrink-0 text-[10px] text-slate-500">{kalan}g kaldı</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Veri aralığı dışı uyarısı */}
+            {isAfterSupportEnd && (
+              <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
+                <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
+                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050). Gezegen konumları ve diğer veriler yaklaşık olabilir.
+                </p>
+              </div>
+            )}
+
+          </div>
+
+          {/* ── Sağ Kolon ── */}
+          <div className="flex flex-col gap-3">
+
+            {/* Gezegen Saati mini */}
+            {isSelectedToday && (
+              <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{ph.aktifGezegen.symbol}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
+                    <p className="text-xs text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[10px] text-slate-400">Sonraki</p>
+                    <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] text-indigo-400/70">📍 {eclipseCity} konumuna göre hesaplanmaktadır</p>
+                {ph.isFallback && (
+                  <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+                    Bu enlemde bugün gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
+                  </p>
+                )}
+                <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                  Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
+                </p>
+              </div>
+            )}
+
+          </div>
+        </div>
+
         {/* ── Gezegenlerin Güncel Burç Konumları ── */}
         <section className="mb-4 overflow-hidden rounded-[18px] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-violet-50/70 to-cyan-50/80 p-4 shadow-sm backdrop-blur-md">
 
@@ -2160,357 +2487,29 @@ export default function CosmicCalendarPage() {
           {lunarDetail && <LunarDetail item={lunarDetail} onClose={() => setLunarDetail(null)} />}
         </section>
 
-        {/* ── Ana 2-Kolon Grid ── */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_310px] lg:items-start">
-
-          {/* ── Sol Kolon ── */}
-          <div className="flex flex-col gap-3">
-
-            {/* Kozmik Merkezler */}
-            <section>
-              <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
-              <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
-                {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
-                  <Link
-                    key={title}
-                    href={href}
-                    className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xl leading-none">{emoji}</span>
-                      <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
-                    </div>
-                    <div>
-                      <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
-                      <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
-                      <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            {/* Veri aralığı dışı uyarısı */}
-            {isAfterSupportEnd && (
-              <div className="rounded-[14px] border border-amber-200/80 bg-amber-50/80 px-3 py-2.5" role="alert">
-                <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
-                <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
-                  Bu tarih henüz doğrulanmış veri aralığında değildir (destek: 20.06.2026 – 31.12.2050). Gezegen konumları ve diğer veriler yaklaşık olabilir.
-                </p>
-              </div>
-            )}
-
-            {/* Kozmik Arama */}
-            <div className="rounded-[18px] border border-slate-200/80 bg-white/85 px-3 py-2 shadow-md backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <div className="flex shrink-0 items-center gap-1">
-                  <Search className="h-3 w-3 text-indigo-500" />
-                  <p className="whitespace-nowrap text-xs font-black uppercase tracking-[0.15em] text-indigo-600">Kozmik Arama</p>
+        {/* ── Kozmik Merkezler (kapanış, en alt — yardımcı bağlantılar) ── */}
+        <section className="mt-6 border-t border-slate-200/70 pt-4">
+          <p className="mb-1.5 text-xs font-black uppercase tracking-[0.15em] text-indigo-600">🪐 Kozmik Merkezler</p>
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+            {cosmicCenterCards.map(({ emoji, title, href, color, titleColor, summaryColor, s1, s2 }) => (
+              <Link
+                key={title}
+                href={href}
+                className={`group flex h-24 flex-none w-[175px] flex-col justify-between rounded-2xl border bg-gradient-to-br p-2.5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md snap-start sm:w-auto ${color}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xl leading-none">{emoji}</span>
+                  <span className={`text-[10px] font-bold transition-transform group-hover:translate-x-0.5 ${titleColor}`}>→</span>
                 </div>
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    ref={searchRef}
-                    type="text"
-                    placeholder="Dolunay, Retro veya tarih ara..."
-                    value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setSearchResult(null); }}
-                    onKeyDown={e => e.key === "Enter" && handleSearch()}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-8 text-[12px] font-medium text-slate-700 placeholder:text-slate-400 shadow-inner focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300/30"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(""); setSearchResult(null); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                <div>
+                  <p className={`text-sm font-black leading-tight ${titleColor}`}>{title}</p>
+                  <p className={`mt-0.5 truncate text-xs font-semibold leading-tight ${summaryColor}`}>{s1}</p>
+                  <p className={`truncate text-[10px] leading-tight opacity-80 ${summaryColor}`}>{s2}</p>
                 </div>
-                <button onClick={handleSearch} disabled={!searchQuery.trim()} className="shrink-0 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-[12px] font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:opacity-40">
-                  Ara
-                </button>
-              </div>
-              {searchResult && (
-                <div className="mt-2">
-                  {searchResult.kind === "error" && (
-                    <p className="rounded-xl border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-[10px] text-rose-600">⚠ {searchResult.message}</p>
-                  )}
-                  {searchResult.kind === "phase" && (
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-2xl leading-none">{searchResult.emoji}</span>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.1em] text-violet-700">Sonraki {searchResult.name}</p>
-                          <p className="text-[13px] font-black text-slate-900">{formatShortDate(searchResult.date)}</p>
-                          <p className="text-[10px] text-slate-500">{searchResult.daysFromNow === 1 ? "Yarın" : `${searchResult.daysFromNow} gün sonra`}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => navigateToDate(searchResult.date)} className="shrink-0 rounded-xl border border-indigo-200 bg-white/80 px-2.5 py-1.5 text-[9px] font-bold text-indigo-700 transition hover:bg-indigo-50">Takvimde Göster →</button>
-                    </div>
-                  )}
-                  {searchResult.kind === "day" && searchDayData && (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-[12px] font-black text-slate-900">{searchDayData.miladi}</p>
-                        <button onClick={() => navigateToDate(searchResult.date)} className="shrink-0 rounded-xl border border-indigo-200 bg-white/80 px-2.5 py-1 text-[9px] font-bold text-indigo-700 transition hover:bg-indigo-50">Takvimde Göster →</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-5">
-                        {[
-                          { icon: "🕋", label: "Hicri", val: searchDayData.hicri },
-                          { icon: searchDayData.phase.emoji, label: "Ay Fazı", val: searchDayData.phase.name },
-                          { icon: searchDayData.sign.emoji, label: "Ay Burcu", val: searchDayData.sign.name },
-                        ].map(({ icon, label, val }) => (
-                          <div key={label} className="rounded-xl border border-white/80 bg-white/70 px-2 py-1.5">
-                            <p className="text-[8px] font-semibold text-slate-400">{icon} {label}</p>
-                            <p className="mt-0.5 truncate text-[10px] font-black text-slate-800">{val}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {searchResult.kind === "retro" && (
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50/60 px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-2xl leading-none">{searchResult.period.symbol}</span>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-rose-700">{searchResult.daysUntilStart < 0 ? "Aktif Dönem" : "Yaklaşan Retro"}</p>
-                            <p className="text-[13px] font-black text-slate-900">{searchResult.period.planet} Retrosu</p>
-                            <p className="text-[10px] text-slate-500">{formatShortDate(parseRetroDate(searchResult.period.start))} – {formatShortDate(parseRetroDate(searchResult.period.end))}</p>
-                            <p className="text-[9px] text-rose-500">{searchResult.daysUntilStart < 0 ? "Şu an aktif" : `${searchResult.daysUntilStart} gün sonra başlıyor`}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => navigateToDate(parseRetroDate(searchResult.period.start))} className="shrink-0 rounded-xl border border-rose-200 bg-white/80 px-2.5 py-1.5 text-[9px] font-bold text-rose-700 transition hover:bg-rose-50">Takvimde Göster →</button>
-                      </div>
-                      <p className="mt-1.5 text-[9px] text-slate-400">{searchResult.period.theme}</p>
-                    </div>
-                  )}
-                  {searchResult.kind === "retroList" && (
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50/60 px-3 py-2.5">
-                      <p className="mb-2 text-[10px] font-black text-rose-700">{searchResult.label}</p>
-                      {searchResult.periods.length === 0 ? (
-                        <p className="text-[10px] text-slate-500">Aktif retro bulunmuyor.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {searchResult.periods.map(r => (
-                            <button key={`${r.planet}-${r.start}`} onClick={() => navigateToDate(parseRetroDate(r.start))} className="flex w-full items-center gap-2 rounded-xl bg-white/60 px-2 py-1.5 text-left transition hover:bg-white/80">
-                              <span className="text-base leading-none">{r.symbol}</span>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-black text-slate-800">{r.planet} Retrosu</p>
-                                <p className="text-[9px] text-slate-400">{formatShortDate(parseRetroDate(r.start))} – {formatShortDate(parseRetroDate(r.end))}</p>
-                              </div>
-                              <span className="text-[9px] text-rose-500">→</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Kompakt Takvim */}
-            <div className="rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-white/85 via-white/75 to-indigo-50/50 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-1.5 flex items-center gap-2">
-                <button onClick={prevMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Önceki ay">
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                <div className="flex flex-1 items-center justify-between">
-                  <h2 className="text-sm font-black text-slate-800">{MONTH_NAMES_TR[viewMonth]} {viewYear}</h2>
-                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-200/80">🌙 {hijriMonthYear}</span>
-                </div>
-                <button onClick={nextMonth} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700" aria-label="Sonraki ay">
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="mb-1.5 flex items-center gap-1.5">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-300" />
-                  <input ref={dateInputRef} type="text" placeholder="GG.AA.YYYY veya 15 Ağustos 2026" value={dateInput} onChange={e => setDateInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDateJump()} className="w-full rounded-lg border border-slate-200 bg-white/80 py-0.5 pl-6 pr-2 text-[10px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none" />
-                </div>
-                <button onClick={handleDateJump} disabled={!dateInput.trim()} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-40">Git</button>
-              </div>
-              <div className="mb-1.5 flex flex-wrap gap-1">
-                {([
-                  { label: "Ay Fazları", emoji: "🌕", active: showMoonPhases,   toggle: () => setShowMoonPhases(v => !v) },
-                  { label: "Hicri",      emoji: "🌙", active: showHicriDays,    toggle: () => setShowHicriDays(v => !v) },
-                  { label: "Önemli",     emoji: "⭐", active: showOnemliGunler, toggle: () => setShowOnemliGunler(v => !v) },
-                ] as const).map(({ label, emoji, active, toggle }) => (
-                  <button key={label} onClick={toggle} className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors ${active ? "border border-indigo-200 bg-indigo-100 text-indigo-700" : "border border-slate-200 bg-slate-100 text-slate-400"}`}>
-                    {emoji} {label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-slate-100/80 pb-1.5 mb-1.5">
-                {LEGEND_ITEMS.map(({ icon, label }) => (
-                  <span key={label} className="flex items-center gap-0.5 text-[10px] text-slate-400">{icon} {label}</span>
-                ))}
-              </div>
-              <div className="mb-0.5 grid grid-cols-7 gap-0.5">
-                {DAY_HEADERS.map(h => <div key={h} className="py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{h}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-0.5">
-                {cells.map((day, i) => {
-                  if (day === null) return <div key={`e-${i}`} className={`${cellHeight} rounded-lg`} />;
-                  const isToday    = day === todayDay && viewMonth === todayMonth && viewYear === todayYear;
-                  const isSelected = !isToday && day === selectedDate.getDate() && viewMonth === selectedDate.getMonth() && viewYear === selectedDate.getFullYear();
-                  const moonMarker = showMoonPhases ? moonMarkers.get(day) : undefined;
-                  const hasMoonBg  = showOnemliGunler && !!moonMarkers.get(day);
-                  const retroList  = retroMarkers.get(day);
-                  const hijriNum   = hijriDayNumbers.get(day);
-                  const showSub    = showHicriDays && hijriNum;
-                  return (
-                    <button key={day} onClick={() => selectDay(day)}
-                      className={`group/day relative flex ${cellHeight} flex-col items-center justify-start gap-0 rounded-lg p-0.5 transition-colors ${
-                        isToday    ? "bg-gradient-to-b from-violet-500 to-indigo-600 shadow-md shadow-indigo-300/40" :
-                        isSelected ? "ring-2 ring-inset ring-indigo-400 bg-indigo-50" :
-                        hasMoonBg  ? "border border-violet-200/80 bg-violet-100/70 hover:bg-violet-200/70" :
-                        (retroList && retroList.length > 0) ? "border border-rose-100/80 bg-rose-50/60 hover:bg-rose-100/60" :
-                                     "bg-white/30 hover:bg-white/60"
-                      }`}
-                    >
-                      <span className={`text-[11px] font-black leading-tight ${isToday ? "text-white" : "text-slate-700"}`}>{day}</span>
-                      {isToday && <span className="text-[6px] leading-none text-white/80">bugün</span>}
-                      {!isToday && moonMarker && (
-                        <>
-                          <span className="text-[9px] leading-none">{moonMarker}</span>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-[9px] font-semibold leading-tight text-white shadow-xl group-hover/day:block">
-                            {PHASE_TOOLTIP[moonMarker] ?? "Ay fazı geçişi"}
-                            <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-                          </span>
-                        </>
-                      )}
-                      {showSub && (
-                        <div className="mt-auto flex items-center gap-0.5">
-                          {showHicriDays && hijriNum && <span className={`text-[5px] font-bold leading-none ${isToday ? "text-white/60" : "text-slate-300"}`}>H{hijriNum}</span>}
-                        </div>
-                      )}
-                      {retroList && retroList.length > 0 && (
-                        <div className="group/retro absolute bottom-0.5 right-0.5 flex gap-px">
-                          {retroList.map(r => (
-                            <span key={r.planet} className={`text-[6px] leading-none ${isToday ? "text-white/70" : "text-rose-400"}`}>{r.symbol}</span>
-                          ))}
-                          <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-1 hidden whitespace-nowrap rounded-lg bg-rose-800 px-2 py-1 text-[9px] text-white shadow-xl group-hover/retro:block">
-                            {retroList.map(r => r.planet).join(", ")} Retrosu Başlangıcı
-                            <span className="absolute right-2 top-full border-4 border-transparent border-t-rose-800" />
-                          </span>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Seçili Gün Detayı */}
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md">
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs text-white shadow-sm">📅</div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-700">Seçili Gün</p>
-                  {isSelectedToday && <span className="text-[10px] font-semibold text-emerald-600">● Bugün</span>}
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
-                {[
-                  { icon: "📅",            label: "Miladi",     value: miladiDate,                               color: "text-slate-800" },
-                  { icon: "🕋",            label: "Hicri",      value: hijriDate,                                color: "text-slate-700" },
-                  { icon: displayPhase.emoji, label: "Ay Fazı",    value: displayPhase.name,                        color: "text-violet-700" },
-                  { icon: moonSign.emoji,  label: "Ay Burcu",   value: moonSign.name,                            color: "text-indigo-700" },
-                  { icon: dayRuler.symbol, label: "Gezegen",    value: dayRuler.name,                            color: "text-indigo-600" },
-                  { icon: "📏",            label: "Ay Mesafesi", value: fmtKm(lunarSnap.distanceKm),             color: "text-cyan-700" },
-                ].map(({ icon, label, value, color }) => (
-                  <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-1.5">
-                    <p className="text-[10px] text-slate-400">{icon} {label}</p>
-                    <p className={`truncate text-xs font-black leading-snug ${color}`}>{value}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-1 text-[10px] text-slate-400">🕋 Hicri tarihler Ümmü'l-Kurâ sistemine göredir · Hilal gözlemi esaslı takvimlerde ±1 gün fark olabilir</p>
-
-              <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
-                <p className="text-[10px] text-slate-400">🪐 Retro Durumu</p>
-                {activeRetros.length === 0 ? (
-                  <p className="text-xs font-black text-emerald-600">Aktif Retro Yok</p>
-                ) : (
-                  <div className="mt-0.5 space-y-0.5">
-                    {activeRetros.map(r => {
-                      const endDate = parseRetroDate(r.end);
-                      const kalan   = Math.max(0, Math.ceil((endDate.getTime() - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime()) / 86_400_000));
-                      return (
-                        <div key={r.planet} className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-rose-700">{r.symbol} {r.planet} Retrosu</p>
-                          <span className="shrink-0 text-[10px] text-slate-500">{kalan}g kaldı</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
+              </Link>
+            ))}
           </div>
-
-          {/* ── Sağ Kolon ── */}
-          <div className="flex flex-col gap-3">
-
-            {/* Yaklaşan Olaylar — max 8 */}
-            <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
-                {mergedUpcomingEvents.length > 8 && (
-                  <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
-                    {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
-                  </button>
-                )}
-              </div>
-              {mergedUpcomingEvents.length === 0 ? (
-                <p className="text-[10px] text-slate-400">Yaklaşan olay yok.</p>
-              ) : (
-                <div className="divide-y divide-slate-100/80">
-                  {(showAllEvents ? mergedUpcomingEvents : mergedUpcomingEvents.slice(0, 8)).map((ev, i) => (
-                    <button key={i} type="button" onClick={() => navigateToDate(ev.date)} className="flex w-full items-center gap-1.5 py-1.5 text-left transition hover:opacity-75 first:pt-0 last:pb-0">
-                      <span className="shrink-0 w-4 text-center text-sm leading-none">{ev.icon}</span>
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{ev.label}</span>
-                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${ev.badgeClass}`}>{ev.detail}</span>
-                      <span className="shrink-0 w-8 text-right text-[10px] text-slate-400 tabular-nums">
-                        {ev.daysFromNow === 0 ? "Bugün" : ev.daysFromNow === 1 ? "Yarın" : `${ev.daysFromNow}g`}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Gezegen Saati mini */}
-            {isSelectedToday && (
-              <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-indigo-50 px-3 py-2.5 shadow-sm backdrop-blur-md">
-                <p className="mb-2 text-xs font-black uppercase tracking-[0.15em] text-indigo-700">⏰ Gezegen Saati</p>
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow-md">{ph.aktifGezegen.symbol}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-slate-900">{ph.aktifGezegen.name} Saati</p>
-                    <p className="text-xs text-slate-500">{ph.isDayHour ? "Gündüz" : "Gece"} · {ph.kalanDakika} dk kaldı</p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] text-slate-400">Sonraki</p>
-                    <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
-                  </div>
-                </div>
-                <p className="mt-2 text-[10px] text-indigo-400/70">📍 {eclipseCity} konumuna göre hesaplanmaktadır</p>
-                {ph.isFallback && (
-                  <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
-                    Bu enlemde bugün gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
-                  </p>
-                )}
-                <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                  Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
-                </p>
-              </div>
-            )}
-
-          </div>
-        </div>
-
+        </section>
 
       </div>
     </main>
