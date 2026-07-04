@@ -95,7 +95,7 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
       </header>
 
       {/* 3 sütun — mobilde sahne önce (order-1) */}
-      <div className="relative grid grid-cols-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
+      <div className="relative grid grid-cols-1 gap-4 xl:grid-cols-[220px_minmax(0,1fr)_240px]">
 
         {/* SOL — bilgi paneli */}
         <div className="order-2 space-y-4 xl:order-none">
@@ -170,13 +170,13 @@ export function HdResultDashboard({ result, birth, saveState, onSave }: Props) {
                 Design | Personality iki kolon; xl'de [Design] [BodyGraph] [Personality].
                 BodyGraph SVG'ye dokunulmaz (yalnız wrapper'a class verilir). */}
             <div className="flex w-full flex-wrap items-start justify-center gap-4 xl:flex-nowrap">
-              <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[104px] xl:shrink-0">
+              <div className="order-2 w-[calc(50%-0.5rem)] xl:order-1 xl:w-[96px] xl:shrink-0">
                 <PlanetColumns result={result} side="design" />
               </div>
-              <div className="order-1 flex w-full justify-center xl:order-2 xl:w-auto xl:max-w-[540px] 2xl:max-w-[600px] xl:flex-1">
+              <div className="order-1 flex w-full justify-center xl:order-2 xl:w-auto xl:max-w-[560px] 2xl:max-w-[620px] xl:flex-1">
                 <BodyGraph result={result} />
               </div>
-              <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[104px] xl:shrink-0">
+              <div className="order-3 w-[calc(50%-0.5rem)] xl:order-3 xl:w-[96px] xl:shrink-0">
                 <PlanetColumns result={result} side="personality" />
               </div>
             </div>
