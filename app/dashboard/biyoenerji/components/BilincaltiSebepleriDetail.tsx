@@ -436,7 +436,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak uid</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak Anahtarı</span>
             <input
               value={form.source_uid}
               onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}

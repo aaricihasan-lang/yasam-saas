@@ -642,11 +642,11 @@ export default function BilincaltiSebepleri() {
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak uid</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak Anahtarı</span>
             <input
               value={form.source_uid}
               onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
-              placeholder="JSON uid ile eşleşir (isteğe bağlı)"
+              placeholder="Boş bırakılırsa başlıktan otomatik oluşturulur (isteğe bağlı)"
               className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
             />
           </label>
