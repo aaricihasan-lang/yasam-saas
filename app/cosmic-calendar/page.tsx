@@ -1252,6 +1252,14 @@ export default function CosmicCalendarPage() {
         s1: mp ? `${mp.emoji} ${mp.name}` : "—",
         s2: mp ? (mp.daysFromNow === 1 ? "Yarın" : `${mp.daysFromNow} gün sonra`) : "",
       },
+      {
+        // FAZ 6C: FAZ 4'te kaldırılan Hacamat navigasyon linki geri eklendi (route zaten mevcut).
+        emoji: "🩸", title: "Hacamat Takvimi", href: "/cosmic-calendar/hacamat",
+        color: "from-emerald-50/80 to-teal-50/60 border-emerald-100/70 hover:border-emerald-200",
+        titleColor: "text-emerald-700", summaryColor: "text-emerald-600",
+        s1: "Ay fazları ve destekleyici",
+        s2: "dönem bilgileri",
+      },
     ];
   }, [upcomingRetrosList, upcomingMoonPhases, realNow]);
 
