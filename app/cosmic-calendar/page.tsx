@@ -27,7 +27,7 @@ import {
 } from "@/lib/cosmic/eclipses";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
-import { searchLocations, type Location } from "@/lib/location";
+import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref } from "@/lib/location/userLocationPref";
 import { formatInTimeZone, formatDateTimeInTimeZone } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
@@ -371,6 +371,20 @@ const tzLabel = (tz: string): string => (tz === TR_TZ ? "TR" : tz);
 // Aynı-isim ayrımı için alt satır etiketi (Paris/FR "Île-de-France · France" ↔ Paris/TX "Texas · United States").
 const locSubLabel = (loc: Location): string =>
   loc.adminRegion && loc.adminRegion !== loc.name ? `${loc.adminRegion} · ${loc.country}` : loc.country;
+
+// P5f-3: TR (authoritative) sonuçları ÖNCE, global/pilot sonuçlar SONRA; id ile dedup; limit korunur.
+// Aynı-isim ayrımı id/tz/adminRegion/country ile korunur (Paris FR ↔ Paris US ayrı id).
+function mergeCityResults(tr: ReadonlyArray<Location>, global: ReadonlyArray<Location>, limit: number): Location[] {
+  const out: Location[] = [];
+  const seen = new Set<string>();
+  for (const l of [...tr, ...global]) {
+    if (seen.has(l.id)) continue;
+    seen.add(l.id);
+    out.push(l);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
 
 /** Seçili şehir için kısa görünürlük rozeti (genelleme yok). */
 function cityVisBadge(vis: EclipseCityVis[], city: string): { text: string; visible: boolean } {
@@ -852,6 +866,9 @@ export default function CosmicCalendarPage() {
   const [eclipseCityQuery, setEclipseCityQuery] = useState("Ankara"); // typeahead arama metni
   const [eclipseCityOpen,  setEclipseCityOpen]  = useState(false);    // typeahead açık mı
   const [eclipseCityActive, setEclipseCityActive] = useState(-1);     // klavye ile vurgulanan sonuç (aria-activedescendant)
+  const [eclipseCityResults,   setEclipseCityResults]   = useState<Location[]>([]); // TR + global birleşik (async)
+  const [eclipseCitySearching, setEclipseCitySearching] = useState(false);          // global API bekleniyor
+  const [eclipseCityFallback,  setEclipseCityFallback]  = useState(false);          // global kısım pilot WORLD fallback'ten
   const [eclipseFilters,   setEclipseFilters]   = useState<EclipseFilterState>(DEFAULT_ECLIPSE_FILTERS);
   const [eclipseDetail,    setEclipseDetail]    = useState<EclipseRow | null>(null);
   const [vocExpert,        setVocExpert]        = useState(false);   // VOC uzman modu
@@ -978,23 +995,105 @@ export default function CosmicCalendarPage() {
     return [...upcoming.map(e => enrich(e, "upcoming")), ...past.map(e => enrich(e, "past"))];
   }, [realNow]);
 
-  // Seçili konum (TR 81 il + pilot global) — id ile çözümlenir (aynı-isim ayrımı). Yalnız bu
-  // konumun görünürlüğü hesaplanır. Ad ve tz sunum için türetilir; Ankara güvenli fallback.
-  const selEclipseLoc = useMemo(() => ECLIPSE_LOCATIONS.find(l => l.id === eclipseLocId), [eclipseLocId]);
+  // Konum cache'i (id → Location). ECLIPSE_LOCATIONS ile tohumlanır; global API'den gelen gn-*
+  // sonuçları ve kayıtlı pref buraya yazılır → seçim client dataset'te olmasa da çözülür.
+  const locCacheRef = useRef<Map<string, Location> | null>(null);
+  const locCache = (locCacheRef.current ??= new Map(ECLIPSE_LOCATIONS.map((l): [string, Location] => [l.id, l])));
+
+  // Seçili konum — kimlik id-tabanlı; nesne önce cache'ten (global gn-* dahil), yoksa statik dataset'ten.
+  // Ad ve tz sunum için türetilir; Ankara yalnız gerçekten çözülemezse fallback.
+  const selEclipseLoc = useMemo(
+    () => locCache.get(eclipseLocId) ?? ECLIPSE_LOCATIONS.find(l => l.id === eclipseLocId),
+    [eclipseLocId, locCache],
+  );
   const eclipseCity = selEclipseLoc?.name ?? "Ankara";
   const eclipseTz = selEclipseLoc?.tz ?? TR_TZ;
 
-  // Typeahead sonuçları — TR + global birleşik dataset üzerinde Türkçe/diakritik-toleranslı arama
-  // (yalnız listeler; hesap yapmaz).
-  const eclipseCityResults = useMemo(
-    () => searchLocations(eclipseCityQuery, { dataset: ECLIPSE_LOCATIONS, limit: 10 }),
-    [eclipseCityQuery],
-  );
-  // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → boş-durum).
+  // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → durum satırı).
   const eclipseCityHasQuery = eclipseCityQuery.trim() !== "";
   const eclipseCityShowPopup = eclipseCityOpen && (eclipseCityResults.length > 0 || eclipseCityHasQuery);
   const eclipseActiveId = eclipseCityActive >= 0 && eclipseCityActive < eclipseCityResults.length
     ? `eclipse-opt-${eclipseCityResults[eclipseCityActive].id}` : undefined;
+
+  // Seçim uygula — loc'u cache'e yazar (global gn-* dahil → çözülebilir), yalnız local state; DB'ye YAZMAZ.
+  const selectEclipseLoc = (loc: Location) => {
+    locCache.set(loc.id, loc);
+    setEclipseLocId(loc.id);
+    setEclipseCityQuery(loc.name);
+    setEclipseCityOpen(false);
+    setEclipseCityActive(-1);
+  };
+
+  // Async arama: TR daima client-side (TR_LOCATIONS, authoritative, anında); global ≥2 karakterde
+  // debounce ile /api/location/search'ten; API hatasında pilot WORLD fallback. Race guard:
+  // AbortController + artan requestId. Query cache (client-memory) tekrar sorguyu API'ye götürmez.
+  const searchReqIdRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const globalQueryCacheRef = useRef<Map<string, Location[]>>(new Map());
+  const apiCooldownUntilRef = useRef(0);
+  useEffect(() => {
+    if (!eclipseCityOpen) return;                       // yalnız açıkken ara → mount'ta API çağrısı yok
+    const raw = eclipseCityQuery;
+    const trimmed = raw.trim();
+    const trMatches = trimmed.length >= 1 ? searchLocations(raw, { dataset: TR_LOCATIONS, limit: 10 }) : [];
+
+    // <2 karakter: global API YOK; yalnız TR (P5d davranışı korunur).
+    if (trimmed.length < 2) {
+      setEclipseCitySearching(false);
+      setEclipseCityFallback(false);
+      setEclipseCityResults(mergeCityResults(trMatches, [], 10));
+      return;
+    }
+
+    const norm = normalizeLocationQuery(raw);
+    const cached = globalQueryCacheRef.current.get(norm);
+    if (cached) {                                       // query cache → API'ye gitme
+      setEclipseCitySearching(false);
+      setEclipseCityFallback(false);
+      setEclipseCityResults(mergeCityResults(trMatches, cached, 10));
+      return;
+    }
+    if (Date.now() < apiCooldownUntilRef.current) {     // API kısa süre hata verdi → pilot fallback (agresif retry yok)
+      const world = searchLocations(raw, { dataset: WORLD_LOCATIONS, limit: 10 });
+      setEclipseCitySearching(false);
+      setEclipseCityFallback(true);
+      setEclipseCityResults(mergeCityResults(trMatches, world, 10));
+      return;
+    }
+
+    setEclipseCityResults(mergeCityResults(trMatches, [], 10)); // TR'yi anında göster
+    setEclipseCitySearching(true);
+    setEclipseCityFallback(false);
+    const myReqId = ++searchReqIdRef.current;
+    const timer = setTimeout(() => {
+      const ac = new AbortController();
+      searchAbortRef.current = ac;
+      fetch(`/api/location/search?q=${encodeURIComponent(raw)}&limit=10`, { signal: ac.signal })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`http ${res.status}`);
+          const json = await res.json();
+          if (!json || json.ok !== true || !Array.isArray(json.results)) throw new Error("shape");
+          if (myReqId !== searchReqIdRef.current) return;      // stale response → ignore
+          const global = json.results as Location[];
+          globalQueryCacheRef.current.set(norm, global);
+          for (const g of global) locCache.set(g.id, g);
+          apiCooldownUntilRef.current = 0;
+          setEclipseCitySearching(false);
+          setEclipseCityFallback(false);
+          setEclipseCityResults(mergeCityResults(trMatches, global, 10));
+        })
+        .catch(() => {
+          if (ac.signal.aborted) return;                       // abort hata sayılmaz
+          if (myReqId !== searchReqIdRef.current) return;
+          apiCooldownUntilRef.current = Date.now() + 15000;    // kısa cooldown
+          const world = searchLocations(raw, { dataset: WORLD_LOCATIONS, limit: 10 });
+          setEclipseCitySearching(false);
+          setEclipseCityFallback(true);
+          setEclipseCityResults(mergeCityResults(trMatches, world, 10));
+        });
+    }, 250);
+    return () => { clearTimeout(timer); searchAbortRef.current?.abort(); };
+  }, [eclipseCityQuery, eclipseCityOpen, locCache]);
 
   // Açılışta kullanıcının kayıtlı varsayılan konumunu yansıt. İlk render Ankara kalır
   // (hydration mismatch yok); fetch yalnız client'ta mount sonrası. Kayıt global konumsa ve
@@ -1005,15 +1104,27 @@ export default function CosmicCalendarPage() {
     void (async () => {
       const pref = await getUserLocationPref();
       if (!alive || !pref) return;
-      const loc = ECLIPSE_LOCATIONS.find(l => l.id === pref.location_id)
-        ?? ECLIPSE_LOCATIONS.find(l => l.name === pref.name);
-      if (loc) {
-        setEclipseLocId(loc.id);
-        setEclipseCityQuery(loc.name);
+      // Önce cache/statik dataset; yoksa pref alanlarından DOĞRUDAN Location kur (dataset lookup'a
+      // bağımlı değil → pilotta olmayan global kayıtlı konum da yansır, Ankara'ya DÜŞMEZ).
+      let loc = locCache.get(pref.location_id) ?? ECLIPSE_LOCATIONS.find(l => l.name === pref.name);
+      if (!loc) {
+        if (!pref.tz || !Number.isFinite(pref.lat) || !Number.isFinite(pref.lon)) return; // geçersiz pref → Ankara'da kal
+        const src: Location["source"] =
+          pref.source === "geonames" || pref.source === "manual" || pref.source === "geolocation" || pref.source === "nominatim"
+            ? pref.source : "manual"; // yanlış "geonames"/"bundled" yazma → doğru kaynak/köken
+        loc = {
+          id: pref.location_id, name: pref.name,
+          country: "", countryCode: (pref.country_code ?? "").toUpperCase(), adminRegion: "",
+          lat: pref.lat, lon: pref.lon, elev: Number.isFinite(pref.elev) ? pref.elev : 0,
+          tz: pref.tz, source: src, verified: true, origin: "user-added",
+        };
       }
+      locCache.set(loc.id, loc);
+      setEclipseLocId(loc.id);
+      setEclipseCityQuery(loc.name);
     })();
     return () => { alive = false; };
-  }, []);
+  }, [locCache]);
 
   // Uzman filtreleri — yalnız mevcut listeyi süzer; görünürlük YALNIZ seçili il için hesaplanır
   const eclipseFiltered = useMemo<EclipseRow[]>(() => {
@@ -1745,8 +1856,7 @@ export default function CosmicCalendarPage() {
                         } else if (ev.key === "Enter") {
                           if (eclipseCityOpen && eclipseCityActive >= 0 && eclipseCityActive < eclipseCityResults.length) {
                             ev.preventDefault();
-                            const loc = eclipseCityResults[eclipseCityActive];
-                            setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); setEclipseCityActive(-1);
+                            selectEclipseLoc(eclipseCityResults[eclipseCityActive]);
                           }
                         } else if (ev.key === "Escape") {
                           setEclipseCityOpen(false); setEclipseCityActive(-1);
@@ -1758,38 +1868,46 @@ export default function CosmicCalendarPage() {
                       className="w-44 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 focus:border-amber-300 focus:outline-none"
                     />
                     {eclipseCityShowPopup && (
-                      eclipseCityResults.length > 0 ? (
-                        <ul id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları"
-                          className="absolute left-0 top-full z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                          {eclipseCityResults.map((loc, idx) => {
-                            const active = idx === eclipseCityActive;
-                            const current = loc.id === eclipseLocId;
-                            return (
-                              <li
-                                key={loc.id}
-                                id={`eclipse-opt-${loc.id}`}
-                                role="option"
-                                aria-selected={active}
-                                onMouseDown={ev => ev.preventDefault()}
-                                onMouseEnter={() => setEclipseCityActive(idx)}
-                                onClick={() => { setEclipseLocId(loc.id); setEclipseCityQuery(loc.name); setEclipseCityOpen(false); setEclipseCityActive(-1); }}
-                                className={`flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] ${active ? "bg-amber-100 text-amber-800" : current ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
-                              >
-                                <span className="min-w-0 flex-1 truncate">{loc.name}</span>
-                                <span className="max-w-[112px] shrink-0 truncate text-[9px] text-slate-400">{locSubLabel(loc)}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <div id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları"
-                          className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-400 shadow-lg">
-                          Eşleşen şehir yok
-                        </div>
-                      )
+                      <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white shadow-lg">
+                        {eclipseCityResults.length > 0 ? (
+                          <ul id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları" className="max-h-56 overflow-y-auto py-1">
+                            {eclipseCityResults.map((loc, idx) => {
+                              const active = idx === eclipseCityActive;
+                              const current = loc.id === eclipseLocId;
+                              return (
+                                <li
+                                  key={loc.id}
+                                  id={`eclipse-opt-${loc.id}`}
+                                  role="option"
+                                  aria-selected={active}
+                                  onMouseDown={ev => ev.preventDefault()}
+                                  onMouseEnter={() => setEclipseCityActive(idx)}
+                                  onClick={() => selectEclipseLoc(loc)}
+                                  className={`flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1 text-left text-[11px] ${active ? "bg-amber-100 text-amber-800" : current ? "bg-amber-50 font-bold text-amber-700" : "text-slate-700 hover:bg-amber-50"}`}
+                                >
+                                  <span className="min-w-0 flex-1 truncate">{loc.name}</span>
+                                  <span className="max-w-[112px] shrink-0 truncate text-[9px] text-slate-400">{locSubLabel(loc)}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          // Sonuç yok: aria-safe listbox (option DEĞİL) — klavye buraya gitmez.
+                          <div id="eclipse-city-listbox" role="listbox" aria-label="Şehir sonuçları" className="px-2.5 py-1.5 text-[11px] text-slate-400">
+                            {eclipseCitySearching ? "Global aranıyor…" : "Eşleşen şehir yok"}
+                          </div>
+                        )}
+                        {/* Durum satırları: seçilebilir option DEĞİL; aktif index'e girmez. */}
+                        {eclipseCityResults.length > 0 && eclipseCitySearching && (
+                          <div role="status" aria-live="polite" className="border-t border-slate-100 px-2.5 py-1 text-[9px] text-slate-400">Global aranıyor…</div>
+                        )}
+                        {eclipseCityResults.length > 0 && !eclipseCitySearching && eclipseCityFallback && (
+                          <div role="note" className="border-t border-slate-100 px-2.5 py-1 text-[9px] text-amber-600">Global arama sınırlı listeden gösteriliyor.</div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span>{selEclipseLoc ? <span className="text-slate-400"> — {locSubLabel(selEclipseLoc)}</span> : null} <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
+                  <span className="text-[10px] text-slate-400">Seçili: <span className="font-semibold text-slate-600">{eclipseCity}</span>{selEclipseLoc && locSubLabel(selEclipseLoc) ? <span className="text-slate-400"> — {locSubLabel(selEclipseLoc)}</span> : null} <span className="text-slate-400">({eclipseTz})</span> · görünürlük seçili ile göredir, “Türkiye geneli” iddiası değildir.</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {([["all", "Tümü"], ["solar", "Güneş"], ["lunar", "Ay"]] as const).map(([k, l]) => (
