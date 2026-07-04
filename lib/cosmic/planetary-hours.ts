@@ -52,9 +52,9 @@ function toJulianDay(y: number, m: number, d: number): number {
 
 type SunTimes = { sunrise: Date; sunset: Date };
 
-function calcSunTimes(date: Date, lat: number, lon: number): SunTimes | null {
-  // Türkiye yerel tarih
-  const localMs   = date.getTime() + TZ_OFFSET_MIN * 60_000;
+function calcSunTimes(date: Date, lat: number, lon: number, tzOffsetMinutes: number = TZ_OFFSET_MIN): SunTimes | null {
+  // Yerel takvim günü — seçili tz offset'i (default UTC+3 = TR birebir). NOAA geometrisi lon tabanlı.
+  const localMs   = date.getTime() + tzOffsetMinutes * 60_000;
   const localDate = new Date(localMs);
   const y = localDate.getUTCFullYear();
   const m = localDate.getUTCMonth() + 1;
@@ -127,8 +127,8 @@ function calcSunTimes(date: Date, lat: number, lon: number): SunTimes | null {
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
 
-function fmtUtcPlus3(date: Date): string {
-  const localMs = date.getTime() + TZ_OFFSET_MIN * 60_000;
+function fmtLocalHM(date: Date, tzOffsetMinutes: number = TZ_OFFSET_MIN): string {
+  const localMs = date.getTime() + tzOffsetMinutes * 60_000;
   const d = new Date(localMs);
   return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
@@ -148,15 +148,18 @@ export type PlanetaryHourResult = {
   isDayHour:         boolean;
   hourStart:         Date;
   hourEnd:           Date;
-  gunDogumuStr:      string; // e.g. "05:31"
-  gunBatimiStr:      string; // e.g. "20:37"
+  gunDogumuStr:      string; // e.g. "05:31" (seçili tz'de)
+  gunBatimiStr:      string; // e.g. "20:37" (seçili tz'de)
+  sunrise?:          Date;    // additif — mutlak an (seçili tz'de formatlanabilir)
+  sunset?:           Date;    // additif — mutlak an
+  isFallback?:       boolean; // additif — kutup/ekstrem yaklaşık hesap
 };
 
 // ─── Gün yöneticisi (haftanın gününe göre ilk gezegen saati) ─────────────────
 
 /** Seçili günün yönetici gezegenini döndürür (gün doğumu ilk saati baz alınır) */
-export function getDayRuler(date: Date): Planet {
-  const localMs   = date.getTime() + TZ_OFFSET_MIN * 60_000;
+export function getDayRuler(date: Date, tzOffsetMinutes: number = TZ_OFFSET_MIN): Planet {
+  const localMs   = date.getTime() + tzOffsetMinutes * 60_000;
   const localDate = new Date(localMs);
   const weekday   = localDate.getUTCDay();
   const idx       = DAY_START_IDX[weekday] ?? 3;
@@ -169,8 +172,9 @@ export function getPlanetaryHour(
   date: Date,
   lat: number = DEFAULT_LAT,
   lon: number = DEFAULT_LON,
+  tzOffsetMinutes: number = TZ_OFFSET_MIN,
 ): PlanetaryHourResult {
-  const sunTimes = calcSunTimes(date, lat, lon);
+  const sunTimes = calcSunTimes(date, lat, lon, tzOffsetMinutes);
 
   if (!sunTimes) {
     return fallbackPlanetaryHour(date);
@@ -197,7 +201,7 @@ export function getPlanetaryHour(
   } else if (now >= setMs) {
     // ── Gece saati — gün batımından yarının gün doğumuna (12-23) ─────────
     const nextDate     = new Date(date.getTime() + 86_400_000);
-    const nextSunTimes = calcSunTimes(nextDate, lat, lon);
+    const nextSunTimes = calcSunTimes(nextDate, lat, lon, tzOffsetMinutes);
     const nextRiseMs   = nextSunTimes?.sunrise.getTime() ?? (setMs + 12 * 3_600_000);
     const nightDuration     = nextRiseMs - setMs;
     const nightHourDuration = nightDuration / 12;
@@ -209,7 +213,7 @@ export function getPlanetaryHour(
   } else {
     // ── Gece saati — gece yarısından gün doğumuna (12-23) ────────────────
     const prevDate     = new Date(date.getTime() - 86_400_000);
-    const prevSunTimes = calcSunTimes(prevDate, lat, lon);
+    const prevSunTimes = calcSunTimes(prevDate, lat, lon, tzOffsetMinutes);
     const nightStart   = prevSunTimes?.sunset.getTime() ?? (riseMs - 12 * 3_600_000);
     const nightDuration     = riseMs - nightStart;
     const nightHourDuration = nightDuration / 12;
@@ -220,8 +224,8 @@ export function getPlanetaryHour(
     hourEnd   = new Date(nightStart + (hourNum + 1) * nightHourDuration);
   }
 
-  // Türkiye yerel haftanın günü
-  const localMs   = date.getTime() + TZ_OFFSET_MIN * 60_000;
+  // Seçili konumun yerel haftanın günü (default UTC+3 = TR birebir)
+  const localMs   = date.getTime() + tzOffsetMinutes * 60_000;
   const localDate = new Date(localMs);
   const weekday   = localDate.getUTCDay(); // 0=Pazar...6=Cumartesi
 
@@ -241,8 +245,11 @@ export function getPlanetaryHour(
     isDayHour:  saatIndex < 12,
     hourStart,
     hourEnd,
-    gunDogumuStr: fmtUtcPlus3(sunrise),
-    gunBatimiStr: fmtUtcPlus3(sunset),
+    gunDogumuStr: fmtLocalHM(sunrise, tzOffsetMinutes),
+    gunBatimiStr: fmtLocalHM(sunset, tzOffsetMinutes),
+    sunrise,
+    sunset,
+    isFallback: false,
   };
 }
 
@@ -267,5 +274,6 @@ function fallbackPlanetaryHour(date: Date): PlanetaryHourResult {
     hourEnd,
     gunDogumuStr: "06:00",
     gunBatimiStr: "20:00",
+    isFallback: true,
   };
 }

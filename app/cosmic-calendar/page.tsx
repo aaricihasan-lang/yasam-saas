@@ -29,7 +29,7 @@ import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref } from "@/lib/location/userLocationPref";
-import { formatInTimeZone, formatDateTimeInTimeZone } from "@/lib/location/tz";
+import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -906,10 +906,8 @@ export default function CosmicCalendarPage() {
   const lunarSnap   = useMemo(() => getLunarDistanceSnapshot(selectedDate), [selectedDate]); // factual hero (doğrulanmış mesafe)
   const hijriDate   = useMemo(() => getHijriDate(selectedDate),          [selectedDate]);
   const miladiDate  = useMemo(() => formatMiladiDate(selectedDate),      [selectedDate]);
-  const dayRuler    = useMemo(() => getDayRuler(selectedDate),           [selectedDate]);
   const activeRetros = useMemo(() => getActiveRetros(selectedDate),      [selectedDate]);
   const isSelectedToday = useMemo(() => isSameDay(selectedDate, realNow), [selectedDate, realNow]);
-  const ph          = useMemo(() => getPlanetaryHour(realNow),           [realNow]);
   const isAfterSupportEnd = useMemo(
     () => selectedDate.getFullYear() > SUPPORT_END_YEAR,
     [selectedDate],
@@ -1008,6 +1006,17 @@ export default function CosmicCalendarPage() {
   );
   const eclipseCity = selEclipseLoc?.name ?? "Ankara";
   const eclipseTz = selEclipseLoc?.tz ?? TR_TZ;
+
+  // P5g — Gezegen Saati / Gün Yöneticisi SEÇİLİ KONUMA göre: koordinat + IANA tz'nin DST-doğru
+  // offset'i (getTimeZoneOffsetMinutes, lib/location/tz.ts salt kullanım). Motor default UTC+3 →
+  // İstanbul/TR birebir korunur; global şehirde yerel gün doğumu/batımı + haftanın günü doğru olur.
+  const eclipseOffsetNow = useMemo(() => getTimeZoneOffsetMinutes(realNow, eclipseTz), [realNow, eclipseTz]);
+  const eclipseOffsetSel = useMemo(() => getTimeZoneOffsetMinutes(selectedDate, eclipseTz), [selectedDate, eclipseTz]);
+  const dayRuler = useMemo(() => getDayRuler(selectedDate, eclipseOffsetSel), [selectedDate, eclipseOffsetSel]);
+  const ph = useMemo(
+    () => getPlanetaryHour(realNow, selEclipseLoc?.lat, selEclipseLoc?.lon, eclipseOffsetNow),
+    [realNow, selEclipseLoc, eclipseOffsetNow],
+  );
 
   // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → durum satırı).
   const eclipseCityHasQuery = eclipseCityQuery.trim() !== "";
@@ -2511,7 +2520,12 @@ export default function CosmicCalendarPage() {
                     <p className="text-xs font-black text-slate-700">{ph.sonrakiGezegen.symbol} {ph.sonrakiGezegen.name}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-[10px] text-indigo-400/70">📍 İstanbul koordinatlarına göre hesaplanmaktadır</p>
+                <p className="mt-2 text-[10px] text-indigo-400/70">📍 {eclipseCity} konumuna göre hesaplanmaktadır</p>
+                {ph.isFallback && (
+                  <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+                    Bu enlemde bugün gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
+                  </p>
+                )}
                 <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                   Gündoğumu/günbatımı astronomik hesaptır; gezegen saati ataması geleneksel sistemdir.
                 </p>
