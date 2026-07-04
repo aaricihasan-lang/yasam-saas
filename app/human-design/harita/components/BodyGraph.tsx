@@ -38,8 +38,10 @@ const BLACK = "#111827";
 
 // FAZ 7B — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji sabit).
 const TRACK = "#e5e7eb";   // tanımsız kanal + tanımlı kanal casing (groove) tonu
+const TRACK_EDGE = "#cbd5e1"; // FAZ 10C-3 casing oluk KENARI (TRACK'ten koyu) — derinlik
 const CH_DEFINED = 3.2;    // tanımlı kanal renkli stroke
-const CH_CASING = 5.4;     // tanımlı kanalın altındaki açık casing (arka plandan ayırır)
+const CH_CASING_EDGE = 5.4; // FAZ 10C-3 casing OLUK KENARI (koyu, geniş) — derinlik alt
+const CH_CASING_CORE = 4.0; // FAZ 10C-3 casing OLUK ÇEKİRDEĞİ (açık, dar) — oluk tabanı
 const CH_UNDEFINED = 2;    // tanımsız kanal
 
 // FAZ 10C-1 — ölçülü premium glow (yalnız tanımlı kanal renkli yarımları; casing hariç).
@@ -189,8 +191,9 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
           const colB = gateColor(seg.gateB, gateMap);
           return (
             <g key={seg.id}>
-              {/* Açık casing (groove): renkli kanalı arka plandan/merkezlerden ayırır — glow ALMAZ */}
-              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING} />
+              {/* FAZ 10C-3 — iki-katmanlı casing: koyu geniş KENAR + açık dar ÇEKİRDEK = oluk derinliği. glow ALMAZ */}
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK_EDGE} strokeWidth={CH_CASING_EDGE} />
+              <line x1={seg.a.x} y1={seg.a.y} x2={seg.b.x} y2={seg.b.y} stroke={TRACK} strokeWidth={CH_CASING_CORE} />
               {/* FAZ 10C-1 — yalnız renkli yarımlar ölçülü glow alır */}
               <g filter="url(#hd-channel-glow)">
                 <ChannelHalf from={seg.a} to={mid} color={colA} />
