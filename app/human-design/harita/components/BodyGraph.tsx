@@ -36,6 +36,10 @@ const CENTER_FILL: Record<CenterName, string> = {
 const RED = "#dc2626";
 const BLACK = "#111827";
 
+// FAZ 10F-1 — pasif gate numarası (yalnız text; merkez durumuna göre kontrast). circle/bg YOK.
+const GATE_PASSIVE_LIGHT = "#cbd5e1"; // tanımlı (renkli) merkez → açık numara
+const GATE_PASSIVE_DARK = "#64748b";  // tanımsız (beyaz) merkez → koyu numara
+
 // FAZ 7B — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji sabit).
 const TRACK = "#e5e7eb";   // tanımsız kanal + tanımlı kanal casing (groove) tonu
 const TRACK_EDGE = "#cbd5e1"; // FAZ 10C-3 casing oluk KENARI (TRACK'ten koyu) — derinlik
@@ -225,6 +229,31 @@ export function BodyGraph({ result }: { result: HdChartResult }) {
               strokeOpacity={on ? 0.9 : 1}
               filter={on ? "url(#hd-center-shadow)" : undefined}
             />
+          );
+        })}
+      </g>
+
+      {/* FAZ 10F-1 — pasif gate numaraları: TÜM 64'ten aktif olmayanlar; yalnız text (circle/bg YOK).
+          Renk merkez durumuna göre: tanımlı→açık, tanımsız→koyu. Aktifler alttaki katmanda. */}
+      <g fontFamily="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+        {Object.values(GATE_ANCHORS).map((a) => {
+          if (gateMap[a.gate]) return null; // aktif → aktif katmanda çizilir
+          const light = definedCenterSet.has(a.center);
+          return (
+            <text
+              key={a.gate}
+              x={a.x}
+              y={a.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={5.2}
+              fontWeight={600}
+              letterSpacing={-0.2}
+              fill={light ? GATE_PASSIVE_LIGHT : GATE_PASSIVE_DARK}
+              fillOpacity={0.85}
+            >
+              {a.gate}
+            </text>
           );
         })}
       </g>
